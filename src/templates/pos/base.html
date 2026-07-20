@@ -534,10 +534,16 @@
                 // Logout from Keycloak to end SSO session.
                 // Same origin rule as login: local-only host for dev, current origin for public hosts.
                 const _h = window.location.hostname;
-                // Canonical KC host for the logout leg too (KC_HOSTNAME_URL), same as login.
-                const keycloakUrl = (_h === 'helix.local' || _h === 'localhost' || _h === '127.0.0.1')
-                    ? 'https://keycloak.helix.local'
-                    : 'https://lapiazza.app';
+                // Starter/single-host override: POS_KC_PUBLIC_URL, injected server-side, same as
+                // login's kcConfig(). When set the browser hits THAT Keycloak origin for logout too;
+                // without it a local `docker compose` stand-up would send logout to the dead
+                // keycloak.helix.local host and hang. Empty in prod → the canonical host rule below.
+                const _override = '{{ pos_kc_public_url }}';
+                const keycloakUrl = _override
+                    ? _override
+                    : (_h === 'helix.local' || _h === 'localhost' || _h === '127.0.0.1')
+                        ? 'https://keycloak.helix.local'
+                        : 'https://lapiazza.app';
                 const realm = '{{ pos_realm }}';   // env-driven (settings.POS_REALM) — per-env realm split
                 const redirectUri = encodeURIComponent(window.location.origin + '/pos');
 
