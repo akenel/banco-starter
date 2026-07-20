@@ -1,0 +1,129 @@
+{% extends "pos/base.html" %}
+
+{% block title %}Catalog Health - Banco POS{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50" x-data="catalogHealth()" x-init="load()">
+  <div class="max-w-4xl mx-auto px-4 py-8">
+
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-6 flex-wrap gap-2">
+      <div class="flex items-center gap-3">
+        <button @click="window.location.href='/pos'" class="btn-secondary flex-none" title="Dashboard" aria-label="Dashboard">🏠</button>
+        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900" data-i18n="catalog_health.title">📊 Catalog Health</h1>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <a href="/pos/cleanup" class="btn-secondary" data-i18n="catalog_health.bench">🛠️ Bench</a>
+        <a href="/pos/catalog" class="btn-secondary" data-i18n="catalog_health.catalog">📦 Catalog</a>
+      </div>
+    </div>
+
+    <!-- The catalog IS the master data — one line that says why this screen exists. -->
+    <p class="text-sm text-gray-500 mb-6" data-i18n="catalog_health.subtitle">
+      Your catalog is your master data — the thing you own. Here's how complete it is, and one tap fixes each gap.
+    </p>
+
+    <!-- Error / not-manager -->
+    <div x-show="error" x-transition style="display:none" class="bg-yellow-50 border-2 border-yellow-400 rounded-lg p-4 text-sm text-yellow-800">
+      <span x-text="error"></span>
+    </div>
+
+    <template x-if="!error && data">
+      <div>
+        <!-- Completeness hero -->
+        <div class="bg-white rounded-2xl shadow p-6 mb-6">
+          <div class="flex items-end justify-between mb-3 flex-wrap gap-2">
+            <div>
+              <p class="text-sm text-gray-500 font-medium" data-i18n="catalog_health.your_catalog">Your catalog</p>
+              <p class="text-4xl font-black text-gray-900"><span x-text="data.pct_complete"></span>%
+                <span class="text-lg font-semibold text-gray-400" data-i18n="catalog_health.complete">complete</span></p>
+            </div>
+            <p class="text-sm text-gray-600">
+              <span class="font-bold text-emerald-600" x-text="data.complete"></span>
+              <span data-i18n="catalog_health.of">of</span>
+              <span class="font-bold" x-text="data.total"></span>
+              <span data-i18n="catalog_health.products_done">products fully set up</span>
+            </p>
+          </div>
+          <!-- Bar -->
+          <div class="w-full h-4 bg-gray-100 rounded-full overflow-hidden">
+            <div class="h-full rounded-full transition-all duration-500"
+                 :class="data.pct_complete >= 90 ? 'bg-emerald-500' : (data.pct_complete >= 60 ? 'bg-amber-400' : 'bg-rose-400')"
+                 :style="`width:${data.pct_complete}%`"></div>
+          </div>
+          <p x-show="data.on_bench > 0" class="text-xs text-gray-500 mt-3">
+            <span class="font-semibold text-gray-700" x-text="data.on_bench"></span>
+            <span data-i18n="catalog_health.need_work">products still need work — tap a gap below to fix them a shelf at a time.</span>
+          </p>
+          <p x-show="data.on_bench === 0 && data.total > 0" class="text-sm text-emerald-600 font-semibold mt-3" data-i18n="catalog_health.all_done">
+            🎉 Every product is fully set up. Your master data is complete.
+          </p>
+          <p x-show="data.total === 0" class="text-sm text-gray-500 mt-3" data-i18n="catalog_health.empty">
+            No products yet — add your first ones from the Catalog or by scanning.
+          </p>
+        </div>
+
+        <!-- Gap cards — each a tap into the bench filtered to that gap -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <template x-for="g in gapCards" :key="g.kind">
+            <a :href="g.count > 0 ? `/pos/cleanup?mode=bench&gap=${g.kind}` : '#'"
+               class="block bg-white rounded-xl shadow p-5 transition"
+               :class="g.count > 0 ? 'hover:shadow-lg cursor-pointer' : 'opacity-60 cursor-default'"
+               @click="g.count === 0 && $event.preventDefault()">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <span class="text-2xl flex-none" x-text="g.emoji"></span>
+                  <div>
+                    <p class="font-bold text-gray-900" x-text="g.label"></p>
+                    <p class="text-xs text-gray-500" x-text="g.desc"></p>
+                  </div>
+                </div>
+                <div class="text-right flex-none">
+                  <p class="text-2xl font-black" :class="g.count > 0 ? 'text-rose-500' : 'text-emerald-500'" x-text="g.count"></p>
+                  <p x-show="g.count > 0" class="text-xs text-indigo-600 font-semibold" data-i18n="catalog_health.fix">Fix these →</p>
+                  <p x-show="g.count === 0" class="text-xs text-emerald-500">✓</p>
+                </div>
+              </div>
+            </a>
+          </template>
+        </div>
+
+        <!-- Barcode note — a separate master-data signal from the 4-gap bar -->
+        <div x-show="data.no_barcode > 0" style="display:none" class="mt-4 bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800">
+          🔖 <span class="font-bold" x-text="data.no_barcode"></span>
+          <span data-i18n="catalog_health.barcode_note">products have no real barcode (a scan-sheet code or none) — a shopper's EAN scan won't find them until a real barcode is added.</span>
+        </div>
+      </div>
+    </template>
+
+    <div x-show="!data && !error" class="text-center text-gray-400 py-12" data-i18n="catalog_health.loading">Loading…</div>
+  </div>
+</div>
+
+<script>
+function catalogHealth() {
+  return {
+    data: null,
+    error: '',
+    gapCards: [],
+    async load() {
+      try {
+        const d = await API.get('/api/v1/pos/catalog/health');
+        this.data = d;
+        this.gapCards = [
+          { kind: 'photo',       emoji: '📷', label: t('catalog_health.g_photo'),       desc: t('catalog_health.g_photo_desc'),       count: (d.gaps && d.gaps.photo)       || 0 },
+          { kind: 'cost',        emoji: '💰', label: t('catalog_health.g_cost'),        desc: t('catalog_health.g_cost_desc'),        count: (d.gaps && d.gaps.cost)        || 0 },
+          { kind: 'category',    emoji: '🏷️', label: t('catalog_health.g_category'),    desc: t('catalog_health.g_category_desc'),    count: (d.gaps && d.gaps.category)    || 0 },
+          { kind: 'description', emoji: '📝', label: t('catalog_health.g_description'), desc: t('catalog_health.g_description_desc'), count: (d.gaps && d.gaps.description) || 0 },
+        ];
+      } catch (e) {
+        const msg = (e && e.message) ? String(e.message) : '';
+        this.error = msg.includes('403')
+          ? t('catalog_health.manager_only')
+          : t('catalog_health.load_fail');
+      }
+    },
+  };
+}
+</script>
+{% endblock %}

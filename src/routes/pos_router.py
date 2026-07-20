@@ -5069,6 +5069,46 @@ def _bench_gap_expr(kind):
     return _bench_gap_clause()   # None / 'all' / anything else → any of the four
 
 
+@router.get("/catalog/health")
+async def catalog_health(
+    db: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(require_manager_or_admin()),
+):
+    """📊 Catalog Health — the shop's MASTER-DATA completeness at a glance (manager/admin).
+
+    The catalog IS the shop's master data; this is the one screen that says how complete it is.
+    Every count reuses the EXACT bench-queue gap definition (_bench_gap_expr), so each number is
+    one tap from the bench filtered to that gap and can never drift from the list it opens.
+    Read-only — the /pos/cleanup bench is where gaps get fixed.
+    """
+    active = ProductModel.is_active == True
+
+    async def _count(expr=None):
+        stmt = select(func.count()).select_from(ProductModel).where(active)
+        if expr is not None:
+            stmt = stmt.where(expr)
+        return int((await db.execute(stmt)).scalar() or 0)
+
+    total = await _count()
+    gaps = {k: await _count(_bench_gap_expr(k)) for k in _BENCH_GAP_KINDS}
+    on_bench = await _count(_bench_gap_clause())
+    # Barcode is a 5th master-data signal (not part of the 4-gap "finished" bar): a scan-sheet
+    # internal code or none at all means a shopper's real EAN scan won't find it at the till.
+    no_barcode = await _count(or_(
+        func.coalesce(func.trim(ProductModel.barcode), "") == "",
+        ProductModel.barcode_is_internal == True,
+    ))
+    complete = max(0, total - on_bench)
+    return {
+        "total": total,
+        "complete": complete,
+        "on_bench": on_bench,
+        "pct_complete": round(100 * complete / total) if total else 100,
+        "gaps": gaps,          # {photo, description, category, cost}
+        "no_barcode": no_barcode,
+    }
+
+
 @router.get("/catalog/worklist.xlsx")
 async def export_catalog_worklist(
     category: Optional[str] = None,
@@ -9286,6 +9326,14 @@ async def pos_product_sales(request: Request):
     date range, tap a product to drill into who bought it. Manager/admin (the API endpoints
     enforce the role; this just serves the shell). See docs/BANCO-DAY-ONE-WISHLIST.md."""
     return templates.TemplateResponse("pos/product_sales.html", {"request": request})
+
+
+@html_router.get("/pos/catalog-health", response_class=HTMLResponse, name="pos_catalog_health")
+async def pos_catalog_health(request: Request):
+    """📊 Catalog Health cockpit (manager/admin) — the shop's master-data completeness at a glance:
+    how many products still need a photo / real cost / category / description, each a tap into the
+    bench queue filtered to that gap. The API (/catalog/health) enforces the role; this serves the shell."""
+    return templates.TemplateResponse("pos/catalog_health.html", {"request": request})
 
 
 @html_router.get("/pos/cleanup", response_class=HTMLResponse, name="pos_cleanup")
