@@ -117,7 +117,10 @@ def _http(method, url, headers=None, data=None, timeout=15):
 
 
 def test_b2(vals):
-    """Authorize to B2 with the NEW key and list the bucket → proves it works."""
+    """Authorize to B2 with the NEW key and check it can actually WRITE the bucket.
+    This is a BACKUP key, so it MUST have writeFiles — a read-only restore key here
+    would let the nightly backup fail silently forever. We check the key's capabilities
+    (not just 'can it authorize') and the bucket it's scoped to."""
     kid, app = vals.get("B2_KEY_ID", ""), vals.get("B2_APP_KEY", "")
     bucket = vals.get("B2_BUCKET", "") or parse_env(ENV).get("B2_BUCKET", "")
     if not (kid and app):
@@ -131,8 +134,24 @@ def test_b2(vals):
     storage = (auth.get("apiInfo") or {}).get("storageApi") or {}
     api_url, token = storage.get("apiUrl"), auth.get("authorizationToken")
     bucket_id, account_id = storage.get("bucketId"), auth.get("accountId")
+    caps = storage.get("capabilities") or []
+    key_bucket = storage.get("bucketName")   # set when the key is bucket-restricted
+
+    # A backup key MUST be able to write. A read-only restore key here = backups that
+    # never happen. Block it (the caller can still force if they're on a restore-only box).
+    if "writeFiles" not in caps:
+        return False, ("this key is READ-ONLY (no writeFiles) — it can RESTORE but CANNOT make "
+                       "backups. Create a WRITE key for the backup box (Backblaze → App Keys → "
+                       "Read and Write, restricted to your bucket).")
+
+    # Guard against pointing a bucket-restricted key at the wrong bucket name.
+    if key_bucket and bucket and key_bucket != bucket:
+        return False, (f"this key is locked to bucket '{key_bucket}', but B2_BUCKET is '{bucket}'. "
+                       f"Set B2_BUCKET to '{key_bucket}' or use a key for '{bucket}'.")
+
     if not (api_url and token):
-        return False, "B2 authorized but returned no API URL"
+        return True, "authorized ✓ · can WRITE ✓ (couldn't reach the API to count backups)"
+
     hdr = {"Authorization": token, "Content-Type": "application/json"}
     if not bucket_id and bucket:
         st, body = _http("POST", f"{api_url}/b2api/v3/b2_list_buckets", hdr,
@@ -141,13 +160,13 @@ def test_b2(vals):
             bs = json.loads(body).get("buckets") or []
             bucket_id = bs[0].get("bucketId") if bs else None
     if not bucket_id:
-        return True, "authorized ✓ (couldn't resolve the bucket to count backups, but the key is valid)"
+        return True, f"authorized ✓ · can WRITE ✓ (bucket '{bucket}' not found to count — check the name)"
     st, body = _http("POST", f"{api_url}/b2api/v3/b2_list_file_names", hdr,
                      json.dumps({"bucketId": bucket_id, "prefix": "banco/", "maxFileCount": 100}).encode())
     if st != 200:
-        return True, "authorized ✓ (key valid; it can't list files — fine for a write-only backup key)"
+        return True, f"authorized ✓ · can WRITE ✓ (into '{bucket}')"
     n = len([f for f in (json.loads(body).get("files") or []) if not f.get("fileName", "").endswith("/")])
-    return True, f"authorized ✓ and listed {n} backup(s) in '{bucket}'"
+    return True, f"authorized ✓ · can WRITE ✓ · {n} existing backup(s) in '{bucket}'"
 
 
 def test_llm(vals):
@@ -176,8 +195,10 @@ def test_llm(vals):
 # .env change can silently NOT take effect).
 SECRETS = [
     {
-        "id": "b2", "title": "Backblaze B2 backup keys",
-        "fields": [("B2_KEY_ID", "B2 key ID", False), ("B2_APP_KEY", "B2 application key", True)],
+        "id": "b2", "title": "Backblaze B2 bucket + backup keys",
+        "fields": [("B2_BUCKET", "B2 bucket name", False),
+                   ("B2_KEY_ID", "B2 key ID", False),
+                   ("B2_APP_KEY", "B2 application key", True)],
         "test": test_b2,
         "note": ("Once the test passes, DELETE the old key in Backblaze — creating a new key does "
                  "NOT disable the old one. Restart the app (docker compose up -d app) so the Backup "
