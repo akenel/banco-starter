@@ -590,6 +590,21 @@ class StoreSettingsUpdate(BaseModel):
     loyalty_tier2_discount: Optional[Decimal] = Field(None, ge=0, le=100)
     loyalty_tier3_threshold: Optional[Decimal] = Field(None, ge=0)
     loyalty_tier3_discount: Optional[Decimal] = Field(None, ge=0, le=100)
+    # 🌍-1 payments seam: which terminal the till drives. 'manual' = cashier confirms by hand
+    # (default, no regression); 'worldline_sim' = the in-checkout simulated Worldline/TWINT terminal
+    # (sandbox demo). Real 'worldline'/'sumup' adapters land with M2. Admin-only in the endpoint.
+    payment_provider: Optional[str] = Field(None, max_length=16)
+
+    @field_validator("payment_provider")
+    @classmethod
+    def _valid_payment_provider(cls, v):
+        if v is None:
+            return v
+        v = v.strip().lower()
+        allowed = {"manual", "worldline_sim"}
+        if v not in allowed:
+            raise ValueError(f"payment_provider must be one of {sorted(allowed)}")
+        return v
 
 
 class StoreSettingsRead(StoreSettingsBase):

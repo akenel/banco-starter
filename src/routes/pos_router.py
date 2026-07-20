@@ -5978,6 +5978,7 @@ async def update_store_settings(
     if not _is_admin:
         _admin_only = ("currency",   # fiscal identity — admin-only (not a manager/daily toggle)
                        "fx_rates",    # accepted-currency plan rates — admin-only (touches money)
+                       "payment_provider",   # which terminal captures money — admin-only (fiscal weight)
                        "cashier_max_discount", "manager_max_discount",
                        "loyalty_tier1_threshold", "loyalty_tier1_discount",
                        "loyalty_tier2_threshold", "loyalty_tier2_discount",
