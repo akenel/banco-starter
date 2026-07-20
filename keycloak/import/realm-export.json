@@ -476,8 +476,6 @@
   ],
   "defaultLocale": "en",
   "attributes": {
-    "frontendUrl": "https://keycloak.helix.local",
-    "adminUrl": "https://keycloak.helix.local",
     "cibaBackchannelTokenDeliveryMode": "poll",
     "cibaExpiresIn": "120",
     "cibaAuthRequestedUserHint": "login_hint",
