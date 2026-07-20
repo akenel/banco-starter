@@ -31,6 +31,25 @@ BACKUP_GPG_PASSPHRASE=<a strong passphrase you invent — the encryption passwor
 > The **GPG passphrase** is what encrypts your backups. Pick a strong one and store it in **two** safe places.
 > Lose it and the backups are unreadable — even to you. It is the single most important secret you have.
 
+> 💡 Easiest way to fill all of this: run `python3 scripts/init-banco.py` (the setup wizard) and answer its
+> **B2** section — it writes these into `.env` for you, with the secrets typed hidden. Re-run it any time to
+> rotate a key (it keeps your other values as defaults).
+
+## Step 2b · Install the `b2` tool
+
+The backup script talks to Backblaze through the **`b2`** command-line tool — it's the only extra thing you
+install for backups (that's the `⚠️ b2: MISSING` note preflight shows until you do this). Install it once:
+
+```bash
+sudo apt install -y pipx && pipx install b2 && pipx ensurepath
+```
+Then open a **new terminal** (so the updated PATH takes effect) and check it:
+```bash
+b2 version
+```
+> On Debian 12+/Ubuntu 24+ you **must** use `pipx`, not `pip install b2` — the system Python is locked (PEP-668),
+> so a plain `pip install` is refused. On macOS: `brew install b2-tools`.
+
 ## Step 3 · Make your first backup
 
 ```bash
