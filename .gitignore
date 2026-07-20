@@ -29,3 +29,6 @@ venv/
 
 # Build stamp — generated at build time from git (see scripts/rebuild.sh + Dockerfile)
 src/static/build-sha.txt
+
+# Generated prod reverse-proxy config (from scripts/go-live.py; Caddyfile.example is the reference)
+/Caddyfile

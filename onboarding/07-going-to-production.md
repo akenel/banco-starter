@@ -1,93 +1,94 @@
-# 7 · Going to production — domain, HTTPS & locking it down
+# 7 · Going live — your shop on the internet
 
-> ⚠️ **Read this before you put Banco on the internet.** The localhost demo runs over **plain HTTP** on purpose —
-> that's fine on your own laptop, but it is **not safe for a real shop**. A public POS needs a domain, HTTPS
-> (encryption), and Keycloak running in **production mode**. This is real system-administration work — it's the
-> point where many shops bring in an IT person for a day. That's normal and worth it.
+> ⚠️ The localhost demo runs over plain **HTTP** on purpose — fine on your laptop, **not safe for a real shop**.
+> Going live means a domain, HTTPS, and Keycloak in production mode. Banco makes this two commands instead of a
+> day of sysadmin — but you still do the parts that are genuinely yours: buy a domain, rent a server, make a DNS
+> record.
 
-This guide is the **shape** of a secure production deployment — the decisions and the moving parts — not a
-one-command turnkey (your domain, server, and DNS are yours to wire). The reference production shop runs exactly
-this pattern.
+## The Banco stack (prescribed, not a menu)
 
-## What you'll need (the shopping list)
+Banco is an opinionated framework. Just as it prescribes **Postgres** and **Keycloak**, it prescribes the go-live
+stack — so you don't burn a weekend comparing vendors. Each choice is deliberate, and each is something **you own
+and can walk away with**:
 
-| Thing | What / where | Rough cost |
-|-------|--------------|-----------|
-| A **server** | A small VPS with a public IP (Hetzner, DigitalOcean, …), 4 GB+ RAM, Linux | ~€5–15/mo |
-| A **domain** | From a registrar — **Porkbun**, Namecheap, Cloudflare… | ~€10/yr |
-| A **Backblaze B2** account | Your backup vault ([guide 6](06-own-your-data-backups.md)) | free tier is plenty |
-| ~**a day** + maybe IT help | DNS + HTTPS + Keycloak prod config is fiddly the first time | — |
+| Piece | We use | Why this one |
+|-------|--------|--------------|
+| Server | **Hetzner** | German cloud, ~€5/mo for plenty. Your shop's data **stays in the EU** — a real GDPR answer for a Swiss/EU shop, not a US cloud. |
+| Domain + DNS | **Porkbun** | Cheap, honest registrar. Free WHOIS privacy, and a DNS panel a normal person can actually read. |
+| HTTPS | **Caddy** | Fetches and renews Let's Encrypt certificates **by itself**. Zero certificate wrangling. |
+| Email | **Resend** | Keycloak password-resets + staff setup links. SMTP, an API key, done. |
+| Backups | **Backblaze B2** | Your encrypted vault ([guide 6](06-own-your-data-backups.md)). |
 
-## Step 1 · Pick your domains (the sandbox → staging → prod pattern)
+Rough cost: **~€5–15/mo** (server) **+ ~€10/yr** (domain). Backups and email have free tiers that fit a shop.
 
-Don't run one environment. Run **three**, so you can test safely before touching the real till:
+## One shop, not three environments
 
+You are running a till, not shipping software — so you run **one** production instance on `banco.yourdomain`.
+That's it. (If you want a safe place to train staff or click around, add a second **sandbox** copy on
+`sandbox-banco.yourdomain` — the wizard sets it up the same way. You do **not** need a "staging" environment; that's
+a tool for people who ship code, and it lives on the developer's side, not in your shop.)
+
+## Step 1 · Get the two things only you can get
+
+1. **A server** — make a Hetzner Cloud account, create a **CX22** (2 vCPU / 4 GB, ~€5/mo), Ubuntu or Debian.
+   Install Docker (see [guide 0](00-prerequisites.md)). Note its **public IP**.
+2. **A domain** — register one at **Porkbun** (~€10/yr). You don't need to touch DNS yet — the wizard tells you
+   exactly which record to make.
+
+Clone Banco onto the server and set up the shop as usual: `python3 scripts/init-banco.py`.
+
+## Step 2 · Run the go-live wizard
+
+```bash
+python3 scripts/go-live.py
 ```
-sandbox.yourshop.com   ← play area — break things here
-staging.yourshop.com   ← final rehearsal — mirrors prod
-yourshop.com           ← the real shop (or pos.yourshop.com)
+It asks the handful of things that are yours — production or sandbox, your domain, your server's IP, your Resend
+key — then **writes `.env` and generates `./Caddyfile`** for you, and prints your exact to-do list:
+
+- **the two DNS A records** to create at Porkbun (`banco.yourdomain` and `banco-auth.yourdomain` → your server IP;
+  or one wildcard `*.yourdomain`),
+- **the firewall line** to lock the server to ports 22/80/443,
+- **the Resend domain-verification** records (SPF/DKIM — they go in the same Porkbun DNS panel).
+
+Make those DNS records now and give them a few minutes to propagate.
+
+## Step 3 · Deploy
+
+```bash
+./scripts/deploy-prod.sh
 ```
-At your registrar (Porkbun etc.), point each name's **DNS A record** at your server's public IP. (Start with just
-prod if you like; add sandbox/staging when you're ready to iterate safely.)
+This does it the safe way — the same discipline as the reference shop:
 
-## Step 2 · Put a reverse proxy in front (this is where HTTPS comes from)
+1. **Backup first** to your B2 (if it fails, the deploy stops — nothing changed).
+2. **Build** (stamped with the real commit) and start the production stack: app + **Caddy** (HTTPS) + **Keycloak in
+   production mode**.
+3. **Teach Keycloak your domain** — adds `https://banco.yourdomain` to the login client automatically
+   (`kc-set-redirect.py`). This is the historic #1 go-live snag ("Invalid redirect_uri"); Banco just handles it.
+4. **Gate** — proves the app is actually serving *and* that the login screen's build stamp matches this commit, then
+   checks that **HTTPS is live** on your public domain. It won't claim success on a restart that kept old code.
 
-Banco itself speaks HTTP. A **reverse proxy** sits in front, terminates HTTPS, and gets free certificates from
-**Let's Encrypt** automatically. **Caddy** is the easiest — it does HTTPS with zero certificate wrangling. A
-minimal `Caddyfile`:
+First HTTPS request can take ~1 minute while Caddy fetches the certificate. Then open `https://banco.yourdomain`,
+log in, and you're a real shop on the internet.
 
-```caddy
-yourshop.com {
-    reverse_proxy localhost:8000        # the Banco app
-}
-auth.yourshop.com {
-    reverse_proxy localhost:8080        # Keycloak
-}
-```
-Point Banco (`APP_HOST_PORT=8000`) and Keycloak (`KC_HOST_PORT=8080`) at localhost only, and let Caddy face the
-world on 80/443. Caddy fetches + renews the Let's Encrypt certs for you. (Traefik or nginx + certbot also work —
-Caddy is just the least painful.)
+> **Updating later:** `git pull` on the server, then `./scripts/deploy-prod.sh` again. Backup-first + gate every time.
 
-## Step 3 · Bolt Keycloak down (production mode)
+## Step 4 · Lock-down checklist
 
-The demo runs Keycloak in `start-dev` (insecure, HTTP). In production it must run in **production mode** behind
-your HTTPS proxy. The key changes to the keycloak service:
-
-- Command: **`start`** (not `start-dev`) `--optimized`
-- `KC_HOSTNAME=https://auth.yourshop.com` — its real public address
-- `KC_PROXY_HEADERS=xforwarded` and `KC_HTTP_ENABLED=true` — it trusts the proxy for TLS termination
-- Strong `KEYCLOAK_ADMIN_PASSWORD` (never the demo default)
-
-Then, in the realm, **update the redirect URIs** on the `helix_pos_web` client from `localhost:8000` to your real
-domain (`https://yourshop.com/pos/callback`, plus `https://yourshop.com/*`). Log into the Keycloak admin console →
-realm `kc-pos-realm-dev` → Clients → `helix_pos_web` → add your production URLs. **Login will fail until these
-match your real domain** — it's the #1 production snag.
-
-## Step 4 · Point Banco at the real URLs (`.env`)
-
-```ini
-FASTAPI_BASE_URL=https://yourshop.com
-POS_KC_PUBLIC_URL=https://auth.yourshop.com   # the browser-facing Keycloak address
-KEYCLOAK_SERVER_URL=http://keycloak:8080      # in-network (server-to-server) stays internal
-```
-The split matters: browsers use the **public HTTPS** Keycloak address; the app talks to Keycloak **inside** the
-Docker network. Get `POS_KC_PUBLIC_URL` right or the login button sends people to the wrong place.
-
-## Step 5 · Production security checklist
-
-- [ ] **HTTPS everywhere** — no plain-HTTP access to the app or Keycloak from outside.
-- [ ] **All default passwords changed** — run `python3 scripts/banco-doctor.py`, get **0 blockers**.
-- [ ] **Keycloak in `start` (production) mode**, not `start-dev`.
-- [ ] **Realm redirect URIs** updated to your real domain.
-- [ ] **Firewall**: only 80/443 (and SSH) open to the world; Postgres/MinIO/Keycloak ports **not** public.
-- [ ] **Backups ON and restored once** ([guide 6](06-own-your-data-backups.md)) — to your own B2.
-- [ ] **Demo users disabled** ([guide 3](03-users-and-roles.md)).
-- [ ] **The server itself** kept updated (`apt upgrade`), automatic security updates on.
+- [ ] **Firewall**: only 22/80/443 open (`sudo ufw allow 22,80,443/tcp && sudo ufw enable`). Postgres/MinIO/Keycloak
+      ports are **not** public — Caddy is the only door.
+- [ ] **All default passwords changed** — `python3 scripts/banco-doctor.py` → **0 blockers**.
+- [ ] **Backups ON and restored once** ([guide 6](06-own-your-data-backups.md)).
+- [ ] **HTTPS everywhere** — the deploy's HTTPS gate is green.
+- [ ] **Demo users removed** ([guide 3](03-users-and-roles.md)) — the `pam/pam` demo logins are for the laptop, not a
+      real shop.
+- [ ] **Email tested** — trigger a Keycloak password reset and confirm it arrives (Resend must show your domain
+      **verified**).
+- [ ] **Server updated** — automatic security updates on.
 
 ---
 
 ### The honest word
-This step is a real jump from "runs on my laptop" to "a secure service on the internet." If DNS, reverse
-proxies, and TLS aren't your world, **this is the right place to pay someone for a day** — and then you own it.
-Everything above is standard, well-trodden infrastructure; none of it is Banco-specific magic. Get it right once
-and it just runs.
+This is a real step up from "runs on my laptop." But the sysadmin parts that used to take a day — reverse proxy,
+TLS, Keycloak prod mode, redirect URIs — Banco now does for you in `go-live.py` + `deploy-prod.sh`. What's left is
+genuinely yours: a server, a domain, three DNS records. Do it once and it just runs — and every piece is yours to
+keep.

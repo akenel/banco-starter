@@ -1,0 +1,23 @@
+# Banco reverse proxy — automatic HTTPS via Let's Encrypt.
+#
+# This is a REFERENCE. `python3 scripts/go-live.py` generates the real ./Caddyfile
+# with your two hostnames filled in. Caddy fetches + renews the certificates on its
+# own — there is nothing to configure but the names.
+#
+# Two hostnames: one for the shop (the app), one for Keycloak (login). Both point at
+# the same server. Caddy talks to the containers over the internal network by name.
+
+{
+	# Let's Encrypt renewal warnings go here.
+	email you@example.com
+}
+
+# The shop — what customers and staff open.
+banco.example.com {
+	reverse_proxy app:8000
+}
+
+# Keycloak — where the login screen + password-reset links live.
+banco-auth.example.com {
+	reverse_proxy keycloak:8080
+}
