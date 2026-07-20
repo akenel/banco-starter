@@ -36,10 +36,15 @@ export PATH="$HOME/.local/bin:$PATH"
 # Read specific keys from .env safely — the GPG passphrase & keys may contain shell
 # metacharacters, so we NEVER `source` .env (a space or `$` would break or execute).
 _env() { [ -f .env ] && grep -E "^$1=" .env | tail -1 | cut -d= -f2- || true; }
-B2_KEY_ID="$(_env B2_KEY_ID)"
-B2_APP_KEY="$(_env B2_APP_KEY)"
-B2_BUCKET="$(_env B2_BUCKET)"
-BACKUP_GPG_PASSPHRASE="$(_env BACKUP_GPG_PASSPHRASE)"
+# Environment variables WIN over .env — so you can seed this box from a DIFFERENT bucket
+# (e.g. pull prod data into a fresh showroom) WITHOUT editing its own backup config:
+#   B2_BUCKET=prod-bucket B2_KEY_ID=<read> B2_APP_KEY=<read> BACKUP_GPG_PASSPHRASE=<prod-pass> \
+#     ./scripts/restore-from-b2.sh
+# The box's .env (its own write key) stays intact for nightly backups afterwards.
+B2_KEY_ID="${B2_KEY_ID:-$(_env B2_KEY_ID)}"
+B2_APP_KEY="${B2_APP_KEY:-$(_env B2_APP_KEY)}"
+B2_BUCKET="${B2_BUCKET:-$(_env B2_BUCKET)}"
+BACKUP_GPG_PASSPHRASE="${BACKUP_GPG_PASSPHRASE:-$(_env BACKUP_GPG_PASSPHRASE)}"
 PGUSER="$(_env POSTGRES_USER)"; PGUSER="${PGUSER:-helix_user}"
 PGDB="$(_env POSTGRES_DB)"; PGDB="${PGDB:-helix_db}"
 : "${B2_KEY_ID:?set B2_KEY_ID in .env}"
@@ -47,7 +52,7 @@ PGDB="$(_env POSTGRES_DB)"; PGDB="${PGDB:-helix_db}"
 : "${B2_BUCKET:?set B2_BUCKET in .env}"
 : "${BACKUP_GPG_PASSPHRASE:?set BACKUP_GPG_PASSPHRASE in .env}"
 
-command -v b2  >/dev/null || { echo "❌ b2 CLI not found (pip install b2)"; exit 1; }
+command -v b2  >/dev/null || { echo "❌ b2 CLI not found — install it: pipx install b2"; exit 1; }
 command -v gpg >/dev/null || { echo "❌ gpg not found"; exit 1; }
 
 WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
