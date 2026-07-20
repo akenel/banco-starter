@@ -46,9 +46,11 @@ and it's why "just run docker compose up" isn't step one on a new box.
 
 ## Phase 1 · Install — get it running (1–2 hrs, once the tools are in)
 
-Follow the root [QUICKSTART.md](../QUICKSTART.md): `cp .env.example .env` → `docker compose up --build -d` →
-`./scripts/standup.sh`. Log in at `http://localhost:8000/pos` as `pam`/`pam`. **You now have a working demo
-shop.** Prove it end-to-end with the [testsheet](testsheets/OWN-YOUR-BANCO-E2E-TESTSHEET.html).
+Follow the root [QUICKSTART.md](../QUICKSTART.md): `python3 scripts/init-banco.py` (the setup wizard — writes
+your `.env`; or `cp .env.example .env` by hand) → `docker compose up --build -d` → `./scripts/standup.sh`.
+Standup ends with the smoke test (`scripts/postboot-check.py`) printing a **✅ safe-to-test → go here** verdict.
+Log in at `http://localhost:8000/pos` as `pam`/`pam`. **You now have a working demo shop.** Prove it end-to-end
+with the [testsheet](testsheets/OWN-YOUR-BANCO-E2E-TESTSHEET.html).
 
 ## Phase 2 · Configure — make it yours (½–1 day)
 
