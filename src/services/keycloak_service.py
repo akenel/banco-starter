@@ -20,8 +20,15 @@ logger = logging.getLogger("🔑 KeycloakProxy")
 logger.setLevel(logging.INFO)
 
 # Retry configuration for Keycloak connection
-KEYCLOAK_MAX_RETRIES = 5
-KEYCLOAK_RETRY_DELAY = 3  # seconds (will use exponential backoff)
+KEYCLOAK_MAX_RETRIES = 5           # token-request retries (KC is already up by then)
+KEYCLOAK_RETRY_DELAY = 3           # seconds; base for the exponential backoff
+# Readiness wait: on a low-RAM box (the 8 GB field-test laptop) KC's FIRST boot —
+# realm import included — can take 2-3 min, and the app container only gates on
+# Postgres, so it out-races KC on cold start and must wait it out. Poll patiently
+# with a CAPPED backoff (quick probes first, then a steady ceiling) so a slow boot
+# is waited out rather than skipped after a couple of long exponential sleeps.
+KEYCLOAK_READY_MAX_ATTEMPTS = 30   # ~3.5 min of patient polling before giving up
+KEYCLOAK_READY_POLL_CAP = 8        # seconds; ceiling on any single backoff sleep
 
 class KeycloakProxyService:
     """Async Keycloak API integration."""
@@ -37,8 +44,16 @@ class KeycloakProxyService:
         self.USERS_ADMIN_URL = f"{self.BASE_URL}/admin/realms/{self.REALM}/users"
 
     async def _wait_for_keycloak(self) -> bool:
-        """Wait for Keycloak to be ready with exponential backoff."""
-        for attempt in range(KEYCLOAK_MAX_RETRIES):
+        """Wait for Keycloak to be ready, polling with a CAPPED backoff.
+
+        The master realm's discovery doc returns 200 once KC's HTTP layer is serving —
+        that's the gate for the admin-token call. We ALWAYS sleep between probes (on a
+        non-200 boot response as well as a connection error), and cap the backoff so the
+        budget spans ~3.5 min of steady polling instead of a few ever-longer sleeps.
+        Returns as soon as KC answers, so a fast box pays no penalty.
+        """
+        for attempt in range(KEYCLOAK_READY_MAX_ATTEMPTS):
+            reason = "unknown"
             try:
                 async with self.http_session.get(
                     f"{self.BASE_URL}/realms/master/.well-known/openid-configuration",
@@ -47,14 +62,18 @@ class KeycloakProxyService:
                     if resp.status == 200:
                         logger.info(f"✅ Keycloak ready (attempt {attempt + 1})")
                         return True
+                    reason = f"HTTP {resp.status}"
             except (aiohttp.ClientError, asyncio.TimeoutError) as e:
-                delay = KEYCLOAK_RETRY_DELAY * (2 ** attempt)  # Exponential backoff
+                reason = type(e).__name__
+
+            if attempt < KEYCLOAK_READY_MAX_ATTEMPTS - 1:
+                delay = min(KEYCLOAK_RETRY_DELAY * (2 ** min(attempt, 4)), KEYCLOAK_READY_POLL_CAP)
                 logger.warning(
-                    f"⏳ Keycloak not ready (attempt {attempt + 1}/{KEYCLOAK_MAX_RETRIES}), "
-                    f"retrying in {delay}s... ({type(e).__name__})"
+                    f"⏳ Keycloak not ready (attempt {attempt + 1}/{KEYCLOAK_READY_MAX_ATTEMPTS}), "
+                    f"retrying in {delay}s... ({reason})"
                 )
                 await asyncio.sleep(delay)
-        logger.error(f"❌ Keycloak not ready after {KEYCLOAK_MAX_RETRIES} attempts")
+        logger.error(f"❌ Keycloak not ready after {KEYCLOAK_READY_MAX_ATTEMPTS} attempts")
         return False
 
     async def _get_admin_token(self) -> str:
