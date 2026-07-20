@@ -7,7 +7,7 @@ For demo: manually seed 5-10 items.
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import String, DateTime, Numeric, Integer, Boolean, Text, ForeignKey, UniqueConstraint
+from sqlalchemy import String, DateTime, Numeric, Integer, Boolean, Text, ForeignKey, UniqueConstraint, text
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 
 from .base import Base
@@ -44,6 +44,7 @@ class ProductModel(Base):
         Boolean,
         default=False,
         nullable=False,
+        server_default=text("false"),  # DB-level default so raw seed INSERTs omitting it don't NOT-NULL-fail on a virgin DB
         comment="True if `barcode` is an internally-minted EAN-13 (no source EAN existed)"
     )
     sku: Mapped[str] = mapped_column(
@@ -128,6 +129,7 @@ class ProductModel(Base):
         String(40),
         default="standard",
         nullable=False,
+        server_default=text("'standard'"),  # DB-level default so raw seed INSERTs omitting it don't NOT-NULL-fail on a virgin DB
         comment="Behaviour class — drives 18+ gate + VAT (catalog_taxonomy.PRODUCT_CLASSES)"
     )
     # §3: the RULE that set the 18+ gate (e.g. "class:cbd_hemp", "headshop-smoking-paraphernalia").
@@ -293,6 +295,7 @@ class ProductModel(Base):
         Boolean,
         default=False,
         nullable=False,
+        server_default=text("false"),  # DB-level default so raw seed INSERTs omitting it don't NOT-NULL-fail on a virgin DB
         comment="True if the primary text is missing a language skin and the LLM layer should fill it"
     )
 

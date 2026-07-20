@@ -413,10 +413,10 @@ _DDL_MIGRATIONS: list[str] = [
     """
     INSERT INTO suppliers (id, code, prefix, name, source_url, adapter_type, country,
         lead_time_days_min, lead_time_days_max, quality_rating, swiss_certified,
-        is_active, created_at, updated_at)
+        is_active, supplier_role, created_at, updated_at)
     VALUES
-      (gen_random_uuid()::text,'TAM','TAM','Tamar Trade GmbH','https://www.artemisluzern.ch','tamar','CH',1,5,'A',true,true,now(),now()),
-      (gen_random_uuid()::text,'FTW','FTW','FourTwenty','https://fourtwenty.ch','magento','CH',1,5,'A',false,true,now(),now())
+      (gen_random_uuid()::text,'TAM','TAM','Tamar Trade GmbH','https://www.artemisluzern.ch','tamar','CH',1,5,'A',true,true,'wholesale',now(),now()),
+      (gen_random_uuid()::text,'FTW','FTW','FourTwenty','https://fourtwenty.ch','magento','CH',1,5,'A',false,true,'both',now(),now())
     ON CONFLICT (prefix) DO NOTHING
     """,
 ]
@@ -431,14 +431,14 @@ _DEMO_DDL: list[str] = [
     """
     INSERT INTO products (id, sku, name, description, price, cost, stock_quantity,
         stock_alert_threshold, category, is_active, is_age_restricted, vending_compatible,
-        sync_override, created_at, updated_at)
+        sync_override, barcode_is_internal, product_class, needs_translation, created_at, updated_at)
     VALUES
-      (gen_random_uuid(),'TREAT-LOLLIPOP','Lollipop','Treat / giveaway',0.50,0.10,200,20,'Treats',true,false,false,false,now(),now()),
-      (gen_random_uuid(),'TREAT-STICKER','Sticker','Treat / giveaway',0.30,0.05,200,20,'Treats',true,false,false,false,now(),now()),
-      (gen_random_uuid(),'TREAT-PAPERS','Rolling Papers','Treat / giveaway',0.60,0.15,200,20,'Treats',true,false,false,false,now(),now()),
-      (gen_random_uuid(),'TREAT-GUMMY','CBD Gummy','Treat / giveaway',0.45,0.12,200,20,'Treats',true,false,false,false,now(),now()),
-      (gen_random_uuid(),'TREAT-LIGHTER','Lighter','Treat / giveaway',1.50,0.40,200,20,'Treats',true,false,false,false,now(),now()),
-      (gen_random_uuid(),'TREAT-GRINDERCARD','Grinder Card','Treat / giveaway',1.80,0.50,200,20,'Treats',true,false,false,false,now(),now())
+      (gen_random_uuid(),'TREAT-LOLLIPOP','Lollipop','Treat / giveaway',0.50,0.10,200,20,'Treats',true,false,false,false,false,'standard',false,now(),now()),
+      (gen_random_uuid(),'TREAT-STICKER','Sticker','Treat / giveaway',0.30,0.05,200,20,'Treats',true,false,false,false,false,'standard',false,now(),now()),
+      (gen_random_uuid(),'TREAT-PAPERS','Rolling Papers','Treat / giveaway',0.60,0.15,200,20,'Treats',true,false,false,false,false,'standard',false,now(),now()),
+      (gen_random_uuid(),'TREAT-GUMMY','CBD Gummy','Treat / giveaway',0.45,0.12,200,20,'Treats',true,false,false,false,false,'standard',false,now(),now()),
+      (gen_random_uuid(),'TREAT-LIGHTER','Lighter','Treat / giveaway',1.50,0.40,200,20,'Treats',true,false,false,false,false,'standard',false,now(),now()),
+      (gen_random_uuid(),'TREAT-GRINDERCARD','Grinder Card','Treat / giveaway',1.80,0.50,200,20,'Treats',true,false,false,false,false,'standard',false,now(),now())
     ON CONFLICT (sku) DO NOTHING
     """,
 ]

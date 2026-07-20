@@ -4,7 +4,7 @@ Tracks known suppliers (Lieferanten) for product sourcing.
 """
 from datetime import datetime
 from typing import Optional, List
-from sqlalchemy import String, Integer, Boolean, Text, DateTime, JSON, Float
+from sqlalchemy import String, Integer, Boolean, Text, DateTime, JSON, Float, text
 from sqlalchemy.orm import Mapped, mapped_column
 from src.db.models.base import Base
 import uuid
@@ -68,6 +68,7 @@ class SupplierModel(Base):
         String(12),
         nullable=False,
         default="wholesale",
+        server_default=text("'wholesale'"),  # DB-level default so raw/foundation INSERTs that omit it don't NOT-NULL-fail on a virgin create_all DB
         comment="What this site's price MEANS for pricing intel: 'wholesale' = your COST, "
                 "'retail' = a competitor's MARKET price, 'both' = a site that is both "
                 "(e.g. fourtwenty.ch = public retail shop AND our dropship supplier)."
