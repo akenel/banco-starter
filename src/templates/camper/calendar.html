@@ -1,0 +1,260 @@
+{% extends "camper/base.html" %}
+
+{% block title %}Calendario - Camper & Tour{% endblock %}
+{% block page_name %}Calendario{% endblock %}
+
+{% block extra_head %}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+    <style>
+        /* FullCalendar overrides for Camper & Tour amber theme */
+        .fc .fc-button-primary {
+            background-color: #d97706;
+            border-color: #b45309;
+        }
+        .fc .fc-button-primary:hover {
+            background-color: #b45309;
+            border-color: #92400e;
+        }
+        .fc .fc-button-primary:not(:disabled).fc-button-active,
+        .fc .fc-button-primary:not(:disabled):active {
+            background-color: #92400e;
+            border-color: #78350f;
+        }
+        .fc .fc-button-primary:focus {
+            box-shadow: 0 0 0 0.2rem rgba(217, 119, 6, 0.4);
+        }
+        .fc .fc-daygrid-day.fc-day-today {
+            background-color: #fffbeb;
+        }
+        .fc .fc-event {
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            padding: 1px 4px;
+        }
+        .fc .fc-toolbar-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #1f2937;
+        }
+        .fc .fc-col-header-cell-cushion {
+            font-weight: 600;
+            color: #4b5563;
+        }
+        .fc .fc-daygrid-day-number {
+            color: #374151;
+            font-weight: 500;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50" x-data="calendarData()">
+    <!-- Top Navigation -->
+    <nav class="bg-white shadow-lg sticky top-0 z-10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-4">
+                    <span class="text-2xl">&#x1F69C;</span>
+                    <div>
+                        <h1 class="text-xl font-bold text-gray-900" data-i18n="brand.name">Camper & Tour</h1>
+                        <p class="text-xs text-gray-500" data-i18n="brand.subtitle">Gestione Servizi</p>
+                    </div>
+                </div>
+                <div class="hidden md:flex items-center space-x-2">
+                    <a href="/camper/dashboard" class="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100"><span data-i18n="nav.dashboard">Cruscotto</span></a>
+                    <a href="/camper/checkin" class="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100"><span data-i18n="nav.checkin">Accettazione</span></a>
+                    <a href="/camper/jobs" class="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100"><span data-i18n="nav.jobs">Lavori</span></a>
+                    <a href="/camper/customers" class="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100"><span data-i18n="nav.customers">Clienti</span></a>
+                    <a href="/camper/appointments" class="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100"><span data-i18n="nav.appointments">Appuntamenti</span></a>
+                    <a href="/camper/quotations" class="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100"><span data-i18n="nav.quotations">Preventivi</span></a>
+                    <a href="/camper/purchase-orders" class="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100"><span data-i18n="nav.purchase_orders">Ordini</span></a>
+                    <a href="/camper/invoices" class="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100"><span data-i18n="nav.invoices">Fatture</span></a>
+                    <a href="/camper/calendar" class="px-3 py-2 rounded-lg text-sm font-medium bg-amber-100 text-amber-800"><span data-i18n="nav.calendar">Calendario</span></a>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <span class="text-sm text-gray-600" x-text="user.username"></span>
+                    <button @click="logout()" class="text-red-600 hover:text-red-700 text-sm" data-i18n="nav.logout">Esci</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Mobile Nav -->
+    <div class="md:hidden bg-white border-b px-4 py-2 flex space-x-2 overflow-x-auto">
+        <a href="/camper/dashboard" class="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 bg-gray-50 whitespace-nowrap"><span data-i18n="nav.dashboard">Cruscotto</span></a>
+        <a href="/camper/checkin" class="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 bg-gray-50 whitespace-nowrap"><span data-i18n="nav.checkin">Accettazione</span></a>
+        <a href="/camper/jobs" class="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 bg-gray-50 whitespace-nowrap"><span data-i18n="nav.jobs">Lavori</span></a>
+        <a href="/camper/customers" class="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 bg-gray-50 whitespace-nowrap"><span data-i18n="nav.customers">Clienti</span></a>
+        <a href="/camper/appointments" class="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 bg-gray-50 whitespace-nowrap"><span data-i18n="nav.appointments">Appuntamenti</span></a>
+        <a href="/camper/quotations" class="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 bg-gray-50 whitespace-nowrap"><span data-i18n="nav.quotations">Preventivi</span></a>
+        <a href="/camper/purchase-orders" class="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 bg-gray-50 whitespace-nowrap"><span data-i18n="nav.purchase_orders">Ordini</span></a>
+        <a href="/camper/invoices" class="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 bg-gray-50 whitespace-nowrap"><span data-i18n="nav.invoices">Fatture</span></a>
+        <a href="/camper/calendar" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-100 text-amber-800 whitespace-nowrap"><span data-i18n="nav.calendar">Calendario</span></a>
+    </div>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-gray-900" data-i18n="calendar.title">Calendario Lavori</h2>
+        </div>
+
+        <!-- Calendar Container -->
+        <div class="card mb-6">
+            <div id="calendar"></div>
+        </div>
+
+        <!-- Status Legend -->
+        <div class="card">
+            <h3 class="text-sm font-semibold text-gray-700 mb-3" data-i18n="calendar.legend_title">Legenda Stati</h3>
+            <div class="flex flex-wrap gap-4">
+                <div class="flex items-center space-x-2">
+                    <span class="w-4 h-4 rounded" style="background-color: #6b7280;"></span>
+                    <span class="text-sm text-gray-700" data-i18n="status.job.quoted">Preventivato</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <span class="w-4 h-4 rounded" style="background-color: #3b82f6;"></span>
+                    <span class="text-sm text-gray-700" data-i18n="status.job.approved">Approvato</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <span class="w-4 h-4 rounded" style="background-color: #d97706;"></span>
+                    <span class="text-sm text-gray-700" data-i18n="status.job.in_progress">In Corso</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <span class="w-4 h-4 rounded" style="background-color: #ef4444;"></span>
+                    <span class="text-sm text-gray-700" data-i18n="status.job.waiting_parts">Attesa Ricambi</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <span class="w-4 h-4 rounded" style="background-color: #8b5cf6;"></span>
+                    <span class="text-sm text-gray-700" data-i18n="status.job.inspection">Ispezione</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <span class="w-4 h-4 rounded" style="background-color: #10b981;"></span>
+                    <span class="text-sm text-gray-700" data-i18n="status.job.completed">Completato</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <span class="w-4 h-4 rounded" style="background-color: #6366f1;"></span>
+                    <span class="text-sm text-gray-700" data-i18n="status.job.invoiced">Fatturato</span>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function calendarData() {
+        return {
+            user: {
+                username: '', firstName: '', roles: [],
+                isAdmin: false, isManager: false, isMechanic: false, isCounter: false
+            },
+            calendar: null,
+
+            init() {
+                const token = CamperAuth.getToken();
+                if (!token) {
+                    window.location.href = '/camper';
+                    return;
+                }
+
+                const userInfo = CamperAuth.getUserInfo();
+                if (!userInfo || userInfo.roles.length === 0) {
+                    showToast(t('system.unauthorized'), 'error');
+                    setTimeout(() => CamperAuth.logout(), 2000);
+                    return;
+                }
+
+                this.user = {
+                    ...userInfo,
+                    isAdmin: CamperAuth.isAdmin(),
+                    isManager: CamperAuth.isManager(),
+                    isMechanic: CamperAuth.isMechanic(),
+                    isCounter: CamperAuth.isCounter()
+                };
+
+                this.$nextTick(() => {
+                    this.initCalendar();
+                });
+            },
+
+            initCalendar() {
+                const calendarEl = document.getElementById('calendar');
+                if (!calendarEl) return;
+
+                this.calendar = new FullCalendar.Calendar(calendarEl, {
+                    locale: CamperConfig.lang,
+                    initialView: 'dayGridMonth',
+                    height: 'auto',
+                    headerToolbar: {
+                        left: 'prev,next today',
+                        center: 'title',
+                        right: 'dayGridMonth,timeGridWeek,listWeek'
+                    },
+                    buttonText: {
+                        today: t('calendar.fc_today'),
+                        month: t('calendar.fc_month'),
+                        week: t('calendar.fc_week'),
+                        list: t('calendar.fc_list')
+                    },
+                    noEventsText: t('calendar.fc_no_events'),
+                    navLinks: true,
+                    editable: false,
+                    dayMaxEvents: true,
+                    moreLinkText: t('calendar.fc_more'),
+
+                    events: async function(info, successCallback, failureCallback) {
+                        try {
+                            const params = new URLSearchParams({
+                                start: info.startStr,
+                                end: info.endStr
+                            });
+                            const events = await API.get('/api/v1/camper/calendar?' + params);
+                            successCallback(events);
+                        } catch (error) {
+                            console.error('Calendar event load error:', error);
+                            showToast(t('calendar.load_error'), 'error');
+                            failureCallback(error);
+                        }
+                    },
+                    eventDidMount: function(info) {
+                        // Tooltip with job + customer + vehicle details
+                        const props = info.event.extendedProps;
+                        let lines = [];
+                        if (props.job_number) lines.push(props.job_number);
+                        lines.push(info.event.title);
+                        if (props.vehicle_plate) lines.push('Plate: ' + props.vehicle_plate);
+                        if (props.customer_phone) lines.push('Tel: ' + props.customer_phone);
+                        if (props.assigned_to) lines.push('Assigned: ' + props.assigned_to);
+                        if (props.waiting && props.wait_reason) lines.push('WAITING: ' + props.wait_reason);
+                        info.el.title = lines.join('\n');
+                    },
+
+                    eventClick: function(info) {
+                        info.jsEvent.preventDefault();
+                        const url = info.event.url;
+                        if (url) {
+                            window.location.href = url;
+                        }
+                    },
+
+                    loading: function(isLoading) {
+                        // Could show a loading indicator if needed
+                    }
+                });
+
+                this.calendar.render();
+            },
+
+            logout() {
+                if (confirm(t('dashboard.confirm_logout'))) {
+                    showToast(t('dashboard.logging_out'), 'info');
+                    setTimeout(() => CamperAuth.logout(), 500);
+                }
+            }
+        }
+    }
+</script>
+{% endblock %}

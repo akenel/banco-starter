@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}" translate="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- The card is ALREADY in the language the viewer picked — tell Chrome/Google not to
+     auto-translate it back to the phone's language (mobile Google Translate override). -->
+<meta name="google" content="notranslate">
+<title>{{ name }} · Postcard</title>
+{# Open Graph + Twitter Card — the rich preview WhatsApp / iMessage / Telegram / email unfurl.
+   Without these a shared link is a bare URL; with them it's the photo, name + story. #}
+<meta property="og:type" content="product">
+<meta property="og:site_name" content="Artemis Store · Banco">
+<meta property="og:title" content="{{ name }}{% if supplier %} — {{ supplier }}{% endif %}">
+{% if og_description %}<meta property="og:description" content="{{ og_description }}">{% endif %}
+<meta property="og:url" content="{{ share_url }}">
+{% if og_image %}<meta property="og:image" content="{{ og_image }}">
+<meta property="og:image:alt" content="{{ name }}">
+<meta name="twitter:image" content="{{ og_image }}">{% endif %}
+{% if price %}<meta property="product:price:amount" content="{{ price }}">
+<meta property="product:price:currency" content="{{ currency }}">{% endif %}
+<meta name="twitter:card" content="{{ 'summary_large_image' if og_image else 'summary' }}">
+<meta name="twitter:title" content="{{ name }}{% if supplier %} — {{ supplier }}{% endif %}">
+{% if og_description %}<meta name="twitter:description" content="{{ og_description }}">{% endif %}
+{# Colour the whole card to the product's own colour (Mama Cynthia's balms are colour-coded). #}
+{% set _c = {
+  'violett':'#7c3aed','lila':'#7c3aed','purple':'#7c3aed',
+  'blau':'#2563eb','blue':'#2563eb','hellblau':'#38bdf8',
+  'grün':'#16a34a','gruen':'#16a34a','green':'#16a34a',
+  'gelb':'#ca8a04','yellow':'#ca8a04','gold':'#ca8a04',
+  'orange':'#ea580c','rot':'#dc2626','red':'#dc2626'
+} %}
+{% set accent = _c.get(colour, '#0d9488') %}
+<script src="/static/vendor/qrcode.min.js"></script>
+<style>
+  :root{ --accent:{{ accent }}; --ink:#1c1917; --mut:#78716c; --paper:#fbfaf7; --line:#e7e5e4; }
+  *{ box-sizing:border-box; } html,body{ margin:0; }
+  body{ font-family:"Segoe UI",-apple-system,BlinkMacSystemFont,Roboto,Helvetica,Arial,sans-serif;
+    background:#efece6; color:var(--ink); display:flex; flex-direction:column; align-items:center;
+    padding:22px 14px 60px; min-height:100vh; }
+  .toolbar{ width:100%; max-width:420px; display:flex; gap:10px; justify-content:space-between; align-items:center; margin-bottom:16px; }
+  .toolbar a, .toolbar button{ font-size:13px; border:1px solid var(--line); background:#fff; color:var(--ink);
+    border-radius:8px; padding:8px 14px; cursor:pointer; text-decoration:none; font-family:inherit; }
+  .toolbar .print{ background:var(--accent); color:#fff; border-color:var(--accent); font-weight:700; }
+  .toolbar .home{ font-size:16px; line-height:1; padding:7px 11px; text-decoration:none; }
+  .lang{ color:var(--mut); font-size:12px; }
+  .lang a{ color:var(--mut); text-decoration:none; padding:0 3px; } .lang a.on{ color:var(--accent); font-weight:700; }
+
+  /* the postcard — A6-ish, prints one clean card */
+  .card{ width:100%; max-width:420px; background:var(--paper); border-radius:18px; overflow:hidden;
+    box-shadow:0 18px 50px rgba(0,0,0,.18); position:relative;
+    border-top:6px solid var(--accent); }
+  .card::before{ /* soft flower-of-life halo behind the hero */
+    content:''; position:absolute; top:-40px; left:50%; transform:translateX(-50%);
+    width:340px; height:340px; border-radius:50%;
+    background:radial-gradient(circle, {{ accent }}22 0%, transparent 62%); pointer-events:none; }
+  .hero{ position:relative; padding:26px 24px 8px; text-align:center; }
+  .hero img{ width:190px; height:190px; object-fit:contain; filter:drop-shadow(0 10px 22px rgba(0,0,0,.18)); }
+  .hero .noimg{ font-size:96px; }
+  .body{ padding:6px 26px 20px; text-align:center; position:relative; }
+  h1{ font-size:24px; margin:6px 0 2px; letter-spacing:.2px; text-wrap:balance; }
+  .tagline{ color:var(--accent); font-weight:700; font-size:13px; letter-spacing:.06em; text-transform:uppercase; }
+  .story{ color:#44403c; font-size:14.5px; line-height:1.62; margin:14px 4px 0; text-align:left;
+    /* clean lead: cap a wall-of-text on the card (full text lives on the product) — short
+       authored descriptions are unaffected; nothing is deleted, only visually clamped. */
+    display:-webkit-box; -webkit-line-clamp:8; -webkit-box-orient:vertical; overflow:hidden; }
+  .machine{ display:inline-block; margin-top:8px; font-size:10.5px; color:var(--mut); }
+  .pricerow{ display:flex; align-items:center; justify-content:center; gap:10px; margin:18px 0 4px; }
+  .price{ font-size:30px; font-weight:800; color:var(--accent); font-variant-numeric:tabular-nums; }
+  .price small{ font-size:14px; font-weight:600; color:var(--mut); }
+  .maker{ font-size:13px; color:var(--mut); font-style:italic; margin-top:2px; }
+
+  .foot{ display:flex; align-items:center; gap:14px; border-top:1px dashed var(--line); margin:18px 22px 0; padding:16px 0 20px; }
+  #qr{ background:#fff; padding:6px; border-radius:10px; line-height:0; box-shadow:0 2px 8px rgba(0,0,0,.08); flex:none; }
+  .foot .meta{ flex:1; min-width:0; text-align:left; }
+  .foot .scan{ font-size:12px; color:var(--ink); font-weight:600; }
+  .foot .scan span{ color:var(--accent); }
+  .foot .serial{ font-size:10.5px; color:var(--mut); font-variant-numeric:tabular-nums; margin-top:3px; word-break:break-all; }
+  .brand{ text-align:center; font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--mut);
+    padding:0 0 18px; margin-top:-4px; }
+  .brand b{ color:var(--accent); }
+
+  /* store footer — the CLOSE (UFA doctrine: red top border, phone bold+red) */
+  .storefoot{ border-top:1.5px solid #8B0000; margin:2px 22px 0; padding:12px 0 18px; text-align:center; }
+  .pickup{ font-size:11.5px; font-weight:800; color:#8B0000; text-transform:uppercase; letter-spacing:.03em; }
+  .storeid{ display:flex; align-items:center; justify-content:center; gap:8px; margin:7px 0 4px; }
+  .storelogo{ height:22px; width:auto; object-fit:contain; }
+  .storename{ font-size:14px; font-weight:800; color:var(--ink); letter-spacing:.02em; }
+  .storelines{ display:flex; flex-direction:column; gap:2px; font-size:11px; color:var(--mut); line-height:1.5; }
+  .storelines .hours{ white-space:pre-line; }
+  .storelines .phone{ font-weight:700; color:#8B0000; }
+  .storelines a{ color:var(--ink); text-decoration:none; }
+  .storelines .web a{ color:#8B0000; font-weight:600; }
+  .storelines .social{ margin-top:2px; }
+  .storelines .social a{ color:var(--mut); }
+
+  @media print{
+    /* ONE A6 page — the screen card is tall, so shrink internals to mm and keep it whole. */
+    @page{ size:A6 portrait; margin:5mm; }
+    html,body{ margin:0; min-height:0; }
+    body{ background:#fff; padding:0; display:block; }
+    .toolbar, .share{ display:none !important; }
+    .card{ box-shadow:none; border:none; border-radius:0; max-width:100%; width:100%;
+      page-break-inside:avoid; break-inside:avoid; }
+    .card::before{ display:none; }
+    .hero{ padding:4mm 5mm 1mm; } .hero img{ width:36mm; height:36mm; }
+    .body{ padding:1mm 6mm 2mm; }
+    h1{ font-size:15pt; margin:2mm 0 1mm; }
+    .tagline{ font-size:8pt; }
+    .story{ font-size:9.5pt; line-height:1.36; margin:2mm 2mm 0;
+      display:-webkit-box; -webkit-line-clamp:7; -webkit-box-orient:vertical; overflow:hidden; }
+    .machine{ display:none; }
+    .pricerow{ margin:3mm 0 1mm; } .price{ font-size:18pt; }
+    .maker{ font-size:8pt; }
+    .foot{ margin:3mm 5mm 0; padding:3mm 0 2mm; }
+    .foot .scan{ font-size:8pt; } .foot .serial{ font-size:7pt; }
+    .brand{ font-size:7pt; padding-bottom:1mm; margin-top:-1mm; }
+    .storefoot{ margin:1mm 5mm 0; padding:2mm 0 1mm; }
+    .pickup{ font-size:7pt; } .storename{ font-size:9pt; } .storelogo{ height:5mm; }
+    .storelines{ font-size:6.5pt; gap:0.3mm; }
+  }
+</style>
+</head>
+<body>
+  <div class="toolbar">
+    <!-- BL-144: a way OUT. Angel: "this is a dead-end page — no way back to kiosk. The header should
+         min point back to kiosk welcome (prod for prod)." Relative /pos/kiosk → same origin, so the
+         prod card returns to the prod kiosk and the sandbox card to the sandbox kiosk, automatically.
+         Hidden on print (the .toolbar rule) so it never lands on the printed card. -->
+    <a class="home" href="/pos/kiosk" title="Back to the shop">🏠</a>
+    <span class="lang">
+      <a href="?lang=de" class="{{ 'on' if lang=='de' else '' }}">DE</a>·<a href="?lang=en" class="{{ 'on' if lang=='en' else '' }}">EN</a>·<a href="?lang=fr" class="{{ 'on' if lang=='fr' else '' }}">FR</a>·<a href="?lang=it" class="{{ 'on' if lang=='it' else '' }}">IT</a>
+    </span>
+    <a class="sheet" href="/pos/products/{{ request.path_params.product_id }}/postcard-sheet?lang={{ lang }}">🖨️ 4-up</a>
+    <button class="print" onclick="window.print()">🖨️ Print / PDF</button>
+  </div>
+
+  <div class="card">
+    <div class="hero">
+      {% if image_url %}<img src="{{ image_url }}" alt="{{ name }}" onerror="this.style.display='none'">
+      {% else %}<div class="noimg">🧴</div>{% endif %}
+    </div>
+    <div class="body">
+      <h1>{{ name }}</h1>
+      {% if supplier and is_maker %}<div class="tagline">{{ {'de':'Handgemacht','fr':'Fait main','it':'Fatto a mano'}.get(lang,'Handmade') }} · {{ supplier }}</div>{% endif %}
+      {% if description %}<p class="story">{{ description }}</p>{% endif %}
+      {% if provenance == 'machine' %}<span class="machine">🤖 {{ {'de':'übersetzt','fr':'traduit','it':'tradotto'}.get(lang,'translated') }}</span>{% endif %}
+      <div class="pricerow">
+        {% if price %}<span class="price">{{ currency }} {{ price }}</span>{% endif %}
+      </div>
+      {% if supplier and is_maker %}<div class="maker">{{ {'de':'mit Liebe gemacht','fr':'fait avec amour','it':'fatto con amore'}.get(lang,'made with love') }} — {{ supplier }}</div>{% endif %}
+    </div>
+
+    <div class="foot">
+      <div id="qr" title="Scan"></div>
+      <div class="meta">
+        <div class="scan">📷 <span>{{ {'de':'Scan mich','fr':'Scanne-moi','it':'Scansiona'}.get(lang,'Scan me') }}</span> — {{ {'de':'und zeig die Karte beim Kauf.','fr':'montre cette carte à la caisse.','it':'mostra la carta alla cassa.'}.get(lang,'show this card at checkout.') }}</div>
+        <div class="serial">Nr. {{ serial }}</div>
+      </div>
+    </div>
+    {% if store %}
+    <div class="storefoot">
+      <div class="storeid">
+        {% if store.logo %}<img class="storelogo" src="{{ store.logo }}" alt="" onerror="this.style.display='none'">{% endif %}
+        <span class="storename">{{ store.name }}</span>
+      </div>
+      <div class="storelines">
+        {% if store.address %}<span>📍 {{ store.address }}</span>{% endif %}
+        {% if store.hours %}<span class="hours">🕑 {{ store.hours }}</span>{% endif %}
+        {% if store.phone %}<span class="phone">📞 {{ store.phone }}</span>{% endif %}
+        {% if store.website %}<span class="web">🌐 <a href="{{ store.website }}" target="_blank" rel="noopener">{{ store.website_display }}</a></span>{% endif %}
+        {% if store.email %}<span>✉️ <a href="mailto:{{ store.email }}">{{ store.email }}</a></span>{% endif %}
+        {% if store.instagram or store.facebook %}
+        <span class="social">
+          {% if store.instagram %}<a href="{{ store.instagram }}" target="_blank" rel="noopener">📷 Instagram</a>{% endif %}
+          {% if store.instagram and store.facebook %} · {% endif %}
+          {% if store.facebook %}<a href="{{ store.facebook }}" target="_blank" rel="noopener">👍 Facebook</a>{% endif %}
+        </span>
+        {% endif %}
+      </div>
+    </div>
+    {% else %}
+    <div class="brand">Artemis Store · <b>Banco</b></div>
+    {% endif %}
+  </div>
+
+  {# Share — the whole UX for a non-techy maker: one tap → the phone's native share sheet
+     (SMS, WhatsApp, email, everything). Desktop falls back to explicit buttons. #}
+  <div class="share" id="share">
+    <button class="share-main" onclick="doShare()">📤 <span>{{ {'de':'Teilen','fr':'Partager','it':'Condividi'}.get(lang,'Share') }}</span></button>
+    <div class="share-alt" id="share-alt">
+      <a id="s-wa" target="_blank" rel="noopener">💬 WhatsApp</a>
+      <a id="s-sms">📱 SMS</a>
+      <a id="s-mail">✉️ Email</a>
+      <button onclick="copyLink()">🔗 <span id="copytxt">Copy</span></button>
+    </div>
+  </div>
+
+  <style>
+    .share{ width:100%; max-width:420px; margin-top:16px; text-align:center; }
+    .share-main{ width:100%; padding:14px; border:none; border-radius:12px; cursor:pointer;
+      font-size:16px; font-weight:800; color:#fff; background:var(--accent); font-family:inherit;
+      box-shadow:0 8px 22px {{ accent }}55; }
+    .share-alt{ display:none; gap:8px; margin-top:10px; flex-wrap:wrap; justify-content:center; }
+    .share-alt a, .share-alt button{ flex:1; min-width:120px; text-decoration:none; text-align:center;
+      font-size:13px; font-weight:600; color:var(--ink); background:#fff; border:1px solid var(--line);
+      border-radius:9px; padding:11px 8px; cursor:pointer; font-family:inherit; }
+    @media print{ .share{ display:none; } }
+  </style>
+
+  <script>
+    var SHARE_URL = {{ (qr_url or share_url)|tojson }};
+    var SHARE_TITLE = {{ name|tojson }};
+    var _maker = {{ (supplier or '')|tojson }};
+    var _msg = {
+      de: " — handgemacht von " + _maker + ". Zeig diese Karte beim Kauf für einen Rabatt! ",
+      en: " — handmade by " + _maker + ". Show this card at checkout for a deal! ",
+      fr: " — fait main par " + _maker + ". Montre cette carte à la caisse pour une remise ! ",
+      it: " — fatto a mano da " + _maker + ". Mostra questa carta alla cassa per uno sconto! "
+    }[{{ lang|tojson }}] || " — ";
+    var SHARE_TEXT = SHARE_TITLE + _msg;
+    async function doShare(){
+      if (navigator.share){
+        try { await navigator.share({ title: SHARE_TITLE, text: SHARE_TEXT, url: SHARE_URL }); return; }
+        catch(e){ if (e && e.name === 'AbortError') return; }
+      }
+      document.getElementById('share-alt').style.display = 'flex';   // desktop / no native share
+    }
+    (function(){
+      var full = encodeURIComponent(SHARE_TEXT + SHARE_URL);
+      document.getElementById('s-wa').href = 'https://wa.me/?text=' + full;
+      document.getElementById('s-sms').href = 'sms:?&body=' + full;
+      document.getElementById('s-mail').href = 'mailto:?subject=' + encodeURIComponent(SHARE_TITLE) + '&body=' + full;
+    })();
+    function copyLink(){
+      navigator.clipboard.writeText(SHARE_URL).then(function(){
+        document.getElementById('copytxt').textContent = '✓ Copied';
+        setTimeout(function(){ document.getElementById('copytxt').textContent = 'Copy'; }, 1400);
+      });
+    }
+  </script>
+
+  <script>
+    try {
+      new QRCode(document.getElementById('qr'), {
+        text: {{ (qr_url or share_url)|tojson }}, width: 74, height: 74,
+        colorDark: '{{ accent }}', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M
+      });
+    } catch (e) { document.getElementById('qr').textContent = 'QR'; }
+  </script>
+</body>
+</html>

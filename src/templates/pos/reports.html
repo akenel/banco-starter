@@ -1,0 +1,342 @@
+{% extends "pos/base.html" %}
+
+{% block title %}Sales Reports - HelixPOS - Artemis Store{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50" x-data="reportsData()">
+    <div class="max-w-5xl mx-auto px-4 py-8">
+
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-6 flex-wrap gap-2">
+            <div class="flex items-center gap-3">
+                <button @click="goDashboard()" class="btn-secondary flex-none" title="Dashboard" aria-label="Dashboard">🏠</button>
+                <h1 class="text-2xl sm:text-3xl font-bold text-gray-900" data-i18n="reports.title">📊 Sales Reports</h1>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <button @click="goProductSales()" class="btn-secondary" data-i18n="reports.product_sales">📦 Product Sales</button>
+                <button @click="goCleanup()" class="btn-secondary" data-i18n="reports.cleanup">🧹 Cleanup</button>
+                <button @click="goTransactions()" class="btn-secondary" data-i18n="reports.all_transactions">💳 All Transactions</button>
+            </div>
+        </div>
+        <p class="text-gray-600 mb-6"><span data-i18n="reports.today_dash">Today &mdash;</span> <span class="font-semibold" x-text="summary.date"></span></p>
+
+        <!-- Top KPI cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            <div class="card">
+                <p class="text-gray-600 text-sm" data-i18n="reports.total_sales">Total Sales</p>
+                <p class="text-3xl font-bold text-green-600" x-text="formatPrice(summary.total_sales)"></p>
+            </div>
+            <div class="card">
+                <p class="text-gray-600 text-sm" data-i18n="reports.transactions">Transactions</p>
+                <p class="text-3xl font-bold text-gray-900" x-text="summary.total_transactions"></p>
+            </div>
+            <div class="card">
+                <p class="text-gray-600 text-sm" data-i18n="reports.incl_vat_total">incl. VAT (total)</p>
+                <p class="text-3xl font-bold text-indigo-600" x-text="formatPrice(summary.vat_total)"></p>
+                <!-- P3 N-rate: LOOP the per-code split. CH renders "8.1% <std> · 2.6% <red>". -->
+                <p class="text-xs text-gray-400 mt-1" x-show="hasReducedVat()">
+                    <template x-for="(r, i) in vatRows()" :key="r.code"><span><span x-show="i > 0"> · </span><span x-text="r.rate"></span>% <span x-text="formatPrice(r.vat)"></span></span></template>
+                </p>
+            </div>
+        </div>
+
+        <!-- Day at a glance -->
+        <div class="grid grid-cols-3 gap-2 sm:gap-4 mb-6">
+            <div class="card text-center">
+                <p class="text-gray-500 text-xs uppercase tracking-wide" data-i18n="reports.avg_basket">Avg basket</p>
+                <p class="text-lg sm:text-2xl font-bold text-teal-600 truncate" x-text="formatPrice(summary.average_sale)"></p>
+            </div>
+            <div class="card text-center">
+                <p class="text-gray-500 text-xs uppercase tracking-wide" data-i18n="reports.items_sold">Items sold</p>
+                <p class="text-lg sm:text-2xl font-bold text-gray-900 truncate" x-text="summary.items_sold"></p>
+            </div>
+            <div class="card text-center">
+                <p class="text-gray-500 text-xs uppercase tracking-wide" data-i18n="reports.busiest_hour">Busiest hour</p>
+                <p class="text-lg sm:text-2xl font-bold text-gray-900 truncate" x-text="summary.busiest_hour || '—'"></p>
+            </div>
+        </div>
+
+        <!-- Payment method breakdown -->
+        <div class="card mb-6">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4" data-i18n="reports.payment_method_breakdown">💰 Payment Method Breakdown</h2>
+            <table class="w-full text-sm">
+                <tbody>
+                    <template x-for="row in methodRows()" :key="row.label">
+                        <tr x-show="row.amount > 0" class="border-b last:border-0">
+                            <td class="py-2" x-text="row.label"></td>
+                            <td class="py-2 text-right font-semibold" x-text="formatPrice(row.amount)"></td>
+                        </tr>
+                    </template>
+                    <tr class="border-t-2 border-gray-800">
+                        <td class="py-2 font-bold" data-i18n="reports.total">TOTAL</td>
+                        <td class="py-2 text-right font-bold text-lg" x-text="formatPrice(summary.total_sales)"></td>
+                    </tr>
+                    <!-- P3 N-rate: LOOP per-code VAT rows (standard first). CH = same two rows. -->
+                    <template x-for="(r, i) in vatRows()" :key="r.code">
+                        <tr x-show="i === 0 || r.turnover > 0">
+                            <td class="py-1 text-gray-500"><span data-i18n="reports.incl_vat">incl. VAT</span> <span x-text="r.rate"></span>%<span x-show="i > 0 || hasReducedVat()"> (<span data-i18n="reports.on">on</span> <span x-text="formatPrice(r.turnover)"></span>)</span></td>
+                            <td class="py-1 text-right text-gray-500" x-text="formatPrice(r.vat)"></td>
+                        </tr>
+                    </template>
+                    <tr x-show="hasReducedVat()">
+                        <td class="py-1 text-gray-600 font-semibold" data-i18n="reports.vat_total">VAT total</td>
+                        <td class="py-1 text-right text-gray-600 font-semibold" x-text="formatPrice(summary.vat_total)"></td>
+                    </tr>
+                    <tr x-show="summary.giveaway_count > 0">
+                        <td class="py-1 text-pink-600"><span data-i18n="reports.treats_given">🎁 Treats given (free) —</span> <span x-text="summary.giveaway_count"></span> · <span data-i18n="reports.cost">cost</span></td>
+                        <td class="py-1 text-right text-pink-600" x-text="formatPrice(summary.giveaway_cost)"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Top seller + cashiers -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+            <div class="card">
+                <h2 class="text-lg font-semibold text-gray-900 mb-2" data-i18n="reports.top_sellers">🏆 Top Sellers</h2>
+                <template x-for="(p, i) in (summary.top_sellers || [])" :key="p.name">
+                    <div class="flex justify-between items-center text-sm py-1 border-b last:border-0">
+                        <span><span x-text="['🥇','🥈','🥉'][i] || '•'"></span> <span class="font-semibold" x-text="p.name"></span></span>
+                        <span class="text-gray-600"><span x-text="p.quantity"></span> <span data-i18n="reports.sold">sold</span></span>
+                    </div>
+                </template>
+                <p x-show="!(summary.top_sellers && summary.top_sellers.length)" class="text-gray-400" data-i18n="reports.no_sales_today">No sales yet today.</p>
+            </div>
+            <div class="card">
+                <h2 class="text-lg font-semibold text-gray-900 mb-2" data-i18n="reports.by_cashier">👥 By Cashier</h2>
+                <template x-for="(amount, name) in summary.cashier_performance" :key="name">
+                    <div class="flex justify-between text-sm py-1 border-b last:border-0">
+                        <span x-text="name"></span>
+                        <span class="font-semibold" x-text="formatPrice(amount)"></span>
+                    </div>
+                </template>
+                <p x-show="Object.keys(summary.cashier_performance || {}).length === 0" class="text-gray-400 text-sm" data-i18n="reports.no_data">No data.</p>
+            </div>
+        </div>
+
+        <!-- Banana export -->
+        <div class="card">
+            <h2 class="text-xl font-semibold text-gray-900 mb-2" data-i18n="reports.accounting_export">📥 Accounting Export</h2>
+            <p class="text-gray-600 text-sm mb-4" data-i18n="reports.export_desc">Download today's sales as a Banana Accounting CSV (one line per payment method).</p>
+            <div class="flex flex-wrap gap-3">
+                <!-- BL-20: view the CSV on-screen (mobile can't easily open a downloaded file) -->
+                <button @click="viewCSV()" :disabled="viewing" class="btn-secondary">
+                    <span x-show="!viewing" data-i18n="reports.view_csv">👁 View CSV</span>
+                    <span x-show="viewing" data-i18n="reports.preparing">Preparing...</span>
+                </button>
+                <button @click="downloadCSV()" :disabled="downloading" class="btn-primary">
+                    <span x-show="!downloading" data-i18n="reports.download_csv">📥 Download Banana CSV</span>
+                    <span x-show="downloading" data-i18n="reports.preparing">Preparing...</span>
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- BL-20: CSV viewer modal — renders the accounting CSV as a scrollable table -->
+    <div x-show="showCsv" x-transition class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+         @click.self="showCsv = false" @keydown.escape.window="showCsv = false" style="display:none;">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[85vh] flex flex-col">
+            <div class="flex items-center justify-between p-4 border-b">
+                <h3 class="text-lg font-bold text-gray-900">📄 <span x-text="csvTitle"></span></h3>
+                <button @click="showCsv = false" class="text-gray-400 hover:text-gray-700 text-3xl leading-none">&times;</button>
+            </div>
+            <div class="overflow-auto p-4">
+                <table class="min-w-full text-sm border-collapse">
+                    <thead x-show="csvRows.length">
+                        <tr>
+                            <template x-for="(cell, ci) in (csvRows[0] || [])" :key="ci">
+                                <th class="border border-gray-200 bg-gray-100 px-3 py-2 text-left font-semibold whitespace-nowrap" x-text="cell"></th>
+                            </template>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="(row, ri) in csvRows.slice(1)" :key="ri">
+                            <tr class="odd:bg-white even:bg-gray-50">
+                                <template x-for="(cell, ci) in row" :key="ci">
+                                    <td class="border border-gray-200 px-3 py-2 whitespace-nowrap" x-text="cell"></td>
+                                </template>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+                <p x-show="!csvRows.length" class="text-gray-500 text-center py-6" data-i18n="reports.csv_empty">No rows for today yet.</p>
+            </div>
+            <div class="p-4 border-t flex justify-end gap-3">
+                <button @click="downloadCSV()" :disabled="downloading" class="btn-primary">
+                    <span data-i18n="reports.download_csv">📥 Download Banana CSV</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function reportsData() {
+        return {
+            summary: {
+                date: '',
+                total_transactions: 0,
+                total_sales: 0,
+                vat_total: 0,
+                vat_standard: 0, vat_reduced: 0, turnover_standard: 0, turnover_reduced: 0,
+                vat_streams: [],   // P3 N-rate: per-code streams from the server (CH: A,B)
+                cash_total: 0, twint_total: 0, visa_total: 0,
+                debit_total: 0, crypto_total: 0, other_total: 0,
+                top_seller: null, top_seller_quantity: 0,
+                top_sellers: [], items_sold: 0, average_sale: 0, busiest_hour: null,
+                cashier_performance: {},
+                giveaway_count: 0, giveaway_cost: 0
+            },
+            downloading: false,
+            viewing: false,
+            showCsv: false,
+            csvRows: [],      // parsed CSV: [ [header...], [row...], ... ]
+            csvTitle: '',
+
+            async init() {
+                const userInfo = AuthHelper.getUserInfo();
+                if (!userInfo) { window.location.href = '/pos'; return; }
+                try {
+                    const data = await API.get('/api/v1/pos/reports/daily-summary');
+                    this.summary = {
+                        date: data.date || new Date().toISOString().slice(0, 10),
+                        total_transactions: data.total_transactions || 0,
+                        total_sales: parseFloat(data.total_sales || 0),
+                        vat_total: parseFloat(data.vat_total || 0),
+                        vat_standard: parseFloat(data.vat_standard || 0),
+                        vat_reduced: parseFloat(data.vat_reduced || 0),
+                        turnover_standard: parseFloat(data.turnover_standard || 0),
+                        turnover_reduced: parseFloat(data.turnover_reduced || 0),
+                        vat_streams: Array.isArray(data.vat_streams) ? data.vat_streams : [],
+                        cash_total: parseFloat(data.cash_total || 0),
+                        twint_total: parseFloat(data.twint_total || 0),
+                        visa_total: parseFloat(data.visa_total || 0),
+                        debit_total: parseFloat(data.debit_total || 0),
+                        crypto_total: parseFloat(data.crypto_total || 0),
+                        other_total: parseFloat(data.other_total || 0),
+                        top_seller: data.top_seller || null,
+                        top_seller_quantity: data.top_seller_quantity || 0,
+                        top_sellers: data.top_sellers || [],
+                        items_sold: data.items_sold || 0,
+                        average_sale: parseFloat(data.average_sale || 0),
+                        busiest_hour: data.busiest_hour || null,
+                        cashier_performance: data.cashier_performance || {},
+                        giveaway_count: data.giveaway_count || 0,
+                        giveaway_cost: parseFloat(data.giveaway_cost || 0)
+                    };
+                } catch (e) {
+                    console.error('Failed to load report:', e);
+                    showToast(t('reports.could_not_load'), 'error');
+                }
+            },
+
+            // P3 N-rate: the VAT rows to display, standard first. Prefer the server's per-code
+            // streams; fall back to the two back-compat scalars. CH = [{A,8.1},{B,2.6}].
+            vatRows() {
+                const st = this.summary.vat_streams;
+                if (Array.isArray(st) && st.length) {
+                    return st.map(s => ({ code: s.code, rate: parseFloat(s.rate),
+                                          vat: parseFloat(s.vat || 0), turnover: parseFloat(s.turnover || 0) }));
+                }
+                return [
+                    { code: 'A', rate: parseFloat(POSConfig.vat_rate), vat: parseFloat(this.summary.vat_standard || 0), turnover: parseFloat(this.summary.turnover_standard || 0) },
+                    { code: 'B', rate: parseFloat(POSConfig.vat_rate_reduced), vat: parseFloat(this.summary.vat_reduced || 0), turnover: parseFloat(this.summary.turnover_reduced || 0) },
+                ];
+            },
+            hasReducedVat() { return this.vatRows().slice(1).some(r => r.turnover > 0); },
+
+            methodRows() {
+                return [
+                    { label: t('reports.pay_cash'), amount: this.summary.cash_total },
+                    { label: 'TWINT', amount: this.summary.twint_total },
+                    { label: 'Visa/MC', amount: this.summary.visa_total },
+                    { label: t('reports.pay_debit'), amount: this.summary.debit_total },
+                    { label: t('reports.pay_crypto'), amount: this.summary.crypto_total },
+                    { label: t('reports.pay_other'), amount: this.summary.other_total }
+                ];
+            },
+
+            // BL-20: fetch the same accounting CSV and show it on-screen as a table.
+            async viewCSV() {
+                this.viewing = true;
+                try {
+                    if (AuthHelper.isExpiring()) await AuthHelper.refresh();
+                    const res = await fetch('/api/v1/pos/reports/daily-summary.csv', {
+                        headers: { 'Authorization': `Bearer ${AuthHelper.getToken()}` }
+                    });
+                    if (!res.ok) { showToast(t('reports.csv_failed') + ' (' + res.status + ')', 'error'); return; }
+                    const text = await res.text();
+                    this.csvRows = this.parseCSV(text);
+                    this.csvTitle = `banana-${this.summary.date}.csv`;
+                    this.showCsv = true;
+                } catch (e) {
+                    showToast(t('reports.csv_failed') + ': ' + e.message, 'error');
+                } finally {
+                    this.viewing = false;
+                }
+            },
+
+            // Minimal RFC-4180 CSV parser — handles quoted fields, "" escapes, commas &
+            // newlines inside quotes. The Banana export is QUOTE_ALL, so this reads it cleanly.
+            parseCSV(text) {
+                const rows = [];
+                let row = [], field = '', inQuotes = false;
+                for (let i = 0; i < text.length; i++) {
+                    const c = text[i];
+                    if (inQuotes) {
+                        if (c === '"') {
+                            if (text[i + 1] === '"') { field += '"'; i++; }
+                            else inQuotes = false;
+                        } else field += c;
+                    } else if (c === '"') {
+                        inQuotes = true;
+                    } else if (c === ',') {
+                        row.push(field); field = '';
+                    } else if (c === '\n' || c === '\r') {
+                        if (c === '\r' && text[i + 1] === '\n') i++;
+                        row.push(field); field = '';
+                        if (row.length > 1 || row[0] !== '') rows.push(row);
+                        row = [];
+                    } else field += c;
+                }
+                if (field !== '' || row.length) { row.push(field); if (row.length > 1 || row[0] !== '') rows.push(row); }
+                return rows;
+            },
+
+            async downloadCSV() {
+                this.downloading = true;
+                try {
+                    // Authenticated fetch -> blob -> download. (The raw URL fails because
+                    // the endpoint requires a Bearer token; this attaches it.)
+                    if (AuthHelper.isExpiring()) await AuthHelper.refresh();
+                    const res = await fetch('/api/v1/pos/reports/daily-summary.csv', {
+                        headers: { 'Authorization': `Bearer ${AuthHelper.getToken()}` }
+                    });
+                    if (!res.ok) { showToast(t('reports.csv_failed') + ' (' + res.status + ')', 'error'); return; }
+                    const blob = await res.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `banana-${this.summary.date}.csv`;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    URL.revokeObjectURL(url);
+                    showToast(t('reports.csv_downloaded'), 'success');
+                } catch (e) {
+                    showToast(t('reports.csv_failed') + ': ' + e.message, 'error');
+                } finally {
+                    this.downloading = false;
+                }
+            },
+
+            goDashboard() { window.location.href = '/pos/dashboard'; },
+            goTransactions() { window.location.href = '/pos/transactions'; },
+            goProductSales() { window.location.href = '/pos/reports/products'; },
+            goCleanup() { window.location.href = '/pos/cleanup'; },
+            formatPrice(amount) { return formatPrice(amount); }
+        }
+    }
+</script>
+{% endblock %}

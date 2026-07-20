@@ -1,0 +1,359 @@
+{% extends "pos/base.html" %}
+{% block title %}Audit Cockpit - Banco{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50" x-data="auditData()" x-init="init()">
+  <div class="max-w-5xl mx-auto px-4 py-8">
+
+    <!-- header -->
+    <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
+      <div>
+        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">🕵️ Audit Cockpit</h1>
+        <p class="text-gray-500 text-sm">Every change, who made it, and exactly what — 📦 products · 💰 sales · 🧾 closeouts · 🏭 suppliers · ⚙️ settings.</p>
+      </div>
+      <div class="flex gap-2">
+        <a href="/pos/dashboard" class="btn-secondary">← Dashboard</a>
+        <button @click="reset()" class="btn-secondary" x-show="hasFilter()" style="display:none">✕ Clear</button>
+        <button @click="load()" class="btn-secondary">↻ Refresh</button>
+      </div>
+    </div>
+
+    <!-- scorecard -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+      <div class="card text-center"><p class="text-gray-500 text-[11px] uppercase tracking-wide">Total events</p><p class="text-xl sm:text-2xl font-bold text-gray-900" x-text="total"></p></div>
+      <div class="card text-center cursor-pointer" @click="toggleIn('actions','INSERT')" :class="f.actions.includes('INSERT') ? 'ring-2 ring-green-400' : ''"><p class="text-gray-500 text-[11px] uppercase">➕ Created</p><p class="text-xl font-bold text-green-600" x-text="act.INSERT||0"></p></div>
+      <div class="card text-center cursor-pointer" @click="toggleIn('actions','UPDATE')" :class="f.actions.includes('UPDATE') ? 'ring-2 ring-amber-400' : ''"><p class="text-gray-500 text-[11px] uppercase">✏️ Edited</p><p class="text-xl font-bold text-amber-600" x-text="act.UPDATE||0"></p></div>
+      <div class="card text-center cursor-pointer" @click="toggleIn('actions','DELETE')" :class="f.actions.includes('DELETE') ? 'ring-2 ring-red-400' : ''"><p class="text-gray-500 text-[11px] uppercase">🗑️ Deleted</p><p class="text-xl font-bold text-red-600" x-text="act.DELETE||0"></p></div>
+    </div>
+
+    <!-- filters -->
+    <div class="card mb-4 space-y-3">
+      <div class="flex items-center gap-2 flex-wrap">
+        <!-- WHAT (multi) -->
+        <div class="relative" x-data="{o:false}">
+          <button @click="o=!o" class="chip" :class="f.entity_types.length?'chip-on':''">
+            What: <b x-text="f.entity_types.length ? f.entity_types.length+' selected' : 'All'"></b> ▾
+          </button>
+          <div x-show="o" @click.outside="o=false" x-transition.opacity style="display:none" class="absolute z-30 mt-1 left-0 bg-white border border-gray-200 rounded-xl shadow-xl p-1 w-56">
+            <template x-for="t in entityTypes" :key="t.name">
+              <label class="flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-indigo-50 rounded-lg cursor-pointer">
+                <input type="checkbox" :checked="f.entity_types.includes(t.name)" @change="toggleIn('entity_types',t.name)">
+                <span x-text="entityEmoji(t.name)+' '+entityLabel(t.name)+' ('+t.count+')'"></span>
+              </label>
+            </template>
+            <button x-show="f.entity_types.length" @click="f.entity_types=[];load()" class="w-full text-left px-3 py-1.5 text-xs text-gray-500 hover:bg-gray-100 rounded-lg">✕ clear</button>
+          </div>
+        </div>
+        <!-- WHO (multi) -->
+        <div class="relative" x-data="{o:false}">
+          <button @click="o=!o" class="chip" :class="f.actors.length?'chip-on':''">
+            Who: <b x-text="f.actors.length ? f.actors.length+' selected' : 'Everyone'"></b> ▾
+          </button>
+          <div x-show="o" @click.outside="o=false" x-transition.opacity style="display:none" class="absolute z-30 mt-1 left-0 bg-white border border-gray-200 rounded-xl shadow-xl p-1 w-56 max-h-64 overflow-y-auto">
+            <template x-for="a in actors" :key="a.name">
+              <label class="flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-indigo-50 rounded-lg cursor-pointer">
+                <input type="checkbox" :checked="f.actors.includes(a.name)" @change="toggleIn('actors',a.name)">
+                <span x-text="(a.name==='system'?'🤖 ':'👤 ')+a.name+' ('+a.count+')'"></span>
+              </label>
+            </template>
+            <button x-show="f.actors.length" @click="f.actors=[];load()" class="w-full text-left px-3 py-1.5 text-xs text-gray-500 hover:bg-gray-100 rounded-lg">✕ clear</button>
+          </div>
+        </div>
+        <!-- ACTION (multi) -->
+        <div class="relative" x-data="{o:false}">
+          <button @click="o=!o" class="chip" :class="f.actions.length?'chip-on':''">
+            Action: <b x-text="f.actions.length ? f.actions.length+' selected' : 'Any'"></b> ▾
+          </button>
+          <div x-show="o" @click.outside="o=false" x-transition.opacity style="display:none" class="absolute z-30 mt-1 left-0 bg-white border border-gray-200 rounded-xl shadow-xl p-1 w-44">
+            <template x-for="a in [['INSERT','➕ Created'],['UPDATE','✏️ Edited'],['DELETE','🗑️ Deleted']]" :key="a[0]">
+              <label class="flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-indigo-50 rounded-lg cursor-pointer">
+                <input type="checkbox" :checked="f.actions.includes(a[0])" @change="toggleIn('actions',a[0])">
+                <span x-text="a[1]"></span>
+              </label>
+            </template>
+          </div>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 flex-wrap">
+        <span class="text-[11px] font-bold text-gray-400 uppercase">When</span>
+        <button @click="preset('hour')" class="chip">Last hour</button>
+        <button @click="preset('today')" class="chip">Today</button>
+        <button @click="preset('yday')" class="chip">Yesterday</button>
+        <button @click="showRange=!showRange" class="chip" :class="showRange?'chip-on':''">📅 Custom range</button>
+        <span x-show="rangeLabel()" class="text-xs text-gray-600 font-medium" x-text="rangeLabel()"></span>
+        <button @click="clearTime()" class="chip" x-show="f.since||f.until" style="display:none">✕ clear</button>
+      </div>
+      <div x-show="showRange" style="display:none" class="flex items-end gap-4 flex-wrap bg-gray-50 rounded-lg p-3 border border-gray-100">
+        <div>
+          <label class="text-[11px] font-bold text-gray-400 uppercase block mb-1">From</label>
+          <div class="flex gap-1.5 items-center">
+            <input type="date" x-model="r.fromD" class="input-field text-xs" style="width:auto">
+            <div class="spin"><button type="button" @click="bump('fromH',-1)" class="spb">▼</button><input type="number" min="0" max="23" x-model.number="r.fromH" @input="clampT()" class="spi" title="hour"><button type="button" @click="bump('fromH',1)" class="spb">▲</button></div>
+            <span class="text-gray-400 font-bold">:</span>
+            <div class="spin"><button type="button" @click="bump('fromM',-5)" class="spb">▼</button><input type="number" min="0" max="59" x-model.number="r.fromM" @input="clampT()" class="spi" title="minute"><button type="button" @click="bump('fromM',5)" class="spb">▲</button></div>
+          </div>
+        </div>
+        <div>
+          <label class="text-[11px] font-bold text-gray-400 uppercase block mb-1">To</label>
+          <div class="flex gap-1.5 items-center">
+            <input type="date" x-model="r.toD" class="input-field text-xs" style="width:auto">
+            <div class="spin"><button type="button" @click="bump('toH',-1)" class="spb">▼</button><input type="number" min="0" max="23" x-model.number="r.toH" @input="clampT()" class="spi" title="hour"><button type="button" @click="bump('toH',1)" class="spb">▲</button></div>
+            <span class="text-gray-400 font-bold">:</span>
+            <div class="spin"><button type="button" @click="bump('toM',-5)" class="spb">▼</button><input type="number" min="0" max="59" x-model.number="r.toM" @input="clampT()" class="spi"><button type="button" @click="bump('toM',5)" class="spb">▲</button></div>
+          </div>
+        </div>
+        <button @click="applyRange()" class="btn-primary text-sm">Apply window</button>
+        <p class="text-[11px] text-gray-400 w-full">Pick a day and, if you like, a start &amp; end time — leave a time blank for the whole day. Then <b>Apply</b>.</p>
+      </div>
+      <div>
+        <input type="text" x-model="f.q" @input.debounce.400ms="load()" placeholder="🔎 search a name, field, value, user…"
+               class="input-field w-full text-sm">
+      </div>
+    </div>
+
+    <div x-show="loading" class="text-center py-10 text-gray-500">Loading the log…</div>
+    <div x-show="!loading && items.length===0" class="card text-center py-10 text-gray-400">Nothing matches. When someone changes a product, rings a sale, or closes out — it lands here.</div>
+
+    <div x-show="!loading && hasFilter()" style="display:none" class="text-sm text-gray-600 mb-2 px-1">
+      🔎 Showing <b x-text="matched"></b> of <span x-text="total"></span> events matching your filter.
+    </div>
+
+    <!-- the feed -->
+    <div class="space-y-2" x-show="!loading">
+      <template x-for="it in items" :key="it.id">
+        <div class="card !p-0 overflow-hidden border-l-4" :class="stripe(it.action)">
+          <!-- row (click to drill down) -->
+          <div class="flex items-start gap-3 p-3 cursor-pointer hover:bg-gray-50" @click="it._open = !it._open">
+            <div class="text-2xl leading-none mt-0.5" x-text="entityEmoji(it.entity_type)"></div>
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-[11px] font-bold px-2 py-0.5 rounded-full border" :class="badge(it.action)" x-text="actionEmoji(it.action)+' '+actionWord(it.action)"></span>
+                <span class="font-semibold text-gray-900 truncate" x-text="it.label || (entityLabel(it.entity_type))"></span>
+                <span class="text-[11px] text-gray-400" x-show="it.label" x-text="entityLabel(it.entity_type)"></span>
+                <span x-show="isSensitive(it)" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-600 text-white animate-pulse" x-text="'⚠️ '+sensitiveTip(it)"></span>
+              </div>
+              <div class="text-xs text-gray-500 mt-1">
+                <span x-text="(it.who==='system'?'🤖 ':'👤 ')+it.who"></span>
+                · <span :title="it.at" x-text="ago(it.at)"></span>
+                <span x-show="it.action==='UPDATE'"> · <span class="text-gray-600" x-text="summary(it)"></span></span>
+              </div>
+            </div>
+            <div class="text-gray-300 text-sm mt-1" x-text="it._open ? '▾' : '▸'"></div>
+          </div>
+          <!-- DRILL-DOWN -->
+          <div x-show="it._open" style="display:none" class="border-t bg-gray-50/60 px-4 py-3">
+            <!-- UPDATE: field-level old → new -->
+            <template x-if="it.action==='UPDATE'">
+              <table class="w-full text-xs">
+                <thead><tr class="text-gray-400 text-left"><th class="pb-1 font-semibold">Field</th><th class="pb-1 font-semibold">Was</th><th class="pb-1"></th><th class="pb-1 font-semibold">Now</th></tr></thead>
+                <tbody>
+                  <template x-for="(d,field) in it.changes" :key="field">
+                    <tr class="border-t border-gray-200">
+                      <td class="py-1 pr-3 font-mono text-gray-700" x-text="field"></td>
+                      <td class="py-1 pr-2 text-red-600 line-through max-w-[180px] truncate" :title="fmt(d.old)" x-text="fmt(d.old)"></td>
+                      <td class="py-1 px-1 text-gray-400">→</td>
+                      <td class="py-1 text-green-700 font-medium max-w-[180px] truncate" :title="fmt(d.new)" x-text="fmt(d.new)"></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </template>
+            <!-- INSERT / DELETE: the full row -->
+            <template x-if="it.action!=='UPDATE'">
+              <div>
+                <p class="text-[11px] font-bold uppercase mb-2" :class="it.action==='INSERT'?'text-green-600':'text-red-600'"
+                   x-text="it.action==='INSERT' ? '➕ created with these values' : '🗑️ deleted — the record was'"></p>
+                <div class="grid sm:grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
+                  <template x-for="(v,field) in nonEmpty(it.changes)" :key="field">
+                    <div class="flex gap-2 border-b border-gray-100 py-0.5">
+                      <span class="font-mono text-gray-500 shrink-0" x-text="field"></span>
+                      <span class="text-gray-800 truncate ml-auto max-w-[60%]" :title="fmt(v)" x-text="fmt(v)"></span>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </template>
+            <div class="mt-2 pt-2 border-t border-gray-200 flex items-center gap-3 text-[11px] text-gray-400 flex-wrap">
+              <span x-text="'🕔 '+fmtTime(it.at)"></span>
+              <span class="font-mono" x-text="'#'+it.id"></span>
+              <span class="font-mono truncate" x-text="it.entity_type+' · '+String(it.entity_id).slice(0,8)"></span>
+              <div class="ml-auto flex items-center gap-3">
+                <button x-show="it.action==='UPDATE' && it.entity_type==='products'" @click.stop="revert(it)" :disabled="it._reverting"
+                        class="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-800 font-bold hover:bg-amber-200 text-[11px] transition">
+                  <span x-show="!it._reverting">↩️ Revert this change</span>
+                  <span x-show="it._reverting" style="display:none">reverting…</span>
+                </button>
+                <button class="underline hover:text-gray-600" @click.stop="onlyThis(it)">🔗 just this record's history</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <div class="text-center mt-4" x-show="!loading && items.length && items.length < total && !hasFilter()">
+      <button @click="more()" class="btn-secondary" x-text="loadingMore ? 'Loading…' : '↓ Load more'"></button>
+    </div>
+  </div>
+</div>
+
+<style>
+  .chip{ font-size:12px; padding:4px 10px; border-radius:999px; border:1px solid #e5e7eb; background:#fff; color:#4b5563; cursor:pointer; white-space:nowrap; }
+  .chip:hover{ background:#f9fafb; }
+  .chip-on{ background:#111827; color:#fff; border-color:#111827; }
+  .spin{ display:flex; align-items:center; border:1px solid #e5e7eb; border-radius:8px; background:#fff; overflow:hidden; }
+  .spb{ padding:6px 8px; color:#6b7280; font-size:10px; line-height:1; cursor:pointer; user-select:none; }
+  .spb:hover{ background:#eef2ff; color:#4f46e5; }
+  .spb:active{ background:#4f46e5; color:#fff; }
+  .spi{ width:36px; text-align:center; font-size:14px; font-variant-numeric:tabular-nums; border:0; padding:5px 0; -moz-appearance:textfield; }
+  .spi::-webkit-outer-spin-button, .spi::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+  .spi:focus{ outline:none; background:#eef2ff; }
+</style>
+
+<script>
+function auditData() {
+  return {
+    items: [], total: 0, matched: 0, act: {}, actors: [], entityTypes: [],
+    loading: false, loadingMore: false,
+    f: { entity_types: [], actors: [], actions: [], entity_id: '', q: '', since: '', until: '' },
+    showRange: false,
+    r: { fromD: '', fromH: 0, fromM: 0, toD: '', toH: 23, toM: 59 },  // times default to whole-day bounds
+    init() {
+      const u = AuthHelper.getUserInfo();
+      if (!u) { window.location.href = '/pos'; return; }
+      // deep-link: /pos/audit?entity_id=... (from a product's History link)
+      const sp = new URLSearchParams(location.search);
+      if (sp.get('entity_id')) this.f.entity_id = sp.get('entity_id');
+      this.load();
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) this.load(); });
+    },
+    qs(extra) {
+      const p = new URLSearchParams({ limit: 40, offset: 0, ...extra });
+      if (this.f.entity_types.length) p.set('entity_type', this.f.entity_types.join(','));
+      if (this.f.actors.length)       p.set('actor',       this.f.actors.join(','));
+      if (this.f.actions.length)      p.set('action',      this.f.actions.join(','));
+      if (this.f.entity_id)           p.set('entity_id',   this.f.entity_id);
+      if (this.f.q)                   p.set('q',           this.f.q);
+      const s = this._toISO(this.f.since); if (s) p.set('since', s);
+      const u = this._toISO(this.f.until); if (u) p.set('until', u);
+      return p.toString();
+    },
+    toggleIn(key, val) { const a = this.f[key]; const i = a.indexOf(val); if (i >= 0) a.splice(i,1); else a.push(val); this.load(); },
+    async revert(it) {
+      if (!confirm('↩️ Revert this change?\n\nThis restores the OLD value(s) — and is itself logged as a new audit entry (you can even revert the revert).')) return;
+      it._reverting = true;
+      try {
+        const r = await API.post('/api/v1/pos/audit/' + it.id + '/revert', {});
+        showToast('↩️ Reverted: ' + ((r.reverted || []).join(', ') || 'done'), 'success');
+        await this.load();
+      } catch (e) { console.error(e); showToast('Revert failed — ' + (e.message || 'error'), 'error'); }
+      finally { it._reverting = false; }
+    },
+    // "YYYY-MM-DDTHH:MM" (LOCAL) → UTC ISO. Build from parts — Firefox returns Invalid Date
+    // for strings without seconds, which silently killed the filter.
+    _toISO(str) {
+      const m = str && /^(\d{4})-(\d{2})-(\d{2})T(\d{1,2}):(\d{2})/.exec(str);
+      if (!m) return null;
+      try { return new Date(+m[1], +m[2]-1, +m[3], +m[4], +m[5], 0).toISOString(); } catch (e) { return null; }
+    },
+    // quick time windows. L() formats a Date as a datetime-local string (the inputs).
+    preset(k) {
+      const now = new Date();
+      const L = d => { const z = n => String(n).padStart(2,'0');
+        return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}T${z(d.getHours())}:${z(d.getMinutes())}`; };
+      const sod = d => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
+      if (k === 'hour')      { this.f.since = L(new Date(now.getTime()-3600e3)); this.f.until = ''; }
+      else if (k === 'today'){ this.f.since = L(sod(now)); this.f.until = ''; }
+      else if (k === 'yday') { const y = new Date(now.getTime()-86400e3); this.f.since = L(sod(y)); this.f.until = L(new Date(sod(now).getTime()-60000)); }
+      this._syncR(); this.load();
+    },
+    // spin a HH/MM field by delta, wrapping like a real time wheel (23→00, 55+5→00)
+    bump(field, delta) {
+      const mod = field.endsWith('H') ? 24 : 60;
+      let v = ((parseInt(this.r[field], 10) || 0) + delta) % mod;
+      if (v < 0) v += mod;
+      this.r[field] = v;
+    },
+    // after typing, keep values in range
+    clampT() {
+      const c = (v, max) => { v = parseInt(v, 10); if (isNaN(v)) return 0; return Math.max(0, Math.min(max, v)); };
+      this.r.fromH = c(this.r.fromH,23); this.r.fromM = c(this.r.fromM,59);
+      this.r.toH   = c(this.r.toH,23);   this.r.toM   = c(this.r.toM,59);
+    },
+    _pad(n) { return String(n).padStart(2,'0'); },
+    _syncR() {
+      const s = this.f.since, u = this.f.until;
+      this.r.fromD = s ? s.slice(0,10) : ''; this.r.fromH = s ? +s.slice(11,13) : 0;  this.r.fromM = s ? +s.slice(14,16) : 0;
+      this.r.toD   = u ? u.slice(0,10) : ''; this.r.toH   = u ? +u.slice(11,13) : 23; this.r.toM   = u ? +u.slice(14,16) : 59;
+    },
+    applyRange() {
+      this.clampT();
+      this.f.since = this.r.fromD ? `${this.r.fromD}T${this._pad(this.r.fromH)}:${this._pad(this.r.fromM)}` : '';
+      this.f.until = this.r.toD   ? `${this.r.toD}T${this._pad(this.r.toH)}:${this._pad(this.r.toM)}`     : '';
+      this.load();
+    },
+    clearTime() { this.f.since = ''; this.f.until = ''; this.r = { fromD:'', fromH:0, fromM:0, toD:'', toH:23, toM:59 }; this.load(); },
+    rangeLabel() {
+      if (!this.f.since && !this.f.until) return '';
+      const nice = s => s ? s.replace('T', ' ') : '';
+      return '🕐 ' + (this.f.since ? nice(this.f.since) : 'start') + ' → ' + (this.f.until ? nice(this.f.until) : 'now');
+    },
+    async load() {
+      this.loading = true;
+      try {
+        const d = await API.get('/api/v1/pos/audit/feed?' + this.qs());
+        this.items = (d.items || []).map(x => ({ ...x, _open: false, _reverting: false }));
+        this.total = d.total || 0;
+        this.matched = (d.matched ?? d.total) || 0;
+        this.act = d.actions || {};
+        this.actors = d.actors || [];
+        this.entityTypes = d.entity_types || [];
+      } catch (e) { console.error(e); if (!this.items.length) showToast('Could not load the audit log', 'error'); }
+      finally { this.loading = false; }
+    },
+    async more() {
+      this.loadingMore = true;
+      try {
+        const d = await API.get('/api/v1/pos/audit/feed?' + this.qs({ offset: this.items.length }));
+        (d.items || []).forEach(x => this.items.push({ ...x, _open: false, _reverting: false }));
+      } catch (e) { console.error(e); }
+      finally { this.loadingMore = false; }
+    },
+    onlyThis(it) { this.f = { entity_types: [], actors: [], actions: [], entity_id: it.entity_id, q: '', since: '', until: '' }; this.load(); window.scrollTo({top:0,behavior:'smooth'}); },
+    hasFilter() { return !!(this.f.entity_types.length || this.f.actors.length || this.f.actions.length || this.f.entity_id || this.f.q || this.f.since || this.f.until); },
+    reset() { this.f = { entity_types: [], actors: [], actions: [], entity_id: '', q: '', since: '', until: '' }; this.load(); },
+    entityEmoji(t) { return ({products:'📦',transactions:'💰',cash_shifts:'🧾',suppliers:'🏭',store_settings:'⚙️'})[t] || '🗂️'; },
+    entityLabel(t) { return ({products:'Product',transactions:'Sale',cash_shifts:'Closeout',suppliers:'Supplier',store_settings:'Settings'})[t] || t; },
+    actionEmoji(a) { return ({INSERT:'➕',UPDATE:'✏️',DELETE:'🗑️'})[a] || '•'; },
+    actionWord(a) { return ({INSERT:'created',UPDATE:'edited',DELETE:'deleted'})[a] || (a||'').toLowerCase(); },
+    stripe(a) { return ({INSERT:'border-green-400',UPDATE:'border-amber-400',DELETE:'border-red-400'})[a] || 'border-gray-300'; },
+    badge(a) { return ({INSERT:'bg-green-100 text-green-700 border-green-200',UPDATE:'bg-amber-100 text-amber-700 border-amber-200',DELETE:'bg-red-100 text-red-700 border-red-200'})[a] || 'bg-gray-100 text-gray-600'; },
+    summary(it) { const k = Object.keys(it.changes || {}); return k.length ? k.slice(0,4).join(', ') + (k.length>4 ? ' +'+(k.length-4) : '') : ''; },
+    // the edits an owner actually cares about — flag them loud
+    isSensitive(it) {
+      if (it.action === 'DELETE') return true;
+      if (it.action !== 'UPDATE') return false;
+      const S = ['is_age_restricted','product_class','price','cost','name','barcode','discount_pct'];
+      return Object.keys(it.changes || {}).some(f => S.includes(f));
+    },
+    sensitiveTip(it) {
+      if (it.action === 'DELETE') return 'deleted';
+      const c = it.changes || {}, t = [];
+      if (c.is_age_restricted) t.push(c.is_age_restricted.new === false ? '🔞 18+ REMOVED' : '18+ set');
+      if (c.product_class)     t.push('class');
+      if (c.price)  { const o = +c.price.old, n = +c.price.new; t.push(isNaN(o)||isNaN(n) ? 'price' : (n < o ? 'price ↓' : 'price ↑')); }
+      if (c.cost)   t.push('cost');
+      if (c.name)   t.push('renamed');
+      if (c.barcode) t.push('barcode');
+      return t.join(' · ') || 'sensitive';
+    },
+    nonEmpty(o) { const r = {}; Object.entries(o||{}).forEach(([k,v]) => { if (v!==null && v!=='' && !(typeof v==='object' && !Array.isArray(v) && Object.keys(v).length===0)) r[k]=v; }); return r; },
+    fmt(v) { if (v===null||v===undefined) return '∅'; if (typeof v==='object') return JSON.stringify(v); const s=String(v); return s.length>60 ? s.slice(0,60)+'…' : s; },
+    fmtTime(s) { return s ? formatDateTime(s,{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'}) : ''; },
+    ago(s) { if (!s) return ''; const d=(Date.now()-new Date(s).getTime())/1000;
+      if (d<60) return 'just now'; if (d<3600) return Math.floor(d/60)+'m ago'; if (d<86400) return Math.floor(d/3600)+'h ago';
+      return Math.floor(d/86400)+'d ago'; },
+  };
+}
+</script>
+{% endblock %}

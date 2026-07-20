@@ -1,0 +1,475 @@
+{% extends "pos/base.html" %}
+
+{% block title %}Dashboard - HelixPOS{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50" x-data="dashboardData()">
+    <!-- Top Navigation -->
+    <nav class="bg-white shadow-lg sticky top-0 z-10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-4">
+                    <span class="text-3xl">🛒</span>
+                    <div>
+                        <h1 class="text-xl font-bold text-gray-900">HelixPOS</h1>
+                        <p class="text-xs text-gray-500" x-text="_cfg('store_name') || 'Banco POS'"></p>
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-4">
+                    <!-- User info -->
+                    <div class="text-right">
+                        <p class="text-sm font-semibold text-gray-900" x-text="user.username"></p>
+                        <p class="text-xs text-gray-500" x-text="roleDisplay()"></p>
+                    </div>
+
+                    <!-- Logout button -->
+                    <button
+                        @click="logout()"
+                        class="bg-red-100 hover:bg-red-200 text-red-700 px-4 py-2 rounded-lg text-sm font-medium transition"
+                        data-i18n="dashboard.logout">
+                        🔓 Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Welcome Banner -->
+        <div class="card mb-8 bg-gradient-to-r from-indigo-500 to-purple-600 text-white">
+            <h2 class="text-3xl font-bold mb-2" x-text="t('dashboard.welcome_user', {n: user.username})"></h2>
+            <p class="text-lg opacity-90" data-i18n="dashboard.what_today">What would you like to do today?</p>
+        </div>
+
+        <!-- Stats Cards (if cashier or manager) -->
+        <div x-show="user.isCashier" class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="card hover:shadow-xl transition cursor-pointer" onclick="window.location.href='/pos/transactions'">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-600 font-medium" x-text="salesIsMine ? t('dashboard.my_sales_today') : t('dashboard.store_sales_today')"></p>
+                        <p class="text-2xl font-bold text-gray-900" x-text="formatPrice(stats.todaySales)"></p>
+                        <p class="text-xs text-indigo-600 font-semibold mt-1" data-i18n="dashboard.tap_sales">tap to see today's sales →</p>
+                    </div>
+                    <span class="text-4xl">💰</span>
+                </div>
+            </div>
+
+            <div class="card hover:shadow-xl transition cursor-pointer" onclick="window.location.href='/pos/transactions'">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-600 font-medium" data-i18n="dashboard.transactions">Transactions</p>
+                        <p class="text-2xl font-bold text-gray-900" x-text="stats.transactionCount"></p>
+                        <p class="text-xs text-indigo-600 font-semibold mt-1" data-i18n="dashboard.tap_list">tap to open the list →</p>
+                    </div>
+                    <span class="text-4xl">🧾</span>
+                </div>
+            </div>
+
+            <div class="card hover:shadow-xl transition cursor-pointer border-l-4"
+                 :class="drawer ? 'border-green-500' : 'border-amber-400'"
+                 onclick="window.location.href='/pos/shift'">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-600 font-medium" data-i18n="dashboard.my_drawer">My Drawer</p>
+                        <p class="text-2xl font-bold" :class="drawer ? 'text-green-600' : 'text-amber-600'"
+                           x-text="drawer ? formatPrice(parseFloat(drawer.expected_cash)) : t('dashboard.closed')"></p>
+                        <p class="text-xs" :class="drawer ? 'text-gray-500' : 'text-amber-600 font-semibold'"
+                           x-text="drawer ? t('dashboard.drawer_open_expected') : t('dashboard.drawer_open_prompt')"></p>
+                    </div>
+                    <span class="text-4xl" x-text="drawer ? '💵' : '🔓'"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- New members today (kiosk self-signup) — Felix's "look what the machine did" -->
+        <div x-show="newMembers.length > 0" class="card mb-8 border-l-4 border-emerald-500">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="text-lg font-bold text-gray-900">🎉 <span x-text="newMembers.length"></span>
+                    <span data-i18n="dashboard.new_members_today">new members today</span></h3>
+                <a href="/pos/customer-lookup" class="text-sm text-indigo-600 font-semibold" data-i18n="dashboard.members_view_all">View all →</a>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <template x-for="m in newMembers.slice(0, 15)" :key="m.id">
+                    <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-sm">
+                        <span class="font-semibold text-gray-800" x-text="'@' + m.handle"></span>
+                        <span x-show="m.welcome_discount_pct > 0 && !m.welcome_discount_used" class="text-emerald-700 font-bold" x-text="m.welcome_discount_pct + '%'"></span>
+                        <span x-show="m.source === 'phone'" title="on their phone">📱</span>
+                        <span x-show="m.source === 'kiosk'" title="at the kiosk">🖥️</span>
+                    </span>
+                </template>
+            </div>
+        </div>
+
+        <!-- Action Buttons Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+            <!-- CASHIER ACTIONS -->
+            <template x-if="user.isCashier">
+                <div class="card hover:shadow-xl transition cursor-pointer" onclick="window.location.href='/pos/scan'">
+                    <div class="text-center py-8">
+                        <span class="text-6xl mb-4 block">🏪</span>
+                        <h3 class="text-2xl font-bold text-gray-900 mb-2" data-i18n="dashboard.new_sale">New Sale</h3>
+                        <p class="text-gray-600" data-i18n="dashboard.start_scanning">Start scanning products</p>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Kiosk held orders — guests who built a basket at the kiosk, waiting to ring out -->
+            <template x-if="user.isCashier">
+                <div class="card hover:shadow-xl transition cursor-pointer relative" onclick="window.location.href='/pos/held-orders'">
+                    <span x-show="heldCount > 0"
+                          class="absolute top-3 right-3 min-w-[1.75rem] h-7 px-2 flex items-center justify-center rounded-full bg-indigo-600 text-white text-sm font-bold"
+                          x-text="heldCount"></span>
+                    <div class="text-center py-8">
+                        <span class="text-6xl mb-4 block">🧾</span>
+                        <h3 class="text-2xl font-bold text-gray-900 mb-2" data-i18n="dashboard.held_orders">Held Orders</h3>
+                        <p class="text-gray-600" data-i18n="dashboard.held_orders_desc">Kiosk orders waiting to ring out</p>
+                    </div>
+                </div>
+            </template>
+
+            <template x-if="user.isCashier">
+                <div class="card hover:shadow-xl transition cursor-pointer" onclick="window.location.href='/pos/products'">
+                    <div class="text-center py-8">
+                        <span class="text-6xl mb-4 block">📦</span>
+                        <h3 class="text-2xl font-bold text-gray-900 mb-2" data-i18n="dashboard.product_catalog">Product Catalog</h3>
+                        <p class="text-gray-600" data-i18n="dashboard.browse_items">Browse all items</p>
+                    </div>
+                </div>
+            </template>
+
+            <template x-if="user.isCashier">
+                <div class="card hover:shadow-xl transition cursor-pointer" onclick="window.location.href='/pos/customer-lookup'">
+                    <div class="text-center py-8">
+                        <span class="text-6xl mb-4 block">👤</span>
+                        <h3 class="text-2xl font-bold text-gray-900 mb-2" data-i18n="dashboard.members">Members</h3>
+                        <p class="text-gray-600" data-i18n="dashboard.members_desc">Look up or sign up a member</p>
+                    </div>
+                </div>
+            </template>
+
+            <template x-if="user.isCashier">
+                <div class="card hover:shadow-xl transition cursor-pointer" onclick="window.location.href='/pos/shift'">
+                    <div class="text-center py-8">
+                        <span class="text-6xl mb-4 block">💰</span>
+                        <h3 class="text-2xl font-bold text-gray-900 mb-2" x-text="drawer ? t('dashboard.drawer_close_shift') : t('dashboard.drawer_open_shift')"></h3>
+                        <p class="text-gray-600" data-i18n="dashboard.shift_desc">Open float, count cash, close out</p>
+                    </div>
+                </div>
+            </template>
+
+            <template x-if="user.isCashier">
+                <div class="card hover:shadow-xl transition cursor-pointer" onclick="window.location.href='/pos/my-day'">
+                    <div class="text-center py-8">
+                        <span class="text-6xl mb-4 block">📅</span>
+                        <h3 class="text-2xl font-bold text-gray-900 mb-2" data-i18n="dashboard.my_day">My Day</h3>
+                        <p class="text-gray-600" data-i18n="dashboard.my_day_desc">Your hours, sales &amp; daily close-out</p>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Guest kiosk — a FRONT-COUNTER tool: launch the self-service scan & shop screen on a
+                 guest-facing device. Gated isCashier (true for cashier/manager/admin) so Pam can open
+                 it at the counter too — the /pos/kiosk route is public (no login), so this is safe. -->
+            <template x-if="user.isCashier">
+                <div class="card hover:shadow-xl transition cursor-pointer" onclick="window.open('/pos/kiosk?staff=1','_blank')">
+                    <div class="text-center py-8">
+                        <span class="text-6xl mb-4 block">🖥️</span>
+                        <h3 class="text-2xl font-bold text-gray-900 mb-2" data-i18n="dashboard.kiosk">Guest Kiosk</h3>
+                        <p class="text-gray-600" data-i18n="dashboard.kiosk_desc">Open the self-service scan &amp; shop screen</p>
+                    </div>
+                </div>
+            </template>
+
+            <!-- MANAGER ACTIONS -->
+            <template x-if="user.isManager">
+                <div class="card hover:shadow-xl transition cursor-pointer" onclick="window.location.href='/pos/reports'">
+                    <div class="text-center py-8">
+                        <span class="text-6xl mb-4 block">📊</span>
+                        <h3 class="text-2xl font-bold text-gray-900 mb-2" data-i18n="dashboard.sales_reports">Sales Reports</h3>
+                        <p class="text-gray-600" data-i18n="dashboard.sales_reports_desc">View analytics & trends</p>
+                    </div>
+                </div>
+            </template>
+
+            <template x-if="user.isManager">
+                <div class="card hover:shadow-xl transition cursor-pointer" onclick="window.location.href='/pos/catalog'">
+                    <div class="text-center py-8">
+                        <span class="text-6xl mb-4 block">📦</span>
+                        <h3 class="text-2xl font-bold text-gray-900 mb-2" data-i18n="dashboard.manage_catalog">Manage Catalog</h3>
+                        <p class="text-gray-600" data-i18n="dashboard.manage_catalog_desc">Edit, discontinue & add products</p>
+                    </div>
+                </div>
+            </template>
+
+            <template x-if="user.isManager">
+                <div class="card hover:shadow-xl transition cursor-pointer relative" onclick="window.location.href='/pos/cleanup'">
+                    <!-- Live count of sold-but-half-baked products needing setup -->
+                    <span x-show="cleanupCount > 0"
+                          class="absolute top-3 right-3 min-w-[1.75rem] h-7 px-2 flex items-center justify-center rounded-full bg-amber-500 text-white text-sm font-bold"
+                          x-text="cleanupCount"></span>
+                    <div class="text-center py-8">
+                        <span class="text-6xl mb-4 block">🧹</span>
+                        <h3 class="text-2xl font-bold text-gray-900 mb-2" data-i18n="dashboard.cleanup">Cleanup Queue</h3>
+                        <p class="text-gray-600" data-i18n="dashboard.cleanup_desc">Finish setting up quick-added products that sold</p>
+                        <!-- BL-131: the migration backlog — quiet on purpose (see loadCleanupCount) -->
+                        <p x-show="benchRemaining > 0" style="display:none;" class="text-gray-400 text-sm mt-2">
+                            🛠️ <span x-text="benchRemaining"></span> <span data-i18n="dashboard.bench_remaining">products to finish on the bench</span>
+                        </p>
+                    </div>
+                </div>
+            </template>
+
+            <template x-if="user.isManager">
+                <div class="card hover:shadow-xl transition cursor-pointer" onclick="window.location.href='/pos/receiving'">
+                    <div class="text-center py-8">
+                        <span class="text-6xl mb-4 block">📥</span>
+                        <h3 class="text-2xl font-bold text-gray-900 mb-2" data-i18n="dashboard.receiving">Receiving</h3>
+                        <p class="text-gray-600" data-i18n="dashboard.receiving_desc">Scan arrivals into the catalogue</p>
+                    </div>
+                </div>
+            </template>
+
+            <template x-if="user.isManager">
+                <div class="card hover:shadow-xl transition cursor-pointer" onclick="window.location.href='/pos/suppliers'">
+                    <div class="text-center py-8">
+                        <span class="text-6xl mb-4 block">🏭</span>
+                        <h3 class="text-2xl font-bold text-gray-900 mb-2" data-i18n="dashboard.suppliers">Suppliers</h3>
+                        <p class="text-gray-600" data-i18n="dashboard.suppliers_desc">Import sources &amp; SKU prefixes</p>
+                    </div>
+                </div>
+            </template>
+
+            <!-- BL-21/22: the Order Book (reorder pencil-list) -->
+            <div class="card hover:shadow-xl transition cursor-pointer" onclick="window.location.href='/pos/reorder'">
+                <div class="text-center py-8">
+                    <span class="text-6xl mb-4 block">📓</span>
+                    <h3 class="text-2xl font-bold text-gray-900 mb-2" data-i18n="dashboard.reorder">Order Book</h3>
+                    <p class="text-gray-600" data-i18n="dashboard.reorder_desc">Reorder list &amp; supplier picks</p>
+                </div>
+            </div>
+
+            <template x-if="user.isManager">
+                <div class="card hover:shadow-xl transition cursor-pointer" onclick="window.location.href='/pos/transactions'">
+                    <div class="text-center py-8">
+                        <span class="text-6xl mb-4 block">💳</span>
+                        <h3 class="text-2xl font-bold text-gray-900 mb-2" data-i18n="dashboard.all_transactions">All Transactions</h3>
+                        <p class="text-gray-600" data-i18n="dashboard.all_transactions_desc">View all sales</p>
+                    </div>
+                </div>
+            </template>
+
+            <template x-if="user.isManager">
+                <div class="card hover:shadow-xl transition cursor-pointer" onclick="window.location.href='/pos/closeout'">
+                    <div class="text-center py-8">
+                        <span class="text-6xl mb-4 block">⏰</span>
+                        <h3 class="text-2xl font-bold text-gray-900 mb-2" data-i18n="dashboard.store_z_report">Store Z-Report</h3>
+                        <p class="text-gray-600" data-i18n="dashboard.store_z_report_desc">End-of-day store totals & Banana CSV</p>
+                    </div>
+                </div>
+            </template>
+
+            <!-- ADMIN ACTIONS -->
+            <!-- Staff & roles now live inside Settings ▸ Staff & Logins (no separate User Management). -->
+            <template x-if="user.isManager">
+                <div class="card hover:shadow-xl transition cursor-pointer" onclick="window.location.href='/pos/settings'">
+                    <div class="text-center py-8">
+                        <span class="text-6xl mb-4 block">⚙️</span>
+                        <h3 class="text-2xl font-bold text-gray-900 mb-2" data-i18n="dashboard.settings">Settings</h3>
+                        <p class="text-gray-600" data-i18n="dashboard.settings_desc">Store profile, staff &amp; logins, tax</p>
+                    </div>
+                </div>
+            </template>
+
+            <!-- 🕵️ Audit Cockpit — who/when/what changed. Manager+ (oversight data, not the floor). -->
+            <template x-if="user.isManager">
+                <div class="card hover:shadow-xl transition cursor-pointer" onclick="window.location.href='/pos/audit'">
+                    <div class="text-center py-8">
+                        <span class="text-6xl mb-4 block">🕵️</span>
+                        <h3 class="text-2xl font-bold text-gray-900 mb-2" data-i18n="dashboard.audit">Audit Log</h3>
+                        <p class="text-gray-600" data-i18n="dashboard.audit_desc">Who changed what, when — every edit, sale &amp; closeout</p>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Cashiers get a READ-ONLY view of the store config (no edit, no staff PII). -->
+            <template x-if="!user.isManager">
+                <div class="card hover:shadow-xl transition cursor-pointer" onclick="window.location.href='/pos/settings'">
+                    <div class="text-center py-8">
+                        <span class="text-6xl mb-4 block">👁️</span>
+                        <h3 class="text-2xl font-bold text-gray-900 mb-2" data-i18n="dashboard.store_info">Store Info</h3>
+                        <p class="text-gray-600" data-i18n="dashboard.store_info_desc">View store details, tax &amp; hours (read-only)</p>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </main>
+</div>
+
+<script>
+    function dashboardData() {
+        return {
+            user: {
+                username: '',
+                roles: [],
+                posRoles: [],
+                isAdmin: false,
+                isManager: false,
+                isCashier: false
+            },
+            stats: {
+                todaySales: 0,
+                transactionCount: 0,
+                shiftStart: new Date()
+            },
+            shiftTime: '0h 0m',
+            salesIsMine: false,
+            drawer: null,        // /shift/current when this cashier has an open drawer
+            cleanupCount: 0,     // sold-but-half-baked products awaiting manager setup (badge)
+            benchRemaining: 0,   // BL-131: migration backlog (bench mode) — quiet line, not a red badge
+            newMembers: [],      // members who self-signed-up at the kiosk TODAY
+            heldCount: 0,        // kiosk guest carts waiting at the counter (badge)
+
+            init() {
+                // Check for tokens in URL fragment (from OAuth callback):
+                // #token=<access>&refresh=<refresh>&expires_in=<secs>
+                const hash = window.location.hash;
+                if (hash && hash.includes('token=')) {
+                    const params = new URLSearchParams(hash.replace(/^#/, ''));
+                    const access = params.get('token');
+                    if (access) {
+                        AuthHelper.setSession({
+                            access,
+                            refresh: params.get('refresh'),
+                            expiresIn: params.get('expires_in'),
+                        });
+                        // Clear the hash from URL for cleaner display (and to hide tokens)
+                        window.history.replaceState({}, document.title, '/pos/dashboard');
+                        showToast(t('dashboard.login_successful'), 'success');
+                    }
+                }
+
+                // Check authentication
+                const token = AuthHelper.getToken();
+                if (!token) {
+                    window.location.href = '/pos';
+                    return;
+                }
+
+                // Record presence — the auto-tally source for My Day ("it shows when they
+                // logged in"). Idempotent: a 400 just means they're already on shift today.
+                API.post('/api/v1/pos/shift/start', {}).catch(() => {});
+
+                // Get user info from token
+                const userInfo = AuthHelper.getUserInfo();
+                if (!userInfo || userInfo.posRoles.length === 0) {
+                    showToast(t('dashboard.no_pos_access'), 'error');
+                    setTimeout(() => {
+                        AuthHelper.logout();
+                    }, 2000);
+                    return;
+                }
+
+                this.user = {
+                    ...userInfo,
+                    isAdmin: AuthHelper.isAdmin(),
+                    isManager: AuthHelper.isManager(),
+                    isCashier: AuthHelper.isCashier()
+                };
+
+                // Load stats
+                this.loadStats();
+
+                // Manager-only: how many sold items still need setting up (dashboard badge).
+                if (this.user.isManager) this.loadCleanupCount();
+
+                // Any POS role: new members who self-signed-up at the kiosk today (cashier greets
+                // them by name; manager sees the machine working).
+                this.loadNewMembers();
+
+                // Cashier: kiosk orders waiting at the counter (badge on the Held Orders card).
+                if (this.user.isCashier) this.loadHeldCount();
+
+                // Update shift time every minute
+                setInterval(() => this.updateShiftTime(), 60000);
+                this.updateShiftTime();
+            },
+
+            async loadStats() {
+                // A plain cashier sees THEIR OWN sales; a manager/admin sees the store.
+                this.salesIsMine = this.user.isCashier && !this.user.isManager && !this.user.isAdmin;
+                try {
+                    const summary = await API.get(
+                        '/api/v1/pos/reports/daily-summary' + (this.salesIsMine ? '?mine=true' : ''));
+                    this.stats.todaySales = parseFloat(summary.total_sales || 0);
+                    this.stats.transactionCount = summary.total_transactions || 0;
+                } catch (error) {
+                    console.error('Failed to load stats:', error);
+                    // Don't show error toast, stats are optional
+                }
+                // My drawer status (per-cashier cash shift)
+                try {
+                    const cur = await API.get('/api/v1/pos/shift/current');
+                    this.drawer = (cur && cur.open) ? cur : null;
+                } catch (e) { this.drawer = null; }
+            },
+
+            async loadCleanupCount() {
+                // Two DIFFERENT numbers, deliberately shown differently (BL-131):
+                //  • cleanupCount (red badge) = SOLD but half-baked. Urgent, small, act today.
+                //  • benchRemaining (quiet line) = the migration backlog, sold or not. Big and slow —
+                //    a permanent red "439" would just become wallpaper and get ignored.
+                try {
+                    const data = await API.get('/api/v1/pos/catalog/cleanup-queue');
+                    this.cleanupCount = data.count || 0;
+                } catch (e) { this.cleanupCount = 0; }  // badge is optional, never blocks the dash
+                try {
+                    const b = await API.get('/api/v1/pos/catalog/cleanup-queue?mode=bench&limit=1');
+                    this.benchRemaining = b.remaining || 0;
+                } catch (e) { this.benchRemaining = 0; }
+            },
+
+            async loadNewMembers() {
+                try {
+                    const data = await API.get('/api/v1/pos/customers/new-today');
+                    this.newMembers = data.members || [];
+                } catch (e) { this.newMembers = []; }   // optional, never blocks the dash
+            },
+
+            async loadHeldCount() {
+                try {
+                    const data = await API.get('/api/v1/pos/carts/open');
+                    this.heldCount = data.count || 0;
+                } catch (e) { this.heldCount = 0; }      // optional, never blocks the dash
+            },
+
+            updateShiftTime() {
+                const now = new Date();
+                const diff = now - this.stats.shiftStart;
+                const hours = Math.floor(diff / (1000 * 60 * 60));
+                const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                this.shiftTime = `${hours}h ${minutes}m`;
+            },
+
+            roleDisplay() {
+                return this.user.posRoles.join(', ');
+            },
+
+            formatPrice(amount) {
+                return formatPrice(amount);
+            },
+
+            logout() {
+                if (confirm(t('dashboard.confirm_logout'))) {
+                    showToast(t('dashboard.logging_out'), 'info');
+                    setTimeout(() => {
+                        AuthHelper.logout();
+                    }, 500);
+                }
+            }
+        }
+    }
+</script>
+{% endblock %}

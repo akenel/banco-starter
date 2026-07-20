@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Code Gets To You - HelixNet Training</title>
+    <style>
+        @import url('/static/vendor/fonts.css');
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            line-height: 1.7;
+        }
+
+        /* Hero Section */
+        .hero {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #1a1a2e 100%);
+            padding: 80px 24px 60px;
+            text-align: center;
+            border-bottom: 1px solid #334155;
+            position: relative;
+            overflow: hidden;
+        }
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle at 30% 50%, rgba(99, 102, 241, 0.08) 0%, transparent 50%),
+                        radial-gradient(circle at 70% 50%, rgba(234, 179, 8, 0.06) 0%, transparent 50%);
+            animation: pulse 8s ease-in-out infinite alternate;
+        }
+        @keyframes pulse {
+            from { transform: scale(1); }
+            to { transform: scale(1.05); }
+        }
+        .hero-content { position: relative; z-index: 1; max-width: 700px; margin: 0 auto; }
+        .hero-badge {
+            display: inline-block;
+            background: rgba(99, 102, 241, 0.15);
+            color: #818cf8;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            padding: 6px 16px;
+            border-radius: 20px;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            margin-bottom: 24px;
+        }
+        .hero h1 {
+            font-size: 2.5em;
+            font-weight: 800;
+            color: #f8fafc;
+            margin-bottom: 16px;
+            letter-spacing: -0.5px;
+        }
+        .hero h1 span { color: #eab308; }
+        .hero p {
+            font-size: 1.15em;
+            color: #94a3b8;
+            max-width: 550px;
+            margin: 0 auto;
+        }
+
+        /* Content Container */
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        /* Section */
+        section {
+            padding: 60px 0;
+            border-bottom: 1px solid #1e293b;
+        }
+        section:last-of-type { border-bottom: none; }
+
+        h2 {
+            font-size: 1.6em;
+            font-weight: 700;
+            color: #f8fafc;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        h2 .num {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            font-size: 16px;
+            font-weight: 700;
+            border-radius: 10px;
+            flex-shrink: 0;
+        }
+        .section-subtitle {
+            color: #64748b;
+            font-size: 0.95em;
+            margin-bottom: 32px;
+        }
+
+        h3 {
+            font-size: 1.15em;
+            font-weight: 600;
+            color: #e2e8f0;
+            margin: 32px 0 12px;
+        }
+        h3:first-of-type { margin-top: 0; }
+
+        p { margin-bottom: 16px; color: #cbd5e1; }
+
+        strong { color: #f8fafc; font-weight: 600; }
+
+        /* Pipeline Diagram */
+        .pipeline {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            margin: 32px 0;
+        }
+        .pipeline-step {
+            display: flex;
+            align-items: stretch;
+            gap: 20px;
+        }
+        .pipeline-line {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 48px;
+            flex-shrink: 0;
+        }
+        .pipeline-dot {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+            border: 3px solid;
+        }
+        .pipeline-connector {
+            width: 3px;
+            flex: 1;
+            min-height: 20px;
+            background: #334155;
+        }
+        .pipeline-content {
+            flex: 1;
+            padding: 8px 0 32px;
+        }
+        .pipeline-content h4 {
+            font-size: 1em;
+            font-weight: 600;
+            color: #f8fafc;
+            margin-bottom: 4px;
+        }
+        .pipeline-content p {
+            font-size: 0.9em;
+            color: #94a3b8;
+            margin-bottom: 0;
+        }
+        .pipeline-step:last-child .pipeline-connector { display: none; }
+
+        .dot-kenya { background: rgba(234, 179, 8, 0.15); border-color: #eab308; color: #eab308; }
+        .dot-laptop { background: rgba(99, 102, 241, 0.15); border-color: #6366f1; color: #6366f1; }
+        .dot-github { background: rgba(148, 163, 184, 0.15); border-color: #94a3b8; color: #94a3b8; }
+        .dot-server { background: rgba(34, 197, 94, 0.15); border-color: #22c55e; color: #22c55e; }
+
+        /* Three Places Cards */
+        .places-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+            margin: 24px 0;
+        }
+        @media (min-width: 640px) {
+            .places-grid { grid-template-columns: repeat(3, 1fr); }
+        }
+        .place-card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 16px;
+            padding: 24px;
+            text-align: center;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+        .place-card:hover {
+            transform: translateY(-2px);
+            border-color: #475569;
+        }
+        .place-icon {
+            font-size: 40px;
+            margin-bottom: 12px;
+            display: block;
+        }
+        .place-card h4 {
+            font-size: 1em;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+        .place-card .location {
+            font-size: 0.8em;
+            color: #64748b;
+            margin-bottom: 8px;
+        }
+        .place-card p {
+            font-size: 0.85em;
+            color: #94a3b8;
+            margin-bottom: 0;
+        }
+        .place-workshop h4 { color: #818cf8; }
+        .place-warehouse h4 { color: #94a3b8; }
+        .place-store h4 { color: #4ade80; }
+
+        /* Code Blocks */
+        .code-block {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 16px 0;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85em;
+            line-height: 1.8;
+            color: #e2e8f0;
+            overflow-x: auto;
+        }
+        .code-block .comment { color: #64748b; }
+        .code-block .command { color: #4ade80; }
+        .code-block .flag { color: #eab308; }
+        .code-block .arrow { color: #6366f1; font-weight: 700; }
+
+        /* Flow Diagram */
+        .flow-diagram {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 16px;
+            padding: 32px;
+            margin: 24px 0;
+            text-align: center;
+        }
+        .flow-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin: 12px 0;
+        }
+        .flow-box {
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-size: 0.85em;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .flow-arrow {
+            color: #475569;
+            font-size: 1.5em;
+            font-weight: 300;
+        }
+        .flow-you { background: rgba(234, 179, 8, 0.15); color: #eab308; border: 1px solid rgba(234, 179, 8, 0.3); }
+        .flow-dev { background: rgba(99, 102, 241, 0.15); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3); }
+        .flow-git { background: rgba(148, 163, 184, 0.1); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3); }
+        .flow-server { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
+
+        /* Info Cards */
+        .info-card {
+            background: #1e293b;
+            border-radius: 16px;
+            padding: 24px;
+            margin: 24px 0;
+            border-left: 4px solid;
+        }
+        .info-card h4 {
+            font-size: 1em;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .info-card p { margin-bottom: 0; font-size: 0.9em; }
+        .info-git { border-left-color: #f97316; }
+        .info-git h4 { color: #f97316; }
+        .info-docker { border-left-color: #38bdf8; }
+        .info-docker h4 { color: #38bdf8; }
+        .info-db { border-left-color: #a78bfa; }
+        .info-db h4 { color: #a78bfa; }
+
+        /* Cheat Sheet Table */
+        .cheat-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin: 24px 0;
+            font-size: 0.9em;
+        }
+        .cheat-table th {
+            background: #1e293b;
+            color: #94a3b8;
+            font-size: 0.75em;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid #334155;
+        }
+        .cheat-table th:first-child { border-radius: 10px 0 0 0; }
+        .cheat-table th:last-child { border-radius: 0 10px 0 0; }
+        .cheat-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #1e293b;
+            vertical-align: top;
+        }
+        .cheat-table tr:hover td { background: rgba(99, 102, 241, 0.04); }
+        .cheat-table .term {
+            color: #818cf8;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9em;
+            white-space: nowrap;
+        }
+
+        /* Role Banner */
+        .role-banner {
+            background: linear-gradient(135deg, rgba(234, 179, 8, 0.1), rgba(234, 179, 8, 0.05));
+            border: 1px solid rgba(234, 179, 8, 0.25);
+            border-radius: 16px;
+            padding: 32px;
+            margin: 32px 0;
+            text-align: center;
+        }
+        .role-banner h3 {
+            color: #eab308;
+            font-size: 1.3em;
+            margin: 0 0 12px 0;
+        }
+        .role-banner p { color: #fef3c7; margin-bottom: 8px; }
+        .role-banner .quote {
+            font-style: italic;
+            color: #eab308;
+            font-size: 1.05em;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(234, 179, 8, 0.2);
+        }
+
+        /* FAQ */
+        .faq-item {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 12px 0;
+        }
+        .faq-item .q {
+            color: #eab308;
+            font-weight: 600;
+            font-size: 0.95em;
+            margin-bottom: 8px;
+        }
+        .faq-item .a {
+            color: #94a3b8;
+            font-size: 0.9em;
+            margin: 0;
+        }
+
+        /* What's New Banner */
+        .whats-new {
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(34, 197, 94, 0.05));
+            border: 1px solid rgba(34, 197, 94, 0.25);
+            border-radius: 16px;
+            padding: 28px 32px;
+            margin: 32px 0;
+        }
+        .whats-new-badge {
+            display: inline-block;
+            background: rgba(34, 197, 94, 0.2);
+            color: #4ade80;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            padding: 4px 12px;
+            border-radius: 6px;
+            margin-bottom: 12px;
+        }
+        .whats-new h3 {
+            color: #4ade80;
+            font-size: 1.15em;
+            margin: 0 0 12px;
+        }
+        .whats-new p { color: #d1fae5; font-size: 0.92em; }
+        .whats-new .login-box {
+            background: rgba(0, 0, 0, 0.25);
+            border-radius: 10px;
+            padding: 16px 20px;
+            margin: 16px 0 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.88em;
+            line-height: 2;
+        }
+        .whats-new .login-box .label { color: #64748b; }
+        .whats-new .login-box .value { color: #4ade80; font-weight: 600; }
+        .whats-new .note {
+            color: #94a3b8;
+            font-size: 0.85em;
+            font-style: italic;
+            margin-top: 12px;
+            margin-bottom: 0;
+        }
+        .task-margin { margin-top: 8px; }
+
+        /* Task card */
+        .task-card {
+            background: rgba(234, 179, 8, 0.08);
+            border: 1px solid rgba(234, 179, 8, 0.2);
+            border-radius: 10px;
+            padding: 16px 20px;
+            margin: 16px 0 0;
+        }
+        .task-card h4 { color: #eab308; font-size: 0.95em; margin: 0 0 8px; }
+        .task-card p { color: #fef3c7; font-size: 0.88em; margin: 0; }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 48px 24px;
+            color: #475569;
+            font-size: 0.85em;
+            border-top: 1px solid #1e293b;
+        }
+        footer strong { color: #64748b; }
+
+        /* Shared Nav */
+        .helix-nav { background: #1e293b; border-bottom: 1px solid #334155; position: sticky; top: 0; z-index: 40; }
+        .helix-nav-inner { max-width: 800px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 48px; }
+        .helix-nav-brand { color: #f8fafc; font-weight: 700; font-size: 1em; text-decoration: none; }
+        .helix-nav-links { display: flex; gap: 4px; }
+        .helix-nav-links a { color: #94a3b8; text-decoration: none; font-size: 0.85em; font-weight: 500; padding: 6px 14px; border-radius: 8px; transition: all 0.2s; }
+        .helix-nav-links a:hover { color: #f8fafc; background: rgba(255,255,255,0.06); }
+        .helix-nav-links a.active { color: #818cf8; background: rgba(99,102,241,0.12); }
+        .helix-nav-toggle { display: none; background: none; border: none; color: #94a3b8; cursor: pointer; padding: 4px; }
+        .helix-nav-toggle:hover { color: #f8fafc; }
+        .helix-nav-mobile { display: none; position: absolute; top: 48px; left: 0; right: 0; background: #1e293b; padding: 8px 24px 12px; border-bottom: 1px solid #334155; flex-direction: column; gap: 2px; }
+        .helix-nav-mobile.open { display: flex; }
+        .helix-nav-mobile a { color: #94a3b8; text-decoration: none; font-size: 0.9em; font-weight: 500; padding: 8px 14px; border-radius: 8px; transition: all 0.2s; }
+        .helix-nav-mobile a:hover { color: #f8fafc; background: rgba(255,255,255,0.06); }
+        .helix-nav-mobile a.active { color: #818cf8; background: rgba(99,102,241,0.12); }
+        .telegram-link { color: #60a5fa; }
+        .telegram-mobile { color: #60a5fa; }
+        .whats-new-h4 { color: #f8fafc; margin: 20px 0 10px; }
+        .whats-new-h4--link { color: #4ade80; text-decoration: underline; }
+        .task-card-link { color: #4ade80; text-decoration: underline; }
+        .code-inline { color: #f97316; }
+        .code-inline--blue { color: #818cf8; }
+        @media (max-width: 640px) {
+            .helix-nav-links { display: none; }
+            .helix-nav-toggle { display: block; }
+        }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            .hero h1 { font-size: 1.8em; }
+            .hero { padding: 48px 20px 40px; }
+            section { padding: 40px 0; }
+            .flow-row { gap: 8px; }
+            .flow-box { font-size: 0.75em; padding: 8px 12px; }
+        }
+        /* ISTQB Reference Card */
+        .istqb-card {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.08) 100%);
+            border: 1px solid rgba(99, 102, 241, 0.25);
+            border-radius: 14px;
+            padding: 28px 24px;
+            margin-top: 24px;
+        }
+        .istqb-card h3 { color: #a5b4fc; margin: 0 0 12px; font-size: 1.05em; }
+        .istqb-card p { color: #c7d2fe; font-size: 0.9em; margin: 0 0 16px; }
+        .istqb-card .concept-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        @media (max-width: 640px) { .istqb-card .concept-grid { grid-template-columns: 1fr; } }
+        .istqb-card .concept {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            padding: 12px 14px;
+        }
+        .istqb-card .concept .term { color: #818cf8; font-weight: 600; font-size: 0.85em; margin-bottom: 4px; }
+        .istqb-card .concept .meaning { color: #94a3b8; font-size: 0.82em; line-height: 1.5; }
+        .istqb-card .pdf-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(99, 102, 241, 0.2);
+            color: #a5b4fc;
+            text-decoration: none;
+            font-size: 0.88em;
+            font-weight: 600;
+            padding: 10px 18px;
+            border-radius: 8px;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            transition: all 0.2s;
+        }
+        .istqb-card .pdf-link:hover { background: rgba(99, 102, 241, 0.35); color: #c7d2fe; }
+        .istqb-card .pdf-note { color: #64748b; font-size: 0.8em; font-style: italic; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<!-- Platform Nav (inline -- this page is not Jinja2) -->
+<nav style="background:#0f172a;font-size:12px;" id="platform-nav">
+    <div style="max-width:800px;margin:0 auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:32px;">
+        <a href="/backlog" style="color:#d1d5db;font-weight:700;text-decoration:none;">HelixNet</a>
+        <div style="display:flex;align-items:center;gap:4px;">
+            <a href="/testing" id="pnav-qa" style="color:#9ca3af;text-decoration:none;padding:4px 8px;border-radius:4px;">QA</a>
+            <a href="/backlog" id="pnav-backlog" style="color:#9ca3af;text-decoration:none;padding:4px 8px;border-radius:4px;">Backlog</a>
+            <a href="/camper/dashboard" id="pnav-camper" style="color:#9ca3af;text-decoration:none;padding:4px 8px;border-radius:4px;">Camper</a>
+        </div>
+    </div>
+</nav>
+<script>
+    (function() {
+        var el = document.getElementById('pnav-qa');
+        if (el) { el.style.color = '#fff'; el.style.background = '#334155'; el.style.fontWeight = '500'; }
+    })();
+</script>
+
+<!-- Shared Nav -->
+<nav class="helix-nav">
+    <div class="helix-nav-inner">
+        <a href="/testing" class="helix-nav-brand">HelixNet QA</a>
+        <button class="helix-nav-toggle" onclick="document.querySelector('.helix-nav-mobile').classList.toggle('open')" aria-label="Menu">
+            <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+            </svg>
+        </button>
+        <div class="helix-nav-links">
+            <a href="/testing">Dashboard</a>
+            <a href="/training" class="active">Training</a>
+            <a href="/how-to-report-bugs">How to Report</a>
+            <a href="https://t.me/BigKingFisher" target="_blank" rel="noopener" class="telegram-link" title="Message Angel on Telegram">Need Help?</a>
+        </div>
+    </div>
+    <div class="helix-nav-mobile">
+        <a href="/testing">Dashboard</a>
+        <a href="/training" class="active">Training</a>
+        <a href="/how-to-report-bugs">How to Report</a>
+        <a href="https://t.me/BigKingFisher" target="_blank" rel="noopener" class="telegram-mobile">Need Help? (Telegram)</a>
+    </div>
+</nav>
+
+<!-- Hero -->
+<div class="hero">
+    <div class="hero-content">
+        <span class="hero-badge">HelixNet Training Guide</span>
+        <h1>How Code Gets <span>To You</span></h1>
+        <p>From keyboard to your screen in Kenya. No magic -- just files moving through pipes.</p>
+    </div>
+</div>
+
+<div class="container">
+
+    <!-- What's New: Login Required -->
+    <section>
+        <div class="whats-new">
+            <span class="whats-new-badge">Updated -- Feb 22, 2026</span>
+            <h3>The Dashboard Now Requires Login</h3>
+            <p>The QA Dashboard is now behind a real login. When you open <strong>/testing</strong>, you'll be redirected to a login page. This is <strong>Keycloak</strong>, our authentication system. It knows who you are and what you're allowed to do.</p>
+
+            <div class="login-box">
+                <span class="label">Username:</span> <span class="value">anne</span><br>
+                <span class="label">Password:</span> <span class="value">helix_pass</span><br>
+                <span class="label">Role:</span> <span class="value">camper-qa-tester</span>
+            </div>
+
+            <h4 class="whats-new-h4">How to Log In (step by step)</h4>
+            <p>1. Go to the <a href="/testing" style="color: #4ade80; text-decoration: underline;">QA Dashboard</a>. You'll see a login page with a blue <strong>"Log In"</strong> button.</p>
+            <p>2. Click <strong>Log In</strong>. Keycloak's login form appears.</p>
+            <p>3. Enter <strong>anne</strong> as username and <strong>helix_pass</strong> as password. Click <strong>Sign In</strong>.</p>
+            <p>4. You're back on the dashboard. Your name appears in the top-right corner of the nav bar.</p>
+
+            <h4 class="whats-new-h4">What to Know</h4>
+            <p><strong>Session expires after 30 minutes.</strong> If you see "Session expired" or get sent back to the login page, just log in again. Your work (bugs, tests) is saved -- you don't lose anything.</p>
+            <p><strong>Logout button</strong> is in the top-right of the nav bar (small door icon). Use it when you're done for the day.</p>
+            <p><strong>Training and How to Report pages are public</strong> -- they don't require login. Only the dashboard (where you mark tests and file bugs) needs it.</p>
+
+            <p>Your role gives you access to the <strong>QA Dashboard</strong> and <strong>Bug Tracker</strong>. You do NOT have access to business data (vehicles, jobs, invoices) -- that's intentional. Testers test the system, they don't manage the business data.</p>
+
+            <p class="note">If the login page does not appear, if you get a blank screen, or if you see an error after clicking Log In, screenshot it and send to Angel on Telegram. It might mean the server needs a restart -- not your fault.</p>
+
+            <div class="task-card">
+                <h4>Your Morning Tasks</h4>
+                <p>1. <strong>Log in</strong> to the <a href="/testing" style="color: #4ade80; text-decoration: underline;">QA Dashboard</a> using your credentials above. Confirm your name shows in the nav bar.</p>
+                <p style="margin-top: 8px;">2. BUG-009 (Invoice Details button) has been marked <strong>"Fixed"</strong> and assigned to you. Please test it: open a job with an invoice, click the Details button. If it works, change the status to <strong>"Verified."</strong> If it's still broken, change it back to <strong>"Open"</strong> and add a comment.</p>
+                <p style="margin-top: 8px;">3. Read the <a href="/how-to-report-bugs" style="color: #4ade80; text-decoration: underline;">How to Report Bugs</a> guide -- it shows you step-by-step how to use the new bug form with examples for each type of problem.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Test Scenarios: Real workflows Anne can execute -->
+    <section>
+        <h2><span class="num">0</span> Your Test Scenarios</h2>
+        <p class="section-subtitle">These are real workflows on the live Camper & Tour system. Follow each one step-by-step.</p>
+
+        <div class="whats-new whats-new-success">
+            <span class="whats-new-badge" style="background: rgba(34,197,94,0.15); color: #4ade80; border-color: rgba(34,197,94,0.3);">Test Credentials</span>
+            <p>The camper system has 3 test users. Log in at <strong>/camper</strong> using any of these:</p>
+            <div class="login-box">
+                <span class="label">Counter Staff:</span> <span class="value">pam / helix_pass</span> (reception, check-in, payments)<br>
+                <span class="label">Mechanic:</span> <span class="value">ralph / helix_pass</span> (work logs, inspections)<br>
+                <span class="label">Manager:</span> <span class="value">nino / helix_pass</span> (approvals, invoices, everything)
+            </div>
+        </div>
+
+        <!-- Scenario 1 -->
+        <div class="task-card task-card-top">
+            <h4 style="color: #818cf8;">Scenario 1: Customer Check-In (as Pam)</h4>
+            <p style="color: #94a3b8; font-size: 0.85em; margin-bottom: 12px;">Goal: A campervan arrives. Register the customer and vehicle.</p>
+            <p>1. Log in as <strong>pam</strong>. You should see the Camper Dashboard.</p>
+            <p>2. Click <strong>Check-In</strong> in the nav.</p>
+            <p>3. Search for an existing vehicle by plate (try <strong>ZH-123456</strong> -- Angelo's MAX). If found, confirm the details are correct.</p>
+            <p>4. Now try a NEW customer: enter a made-up name, phone, email, and plate number.</p>
+            <p>5. Fill in: mileage in, vehicle condition notes (e.g., "scratch on left side").</p>
+            <p>6. Describe the problem: "Water leak from bathroom window seal"</p>
+            <p>7. Submit. A new service job should be created automatically.</p>
+            <p class="task-margin"><strong>What to check:</strong></p>
+            <p>- Did the customer and vehicle get saved?</p>
+            <p>- Did a new job appear on the Jobs page?</p>
+            <p>- Is the job status "Quoted" or "Open"?</p>
+            <p>- Can you find the customer in the Customers page?</p>
+        </div>
+
+        <!-- Scenario 2 -->
+        <div class="task-card task-card-space">
+            <h4 style="color: #818cf8;">Scenario 2: Create a Quotation (as Pam or Nino)</h4>
+            <p style="color: #94a3b8; font-size: 0.85em; margin-bottom: 12px;">Goal: Give the customer a price estimate before starting work.</p>
+            <p>1. Go to <strong>Jobs</strong> and click on any job.</p>
+            <p>2. Look for a <strong>Quotation</strong> section or button.</p>
+            <p>3. Add line items:</p>
+            <p class="task-indent">- "Seal replacement" -- 2 hours labor at EUR 45/hr = EUR 90</p>
+            <p class="task-indent">- "Window seal kit" -- 1 unit at EUR 35</p>
+            <p>4. Check: Does the system calculate <strong>VAT at 22%</strong> (IVA)?</p>
+            <p>5. Check: Does it show a <strong>25% deposit</strong> amount?</p>
+            <p>6. Send the quotation.</p>
+            <p class="task-margin"><strong>What to check:</strong></p>
+            <p>- Do the totals add up correctly? (subtotal + 22% IVA = total)</p>
+            <p>- Is the deposit 25% of the total?</p>
+            <p>- Did the job status change to "Quoted"?</p>
+        </div>
+
+        <!-- Scenario 3 -->
+        <div class="task-card task-card-space">
+            <h4 style="color: #818cf8;">Scenario 3: Mechanic Logs Work (as Ralph)</h4>
+            <p style="color: #94a3b8; font-size: 0.85em; margin-bottom: 12px;">Goal: A mechanic works on a job and logs their hours.</p>
+            <p>1. Log out, then log in as <strong>ralph</strong>.</p>
+            <p>2. Go to <strong>Jobs</strong>. Find a job with status "In Progress" or "Approved".</p>
+            <p>3. Open the job details.</p>
+            <p>4. Add a <strong>work log entry</strong>: "Removed old seal, cleaned frame, applied new sealant" -- 2.5 hours.</p>
+            <p>5. Try adding another entry: "Waiting for sealant to cure" -- 0.5 hours.</p>
+            <p class="task-margin"><strong>What to check:</strong></p>
+            <p>- Can Ralph see the work log entries after saving?</p>
+            <p>- Can Ralph edit or delete a work log? (He should NOT be able to -- audit trail!)</p>
+            <p>- Do the total hours add up correctly?</p>
+        </div>
+
+        <!-- Scenario 4 -->
+        <div class="task-card task-card-space">
+            <h4 style="color: #818cf8;">Scenario 4: Inspection and Invoice (as Nino)</h4>
+            <p style="color: #94a3b8; font-size: 0.85em; margin-bottom: 12px;">Goal: Manager inspects, approves, and generates the final invoice.</p>
+            <p>1. Log out, then log in as <strong>nino</strong>.</p>
+            <p>2. Find a job that is ready for inspection (status "Inspection" or "Completed").</p>
+            <p>3. Run the <strong>inspection</strong> -- pass or fail it.</p>
+            <p>4. If passed, look for an <strong>Invoice</strong> button or section.</p>
+            <p>5. Generate the invoice.</p>
+            <p>6. Check the <strong>Invoices</strong> page -- does the new invoice appear?</p>
+            <p>7. Click the invoice <strong>Details</strong> button (this was BUG-009!).</p>
+            <p class="task-margin"><strong>What to check:</strong></p>
+            <p>- Does the invoice show the deposit already paid?</p>
+            <p>- Is the "Amount Due" = total minus deposit?</p>
+            <p>- Does the Details button actually open? (BUG-009 fix)</p>
+            <p>- Can you record a payment?</p>
+        </div>
+
+        <!-- Scenario 5 -->
+        <div class="task-card" style="margin-top: 16px;">
+            <h4 style="color: #818cf8;">Scenario 5: The Full Loop (all roles)</h4>
+            <p style="color: #94a3b8; font-size: 0.85em; margin-bottom: 12px;">Goal: Walk one job through the entire lifecycle from arrival to pickup.</p>
+            <p>This is the big one. Do scenarios 1-4 in sequence on the SAME job:</p>
+            <p>1. <strong>Pam</strong> checks in a new customer + vehicle</p>
+            <p>2. <strong>Pam/Nino</strong> creates a quotation with line items</p>
+            <p>3. Customer "accepts" the quote, deposit is recorded</p>
+            <p>4. <strong>Ralph</strong> logs work hours across multiple entries</p>
+            <p>5. <strong>Nino</strong> inspects and approves the work</p>
+            <p>6. <strong>Pam</strong> logs the mileage out and vehicle condition</p>
+            <p>7. <strong>Nino</strong> generates the final invoice</p>
+            <p>8. Payment is recorded, job status goes to "Invoiced"</p>
+            <p class="task-margin"><strong>What to check:</strong></p>
+            <p>- Does the job status move correctly through each stage?</p>
+            <p>- Expected flow: <strong>Quoted &rarr; Approved &rarr; In Progress &rarr; Inspection &rarr; Completed &rarr; Invoiced</strong></p>
+            <p>- Are all the numbers consistent? (quote total = invoice total)</p>
+            <p>- Can you find this job in every relevant page? (Jobs, Invoices, Customer history)</p>
+        </div>
+
+        <div class="task-card" style="margin-top: 16px; border-color: #eab308;">
+            <h4 style="color: #eab308;">When Something Breaks</h4>
+            <p>That's the point! You're here to find the breaks. When you hit one:</p>
+            <p>1. Note which scenario and which step you were on</p>
+            <p>2. Screenshot the error or unexpected behavior</p>
+            <p>3. Go to the <a href="/testing" style="color: #4ade80; text-decoration: underline;">QA Dashboard</a> and click <strong>Report Bug</strong></p>
+            <p>4. Or message Angel directly: <a href="https://t.me/BigKingFisher" target="_blank" style="color: #60a5fa; text-decoration: underline;">Telegram @BigKingFisher</a></p>
+        </div>
+    </section>
+
+    <!-- Section 1: The 3 Places -->
+    <section>
+        <h2><span class="num">1</span> The 3 Places Code Lives</h2>
+        <p class="section-subtitle">Think of it like a kitchen, a recipe book, and a restaurant</p>
+
+        <div class="places-grid">
+            <div class="place-card place-workshop">
+                <span class="place-icon">&#x1F4BB;</span>
+                <h4>The Workshop</h4>
+                <div class="location">Angel's Laptop - Sicily</div>
+                <p>Where code is written and edited. Angel and Tigs build here.</p>
+            </div>
+            <div class="place-card place-warehouse">
+                <span class="place-icon">&#x1F4E6;</span>
+                <h4>The Warehouse</h4>
+                <div class="location">GitHub - Internet</div>
+                <p>Where every version of every file is stored. The history book.</p>
+            </div>
+            <div class="place-card place-store">
+                <span class="place-icon">&#x1F680;</span>
+                <h4>The Store</h4>
+                <div class="location">Hetzner Server - Germany</div>
+                <p>Where the live app runs. This is what YOU test, Anne!</p>
+            </div>
+        </div>
+
+        <div class="flow-diagram">
+            <p class="flow-diagram-label">Every change follows this path:</p>
+            <div class="flow-row">
+                <span class="flow-box flow-dev">Workshop</span>
+                <span class="flow-arrow">&#x2192;</span>
+                <span class="flow-box flow-git">git push</span>
+                <span class="flow-arrow">&#x2192;</span>
+                <span class="flow-box flow-git">GitHub</span>
+                <span class="flow-arrow">&#x2192;</span>
+                <span class="flow-box flow-git">git pull</span>
+                <span class="flow-arrow">&#x2192;</span>
+                <span class="flow-box flow-server">Live Server</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 2: Journey of a Bug Fix -->
+    <section>
+        <h2><span class="num">2</span> Journey of a Bug Fix</h2>
+        <p class="section-subtitle">Following BUG-009 from your report to the fix on your screen</p>
+
+        <div class="pipeline">
+            <div class="pipeline-step">
+                <div class="pipeline-line">
+                    <div class="pipeline-dot dot-kenya">&#x1F4F1;</div>
+                    <div class="pipeline-connector"></div>
+                </div>
+                <div class="pipeline-content">
+                    <h4>You Report the Bug</h4>
+                    <p>Open QA Dashboard, click "Report Bug", describe what happened. Saved to the database on Hetzner.</p>
+                </div>
+            </div>
+
+            <div class="pipeline-step">
+                <div class="pipeline-line">
+                    <div class="pipeline-dot dot-laptop">&#x1F441;</div>
+                    <div class="pipeline-connector"></div>
+                </div>
+                <div class="pipeline-content">
+                    <h4>Angel + Tigs Investigate</h4>
+                    <p>Read the code, find the root cause. In BUG-009: modal was opening and closing instantly due to a timing race condition.</p>
+                </div>
+            </div>
+
+            <div class="pipeline-step">
+                <div class="pipeline-line">
+                    <div class="pipeline-dot dot-laptop">&#x1F527;</div>
+                    <div class="pipeline-connector"></div>
+                </div>
+                <div class="pipeline-content">
+                    <h4>Tigs Fixes the Code</h4>
+                    <p>Edit the file on Angel's laptop. At this point, ONLY the laptop has the fix. You can't see it yet.</p>
+                </div>
+            </div>
+
+            <div class="pipeline-step">
+                <div class="pipeline-line">
+                    <div class="pipeline-dot dot-github">&#x1F4E4;</div>
+                    <div class="pipeline-connector"></div>
+                </div>
+                <div class="pipeline-content">
+                    <h4>Git Commit + Push</h4>
+                    <p>Take a snapshot of the change, give it a message and a unique ID (SHA), send it to GitHub. The warehouse now has the fix.</p>
+                </div>
+            </div>
+
+            <div class="pipeline-step">
+                <div class="pipeline-line">
+                    <div class="pipeline-dot dot-server">&#x1F3D7;</div>
+                    <div class="pipeline-connector"></div>
+                </div>
+                <div class="pipeline-content">
+                    <h4>Deploy to Server</h4>
+                    <p>Connect to Hetzner, download the latest code (git pull), rebuild the application (docker). Takes about 30 seconds.</p>
+                </div>
+            </div>
+
+            <div class="pipeline-step">
+                <div class="pipeline-line">
+                    <div class="pipeline-dot dot-kenya">&#x2705;</div>
+                </div>
+                <div class="pipeline-content">
+                    <h4>You See the Fix!</h4>
+                    <p>Refresh the page. The new code is running. Test it. If it works, mark the bug "Verified." You have the final word.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 3: Key Concepts -->
+    <section>
+        <h2><span class="num">3</span> Key Concepts Explained</h2>
+        <p class="section-subtitle">The building blocks -- no jargon, just clarity</p>
+
+        <div class="info-card info-git">
+            <h4>&#x1F4DA; What is Git?</h4>
+            <p>A <strong>time machine for files</strong>. Every time someone makes a change, Git takes a snapshot called a <strong>commit</strong>. Each commit has a unique ID (the <strong>SHA</strong> -- like <code style="color:#f97316">1fe510a</code>), a message, who made it, and when. You can go back to ANY previous version. Nothing is ever lost. <strong>GitHub</strong> is just a website that stores these snapshots in the cloud.</p>
+        </div>
+
+        <div class="info-card info-docker">
+            <h4>&#x1F433; What is Docker?</h4>
+            <p>Code files are just text -- they can't DO anything by themselves. It's like having a recipe but no kitchen. <strong>Docker is the kitchen</strong>. It reads the code and builds a <strong>container</strong> -- a complete running application. When we rebuild, the old container is replaced with a new one in about 30 seconds.</p>
+        </div>
+
+        <div class="info-card info-db">
+            <h4>&#x1F5C4; What is the Database?</h4>
+            <p><strong>Code</strong> = the building (walls, doors, layout). <strong>Database</strong> = everything INSIDE the building (your bugs, test results, customers). When we rebuild the app, we rebuild the building. Your data stays exactly where it is. Sometimes we add "new shelves" -- that's called a <strong>migration</strong>.</p>
+        </div>
+    </section>
+
+    <!-- Section 4: Your Role -->
+    <section>
+        <div class="role-banner">
+            <h3>Your Role: The Quality Gate</h3>
+            <p>You are not "just testing." Nothing goes to production without passing through you.</p>
+            <p>When a developer says <strong>"fixed"</strong> and attaches a commit SHA -- that's their word.<br>
+            When you test it and mark it <strong>"verified"</strong> -- that's the final word.</p>
+            <p class="quote">"The developer says fixed. The tester says verified. The tester has the final word."</p>
+        </div>
+
+        <div class="pipeline pipeline-top">
+            <div class="pipeline-step">
+                <div class="pipeline-line">
+                    <div class="pipeline-dot dot-kenya" style="font-size:14px; font-weight:700;">1</div>
+                    <div class="pipeline-connector"></div>
+                </div>
+                <div class="pipeline-content">
+                    <h4>You file a bug</h4>
+                    <p>It gets a number (BUG-001) and goes into the system</p>
+                </div>
+            </div>
+            <div class="pipeline-step">
+                <div class="pipeline-line">
+                    <div class="pipeline-dot dot-laptop" style="font-size:14px; font-weight:700;">2</div>
+                    <div class="pipeline-connector"></div>
+                </div>
+                <div class="pipeline-content">
+                    <h4>Developer picks it up</h4>
+                    <p>Assigned to Angel or Tigs, status changes to "In Progress"</p>
+                </div>
+            </div>
+            <div class="pipeline-step">
+                <div class="pipeline-line">
+                    <div class="pipeline-dot dot-github" style="font-size:14px; font-weight:700;">3</div>
+                    <div class="pipeline-connector"></div>
+                </div>
+                <div class="pipeline-content">
+                    <h4>Fix deployed with commit SHA</h4>
+                    <p>Status: "Fixed", SHA attached (e.g. 1fe510a), reassigned to YOU</p>
+                </div>
+            </div>
+            <div class="pipeline-step">
+                <div class="pipeline-line">
+                    <div class="pipeline-dot dot-server" style="font-size:14px; font-weight:700;">4</div>
+                </div>
+                <div class="pipeline-content">
+                    <h4>YOU verify or reopen</h4>
+                    <p>Test it. Works? Mark "Verified." Still broken? Back to "Open" with a comment.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 5: Cheat Sheet -->
+    <section>
+        <h2><span class="num">4</span> Cheat Sheet</h2>
+        <p class="section-subtitle">Quick reference for terms you'll see in the system</p>
+
+        <table class="cheat-table">
+            <thead>
+                <tr>
+                    <th>Term</th>
+                    <th>What It Means</th>
+                    <th>Analogy</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td class="term">Repository</td><td>A folder of code tracked by Git</td><td>A recipe book</td></tr>
+                <tr><td class="term">Commit</td><td>A saved snapshot of changes</td><td>A dated entry in the book</td></tr>
+                <tr><td class="term">SHA</td><td>Unique ID of a commit (e.g. 1fe510a)</td><td>A receipt number</td></tr>
+                <tr><td class="term">Push</td><td>Send commits to GitHub</td><td>Mail recipes to warehouse</td></tr>
+                <tr><td class="term">Pull</td><td>Download commits from GitHub</td><td>Warehouse delivers to store</td></tr>
+                <tr><td class="term">Deploy</td><td>Make new code live on server</td><td>Stock new products in store</td></tr>
+                <tr><td class="term">Docker</td><td>Turns code into a running app</td><td>The kitchen that cooks recipes</td></tr>
+                <tr><td class="term">Container</td><td>A running instance of the app</td><td>The meal being served</td></tr>
+                <tr><td class="term">Database</td><td>Where your data lives</td><td>The filing cabinet</td></tr>
+                <tr><td class="term">Migration</td><td>Changing database structure</td><td>Adding drawers to the cabinet</td></tr>
+                <tr><td class="term">API</td><td>How frontend talks to backend</td><td>The waiter between you and kitchen</td></tr>
+                <tr><td class="term">Frontend</td><td>What you see (buttons, forms)</td><td>The restaurant dining room</td></tr>
+                <tr><td class="term">Backend</td><td>What runs on server (Python)</td><td>The kitchen</td></tr>
+            </tbody>
+        </table>
+    </section>
+
+    <!-- Section 6: ISTQB Reference -->
+    <section>
+        <h2><span class="num">5</span> Testing Principles (ISTQB)</h2>
+        <p class="section-subtitle">The international standard for software testing -- your reference dictionary</p>
+
+        <p style="color:#94a3b8;font-size:0.92em;margin-bottom:20px;">
+            ISTQB (International Software Testing Qualifications Board) is the global standard for software testing.
+            You don't need to read the whole thing -- but knowing these core principles makes you a sharper tester.
+            Think of it as a dictionary you check when you need the right word.
+        </p>
+
+        <div class="istqb-card">
+            <h3>7 Testing Principles -- The Short Version</h3>
+            <p>These are the rules professional testers live by. You're already doing most of them.</p>
+
+            <div class="concept-grid">
+                <div class="concept">
+                    <div class="term">1. Testing shows bugs exist</div>
+                    <div class="meaning">Testing finds problems. It can never prove there are ZERO problems. Keep looking.</div>
+                </div>
+                <div class="concept">
+                    <div class="term">2. You can't test everything</div>
+                    <div class="meaning">Focus on the risky parts. Test what matters most to the user first.</div>
+                </div>
+                <div class="concept">
+                    <div class="term">3. Test early</div>
+                    <div class="meaning">The earlier you find a bug, the cheaper it is to fix. Don't wait until the end.</div>
+                </div>
+                <div class="concept">
+                    <div class="term">4. Bugs cluster together</div>
+                    <div class="meaning">Most bugs hide in a few modules. If you found one bug somewhere, look harder there.</div>
+                </div>
+                <div class="concept">
+                    <div class="term">5. Pesticide paradox</div>
+                    <div class="meaning">Running the same tests over and over stops finding new bugs. Change your tests.</div>
+                </div>
+                <div class="concept">
+                    <div class="term">6. Testing depends on context</div>
+                    <div class="meaning">How you test a banking app vs a postcard website is different. Know what matters here.</div>
+                </div>
+                <div class="concept">
+                    <div class="term">7. "No bugs" doesn't mean good software</div>
+                    <div class="meaning">A bug-free app that nobody can use is still broken. Usability matters.</div>
+                </div>
+            </div>
+
+            <a href="/static/training/ISTQB_CTFL_Syllabus_v4.0.1.pdf" target="_blank" class="pdf-link">
+                <svg width="18" height="18" fill="currentColor" viewBox="0 0 20 20"><path d="M4 18h12a2 2 0 002-2V6l-4-4H6a2 2 0 00-2 2v12a2 2 0 002 2zm8-14l3 3h-3V4zM8 12h4v2H8v-2z"/></svg>
+                ISTQB CTFL Syllabus v4.0.1 (PDF)
+            </a>
+            <p class="pdf-note">Use this as a reference, not a textbook. Look up terms when you need them. The best way to learn testing is by testing.</p>
+        </div>
+    </section>
+
+    <!-- Section 7: FAQ -->
+    <section>
+        <h2><span class="num">6</span> Questions You Might Have</h2>
+        <p class="section-subtitle">The questions everyone asks but nobody asks</p>
+
+        <div class="faq-item">
+            <div class="q">Can I break anything by testing?</div>
+            <p class="a">No. Testing is reading and clicking. You cannot damage the system. We WANT you to try to break things -- that's how we find problems before real customers do.</p>
+        </div>
+        <div class="faq-item">
+            <div class="q">What if I find the same bug twice?</div>
+            <p class="a">Report it again. Maybe the first fix didn't work. That's valuable information -- it means the fix needs to be better.</p>
+        </div>
+        <div class="faq-item">
+            <div class="q">How do I know if a bug is really fixed?</div>
+            <p class="a">Check the QA Dashboard. If it says "Fixed" with a git SHA, the code change is deployed. Test it yourself. If it works, mark it "Verified." If it doesn't, change it back to "Open" and add a comment explaining what's still wrong.</p>
+        </div>
+        <div class="faq-item">
+            <div class="q">What does the git SHA mean?</div>
+            <p class="a">It's the unique ID of the exact code change that fixed the bug. Like a receipt number -- it proves WHAT was changed and WHEN. Example: <code style="color:#818cf8">1fe510a</code></p>
+        </div>
+        <div class="faq-item">
+            <div class="q">Why do I need to log in now?</div>
+            <p class="a">Before, the QA dashboard was open to everyone. Now it knows who you are. When you report a bug, your name is on it. When you verify a fix, the developer knows YOU confirmed it. It also means only people with the right role can access testing -- no accidental edits from other users.</p>
+        </div>
+        <div class="faq-item">
+            <div class="q">What if the login doesn't work?</div>
+            <p class="a">Tell Angel immediately. It could be a server issue, not something you did wrong. Your username is <strong>anne</strong> and password is <strong>helix_pass</strong>. If it shows an error page or a blank screen, take a screenshot and send it on Telegram.</p>
+        </div>
+        <div class="faq-item">
+            <div class="q">What if I get sent back to the login page while working?</div>
+            <p class="a">Your session expires after about 30 minutes of inactivity. Just log in again. Your bugs, test results, and comments are all saved on the server -- nothing is lost. Think of it like a door that locks behind you after a while. You still have the key.</p>
+        </div>
+        <div class="faq-item">
+            <div class="q">What if I don't understand something?</div>
+            <p class="a">Ask. There are no stupid questions in software engineering. The only stupid thing is staying confused and not asking.</p>
+        </div>
+    </section>
+
+</div>
+
+<footer>
+    <p>Written by <strong>Angel</strong> and <strong>Tigs</strong> &middot; Updated February 24, 2026</p>
+    <p>For <strong>Anne</strong> -- the quality gate of HelixNet</p>
+    <p class="footer-quote">"The developer says fixed. The tester says verified. The tester has the final word."</p>
+</footer>
+
+</body>
+</html>

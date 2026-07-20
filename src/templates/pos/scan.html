@@ -1,0 +1,1791 @@
+{% extends "pos/base.html" %}
+
+{% block title %}New Sale - HelixPOS{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50" x-data="scanData()">
+    <!--Top Bar -->
+    <div class="bg-white shadow-md border-b-4 border-indigo-600">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <button @click="goBack()" class="btn-secondary flex-none" title="Dashboard" aria-label="Dashboard">🏠
+                </button>
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900">🛍️ <span data-i18n="scan.heading">New Sale</span></h1>
+                    <p class="text-sm text-gray-600"><span data-i18n="scan.transaction_label">Transaction</span> <span x-text="transactionId"></span></p>
+                </div>
+            </div>
+            <div class="text-right">
+                <p class="text-sm text-gray-600" data-i18n="scan.cashier">Cashier</p>
+                <p class="font-semibold" x-text="user.username"></p>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-4 py-6">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- LEFT: Product Search & Add -->
+            <div class="space-y-6">
+                <!-- Search Methods -->
+                <div class="card">
+                    <h2 class="text-xl font-bold text-gray-900 mb-4" data-i18n="scan.find_product">Find Product</h2>
+
+                    <!-- Mode Selector -->
+                    <div class="flex gap-2 mb-4">
+                        <button
+                            @click="searchMode = 'barcode'"
+                            :class="searchMode === 'barcode' ? 'btn-primary' : 'btn-secondary'"
+                            class="flex-1 py-3">
+                            📊 <span data-i18n="scan.mode_barcode">Barcode</span>
+                        </button>
+                        <button
+                            @click="searchMode = 'search'"
+                            :class="searchMode === 'search' ? 'btn-primary' : 'btn-secondary'"
+                            class="flex-1 py-3">
+                            🔍 <span data-i18n="scan.mode_search">Search</span>
+                        </button>
+                        <button
+                            @click="searchMode = 'catalog'"
+                            :class="searchMode === 'catalog' ? 'btn-primary' : 'btn-secondary'"
+                            class="flex-1 py-3">
+                            🆕 <span data-i18n="scan.mode_new_item">New item</span>
+                        </button>
+                    </div>
+
+                    <!-- Barcode Mode -->
+                    <div x-show="searchMode === 'barcode'" class="space-y-3">
+                        <input
+                            type="text"
+                            x-model="barcodeInput"
+                            x-ref="barcodeInput"
+                            @keyup.enter="searchByBarcode()"
+                            placeholder="Scan or type barcode..."
+                            data-i18n-placeholder="scan.ph_barcode"
+                            class="input-field"
+                            autofocus>
+                        <button @click="searchByBarcode()" class="btn-success w-full">
+                            📊 <span data-i18n="scan.find_by_barcode">Find by Barcode</span>
+                        </button>
+                        <!-- BL-87: live camera scan. Manual entry above stays as fallback. -->
+                        <button @click="startScan()" class="btn-primary w-full">
+                            📷 <span data-i18n="scan.scan_camera">Scan with camera</span>
+                        </button>
+                        <!-- Label queue: every catalogued hit queues a label → print the roll (QL-820) -->
+                        <button x-show="labelCount > 0" style="display:none;" @click="openLabelQueue()"
+                                class="w-full py-2.5 rounded-lg border-2 border-emerald-300 text-emerald-700 font-bold flex items-center justify-center gap-2">
+                            🖨️ <span data-i18n="scan.print_labels">Print labels</span> (<span x-text="labelCount"></span>)
+                        </button>
+                    </div>
+
+                    <!-- Search Mode -->
+                    <div x-show="searchMode === 'search'" class="space-y-3">
+                        <input
+                            type="text"
+                            x-model="searchInput"
+                            @input="searchProducts()"
+                            placeholder="Type product name..."
+                            data-i18n-placeholder="scan.ph_product_search"
+                            class="input-field">
+                        <select x-model="searchCategory" @change="searchProducts()" class="input-field">
+                            <option value="" data-i18n="scan.all_categories">All categories</option>
+                            <template x-for="c in categories" :key="c.name">
+                                <option :value="c.name" x-text="c.name + ' (' + c.count + ')'"></option>
+                            </template>
+                        </select>
+                        <p class="text-sm text-gray-600">
+                            <span x-show="searchTotal > 0">Showing <span x-text="searchResults.length"></span> of <span x-text="searchTotal"></span> matches</span>
+                            <span x-show="searchInput.length >= 2 && searchTotal === 0" data-i18n="scan.no_matches">No matches</span>
+                            <span x-show="searchInput.length < 2 && !searchCategory" data-i18n="scan.search_hint">Type at least 2 letters, or pick a category</span>
+                        </p>
+                    </div>
+
+                    <!-- New item on the fly: fast cashier create for no-barcode goods.
+                         Name + price (photo optional), auto-filed under "On the fly" so
+                         Pam never picks a category; a manager enhances/discontinues later. -->
+                    <div x-show="searchMode === 'catalog'" class="space-y-4">
+                        <div class="bg-yellow-50 border-2 border-yellow-400 rounded-lg p-4">
+                            <p class="text-sm font-semibold text-yellow-800 mb-2">🆕 <span data-i18n="scan.new_item_title">New item — no barcode</span></p>
+                            <p class="text-sm text-yellow-700" data-i18n-html="scan.new_item_help">
+                                Name + price, photo if you've got a second. It's <b>saved</b> (filed under
+                                <b>“On the fly”</b>) and added to the cart — so you can <b>find it by name and sell it
+                                again</b>. Tidy it up later in the Catalogue, or discontinue it if it was a one-off.
+                            </p>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2"><span data-i18n="scan.item_name">Item name</span> <span class="text-red-500">*</span></label>
+                            <input type="text" x-model="otfName" @keyup.enter="createNoCodeItem()"
+                                   placeholder="e.g. Cynthia cup — red" data-i18n-placeholder="scan.ph_item_name" class="input-field">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2"><span data-i18n="scan.price_chf">Price (CHF)</span> <span class="text-red-500">*</span></label>
+                            <input type="number" step="0.05" min="0" x-model="otfPrice" @keyup.enter="createNoCodeItem()"
+                                   placeholder="0.00" class="input-field text-2xl font-bold">
+                        </div>
+
+                        <!-- 18+ double-check — required by the cashier contract. Big + obvious,
+                             default OFF. Drives the checkout age gate (server files it under the
+                             "age_restricted" class so the sale is actually blocked without ID). -->
+                        <label class="flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer select-none transition-colors"
+                               :class="otfAgeRestricted ? 'bg-red-50 border-red-400' : 'bg-gray-50 border-gray-200'">
+                            <input type="checkbox" x-model="otfAgeRestricted" class="w-6 h-6 accent-red-600 flex-none">
+                            <span class="text-lg" x-text="otfAgeRestricted ? '🔞' : '✅'"></span>
+                            <span class="text-sm font-semibold" :class="otfAgeRestricted ? 'text-red-800' : 'text-gray-700'"
+                                  data-i18n="scan.age_18_label">18+ — needs ID? (tobacco, alcohol, CBD flower…)</span>
+                        </label>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2"><span data-i18n="scan.photo">Photo</span> <span class="text-gray-400 font-normal" data-i18n="scan.optional">(optional)</span></label>
+                            <div class="flex items-center gap-3">
+                                <label class="btn-secondary cursor-pointer flex-none">
+                                    📸 <span x-text="otfPhotoData ? t('scan.retake') : t('scan.take_photo')"></span>
+                                    <input type="file" accept="image/*" :capture="posCaptureAttr()" class="hidden" @change="onOtfPhoto($event)">
+                                </label>
+                                <img x-show="otfPhotoData" :src="otfPhotoData" class="w-16 h-16 rounded-lg object-cover border flex-none" alt="">
+                                <span x-show="!otfPhotoData" class="text-xs text-gray-400" data-i18n="scan.photo_recognise">Helps you recognise it next time</span>
+                            </div>
+                        </div>
+
+                        <!-- Optional extras — fill if you know them, otherwise skip. -->
+                        <details class="border rounded-lg">
+                            <summary class="cursor-pointer select-none px-3 py-2 text-sm text-gray-600">➕ <span data-i18n="scan.add_details">Add details</span> <span class="text-gray-400" data-i18n="scan.optional">(optional)</span></summary>
+                            <div class="p-3 pt-0 space-y-3">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="scan.description">Description</label>
+                                    <input type="text" x-model="otfDescription" placeholder="(optional) any extra detail" data-i18n-placeholder="scan.ph_description" class="input-field">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="scan.category">Category</label>
+                                    <input type="text" x-model="otfCategory" list="otf-cats" placeholder="(optional) leave blank = On the fly" data-i18n-placeholder="scan.ph_category" class="input-field">
+                                    <datalist id="otf-cats"><template x-for="c in categories" :key="c.name"><option :value="c.name"></option></template></datalist>
+                                </div>
+                            </div>
+                        </details>
+
+                        <button @click="createNoCodeItem()" :disabled="lazySaving" class="btn-success w-full">
+                            <span x-show="!lazySaving">➕ <span data-i18n="scan.create_add_cart">Create &amp; add to cart</span></span>
+                            <span x-show="lazySaving" style="display:none;" data-i18n="scan.saving">Saving…</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Search Results (for search mode) -->
+                <div x-show="searchMode === 'search' && searchResults.length > 0" class="card max-h-96 overflow-y-auto">
+                    <h3 class="text-lg font-bold text-gray-900 mb-3" data-i18n="scan.products">Products</h3>
+                    <div class="space-y-2">
+                        <template x-for="product in searchResults" :key="product.id">
+                            <div @click="openDetail(product)" title="Tap for details"
+                                 class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer">
+                                <!-- Product photo (from the supplier feed); falls back to a tile. -->
+                                <div class="w-14 h-14 rounded-lg border bg-white mr-3 flex-none flex items-center justify-center overflow-hidden"
+                                     :class="hasImg(product) ? 'cursor-zoom-in' : ''"
+                                     @click.stop="hasImg(product) && openLightbox(thumbSrc(product), product.name)">
+                                    <img x-show="hasImg(product)" :src="thumbSrc(product)" loading="lazy" alt=""
+                                         class="w-full h-full object-cover" @error="onImgError(product)" @load="product._imgerr=false">
+                                    <span x-show="!hasImg(product)" class="text-2xl">📦</span>
+                                </div>
+                                <div class="flex-1">
+                                    <p class="font-semibold text-gray-900" x-text="product.name"></p>
+                                    <!-- Type + 18+ up front, so the cashier sees it BEFORE checkout -->
+                                    <div class="flex flex-wrap items-center gap-1 mt-0.5">
+                                        <span x-show="is18(product.product_class)" class="text-xs font-bold px-2 py-0.5 rounded-full bg-red-600 text-white">🔞 18+</span>
+                                        <span x-show="product.product_class !== 'age_restricted'" class="text-xs font-medium px-2 py-0.5 rounded-full" :class="classInfo(product.product_class).c"
+                                              x-text="classInfo(product.product_class).e + ' ' + classInfo(product.product_class).l"></span>
+                                    </div>
+                                    <p class="text-sm text-gray-600">
+                                        SKU: <span x-text="product.sku"></span>
+                                        <span x-show="product.barcode"> | Barcode: <span x-text="product.barcode"></span></span>
+                                    </p>
+                                    <p class="text-lg font-bold text-indigo-600" x-text="formatPrice(product.price)"></p>
+                                </div>
+                                <button
+                                    @click.stop="addToCart(product)"
+                                    class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-semibold">
+                                    ➕ <span data-i18n="scan.add">Add</span>
+                                </button>
+                            </div>
+                        </template>
+                    </div>
+                    <!-- Pagination: load the next page on demand (big catalog) -->
+                    <button x-show="searchResults.length < searchTotal" @click="loadMore()"
+                        class="btn-secondary w-full mt-3" :disabled="searchLoading">
+                        <span x-show="!searchLoading">Show more (<span x-text="searchTotal - searchResults.length"></span> more)</span>
+                        <span x-show="searchLoading" data-i18n="common.loading">Loading…</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- RIGHT: Shopping Cart -->
+            <div class="space-y-6">
+                <div class="card">
+                    <h2 class="text-xl font-bold text-gray-900 mb-4">
+                        🛒 <span data-i18n="scan.cart">Cart</span> (<span x-text="cart.length"></span> <span data-i18n="scan.items">items</span>)
+                    </h2>
+
+                    <!-- Empty cart message -->
+                    <div x-show="cart.length === 0" class="text-center py-8 text-gray-500">
+                        <span class="text-6xl block mb-3">🛒</span>
+                        <p data-i18n="scan.cart_empty">Cart is empty. Start scanning!</p>
+                    </div>
+
+                    <!-- Cart items -->
+                    <div x-show="cart.length > 0" class="space-y-3 mb-4">
+                        <template x-for="(item, index) in cart" :key="index">
+                            <div class="bg-gray-50 rounded-lg p-3">
+                                <div class="flex justify-between items-start mb-2">
+                                    <div class="flex items-start gap-3 flex-1 min-w-0">
+                                        <!-- Small product thumb — a ≥44px button; tap to see the picture bigger. -->
+                                        <div class="w-11 h-11 rounded-lg border bg-white flex-none flex items-center justify-center overflow-hidden"
+                                             :class="hasImg(item) ? 'cursor-zoom-in' : ''"
+                                             @click="hasImg(item) && openLightbox(thumbSrc(item), item.name)"
+                                             :title="hasImg(item) ? 'Tap to enlarge' : ''">
+                                            <img x-show="hasImg(item)" :src="thumbSrc(item)" loading="lazy" alt=""
+                                                 class="w-full h-full object-cover" @error="onImgError(item)" @load="item._imgerr=false">
+                                            <span x-show="!hasImg(item)" class="text-xl">📦</span>
+                                        </div>
+                                        <div class="flex-1 min-w-0 cursor-pointer" @click="openDetail(item)" title="Tap for details">
+                                            <p class="font-semibold text-gray-900" x-text="item.name"></p>
+                                            <div class="flex flex-wrap items-center gap-1 mt-0.5">
+                                                <span x-show="is18(item.product_class)" class="text-xs font-bold px-2 py-0.5 rounded-full bg-red-600 text-white">🔞 18+</span>
+                                                <span x-show="item.product_class && item.product_class !== 'standard' && item.product_class !== 'age_restricted'" class="text-xs font-medium px-2 py-0.5 rounded-full" :class="classInfo(item.product_class).c"
+                                                      x-text="classInfo(item.product_class).e + ' ' + classInfo(item.product_class).l"></span>
+                                            </div>
+                                            <p class="text-sm text-gray-600">
+                                                <span x-text="formatPrice(item.price)"></span> × <span x-text="item.quantity"></span>
+                                                <span class="text-indigo-400 text-xs"> · <span data-i18n="scan.tap_details">tap for details</span> →</span>
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <button @click="removeFromCart(index)" class="text-red-600 hover:text-red-800 text-xl px-3 py-2 rounded-lg hover:bg-red-50" aria-label="Remove item">
+                                        ❌
+                                    </button>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center space-x-3">
+                                        <button @click="decreaseQuantity(index)" class="bg-gray-200 hover:bg-gray-300 active:bg-gray-400 w-12 h-12 rounded-full text-2xl font-bold leading-none flex items-center justify-center" aria-label="Decrease quantity">−</button>
+                                        <!-- BL-16: type the count directly (scan once, type 6) — no more scanning water 6×.
+                                             type=text + inputmode=numeric = a numeric keypad on mobile with NO ▲▼ spinner
+                                             (those duplicated −/+). @input strips anything non-digit AS YOU TYPE so a letter
+                                             or a decimal can never land; @change finalises + clamps ≥1 (not a fat-finger trap). -->
+                                        <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4"
+                                               :value="item.quantity"
+                                               @focus="$event.target.select()"
+                                               @input="$event.target.value = $event.target.value.replace(/[^0-9]/g,'')"
+                                               @change="setQuantity(index, $event.target.value)"
+                                               @keyup.enter="$event.target.blur()"
+                                               class="font-bold text-xl w-16 h-12 text-center border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:ring-0"
+                                               aria-label="Quantity">
+                                        <button @click="increaseQuantity(index)" class="bg-gray-200 hover:bg-gray-300 active:bg-gray-400 w-12 h-12 rounded-full text-2xl font-bold leading-none flex items-center justify-center" aria-label="Increase quantity">+</button>
+                                    </div>
+                                    <p class="text-lg font-bold text-indigo-600">
+                                        <span x-text="formatPrice(tierLineTotal(item))"></span>
+                                        <span x-show="tierApplied(item)" class="text-xs text-green-600 font-semibold ml-1" data-i18n="scan.tier_badge">pack ✓</span>
+                                    </p>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Discount -->
+                    <div x-show="cart.length > 0" class="border-t pt-4 space-y-3">
+                        <!-- Discount Mode Toggle -->
+                        <div class="flex rounded-lg bg-gray-100 p-1">
+                            <button
+                                @click="discountMode = 'percent'; targetTotal = ''; discountError = ''"
+                                :class="discountMode === 'percent' ? 'bg-white shadow' : ''"
+                                class="flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all">
+                                <span data-i18n="scan.discount_percent">% Discount</span>
+                            </button>
+                            <button
+                                @click="discountMode = 'target'; discount = 0; discountError = ''"
+                                :class="discountMode === 'target' ? 'bg-white shadow' : ''"
+                                class="flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all">
+                                <span data-i18n="scan.target_total">Target Total</span>
+                            </button>
+                        </div>
+
+                        <!-- Percent Mode -->
+                        <div x-show="discountMode === 'percent'">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                <span data-i18n="scan.discount_pct_label">Discount %</span>
+                                <span x-show="!user.isAdmin" class="text-yellow-600" x-text="t('scan.max_pct', {n: maxDiscount})"></span>
+                            </label>
+                            <input
+                                type="number"
+                                step="0.1"
+                                min="0"
+                                :max="maxDiscount"
+                                x-model="discount"
+                                @input="validateDiscount(); targetTotal = ''"
+                                class="input-field"
+                                placeholder="0">
+                            <p x-show="discountError" class="text-sm text-red-600 mt-1" x-text="discountError"></p>
+                        </div>
+
+                        <!-- Target Total Mode -->
+                        <div x-show="discountMode === 'target'">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                <span data-i18n="scan.agreed_total">Agreed Final Total (CHF)</span>
+                                <span class="text-gray-500 font-normal">
+                                    (Full: <span x-text="formatPrice(totals.subtotal)"></span>)
+                                </span>
+                            </label>
+                            <input
+                                type="number"
+                                step="0.05"
+                                min="0"
+                                x-model="targetTotal"
+                                @input="calculateDiscountFromTarget()"
+                                class="input-field text-xl font-bold"
+                                :placeholder="'Max ' + formatPrice(totals.subtotal)">
+                            <p x-show="targetTotal && discount > 0" class="text-sm text-green-600 mt-1">
+                                = <span x-text="discount.toFixed(2)"></span>% discount applied
+                            </p>
+                            <p x-show="discountError" class="text-sm text-red-600 mt-1" x-text="discountError"></p>
+                        </div>
+
+                        <!-- Totals -->
+                        <div class="bg-indigo-50 rounded-lg p-4 space-y-2">
+                            <div class="flex justify-between text-sm">
+                                <span data-i18n="scan.subtotal">Subtotal:</span>
+                                <span class="font-semibold" x-text="formatPrice(totals.subtotal)"></span>
+                            </div>
+                            <div x-show="discount > 0" class="flex justify-between text-sm text-green-600">
+                                <span>Discount (<span x-text="discount"></span>%):</span>
+                                <span class="font-semibold" x-text="'-' + formatPrice(totals.discountAmount)"></span>
+                            </div>
+                            <div class="border-t pt-2 flex justify-between">
+                                <span class="text-lg font-bold" data-i18n="scan.total">TOTAL:</span>
+                                <span class="text-2xl font-extrabold text-indigo-600" x-text="formatPrice(totals.total)"></span>
+                            </div>
+                            <div class="flex justify-between text-sm text-gray-500">
+                                <span>incl. VAT (<span x-text="_cfg('vat_rate')"></span>%):</span>
+                                <span x-text="formatPrice(totals.vat)"></span>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="grid grid-cols-2 gap-3 mt-4">
+                            <button @click="clearCart()" class="btn-danger">
+                                🗑️ <span data-i18n="scan.clear">Clear</span>
+                            </button>
+                            <button @click="goToCheckout()" class="btn-success">
+                                💵 <span data-i18n="scan.checkout">Checkout</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product detail / preview modal -->
+    <div x-show="detailProduct" x-transition class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" @click.self="detailProduct=null" style="display:none;">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-start p-5 border-b">
+                <h2 class="text-xl font-bold text-gray-900 pr-4" x-text="detailProduct?.name"></h2>
+                <button @click="detailProduct=null" class="text-gray-400 hover:text-gray-700 text-3xl leading-none flex-none">&times;</button>
+            </div>
+            <div class="grid md:grid-cols-2 gap-5 p-5">
+                <!-- Left: big image + price + add -->
+                <div>
+                    <div class="w-full aspect-square bg-gray-50 rounded-xl border flex items-center justify-center overflow-hidden"
+                         :class="hasImg(detailProduct) ? 'cursor-zoom-in' : ''"
+                         @click="hasImg(detailProduct) && openLightbox(thumbSrc(detailProduct), detailProduct?.name)">
+                        <img x-show="hasImg(detailProduct)" :src="thumbSrc(detailProduct)" class="w-full h-full object-contain" alt=""
+                             @error="onImgError(detailProduct)" @load="if(detailProduct) detailProduct._imgerr=false">
+                        <span x-show="!hasImg(detailProduct)" class="text-7xl">📦</span>
+                    </div>
+                    <p class="text-3xl font-bold text-indigo-600 mt-4" x-text="formatPrice(detailProduct?.price)"></p>
+                    <div class="flex flex-wrap items-center gap-1 mt-2" x-show="detailProduct">
+                        <span x-show="is18(detailProduct?.product_class)" class="text-sm font-bold px-2.5 py-1 rounded-full bg-red-600 text-white">🔞 18+</span>
+                        <span x-show="detailProduct && detailProduct.product_class !== 'age_restricted'" class="text-sm font-medium px-2.5 py-1 rounded-full" :class="classInfo(detailProduct?.product_class).c"
+                              x-text="classInfo(detailProduct?.product_class).e + ' ' + classInfo(detailProduct?.product_class).l"></span>
+                    </div>
+                    <!-- BL-26: quantity price breaks — the ladder, so the cashier SEES the deal (like the Artemis site). -->
+                    <template x-if="detailProduct?.price_tiers && detailProduct.price_tiers.length">
+                        <div class="mt-4 border border-indigo-200 rounded-lg overflow-hidden text-sm">
+                            <div class="bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-800 flex items-center gap-2">
+                                <span>🏷️ <span data-i18n="scan.tier_heading">Quantity price breaks</span></span>
+                            </div>
+                            <ul class="divide-y divide-indigo-100">
+                                <li class="px-3 py-1.5 flex justify-between text-gray-500">
+                                    <span>1</span><span class="font-medium" x-text="formatPrice(detailProduct?.price)"></span>
+                                </li>
+                                <template x-for="(row, i) in detailProduct.price_tiers" :key="i">
+                                    <li class="px-3 py-1.5 flex justify-between items-baseline gap-2" x-show="Number(row.min_qty) >= 2">
+                                        <span class="text-gray-800 font-medium" x-text="tierRowLabel(detailProduct, row)"></span>
+                                        <span class="text-gray-400 text-xs flex-none" x-text="tierRowSub(detailProduct, row)"></span>
+                                    </li>
+                                </template>
+                            </ul>
+                        </div>
+                    </template>
+                    <button @click="addToCart(detailProduct); detailProduct=null"
+                            class="bg-green-500 hover:bg-green-600 text-white w-full mt-4 py-3 rounded-lg font-semibold">➕ <span data-i18n="scan.add_to_cart">Add to Cart</span></button>
+                </div>
+                <!-- Right: specs -->
+                <div class="text-sm">
+                    <h3 class="font-semibold text-gray-900 mb-2" data-i18n="scan.details">Details</h3>
+                    <dl class="divide-y border-y">
+                        <div class="flex justify-between py-2"><dt class="text-gray-500">SKU</dt><dd class="font-medium text-right" x-text="detailProduct?.sku"></dd></div>
+                        <div class="flex justify-between py-2" x-show="detailProduct?.barcode"><dt class="text-gray-500">Barcode</dt><dd class="font-medium text-right" x-text="detailProduct?.barcode"></dd></div>
+                        <div class="flex justify-between py-2"><dt class="text-gray-500" data-i18n="scan.category">Category</dt><dd class="font-medium text-right" x-text="detailProduct?.category"></dd></div>
+                        <div class="flex justify-between py-2" x-show="detailProduct?.supplier_name"><dt class="text-gray-500" data-i18n="scan.supplier">Supplier</dt><dd class="font-medium text-right" x-text="detailProduct?.supplier_name"></dd></div>
+                    </dl>
+                    <template x-if="detailProduct?.description">
+                        <div class="mt-4">
+                            <h3 class="font-semibold text-gray-900 mb-1">
+                                <span data-i18n="scan.description">Description</span>
+                                <span x-show="detailProduct?._descProvenance === 'machine'" class="ml-2 text-[11px] font-normal text-gray-400">🤖 <span data-i18n="catalog.auto_translated">auto-translated</span></span>
+                            </h3>
+                            <p class="text-gray-700" x-text="detailProduct?.description"></p>
+                        </div>
+                    </template>
+                    <template x-if="detailProduct?.tags">
+                        <div class="mt-4">
+                            <h3 class="font-semibold text-gray-900 mb-1" data-i18n="scan.tags">Tags</h3>
+                            <p class="text-gray-600" x-text="detailProduct?.tags"></p>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BL-87: Camera scan overlay. Full-screen rear camera + scan box. -->
+    <div x-show="scanOpen" x-transition class="fixed inset-0 z-[60] bg-black flex flex-col" style="display:none;">
+        <div class="flex justify-between items-center px-4 py-3 bg-black/80 text-white">
+            <span class="font-semibold">📷 <span data-i18n="scan.aim_barcode">Aim at the barcode</span></span>
+            <button @click="stopScan()" class="text-white text-3xl leading-none px-2" aria-label="Cancel scan">&times;</button>
+        </div>
+        <div class="flex-1 relative flex items-center justify-center overflow-hidden">
+            <!-- html5-qrcode injects the <video> here -->
+            <div id="reader" class="w-full max-w-md"></div>
+            <!-- No-camera fallback: a calm note + "choose a photo from disc". Never a dead-end. -->
+            <div x-show="scanFallback" class="absolute inset-0 flex flex-col items-center justify-center text-center px-6 gap-4" style="display:none;">
+                <span class="text-5xl">📁</span>
+                <p class="text-white text-base max-w-xs" x-text="scanError || t('scan.no_camera_device')"></p>
+                <label class="btn-primary cursor-pointer">
+                    📁 <span data-i18n="scan.choose_photo">Choose a photo from your computer</span>
+                    <input type="file" accept="image/*" class="hidden" @change="onScanFile($event)">
+                </label>
+                <p class="text-white/60 text-xs max-w-xs" data-i18n="scan.pick_photo_help">Pick a photo of the barcode and it'll be read from the image — or just cancel and type it.</p>
+            </div>
+            <p x-show="scanError && !scanFallback"
+               class="absolute bottom-24 left-4 right-4 text-center text-white bg-red-600/90 rounded-lg px-4 py-3"
+               x-text="scanError" style="display:none;"></p>
+        </div>
+        <div class="px-4 py-4 bg-black/80 text-center">
+            <p x-show="scanLive" class="text-green-300 font-mono text-lg mb-2" x-text="'Reading: ' + scanLive" style="display:none;"></p>
+            <p class="text-white/60 text-xs mb-2" data-i18n="scan.hold_steady">Hold steady — confirms after reading the same code twice</p>
+            <button @click="stopScan()" class="btn-secondary" data-i18n="scan.cancel_keyboard">Cancel — use keyboard</button>
+        </div>
+    </div>
+
+    <!-- BL-87: Lazy capture. Unknown scan → save as a real product, known forever. -->
+    <div x-show="lazyOpen" x-transition class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" @click.self="lazyOpen=false" style="display:none;">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-start p-5 border-b">
+                <div>
+                    <h2 class="text-xl font-bold text-gray-900" data-i18n="scan.not_on_file">Not on file — find it first</h2>
+                    <p class="text-sm text-gray-600 mt-1" data-i18n="scan.not_on_file_help">It's almost always already in the catalog. Find it and bind the barcode — don't re-type it.</p>
+                </div>
+                <button @click="lazyOpen=false" class="text-gray-400 hover:text-gray-700 text-3xl leading-none flex-none">&times;</button>
+            </div>
+            <div class="p-5 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="scan.scanned_barcode">Scanned barcode</label>
+                    <input type="text" x-model="lazyBarcode" readonly class="input-field bg-gray-100 font-mono">
+                </div>
+
+                <!-- BL-102 matching doctrine: a scanned code that misses = NOT in the catalog
+                     yet, which is NORMAL (suppliers store minted codes, not the real EAN). Lead
+                     with the CAMERA — the reliable matcher — instead of a German name box Pam
+                     must guess. Photo → AI names it → catalog + reference search → bind the code
+                     so the very next scan hits. Hides the moment matches (or a name) appear. -->
+                <div x-show="lazyPhotoFirst && !lazyLinkResults.length && !refResults.length && !aiNote && !lazyCreateOpen"
+                     class="rounded-xl border-2 border-dashed border-indigo-300 bg-indigo-50 p-4 text-center" style="display:none;">
+                    <p class="text-sm text-gray-700" data-i18n="scan.miss_normal">Not in the catalog under that barcode — that's normal, the code on the pack rarely matches.</p>
+                    <p class="text-base font-bold text-gray-900 mt-1 mb-3" data-i18n="scan.miss_take_photo">📷 Take a photo — we'll find it for you.</p>
+                    <label class="btn-primary cursor-pointer inline-flex items-center gap-2 text-lg px-6 py-3"
+                           :class="aiBusy ? 'opacity-60 pointer-events-none' : ''">
+                        <span x-text="aiBusy ? ('🔍 ' + t('scan.reading')) : ('📷 ' + t('scan.snap_fill'))"></span>
+                        <input type="file" accept="image/*" :capture="posCaptureAttr()" class="hidden" @change="aiSnapFill($event)" :disabled="aiBusy">
+                    </label>
+                    <button type="button" x-show="!posIsTouchDevice()" @click="webcamSnapFill()" :disabled="aiBusy"
+                            class="btn-secondary inline-flex items-center gap-1 text-lg px-5 py-3 ml-2">📷 Webcam</button>
+                    <p x-show="aiNote" x-text="aiNote" class="text-xs text-indigo-700 font-medium mt-2" style="display:none;"></p>
+                    <button type="button" @click="lazyPhotoFirst=false; $nextTick(()=>{ if($refs.lazyLinkInput) $refs.lazyLinkInput.focus() })"
+                            class="mt-3 text-xs text-gray-500 underline" data-i18n="scan.or_search_name">or search by name instead</button>
+                </div>
+
+                <!-- PRIMARY (BL-96 search-first): find the real product, bind the code to it.
+                     The picture + name + category come from the catalog, not from memory.
+                     Hidden while the BL-102 camera hero leads a fresh barcode miss. -->
+                <div x-show="!lazyPhotoFirst || lazyLinkResults.length || refResults.length || aiNote">
+                    <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="scan.what_is_it">What is it? Find it in the catalog</label>
+                    <input type="text" x-model="lazyLinkQuery" x-ref="lazyLinkInput"
+                           @input.debounce.300ms="searchExisting(); searchReference()"
+                           placeholder="Type a name or keyword — e.g. papers, grinder, Gizeh" data-i18n-placeholder="scan.ph_find" class="input-field">
+                    <p class="text-xs text-gray-500 mt-1" data-i18n="scan.bind_hint">Tap the right product to bind this barcode to it — it'll scan instantly next time.</p>
+                    <!-- ✨ Snap & fill: photograph the item, AI names it + searches for you -->
+                    <div class="mt-2 flex items-center gap-3">
+                        <label class="btn-secondary cursor-pointer flex-none" :class="aiBusy ? 'opacity-60 pointer-events-none' : ''">
+                            <span x-text="aiBusy ? '🔍 ' + t('scan.reading') : '✨ ' + t('scan.snap_fill')"></span>
+                            <input type="file" accept="image/*" :capture="posCaptureAttr()" class="hidden" @change="aiSnapFill($event)" :disabled="aiBusy">
+                        </label>
+                        <button type="button" x-show="!posIsTouchDevice()" @click="webcamSnapFill()" :disabled="aiBusy"
+                                class="btn-secondary flex-none inline-flex items-center gap-1">📷 Webcam</button>
+                        <span class="text-xs text-gray-500" data-i18n="scan.snap_help">No barcode? Photograph it — AI names it &amp; searches the catalog.</span>
+                    </div>
+                    <p x-show="aiNote" x-text="aiNote" class="text-xs text-indigo-700 font-medium mt-1" style="display:none;"></p>
+                    <div x-show="lazyLinkResults.length" class="mt-2 max-h-80 overflow-y-auto divide-y border rounded-lg" style="display:none;">
+                        <template x-for="p in lazyLinkResults" :key="p.id">
+                            <!-- BL-102.1: row tap = bind (fast path). 👁 = preview WITHOUT binding
+                                 (the bind is permanent). Bigger 64px thumbs so a match is easy to spot
+                                 on a phone — Angel's item was 4th and nearly missed at 48px. -->
+                            <div @click="linkToExisting(p)" class="px-3 py-2 hover:bg-blue-50 flex items-center gap-3 cursor-pointer"
+                                 :class="lazySaving ? 'opacity-50 pointer-events-none' : ''">
+                                <img x-show="p.image_url" :src="p.image_url" loading="lazy" alt=""
+                                     @click.stop="openPreview(p, 'catalog')"
+                                     class="w-16 h-16 rounded object-cover border flex-none">
+                                <span x-show="!p.image_url" class="w-16 h-16 rounded bg-gray-100 flex items-center justify-center text-gray-300 text-2xl flex-none">📦</span>
+                                <span class="flex-1 min-w-0">
+                                    <span class="flex items-center gap-1.5">
+                                        <!-- BL-128: SIZE badge leads the row so 2g vs 10g is a glance, not a read -->
+                                        <span x-show="posProductSize(p.name)" x-text="posProductSize(p.name)"
+                                              class="flex-none text-xs font-extrabold text-blue-800 bg-blue-100 rounded px-1.5 py-0.5"></span>
+                                        <span x-text="p.name" class="min-w-0 text-sm font-medium text-gray-900 truncate"></span>
+                                    </span>
+                                    <span x-show="p.category" x-text="p.category" class="block text-xs text-gray-400 truncate"></span>
+                                </span>
+                                <span x-text="formatPrice(p.price)" class="text-base font-bold text-indigo-600 flex-none"></span>
+                                <button type="button" @click.stop="openPreview(p, 'catalog')" title="Preview"
+                                        class="flex-none text-gray-400 hover:text-blue-600 text-2xl leading-none px-1">👁</button>
+                            </div>
+                        </template>
+                    </div>
+                    <!-- BL-97: SECOND source — the reference catalog (420/TMR master). Not in the
+                         shop yet, but the real data exists. Tap → copy it in (no re-typing). -->
+                    <div x-show="refResults.length" class="mt-3" style="display:none;">
+                        <p class="text-xs font-semibold text-purple-700 mb-1 flex items-center gap-1">
+                            <span class="inline-block px-1.5 py-0.5 rounded bg-purple-100 text-purple-700" data-i18n="scan.from_reference">From reference</span>
+                            <span class="text-gray-500 font-normal" data-i18n="scan.from_reference_help">add to your shop — title &amp; photo come from the supplier</span>
+                        </p>
+                        <div class="max-h-80 overflow-y-auto divide-y border border-purple-200 rounded-lg">
+                            <template x-for="r in refResults" :key="r.id">
+                                <div @click="selectReference(r)" class="px-3 py-2 hover:bg-purple-50 flex items-center gap-3 cursor-pointer"
+                                     :class="(lazySaving ? 'opacity-50 pointer-events-none ' : '') + (refSelected && refSelected.id === r.id ? 'bg-purple-50' : '')">
+                                    <img x-show="r.image_url" :src="r.image_url" loading="lazy" alt=""
+                                         @click.stop="openPreview(r, 'ref')"
+                                         class="w-16 h-16 rounded object-cover border flex-none">
+                                    <span x-show="!r.image_url" class="w-16 h-16 rounded bg-gray-100 flex items-center justify-center text-gray-300 text-2xl flex-none">📦</span>
+                                    <span class="flex-1 min-w-0">
+                                        <span x-text="r.title" class="block text-sm font-medium text-gray-900 truncate"></span>
+                                        <span class="block text-xs text-gray-400 truncate">
+                                            <span x-text="r.supplier"></span><span x-show="r.category" x-text="' · ' + r.category"></span>
+                                        </span>
+                                    </span>
+                                    <span x-show="r.suggested_price !== null" x-text="formatPrice(r.suggested_price)" class="text-sm text-gray-600 flex-none"></span>
+                                    <button type="button" @click.stop="openPreview(r, 'ref')" title="Preview"
+                                            class="flex-none text-gray-400 hover:text-purple-600 text-2xl leading-none px-1">👁</button>
+                                </div>
+                            </template>
+                        </div>
+                        <!-- Price-confirm: keeps the canonical title/description/photo regardless of price. -->
+                        <div x-show="refSelected" style="display:none;" class="mt-2 border border-purple-300 rounded-lg p-3 bg-purple-50 space-y-2">
+                            <p class="text-sm font-medium text-gray-900" x-text="refSelected ? refSelected.title : ''"></p>
+                            <div class="flex items-end gap-2">
+                                <div class="flex-1">
+                                    <label class="block text-xs text-gray-600 mb-1" data-i18n="scan.price_chf">Price (CHF)</label>
+                                    <input type="number" step="0.05" min="0" x-model="refPrice"
+                                           @keyup.enter="confirmAdopt()" placeholder="0.00"
+                                           class="input-field text-xl font-bold">
+                                </div>
+                                <button @click="confirmAdopt()" :disabled="lazySaving" class="btn-success flex-none">
+                                    <span x-show="!lazySaving" data-i18n="scan.add_to_shop">Add to shop</span>
+                                    <span x-show="lazySaving" style="display:none;" data-i18n="scan.saving">Saving…</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <p x-show="lazyLinkQuery.length > 1 && !lazyLinkResults.length && !refResults.length && !lazyLinkSearching && !refSearching"
+                       class="text-xs text-amber-600 mt-2" style="display:none;" data-i18n="scan.no_catalog_match">
+                        No match in the catalog or reference. If it's genuinely new, add it below.
+                    </p>
+                </div>
+
+                <!-- FALLBACK: genuinely new item — collapsed so create-new is the last resort,
+                     not the default. Opening it spawns a NEW catalog row. -->
+                <div class="border-t pt-3">
+                    <button x-show="!lazyCreateOpen" @click="lazyCreateOpen=true"
+                            class="w-full py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-base flex items-center justify-center gap-2 shadow">
+                        ➕ <span data-i18n="scan.add_new_item_link">Not found — add it here (we keep the scanned code &amp; can look it up on the web)</span>
+                    </button>
+                    <div x-show="lazyCreateOpen" style="display:none;" class="space-y-4">
+                        <p class="text-xs text-amber-700 bg-amber-50 rounded-lg p-2" data-i18n="scan.new_catalog_warning">New catalog item — only do this if it truly isn't in the search above.</p>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="scan.product_name">Product name</label>
+                            <input type="text" x-model="lazyName" @keyup.enter="saveLazyCapture()" placeholder="e.g. Rolling papers — King Size" data-i18n-placeholder="scan.ph_product_name" class="input-field">
+                            <!-- 🔎 TIER-2 web lookup at the TILL (Pam): barcode → free DB → pick image + auto-fill.
+                                 Quota-aware; Google fallback on a miss or when the day's used up. -->
+                            <div x-show="(lazyBarcode||'').trim() || (lazyName||'').trim()" class="mt-2" style="display:none;">
+                                <button type="button" @click="runWebLookup()" :disabled="webBusy"
+                                        class="text-sm text-indigo-700 font-semibold inline-flex items-center gap-1">
+                                    <span x-text="webBusy ? ('🔍 ' + t('scan.web_looking')) : ('🔎 ' + t('scan.web_lookup'))"></span>
+                                </button>
+                                <template x-if="web">
+                                    <div class="mt-2 border rounded-lg p-2 bg-gray-50">
+                                        <p x-show="web.quota" class="text-[11px] mb-1" :class="(web.quota && web.quota.remaining <= 15) ? 'text-red-600 font-semibold' : 'text-gray-400'"
+                                           x-text="web.quota ? t('scan.web_quota', {n: web.quota.remaining, total: web.quota.limit}) : ''"></p>
+                                        <template x-if="web.found">
+                                            <div>
+                                                <div x-show="web.images.length" class="flex gap-1.5 overflow-x-auto pb-1 mb-1">
+                                                    <template x-for="img in web.images" :key="img">
+                                                        <img :src="img" @click="webImage=img" loading="lazy" onerror="this.style.display='none'"
+                                                             class="w-14 h-14 object-cover rounded flex-none cursor-pointer border-2"
+                                                             :class="webImage===img ? 'border-emerald-500' : 'border-transparent'">
+                                                    </template>
+                                                </div>
+                                                <p class="font-semibold text-gray-900 text-sm" x-text="web.title"></p>
+                                                <p x-show="web.brand" class="text-xs text-gray-500" x-text="web.brand"></p>
+                                                <p x-show="web.description" class="text-xs text-gray-600 mt-1" x-text="web.description"></p>
+                                                <p x-show="web.lang_hint" class="text-[11px] text-amber-600 mt-1" x-text="t('scan.web_lang', {lang: (web.lang_hint||'').toUpperCase()})"></p>
+                                                <div class="flex items-center gap-3 mt-2">
+                                                    <button type="button" @click="useWebResult()" class="btn-success text-xs px-3 py-1" data-i18n="scan.web_use">✓ Use this</button>
+                                                    <!-- BL-127: wrong hit is never a dead-end — look it up on Google (barcode = strongest signal) -->
+                                                    <button type="button" @click="webSearchProduct(lazyName, lazyBarcode)"
+                                                            class="text-xs text-gray-500 hover:text-indigo-700 inline-flex items-center gap-1">🔎 <span data-i18n="scan.search_web">Look it up on Google</span></button>
+                                                </div>
+                                            </div>
+                                        </template>
+                                        <template x-if="!web.found">
+                                            <div>
+                                                <p class="text-xs text-gray-500" x-text="web.note==='quota_exhausted' ? t('scan.web_quota_out') : t('scan.web_none')"></p>
+                                                <a x-show="web.google_url" :href="web.google_url" target="_blank" rel="noopener"
+                                                   class="text-sm text-indigo-700 font-semibold inline-flex items-center gap-1 mt-1">🔎 <span data-i18n="scan.search_web">Search the web</span></a>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                        <!-- Photo of the item — for unmarked goods the picture IS the label. -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="scan.photo_of_item">Photo of the item</label>
+                            <div class="flex items-center gap-3">
+                                <label class="btn-secondary cursor-pointer flex-none">
+                                    📸 <span x-text="lazyPhotoData ? t('scan.retake') : t('scan.take_photo')"></span>
+                                    <input type="file" accept="image/*" :capture="posCaptureAttr()" class="hidden" @change="onLazyPhoto($event)">
+                                </label>
+                                <img x-show="lazyPhotoData" :src="lazyPhotoData" class="w-16 h-16 rounded-lg object-cover border flex-none" alt="">
+                                <span x-show="!lazyPhotoData" class="text-xs text-gray-400" data-i18n="scan.photo_optional_hint">Optional — snap the item itself</span>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="scan.price_chf">Price (CHF)</label>
+                                <input type="number" step="0.05" min="0" x-model="lazyPrice" x-ref="lazyPriceInput" @keyup.enter="saveLazyCapture()" placeholder="0.00" class="input-field text-2xl font-bold">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="scan.quantity">Quantity</label>
+                                <input type="number" step="1" min="1" x-model.number="lazyQty" @keyup.enter="saveLazyCapture()" class="input-field text-2xl font-bold">
+                            </div>
+                        </div>
+                        <!-- Cost / unit (your buy price) — optional, the customer never sees it.
+                             Bought a box? Split it to a per-unit cost (papers, singles, etc.). -->
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <label class="block text-sm font-medium text-gray-700" data-i18n="scan.cost_unit">Cost / unit (CHF)</label>
+                                <button type="button" @click="boxOpen=!boxOpen" class="text-xs text-blue-600 hover:underline"
+                                        x-text="boxOpen ? t('scan.cost_direct') : t('scan.cost_split')"></button>
+                            </div>
+                            <input x-show="!boxOpen" type="number" step="0.01" min="0" x-model="lazyCost" placeholder="0.00" class="input-field">
+                            <div x-show="boxOpen" style="display:none;" class="grid grid-cols-2 gap-3 bg-gray-50 rounded-lg p-3">
+                                <div>
+                                    <label class="block text-xs text-gray-600 mb-1" data-i18n="scan.box_cost">Box cost (CHF)</label>
+                                    <input type="number" step="0.01" min="0" x-model.number="boxCost" @input="calcUnitCost()" placeholder="0.00" class="input-field">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-600 mb-1" data-i18n="scan.units_in_box">Units in box</label>
+                                    <input type="number" step="1" min="1" x-model.number="boxUnits" @input="calcUnitCost()" placeholder="1" class="input-field">
+                                </div>
+                                <div class="col-span-2 text-sm text-gray-700"><span data-i18n="scan.per_unit">Per unit:</span> <b x-text="formatPrice(lazyCost || 0)"></b></div>
+                            </div>
+                        </div>
+                        <button @click="saveLazyCapture()" :disabled="lazySaving" class="btn-success w-full">
+                            <span x-show="!lazySaving">➕ <span data-i18n="scan.save_add_cart">Save &amp; add to cart</span></span>
+                            <span x-show="lazySaving" style="display:none;" data-i18n="scan.saving">Saving…</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BL-102.1: preview a candidate WITHOUT binding it. The bind is permanent
+         ("once you connect it, it's connected"), so 👁 opens a big image + details
+         double-check first, then a confirm binds it. z above the lazy modal. -->
+    <div x-show="previewOpen" x-transition @click.self="previewOpen=false"
+         class="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4" style="display:none;">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden">
+            <div class="relative bg-gray-50">
+                <img x-show="previewItem && previewItem.image" :src="previewItem && previewItem.image" alt=""
+                     class="w-full h-64 object-contain">
+                <span x-show="!(previewItem && previewItem.image)" class="flex items-center justify-center h-64 text-gray-300 text-7xl">📦</span>
+                <button @click="previewOpen=false" class="absolute top-2 right-2 bg-white/90 rounded-full w-9 h-9 text-gray-600 text-2xl leading-none flex-none">&times;</button>
+            </div>
+            <div class="p-4 space-y-1">
+                <p class="text-lg font-bold text-gray-900" x-text="previewItem && previewItem.name"></p>
+                <p x-show="previewItem && previewItem.sub" class="text-sm text-gray-500" x-text="previewItem && previewItem.sub"></p>
+                <p x-show="previewItem && previewItem.price" class="text-base font-semibold text-gray-700" x-text="previewItem && previewItem.price"></p>
+            </div>
+            <div class="flex gap-2 p-4 pt-0">
+                <button @click="previewOpen=false" class="btn-secondary flex-1" data-i18n="scan.preview_back">Back to list</button>
+                <button @click="confirmPreview()" :disabled="lazySaving" class="btn-primary flex-1" data-i18n="scan.preview_pick">This one</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Clear-cart confirm modal (replaces the native confirm) -->
+    <div x-show="showClearModal" x-transition.opacity
+         class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+         @click.self="showClearModal = false" @keydown.escape.window="showClearModal = false" style="display:none;">
+        <div class="card w-full max-w-sm text-center">
+            <span class="text-4xl block mb-2">🗑️</span>
+            <h3 class="text-xl font-bold text-gray-900 mb-1" data-i18n="scan.clear_confirm_title">Clear the whole cart?</h3>
+            <p class="text-sm text-gray-500 mb-5" data-i18n="scan.clear_confirm_body">This removes every item. You can't undo it.</p>
+            <div class="flex gap-3">
+                <button @click="showClearModal = false" class="btn-secondary flex-1" data-i18n="scan.keep_cart">Keep cart</button>
+                <button @click="confirmClearCart()" class="btn-danger flex-1" data-i18n="scan.clear_it">Clear it</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image lightbox — tap a product photo (cart thumb, search row, detail) to see it big. -->
+    <div x-show="lightboxSrc" x-transition class="fixed inset-0 z-[80] flex items-center justify-center bg-black/85 p-4"
+         @click="closeLightbox()" @keydown.escape.window="closeLightbox()" style="display:none;">
+        <img :src="lightboxSrc" :alt="lightboxAlt" class="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl" @click.stop>
+        <button @click="closeLightbox()" class="absolute top-4 right-4 text-white text-5xl leading-none px-2" aria-label="Close">&times;</button>
+    </div>
+</div>
+
+<script>
+    function scanData() {
+        return {
+            user: {},
+            transactionId: 'New Sale',   // replaced on init() with the real next TXN-…-NNNN
+            searchMode: 'barcode', // 'barcode', 'search', or 'catalog'
+
+            // Barcode mode
+            barcodeInput: '',
+
+            // BL-87 camera scan (BL-90: scanner state lives in window.PosScanner)
+            scanOpen: false,
+            scanError: '',
+            scanFallback: false,   // no-camera: show the "choose a photo from disc" fallback
+            scanLive: '',     // live (unconfirmed) read shown in the overlay
+
+            // BL-87: lazy capture (unknown scan → persisted product) — "receive once, born forever"
+            lazyOpen: false,
+            lazyBarcode: '',
+            lazyName: '',
+            lazyPrice: '',
+            lazyCost: '',          // your buy price (per unit) — optional, invisible to the customer
+            lazyQty: 1,
+            webBusy: false,        // Tier-2 web lookup in flight
+            web: null,             // web-lookup result
+            webImage: '',          // the image the operator PICKED (we store one)
+            webDesc: '',           // description carried from the web result
+            labelCount: 0,         // labels queued for the printer (LabelQueue)
+            lazySaving: false,
+            lazyPhotoFile: null,   // the snapped item photo (File) to upload after create
+            lazyPhotoData: '',     // data URL for the in-modal preview
+            aiBusy: false,         // photo→product AI suggest in flight
+            aiNote: '',            // AI result line (confidence + ms) or graceful fallback
+            // box-split helper: bought a box, sell singles → per-unit cost
+            boxOpen: false,
+            boxCost: null,
+            boxUnits: null,
+
+            // BL-90: link an unknown barcode to an EXISTING product (alias) instead
+            // of creating a duplicate.
+            // BL-96 (search-first): on a scan-miss we lead with "find it in the catalog"
+            // — Felix's catalog is PRE-LOADED rich (≈6–7k from 420), the product almost
+            // always already exists, only its barcode is missing. Binding the scanned code
+            // to the real item beats letting Pam re-type made-up data. Create-new = fallback.
+            lazyLinkOpen: false,
+            lazyLinkQuery: '',
+            lazyLinkResults: [],
+            lazyLinkSearching: false,
+            // BL-102 (matching doctrine): a scanned code that misses = "not in the catalog
+            // yet", which is NORMAL (suppliers store minted codes, not the real EAN). Don't
+            // drop Pam into a German name box she has to guess — lead with the CAMERA. True
+            // only on a PURE barcode miss (a code but no name yet); a name-led miss keeps
+            // search-first. Photo → AI names it → catalog/reference search → bind the code.
+            lazyPhotoFirst: false,
+            // BL-102.1 preview-before-bind: eyeball a candidate (big image + details) without
+            // committing — the bind is permanent, so this is the double-check.
+            previewOpen: false,
+            previewItem: null,   // {name, sub, price, image, raw, kind:'catalog'|'ref'}
+            lazyCreateOpen: false,   // the "genuinely new" fallback form, collapsed by default
+            // BL-97 reference catalog (product master): a SECOND source under the live results.
+            // Found here = not yet in the shop, but canonical data exists → "adopt" copies it in.
+            refResults: [],
+            refSearching: false,
+            refSelected: null,       // the reference row the cashier tapped (price-confirm panel)
+            refPrice: '',
+
+            // Search mode (paginated)
+            searchInput: '',
+            searchCategory: '',
+            searchResults: [],
+            searchTotal: 0,
+            searchSkip: 0,
+            searchPageSize: 20,
+            searchLoading: false,
+            categories: [],
+            detailProduct: null,
+
+            // Catalog mode
+            // On-the-fly "New item" fields. Required: name + price. Optional: photo,
+            // description, category (blank category → auto-filed under "On the fly").
+            otfName: '',
+            otfPrice: '',
+            otfDescription: '',
+            otfCategory: '',
+            otfAgeRestricted: false,   // 18+ double-check (cashier contract) — default OFF
+            otfPhotoFile: null,
+            otfPhotoData: '',
+
+            // Image lightbox (tap a product photo → see it big)
+            lightboxSrc: '',
+            lightboxAlt: '',
+
+            // Cart
+            cart: [],
+            discount: 0,
+            showClearModal: false,   // clear-cart confirm modal (replaces native confirm)
+            discountError: '',
+            maxDiscount: 100,
+            discountMode: 'percent', // 'percent' or 'target'
+            targetTotal: '',
+
+            init() {
+                const userInfo = AuthHelper.getUserInfo();
+                if (!userInfo) {
+                    window.location.href = '/pos';
+                    return;
+                }
+                if (window.LabelQueue) this.labelCount = LabelQueue.count();   // labels waiting to print
+                this.openLabelQueue = () => { const u = LabelQueue.printUrl('s'); if (u) window.open(u, '_blank'); };
+
+                this.user = {
+                    ...userInfo,
+                    isAdmin: AuthHelper.isAdmin(),
+                    isManager: AuthHelper.isManager(),
+                    isCashier: AuthHelper.isCashier()
+                };
+
+                // Max discount: role default first (so the field works instantly), then override
+                // with the LIVE store setting the server actually enforces (no hardcoded 10).
+                this.maxDiscount = this.user.isAdmin ? 100 : (this.user.isManager ? 25 : 10);
+                this.loadDiscountCap();
+
+                // Assisted-kiosk hand-off (SPEC-assisted-kiosk M1): Pam scanned an unknown item at
+                // the kiosk and tapped "Create this product" → she lands here with ?capture=<barcode>.
+                // Open the born-once create-on-fly modal prefilled with that barcode, then clean the URL.
+                try {
+                    const cap = new URLSearchParams(location.search).get('capture');
+                    if (cap) {
+                        this.$nextTick(() => this.openLazyCapture(cap));
+                        history.replaceState({}, document.title, '/pos/scan');
+                    }
+                } catch (e) {}
+
+                // Restore cart from sessionStorage if coming back from checkout (Edit Cart)
+                const storedCart = sessionStorage.getItem('pos_cart');
+                if (storedCart) {
+                    try {
+                        const cartData = JSON.parse(storedCart);
+                        this.cart = cartData.cart || [];
+                        this.discount = cartData.discount || 0;
+                        this.transactionId = cartData.transactionId || this.transactionId;
+                        if (this.cart.length > 0) {
+                            showToast(t('scan.toast_cart_restored', {n: this.cart.length}), 'info');
+                        }
+                    } catch (e) {
+                        console.error('Failed to restore cart:', e);
+                    }
+                }
+
+                this.loadCategories();
+                this.loadNextTransactionNumber();
+            },
+
+            // The manual-discount ceiling for THIS user, live from store settings (matches the
+            // server guard). Keeps the till in sync when an admin retunes caps in Settings.
+            async loadDiscountCap() {
+                try {
+                    const d = await API.get('/api/v1/pos/discount-cap');
+                    if (d && d.max_discount_pct != null) this.maxDiscount = d.max_discount_pct;
+                } catch (e) { /* keep the role default */ }
+            },
+
+            // Show the real next number in the header (TXN-…-NNNN), not a placeholder.
+            // Display-only; the authoritative number is stamped server-side at checkout.
+            async loadNextTransactionNumber() {
+                // A restored in-progress cart keeps its own number.
+                if (this.transactionId && this.transactionId.indexOf('TXN-') === 0) return;
+                try {
+                    const r = await API.get('/api/v1/pos/transactions/next-number');
+                    if (r && r.transaction_number) this.transactionId = r.transaction_number;
+                } catch (e) { /* header stays "New Sale" — never block the till */ }
+            },
+
+            async searchByBarcode() {
+                if (!this.barcodeInput.trim()) {
+                    showToast(t('scan.toast_enter_barcode'), 'warning');
+                    return;
+                }
+
+                // BL-129: scrub the gun's invisible tail (CR/space/control chars) AND any junk a
+                // dirty field prepended — a barcode is contiguous, so strip every whitespace/control
+                // char, not just the ends. Matches the server's _clean_barcode so read == store.
+                const code = this.barcodeInput.replace(/[\x00-\x20\x7f]+/g, '');
+                // Double-fire guard: a fast scanner (or holding the item on the beam) can trigger the
+                // SAME code twice in a blink → two rings / a garbage double-entry. Ignore an identical
+                // code within 700ms; a real "sell two" re-scan is always slower than that.
+                const now = Date.now();
+                if (code === this._lastScanCode && (now - (this._lastScanAt || 0)) < 700) {
+                    this.barcodeInput = '';
+                    this.$nextTick(() => this.$refs.barcodeInput && this.$refs.barcodeInput.focus());
+                    return;
+                }
+                this._lastScanCode = code; this._lastScanAt = now;
+                try {
+                    // Exact barcode lookup (the dedicated endpoint -- /search fuzzy-ranks
+                    // the exact match too low to trust for a scan).
+                    const product = await API.get(`/api/v1/pos/products/barcode/${encodeURIComponent(code)}`);
+                    this.addToCart(product);
+                    if (window.CatalogCache) CatalogCache.put(product);   // P1: keep the offline mirror warm
+                    this.barcodeInput = '';
+                    showToast(t('scan.toast_product_added'), 'success');
+                    // Keep the cursor IN the box so the next scan just works — no mouse needed.
+                    this.$nextTick(() => this.$refs.barcodeInput && this.$refs.barcodeInput.focus());
+
+                } catch (error) {
+                    // P1 read-offline: if the lookup failed because we're OFFLINE, answer from the
+                    // cached catalog so the sale keeps moving (finalising still needs the network —
+                    // that's P2). Only fall through to lazy-capture when we're ONLINE and the
+                    // barcode is genuinely not on file.
+                    if (!navigator.onLine && window.CatalogCache) {
+                        const cached = await CatalogCache.findByBarcode(code).catch(() => null);
+                        if (cached) {
+                            this.addToCart(cached);
+                            this.barcodeInput = '';
+                            showToast(t('scan.toast_added_offline'), 'success');
+                            return;
+                        }
+                        showToast(t('scan.toast_offline_not_cached'), 'warning');
+                        return;
+                    }
+                    // BL-87: not on file → lazy capture. Save it as a real product now so
+                    // it's known on every future scan (cashiers fall back to a one-off line).
+                    this.openLazyCapture(code);
+                }
+            },
+
+            // ---- BL-87 camera scan + lazy capture, hardened BL-90 -------------------
+            // Uses the shared PosScanner (retail formats only + 2-in-a-row stable
+            // read) so the counter, catalog, and receiving all behave identically.
+            async startScan() {
+                if (typeof window.PosScanner === 'undefined' || typeof Html5Qrcode === 'undefined') {
+                    showToast(t('scan.toast_scanner_not_loaded'), 'warning');
+                    return;
+                }
+                this.scanError = '';
+                this.scanFallback = false;
+                this.scanLive = '';
+                this.scanOpen = true;
+                // Let the overlay (#reader) render before the camera attaches.
+                await this.$nextTick();
+                window.PosScanner.start(
+                    'reader',
+                    (decodedText) => this.onScanDecode(decodedText),
+                    (err) => {
+                        console.error('Camera start failed:', err);
+                        const name = String((err && (err.name || err)) || '');
+                        // Don't dead-end: keep the overlay open with a calm message + a
+                        // "choose a photo from disc" fallback (decodes the barcode from a still).
+                        this.scanError = /permission|denied|NotAllowed/i.test(name)
+                            ? t('scan.err_camera_blocked')
+                            : t('scan.err_no_camera');
+                        this.scanFallback = true;
+                    },
+                    { onProgress: (text) => { this.scanLive = text; } }
+                );
+            },
+
+            // No-camera path: decode the barcode from a still photo chosen off disc,
+            // then feed the EXACT same path a live scan / manual entry uses.
+            async onScanFile(e) {
+                const f = e.target.files && e.target.files[0];
+                e.target.value = '';
+                if (!f) return;
+                if (!f.type.startsWith('image/')) { showToast(t('scan.toast_not_image'), 'warning'); return; }
+                this.scanError = t('scan.reading_photo');
+                try {
+                    const text = await window.PosScanner.decodeFile(f);
+                    if (!text) throw new Error('no-code');
+                    this.scanOpen = false; this.scanFallback = false; this.scanLive = '';
+                    window.PosScanner.vibrate(60); window.PosScanner.beep();
+                    this.barcodeInput = text;
+                    this.searchMode = 'barcode';
+                    await this.searchByBarcode();
+                } catch (err) {
+                    console.warn('file decode', err);
+                    this.scanError = t('scan.err_no_barcode_photo');
+                }
+            },
+
+            async onScanDecode(decodedText) {
+                // PosScanner already stopped the camera + confirmed a stable read.
+                this.scanOpen = false;
+                this.scanLive = '';
+                window.PosScanner.vibrate(60);
+                window.PosScanner.beep();
+                // Feed the EXACT path manual entry uses.
+                this.barcodeInput = (decodedText || '').trim();
+                this.searchMode = 'barcode';
+                await this.searchByBarcode();
+            },
+
+            async stopScan() {
+                await window.PosScanner.stop();
+                this.scanOpen = false;
+                this.scanFallback = false;
+                this.scanLive = '';
+            },
+
+            // No-barcode on-the-fly: persist a REAL product fast (name + price), flagged
+            // "On-the-fly" so it's a separate thing to enhance later — but searchable by
+            // name and sellable again right away (Christina's cups in a rush). Falls back
+            // to a one-off line if the user can't create (cashier) so the sale never blocks.
+            // Pick/snap an optional photo for the on-the-fly item.
+            onOtfPhoto(e) {
+                const f = e.target.files && e.target.files[0];
+                if (!f) return;
+                if (!f.type.startsWith('image/')) { showToast(t('scan.toast_not_image'), 'warning'); return; }
+                this.otfPhotoFile = f;
+                const reader = new FileReader();
+                reader.onload = () => { this.otfPhotoData = reader.result; };
+                reader.readAsDataURL(f);
+            },
+
+            // Internal EAN-13 — GS1 reserves the "2" prefix for in-store codes, so this
+            // never collides with a manufacturer barcode. Valid check digit = scannable,
+            // and print-ready IF/WHEN a label-printing feature is built (not built yet —
+            // see docs/BANCO-ENRICHMENT-BACKLOG.md §6). Today the item is found by name.
+            genInternalBarcode() {
+                let body = '2';
+                for (let i = 0; i < 11; i++) body += Math.floor(Math.random() * 10);
+                let sum = 0;
+                for (let i = 0; i < 12; i++) sum += (+body[i]) * (i % 2 === 0 ? 1 : 3);
+                return body + ((10 - (sum % 10)) % 10);
+            },
+
+            async createNoCodeItem() {
+                const name = (this.otfName || '').trim();
+                if (!name) { showToast(t('scan.toast_enter_name'), 'warning'); return; }
+                const price = parseFloat(this.otfPrice);
+                if (isNaN(price) || price <= 0) { showToast(t('scan.toast_enter_valid_price'), 'warning'); return; }
+                this.lazySaving = true;
+
+                // Optional extras — use them if filled, otherwise auto-file under "On the fly".
+                const description = (this.otfDescription || '').trim() || null;
+                const category = (this.otfCategory || '').trim() || 'On the fly';
+
+                // Create the product, regenerating the auto code on the rare collision.
+                let product = null, blocked = false;
+                for (let attempt = 0; attempt < 3 && !product; attempt++) {
+                    const stamp = Date.now() + '-' + Math.floor(Math.random() * 1000);
+                    const payload = {
+                        sku: 'OTF-' + stamp, barcode: this.genInternalBarcode(),
+                        name, price, description, category,
+                        is_age_restricted: !!this.otfAgeRestricted,   // 18+ → server gates the sale
+                    };
+                    try {
+                        // Cashier-safe quick create (cashiers can make on-the-fly items).
+                        product = await API.post('/api/v1/pos/products/quick', payload);
+                    } catch (err) {
+                        if (/already exists/i.test(String(err.message || err))) continue;  // collision → retry
+                        blocked = true; break;   // hard failure → one-off fallback below
+                    }
+                }
+
+                if (product) {
+                    // Optional photo — upload it to the gallery (becomes the cover).
+                    if (this.otfPhotoFile && product.id) {
+                        try {
+                            const fd = new FormData(); fd.append('file', this.otfPhotoFile);
+                            const r = await fetch(`/api/v1/pos/products/${product.id}/images`, {
+                                method: 'POST', headers: { 'Authorization': `Bearer ${AuthHelper.getToken()}` }, body: fd });
+                            if (r.ok) { const j = await r.json(); product.image_url = j.image_url; }
+                            else {
+                                // BL-17: name WHY the snapped photo didn't attach (was a silent generic warning)
+                                let why = 'HTTP ' + r.status;
+                                try { const e = await r.json(); if (e && e.detail) why = (typeof e.detail === 'string') ? e.detail : JSON.stringify(e.detail); } catch (_) {}
+                                showToast(t('scan.toast_photo_not_attached') + ' — ' + why, 'warning');
+                            }
+                        } catch (imgErr) {
+                            console.warn('photo upload failed', imgErr);
+                            showToast(t('scan.toast_photo_not_attached'), 'warning');
+                        }
+                    }
+                    this.addToCart(product, 1);
+                    showToast(t('scan.toast_saved_otf'), 'success');
+                } else {
+                    // No create rights (cashier) or a hard failure → one-off line so the sale never blocks.
+                    if (blocked) console.warn('On-the-fly create blocked; using one-off line');
+                    this.cart.push({ id: 'otf-' + Date.now(), name: '[NEW] ' + name, price, quantity: 1, isCatalogItem: true });
+                    showToast(t('scan.toast_added_one_off'), 'info');
+                }
+                this.otfName = ''; this.otfPrice = ''; this.otfDescription = ''; this.otfCategory = '';
+                this.otfAgeRestricted = false;
+                this.otfPhotoFile = null; this.otfPhotoData = '';
+                this.lazySaving = false;
+            },
+
+            openLazyCapture(barcode, prefillName) {
+                // BL-129: clear the scan box the moment we open the miss panel, so a follow-up scan
+                // starts CLEAN — never concatenated onto the code that just missed ("scan it ten
+                // times and it stops picking up" was the field accumulating junk).
+                this.barcodeInput = '';
+                this.lazyBarcode = barcode || '';
+                this.lazyName = prefillName || '';
+                this.lazyPrice = '';
+                this.lazyCost = '';
+                this.lazyQty = 1;
+                this.lazySaving = false;
+                this.lazyPhotoFile = null;
+                this.lazyPhotoData = '';
+                this.web = null; this.webBusy = false; this.webImage = ''; this.webDesc = '';
+                this.aiBusy = false;
+                this.aiNote = '';
+                this.boxOpen = false;
+                this.boxCost = null;
+                this.boxUnits = null;
+                // BL-96 search-first: lead with "find it in the catalog", create-new collapsed.
+                this.lazyCreateOpen = false;
+                this.lazyLinkOpen = true;
+                this.lazyLinkQuery = prefillName || '';
+                this.lazyLinkResults = [];
+                this.lazyLinkSearching = false;
+                // BL-102: a PURE barcode miss (code, no name) leads with the camera, not the
+                // name box. A name-led miss (camera OCR / typed) stays search-first.
+                this.lazyPhotoFirst = !!((this.lazyBarcode || '').trim() && !(prefillName || '').trim());
+                // BL-97 reference second source — reset.
+                this.refResults = [];
+                this.refSearching = false;
+                this.refSelected = null;
+                this.refPrice = '';
+                this.lazyOpen = true;
+                // If we already have a name (camera OCR / typed), search straight away and focus
+                // the box. On a pure barcode miss we still try the reference by BARCODE (cheap —
+                // it usually misses too, per the doctrine), but we do NOT steal focus into the
+                // name box: the camera hero is the lead action, so Pam isn't nudged to guess a
+                // German name she doesn't have.
+                this.$nextTick(() => {
+                    if (this.lazyLinkQuery.trim().length > 1) { this.searchExisting(); this.searchReference(); }
+                    else if ((this.lazyBarcode || '').trim()) { this.searchReference(); }
+                    if (!this.lazyPhotoFirst && this.$refs.lazyLinkInput) this.$refs.lazyLinkInput.focus();
+                    // AUTO-LOOKUP ON MISS (the holster-guy flow): a pure barcode miss fires the web
+                    // lookup automatically — no "look it up" tap. Found → the card reveals itself; miss
+                    // → the camera hero (BL-102) stays as the fallback. Scan → boom → price → done.
+                    if ((this.lazyBarcode || '').trim() && !(prefillName || '').trim()) this.runWebLookup();
+                });
+            },
+
+            // Snap/choose the item photo: keep the File for upload + a preview data URL.
+            onLazyPhoto(e) {
+                const f = e.target.files && e.target.files[0];
+                if (!f) return;
+                if (!f.type.startsWith('image/')) { showToast(t('scan.toast_not_image'), 'warning'); return; }
+                this.lazyPhotoFile = f;
+                const reader = new FileReader();
+                reader.onload = () => { this.lazyPhotoData = reader.result; };
+                reader.readAsDataURL(f);
+            },
+
+            // ✨ Snap & fill: photograph an unmarked item → AI names it → drive the
+            // search-first lookup with that name (maybe it's already in the catalog),
+            // and pre-fill the create form for the no-match case. Keeps the shot as
+            // the product photo (uploaded on save).
+            // Desktop webcam → same snap-fill pipe as the file input (getUserMedia → File → aiSnapFill).
+            async webcamSnapFill() {
+                if (typeof window.PosCameraPhoto === 'undefined') return;
+                const file = await window.PosCameraPhoto.capture();
+                if (file) await this.aiSnapFill({ target: { files: [file], value: '' } });
+            },
+
+            async aiSnapFill(e) {
+                const f = e.target.files && e.target.files[0];
+                e.target.value = '';
+                if (!f) return;
+                if (!f.type.startsWith('image/')) { showToast(t('scan.toast_not_image'), 'warning'); return; }
+                this.lazyPhotoFile = f;
+                const reader = new FileReader();
+                reader.onload = () => { this.lazyPhotoData = reader.result; };
+                reader.readAsDataURL(f);
+                this.aiBusy = true; this.aiNote = '';
+                try {
+                    const fd = new FormData(); fd.append('file', f);
+                    const r = await fetch('/api/v1/pos/products/ai-suggest', {
+                        method: 'POST', headers: { 'Authorization': `Bearer ${AuthHelper.getToken()}` }, body: fd });
+                    if (!r.ok) throw new Error('ai-suggest failed');
+                    const d = await r.json();
+                    const s = d.suggestion || {};
+                    const blank = v => v === '' || v === null || v === undefined;
+                    if (s.name) {
+                        // search-first: let the AI name look it up in catalog + reference
+                        this.lazyLinkQuery = s.name;
+                        this.searchExisting(); this.searchReference();
+                    }
+                    if (blank(this.lazyName) && s.name) this.lazyName = s.name;
+                    if (blank(this.lazyPrice) && s.price_estimate != null) this.lazyPrice = s.price_estimate;
+                    this.aiNote = d.note
+                        ? d.note
+                        : `Read by ${d.provider} in ${(d.elapsed_ms/1000).toFixed(1)}s · confidence ${Math.round((s.confidence||0)*100)}% — pick a catalog match above, or save as new below.`;
+                } catch (err) {
+                    console.warn('ai snap', err);
+                    this.aiNote = t('scan.ai_unavailable');
+                } finally { this.aiBusy = false; }
+            },
+
+            // Box-split: a box cost over N units → the per-unit cost.
+            calcUnitCost() {
+                const c = parseFloat(this.boxCost), u = parseInt(this.boxUnits, 10);
+                this.lazyCost = (c > 0 && u > 0) ? (c / u).toFixed(2) : '';
+            },
+
+            // BL-90: link the scanned barcode to an existing product (alias).
+            openLazyLink() {
+                this.lazyLinkOpen = true;
+                this.lazyLinkQuery = this.lazyName || '';
+                if (this.lazyLinkQuery.length > 1) this.searchExisting();
+            },
+
+            async searchExisting() {
+                const q = this.lazyLinkQuery.trim();
+                if (q.length < 2) { this.lazyLinkResults = []; this.lazyLinkSearching = false; return; }
+                this.lazyLinkSearching = true;
+                try {
+                    const res = await API.get(`/api/v1/pos/search?q=${encodeURIComponent(q)}&limit=8`);
+                    this.lazyLinkResults = (res.items || []).slice(0, 8);
+                } catch (err) {
+                    console.warn('Existing-product search failed:', err);
+                    this.lazyLinkResults = [];
+                } finally {
+                    this.lazyLinkSearching = false;
+                }
+            },
+
+            // BL-97: search the reference catalog (product master) as a second source.
+            async searchReference() {
+                const q = this.lazyLinkQuery.trim();
+                const bc = (this.lazyBarcode || '').trim();
+                if (q.length < 2 && !bc) { this.refResults = []; this.refSearching = false; return; }
+                this.refSearching = true;
+                try {
+                    const params = new URLSearchParams({ q, limit: '8' });
+                    if (bc) params.set('barcode', bc);
+                    const res = await API.get(`/api/v1/pos/reference/search?${params.toString()}`);
+                    this.refResults = (res.items || []).slice(0, 8);
+                } catch (err) {
+                    console.warn('Reference search failed:', err);
+                    this.refResults = [];
+                } finally {
+                    this.refSearching = false;
+                }
+            },
+
+            // Tap a reference hit → confirm the price (suggested pre-filled), keeping the
+            // canonical title/description/photo whatever the price ends up being.
+            selectReference(r) {
+                this.refSelected = r;
+                this.refPrice = (r.suggested_price !== null && r.suggested_price !== undefined)
+                    ? String(r.suggested_price) : '';
+            },
+
+            // Adopt: copy the reference item into the live catalog, bind the barcode, add to cart.
+            async confirmAdopt() {
+                if (!this.refSelected) return;
+                const price = parseFloat(this.refPrice);
+                if (isNaN(price) || price < 0) { showToast(t('scan.toast_enter_valid_price'), 'warning'); return; }
+                const qty = Math.max(1, parseInt(this.lazyQty, 10) || 1);
+                const bc = (this.lazyBarcode || '').trim();
+                this.lazySaving = true;
+                try {
+                    const product = await API.post(
+                        `/api/v1/pos/reference/${this.refSelected.id}/adopt`,
+                        { barcode: bc || null, price: String(price) });
+                    this.addToCart(product, qty);
+                    this.lazyOpen = false;
+                    this.barcodeInput = '';
+                    showToast(t('scan.toast_added_reference', {n: product.name}), 'success');
+                } catch (err) {
+                    console.warn('Adopt failed:', err);
+                    showToast(t('scan.toast_reference_failed'), 'warning');
+                } finally {
+                    this.lazySaving = false;
+                }
+            },
+
+            // BL-102.1: open a big-image preview of a candidate without binding it.
+            openPreview(item, kind) {
+                if (kind === 'ref') {
+                    this.previewItem = {
+                        name: item.title, image: item.image_url || '',
+                        sub: [item.supplier, item.category].filter(Boolean).join(' · '),
+                        price: (item.suggested_price !== null && item.suggested_price !== undefined)
+                            ? this.formatPrice(item.suggested_price) : '',
+                        raw: item, kind };
+                } else {
+                    this.previewItem = {
+                        name: item.name, image: item.image_url || '', sub: item.category || '',
+                        price: this.formatPrice(item.price), raw: item, kind: 'catalog' };
+                }
+                this.previewOpen = true;
+            },
+            // "This one" from the preview → run the same action a row tap would.
+            confirmPreview() {
+                const it = this.previewItem;
+                this.previewOpen = false;
+                if (!it) return;
+                if (it.kind === 'ref') this.selectReference(it.raw);   // → price-confirm, then adopt
+                else this.linkToExisting(it.raw);                       // → bind barcode + add to cart
+            },
+
+            async linkToExisting(product) {
+                const bc = (this.lazyBarcode || '').trim();
+                const qty = Math.max(1, parseInt(this.lazyQty, 10) || 1);
+                this.lazySaving = true;
+                try {
+                    if (bc) {
+                        await API.post(`/api/v1/pos/products/${product.id}/barcodes`, { barcode: bc });
+                    }
+                    this.addToCart(product, qty);
+                    this.lazyOpen = false;
+                    this.barcodeInput = '';
+                    showToast(t('scan.toast_linked', {n: product.name}), 'success');
+                } catch (err) {
+                    console.warn('Link to existing failed:', err);
+                    showToast(t('scan.toast_link_failed'), 'warning');
+                } finally {
+                    this.lazySaving = false;
+                }
+            },
+
+            // 🔎 TIER-2 at the till: resolve the scanned barcode from the free web DBs → fill the
+            // form; pick one image from several. Quota-aware, Google fallback. "Receive once, born forever."
+            async runWebLookup() {
+                this.webBusy = true; this.web = null; this.webImage = ''; this.webDesc = '';
+                try {
+                    const p = new URLSearchParams({ barcode: this.lazyBarcode || '', name: this.lazyName || '' });
+                    this.web = await API.get('/api/v1/pos/products/web-lookup?' + p.toString());
+                    if (this.web && this.web.images && this.web.images.length) this.webImage = this.web.images[0];
+                    // Auto-lookup FOUND it → reveal the create form with the card + prefill the name,
+                    // and stand down the camera hero. The holster-guy just sets a price and confirms.
+                    if (this.web && this.web.found) {
+                        this.lazyPhotoFirst = false;
+                        this.lazyCreateOpen = true;
+                        if (this.web.title && !(this.lazyName || '').trim()) this.lazyName = this.web.title;
+                        this.webDesc = this.web.description || '';
+                        // Name's filled → drop the cursor straight into Price. Thumb lands, types, done.
+                        this.$nextTick(() => this.$refs.lazyPriceInput && this.$refs.lazyPriceInput.focus());
+                    }
+                } catch (e) {
+                    this.web = { found: false, note: 'error', google_url: null, quota: null, images: [] };
+                } finally { this.webBusy = false; }
+            },
+            useWebResult() {
+                if (!this.web) return;
+                if (this.web.title && !(this.lazyName || '').trim()) this.lazyName = this.web.title;
+                this.webDesc = this.web.description || '';
+                showToast(t('scan.web_used'), 'success');
+            },
+
+            async saveLazyCapture() {
+                if (!this.lazyName.trim()) { showToast(t('scan.toast_enter_product_name'), 'warning'); return; }
+                const price = parseFloat(this.lazyPrice);
+                if (isNaN(price) || price <= 0) { showToast(t('scan.toast_enter_valid_price'), 'warning'); return; }
+                const qty = Math.max(1, parseInt(this.lazyQty, 10) || 1);
+
+                this.lazySaving = true;
+                const bc = (this.lazyBarcode || '').trim();
+                // Operator never types a SKU — derive a stable one from the barcode.
+                const sku = bc ? ('LZ-' + bc) : ('LZ-' + Date.now());
+                const cost = parseFloat(this.lazyCost);
+                const payload = {
+                    barcode: bc || null,
+                    sku,
+                    name: this.lazyName.trim(),
+                    price,
+                    cost: (!isNaN(cost) && cost >= 0) ? cost : null,
+                    // Zero perpetual inventory: no stock_quantity to set. A product is born
+                    // once and is always sellable; velocity comes from the sales log, not a count.
+                    // Tier-2 web result rides along: the picked image + description (when used).
+                    image_url: this.webImage || null,
+                    description: this.webDesc || null,
+                };
+                try {
+                    // Persist a REAL product via the CASHIER-SAFE quick endpoint (require_any_pos_role).
+                    // BL-BUG fix (2026-06-23): was POST /products (manager-only) — a cashier scanning a
+                    // NEW barcode 403'd → silent one-off [NEW] phantom (sold but never catalogued).
+                    // /products/quick takes the same payload, sets is_active, files under "On the fly".
+                    const product = await API.post('/api/v1/pos/products/quick', payload);
+                    // Attach the photo (if one was taken) — the picture is the label.
+                    if (this.lazyPhotoFile && product && product.id) {
+                        try {
+                            const fd = new FormData();
+                            fd.append('file', this.lazyPhotoFile);
+                            const r = await fetch(`/api/v1/pos/products/${product.id}/images`, {
+                                method: 'POST',
+                                headers: { 'Authorization': `Bearer ${AuthHelper.getToken()}` },
+                                body: fd,
+                            });
+                            if (r.ok) { const j = await r.json(); product.image_url = j.image_url; }
+                            else {
+                                // BL-17: name WHY the snapped photo didn't attach (was a silent generic warning)
+                                let why = 'HTTP ' + r.status;
+                                try { const e = await r.json(); if (e && e.detail) why = (typeof e.detail === 'string') ? e.detail : JSON.stringify(e.detail); } catch (_) {}
+                                showToast(t('scan.toast_photo_not_uploaded') + ' — ' + why, 'warning');
+                            }
+                        } catch (imgErr) {
+                            console.warn('Photo upload failed:', imgErr);
+                            showToast(t('scan.toast_photo_not_uploaded'), 'warning');
+                        }
+                    }
+                    this.addToCart(product, qty);
+                    // Queue a label for the printer (every hit, queued up → 🖨️ Labels N → QL-820).
+                    if (window.LabelQueue && product && product.id) { LabelQueue.add(product.id); this.labelCount = LabelQueue.count(); }
+                    this.lazyOpen = false;
+                    this.barcodeInput = '';
+                    showToast(t('scan.toast_saved_qty', {n: qty}), 'success');
+                    // Close the loop — cursor back in the scan box, ready for the next bang. No mouse.
+                    this.$nextTick(() => this.$refs.barcodeInput && this.$refs.barcodeInput.focus());
+                } catch (err) {
+                    // No permission (cashier) or any failure → never block the sale.
+                    // Fall back to a one-off line so the customer still gets rung up.
+                    console.warn('Lazy capture create failed; using one-off line:', err);
+                    this.cart.push({
+                        id: 'catalog-' + Date.now(),
+                        name: '[NEW] ' + this.lazyName.trim(),
+                        price,
+                        quantity: qty,
+                        isCatalogItem: true,
+                    });
+                    this.lazyOpen = false;
+                    this.barcodeInput = '';
+                    showToast(t('scan.toast_added_one_off'), 'info');
+                } finally {
+                    this.lazySaving = false;
+                }
+            },
+
+            _searchUrl(skip) {
+                return `/api/v1/pos/search?q=${encodeURIComponent(this.searchInput)}`
+                    + `&category=${encodeURIComponent(this.searchCategory || '')}`
+                    + `&limit=${this.searchPageSize}&skip=${skip}`;
+            },
+
+            async searchProducts() {
+                // Need a term OR a category to search.
+                if (this.searchInput.length < 2 && !this.searchCategory) {
+                    this.searchResults = []; this.searchTotal = 0; this.searchSkip = 0;
+                    return;
+                }
+                this.searchLoading = true; this.searchSkip = 0;
+                try {
+                    // Fuzzy, relevance-ranked, PAGINATED search across the whole catalog
+                    // (trigram + GIN index). Envelope: {items, total, skip, limit}.
+                    const data = await API.get(this._searchUrl(0));
+                    this.searchResults = data.items || [];
+                    this.searchTotal = data.total || 0;
+                } catch (error) {
+                    console.error('Search error:', error);
+                    this.searchResults = []; this.searchTotal = 0;
+                } finally {
+                    this.searchLoading = false;
+                }
+            },
+
+            async loadMore() {
+                this.searchLoading = true;
+                try {
+                    const nextSkip = this.searchSkip + this.searchPageSize;
+                    const data = await API.get(this._searchUrl(nextSkip));
+                    this.searchResults = this.searchResults.concat(data.items || []);
+                    this.searchTotal = data.total || this.searchTotal;
+                    this.searchSkip = nextSkip;
+                } catch (error) {
+                    console.error('Load more error:', error);
+                } finally {
+                    this.searchLoading = false;
+                }
+            },
+
+            async openDetail(p) {
+                // Show immediately with the search-row data, then enrich with the full
+                // product (description, supplier, tags) from the catalog.
+                this.detailProduct = { ...p };
+                try {
+                    const full = await API.get(`/api/v1/pos/products/${p.id}`);
+                    // Keep the list row's image (gallery-photo fallback) when full lacks a cover.
+                    this.detailProduct = {
+                        ...this.detailProduct, ...full,
+                        image_url: full.image_url || p.image_url,
+                        updated_at: full.updated_at || p.updated_at,
+                    };
+                } catch (e) { /* keep the basic view */ }
+                this._localizeDetail(p.id);
+            },
+            // BL-36: swap in the operator-language description (English base needs no lookup).
+            async _localizeDetail(id) {
+                const lang = (window._posLang || 'en');
+                if (lang === 'en') return;
+                try {
+                    const d = await API.get(`/api/v1/pos/products/${id}/i18n-description?lang=${encodeURIComponent(lang)}`);
+                    if (d && d.description && this.detailProduct && this.detailProduct.id === id) {
+                        this.detailProduct.description = d.description;
+                        this.detailProduct._descProvenance = d.provenance;
+                    }
+                } catch (e) { /* keep the base description */ }
+            },
+
+            async loadCategories() {
+                try {
+                    const cats = await API.get('/api/v1/pos/search/categories');
+                    this.categories = (cats || []).map(c => ({ name: c.name, count: c.count }));
+                } catch (e) { console.warn('categories unavailable', e); }
+            },
+
+
+            addToCart(product, qty = 1) {
+                const existing = this.cart.find(item => item.id === product.id);
+                if (existing) {
+                    existing.quantity += qty;
+                } else {
+                    this.cart.push({
+                        ...product,
+                        quantity: qty
+                    });
+                }
+            },
+
+            removeFromCart(index) {
+                this.cart.splice(index, 1);
+            },
+
+            // 18+ is DERIVED FROM THE CLASS (same rule the checkout gate uses) — never from the
+            // stored is_age_restricted column, which can drift (a tobacco item showing no 18+ pill).
+            is18(pc) {
+                return ['tobacco_nicotine', 'alcohol', 'cbd_hemp', 'age_restricted'].includes(pc);
+            },
+
+            // Behaviour-class badge for the item cards + cart — so a cashier sees the TYPE (and 18+)
+            // the moment she looks at an item, not only at the checkout total. Emoji + short label.
+            classInfo(pc) {
+                const m = {
+                    standard:         { e: '📦', l: t('scan.cls_standard'), c: 'bg-gray-100 text-gray-600' },
+                    tobacco_nicotine: { e: '🚬', l: t('scan.cls_tobacco'),  c: 'bg-amber-100 text-amber-800' },
+                    alcohol:          { e: '🍺', l: t('scan.cls_alcohol'),  c: 'bg-amber-100 text-amber-800' },
+                    cbd_hemp:         { e: '🌿', l: t('scan.cls_cbd'),      c: 'bg-green-100 text-green-700' },
+                    cbd_open:         { e: '🌿', l: t('scan.cls_cbd'),      c: 'bg-green-100 text-green-700' },
+                    cafe_food:        { e: '☕', l: t('scan.cls_cafe'),     c: 'bg-orange-100 text-orange-700' },
+                    age_restricted:   { e: '🔞', l: t('scan.cls_adult'),    c: 'bg-red-100 text-red-700' },
+                };
+                return m[pc] || m.standard;
+            },
+
+            increaseQuantity(index) {
+                this.cart[index].quantity++;
+            },
+
+            decreaseQuantity(index) {
+                if (this.cart[index].quantity > 1) {
+                    this.cart[index].quantity--;
+                } else {
+                    this.removeFromCart(index);
+                }
+            },
+
+            // BL-16: cashier types the count directly. Sanitize to a whole number ≥ 1
+            // (a 0/blank/garbage entry snaps back to 1 — removal is the 🗑 button, not a typo).
+            setQuantity(index, value) {
+                let q = parseInt(value, 10);
+                if (isNaN(q) || q < 1) q = 1;
+                if (q > 9999) q = 9999;   // fat-finger / stuck-key guard
+                this.cart[index].quantity = q;
+            },
+
+            validateDiscount() {
+                this.discountError = '';
+
+                if (this.discount > this.maxDiscount) {
+                    this.discountError = t('scan.err_max_discount', {n: this.maxDiscount});
+                    this.discount = this.maxDiscount;
+                }
+
+                if (this.discount < 0) {
+                    this.discount = 0;
+                }
+            },
+
+            calculateDiscountFromTarget() {
+                this.discountError = '';
+
+                // Get subtotal from cart
+                const subtotal = this.cart.reduce((sum, item) => sum + tierLineTotal(item), 0);
+
+                if (subtotal <= 0) {
+                    this.discount = 0;
+                    return;
+                }
+
+                const target = parseFloat(this.targetTotal);
+
+                if (isNaN(target) || target <= 0) {
+                    this.discount = 0;
+                    return;
+                }
+
+                // Inclusive VAT: shelf prices already contain VAT, so the gross subtotal
+                // IS the full price. The agreed target is itself a gross (VAT-in) amount.
+                const fullPrice = subtotal;
+
+                // If target is higher than full price, no discount needed
+                if (target >= fullPrice) {
+                    this.discount = 0;
+                    this.discountError = target > fullPrice
+                        ? t('scan.err_target_exceeds', {n: formatPrice(fullPrice)})
+                        : '';
+                    return;
+                }
+
+                // Required discount to reach the agreed gross total.
+                // target = subtotal * (1 - discount/100)  ->  discount = (1 - target/subtotal) * 100
+                const requiredDiscount = (1 - target / fullPrice) * 100;
+
+                // Round to 2 decimal places
+                const roundedDiscount = Math.round(requiredDiscount * 100) / 100;
+
+                // Validate against max allowed discount
+                if (roundedDiscount > this.maxDiscount) {
+                    this.discountError = `Requires ${roundedDiscount.toFixed(2)}% discount. Your max is ${this.maxDiscount}%. Ask manager.`;
+                    this.discount = this.maxDiscount;
+                    return;
+                }
+
+                // Check for unreasonably high discount (>100% would be paying customer)
+                if (roundedDiscount >= 100) {
+                    this.discountError = t('scan.err_target_too_low');
+                    this.discount = 0;
+                    return;
+                }
+
+                this.discount = roundedDiscount;
+            },
+
+            get totals() {
+                const subtotal = this.cart.reduce((sum, item) => sum + tierLineTotal(item), 0);
+                return calculateTotal(subtotal, this.discount);
+            },
+
+            clearCart() {
+                this.showClearModal = true;
+            },
+            confirmClearCart() {
+                this.cart = [];
+                this.discount = 0;
+                this.showClearModal = false;
+                // New sale → drop the old idempotency key, so a previous (maybe-committed-but-
+                // -blipped) sale can never be shadowed/adopted by the next one. Fresh cart, fresh key.
+                sessionStorage.removeItem('pos_sale_uuid');
+                showToast(t('scan.toast_cart_cleared'), 'info');
+            },
+
+            goToCheckout() {
+                if (this.cart.length === 0) {
+                    showToast(t('scan.toast_cart_empty_warn'), 'warning');
+                    return;
+                }
+
+                // Store cart in sessionStorage
+                sessionStorage.setItem('pos_cart', JSON.stringify({
+                    cart: this.cart,
+                    discount: this.discount,
+                    totals: this.totals,
+                    transactionId: this.transactionId
+                }));
+
+                window.location.href = '/pos/checkout';
+            },
+
+            goBack() {
+                if (this.cart.length > 0) {
+                    if (confirm(t('scan.confirm_abandon'))) {
+                        window.location.href = '/pos/dashboard';
+                    }
+                } else {
+                    window.location.href = '/pos/dashboard';
+                }
+            },
+
+            formatPrice(amount) {
+                return formatPrice(amount);
+            },
+
+            // Is there a renderable photo? (cover OR uploaded gallery photo, not permanently failed)
+            hasImg(p) { return !!(p && (p.image_url || p.fallback_image_url) && !p._imgerr); },
+
+            // Build a product image src with a cache-buster on OUR serve URLs (keyed on
+            // updated_at, else id) so a freshly-(re)uploaded photo shows without a hard
+            // refresh. External supplier URLs are left untouched. Once a cover URL has failed
+            // to load (_useFallback), serve the uploaded gallery photo instead.
+            thumbSrc(p) {
+                if (!p) return '';
+                let u = (p._useFallback && p.fallback_image_url) ? p.fallback_image_url : p.image_url;
+                if (!u) return '';
+                if (u.indexOf('/api/v1/pos/products/') !== -1) {
+                    const bust = String(p.updated_at || p.id || '').replace(/[^0-9A-Za-z]/g, '');
+                    if (bust) u += (u.indexOf('?') === -1 ? '?' : '&') + 'v=' + bust;
+                }
+                return u;
+            },
+
+            // Image failed to load. Swap to the uploaded gallery photo once if the cover was a
+            // non-image URL; otherwise fall back to the placeholder. Never wipes data.
+            onImgError(p) {
+                if (p && p.fallback_image_url && !p._useFallback
+                    && p.image_url !== p.fallback_image_url) { p._useFallback = true; }
+                else if (p) { p._imgerr = true; }
+            },
+
+            openLightbox(src, alt) { this.lightboxSrc = src || ''; this.lightboxAlt = alt || ''; },
+            closeLightbox() { this.lightboxSrc = ''; this.lightboxAlt = ''; },
+        }
+    }
+</script>
+{% endblock %}
+
+{% block extra_scripts %}
+<!-- BL-87: vendored locally (no runtime CDN). Powers the camera barcode scan. -->
+<script src="/static/vendor/html5-qrcode.min.js"></script>
+<!-- BL-90: shared hardened scanner (retail formats + 2-in-a-row stable read). BL-93: + QR. -->
+<script src="/static/pos-scanner.js?v=qr2"></script>
+{% endblock %}

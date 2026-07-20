@@ -1,0 +1,565 @@
+{% extends "pos/base.html" %}
+
+{% block title %}Transaction History - HelixPOS{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* Print / PDF: the report prints clean — hide the controls, show a stamp, and force
+       the table view (drop the phone cards + the per-row action buttons). App chrome
+       (bottom nav, status bar) is already hidden by base.html's @media print. */
+    .print-only { display: none; }
+    @media print {
+        .no-print   { display: none !important; }
+        .print-only { display: block !important; }
+        body { background:#fff !important; }
+        .card { box-shadow:none !important; border:1px solid #ddd; }
+        table { font-size: 11px; }
+        .tx-mobile  { display: none !important; }   /* drop the phone cards on paper */
+        .tx-desktop { display: block !important; }   /* always print the clean table */
+        .tx-actions { display: none !important; }    /* View/Reprint are screen-only */
+        /* PAGINATION FIX: the table sits inside overflow-hidden / overflow-x-auto wrappers
+           that clip it to page ONE. Let it flow across every page instead. */
+        .tx-desktop, .tx-desktop .overflow-x-auto, .card { overflow: visible !important; }
+        .min-h-screen { min-height: 0 !important; }       /* no viewport-height clipping */
+        table { break-inside: auto; }                     /* allow page breaks inside the table */
+        thead { display: table-header-group; }            /* repeat the column headers on every page */
+        tr    { break-inside: avoid; page-break-inside: avoid; }  /* never split a row across a page */
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50" x-data="transactionsData()">
+    <!-- Header -->
+    <nav class="bg-white shadow-lg sticky top-0 z-10 no-print">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <button @click="goBack()" class="btn-secondary flex-none" title="Dashboard" aria-label="Dashboard">🏠</button>
+                <h1 class="text-2xl font-bold text-gray-900" data-i18n="transactions.title">💳 Transaction History</h1>
+                <div class="text-sm text-gray-600">
+                    <span x-text="user.username"></span> | <span x-text="roleDisplay()"></span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Print stamp (only on paper/PDF) -->
+        <div class="print-only mb-4">
+            <h1 style="font-size:18px;font-weight:bold;">Artemis Store — <span data-i18n="transactions.print_title">Transaction History</span></h1>
+            <p style="font-size:12px;color:#444;" x-text="rangeLabel()"></p>
+            <p style="font-size:12px;color:#444;" x-text="summary.count + t('transactions.print_transactions') + formatPrice(summary.total) + t('transactions.print_total')"></p>
+            <p style="font-size:10px;color:#888;" x-text="t('transactions.print_generated') + generatedAt"></p>
+        </div>
+
+        <!-- Filter Bar -->
+        <div class="card mb-6 no-print">
+            <!-- Quick date-range presets -->
+            <div class="flex flex-wrap gap-2 mb-4">
+                <template x-for="p in datePresets" :key="p.key">
+                    <button @click="setPreset(p.key)"
+                            class="px-4 py-2 rounded-full text-sm font-semibold transition"
+                            :class="activePreset === p.key ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+                            x-text="p.label"></button>
+                </template>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                <div>
+                    <label class="text-sm font-semibold text-gray-700" data-i18n="transactions.filter_from">From:</label>
+                    <input type="date" x-model="filterFrom" @change="onRangeChange()" class="input-field">
+                </div>
+                <div>
+                    <label class="text-sm font-semibold text-gray-700" data-i18n="transactions.filter_to">To:</label>
+                    <input type="date" x-model="filterTo" @change="onRangeChange()" class="input-field">
+                </div>
+                <div>
+                    <label class="text-sm font-semibold text-gray-700" data-i18n="transactions.filter_status">Status:</label>
+                    <select x-model="filterStatus" @change="loadTransactions()" class="input-field">
+                        <option value="" data-i18n="transactions.status_all">All (active)</option>
+                        <option value="completed" data-i18n="transactions.status_completed">Completed</option>
+                        <option value="open" data-i18n="transactions.status_open">Open</option>
+                        <option value="cancelled" data-i18n="transactions.status_cancelled">Cancelled</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-sm font-semibold text-gray-700" data-i18n="transactions.filter_payment">Payment:</label>
+                    <select x-model="filterPayment" @change="loadTransactions()" class="input-field">
+                        <option value="" data-i18n="transactions.payment_all">All</option>
+                        <option value="cash" data-i18n="transactions.pay_cash">Cash</option>
+                        <option value="debit" data-i18n="transactions.pay_debit">Debit card</option>
+                        <option value="twint" data-i18n="transactions.pay_twint">TWINT</option>
+                        <option value="visa" data-i18n="transactions.pay_visa">Visa</option>
+                        <option value="bank_transfer" data-i18n="transactions.pay_bank_transfer">Bank transfer</option>
+                        <option value="crypto" data-i18n="transactions.pay_crypto">Crypto</option>
+                        <option value="other" data-i18n="transactions.pay_other">Other</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-sm font-semibold text-gray-700" data-i18n="transactions.filter_cashier">Cashier:</label>
+                    <select x-model="filterCashier" @change="calculateSummary()" class="input-field">
+                        <option value="" data-i18n="transactions.cashier_all">All cashiers</option>
+                        <template x-for="c in cashierOptions()" :key="c">
+                            <option :value="c" x-text="c"></option>
+                        </template>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-sm font-semibold text-gray-700" data-i18n="transactions.filter_customer">Customer:</label>
+                    <select x-model="filterCustomer" @change="calculateSummary()" class="input-field">
+                        <option value="" data-i18n="transactions.customer_all">All customers</option>
+                        <template x-for="c in customerOptions()" :key="c">
+                            <option :value="c" x-text="c"></option>
+                        </template>
+                    </select>
+                </div>
+            </div>
+            <div class="mt-4 flex flex-wrap justify-between gap-2">
+                <div class="flex flex-wrap gap-2" x-show="!loading && processedList().length > 0">
+                    <button @click="printView()" class="btn-secondary text-sm" data-i18n="transactions.print_pdf">🖨️ Print / PDF</button>
+                    <button @click="exportCSV()" class="btn-secondary text-sm" data-i18n="transactions.export_csv">📥 CSV (;)</button>
+                </div>
+                <button @click="resetFilters()" class="btn-secondary" data-i18n="transactions.reset_filters">Reset Filters</button>
+            </div>
+        </div>
+
+        <!-- Summary Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+            <div class="card">
+                <p class="text-sm text-gray-600" data-i18n="transactions.total_transactions">Total Transactions</p>
+                <p class="text-3xl font-bold text-gray-900" x-text="summary.count"></p>
+            </div>
+            <div class="card">
+                <p class="text-sm text-gray-600" data-i18n="transactions.total_sales">Total Sales</p>
+                <p class="text-3xl font-bold text-green-600" x-text="formatPrice(summary.total)"></p>
+            </div>
+            <!-- BL-84: full payment breakdown (cash / debit / TWINT / visa / bank transfer / ...) -->
+            <div class="card md:col-span-2">
+                <p class="text-sm text-gray-600 mb-2" data-i18n="transactions.payment_breakdown">Payment Breakdown</p>
+                <p x-show="breakdownRows().length === 0" class="text-sm text-gray-400" data-i18n="transactions.no_sales_filters">No sales for these filters.</p>
+                <div class="space-y-1.5">
+                    <template x-for="row in breakdownRows()" :key="row.key">
+                        <div class="flex items-center gap-2">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                                  :class="methodClass(row.key)" x-text="row.label"></span>
+                            <span class="text-xs text-gray-400 ml-auto" x-text="row.count + '×'"></span>
+                            <span class="text-base font-bold text-gray-900 tabular-nums w-24 text-right"
+                                  x-text="formatPrice(row.total)"></span>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading State -->
+        <div x-show="loading" class="text-center py-12">
+            <div class="animate-spin inline-block w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full"></div>
+            <p class="mt-4 text-gray-600" data-i18n="transactions.loading">Loading transactions...</p>
+        </div>
+
+        <!-- Empty State -->
+        <div x-show="!loading && processedList().length === 0" class="card text-center py-12">
+            <span class="text-6xl mb-4 block">📭</span>
+            <h3 class="text-xl font-semibold text-gray-900 mb-2" data-i18n="transactions.empty_title">No Transactions Found</h3>
+            <p class="text-gray-600" data-i18n="transactions.empty_hint">Try adjusting your filters or select a different date.</p>
+        </div>
+
+        <!-- Sales — app-style cards on mobile, full table on desktop -->
+        <div x-show="!loading && processedList().length > 0">
+            <!-- MOBILE: card list (no horizontal scroll, View/Reprint inline) -->
+            <div class="md:hidden tx-mobile">
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="text-sm font-semibold text-gray-600 flex-none" data-i18n="transactions.sort">Sort:</span>
+                    <select x-model="mobileSort" @change="setMobileSort()" class="input-field flex-1 !py-2.5 text-base">
+                        <option value="time:desc" data-i18n="transactions.sort_newest">Newest first</option>
+                        <option value="time:asc" data-i18n="transactions.sort_oldest">Oldest first</option>
+                        <option value="total:desc" data-i18n="transactions.sort_total_high">Total — high to low</option>
+                        <option value="total:asc" data-i18n="transactions.sort_total_low">Total — low to high</option>
+                        <option value="cashier:asc" data-i18n="transactions.sort_cashier">Cashier (A–Z)</option>
+                        <option value="customer:asc" data-i18n="transactions.sort_customer">Customer (A–Z)</option>
+                    </select>
+                </div>
+                <div class="space-y-3">
+                    <template x-for="txn in processedList()" :key="'m-'+txn.id">
+                        <div class="card !p-4 cursor-pointer active:opacity-80 transition" @click="viewReceipt(txn.id)">
+                            <div class="flex justify-between items-start gap-3">
+                                <div class="min-w-0">
+                                    <p class="font-bold text-gray-900 truncate" x-text="txn.receipt_number || txn.transaction_number"></p>
+                                    <p class="text-xs text-gray-500" x-text="formatDate(txn.completed_at || txn.created_at) + ' · ' + formatTime(txn.completed_at || txn.created_at)"></p>
+                                </div>
+                                <span class="flex-none inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                                      :class="{ 'bg-green-100 text-green-800': txn.status==='completed', 'bg-yellow-100 text-yellow-800': txn.status==='open', 'bg-red-100 text-red-800': txn.status==='voided' }"
+                                      x-text="txn.status.toUpperCase()"></span>
+                            </div>
+                            <div class="flex justify-between items-end gap-3 mt-3">
+                                <div class="text-sm space-y-0.5 min-w-0">
+                                    <p class="text-gray-700 truncate"><span class="text-gray-400" data-i18n="transactions.cashier_label">Cashier:</span> <span class="font-medium" x-text="txn.cashier_name || '—'"></span></p>
+                                    <p class="text-gray-700 truncate"><span class="text-gray-400" data-i18n="transactions.customer_label">Customer:</span> <span x-text="txn.customer_name || '—'"></span></p>
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mt-1" :class="methodClass(txn.payment_method)" x-text="methodLabel(txn.payment_method)"></span>
+                                </div>
+                                <p class="text-2xl font-bold text-gray-900 flex-none" x-text="formatPrice(txn.total)"></p>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2 mt-4" @click.stop>
+                                <button @click="viewReceipt(txn.id)" class="bg-indigo-600 active:bg-indigo-700 text-white rounded-full py-2.5 font-semibold text-sm" data-i18n="transactions.view">View</button>
+                                <button @click="reprintReceipt(txn.id)" class="bg-green-600 active:bg-green-700 text-white rounded-full py-2.5 font-semibold text-sm" data-i18n="transactions.reprint">Reprint</button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- DESKTOP: full table (also the print/PDF layout) -->
+            <div class="hidden md:block tx-desktop card overflow-hidden">
+                <div class="overflow-x-auto">
+                <table class="w-full data-table">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th @click="sortByCol('receipt')" class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase cursor-pointer select-none hover:bg-gray-200"><span data-i18n="transactions.col_receipt">Receipt #</span> <span x-text="sortIcon('receipt')"></span></th>
+                            <th @click="sortByCol('time')" class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase cursor-pointer select-none hover:bg-gray-200"><span data-i18n="transactions.col_datetime">Date/Time</span> <span x-text="sortIcon('time')"></span></th>
+                            <th @click="sortByCol('cashier')" class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase cursor-pointer select-none hover:bg-gray-200"><span data-i18n="transactions.col_cashier">Cashier</span> <span x-text="sortIcon('cashier')"></span></th>
+                            <th @click="sortByCol('customer')" class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase cursor-pointer select-none hover:bg-gray-200"><span data-i18n="transactions.col_customer">Customer</span> <span x-text="sortIcon('customer')"></span></th>
+                            <th @click="sortByCol('payment')" class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase cursor-pointer select-none hover:bg-gray-200"><span data-i18n="transactions.col_payment">Payment</span> <span x-text="sortIcon('payment')"></span></th>
+                            <th @click="sortByCol('total')" class="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase cursor-pointer select-none hover:bg-gray-200"><span data-i18n="transactions.col_total">Total</span> <span x-text="sortIcon('total')"></span></th>
+                            <th @click="sortByCol('status')" class="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase cursor-pointer select-none hover:bg-gray-200"><span data-i18n="transactions.col_status">Status</span> <span x-text="sortIcon('status')"></span></th>
+                            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tx-actions" data-i18n="transactions.col_actions">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        <template x-for="txn in processedList()" :key="txn.id">
+                            <tr class="hover:bg-gray-50 transition cursor-pointer" @click="viewReceipt(txn.id)">
+                                <td class="px-4 py-3">
+                                    <p class="font-semibold text-gray-900" x-text="txn.receipt_number || txn.transaction_number"></p>
+                                    <!-- BL-83: only show the txn number when it isn't a duplicate of the line above -->
+                                    <p class="text-xs text-gray-500"
+                                       x-show="txn.receipt_number && txn.receipt_number !== txn.transaction_number"
+                                       x-text="txn.transaction_number"></p>
+                                </td>
+                                <td class="px-4 py-3">
+                                    <p class="text-sm text-gray-900" x-text="formatDate(txn.completed_at || txn.created_at)"></p>
+                                    <p class="text-xs text-gray-500" x-text="formatTime(txn.completed_at || txn.created_at)"></p>
+                                </td>
+                                <td class="px-4 py-3 text-sm font-medium text-gray-900">
+                                    <span x-text="txn.cashier_name || '—'"></span>
+                                </td>
+                                <td class="px-4 py-3 text-sm text-gray-700">
+                                    <span x-text="txn.customer_name || '—'"></span>
+                                </td>
+                                <td class="px-4 py-3">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                                          :class="methodClass(txn.payment_method)"
+                                          x-text="methodLabel(txn.payment_method)">
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 text-right">
+                                    <p class="text-lg font-bold text-gray-900" x-text="formatPrice(txn.total)"></p>
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                                          :class="{
+                                              'bg-green-100 text-green-800': txn.status === 'completed',
+                                              'bg-yellow-100 text-yellow-800': txn.status === 'open',
+                                              'bg-red-100 text-red-800': txn.status === 'voided'
+                                          }"
+                                          x-text="txn.status.toUpperCase()">
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 text-center tx-actions" @click.stop>
+                                    <button @click="viewReceipt(txn.id)" class="text-indigo-600 hover:text-indigo-900 font-medium mr-3" data-i18n="transactions.view">
+                                        View
+                                    </button>
+                                    <button @click="reprintReceipt(txn.id)" class="text-green-600 hover:text-green-900 font-medium" data-i18n="transactions.reprint">
+                                        Reprint
+                                    </button>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function transactionsData() {
+        return {
+            user: {},
+            transactions: [],
+            summary: {
+                count: 0,
+                total: 0,
+                byMethod: {}   // BL-84: { cash: {total, count}, debit: {...}, ... }
+            },
+            // BL-84: the real PaymentMethod enum, in display order, with label + pill colour.
+            methodOrder: ['cash', 'debit', 'twint', 'visa', 'bank_transfer', 'crypto', 'other'],
+            paymentMeta: {
+                cash:          { label: 'Cash',          cls: 'bg-green-100 text-green-800' },
+                debit:         { label: 'Debit card',    cls: 'bg-blue-100 text-blue-800' },
+                twint:         { label: 'TWINT',         cls: 'bg-purple-100 text-purple-800' },
+                visa:          { label: 'Visa',          cls: 'bg-indigo-100 text-indigo-800' },
+                bank_transfer: { label: 'Bank transfer', cls: 'bg-amber-100 text-amber-800' },
+                crypto:        { label: 'Crypto',        cls: 'bg-orange-100 text-orange-800' },
+                other:         { label: 'Other',         cls: 'bg-gray-100 text-gray-800' }
+            },
+            loading: false,
+            filterFrom: new Date().toISOString().split('T')[0], // Today
+            filterTo: new Date().toISOString().split('T')[0],   // Today
+            filterStatus: '',
+            filterPayment: '',
+            filterCashier: '',   // client-side facet
+            filterCustomer: '',  // client-side facet
+            sortKey: 'time',     // default newest-first
+            sortDir: 'desc',
+            mobileSort: 'time:desc',  // mobile card-list sort selector (key:dir)
+            generatedAt: '',          // de-CH timestamp stamped on the printout
+            activePreset: 'today',
+            datePresets: [
+                { key: 'today', label: 'Today' },
+                { key: '7d',    label: 'Last 7 days' },
+                { key: '2wk',   label: 'Last 2 weeks' },
+                { key: 'month', label: 'This month' },
+            ],
+
+            async init() {
+                const userInfo = AuthHelper.getUserInfo();
+                if (!userInfo) {
+                    window.location.href = '/pos';
+                    return;
+                }
+                this.user = userInfo;
+                this.generatedAt = formatDateTime(new Date());
+
+                await this.loadTransactions();
+            },
+
+            async loadTransactions() {
+                this.loading = true;
+
+                try {
+                    // Build query parameters — server filters by date range / status / payment;
+                    // cashier & customer are client-side facets on the returned set.
+                    const params = new URLSearchParams();
+                    if (this.filterFrom) params.append('date_from', this.filterFrom);
+                    if (this.filterTo) params.append('date_to', this.filterTo);
+                    if (this.filterStatus) params.append('status_filter', this.filterStatus);
+                    if (this.filterPayment) params.append('payment_method', this.filterPayment);
+
+                    this.transactions = await API.get(`/api/v1/pos/transactions?${params}`);
+                    // A facet may no longer exist in the new result set — clear stale ones.
+                    if (this.filterCashier && !this.cashierOptions().includes(this.filterCashier)) this.filterCashier = '';
+                    if (this.filterCustomer && !this.customerOptions().includes(this.filterCustomer)) this.filterCustomer = '';
+
+                    // Calculate summary
+                    this.calculateSummary();
+
+                } catch (error) {
+                    console.error('Failed to load transactions:', error);
+                    showToast(t('transactions.load_failed') + ': ' + error.message, 'error');
+                } finally {
+                    this.loading = false;
+                }
+            },
+
+            calculateSummary() {
+                // Summary reflects the facet-filtered view (so "Larry" or "Pam" totals are real).
+                const list = this.filteredList();
+                this.summary.count = list.length;
+                this.summary.total = list.reduce((sum, t) => sum + parseFloat(t.total || 0), 0);
+                // BL-84: bucket every sale by its real payment method (don't lump as "cash").
+                const by = {};
+                for (const t of list) {
+                    const m = t.payment_method || 'other';
+                    if (!by[m]) by[m] = { total: 0, count: 0 };
+                    by[m].total += parseFloat(t.total || 0);
+                    by[m].count += 1;
+                }
+                this.summary.byMethod = by;
+            },
+
+            // ---- client-side facets + sorting -------------------------------------
+            filteredList() {
+                let list = this.transactions;
+                if (this.filterCashier) list = list.filter(t => (t.cashier_name || '—') === this.filterCashier);
+                if (this.filterCustomer) list = list.filter(t => (t.customer_name || '—') === this.filterCustomer);
+                return list;
+            },
+            processedList() {
+                const list = [...this.filteredList()];
+                const dir = this.sortDir === 'asc' ? 1 : -1;
+                const val = (t) => {
+                    switch (this.sortKey) {
+                        case 'cashier':  return (t.cashier_name || '').toLowerCase();
+                        case 'customer': return (t.customer_name || '').toLowerCase();
+                        case 'total':    return parseFloat(t.total || 0);
+                        case 'payment':  return (t.payment_method || '');
+                        case 'status':   return (t.status || '');
+                        case 'receipt':  return (t.receipt_number || t.transaction_number || '');
+                        default:         return new Date(t.completed_at || t.created_at || 0).getTime();
+                    }
+                };
+                list.sort((a, b) => {
+                    const av = val(a), bv = val(b);
+                    return av < bv ? -dir : av > bv ? dir : 0;
+                });
+                return list;
+            },
+            sortByCol(key) {
+                if (this.sortKey === key) {
+                    this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc';
+                } else {
+                    this.sortKey = key;
+                    // numbers + time default to newest/biggest first; text defaults A→Z
+                    this.sortDir = (key === 'total' || key === 'time') ? 'desc' : 'asc';
+                }
+            },
+            sortIcon(key) {
+                if (this.sortKey !== key) return '⇅';
+                return this.sortDir === 'asc' ? '▲' : '▼';
+            },
+            setMobileSort() {
+                const [k, d] = this.mobileSort.split(':');
+                this.sortKey = k; this.sortDir = d;
+            },
+            cashierOptions() {
+                return [...new Set(this.transactions.map(t => t.cashier_name).filter(Boolean))].sort();
+            },
+            customerOptions() {
+                return [...new Set(this.transactions.map(t => t.customer_name).filter(Boolean))].sort();
+            },
+
+            // ---- date range presets ----------------------------------------------
+            setPreset(key) {
+                const fmt = d => {
+                    // local-date YYYY-MM-DD (avoid UTC off-by-one near midnight)
+                    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+                };
+                const today = new Date();
+                let from = new Date(today);
+                if (key === 'today')      from = today;
+                else if (key === '7d')    from.setDate(today.getDate() - 6);
+                else if (key === '2wk')   from.setDate(today.getDate() - 13);
+                else if (key === 'month') from = new Date(today.getFullYear(), today.getMonth(), 1);
+                this.filterFrom = fmt(from);
+                this.filterTo = fmt(today);
+                this.activePreset = key;
+                this.loadTransactions();
+            },
+            onRangeChange() {
+                this.activePreset = '';   // manual edit clears the preset highlight
+                this.loadTransactions();
+            },
+
+            // BL-84: the payment breakdown rows, in enum order, only methods actually used.
+            breakdownRows() {
+                const seen = new Set([...this.methodOrder]);
+                const keys = [
+                    ...this.methodOrder.filter(m => this.summary.byMethod[m]),
+                    ...Object.keys(this.summary.byMethod).filter(m => !seen.has(m))
+                ];
+                return keys.map(m => ({
+                    key: m,
+                    label: this.methodLabel(m),
+                    total: this.summary.byMethod[m].total,
+                    count: this.summary.byMethod[m].count
+                }));
+            },
+
+            methodLabel(method) {
+                if (!method) return t('transactions.pay_none');
+                // Prefer a translated label; fall back to the English meta / raw enum value.
+                const key = 'transactions.pay_' + method;
+                const label = t(key);
+                if (label !== key) return label;
+                return this.paymentMeta[method]?.label || method.toUpperCase();
+            },
+
+            methodClass(method) {
+                return this.paymentMeta[method]?.cls || 'bg-gray-100 text-gray-800';
+            },
+
+            resetFilters() {
+                this.filterStatus = '';
+                this.filterPayment = '';
+                this.filterCashier = '';
+                this.filterCustomer = '';
+                this.sortKey = 'time';
+                this.sortDir = 'desc';
+                this.setPreset('today');   // resets range + reloads
+            },
+
+            viewReceipt(transactionId) {
+                window.location.href = `/pos/receipt/${transactionId}`;
+            },
+
+            reprintReceipt(transactionId) {
+                // Open in new tab so user doesn't lose transaction history page
+                window.open(`/pos/receipt/${transactionId}`, '_blank');
+            },
+
+            // Delegate to the global date/time seam (base.html), keyed off POSConfig.locale.
+            // window.-qualified so the call doesn't recurse into this same-named method.
+            formatDate(dateString) {
+                return window.formatDate(dateString, { year: 'numeric', month: '2-digit', day: '2-digit' });
+            },
+
+            formatTime(dateString) {
+                return window.formatTime(dateString, { hour: '2-digit', minute: '2-digit' });
+            },
+
+            formatPrice(amount) {
+                return formatPrice(amount);
+            },
+
+            roleDisplay() {
+                return this.user.posRoles?.join(', ') || t('transactions.role_user');
+            },
+
+            // ---- export: print / PDF / semicolon-CSV (Felix's "in the books" report) ----
+            rangeLabel() {
+                if (this.filterFrom === this.filterTo) return this.formatDate(this.filterFrom);
+                return this.formatDate(this.filterFrom) + ' – ' + this.formatDate(this.filterTo);
+            },
+            printView() { window.print(); },
+            exportCSV() {
+                const rows = [[
+                    t('transactions.csv_receipt'), t('transactions.csv_date'), t('transactions.csv_time'),
+                    t('transactions.csv_cashier'), t('transactions.csv_customer'), t('transactions.csv_payment'),
+                    t('transactions.csv_total'), t('transactions.csv_status')
+                ]];
+                for (const t of this.processedList()) {
+                    const when = t.completed_at || t.created_at;
+                    rows.push([
+                        t.receipt_number || t.transaction_number || '',
+                        this.formatDate(when),
+                        this.formatTime(when),
+                        t.cashier_name || '',
+                        t.customer_name || '',
+                        this.methodLabel(t.payment_method),
+                        parseFloat(t.total || 0).toFixed(2),
+                        (t.status || '').toUpperCase()
+                    ]);
+                }
+                this._downloadCSV(rows, `banco-transactions-${this.filterFrom}_${this.filterTo}.csv`);
+                showToast(t('transactions.csv_exported'), 'success');
+            },
+            _downloadCSV(rows, filename) {
+                // Semicolon-separated (Swiss/European convention, like a UBS export); every field
+                // quoted; UTF-8 BOM so Excel/Banana read names + amounts correctly.
+                const csv = '\ufeff' + rows.map(r =>
+                    r.map(c => `"${String(c == null ? '' : c).replace(/"/g, '""')}"`).join(';')
+                ).join('\r\n');
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = filename;
+                document.body.appendChild(a); a.click(); a.remove();
+                URL.revokeObjectURL(url);
+            },
+
+            goBack() {
+                window.location.href = '/pos/dashboard';
+            }
+        }
+    }
+</script>
+{% endblock %}

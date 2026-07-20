@@ -1,0 +1,340 @@
+{% extends "pos/base.html" %}
+
+{% block title %}Product Sales - HelixPOS - Artemis Store{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* Print/PDF: this report prints clean. Hide every control, show the stamp. The app
+       chrome (bottom nav, status bar) is already hidden by base.html's @media print. */
+    .print-only { display: none; }
+    /* Buyer/category drill cards: clean text everywhere, underline ONLY the receipt link.
+       Real CSS (class specificity) so it can't be lost to a UA default or a missing utility. */
+    a.buyer-card, a.buyer-card * { text-decoration: none; }
+    a.buyer-card .view-receipt { text-decoration: underline; }
+    @media print {
+        .no-print { display: none !important; }
+        .print-only { display: block !important; }
+        body { background: #fff !important; }
+        .card { box-shadow: none !important; border: 1px solid #ddd; }
+        table { font-size: 11px; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50" x-data="productSalesData()" x-init="init()">
+    <div class="max-w-5xl mx-auto px-4 py-8">
+
+        <!-- Print stamp (only on paper/PDF) -->
+        <div class="print-only mb-4">
+            <h1 style="font-size:18px;font-weight:bold;">Artemis Store — <span data-i18n="product_sales.print_title">Product Sales</span></h1>
+            <p style="font-size:12px;color:#444;" x-text="rangeLabel()"></p>
+            <p style="font-size:10px;color:#888;" x-text="t('product_sales.generated') + ' ' + generatedAt"></p>
+        </div>
+
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-4 flex-wrap gap-2 no-print">
+            <div class="flex items-center gap-3">
+                <button @click="goDashboard()" class="btn-secondary flex-none" title="Dashboard" aria-label="Dashboard">🏠</button>
+                <h1 class="text-2xl sm:text-3xl font-bold text-gray-900" data-i18n="product_sales.title">📦 Product Sales</h1>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <button @click="goReports()" class="btn-secondary" data-i18n="product_sales.reports">📊 Reports</button>
+                <button @click="goTransactions()" class="btn-secondary" data-i18n="product_sales.transactions">💳 Transactions</button>
+            </div>
+        </div>
+        <p class="text-gray-600 mb-4 no-print"><span data-i18n="product_sales.intro_before">What sold &mdash; by quantity and revenue. Tap </span><span class="font-semibold text-indigo-600" data-i18n="product_sales.intro_who_bought">👥 Who bought it</span><span data-i18n="product_sales.intro_middle"> on any product to see every buyer. Showing </span><span class="font-semibold" x-text="presets.find(p => p.key === activePreset)?.label || t('product_sales.custom_range')"></span><span data-i18n="product_sales.intro_after"> &mdash; use the buttons below for a wider range.</span></p>
+
+        <!-- Date range -->
+        <div class="card mb-4 no-print">
+            <div class="flex flex-wrap gap-2 items-end">
+                <div class="flex flex-wrap gap-1">
+                    <template x-for="p in presets" :key="p.key">
+                        <button @click="applyPreset(p.key)"
+                                :class="activePreset === p.key ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700'"
+                                class="px-3 py-1 rounded text-sm font-medium" x-text="p.label"></button>
+                    </template>
+                </div>
+                <div class="flex flex-wrap gap-2 items-end w-full sm:w-auto sm:ml-auto">
+                    <div class="flex-1 min-w-0">
+                        <label class="block text-xs text-gray-500" data-i18n="product_sales.from">From</label>
+                        <input type="date" x-model="dateFrom" @change="activePreset='custom'" class="input-field py-1 w-full">
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <label class="block text-xs text-gray-500" data-i18n="product_sales.to">To</label>
+                        <input type="date" x-model="dateTo" @change="activePreset='custom'" class="input-field py-1 w-full">
+                    </div>
+                    <button @click="load()" class="btn-primary py-1 w-full sm:w-auto" data-i18n="product_sales.apply">Apply</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Totals -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+            <div class="card text-center">
+                <p class="text-gray-500 text-xs uppercase tracking-wide" data-i18n="product_sales.revenue">Revenue</p>
+                <p class="text-xl sm:text-2xl font-bold text-green-600 truncate" x-text="formatPrice(totals.revenue)"></p>
+            </div>
+            <div class="card text-center">
+                <p class="text-gray-500 text-xs uppercase tracking-wide" data-i18n="product_sales.items_sold">Items sold</p>
+                <p class="text-xl sm:text-2xl font-bold text-gray-900 truncate" x-text="totals.qty_sold"></p>
+            </div>
+            <div class="card text-center">
+                <p class="text-gray-500 text-xs uppercase tracking-wide" data-i18n="product_sales.products">Products</p>
+                <p class="text-xl sm:text-2xl font-bold text-gray-900 truncate" x-text="totals.product_count"></p>
+            </div>
+            <div class="card text-center">
+                <p class="text-gray-500 text-xs uppercase tracking-wide" data-i18n="product_sales.incl_vat">incl. VAT</p>
+                <p class="text-xl sm:text-2xl font-bold text-indigo-600 truncate" x-text="formatPrice(totals.vat)"></p>
+            </div>
+        </div>
+
+        <!-- Category subtotals — tap a category to see who bought it -->
+        <div class="card mb-4" x-show="categories.length">
+            <h2 class="text-sm font-semibold text-gray-700 mb-2"><span data-i18n="product_sales.by_category">By category</span> <span class="font-normal text-gray-400" data-i18n="product_sales.by_category_hint">— tap one to see who bought it</span></h2>
+            <div class="flex flex-wrap gap-2">
+                <template x-for="c in categories" :key="c.category">
+                    <button @click="openCategoryDrill(c)"
+                            class="inline-flex items-center gap-1.5 bg-gray-100 hover:bg-indigo-50 active:bg-indigo-100 border border-transparent hover:border-indigo-200 rounded-full px-3 py-1.5 text-sm transition">
+                        <span x-text="c.emoji"></span>
+                        <span class="font-medium text-gray-800" x-text="c.category"></span>
+                        <span class="text-gray-500" x-text="formatPrice(c.revenue)"></span>
+                        <span class="text-gray-400" x-text="'· ' + c.qty_sold + t('product_sales.unit_abbr')"></span>
+                        <span class="text-indigo-400">›</span>
+                    </button>
+                </template>
+            </div>
+        </div>
+
+        <!-- Export toolbar -->
+        <div class="flex gap-2 mb-3 no-print" x-show="products.length">
+            <button @click="exportCSV()" class="btn-secondary text-sm" data-i18n="product_sales.export_csv">📥 Export CSV</button>
+            <button @click="printView()" class="btn-secondary text-sm" data-i18n="product_sales.print_pdf">🖨️ Print / PDF</button>
+        </div>
+
+        <!-- Product table -->
+        <div class="card overflow-x-auto">
+            <table class="w-full text-sm data-table">
+                <thead>
+                    <tr class="text-left text-gray-500 border-b">
+                        <th class="py-2 cursor-pointer no-print" @click="sortBy('name')" data-i18n="product_sales.col_product">Product</th>
+                        <th class="py-2 print-only" style="display:none" data-i18n="product_sales.col_product">Product</th>
+                        <th class="py-2 cursor-pointer" @click="sortBy('category')" data-i18n="product_sales.col_category">Category</th>
+                        <th class="py-2 text-right cursor-pointer" @click="sortBy('qty_sold')" data-i18n="product_sales.col_qty">Qty</th>
+                        <th class="py-2 text-right cursor-pointer" @click="sortBy('revenue')" data-i18n="product_sales.revenue">Revenue</th>
+                        <th class="py-2 text-right cursor-pointer" @click="sortBy('txn_count')" data-i18n="product_sales.col_sales">Sales</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="p in sortedProducts()" :key="p.name + (p.product_id || '')">
+                        <tr class="border-b last:border-0"
+                            :class="p.product_id ? 'hover:bg-indigo-50 cursor-pointer' : ''"
+                            @click="p.product_id && openDrill(p)">
+                            <td class="py-2 font-medium">
+                                <div x-text="p.name"></div>
+                                <button x-show="p.product_id" @click.stop="openDrill(p)"
+                                        class="no-print mt-1 inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 bg-indigo-50 rounded-full px-2 py-0.5 active:bg-indigo-100"
+                                        data-i18n="product_sales.who_bought_it">
+                                    👥 Who bought it ›
+                                </button>
+                                <span x-show="!p.product_id" class="no-print text-xs text-gray-400" data-i18n="product_sales.one_off_item">one-off item</span>
+                            </td>
+                            <td class="py-2 text-gray-600" x-text="p.category"></td>
+                            <td class="py-2 text-right" x-text="p.qty_sold"></td>
+                            <td class="py-2 text-right font-semibold" x-text="formatPrice(p.revenue)"></td>
+                            <td class="py-2 text-right text-gray-500" x-text="p.txn_count"></td>
+                        </tr>
+                    </template>
+                    <tr x-show="!products.length">
+                        <td colspan="5" class="py-6 text-center text-gray-400" data-i18n="product_sales.no_sales_range">No sales in this range.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Drill modal: who bought this product -->
+    <div x-show="drill.open" x-cloak class="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 no-print"
+         @click.self="drill.open = false">
+        <div class="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-2xl max-h-[85vh] overflow-y-auto p-5">
+            <div class="flex justify-between items-start mb-3">
+                <div>
+                    <h2 class="text-xl font-bold text-gray-900" x-text="t('product_sales.who_bought_prefix') + drill.product_name"></h2>
+                    <p class="text-sm text-gray-500" x-text="rangeLabel()"></p>
+                </div>
+                <button @click="drill.open = false" class="text-gray-400 text-2xl leading-none">&times;</button>
+            </div>
+            <div class="flex gap-4 mb-3 text-sm">
+                <span class="text-gray-600"><span data-i18n="product_sales.units_label">Units:</span> <span class="font-bold" x-text="drill.total_qty"></span></span>
+                <span class="text-gray-600"><span data-i18n="product_sales.revenue_label">Revenue:</span> <span class="font-bold" x-text="formatPrice(drill.total_revenue)"></span></span>
+            </div>
+            <div class="flex gap-2 mb-3">
+                <button @click="exportDrillCSV()" class="btn-secondary text-xs" data-i18n="product_sales.csv_button">📥 CSV</button>
+            </div>
+            <!-- Buyers as cards (mobile-friendly). Tap a card → the full receipt/invoice. -->
+            <div class="space-y-2">
+                <template x-for="s in drill.sales" :key="s.transaction_id || (s.transaction_number + s.time)">
+                    <a :href="s.transaction_id ? ('/pos/receipt/' + s.transaction_id + '?from=report') : '#'"
+                       class="buyer-card block text-gray-900 border border-gray-200 rounded-xl p-3 hover:bg-indigo-50 active:bg-indigo-100 transition">
+                        <div class="flex justify-between items-start gap-3">
+                            <div class="min-w-0">
+                                <p class="font-semibold text-gray-900 truncate" x-text="s.customer_name || t('product_sales.walk_in')"></p>
+                                <p class="text-xs text-gray-500 mt-0.5">
+                                    <span x-text="fmtTime(s.time)"></span>
+                                    <span class="text-gray-300">·</span>
+                                    <span x-text="s.cashier_name"></span>
+                                </p>
+                            </div>
+                            <div class="text-right shrink-0">
+                                <p class="font-bold text-green-600" x-text="formatPrice(s.line_total)"></p>
+                                <p class="text-xs text-gray-500" x-text="s.qty + (s.qty == 1 ? t('product_sales.unit_one') : t('product_sales.unit_many'))"></p>
+                            </div>
+                        </div>
+                        <div class="flex justify-between items-center mt-2 pt-2 border-t border-gray-100">
+                            <span class="font-mono text-xs text-gray-400" x-text="s.transaction_number"></span>
+                            <span class="view-receipt text-xs font-semibold text-indigo-600" x-show="s.transaction_id" data-i18n="product_sales.view_receipt">View receipt ›</span>
+                        </div>
+                    </a>
+                </template>
+                <p x-show="!drill.sales.length" class="py-4 text-center text-gray-400" data-i18n="product_sales.no_sales_found">No sales found.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function productSalesData() {
+        return {
+            dateFrom: '', dateTo: '',
+            activePreset: 'today',
+            generatedAt: '',
+            products: [], categories: [],
+            totals: { revenue: 0, qty_sold: 0, vat: 0, product_count: 0 },
+            sort: { key: 'revenue', dir: -1 },
+            drill: { open: false, product_id: null, product_name: '', sales: [], total_qty: 0, total_revenue: 0 },
+            presets: [
+                { key: 'today', label: t('product_sales.preset_today') },
+                { key: 'yesterday', label: t('product_sales.preset_yesterday') },
+                { key: 'last7', label: t('product_sales.preset_last7') },
+                { key: 'last30', label: t('product_sales.preset_last30') },
+                { key: 'month', label: t('product_sales.preset_month') },
+            ],
+
+            init() {
+                const userInfo = AuthHelper.getUserInfo();
+                if (!userInfo) { window.location.href = '/pos'; return; }
+                this.applyPreset('today');
+            },
+
+            iso(d) { return d.toISOString().slice(0, 10); },
+
+            applyPreset(key) {
+                this.activePreset = key;
+                const now = new Date();
+                let from = new Date(now), to = new Date(now);
+                if (key === 'yesterday') { from.setDate(now.getDate() - 1); to.setDate(now.getDate() - 1); }
+                else if (key === 'last7') { from.setDate(now.getDate() - 6); }
+                else if (key === 'last30') { from.setDate(now.getDate() - 29); }
+                else if (key === 'month') { from = new Date(now.getFullYear(), now.getMonth(), 1); }
+                this.dateFrom = this.iso(from);
+                this.dateTo = this.iso(to);
+                this.load();
+            },
+
+            async load() {
+                try {
+                    const data = await API.get(`/api/v1/pos/reports/product-sales?date_from=${this.dateFrom}&date_to=${this.dateTo}`);
+                    this.products = data.products || [];
+                    this.categories = data.categories || [];
+                    this.totals = data.totals || { revenue: 0, qty_sold: 0, vat: 0, product_count: 0 };
+                    this.generatedAt = formatDateTime(new Date());
+                } catch (e) {
+                    console.error('Failed to load product sales:', e);
+                    showToast(t('product_sales.load_failed'), 'error');
+                }
+            },
+
+            sortBy(key) {
+                if (this.sort.key === key) this.sort.dir *= -1;
+                else { this.sort.key = key; this.sort.dir = (key === 'name' || key === 'category') ? 1 : -1; }
+            },
+            sortedProducts() {
+                const { key, dir } = this.sort;
+                return [...this.products].sort((a, b) => {
+                    let va = a[key], vb = b[key];
+                    if (typeof va === 'string') return va.localeCompare(vb) * dir;
+                    return (va - vb) * dir;
+                });
+            },
+
+            async openDrill(p) {
+                try {
+                    const data = await API.get(`/api/v1/pos/reports/product-sales/${p.product_id}?date_from=${this.dateFrom}&date_to=${this.dateTo}`);
+                    this.drill = { open: true, product_id: p.product_id, product_name: data.product_name || p.name,
+                                   sales: data.sales || [], total_qty: data.total_qty || 0, total_revenue: data.total_revenue || 0 };
+                } catch (e) {
+                    showToast(t('product_sales.load_buyers_failed'), 'error');
+                }
+            },
+
+            async openCategoryDrill(c) {
+                try {
+                    const data = await API.get(`/api/v1/pos/reports/category-sales?category=${encodeURIComponent(c.category)}&date_from=${this.dateFrom}&date_to=${this.dateTo}`);
+                    const label = `${data.emoji || c.emoji || ''} ${c.category}`.trim();
+                    this.drill = { open: true, product_id: null, product_name: label,
+                                   sales: data.sales || [], total_qty: data.total_qty || 0, total_revenue: data.total_revenue || 0 };
+                } catch (e) {
+                    showToast(t('product_sales.load_category_failed'), 'error');
+                }
+            },
+
+            rangeLabel() {
+                if (this.dateFrom === this.dateTo) return this.dateFrom;
+                return `${this.dateFrom}${t('product_sales.date_range_to')}${this.dateTo}`;
+            },
+            fmtTime(t) { return t ? formatDateTime(t, { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : ''; },
+
+            _downloadCSV(rows, filename) {
+                const csv = rows.map(r => r.map(c => `"${String(c == null ? '' : c).replace(/"/g, '""')}"`).join(',')).join('\r\n');
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = filename;
+                document.body.appendChild(a); a.click(); a.remove();
+                URL.revokeObjectURL(url);
+            },
+
+            exportCSV() {
+                const header = [`Artemis Store - ${t('product_sales.print_title')}`, this.rangeLabel(), `${t('product_sales.generated')} ${this.generatedAt}`];
+                const rows = [
+                    [header.join(' | ')],
+                    // Header LABELS are currency-aware; CELL VALUES stay RAW numeric
+                    // (.toFixed(2)) — never routed through formatPrice, so no thousands
+                    // separator (de-CH apostrophe / it-IT comma) ever corrupts the CSV.
+                    [t('product_sales.col_product'), t('product_sales.col_category'), t('product_sales.csv_qty_sold'), `${t('product_sales.revenue')} ${POSConfig.currency}`, `${t('product_sales.incl_vat')} ${POSConfig.currency}`, t('product_sales.col_sales')],
+                    ...this.sortedProducts().map(p => [p.name, p.category, p.qty_sold, p.revenue.toFixed(2), p.vat.toFixed(2), p.txn_count]),
+                    [t('product_sales.total'), '', this.totals.qty_sold, this.totals.revenue.toFixed(2), this.totals.vat.toFixed(2), ''],
+                ];
+                this._downloadCSV(rows, `banco-product-sales-${this.dateFrom}_${this.dateTo}.csv`);
+                showToast(t('product_sales.csv_exported'), 'success');
+            },
+
+            exportDrillCSV() {
+                const rows = [
+                    [`${t('product_sales.who_bought_prefix')}${this.drill.product_name} | ${this.rangeLabel()}`],
+                    [t('product_sales.csv_receipt'), t('product_sales.csv_time'), t('product_sales.csv_cashier'), t('product_sales.csv_customer'), t('product_sales.col_qty'), `${t('product_sales.csv_total')} ${POSConfig.currency}`],
+                    ...this.drill.sales.map(s => [s.transaction_number, this.fmtTime(s.time), s.cashier_name, s.customer_name || t('product_sales.walk_in_csv'), s.qty, s.line_total.toFixed(2)]),
+                ];
+                this._downloadCSV(rows, `banco-buyers-${(this.drill.product_name||'item').replace(/\s+/g,'-')}-${this.dateFrom}.csv`);
+            },
+
+            printView() { window.print(); },
+
+            goDashboard() { window.location.href = '/pos/dashboard'; },
+            goReports() { window.location.href = '/pos/reports'; },
+            goTransactions() { window.location.href = '/pos/transactions'; },
+            formatPrice(amount) { return formatPrice(amount); },
+        }
+    }
+</script>
+{% endblock %}

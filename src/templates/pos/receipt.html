@@ -1,0 +1,646 @@
+{% extends "pos/base.html" %}
+
+{% block title %}Receipt - HelixPOS - Artemis Store{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-100 print:bg-white" x-data="receiptData()">
+    <!-- Print Button Bar (hidden when printing) -->
+    <div class="no-print bg-white shadow-md sticky top-0 z-10 px-4 py-3 flex justify-between items-center flex-wrap gap-2">
+        <div class="flex items-center gap-2 min-w-0">
+            <button @click="goDashboard()" class="btn-secondary flex-none" title="Dashboard" aria-label="Dashboard">🏠</button>
+            <button x-show="cameFromReport" style="display: none;" @click="goBack()" class="btn-secondary whitespace-nowrap" title="Back to the sales report" data-i18n="receipt.back_to_report">← Back to report</button>
+            <h1 class="text-lg sm:text-xl font-bold leading-tight min-w-0">
+                <span data-i18n="receipt.title">Receipt</span>
+                <span class="block sm:inline font-mono text-sm sm:text-xl" x-text="'#' + transaction.transaction_number"></span>
+            </h1>
+            <span x-show="transaction.status === 'refunded'" class="bg-red-100 text-red-800 px-2 py-1 rounded text-sm font-semibold" data-i18n="receipt.refunded">REFUNDED</span>
+        </div>
+        <div class="flex flex-wrap gap-2">
+            <button x-show="transaction.status === 'completed' && canRefund" @click="showRefundModal()" class="btn-danger" data-i18n="receipt.refund_btn">
+                ↩️ Refund
+            </button>
+            <button @click="printReceipt()" class="btn-secondary" data-i18n="receipt.print">
+                🖨️ Print
+            </button>
+            <!-- Close the deal: straight into the next sale -->
+            <button @click="newSale()" class="btn-primary" data-i18n="receipt.new_sale">
+                🛒 New Sale
+            </button>
+        </div>
+    </div>
+
+    <!-- Refund Modal -->
+    <div x-show="refundModalOpen" class="no-print fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" style="display: none;">
+        <div class="bg-white rounded-xl shadow-2xl p-6 max-w-md w-full mx-4">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4" data-i18n="receipt.process_refund">↩️ Process Refund</h2>
+
+            <div class="bg-yellow-50 border-2 border-yellow-400 rounded-lg p-4 mb-4">
+                <p class="text-sm text-yellow-800">
+                    <strong data-i18n="receipt.cash_back_label">⚠️ Cash Back:</strong> <span data-i18n="receipt.cash_back_pre">Customer will receive</span> <span class="font-bold" x-text="formatPrice(transaction.total)"></span> <span data-i18n="receipt.cash_back_post">in cash (regardless of original payment method).</span>
+                </p>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-sm font-semibold text-gray-700 mb-2" data-i18n="receipt.reason_label">Reason for Refund *</label>
+                <select x-model="refundReason" class="input-field">
+                    <option value="" data-i18n="receipt.reason_select">Select reason...</option>
+                    <option value="Broken/defective item" data-i18n="receipt.reason_broken">Broken/defective item</option>
+                    <option value="Wrong product" data-i18n="receipt.reason_wrong">Wrong product</option>
+                    <option value="Customer changed mind" data-i18n="receipt.reason_mind">Customer changed mind</option>
+                    <option value="Price dispute" data-i18n="receipt.reason_price">Price dispute</option>
+                    <option value="Other" data-i18n="receipt.reason_other">Other (specify below)</option>
+                </select>
+            </div>
+
+            <div class="mb-4" x-show="refundReason === 'Other'">
+                <label class="block text-sm font-semibold text-gray-700 mb-2" data-i18n="receipt.specify_reason">Specify Reason</label>
+                <input type="text" x-model="refundReasonOther" class="input-field" placeholder="Enter reason..." data-i18n-placeholder="receipt.enter_reason_ph">
+            </div>
+
+            <div class="flex space-x-3">
+                <button @click="refundModalOpen = false" class="btn-secondary flex-1" data-i18n="common.cancel">
+                    Cancel
+                </button>
+                <button @click="processRefund()" :disabled="!refundReason || (refundReason === 'Other' && !refundReasonOther)" class="btn-danger flex-1" data-i18n="receipt.confirm_refund">
+                    ✅ Confirm Refund
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- A4 Receipt Container -->
+    <div class="max-w-4xl mx-auto p-2 sm:p-8 print:p-0">
+        <!-- Receipt Paper (A4 optimized) -->
+        <div class="bg-white shadow-2xl print:shadow-none receipt-page" style="min-height: 297mm;">
+            <!-- Watermark -->
+            <div class="watermark" x-show="transaction.status === 'completed'" x-text="`PAID by ${transaction.payment_method?.toUpperCase() || 'CARD'}`"></div>
+
+            {# Non-prod receipts get a clear TEST banner so a sandbox/staging receipt is never mistaken for a real sale. Prints too. #}
+            {% set _re = (app_env | default('')) | lower %}
+            {% if _re and 'prod' not in _re %}
+            <div class="text-center mb-4" style="background:#fef3c7;border:1px solid #f59e0b;border-radius:6px;padding:4px 6px;font-weight:700;color:#92400e;font-size:12px;">
+              ⚠ {{ 'SANDBOX' if ('sandbox' in _re or 'uat' in _re) else ('STAGING' if 'staging' in _re else app_env|upper) }} — TEST RECEIPT (not a real sale)
+            </div>
+            {% endif %}
+
+            {# HONESTY (doctrine): an IT-regime tenant WITHOUT a wired RT cert prints a clear
+               non-fiscal banner so a clean 22/10-looking receipt is never mistaken for a legal
+               documento commerciale. Italian by design — it is the legal disclaimer for IT.
+               Reuses the conditional-banner pattern above; driven by POSConfig.regime. #}
+            <div x-show="isNonFiscal()" style="display:none" class="text-center mb-4">
+              <div style="background:#fee2e2;border:1px solid #ef4444;border-radius:6px;padding:5px 8px;font-weight:700;color:#991b1b;font-size:12px;line-height:1.35;">
+                Documento non fiscale — Ricevuta non valida ai fini fiscali
+              </div>
+            </div>
+            <!-- Company Header -->
+            <div class="text-center border-b-2 border-gray-300 pb-6 mb-6">
+                <div x-show="storeSettings.receipt_logo_url" class="mb-4">
+                    <img :src="storeSettings.receipt_logo_url" alt="Store Logo" class="mx-auto h-20">
+                </div>
+                <h1 class="text-3xl font-bold text-gray-900" x-text="storeSettings.store_name || 'Artemis Store'"></h1>
+                <p class="text-lg text-gray-700 mt-2" x-text="storeSettings.legal_name || 'Artemis Growing Supplies GmbH'"></p>
+                <p class="text-sm text-gray-600 mt-2" x-text="formatAddress()"></p>
+                <p class="text-sm text-gray-600" x-show="storeSettings.phone">Phone: <span x-text="storeSettings.phone"></span></p>
+                <p class="text-sm text-gray-600" x-show="storeSettings.email">Email: <span x-text="storeSettings.email"></span></p>
+                <p class="text-sm text-gray-600" x-show="storeSettings.website" x-text="storeSettings.website"></p>
+                <p class="text-sm font-semibold text-gray-700 mt-2" x-show="storeSettings.vat_number"><span x-text="vatLabel()">VAT</span>: <span x-text="storeSettings.vat_number"></span></p>
+            </div>
+
+            <!-- Receipt Header Text -->
+            <div x-show="storeSettings.receipt_header" class="text-center text-gray-600 mb-6 italic" x-text="storeSettings.receipt_header"></div>
+
+            <!-- Transaction Info -->
+            <div class="grid grid-cols-2 gap-4 mb-6 text-sm">
+                <div>
+                    <p class="text-gray-600" data-i18n="receipt.receipt_no">Receipt #:</p>
+                    <p class="font-semibold" x-text="transaction.receipt_number || transaction.transaction_number"></p>
+                </div>
+                <div class="text-right">
+                    <p class="text-gray-600" data-i18n="receipt.date">Date:</p>
+                    <p class="font-semibold" x-text="formatDate(transaction.completed_at || transaction.created_at)"></p>
+                </div>
+                <div>
+                    <p class="text-gray-600" data-i18n="receipt.cashier">Cashier:</p>
+                    <p class="font-semibold" x-text="cashierName"></p>
+                </div>
+                <div class="text-right">
+                    <p class="text-gray-600" data-i18n="receipt.time">Time:</p>
+                    <p class="font-semibold" x-text="formatTime(transaction.completed_at || transaction.created_at)"></p>
+                </div>
+            </div>
+
+            <!-- Line Items Table -->
+            <table class="w-full mb-6">
+                <thead>
+                    <tr class="border-b-2 border-gray-300">
+                        <th class="text-left py-2" data-i18n="receipt.item">Item</th>
+                        <th class="text-center py-2" data-i18n="receipt.qty">Qty</th>
+                        <th class="text-right py-2" data-i18n="receipt.price">Price</th>
+                        <th class="text-right py-2" data-i18n="receipt.total_col">Total</th>
+                        <th class="text-center py-2 w-6" title="VAT rate code">VAT</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="(item, index) in transaction.line_items" :key="index">
+                        <tr class="border-b border-gray-200">
+                            <td class="py-3">
+                                <p class="font-semibold">
+                                    <span x-text="item.product_name || 'Product'"></span>
+                                    <span x-show="item.is_age_restricted" class="chip chip-age">🔞 18+</span>
+                                </p>
+                                <p x-show="item.notes" class="text-xs text-gray-500 italic" x-text="item.notes"></p>
+                            </td>
+                            <td class="text-center" x-text="item.quantity"></td>
+                            <td class="text-right" x-text="formatPrice(item.unit_price)"></td>
+                            <td class="text-right font-semibold" x-text="formatPrice(item.line_total)"></td>
+                            <!-- Per-line VAT rate code (A=standard / B=reduced) — legend below -->
+                            <td class="text-center text-sm font-bold" :class="rateCode(item)==='B' ? 'text-teal-700' : 'text-gray-700'" x-text="rateCode(item)"></td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+
+            <!-- VAT rate legend (FTA: coded per-line rates require a legend explaining the codes).
+                 P3 N-rate: LOOP over the tenant's rate table. CH (2 rates) renders exactly
+                 "VAT: A = 8.1% · B = 2.6% (takeaway food & drink)"; an N-rate regime shows A…N. -->
+            <div class="text-xs text-gray-500 mb-3">
+                VAT:
+                <template x-for="(rt, ri) in vatRates()" :key="rt.code">
+                    <span x-show="ri === 0 || hasReduced()"><span x-show="ri > 0"> · </span><b :class="ri > 0 ? 'text-teal-700' : ''" x-text="rt.code"></b> = <span x-text="parseFloat(rt.rate)"></span>%<span x-show="rt.code === 'B'"> (<span data-i18n="vat.takeaway_food_drink">takeaway food &amp; drink</span>)</span></span>
+                </template>
+            </div>
+
+            <!-- Totals -->
+            <div class="border-t-2 border-gray-300 pt-4 space-y-2">
+                <div class="flex justify-between text-lg">
+                    <span data-i18n="receipt.subtotal">Subtotal:</span>
+                    <span x-text="formatPrice(grossSubtotal())"></span>
+                </div>
+                <div x-show="discountTotal() > 0.005" class="flex justify-between text-lg text-green-600">
+                    <span data-i18n="receipt.discount">Discount:</span>
+                    <span x-text="'-' + formatPrice(discountTotal())"></span>
+                </div>
+                <div class="flex justify-between text-2xl font-bold border-t-2 border-gray-800 pt-2 mt-2">
+                    <span data-i18n="receipt.total">TOTAL:</span>
+                    <span x-text="formatPrice(transaction.total)"></span>
+                </div>
+                <div class="flex justify-between text-sm text-gray-600">
+                    <span data-i18n="receipt.incl_vat">incl. VAT:</span>
+                    <span x-text="formatPrice(transaction.tax_amount)"></span>
+                </div>
+                <!-- Per-rate VAT split (shown when the sale mixes rates). P3: LOOP over active
+                     streams — CH renders "A 8.1% <std> · B 2.6% <red>" byte-identically. -->
+                <div x-show="hasReduced()" class="flex justify-between text-xs text-gray-500">
+                    <span>
+                        <template x-for="(s, si) in vatStreams()" :key="s.code"><span><span x-show="si > 0"> · </span><b :class="si > 0 ? 'text-teal-700' : ''" x-text="s.code"></b> <span x-text="s.rate"></span>% <span :class="si > 0 ? 'text-teal-700' : ''" x-text="formatPrice(s.vat)"></span></span></template>
+                    </span>
+                    <span></span>
+                </div>
+            </div>
+
+            <!-- Wire 2 — community loop: ONE "join La Piazza" QR (a one-way funnel into the community) -->
+            <div class="border-t-2 border-dashed border-teal-400 mt-4 pt-4 text-center">
+                <p class="text-sm font-semibold text-teal-700 mb-1" data-i18n="receipt.lapiazza_title">🏛️ Come find us on La Piazza</p>
+                <p class="text-xs text-gray-500 mb-3" data-i18n="receipt.lapiazza_sub">Scan to join the community — see what's worth talking about, and share your own.</p>
+                <img class="mx-auto border border-gray-200 rounded" width="140" height="140"
+                     :src="joinQrUrl()" alt="Join La Piazza" loading="lazy">
+            </div>
+
+            <!-- Loyalty member (only when a member was on the sale) -->
+            <div x-show="member" class="border-t-2 border-dashed border-gray-400 mt-4 pt-3 space-y-1 text-sm">
+                <div class="flex justify-between">
+                    <span class="text-gray-500" data-i18n="receipt.member">👤 Member</span>
+                    <span class="font-semibold" x-text="member ? ('@' + member.handle + ' · ' + (member.loyalty_tier || '').toUpperCase()) : ''"></span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-500" data-i18n="receipt.points_earned">Points earned</span>
+                    <span class="font-semibold text-indigo-600" x-text="'+' + pointsEarned() + ' pts'"></span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-500" data-i18n="receipt.points_balance">Points balance</span>
+                    <span class="font-semibold" x-text="(member ? member.credits_balance : 0) + ' pts'"></span>
+                </div>
+                <div x-show="member && member.next_tier_name && member.spend_to_next_tier > 0" class="flex justify-between text-gray-500">
+                    <span>CHF to <span x-text="member ? member.next_tier_name : ''"></span></span>
+                    <span x-text="formatPrice(member ? Math.round(member.spend_to_next_tier) : 0)"></span>
+                </div>
+            </div>
+
+            <!-- Payment Info -->
+            <div class="mt-6 p-4 bg-gray-50 print:bg-gray-100 rounded-lg">
+                <div class="flex justify-between text-lg font-semibold">
+                    <span data-i18n="receipt.payment_method">Payment Method:</span>
+                    <span x-text="(transaction.payment_method || 'CARD').toUpperCase()"></span>
+                </div>
+                <div x-show="transaction.payment_method === 'cash'" class="mt-2 space-y-1 text-sm">
+                    <!-- Multi-currency tender (Block 1): honest foreign-cash line. amount_tendered/change
+                         below are the HOME-currency equivalents; this shows what was physically handed over. -->
+                    <div x-show="transaction.tender_currency" class="flex justify-between text-amber-700">
+                        <span data-i18n="receipt.paid_foreign">Paid in cash:</span>
+                        <span x-text="(transaction.tender_currency || '') + ' ' + Number(transaction.tender_amount || 0).toFixed(2) + ' @ ' + (transaction.tender_rate || '')"></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span data-i18n="receipt.amount_tendered">Amount Tendered:</span>
+                        <span x-text="formatPrice(transaction.amount_tendered)"></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span data-i18n="receipt.change_given">Change Given:</span>
+                        <span x-text="formatPrice(transaction.change_given)"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Receipt Footer Text -->
+            <div x-show="storeSettings.receipt_footer" class="text-center text-gray-600 mt-8 italic border-t pt-6" x-text="storeSettings.receipt_footer"></div>
+
+            <!-- Thank You -->
+            <div class="text-center mt-8 text-xl font-semibold text-gray-700" data-i18n="receipt.thank_you">
+                Thank You for Your Purchase!
+            </div>
+
+            <!-- QR Code / Barcode Placeholder -->
+            <div class="text-center mt-6 mb-8">
+                <svg class="mx-auto" width="200" height="60">
+                    <!-- Simple barcode representation -->
+                    <rect x="10" y="10" width="2" height="40" fill="black"/>
+                    <rect x="15" y="10" width="4" height="40" fill="black"/>
+                    <rect x="22" y="10" width="2" height="40" fill="black"/>
+                    <rect x="27" y="10" width="6" height="40" fill="black"/>
+                    <rect x="36" y="10" width="2" height="40" fill="black"/>
+                    <rect x="41" y="10" width="4" height="40" fill="black"/>
+                    <rect x="48" y="10" width="2" height="40" fill="black"/>
+                    <rect x="53" y="10" width="6" height="40" fill="black"/>
+                </svg>
+                <p class="text-xs text-gray-500 mt-2" x-text="transaction.transaction_number"></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Print-specific styles -- a normal receipt (up to ~20 items) fits on ONE A4.
+       The old rule forced min-height:297mm + 20mm padding (= 337mm) and
+       page-break-after:always, so every receipt spilled to 3 pages. */
+    @media print {
+        body { margin: 0; padding: 0; }
+        .no-print { display: none !important; }
+
+        /* Only the receipt prints (BL-126, Felix #126). Two things otherwise force a
+           blank trailing page in Chrome: (1) min-h-screen (=100vh) on the body AND the
+           content wrapper pads the page to full height, and (2) the FIXED app chrome
+           (status bar, feedback button) gets painted and tips it past one A4. Collapse
+           the heights and hide the chrome so a short receipt is exactly one page. */
+        html, body, .min-h-screen { min-height: 0 !important; height: auto !important; }
+        .helix-status-bar, .lpfb-btn, .lpfb-ov, .pulse-ov { display: none !important; }
+
+        .receipt-page {
+            box-shadow: none !important;
+            margin: 0;
+            padding: 6mm !important;       /* headroom for browsers that add default print margins (Firefox) */
+            min-height: auto !important;   /* don't force a full-page-tall box */
+            page-break-after: auto;        /* no forced blank trailing page */
+            font-size: 10px;
+            line-height: 1.25;
+        }
+        /* Tighten everything so the company block + ~20 item lines + totals +
+           footer all fit on ONE A4. */
+        .receipt-page h1 { font-size: 16px !important; }
+        .receipt-page .text-3xl { font-size: 16px !important; }
+        .receipt-page .text-2xl { font-size: 14px !important; }
+        .receipt-page .text-xl  { font-size: 12px !important; }
+        .receipt-page .text-lg  { font-size: 11px !important; }
+        .receipt-page .text-sm  { font-size: 9px !important; }
+        .receipt-page .mb-6 { margin-bottom: 5px !important; }
+        .receipt-page .mb-8 { margin-bottom: 6px !important; }
+        .receipt-page .mb-4 { margin-bottom: 4px !important; }
+        .receipt-page .mt-6 { margin-top: 5px !important; }
+        .receipt-page .mt-8 { margin-top: 6px !important; }
+        .receipt-page .mt-2 { margin-top: 2px !important; }
+        .receipt-page .pb-6 { padding-bottom: 5px !important; }
+        .receipt-page .pt-6 { padding-top: 5px !important; }
+        .receipt-page .pt-4 { padding-top: 4px !important; }
+        .receipt-page .py-3 { padding-top: 2px !important; padding-bottom: 2px !important; }
+        .receipt-page .py-2 { padding-top: 2px !important; padding-bottom: 2px !important; }
+        .receipt-page .p-8  { padding: 0 !important; }
+        .receipt-page .p-4  { padding: 6px !important; }
+        .receipt-page .space-y-2 > * + * { margin-top: 2px !important; }
+        .receipt-page svg { height: 28px !important; width: auto !important; }   /* tiny barcode */
+        /* The store logo (img, h-20=80px) was NOT capped in print — that + the new
+           identity lines ate ~half a page. Keep the whole company header tight. */
+        .receipt-page img { max-height: 34px !important; width: auto !important; }
+        .receipt-page .border-b-2 { padding-bottom: 4px !important; margin-bottom: 5px !important; }
+        .receipt-page .border-b-2 p { line-height: 1.15 !important; margin-top: 1px !important; }
+        .receipt-page .watermark { font-size: 80px !important; }
+
+        @page { size: A4; margin: 0; }
+    }
+
+    /* Watermark */
+    .watermark {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) rotate(-45deg);
+        font-size: 120px;
+        font-weight: 900;
+        color: rgba(34, 197, 94, 0.1);
+        pointer-events: none;
+        z-index: 0;
+        white-space: nowrap;
+    }
+
+    .receipt-page {
+        position: relative;
+        z-index: 1;
+    }
+
+    /* Screen on a phone (NOT print): the receipt is A4-shaped, so the big watermark +
+       generous padding push it wider than the screen. Trim them for on-screen mobile;
+       the @media print block above is untouched, so a printed receipt is unchanged. */
+    @media screen and (max-width: 480px) {
+        .receipt-page { padding: 10px; }
+        .receipt-page .watermark { font-size: 56px; }
+        .receipt-page .p-8 { padding: 12px; }
+        .receipt-page .text-3xl { font-size: 1.5rem; }
+    }
+</style>
+
+<script>
+    function receiptData() {
+        return {
+            transaction: {
+                transaction_number: '',
+                receipt_number: '',
+                status: '',
+                payment_method: '',
+                subtotal: 0,
+                discount_amount: 0,
+                tax_amount: 0,
+                total: 0,
+                amount_tendered: 0,
+                change_given: 0,
+                line_items: [],
+                created_at: '',
+                completed_at: ''
+            },
+            storeSettings: {
+                store_name: '',
+                legal_name: '',
+                address_line1: '',
+                address_line2: '',
+                city: '',
+                postal_code: '',
+                country: '',
+                phone: '',
+                email: '',
+                website: '',
+                vat_number: '',
+                vat_rate: '8.1',
+                receipt_header: '',
+                receipt_footer: '',
+                receipt_logo_url: ''
+            },
+            cashierName: 'Cashier',
+            member: null,              // loyalty member on this sale (if any)
+            cameFromReport: false,     // only true when opened via the sales report drill (?from=report)
+            canRefund: false,
+            refundModalOpen: false,
+            refundReason: '',
+            refundReasonOther: '',
+
+            async init() {
+                // Only offer "Back to report" when we actually arrived from the report drill.
+                // After a sale (checkout -> receipt) there's no tag, so no Back button -> we
+                // never risk history.back() dropping the cashier back into the checkout.
+                this.cameFromReport = new URLSearchParams(window.location.search).get('from') === 'report';
+
+                // Get transaction ID from URL (path, ignoring any ?query)
+                const pathParts = window.location.pathname.split('/');
+                const transactionId = pathParts[pathParts.length - 1];
+
+                if (!transactionId || transactionId === 'receipt') {
+                    showToast(t('receipt.invalid_url'), 'error');
+                    return;
+                }
+
+                try {
+                    // Load transaction data
+                    this.transaction = await API.get(`/api/v1/pos/transactions/${transactionId}`);
+
+                    // Load store settings
+                    const settings = await API.get('/api/v1/pos/settings/1');
+                    this.storeSettings = settings;
+
+                    // Cashier name: the transaction stores the Keycloak sub (no name),
+                    // so show the logged-in cashier (who rings + prints the receipt).
+                    const userInfo = AuthHelper.getUserInfo();
+                    if (userInfo) {
+                        this.cashierName = userInfo.username || 'Cashier';
+                        this.canRefund = AuthHelper.isManager() || AuthHelper.isAdmin();
+                    }
+
+                    // Loyalty member on this sale -> show name, points earned, balance, next tier.
+                    if (this.transaction.customer_id) {
+                        try {
+                            this.member = await API.get('/api/v1/customers/checkout/' + this.transaction.customer_id);
+                        } catch (e) { this.member = null; }
+                    }
+
+                } catch (error) {
+                    console.error('Failed to load receipt:', error);
+                    showToast(t('receipt.load_failed') + error.message, 'error');
+                }
+            },
+
+            // Gross subtotal = sum of (qty x shelf price) before any discount, so the
+            // receipt shows where the discount went (line shows 12.90, total 10.00 -> -2.90).
+            grossSubtotal() {
+                return (this.transaction.line_items || []).reduce(
+                    (s, i) => s + parseFloat(i.quantity || 0) * parseFloat(i.unit_price || 0), 0);
+            },
+            discountTotal() {
+                return this.grossSubtotal() - parseFloat(this.transaction.total || 0);
+            },
+
+            // --- Per-line VAT rate codes + split (INC4 receipt legend) -----------------
+            // FTA: a receipt may code the per-line rate as long as a legend explains it.
+            // A = standard (8.1%), B = reduced (2.6%, takeaway cafe food/drink).
+            STD() { return parseFloat(POSConfig.vat_rate || 8.1); },
+            RED() { return parseFloat(POSConfig.vat_rate_reduced != null ? POSConfig.vat_rate_reduced : 2.6); },
+            // VAT-number label — regime first, then UI language so English stays byte-identical
+            // ('VAT'), German (Felix's default) reads 'MWST', Italian 'IVA', and an IT-regime
+            // tenant always reads the fiscal 'P. IVA' regardless of UI language.
+            vatLabel() {
+                if ((window.POSConfig && POSConfig.regime) === 'IT') return 'P. IVA';
+                var L = window._posLang || 'en';
+                if (L === 'de') return 'MWST';
+                if (L === 'it') return 'IVA';
+                return 'VAT';
+            },
+            // HONESTY banner gate: an IT-regime till has no wired RT cert yet → non-fiscal receipt.
+            isNonFiscal() { return ((window.POSConfig && POSConfig.regime) === 'IT'); },
+            // P3 N-RATE: the tenant's rate table, ordered standard/default first. Served by
+            // /config (regime.vat_rates); CH = [{A,8.1,default},{B,2.6}] → byte-identical to the
+            // old STD/RED. A jurisdiction with N rates (IT 22/10/5/4) just serves a longer list.
+            vatRates() {
+                // A receipt shows the rate that was ACTUALLY CHARGED — derive the codes from the
+                // recorded line snapshots, not current config. So an old receipt stays truthful if the
+                // shop later changes its rate, AND a 22.1% sale shows 22.1% (was reading the 8.1 default
+                // via the window.POSConfig bug). Distinct line rates → codes, standard (highest) = A.
+                const lines = this.transaction.line_items || [];
+                const rates = [...new Set(lines.map(i => parseFloat(i.vat_rate)).filter(r => !isNaN(r)))];
+                if (!rates.length) return [{ code:'A', label:'standard', rate:this.STD(), default:true },
+                                           { code:'B', label:'reduced', rate:this.RED() }];
+                rates.sort((a, b) => b - a);   // standard (highest) first = A, then B, C…
+                const labels = ['standard', 'reduced', 'reduced-2', 'reduced-3'];
+                return rates.map((rate, i) => ({
+                    code: String.fromCharCode(65 + i), label: labels[i] || ('rate-' + (i + 1)),
+                    rate, default: i === 0 }));
+            },
+            defaultCode() {
+                const rt = this.vatRates();
+                const d = rt.find(e => e.default);
+                return (d || rt[0]).code;
+            },
+            // Which code a line falls under: its snapshotted rate matched to the table; a rate that
+            // matches NO code falls to the default/standard code — mirrors the server's total-
+            // coverage rule so a legacy 7.7% / 0% line still shows (and reconciles) as standard.
+            rateCode(item) {
+                const r = parseFloat((item && item.vat_rate) != null ? item.vat_rate : this.STD());
+                const rt = this.vatRates();
+                for (let i = 0; i < rt.length; i++) {
+                    if (Math.abs(parseFloat(rt[i].rate) - r) < 0.01) return rt[i].code;
+                }
+                return this.defaultCode();
+            },
+            hasReduced() {
+                const d = this.defaultCode();
+                return (this.transaction.line_items || []).some(i => this.rateCode(i) !== d);
+            },
+            // Contained VAT + turnover per code, prorated to the discounted total (mirrors the
+            // server INC3 rollup) so the per-code figures reconcile to incl. VAT. Ordered like the
+            // rate table (standard first). A non-default line uses its STREAM rate for the display
+            // figure — the pre-existing approximation the A/B split already used (server is exact).
+            vatStreams() {
+                const lines = this.transaction.line_items || [];
+                const sub = lines.reduce((s, i) => s + parseFloat(i.line_total || 0), 0);
+                const total = parseFloat(this.transaction.total || 0);
+                const factor = sub > 0 ? total / sub : 1;
+                const rt = this.vatRates();
+                const out = {};
+                rt.forEach(e => { out[e.code] = { code: e.code, label: e.label, rate: parseFloat(e.rate), vat: 0, turnover: 0 }; });
+                const self = this;
+                lines.forEach(i => {
+                    const s = out[self.rateCode(i)];
+                    const g = parseFloat(i.line_total || 0) * factor;
+                    s.turnover += g;
+                    s.vat += g * s.rate / (100 + s.rate);
+                });
+                return rt.map(e => out[e.code]);
+            },
+            // Points earned on this sale = 1 per whole unit of currency paid, floored (matches the server).
+            pointsEarned() {
+                return Math.floor(parseFloat(this.transaction.total || 0));
+            },
+
+            // Wire 2 — community loop: ONE "join La Piazza" QR on every receipt. A one-way funnel —
+            // it points at the Banco-owned /join permalink (302s to La Piazza), NO tie-back to the
+            // POS. The till does loyalty internally; this just opens the door to the community.
+            joinQrUrl() {
+                const permalink = window.location.origin + '/join';
+                // TODO(prod-hardening): self-host the QR (vendored lib / server endpoint) — a printed
+                // receipt shouldn't depend on the net; the image service is fine for the test.
+                return 'https://api.qrserver.com/v1/create-qr-code/?size=140x140&margin=0&data=' + encodeURIComponent(permalink);
+            },
+
+            formatAddress() {
+                const parts = [
+                    this.storeSettings.address_line1,
+                    this.storeSettings.address_line2,
+                    `${this.storeSettings.postal_code} ${this.storeSettings.city}`,
+                    this.storeSettings.country
+                ].filter(p => p && p.trim());
+                return parts.join(', ');
+            },
+
+            // Delegate to the global date/time seam (base.html), keyed off POSConfig.locale.
+            // window.-qualified so the call doesn't recurse into this same-named method.
+            formatDate(dateString) {
+                return window.formatDate(dateString, { year: 'numeric', month: 'long', day: 'numeric' });
+            },
+
+            formatTime(dateString) {
+                return window.formatTime(dateString, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            },
+
+            formatPrice(amount) {
+                return formatPrice(amount);
+            },
+
+            printReceipt() {
+                // Datetime-stamp the suggested PDF filename (browsers use document.title),
+                // so saved receipts don't all collide on one name. Restore after.
+                const original = document.title;
+                const num = this.transaction.transaction_number || 'receipt';
+                const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
+                document.title = `Banco-Receipt-${num}-${stamp}`;
+                window.print();
+                setTimeout(() => { document.title = original; }, 500);
+            },
+
+            showRefundModal() {
+                this.refundReason = '';
+                this.refundReasonOther = '';
+                this.refundModalOpen = true;
+            },
+
+            async processRefund() {
+                const reason = this.refundReason === 'Other' ? this.refundReasonOther : this.refundReason;
+
+                if (!reason || reason.length < 3) {
+                    showToast(t('receipt.reason_required'), 'warning');
+                    return;
+                }
+
+                if (!confirm(t('receipt.refund_confirm', { amount: this.formatPrice(this.transaction.total), reason: reason }))) {
+                    return;
+                }
+
+                try {
+                    const pathParts = window.location.pathname.split('/');
+                    const transactionId = pathParts[pathParts.length - 1];
+
+                    await API.post(`/api/v1/pos/transactions/${transactionId}/refund`, {
+                        reason: reason,
+                        refund_method: 'cash'
+                    });
+
+                    showToast(t('receipt.refund_done', { amount: this.formatPrice(this.transaction.total) }), 'success');
+                    this.refundModalOpen = false;
+
+                    // Reload to show updated status
+                    setTimeout(() => window.location.reload(), 1500);
+
+                } catch (error) {
+                    console.error('Refund failed:', error);
+                    showToast(t('receipt.refund_failed') + error.message, 'error');
+                }
+            },
+
+            // Only reachable when ?from=report. Go straight to the report (deterministic,
+            // never back into a checkout). The button is hidden otherwise.
+            goBack() {
+                window.location.href = '/pos/reports/products';
+            },
+
+            goDashboard() {
+                window.location.href = '/pos/dashboard';
+            },
+
+            newSale() {
+                window.location.href = '/pos/scan';
+            }
+        }
+    }
+</script>
+{% endblock %}

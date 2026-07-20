@@ -1,0 +1,924 @@
+<!doctype html>
+<html lang="de"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Banco — Scan &amp; See</title>
+<script src="/static/vendor/tailwind.js"></script>
+<script src="/static/vendor/qrcode.min.js"></script>
+<script src="/static/vendor/html5-qrcode.min.js"></script>
+<script src="/static/pos-scanner.js"></script>
+<script defer src="/static/vendor/alpine.min.js"></script>
+<style>
+  html,body{ height:100%; margin:0; }
+  body{ font-family:-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
+        background:radial-gradient(1200px 800px at 50% -10%, #1c5138 0%, #113024 45%, #0a1a14 100%);
+        color:#f3f7f4; overflow-x:hidden; }
+  .scanline{ position:relative; }
+  .scanline::after{ content:''; position:absolute; left:8%; right:8%; top:50%; height:3px;
+        background:linear-gradient(90deg,transparent,#7CFFB2,transparent); border-radius:3px;
+        animation:sweep 2.2s ease-in-out infinite; }
+  @keyframes sweep{ 0%,100%{ transform:translateY(-42px); opacity:.25 } 50%{ transform:translateY(42px); opacity:1 } }
+  @keyframes pulse{ 0%,100%{ transform:scale(1); opacity:.9 } 50%{ transform:scale(1.06); opacity:1 } }
+  .breathe{ animation:pulse 2.4s ease-in-out infinite; }
+  .glass{ background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); backdrop-filter:blur(6px); }
+  .price{ color:#8CFFC0; }
+  .off-focus{ position:fixed; left:-9999px; top:0; width:1px; height:1px; opacity:0; }
+  ::-webkit-scrollbar{ width:10px } ::-webkit-scrollbar-thumb{ background:rgba(255,255,255,.18); border-radius:8px }
+  .clamp2{ display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+</style></head>
+<body x-data="kiosk()" x-init="init()" @click="refocus()">
+
+<!-- Assisted-mode badge — shown ONLY when a cashier launched this kiosk (staff powers on). A guest
+     device never has a pos_token, so it never appears there. -->
+<div x-show="staff" style="display:none"
+     class="fixed top-3 left-3 z-50 px-3 py-1.5 rounded-full text-sm font-bold bg-amber-400 text-emerald-950 shadow-lg">
+  👑 <span x-text="'Assisted · ' + staffName"></span>
+</div>
+
+
+  <!-- The scanner types here no matter what's on screen (hardware scanner = keyboard). -->
+  <input x-ref="scanInput" class="off-focus" @keydown.enter.prevent="doScan(scanBuffer); scanBuffer=''"
+         x-model="scanBuffer" aria-hidden="true" autocomplete="off">
+
+  <!-- Language bar (always visible, top-right) -->
+  <div class="fixed top-4 right-4 flex gap-2 z-20">
+    <template x-for="L in langs" :key="L.code">
+      <button @click="setLang(L.code)"
+              class="px-3 py-2 rounded-xl text-sm font-semibold transition glass"
+              :class="lang===L.code ? 'ring-2 ring-emerald-300 bg-emerald-500/20' : 'opacity-70 hover:opacity-100'">
+        <span x-text="L.flag"></span> <span class="hidden sm:inline" x-text="L.label"></span>
+      </button>
+    </template>
+  </div>
+
+  <!-- Floating cart — follows the guest across scans -->
+  <button x-show="cart.length > 0 && view !== 'cart' && view !== 'sent' && view !== 'signup'" style="display:none;"
+          @click="openCart()"
+          class="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 px-6 py-4 rounded-full bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-black shadow-2xl flex items-center gap-2">
+    🛒 <span x-text="cartQty"></span> <span x-text="c('items')"></span> · <span x-text="'CHF ' + cartTotal"></span> →
+  </button>
+
+  <!-- ============ ATTRACT ============ -->
+  <section x-show="view==='attract'" class="min-h-screen flex flex-col items-center justify-center px-6 text-center">
+    <div class="text-emerald-300/80 text-lg tracking-[0.3em] uppercase mb-6">Banco</div>
+
+    <div class="scanline breathe mb-8">
+      <div class="text-[92px] leading-none">🔫</div>
+    </div>
+
+    <h1 class="text-4xl sm:text-6xl font-black mb-3" x-text="t('head')"></h1>
+    <p class="text-xl sm:text-2xl text-emerald-100/80 mb-10 max-w-2xl" x-text="t('sub')"></p>
+
+    <div class="flex flex-wrap items-center justify-center gap-4 sm:gap-8 mb-12 text-lg">
+      <div class="flex items-center gap-2"><span class="w-9 h-9 rounded-full bg-emerald-500/25 flex items-center justify-center font-bold">1</span><span x-text="t('s1')"></span></div>
+      <div class="opacity-40 text-2xl">→</div>
+      <div class="flex items-center gap-2"><span class="w-9 h-9 rounded-full bg-emerald-500/25 flex items-center justify-center font-bold">2</span><span x-text="t('s2')"></span></div>
+      <div class="opacity-40 text-2xl">→</div>
+      <div class="flex items-center gap-2"><span class="w-9 h-9 rounded-full bg-emerald-500/25 flex items-center justify-center font-bold">3</span><span x-text="t('s3')"></span></div>
+    </div>
+
+    <!-- manual entry: digits → barcode, words → name search. (Scanner uses the hidden input.) -->
+    <form @submit.prevent="onSubmit(manual); manual=''" class="w-full max-w-md">
+      <input x-model="manual" :placeholder="t('typeHint')"
+             class="w-full text-center text-lg px-5 py-4 rounded-2xl glass text-white placeholder-emerald-200/40 outline-none focus:ring-2 focus:ring-emerald-300">
+    </form>
+
+    <!-- Camera + phone: use the device camera here, OR carry it to your own phone via the QR. -->
+    <div class="flex flex-col sm:flex-row items-center gap-6 mt-10">
+      <button @click="startCamera()" class="px-7 py-4 rounded-2xl glass text-lg font-semibold flex items-center gap-2">
+        📷 <span x-text="t('useCamera')"></span>
+      </button>
+      <div class="flex items-center gap-3 glass rounded-2xl p-3 pr-5">
+        <div id="kiosk-qr" class="bg-white p-1.5 rounded-lg" x-ref="qr"></div>
+        <div class="text-left text-sm text-emerald-100/75 max-w-[160px]" x-text="t('onPhone')"></div>
+      </div>
+    </div>
+
+    <!-- The hook: join today, save on your first order -->
+    <button @click="startSignup()"
+            class="mt-10 px-7 py-4 rounded-2xl bg-emerald-500/20 border border-emerald-300/50 text-emerald-50 text-lg font-bold hover:bg-emerald-500/30 transition">
+      🎁 <span x-text="mf('join', {pct: signupPct})"></span>
+    </button>
+  </section>
+
+  <!-- ============ MEMBER SIGNUP ============ -->
+  <section x-show="view==='signup'" class="min-h-screen flex flex-col items-center justify-center px-6 py-10" style="display:none;">
+    <div class="w-full max-w-md">
+      <div class="text-center mb-6">
+        <div class="text-5xl mb-2">🎁</div>
+        <h2 class="text-3xl font-black" x-text="m('joinTitle')"></h2>
+        <p class="text-emerald-100/75 mt-1" x-text="mf('joinSub', {pct: signupPct})"></p>
+      </div>
+      <form @submit.prevent="submitSignup()" class="space-y-3">
+        <div>
+          <input x-model="form.handle" :placeholder="m('fUser')" autocomplete="off"
+                 class="w-full px-5 py-4 rounded-2xl glass text-white placeholder-emerald-200/40 outline-none focus:ring-2 focus:ring-emerald-300">
+          <p class="text-xs text-emerald-200/40 mt-1 ml-1" x-text="m('fUserHint')"></p>
+        </div>
+        <input x-model="form.real_name" :placeholder="m('fName')" class="w-full px-5 py-4 rounded-2xl glass text-white placeholder-emerald-200/40 outline-none focus:ring-2 focus:ring-emerald-300">
+        <input x-model="form.email" type="email" :placeholder="m('fEmail')" class="w-full px-5 py-4 rounded-2xl glass text-white placeholder-emerald-200/40 outline-none focus:ring-2 focus:ring-emerald-300">
+        <input x-model="form.phone" :placeholder="m('fPhone')" class="w-full px-5 py-4 rounded-2xl glass text-white placeholder-emerald-200/40 outline-none focus:ring-2 focus:ring-emerald-300">
+
+        <label class="flex items-center gap-3 p-3 rounded-2xl glass cursor-pointer select-none"
+               :class="form.age ? 'ring-2 ring-emerald-300' : ''">
+          <input type="checkbox" x-model="form.age" class="w-5 h-5 accent-emerald-500 flex-none">
+          <span class="text-sm font-semibold" x-text="'🔞 ' + m('fAge')"></span>
+        </label>
+        <label class="flex items-center gap-3 p-3 rounded-2xl glass cursor-pointer select-none">
+          <input type="checkbox" x-model="form.marketing" class="w-5 h-5 accent-emerald-500 flex-none">
+          <span class="text-sm text-emerald-100/80" x-text="m('fMarketing')"></span>
+        </label>
+
+        <p x-show="signupErr" style="display:none;" class="text-red-300 text-sm text-center" x-text="signupErr"></p>
+
+        <button type="submit" :disabled="_busy"
+                class="w-full px-7 py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-emerald-950 text-lg font-black">
+          <span x-show="!_busy" x-text="mf('joinBtn', {pct: signupPct})"></span>
+          <span x-show="_busy" style="display:none;" x-text="m('joining')"></span>
+        </button>
+        <button type="button" @click="reset()" class="w-full py-2 text-emerald-200/60 text-sm" x-text="m('back')"></button>
+      </form>
+    </div>
+  </section>
+
+  <!-- ============ MEMBER SUCCESS ============ -->
+  <section x-show="view==='member'" class="min-h-screen flex flex-col items-center justify-center px-6 text-center" style="display:none;">
+    <div class="text-6xl mb-3">🎉</div>
+    <h2 class="text-4xl font-black mb-1" x-text="mf('welcome', {handle: member.handle})"></h2>
+    <p class="text-2xl price font-bold mb-8" x-text="mf('welcomeSub', {pct: member.discount_pct})"></p>
+    <div class="glass rounded-3xl p-6 flex flex-col items-center">
+      <div id="member-qr" x-ref="memberQr" class="bg-white p-2 rounded-xl"></div>
+      <p class="font-mono text-emerald-200/70 mt-3 tracking-wider" x-text="member.qr_code"></p>
+      <p class="text-emerald-100/80 mt-1" x-text="m('showCashier')"></p>
+    </div>
+    <button @click="reset()" class="mt-8 px-7 py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-emerald-950 text-lg font-bold" x-text="m('done')"></button>
+  </section>
+
+  <!-- ============ YOUR ORDER (cart) ============ -->
+  <section x-show="view==='cart'" class="min-h-screen px-5 sm:px-10 py-10" style="display:none;">
+    <div class="max-w-lg mx-auto">
+      <h2 class="text-3xl font-black mb-6" x-text="c('cart')"></h2>
+      <div x-show="cart.length === 0" class="text-emerald-200/60 py-10 text-center" x-text="c('empty')"></div>
+      <div class="space-y-3">
+        <template x-for="(l, idx) in cart" :key="l.product_id">
+          <div class="glass rounded-2xl p-3 flex items-center gap-3">
+            <div class="w-14 h-14 rounded-xl bg-white/5 flex items-center justify-center overflow-hidden flex-none">
+              <img x-show="l.image_url" :src="l.image_url" class="max-w-full max-h-full object-contain" alt="">
+              <span x-show="!l.image_url" class="text-2xl opacity-40">📦</span>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="font-semibold text-sm clamp2" x-text="l.name"></div>
+              <div class="price font-bold text-sm" x-text="'CHF ' + l.price"></div>
+            </div>
+            <div class="flex items-center gap-2 flex-none">
+              <button @click="updateQty(idx, -1)" class="w-9 h-9 rounded-lg glass text-lg">−</button>
+              <span class="w-6 text-center font-bold" x-text="l.qty"></span>
+              <button @click="updateQty(idx, 1)" class="w-9 h-9 rounded-lg glass text-lg">+</button>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <div x-show="cart.length > 0" class="mt-6 glass rounded-2xl p-4 space-y-1">
+        <div class="flex justify-between text-emerald-100/80"><span x-text="c('subtotal')"></span><span x-text="'CHF ' + cartTotal"></span></div>
+        <div x-show="cartDiscountPct > 0" class="flex justify-between text-emerald-300" style="display:none;">
+          <span x-text="cf('save', {pct: cartDiscountPct})"></span><span x-text="'− CHF ' + cartDiscount"></span>
+        </div>
+        <div class="flex justify-between text-xl font-black pt-1 border-t border-white/10">
+          <span x-text="c('total')"></span><span class="price" x-text="'CHF ' + cartAfter"></span>
+        </div>
+      </div>
+
+      <div class="flex gap-3 mt-6">
+        <button @click="reset()" class="px-5 py-4 rounded-2xl glass font-semibold" x-text="c('keepShopping')"></button>
+        <button @click="sendToCounter()" :disabled="_busy || cart.length === 0"
+                class="flex-1 px-7 py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-emerald-950 text-lg font-black">
+          <span x-show="!_busy" x-text="c('send')"></span>
+          <span x-show="_busy" style="display:none;" x-text="c('sending')"></span>
+        </button>
+      </div>
+      <p x-show="!myMember" class="text-center text-emerald-200/60 text-sm mt-4">
+        🎁 <button @click="startSignup()" class="underline" x-text="mf('join', {pct: signupPct})"></button>
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ ORDER SENT ============ -->
+  <section x-show="view==='sent'" class="min-h-screen flex flex-col items-center justify-center px-6 text-center" style="display:none;">
+    <div class="text-6xl mb-3">✅</div>
+    <h2 class="text-3xl font-black mb-6" x-text="c('sentTitle')"></h2>
+    <div class="glass rounded-3xl p-8 flex flex-col items-center">
+      <div class="text-7xl font-black tracking-[0.15em] price" x-text="sentCode"></div>
+      <p class="text-emerald-100/85 mt-4 text-lg" x-text="c('showCode')"></p>
+      <p x-show="cartDiscountPct > 0" style="display:none;" class="text-emerald-300 text-sm mt-2" x-text="cf('memberNote', {pct: cartDiscountPct})"></p>
+    </div>
+    <button @click="reset()" class="mt-8 px-7 py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-emerald-950 text-lg font-bold" x-text="m('done')"></button>
+  </section>
+
+  <!-- ============ CAMERA OVERLAY ============ -->
+  <section x-show="view==='camera'" class="fixed inset-0 z-30 bg-black flex flex-col items-center justify-center" style="display:none;">
+    <div id="kiosk-reader" class="w-full max-w-md"></div>
+    <p x-show="camError" style="display:none;" class="text-white/80 mt-4 px-6 text-center" x-text="camError"></p>
+    <button @click="stopCamera(); reset()" class="mt-8 px-7 py-4 rounded-2xl bg-white/15 text-white text-lg font-semibold">
+      ✕ <span x-text="t('another')"></span>
+    </button>
+  </section>
+
+  <!-- ============ LOADING ============ -->
+  <section x-show="view==='loading'" class="min-h-screen flex flex-col items-center justify-center">
+    <div class="text-6xl breathe">🔍</div>
+    <p class="mt-4 text-emerald-100/70 text-lg" x-text="t('looking')"></p>
+  </section>
+
+  <!-- ============ PRODUCT ============ -->
+  <section x-show="view==='product'" class="min-h-screen px-5 sm:px-10 py-8">
+    <div class="max-w-5xl mx-auto">
+      <div class="grid md:grid-cols-2 gap-8 items-start">
+        <!-- image -->
+        <div class="rounded-3xl glass p-4 flex items-center justify-center aspect-square overflow-hidden">
+          <img x-show="p.image_url" :src="p.image_url" alt="" class="max-w-full max-h-full object-contain rounded-2xl">
+          <div x-show="!p.image_url" class="text-[120px] opacity-40">📦</div>
+        </div>
+        <!-- info -->
+        <div>
+          <div class="flex items-center gap-2 flex-wrap mb-2">
+            <span x-show="p.category" class="text-xs px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-200" x-text="p.category"></span>
+            <span x-show="p.is_age_restricted" class="text-xs px-3 py-1 rounded-full bg-red-500/25 text-red-100 font-semibold" x-text="'🔞 ' + t('age')"></span>
+          </div>
+          <h1 class="text-3xl sm:text-4xl font-black leading-tight mb-3" x-text="p.name"></h1>
+          <div x-show="p.price" class="text-5xl font-black price mb-5"><span x-text="p.currency"></span> <span x-text="p.price"></span></div>
+
+          <p class="text-lg text-emerald-50/85 leading-relaxed whitespace-pre-line mb-6" x-text="p.description"></p>
+
+          <!-- tier ladder -->
+          <div x-show="p.tiers && p.tiers.length" class="glass rounded-2xl p-4 mb-6">
+            <template x-for="row in p.tiers" :key="row.qty">
+              <div class="flex justify-between py-1 text-sm">
+                <span><span class="font-bold" x-text="row.qty + '×'"></span></span>
+                <span><span x-text="p.currency + ' ' + row.unit"></span>
+                  <span x-show="row.save>0" class="text-emerald-300 font-semibold" x-text="'−' + row.save + '%'"></span></span>
+              </div>
+            </template>
+          </div>
+
+          <!-- specs -->
+          <div x-show="p.specs && p.specs.length" class="glass rounded-2xl p-4 mb-2">
+            <template x-for="row in p.specs" :key="row[0]">
+              <div class="flex justify-between py-1.5 border-b border-white/10 last:border-0 text-sm">
+                <span class="text-emerald-100/60" x-text="row[0]"></span>
+                <span class="font-medium text-right" x-text="row[1]"></span>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
+
+      <!-- add to order -->
+      <div class="mt-10 flex items-center justify-center gap-4">
+        <div class="flex items-center gap-2 glass rounded-2xl px-2 py-1">
+          <button @click="pQty = Math.max(1, pQty-1)" class="w-11 h-11 text-2xl rounded-xl hover:bg-white/10">−</button>
+          <span class="text-2xl font-black w-8 text-center" x-text="pQty"></span>
+          <button @click="pQty = Math.min(99, pQty+1)" class="w-11 h-11 text-2xl rounded-xl hover:bg-white/10">+</button>
+        </div>
+        <button @click="addToOrder()" class="px-8 py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-emerald-950 text-lg font-black shadow-lg">
+          ＋ <span x-text="c('add')"></span>
+        </button>
+      </div>
+
+      <!-- secondary actions -->
+      <div class="mt-5 flex flex-wrap gap-3 justify-center">
+        <button @click="printCard()" class="px-6 py-3 rounded-2xl glass text-base font-semibold">
+          🖨️ <span x-text="t('printCard')"></span>
+        </button>
+        <button @click="openDetails()" class="px-7 py-4 rounded-2xl glass text-lg font-semibold">
+          📄 <span x-text="t('details')"></span>
+        </button>
+        <button @click="reset()" class="px-7 py-4 rounded-2xl glass text-lg font-semibold">
+          ← <span x-text="t('another')"></span>
+        </button>
+      </div>
+      <!-- You might also like — the "more like this" carousel -->
+      <div x-show="p.related && p.related.length" class="mt-12">
+        <h3 class="text-lg font-bold text-emerald-100/85 mb-3" x-text="c('more')"></h3>
+        <div class="flex gap-3 overflow-x-auto pb-3" style="scroll-snap-type:x mandatory;">
+          <template x-for="r in p.related" :key="r.id">
+            <button @click="pickResult(r.id)" class="glass rounded-2xl p-3 flex-none w-36 text-left hover:ring-2 hover:ring-emerald-300 transition" style="scroll-snap-align:start;">
+              <div class="aspect-square rounded-xl bg-white/5 flex items-center justify-center overflow-hidden mb-2">
+                <img x-show="r.image_url" :src="r.image_url" class="max-w-full max-h-full object-contain" alt="">
+                <span x-show="!r.image_url" class="text-3xl opacity-40">📦</span>
+              </div>
+              <div class="text-sm font-semibold clamp2" x-text="r.name"></div>
+              <div class="price font-bold text-sm mt-1" x-show="r.price" x-text="'CHF ' + r.price"></div>
+            </button>
+          </template>
+        </div>
+      </div>
+
+      <p class="text-center text-emerald-200/40 text-sm mt-6" x-text="t('scanNext')"></p>
+    </div>
+  </section>
+
+  <!-- ============ SEARCH RESULTS (typed a name) ============ -->
+  <section x-show="view==='results'" class="min-h-screen px-5 sm:px-10 py-10" style="display:none;">
+    <div class="max-w-4xl mx-auto">
+      <h2 class="text-2xl sm:text-3xl font-black mb-1" x-text="t('pickOne')"></h2>
+      <p class="text-emerald-200/50 mb-6">&ldquo;<span x-text="lastQuery"></span>&rdquo;</p>
+      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+        <template x-for="r in results" :key="r.id">
+          <button @click="pickResult(r.id)" class="glass rounded-2xl p-3 text-left hover:ring-2 hover:ring-emerald-300 transition">
+            <div class="aspect-square rounded-xl bg-white/5 flex items-center justify-center overflow-hidden mb-2">
+              <img x-show="r.image_url" :src="r.image_url" class="max-w-full max-h-full object-contain" alt="">
+              <span x-show="!r.image_url" class="text-4xl opacity-40">📦</span>
+            </div>
+            <div class="font-semibold text-sm leading-tight clamp2" x-text="r.name"></div>
+            <div class="flex items-center justify-between mt-1">
+              <span class="price font-bold" x-show="r.price"><span x-text="r.currency"></span> <span x-text="r.price"></span></span>
+              <span x-show="r.is_age_restricted" class="text-xs">🔞</span>
+            </div>
+          </button>
+        </template>
+      </div>
+      <div class="text-center mt-10">
+        <button @click="reset()" class="px-6 py-3 rounded-2xl glass font-semibold">← <span x-text="t('another')"></span></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ NOT FOUND ============ -->
+  <section x-show="view==='notfound'" class="min-h-screen flex flex-col items-center justify-center px-6 text-center">
+    <div class="text-7xl mb-5">🤔</div>
+    <p class="text-2xl font-semibold max-w-xl mb-3" x-text="t('notFound')"></p>
+    <p class="text-emerald-200/50 mb-8" x-text="lastBarcode"></p>
+    <!-- Assisted mode: a miss isn't a dead end — Pam creates the product now. Hands off to the
+         till's born-once create flow with the scanned barcode prefilled (SPEC-assisted-kiosk M1). -->
+    <button x-show="staff" style="display:none" @click="openCreate()"
+            class="mb-4 px-7 py-4 rounded-2xl bg-amber-400 hover:bg-amber-300 text-emerald-950 text-lg font-bold">
+      ➕ <span x-text="t('createProduct')"></span>
+    </button>
+    <button @click="reset()" class="px-7 py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-emerald-950 text-lg font-bold">
+      ← <span x-text="t('another')"></span>
+    </button>
+  </section>
+
+  <!-- ============ CREATE (assisted mode, staff only) ============ -->
+  <section x-show="view==='create'" style="display:none" class="min-h-screen flex flex-col items-center justify-center px-6 py-10">
+    <div class="w-full max-w-md glass rounded-3xl p-6">
+      <h2 class="text-2xl font-bold mb-5 text-center">➕ <span x-text="t('createTitle')"></span></h2>
+
+      <!-- Photo — LIVE camera snap (the kiosk has a real built-in camera) → AI reads it & drafts the
+           name/price. File pick stays as a fallback for a device without a camera. -->
+      <div class="mb-4">
+        <div @click="snapPhoto()" class="relative rounded-2xl border-2 border-dashed border-white/25 h-44 flex items-center justify-center overflow-hidden cursor-pointer bg-black/20">
+          <template x-if="cPhotoPreview"><img :src="cPhotoPreview" class="h-full w-full object-cover" alt=""></template>
+          <template x-if="!cPhotoPreview">
+            <span class="text-center text-emerald-200/80 text-lg">📷 <span x-text="t('fldPhoto')"></span>
+              <span class="block text-xs text-emerald-200/50 mt-1">✨ <span x-text="t('aiFills')"></span></span></span>
+          </template>
+          <div x-show="cAiBusy" style="display:none" class="absolute inset-0 flex items-center justify-center bg-black/55 text-lg font-semibold">🔍 <span x-text="t('aiReading')"></span></div>
+        </div>
+        <div class="flex items-center justify-between mt-2 gap-2">
+          <label class="text-xs text-emerald-200/60 cursor-pointer underline whitespace-nowrap">
+            📁 <span x-text="t('orFile')"></span>
+            <input type="file" accept="image/*" class="hidden" @change="onCreatePhoto($event)">
+          </label>
+          <span x-show="cAiNote" style="display:none" class="text-xs text-emerald-300/90 truncate" x-text="cAiNote"></span>
+        </div>
+      </div>
+
+      <label class="block text-sm text-emerald-100/80 mb-1" x-text="t('fldName')"></label>
+      <input x-model="cName" type="text" :placeholder="t('fldName')"
+             class="w-full mb-4 px-4 py-3 rounded-xl bg-black/25 border border-white/15 text-lg text-white">
+
+      <div class="flex gap-3 mb-4">
+        <div class="flex-1">
+          <label class="block text-sm text-emerald-100/80 mb-1" x-text="t('fldPrice')"></label>
+          <input x-model="cPrice" type="number" inputmode="decimal" min="0" step="0.05" placeholder="0.00"
+                 class="w-full px-4 py-3 rounded-xl bg-black/25 border border-white/15 text-lg text-white">
+        </div>
+        <div class="flex-1">
+          <label class="block text-sm text-emerald-100/80 mb-1">Barcode</label>
+          <input x-model="cBarcode" type="text" placeholder="—"
+                 class="w-full px-4 py-3 rounded-xl bg-black/25 border border-white/15 text-lg text-white">
+        </div>
+      </div>
+
+      <p x-show="createErr" style="display:none" class="text-red-300 text-sm mb-3" x-text="createErr"></p>
+
+      <div class="flex gap-3">
+        <button @click="reset()" class="flex-1 px-5 py-4 rounded-2xl bg-white/10 hover:bg-white/20 text-lg font-semibold" x-text="t('cancel')"></button>
+        <button @click="saveCreate()" :disabled="cSaving"
+                class="flex-1 px-5 py-4 rounded-2xl bg-amber-400 hover:bg-amber-300 text-emerald-950 text-lg font-bold disabled:opacity-60">
+          <span x-show="!cSaving" x-text="t('createSave')"></span>
+          <span x-show="cSaving" style="display:none">…</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+<script>
+  function kiosk() {
+    return {
+      view: 'attract',
+      lang: 'de',
+      manual: '',
+      scanBuffer: '',
+      p: {},
+      results: [],
+      lastBarcode: '',
+      lastQuery: '',
+      idleTimer: null,
+      _busy: false,
+      camError: '',
+      isTouch: false,
+      form: { handle: '', real_name: '', email: '', phone: '', age: false, marketing: false },
+      signupErr: '',
+      member: {},
+      cart: [],           // [{product_id, name, price, qty, image_url}]
+      myMember: null,     // {id, handle, discount_pct} once they've signed up this session
+      cartCode: '',       // the in-progress held-order code (cleared after each send)
+      sentCode: '',       // the code shown on the "order sent" screen
+      pQty: 1,            // quantity stepper on the product view
+      staff: false,       // assisted mode: a cashier launched this (?staff=1 + a valid pos_token in-tab)
+      staffName: '',      // the cashier's handle, shown in the assisted-mode badge
+      staffToken: '',     // Pam's POS token — authorises the in-kiosk create/image calls (M2)
+      cName: '', cPrice: '', cBarcode: '', cPhotoFile: null, cPhotoPreview: '', cSaving: false, createErr: '',
+      cAiBusy: false, cAiNote: '',   // Snap & fill: AI reads the photo and drafts the name/price
+
+      langs: [
+        { code:'de', flag:'🇩🇪', label:'Deutsch' },
+        { code:'fr', flag:'🇫🇷', label:'Français' },
+        { code:'it', flag:'🇮🇹', label:'Italiano' },
+        { code:'en', flag:'🇬🇧', label:'English' },
+      ],
+      STR: {
+        de:{ head:'Scanne ein Produkt', sub:'Alle Details — in deiner Sprache.', s1:'Scannen', s2:'Ansehen', s3:'Karte drucken',
+             typeHint:'nach Name oder Barcode suchen', looking:'Suche…', printCard:'Karte drucken', details:'Details', another:'Neu scannen',
+             scanNext:'Einfach das nächste Produkt scannen', age:'18+ Ausweis nötig', pickOne:'Welches Produkt?',
+             useCamera:'Mit Kamera scannen', onPhone:'Oder auf deinem Handy öffnen', noCamera:'Keine Kamera verfügbar. Bitte den Scanner oder die Eingabe nutzen.',
+             notFound:'Dieses Produkt haben wir nicht gefunden. Bitte frag unser Team.', createProduct:'Produkt jetzt anlegen',
+             createTitle:'Neues Produkt', fldName:'Name', fldPrice:'Preis', fldPhoto:'Foto aufnehmen', createSave:'Anlegen & verkaufen', cancel:'Abbrechen', orFile:'oder Datei wählen', aiFills:'die KI füllt den Namen', aiReading:'KI liest…' },
+        fr:{ head:'Scannez un produit', sub:'Tous les détails — dans votre langue.', s1:'Scanner', s2:'Voir', s3:'Imprimer une carte',
+             typeHint:'rechercher par nom ou code-barres', looking:'Recherche…', printCard:'Imprimer une carte', details:'Détails', another:'Nouveau scan',
+             scanNext:'Scannez simplement le produit suivant', age:'18+ pièce d’identité requise', pickOne:'Quel produit ?',
+             useCamera:'Scanner avec la caméra', onPhone:'Ou ouvrez-le sur votre téléphone', noCamera:'Pas de caméra. Utilisez le scanner ou la saisie.',
+             notFound:'Nous n’avons pas trouvé ce produit. Merci de demander à notre équipe.', createProduct:'Créer le produit',
+             createTitle:'Nouveau produit', fldName:'Nom', fldPrice:'Prix', fldPhoto:'Prendre une photo', createSave:'Créer & vendre', cancel:'Annuler', orFile:'ou choisir un fichier', aiFills:'l’IA remplit le nom', aiReading:'IA lit…' },
+        it:{ head:'Scansiona un prodotto', sub:'Tutti i dettagli — nella tua lingua.', s1:'Scansiona', s2:'Guarda', s3:'Stampa una card',
+             typeHint:'cerca per nome o codice a barre', looking:'Ricerca…', printCard:'Stampa una card', details:'Dettagli', another:'Nuova scansione',
+             scanNext:'Scansiona semplicemente il prossimo prodotto', age:'18+ documento richiesto', pickOne:'Quale prodotto?',
+             useCamera:'Scansiona con la fotocamera', onPhone:'Oppure aprilo sul tuo telefono', noCamera:'Nessuna fotocamera. Usa lo scanner o digita.',
+             notFound:'Non abbiamo trovato questo prodotto. Chiedi al nostro team.', createProduct:'Crea il prodotto',
+             createTitle:'Nuovo prodotto', fldName:'Nome', fldPrice:'Prezzo', fldPhoto:'Scatta una foto', createSave:'Crea & vendi', cancel:'Annulla', orFile:'o scegli un file', aiFills:'l’IA compila il nome', aiReading:'IA legge…' },
+        en:{ head:'Scan a product', sub:'Every detail — in your language.', s1:'Scan', s2:'See it', s3:'Print a card',
+             typeHint:'search by name or barcode', looking:'Looking…', printCard:'Print a card', details:'Details', another:'Scan another',
+             scanNext:'Just scan the next product', age:'18+ ID required', pickOne:'Which one?',
+             useCamera:'Scan with camera', onPhone:'Or open it on your phone', noCamera:'No camera available. Use the scanner or type it in.',
+             notFound:'We couldn’t find that product. Please ask our team.', createProduct:'Create this product',
+             createTitle:'New product', fldName:'Name', fldPrice:'Price', fldPhoto:'Take a photo', createSave:'Create & sell', cancel:'Cancel', orFile:'or choose a file', aiFills:'the AI fills the name', aiReading:'AI reading…' },
+      },
+
+      t(k){ return (this.STR[this.lang] || this.STR.en)[k] || (this.STR.en[k] || k); },
+
+      // Decode a JWT payload just to greet the cashier by name in the assisted badge (UTF-8 safe).
+      _jwtName(tok){ try { const b = tok.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');
+        const p = JSON.parse(decodeURIComponent(escape(atob(b))));
+        return p.preferred_username || p.name || p.given_name || 'Staff'; } catch(e){ return 'Staff'; } },
+
+      MEMBER: {
+        de:{ join:'Mitglied werden — {pct}% Rabatt heute', joinTitle:'Mitglied werden', joinSub:'{pct}% auf deine erste Bestellung. Dauert 20 Sekunden.',
+             fUser:'Benutzername', fUserHint:'einmalig — Buchstaben, Zahlen, . _ -', fName:'Name (optional)', fEmail:'E-Mail (optional)', fPhone:'Telefon (optional)',
+             fAge:'Ich bestätige, dass ich 18 oder älter bin', fMarketing:'Schick mir Angebote (optional)', joinBtn:'Beitreten & {pct}% sparen', joining:'Wird erstellt…', back:'Zurück',
+             welcome:'Willkommen, {handle}!', welcomeSub:'{pct}% auf deine erste Bestellung heute.', showCashier:'Zeig das an der Kasse', done:'Fertig',
+             errUser:'Benutzername: 3–30 Buchstaben, Zahlen, . _ -', errAge:'Bitte bestätige, dass du 18 oder älter bist.', errGeneric:'Etwas ist schiefgelaufen — bitte nochmal.' },
+        fr:{ join:'Devenir membre — {pct}% aujourd’hui', joinTitle:'Devenir membre', joinSub:'{pct}% sur votre première commande. 20 secondes.',
+             fUser:'Nom d’utilisateur', fUserHint:'unique — lettres, chiffres, . _ -', fName:'Nom (optionnel)', fEmail:'E-mail (optionnel)', fPhone:'Téléphone (optionnel)',
+             fAge:'Je confirme avoir 18 ans ou plus', fMarketing:'Envoyez-moi des offres (optionnel)', joinBtn:'Rejoindre & économiser {pct}%', joining:'Création…', back:'Retour',
+             welcome:'Bienvenue, {handle} !', welcomeSub:'{pct}% sur votre première commande aujourd’hui.', showCashier:'Montrez ceci à la caisse', done:'Terminé',
+             errUser:'Nom d’utilisateur : 3–30 lettres, chiffres, . _ -', errAge:'Veuillez confirmer que vous avez 18 ans ou plus.', errGeneric:'Une erreur est survenue — réessayez.' },
+        it:{ join:'Diventa socio — {pct}% oggi', joinTitle:'Diventa socio', joinSub:'{pct}% sul tuo primo ordine. Bastano 20 secondi.',
+             fUser:'Nome utente', fUserHint:'unico — lettere, numeri, . _ -', fName:'Nome (facoltativo)', fEmail:'Email (facoltativa)', fPhone:'Telefono (facoltativo)',
+             fAge:'Confermo di avere 18 anni o più', fMarketing:'Inviami offerte (facoltativo)', joinBtn:'Iscriviti & risparmia {pct}%', joining:'Creazione…', back:'Indietro',
+             welcome:'Benvenuto, {handle}!', welcomeSub:'{pct}% sul tuo primo ordine oggi.', showCashier:'Mostralo alla cassa', done:'Fatto',
+             errUser:'Nome utente: 3–30 lettere, numeri, . _ -', errAge:'Conferma di avere 18 anni o più.', errGeneric:'Qualcosa è andato storto — riprova.' },
+        en:{ join:'Become a member — {pct}% off today', joinTitle:'Become a member', joinSub:'{pct}% off your first order. Takes 20 seconds.',
+             fUser:'Username', fUserHint:'unique — letters, numbers, . _ -', fName:'Name (optional)', fEmail:'Email (optional)', fPhone:'Phone (optional)',
+             fAge:'I confirm I am 18 or older', fMarketing:'Send me offers (optional)', joinBtn:'Join & save {pct}%', joining:'Joining…', back:'Back',
+             welcome:'Welcome, {handle}!', welcomeSub:'{pct}% off your first order today.', showCashier:'Show this to the cashier', done:'Done',
+             errUser:'Pick a username: 3–30 letters, numbers, . _ -', errAge:'Please confirm you are 18 or older.', errGeneric:'Something went wrong — try again.' },
+      },
+      m(k){ return (this.MEMBER[this.lang] || this.MEMBER.en)[k] || (this.MEMBER.en[k] || k); },
+      mf(k, vars){ let s = this.m(k); for (const a in (vars||{})) s = s.split('{'+a+'}').join(vars[a]); return s; },
+
+      get signupPct(){ return this.isTouch ? 15 : 10; },   // phone (via QR) = 15%, kiosk = 10%
+
+      CART: {
+        de:{ add:'Zur Bestellung', cart:'Deine Bestellung', empty:'Dein Korb ist leer', items:'Art.',
+             subtotal:'Zwischensumme', save:'Mitglied spart {pct}%', total:'Zu zahlen', send:'An die Kasse senden', sending:'Wird gesendet…',
+             sentTitle:'Bestellung gesendet!', showCode:'Zeig diesen Code an der Kasse', memberNote:'{pct}% Mitgliederrabatt wird an der Kasse abgezogen', keepShopping:'Weiter', more:'Das könnte dir auch gefallen' },
+        fr:{ add:'Ajouter', cart:'Votre commande', empty:'Votre panier est vide', items:'art.',
+             subtotal:'Sous-total', save:'Membre −{pct}%', total:'À payer', send:'Envoyer à la caisse', sending:'Envoi…',
+             sentTitle:'Commande envoyée !', showCode:'Montrez ce code à la caisse', memberNote:'{pct}% de remise membre appliquée à la caisse', keepShopping:'Continuer', more:'Vous aimerez aussi' },
+        it:{ add:'Aggiungi', cart:'Il tuo ordine', empty:'Il carrello è vuoto', items:'art.',
+             subtotal:'Subtotale', save:'Socio −{pct}%', total:'Da pagare', send:'Invia alla cassa', sending:'Invio…',
+             sentTitle:'Ordine inviato!', showCode:'Mostra questo codice alla cassa', memberNote:'{pct}% di sconto socio applicato alla cassa', keepShopping:'Continua', more:'Potrebbe piacerti anche' },
+        en:{ add:'Add to order', cart:'Your order', empty:'Your basket is empty', items:'items',
+             subtotal:'Subtotal', save:'Member saves {pct}%', total:'To pay', send:'Send to counter', sending:'Sending…',
+             sentTitle:'Order sent!', showCode:'Show this code to the cashier', memberNote:'{pct}% member discount applied at the till', keepShopping:'Keep shopping', more:'You might also like' },
+      },
+      c(k){ return (this.CART[this.lang] || this.CART.en)[k] || (this.CART.en[k] || k); },
+      cf(k, vars){ let s = this.c(k); for (const a in (vars||{})) s = s.split('{'+a+'}').join(vars[a]); return s; },
+
+      get cartQty(){ return this.cart.reduce((n, l) => n + (l.qty || 0), 0); },
+      _cartNum(){ return this.cart.reduce((s, l) => s + parseFloat(l.price || 0) * (l.qty || 0), 0); },
+      get cartTotal(){ return this._cartNum().toFixed(2); },
+      get cartDiscountPct(){ return (this.myMember && this.myMember.discount_pct) || 0; },
+      get cartDiscount(){ return (this._cartNum() * this.cartDiscountPct / 100).toFixed(2); },
+      get cartAfter(){ return (this._cartNum() * (1 - this.cartDiscountPct / 100)).toFixed(2); },
+
+      init(){
+        // Assisted (staff) mode: launched from a cashier's dashboard (?staff=1) with a POS session
+        // in this tab. A new tab from window.open inherits a COPY of the opener's sessionStorage
+        // (same-origin), so Pam's pos_token is here; a cold guest device has none → stays pure guest.
+        // The server still enforces the staff role on every create/sale call — this flag is only an
+        // affordance (SPEC-assisted-kiosk M1).
+        try {
+          const sp = new URLSearchParams(location.search);
+          const tok = sessionStorage.getItem('pos_token');
+          if (sp.get('staff') === '1' && tok) { this.staff = true; this.staffName = this._jwtName(tok); this.staffToken = tok; }
+        } catch(e){}
+        // remember the guest's language choice within a session
+        const saved = sessionStorage.getItem('kiosk_lang');
+        if (saved && this.STR[saved]) this.lang = saved;
+        document.documentElement.lang = this.lang;
+        // Touch device = a guest's phone (via the QR). Don't auto-focus the hidden input there —
+        // it would pop the on-screen keyboard. The laptop kiosk (hardware gun) is non-touch.
+        this.isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints || 0) > 0;
+        this.loadCart();
+        try { const mm = sessionStorage.getItem('kiosk_member'); if (mm) this.myMember = JSON.parse(mm); } catch(e){}
+        this.renderQR();
+        if (!this.isTouch) {
+          this.refocus();
+          setInterval(() => this.refocus(), 2500);   // keep the scanner target focused
+        }
+      },
+
+      renderQR(){
+        try {
+          if (typeof QRCode === 'undefined' || !this.$refs.qr) return;
+          this.$refs.qr.innerHTML = '';
+          new QRCode(this.$refs.qr, {
+            text: location.origin + '/pos/kiosk',
+            width: 96, height: 96,
+            colorDark: '#0a1a14', colorLight: '#ffffff',
+            correctLevel: QRCode.CorrectLevel.M,
+          });
+        } catch(e){ /* QR is a nice-to-have; never block the kiosk */ }
+      },
+
+      refocus(){ if (this.isTouch) return; try { const el = this.$refs.scanInput; if (el && document.activeElement !== el && !this._typingManual()) el.focus(); } catch(e){} },
+      _typingManual(){ const a = document.activeElement; return a && a.tagName === 'INPUT' && a !== this.$refs.scanInput; },
+
+      async startCamera(){
+        this.camError = '';
+        this.view = 'camera';
+        this.$nextTick(() => {
+          if (!window.PosScanner) { this.camError = this.t('noCamera'); return; }
+          window.PosScanner.start('kiosk-reader',
+            (code) => { try { window.PosScanner.beep(); window.PosScanner.vibrate(); } catch(e){}; this.doScan(code); },
+            () => { this.camError = this.t('noCamera'); },
+            {});
+        });
+      },
+      async stopCamera(){ try { if (window.PosScanner) await window.PosScanner.stop(); } catch(e){} },
+
+      setLang(code){
+        this.lang = code;
+        sessionStorage.setItem('kiosk_lang', code);
+        document.documentElement.lang = code;
+        // re-translate the product in place if one is showing (works for barcode OR search hits)
+        if (this.view === 'product' && this.p.id) this.pickResult(this.p.id, true);
+      },
+
+      // A typed submit: pure digits → barcode; anything with letters → name search.
+      onSubmit(v){
+        const s = (v || '').trim();
+        if (!s) return;
+        if (/^[0-9]{6,}$/.test(s)) this.doScan(s);
+        else this.doSearch(s);
+      },
+
+      async doScan(raw, silent){
+        const code = (raw || '').trim();
+        if (!code || this._busy) return;
+        this._busy = true;
+        this.lastBarcode = code;
+        this.bumpIdle();
+        if (!silent) this.view = 'loading';
+        try {
+          const r = await fetch(`/api/v1/pos/kiosk/lookup?barcode=${encodeURIComponent(code)}&lang=${this.lang}`);
+          const data = await r.json();
+          if (data && data.found) {
+            this.p = data;
+            this.pQty = 1;
+            this.view = 'product';
+          } else {
+            this.view = 'notfound';
+          }
+        } catch(e){
+          console.error('kiosk lookup failed', e);
+          this.view = 'notfound';
+        } finally {
+          this._busy = false;
+          this.refocus();
+        }
+      },
+
+      async doSearch(raw){
+        const query = (raw || '').trim();
+        if (!query || this._busy) return;
+        this._busy = true;
+        this.lastQuery = query;
+        this.bumpIdle();
+        this.view = 'loading';
+        try {
+          const r = await fetch(`/api/v1/pos/kiosk/search?q=${encodeURIComponent(query)}&lang=${this.lang}`);
+          const data = await r.json();
+          const res = (data && data.results) || [];
+          this._busy = false;                     // release before a possible pickResult
+          if (res.length === 0) { this.lastBarcode = query; this.view = 'notfound'; }
+          else if (res.length === 1) { await this.pickResult(res[0].id); }
+          else { this.results = res; this.view = 'results'; }
+        } catch(e){
+          console.error('kiosk search failed', e);
+          this.view = 'notfound';
+        } finally {
+          this._busy = false;
+          this.refocus();
+        }
+      },
+
+      async pickResult(id, silent){
+        if (!id) return;
+        this.bumpIdle();
+        if (!silent) this.view = 'loading';
+        try {
+          const r = await fetch(`/api/v1/pos/kiosk/view?product_id=${encodeURIComponent(id)}&lang=${this.lang}`);
+          const data = await r.json();
+          if (data && data.found) { this.p = data; this.pQty = 1; this.lastBarcode = ''; this.view = 'product'; }
+          else if (!silent) { this.view = 'notfound'; }
+        } catch(e){
+          console.error('kiosk view failed', e);
+          if (!silent) this.view = 'notfound';
+        } finally { this.refocus(); }
+      },
+
+      // ===== Assisted-kiosk M2 — create a product right here (staff only) =====
+      openCreate(){
+        if (!this.staff) return;                    // guard: guests can never reach this
+        this.cBarcode = this.lastBarcode || '';
+        this.cName = ''; this.cPrice = ''; this.cPhotoFile = null; this.cPhotoPreview = ''; this.createErr = '';
+        this.view = 'create'; this.bumpIdle();
+      },
+      onCreatePhoto(e){
+        const f = e.target.files && e.target.files[0];
+        if (!f) return;
+        this._usePhoto(f);
+      },
+      // LIVE camera snap — the kiosk has a real built-in camera. Reuses PosCameraPhoto
+      // (getUserMedia → 📸 Snap → JPEG), the same primitive the till uses for Snap & fill.
+      async snapPhoto(){
+        if (!window.PosCameraPhoto || !window.PosCameraPhoto.capture){ return; }
+        let f = null;
+        try { f = await window.PosCameraPhoto.capture(); } catch(e){}
+        if (f) this._usePhoto(f);
+      },
+      _usePhoto(f){
+        this.cPhotoFile = f;
+        try { this.cPhotoPreview = URL.createObjectURL(f); } catch(_){}
+        this.runAiSuggest(f);
+      },
+      // The kiosk grabs the staff token ONCE at launch; a long-open kiosk lets it expire and then
+      // silently 401s on create. liveToken() returns the freshest token (localStorage is shared +
+      // kept fresh across tabs) and refreshes it in-place when it's expiring — so create-on-the-fly
+      // never dies under a staff member. Falls back to the launch token if there's nothing better.
+      async liveToken(){
+        try {
+          const expAt   = parseInt(localStorage.getItem('pos_token_exp') || sessionStorage.getItem('pos_token_exp') || '0', 10);
+          const refresh = localStorage.getItem('pos_refresh')   || sessionStorage.getItem('pos_refresh');
+          if (refresh && (!expAt || Date.now() >= expAt - 30000)) {
+            const r = await fetch('/pos/refresh', { method:'POST', headers:{ 'Content-Type':'application/json' },
+              body: JSON.stringify({ refresh_token: refresh }) });
+            if (r.ok) { const t = await r.json();
+              if (t.access_token) {
+                const exp = Date.now() + (t.expires_in ? t.expires_in*1000 : 300000);
+                sessionStorage.setItem('pos_token', t.access_token); try{ localStorage.setItem('pos_token', t.access_token); }catch(e){}
+                if (t.refresh_token){ sessionStorage.setItem('pos_refresh', t.refresh_token); try{ localStorage.setItem('pos_refresh', t.refresh_token); }catch(e){} }
+                sessionStorage.setItem('pos_token_exp', String(exp)); try{ localStorage.setItem('pos_token_exp', String(exp)); }catch(e){}
+                this.staffToken = t.access_token;
+                return t.access_token;
+              }
+            }
+          }
+        } catch(e){ /* fall through to whatever token we have */ }
+        return localStorage.getItem('pos_token') || sessionStorage.getItem('pos_token') || this.staffToken;
+      },
+
+      // Snap & fill: send the photo to the vision AI; it drafts the name (and a price guess).
+      // The AI is a helper, never a blocker — a failure just leaves the fields for Pam to type.
+      async runAiSuggest(f){
+        if (!f || !this.staffToken) return;
+        this.cAiBusy = true; this.cAiNote = '';
+        try {
+          const fd = new FormData(); fd.append('file', f);
+          const tok = await this.liveToken();
+          const r = await fetch('/api/v1/pos/products/ai-suggest', {
+            method:'POST', headers:{ 'Authorization':`Bearer ${tok}` }, body: fd });
+          if (r.ok){
+            const d = await r.json(); const s = (d && d.suggestion) || {};
+            if (s.name && !(this.cName||'').trim()) this.cName = s.name;
+            if (s.price_estimate != null && !(this.cPrice||'').toString().trim()) this.cPrice = String(s.price_estimate);
+            this.cAiNote = s.name ? ('✨ ' + s.name) : '';
+          }
+        } catch(e){ /* AI is a helper, never a blocker */ }
+        finally { this.cAiBusy = false; }
+      },
+      async saveCreate(){
+        if (this.cSaving) return;
+        const name = (this.cName || '').trim();
+        const price = parseFloat(this.cPrice);
+        this.createErr = '';
+        if (!name)                       { this.createErr = this.t('fldName'); return; }
+        if (isNaN(price) || price <= 0)  { this.createErr = this.t('fldPrice'); return; }
+        this.cSaving = true;
+        try {
+          const bc = (this.cBarcode || '').trim();
+          // Same cashier-safe endpoint + SKU rule as the till's born-once flow, so the create funnel
+          // (canonical category, 18+ class, compliance) runs identically. Auth = Pam's token.
+          const sku = bc ? ('LZ-' + bc) : ('LZ-' + Date.now());
+          const tok = await this.liveToken();
+          const res = await fetch('/api/v1/pos/products/quick', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tok}` },
+            body: JSON.stringify({ barcode: bc || null, sku, name, price, cost: null, image_url: null, description: null }),
+          });
+          if (res.status === 401) throw new Error('SESSION_EXPIRED');
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          const product = await res.json();
+          // Attach the photo (kiosk camera / gallery) — the picture is the label. Non-fatal if it fails.
+          if (this.cPhotoFile && product && product.id) {
+            try {
+              const fd = new FormData(); fd.append('file', this.cPhotoFile);
+              await fetch(`/api/v1/pos/products/${product.id}/images`, {
+                method: 'POST', headers: { 'Authorization': `Bearer ${tok}` }, body: fd });
+            } catch(_){}
+          }
+          this.cSaving = false;
+          // Render the brand-new product in the normal product view → Pam adds it to the basket like
+          // any scan (and in M3 rings it out right here). Reuses the public kiosk view-by-id.
+          if (product && product.id) { await this.pickResult(product.id); }
+          else { this.view = 'attract'; }
+        } catch(e){
+          this.cSaving = false;
+          this.createErr = (e && e.message === 'SESSION_EXPIRED')
+            ? '🔒 Session expired — reopen the kiosk from the till (Staff button).'
+            : 'HTTP ' + (e && e.message ? e.message : 'error');
+        }
+      },
+
+      startSignup(){
+        this.form = { handle: '', real_name: '', email: '', phone: '', age: false, marketing: false };
+        this.signupErr = '';
+        this.bumpIdle();
+        this.view = 'signup';
+      },
+
+      async submitSignup(){
+        this.signupErr = '';
+        const f = this.form;
+        if (!/^[A-Za-z0-9_.\-]{3,30}$/.test((f.handle || '').trim())) { this.signupErr = this.m('errUser'); return; }
+        if (!f.age) { this.signupErr = this.m('errAge'); return; }
+        if (this._busy) return;
+        this._busy = true;
+        this.bumpIdle();
+        try {
+          const r = await fetch('/api/v1/pos/kiosk/signup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              handle: f.handle.trim(),
+              real_name: (f.real_name || '').trim(),
+              email: (f.email || '').trim(),
+              phone: (f.phone || '').trim(),
+              language: this.lang,
+              age_confirmed: !!f.age,
+              marketing_consent: !!f.marketing,
+              source: this.isTouch ? 'phone' : 'kiosk',
+            }),
+          });
+          const data = await r.json();
+          if (r.ok && data && data.ok) {
+            this.member = data;
+            // remember them for the session → cart attaches, discount shows
+            this.myMember = { id: data.id, handle: data.handle, discount_pct: data.discount_pct };
+            try { sessionStorage.setItem('kiosk_member', JSON.stringify(this.myMember)); } catch(e){}
+            this.view = 'member';
+            this.$nextTick(() => this.renderMemberQR());
+          } else {
+            this.signupErr = (data && data.detail) || this.m('errGeneric');
+          }
+        } catch(e){
+          console.error('signup failed', e);
+          this.signupErr = this.m('errGeneric');
+        } finally { this._busy = false; }
+      },
+
+      renderMemberQR(){
+        try {
+          const el = this.$refs.memberQr;
+          if (!el || typeof QRCode === 'undefined' || !this.member.qr_code) return;
+          el.innerHTML = '';
+          new QRCode(el, {
+            text: this.member.qr_code, width: 150, height: 150,
+            colorDark: '#0a1a14', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M,
+          });
+        } catch(e){ /* QR is a nice-to-have */ }
+      },
+
+      addToOrder(){
+        if (!this.p.id) return;
+        const ex = this.cart.find(l => l.product_id === this.p.id);
+        if (ex) { ex.qty = Math.min(99, ex.qty + this.pQty); }
+        else { this.cart.push({ product_id: this.p.id, name: this.p.name, price: this.p.price || '0.00', qty: this.pQty, image_url: this.p.image_url || '' }); }
+        this.persistCart();
+        this.bumpIdle();
+        this.openCart();
+      },
+      updateQty(idx, delta){
+        const l = this.cart[idx];
+        if (!l) return;
+        l.qty += delta;
+        if (l.qty <= 0) this.cart.splice(idx, 1);
+        else l.qty = Math.min(99, l.qty);
+        this.persistCart();
+        this.bumpIdle();
+      },
+      openCart(){ this.view = 'cart'; this.bumpIdle(); },
+
+      async _postCart(code){
+        const r = await fetch('/api/v1/pos/kiosk/cart', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            code: code || null,
+            items: this.cart.map(l => ({ product_id: l.product_id, qty: l.qty })),
+            customer_id: this.myMember ? this.myMember.id : null,
+            source: this.isTouch ? 'phone' : 'kiosk',
+            lang: this.lang,
+          }),
+        });
+        return { status: r.status, data: await r.json().catch(() => null) };
+      },
+
+      async sendToCounter(){
+        if (!this.cart.length || this._busy) return;
+        this._busy = true;
+        this.bumpIdle();
+        try {
+          // Send with the in-progress code (if we're still editing an unclaimed order).
+          let res = await this._postCart(this.cartCode);
+          // Self-heal: the cashier already rang/claimed that code (409) → start a FRESH order.
+          if (res.status === 409) { this.cartCode = ''; res = await this._postCart(''); }
+          if (res.data && res.data.code) {
+            this.sentCode = res.data.code;   // shown on the "sent" screen
+            this.cartCode = '';              // each send = a brand-new order next time
+            this.cart = [];
+            this.persistCart();
+            this.view = 'sent';
+          }
+        } catch(e){ console.error('send to counter failed', e); }
+        finally { this._busy = false; }
+      },
+
+      persistCart(){ try { sessionStorage.setItem('kiosk_cart', JSON.stringify(this.cart)); } catch(e){} },
+      loadCart(){ try { const c = JSON.parse(sessionStorage.getItem('kiosk_cart') || '[]'); if (Array.isArray(c)) this.cart = c; } catch(e){} },
+
+      printCard(){
+        if (!this.p.id) return;
+        window.open(`/pos/products/${this.p.id}/postcard?lang=${this.lang}`, '_blank');
+      },
+      openDetails(){
+        if (!this.p.id) return;
+        window.open(`/pos/products/${this.p.id}/page?lang=${this.lang}`, '_blank');
+      },
+
+      reset(){ this.stopCamera(); this.view = 'attract'; this.p = {}; this.manual = ''; this.camError = ''; this.cartCode = ''; this.sentCode = ''; this.$nextTick(() => { this.renderQR(); this.refocus(); }); },
+
+      // idle → back to attract so the next guest starts fresh
+      bumpIdle(){
+        clearTimeout(this.idleTimer);
+        this.idleTimer = setTimeout(() => { if (this.view !== 'attract') this.reset(); }, 90000);
+      },
+    };
+  }
+</script>
+</body></html>

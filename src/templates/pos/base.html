@@ -1,0 +1,1873 @@
+<!DOCTYPE html>
+<html lang="en" translate="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <!-- The app has its OWN language picker (pos-i18n) — tell Chrome/Google NOT to auto-translate,
+         or mobile "translate to English" stomps on the language the user actually chose. -->
+    <meta name="google" content="notranslate">
+    <title>{% block title %}HelixPOS{% endblock %} - Artemis Store</title>
+
+    <!-- PWA (Phase 0): installable, standalone, phone-first. Service worker registered below. -->
+    <link rel="manifest" href="/static/pos/manifest.webmanifest">
+    <meta name="theme-color" content="#6366f1">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Banco">
+    <link rel="apple-touch-icon" href="/static/pos/icons/icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="/static/pos/icons/icon-512.png">
+
+    <!-- Diagnostics ring buffer: loaded FIRST so the feedback widget can attach the
+         last console errors + failed network calls to a bug report. Cheap text only.
+         Lives on window.__lpfbDiag; capped + scrubbed of Authorization headers. -->
+    <script>(function(){
+      var MAX=25, buf=[];
+      function push(type, msg){
+        try{
+          buf.push({t:type, m:String(msg).slice(0,500), ts:Date.now()});
+          if(buf.length>MAX) buf.shift();
+        }catch(e){}
+      }
+      // Console errors + warnings (most "it did nothing" bugs are a silent throw).
+      ['error','warn'].forEach(function(level){
+        var orig=console[level];
+        console[level]=function(){
+          try{push(level, Array.prototype.map.call(arguments,function(a){
+            if(a instanceof Error) return (a.stack||a.message||a);
+            if(typeof a==='object'){try{return JSON.stringify(a);}catch(_){return String(a);}}
+            return a;
+          }).join(' '));}catch(e){}
+          return orig && orig.apply(console, arguments);
+        };
+      });
+      // Uncaught errors + promise rejections.
+      window.addEventListener('error', function(e){
+        push('error', (e.message||'error')+' @ '+(e.filename||'')+':'+(e.lineno||'')); });
+      window.addEventListener('unhandledrejection', function(e){
+        var r=e.reason; push('error', 'unhandledrejection: '+((r&&(r.stack||r.message))||r)); });
+      // Failed network calls (4xx/5xx) + network throws -- the other half of UI bugs.
+      if(window.fetch){
+        var of=window.fetch;
+        window.fetch=function(){
+          var url=''; try{url=(arguments[0]&&arguments[0].url)||arguments[0]||'';}catch(e){}
+          url=String(url).slice(0,200);
+          return of.apply(this, arguments).then(function(res){
+            if(res && res.status>=400) push('net', res.status+' '+(res.statusText||'')+' '+url);
+            return res;
+          }).catch(function(err){
+            push('net', 'NETWORK FAIL '+url+' '+((err&&err.message)||err));
+            throw err;
+          });
+        };
+      }
+      // What the widget reads. Returns a shallow copy, newest last.
+      window.__lpfbDiag={ get:function(){ return buf.slice(); }, clear:function(){ buf.length=0; } };
+    })();</script>
+
+    <!-- VENDORED LOCALLY (PWA Phase 0) — was the Tailwind Play CDN + jsdelivr. Local copies
+         work offline AND fix the dev-only-CDN production caveat. Proper Tailwind build
+         (PostCSS, purged CSS) is a follow-up; this is the full in-browser engine. -->
+    <!-- Tailwind CSS — REAL compiled build (build/tailwind → src/static/pos/tailwind.css), not the
+         in-browser Play engine. Rebuild after adding classes: see build/tailwind/README. Kills the
+         "cdn.tailwindcss.com should not be used in production" warning + the 451KB runtime compile. -->
+    <link rel="stylesheet" href="/static/pos/tailwind.css?v=20260712">
+
+
+    <!-- Alpine.js for reactive components -->
+    <script defer src="/static/vendor/alpine.min.js"></script>
+
+    <!-- html2canvas: lets the feedback widget grab a screenshot of the current screen -->
+    <script src="/static/vendor/html2canvas.min.js"></script>
+
+    <!-- P1 offline catalog: IndexedDB mirror so the till can scan + price with no network -->
+    <script src="/static/pos/catalog-cache.js"></script>
+
+    <!-- PHASE 2 (Go-Italian) i18n string catalog: EN + IT + DE. Loaded in <head> so
+         POS_STRINGS is a global before the engine (defined below) runs its detection. -->
+    <script src="/static/pos/pos-i18n.js?v=20260701"></script>
+
+    <!-- Inter font (still CDN — falls back to system sans offline; vendor in a later phase) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            font-family: 'Inter', sans-serif;
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        /* Big PILL buttons for Pam — REAL CSS (not @apply: the Play CDN only compiles
+           @apply inside <style type="text/tailwind">, and this is a plain <style>, so
+           @apply was silently dead. Plain CSS works regardless). */
+        .btn-primary, .btn-secondary, .btn-danger, .btn-success {
+            display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+            font-weight: 600; font-size: 1rem; line-height: 1.5;
+            padding: 1rem 2rem; border-radius: 9999px; border: none; cursor: pointer;
+            transition: transform .2s ease, box-shadow .2s ease, background-color .2s ease, background-image .2s ease;
+        }
+        .btn-primary:hover, .btn-secondary:hover, .btn-danger:hover, .btn-success:hover { transform: scale(1.05); }
+        .btn-primary:active, .btn-secondary:active, .btn-danger:active, .btn-success:active { transform: scale(.95); }
+        .btn-primary:focus, .btn-secondary:focus, .btn-danger:focus, .btn-success:focus { outline: none; }
+
+        .btn-primary {
+            background-image: linear-gradient(to bottom, #6366f1, #4f46e5); color: #fff;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,.1), 0 4px 6px -4px rgba(0,0,0,.1);
+        }
+        .btn-primary:hover { background-image: linear-gradient(to bottom, #4f46e5, #4338ca);
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,.15), 0 8px 10px -6px rgba(0,0,0,.1); }
+        .btn-primary:focus { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #818cf8; }
+
+        .btn-success {
+            background-image: linear-gradient(to bottom, #10b981, #16a34a); color: #fff;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,.1), 0 4px 6px -4px rgba(0,0,0,.1);
+        }
+        .btn-success:hover { background-image: linear-gradient(to bottom, #059669, #15803d);
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,.15), 0 8px 10px -6px rgba(0,0,0,.1); }
+        .btn-success:focus { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #4ade80; }
+
+        .btn-danger {
+            background-image: linear-gradient(to bottom, #ef4444, #dc2626); color: #fff;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,.1), 0 4px 6px -4px rgba(0,0,0,.1);
+        }
+        .btn-danger:hover { background-image: linear-gradient(to bottom, #dc2626, #b91c1c);
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,.15), 0 8px 10px -6px rgba(0,0,0,.1); }
+        .btn-danger:focus { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #f87171; }
+
+        .btn-secondary {
+            background-color: #fff; color: #374151; border: 1px solid #d1d5db;
+            box-shadow: 0 1px 2px 0 rgba(0,0,0,.05);
+        }
+        .btn-secondary:hover { background-color: #f9fafb; box-shadow: 0 4px 6px -1px rgba(0,0,0,.1); }
+        .btn-secondary:focus { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #d1d5db; }
+
+        /* Card styling — real CSS (@apply is dead in this plain <style>) */
+        .card {
+            background-color: #fff;
+            border-radius: 0.75rem;          /* rounded-xl */
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,.08), 0 4px 6px -4px rgba(0,0,0,.05);
+            padding: 1.5rem;                 /* p-6 */
+        }
+
+        /* Compliance / meta chips — shared with catalog.html (18+ age gate, etc.).
+           Real CSS so the 🔞 badge renders on checkout + receipt, not just catalog. */
+        .chip {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 2px 9px; border-radius: 999px;
+            font-size: 11px; font-weight: 700; line-height: 1.5; white-space: nowrap;
+            vertical-align: middle;
+        }
+        .chip-age { background: #fde2e2; color: #9b1c1c; }
+
+        /* Data tables — zebra rows, strong header, row hover (add class="data-table") */
+        .data-table { width: 100%; border-collapse: collapse; }
+        .data-table thead th {
+            background-color: #eef2ff;       /* indigo-50 */
+            color: #3730a3;                  /* indigo-800 */
+            border-bottom: 2px solid #c7d2fe;/* indigo-200 */
+        }
+        .data-table tbody tr { transition: background-color .12s ease; }
+        .data-table tbody tr:nth-child(even) { background-color: #f9fafb; }  /* zebra */
+        .data-table tbody tr:hover { background-color: #eef2ff; }            /* hover */
+
+        /* Input styling - BIG for fat fingers (real CSS — @apply is dead in this plain block) */
+        .input-field {
+            width: 100%;
+            padding: 1rem 1.25rem;          /* tall touch target */
+            font-size: 1.125rem;             /* text-lg */
+            line-height: 1.5;
+            color: #111827;
+            background-color: #fff;
+            border: 2px solid #d1d5db;       /* gray-300 */
+            border-radius: 0.75rem;          /* rounded-xl — complements the pills */
+            transition: border-color .2s ease, box-shadow .2s ease;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        .input-field::placeholder { color: #9ca3af; }
+        .input-field:focus {
+            outline: none;
+            border-color: #6366f1;           /* indigo-500 */
+            box-shadow: 0 0 0 3px rgba(99,102,241,.25);  /* focus ring */
+        }
+
+        /* Price display - VERY visible (real CSS — @apply is dead in this plain block) */
+        .price-display {
+            font-size: 1.875rem;             /* text-3xl */
+            font-weight: 700;
+            color: #4f46e5;                  /* indigo-600 */
+        }
+
+        .price-display-large {
+            font-size: 3rem;                 /* text-5xl */
+            font-weight: 800;
+            color: #4f46e5;                  /* indigo-600 */
+        }
+
+        /* ===== PHONE SIZING (≤480px) — same design, right-sized ==========================
+           The components above are tuned BIG for a counter tablet (fat-finger taps). On a
+           phone the screen shrank but the finger didn't, so we keep tap targets ≥44px tall
+           (Apple HIG) while trimming font + padding so content fits and reads like a native
+           app instead of a blown-up tablet. Tablet/desktop are unaffected. */
+        @media (max-width: 480px) {
+            .btn-primary, .btn-secondary, .btn-danger, .btn-success {
+                font-size: 0.9375rem;        /* 15px */
+                padding: 0.5rem 1rem;        /* was 1rem 2rem — far less monstrous */
+                min-height: 44px;            /* still a comfortable thumb target */
+                gap: .35rem;
+            }
+            .input-field {
+                font-size: 1rem;             /* was 1.125rem — lets a full date show, no clipping */
+                padding: 0.625rem 0.75rem;   /* ~44px tall, fits the value */
+                border-radius: 0.5rem;
+            }
+            .price-display      { font-size: 1.25rem; }   /* was 1.875rem */
+            .price-display-large{ font-size: 1.875rem; }  /* was 3rem */
+            .card               { padding: 1rem; }        /* was 1.5rem — reclaims content width */
+        }
+
+        /* Status Footer - Minimal pulse check for Felix */
+        .helix-status-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 28px;
+            background: linear-gradient(to right, #1e293b, #334155);
+            color: #94a3b8;
+            font-size: 12px;
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            z-index: 9999;
+            border-top: 1px solid #475569;
+        }
+        /* Environment code — always visible so you never lose track of which box you're on. */
+        .env-pill {
+            font-weight: 800; font-size: 10px; letter-spacing: .08em;
+            padding: 1px 6px; border-radius: 5px; color: #fff; line-height: 1.5;
+        }
+        .env-pill.env-prd { background: #047857; }   /* production — green */
+        .env-pill.env-stg { background: #b45309; }   /* staging — amber */
+        .env-pill.env-sbx { background: #a21caf; }   /* sandbox — purple */
+        .env-pill.env-lcl { background: #475569; }   /* local — slate */
+        .helix-status-bar .sb-build { color: #64748b; font-size: 11px; white-space: nowrap; }
+        .helix-status-bar .pulse {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 6px;
+            animation: pulse-glow 2s infinite;
+        }
+        .helix-status-bar .pulse.ok { background: #22c55e; box-shadow: 0 0 6px #22c55e; }
+        .helix-status-bar .pulse.warn { background: #eab308; box-shadow: 0 0 6px #eab308; }
+        .helix-status-bar .pulse.error { background: #ef4444; box-shadow: 0 0 6px #ef4444; }
+        @keyframes pulse-glow {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        .helix-status-bar .status-section {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .helix-status-bar .divider {
+            color: #475569;
+        }
+        .helix-status-bar a {
+            color: #94a3b8;
+            text-decoration: none;
+        }
+        .helix-status-bar a:hover {
+            color: #e2e8f0;
+        }
+        /* BL-85: in mobile portrait the bar overflowed and the right-hand 📊 (health/pulse)
+           fell off-screen. Shrink the spacing and drop the low-value bits (version, sha,
+           page name) so pulse · time · user · 📊 fit one row and 📊 stays tappable. */
+        @media (max-width: 480px) {
+            .helix-status-bar {
+                padding: 0 8px;
+                font-size: 11px;
+            }
+            .helix-status-bar .status-section { gap: 8px; }
+            .helix-status-bar .sm-hide { display: none; }
+        }
+        /* ===== PWA app-shell (Phase 0.5): fixed frame, internal scroll, native feel ===== */
+        html { height: 100%; }
+        body.app-shell {
+            height: 100dvh; min-height: 0; margin: 0; overflow: hidden;
+            display: flex; flex-direction: column;
+            -webkit-tap-highlight-color: transparent; overscroll-behavior: none;
+        }
+        /* content scrolls INSIDE the frame; the bars stay put */
+        body.app-shell .app-content {
+            order: 1; flex: 1 1 auto; min-height: 0;
+            overflow-y: auto; -webkit-overflow-scrolling: touch; background: #f9fafb;
+            /* BL-23: bottom clearance so the floating 💬 button never covers the last item */
+            padding-bottom: 6rem;
+        }
+        /* legacy pages used min-h-screen to fill the VIEWPORT; now they fill the CONTENT area */
+        body.app-shell .app-content .min-h-screen { min-height: 100%; }
+        /* the existing status bar becomes the TOP bar (flex order, no longer bottom-fixed) */
+        body.app-shell .helix-status-bar {
+            order: 0; position: static !important; bottom: auto !important; flex: 0 0 auto;
+            padding-top: calc(6px + env(safe-area-inset-top)) !important;
+        }
+        /* bottom tab nav — the thing that makes it read as an app */
+        .app-bottomnav {
+            order: 2; flex: 0 0 auto; display: flex; align-items: stretch;
+            background: #0b1220; border-top: 1px solid rgba(255,255,255,.08);
+            padding-bottom: env(safe-area-inset-bottom); user-select: none;
+        }
+        .app-bottomnav a {
+            position: relative; flex: 1 1 0; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; gap: 4px; padding: 9px 2px 7px;
+            text-decoration: none; color: #94a3b8; font: 600 12px/1 Inter, system-ui, sans-serif;
+        }
+        .app-bottomnav a .ico { position: relative; font-size: 20px; line-height: 1; }
+        .app-bottomnav a.active { color: #fff; }
+        .app-bottomnav a.active .ico { filter: drop-shadow(0 0 6px rgba(99,102,241,.9)); }
+        .app-bottomnav a.active::before {
+            content: ""; position: absolute; top: 0; left: 22%; right: 22%; height: 3px;
+            border-radius: 0 0 3px 3px; background: #6366f1;
+        }
+        .app-bottomnav .badge {
+            position: absolute; top: -6px; right: -11px; min-width: 16px; height: 16px;
+            padding: 0 4px; background: #ef4444; color: #fff; border-radius: 999px;
+            font-size: 10px; line-height: 16px; text-align: center; box-sizing: border-box;
+        }
+        /* before login (no token): hide app chrome, let the login screen own the viewport */
+        body.pre-auth .app-bottomnav, body.pre-auth .helix-status-bar { display: none; }
+        /* Print/PDF: drop the app chrome so receipts & reports print clean (thermal + PDF). */
+        @media print {
+            .app-bottomnav, .helix-status-bar, .lpfb-btn { display: none !important; }
+        }
+    </style>
+
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="bg-gray-50 app-shell">
+
+    <main class="app-content">
+    {% block content %}{% endblock %}
+    </main>
+
+    <!-- App-shell bottom navigation (PWA Phase 0.5) — the permanent, thumb-reach nav -->
+    <nav class="app-bottomnav" id="app-nav">
+      <a href="/pos/scan" data-tab="/pos/scan"><span class="ico">📷</span><span data-i18n="nav.scan">Scan</span></a>
+      <a href="/pos/checkout" data-tab="/pos/checkout"><span class="ico">🛒<span class="badge" id="nav-cart-badge" style="display:none">0</span></span><span data-i18n="nav.cart">Cart</span></a>
+      <a href="/pos/catalog" data-tab="/pos/catalog"><span class="ico">📦</span><span data-i18n="nav.catalog">Catalog</span></a>
+      <a href="/pos/customer-lookup" data-tab="/pos/customer-lookup"><span class="ico">👤</span><span data-i18n="nav.customers">Customers</span></a>
+      <a href="/pos/my-day" data-tab="/pos/my-day"><span class="ico">📅</span><span data-i18n="nav.my_day">My Day</span></a>
+    </nav>
+
+    <!-- Global JavaScript utilities -->
+    <script>
+        // JWT token management
+        const AuthHelper = {
+            // Session lives in sessionStorage (per-tab) BUT is mirrored into localStorage
+            // (shared across tabs) so a target=_blank link (Details / Postcard) opens a new tab
+            // that is still logged in. Without this, the new tab has an empty sessionStorage and
+            // bounces to the login screen — the "Details logs me out as ralph" bug.
+            _mirror(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} },
+
+            getToken() {
+                return sessionStorage.getItem('pos_token') || localStorage.getItem('pos_token');
+            },
+
+            setToken(token) {
+                sessionStorage.setItem('pos_token', token);
+                this._mirror('pos_token', token);
+                this._revealChrome();
+            },
+
+            // Store the full session from the OAuth callback (access + refresh + expiry)
+            // so the till can refresh silently and never hard-logout mid-sale.
+            setSession({ access, refresh, expiresIn }) {
+                if (access) { sessionStorage.setItem('pos_token', access); this._mirror('pos_token', access); }
+                if (refresh) { sessionStorage.setItem('pos_refresh', refresh); this._mirror('pos_refresh', refresh); }
+                if (expiresIn) {
+                    const expAt = Date.now() + (parseInt(expiresIn, 10) * 1000);
+                    sessionStorage.setItem('pos_token_exp', String(expAt));
+                    this._mirror('pos_token_exp', String(expAt));
+                }
+                if (access) this._revealChrome();
+            },
+
+            // The OAuth callback hands the token back in the URL FRAGMENT, parsed a tick
+            // AFTER first paint — by which time the pre-auth gate has already hidden the app
+            // chrome. Reveal it the instant a token is stored, so the dashboard comes alive
+            // without a manual refresh (the "dead page until I hit refresh" bug).
+            _revealChrome() {
+                try { document.body.classList.remove('pre-auth'); } catch (e) {}
+            },
+
+            getRefreshToken() {
+                return sessionStorage.getItem('pos_refresh') || localStorage.getItem('pos_refresh');
+            },
+
+            // True when the access token is missing or within `skewMs` of expiry.
+            isExpiring(skewMs = 30000) {
+                const expAt = parseInt(sessionStorage.getItem('pos_token_exp') || localStorage.getItem('pos_token_exp') || '0', 10);
+                return !expAt || Date.now() >= (expAt - skewMs);
+            },
+
+            // Silent server-side refresh. Returns true on success, false if the
+            // refresh token is gone/rejected (caller then hard-logs-out).
+            async refresh() {
+                const refresh = this.getRefreshToken();
+                if (!refresh) return false;
+                try {
+                    const r = await fetch('/pos/refresh', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ refresh_token: refresh }),
+                    });
+                    if (!r.ok) return false;
+                    const t = await r.json();
+                    if (!t.access_token) return false;
+                    this.setSession({ access: t.access_token, refresh: t.refresh_token, expiresIn: t.expires_in });
+                    return true;
+                } catch (e) {
+                    console.warn('Token refresh failed:', e);
+                    return false;
+                }
+            },
+
+            clearToken() {
+                ['pos_token', 'pos_refresh', 'pos_token_exp', 'pos_user'].forEach(k => {
+                    sessionStorage.removeItem(k);
+                    try { localStorage.removeItem(k); } catch (e) {}   // clear the shared mirror too, so logout is real
+                });
+            },
+
+            decodeToken(token) {
+                try {
+                    const base64Url = token.split('.')[1];
+                    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                    const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+                        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                    }).join(''));
+                    return JSON.parse(jsonPayload);
+                } catch (e) {
+                    console.error('Failed to decode token:', e);
+                    return null;
+                }
+            },
+
+            getUserInfo() {
+                const token = this.getToken();
+                if (!token) return null;
+
+                const payload = this.decodeToken(token);
+                if (!payload) return null;
+
+                return {
+                    username: payload.preferred_username || 'Unknown',
+                    email: payload.email || '',
+                    roles: payload.realm_access?.roles || [],
+                    posRoles: (payload.realm_access?.roles || []).filter(r =>
+                        r.includes('pos-') || ['💰️ pos-cashier', '👔️ pos-manager', '🛠️ pos-developer', '📊️ pos-auditor', '👑️ pos-admin'].includes(r)
+                    )
+                };
+            },
+
+            hasRole(role) {
+                const user = this.getUserInfo();
+                // Emoji-tolerant: the unified realm uses plain names ('pos-admin'); legacy
+                // realms used '👑️ pos-admin'. Match on the bare role substring so BOTH
+                // resolve (the identity fold dropped emoji → felix lost admin without this).
+                return !!(user && user.posRoles.some(r => r.includes(role)));
+            },
+
+            isAdmin() {
+                return this.hasRole('pos-admin');
+            },
+
+            isManager() {
+                return this.hasRole('pos-manager') || this.isAdmin();
+            },
+
+            isCashier() {
+                return this.hasRole('pos-cashier') || this.isManager();
+            },
+
+            logout() {
+                // Close the presence session first (auto-tally end), best-effort —
+                // don't let it hold up logout. Uses the token before we clear it.
+                try {
+                    const t = this.getToken();
+                    if (t) {
+                        fetch('/api/v1/pos/shift/end', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + t },
+                            keepalive: true,
+                        }).catch(() => {});
+                    }
+                } catch (e) {}
+
+                this.clearToken();
+                // Also clear cart
+                sessionStorage.removeItem('pos_cart');
+
+                // Logout from Keycloak to end SSO session.
+                // Same origin rule as login: local-only host for dev, current origin for public hosts.
+                const _h = window.location.hostname;
+                // Canonical KC host for the logout leg too (KC_HOSTNAME_URL), same as login.
+                const keycloakUrl = (_h === 'helix.local' || _h === 'localhost' || _h === '127.0.0.1')
+                    ? 'https://keycloak.helix.local'
+                    : 'https://lapiazza.app';
+                const realm = '{{ pos_realm }}';   // env-driven (settings.POS_REALM) — per-env realm split
+                const redirectUri = encodeURIComponent(window.location.origin + '/pos');
+
+                // Redirect to Keycloak logout endpoint
+                window.location.href = `${keycloakUrl}/realms/${realm}/protocol/openid-connect/logout?post_logout_redirect_uri=${redirectUri}&client_id=helix_pos_web`;
+            }
+        };
+
+        // Hydrate THIS tab from the shared (localStorage) session mirror. A new tab opened by a
+        // target=_blank link (Details / Postcard) starts with an EMPTY sessionStorage; copy the
+        // session in before anything reads it, so the tab is already logged in and the many direct
+        // `sessionStorage.getItem('pos_token')` readers keep working. (Fixes: Details → login-as-ralph.)
+        (function hydratePosSession() {
+            try {
+                if (!sessionStorage.getItem('pos_token') && localStorage.getItem('pos_token')) {
+                    ['pos_token', 'pos_refresh', 'pos_token_exp', 'pos_user'].forEach(k => {
+                        const v = localStorage.getItem(k);
+                        if (v != null) sessionStorage.setItem(k, v);
+                    });
+                }
+            } catch (e) {}
+        })();
+
+        // API helper with automatic auth + silent token refresh
+        const API = {
+            _buildConfig(options) {
+                const token = AuthHelper.getToken();
+                const defaultHeaders = {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                };
+                if (token) defaultHeaders['Authorization'] = `Bearer ${token}`;
+                return {
+                    ...options,
+                    headers: { ...defaultHeaders, ...options.headers }
+                };
+            },
+
+            async call(endpoint, options = {}) {
+                // Proactive: if the access token is about to expire, refresh BEFORE the
+                // call so a long sale never trips a mid-request 401.
+                if (AuthHelper.isExpiring()) {
+                    await AuthHelper.refresh();  // best-effort; 401 path below is the safety net
+                }
+
+                try {
+                    let response = await fetch(endpoint, this._buildConfig(options));
+
+                    // Reactive: a 401 means the access token died. Try ONE silent refresh
+                    // and retry. Only hard-logout if the refresh token itself is gone/dead.
+                    if (response.status === 401) {
+                        const refreshed = await AuthHelper.refresh();
+                        if (refreshed) {
+                            response = await fetch(endpoint, this._buildConfig(options));
+                        }
+                        if (response.status === 401) {
+                            AuthHelper.logout();
+                            throw new Error('Session expired. Please login again.');
+                        }
+                    }
+
+                    // Handle other errors
+                    if (!response.ok) {
+                        const error = await response.json().catch(() => ({}));
+                        // FastAPI's `detail` is a STRING for a business 400 (age gate, drawer, cap) but an
+                        // ARRAY of {loc,msg,type} for a 422 validation error. new Error(array) used to
+                        // coerce to "[object Object]" in the toast — turn 422 into a readable "field: msg".
+                        let detail = error.detail;
+                        if (Array.isArray(detail)) {
+                            detail = detail.map(d => {
+                                const field = Array.isArray(d.loc) ? d.loc[d.loc.length - 1] : '';
+                                return (field ? field + ': ' : '') + (d.msg || 'invalid');
+                            }).join('; ');
+                        } else if (detail && typeof detail === 'object') {
+                            try { detail = JSON.stringify(detail); } catch (_) { detail = null; }
+                        }
+                        const err = new Error(detail || `Request failed with status ${response.status}`);
+                        err.status = response.status;   // so callers can tell a 4xx rejection from a 5xx server blip
+                        err.detail = error.detail;      // raw structured detail (e.g. a 409 {existing_id,...}) for smart callers
+                        throw err;
+                    }
+
+                    // Handle 204 No Content
+                    if (response.status === 204) {
+                        return null;
+                    }
+
+                    return await response.json();
+                } catch (error) {
+                    console.error('API call failed:', error);
+                    throw error;
+                }
+            },
+
+            get(endpoint) {
+                return this.call(endpoint, { method: 'GET' });
+            },
+
+            post(endpoint, data) {
+                return this.call(endpoint, {
+                    method: 'POST',
+                    body: JSON.stringify(data)
+                });
+            },
+
+            put(endpoint, data) {
+                return this.call(endpoint, {
+                    method: 'PUT',
+                    body: JSON.stringify(data)
+                });
+            },
+
+            patch(endpoint, data) {
+                return this.call(endpoint, {
+                    method: 'PATCH',
+                    body: JSON.stringify(data)
+                });
+            },
+
+            delete(endpoint) {
+                return this.call(endpoint, { method: 'DELETE' });
+            }
+        };
+
+        // POS Configuration (loaded from backend, updated annually)
+        const POSConfig = {
+            vat_rate: 8.1,      // Default: 2025 Swiss VAT rate
+            vat_rate_reduced: 2.6, // Reduced: cafe takeaway food/drink
+            vat_decimal: 0.081, // For calculations
+            vat_year: 2025,
+            currency: 'CHF',
+            locale: 'de-CH',
+            // PHASE 0/2: per-tenant fiscal regime (code + vat_number_format), CH default.
+            // Drives the receipt VAT label (P. IVA / MWST) + the IT non-fiscal banner.
+            regime: 'CH',
+            store_name: '',
+            vat_number_format: 'CHE-XXX.XXX.XXX MWST',
+            // Swiss default denom grid (byte-identical to the server CHF set); /config
+            // overwrites this with the tenant currency's ordered face values on load.
+            denominations: ['1000','200','100','50','20','10','5','2','1','0.50','0.20','0.10','0.05'],
+            fx: null,   // accepted-currency plan rates {base,as_of,rates} from /config (multi-currency tender)
+            payment_provider: 'manual',  // 🌍-1 M2: 'worldline_sim' (sandbox) lights up the checkout terminal overlay
+            loaded: false,
+
+            async load() {
+                try {
+                    const response = await fetch('/api/v1/pos/config');
+                    if (response.ok) {
+                        const config = await response.json();
+                        this.vat_rate = config.vat_rate;
+                        if (config.vat_rate_reduced != null) this.vat_rate_reduced = config.vat_rate_reduced;
+                        this.vat_decimal = config.vat_decimal;
+                        this.vat_year = config.vat_year;
+                        this.currency = config.currency;
+                        this.locale = config.locale;
+                        this.store_name = config.store_name || '';
+                        // PHASE 0/2: per-tenant regime (code + VAT-number format) for the receipt
+                        // VAT label + IT non-fiscal banner. Falls back to CH defaults if absent.
+                        if (config.regime && typeof config.regime === 'object') {
+                            if (config.regime.regime) this.regime = config.regime.regime;
+                            if (config.regime.vat_number_format) this.vat_number_format = config.regime.vat_number_format;
+                        }
+                        if (Array.isArray(config.denominations) && config.denominations.length)
+                            this.denominations = config.denominations;
+                        this.fx = config.fx || null;   // accepted-currency plan rates
+                        this.payment_provider = config.payment_provider || 'manual';  // 🌍-1 M2 terminal sim flag
+                        this.loaded = true;
+                        // push into the reactive store so already-painted money/dates re-render
+                        try {
+                            const s = (window.Alpine && Alpine.store) ? Alpine.store('cfg') : null;
+                            if (s) { s.currency = this.currency; s.locale = this.locale; s.denominations = this.denominations; s.regime = this.regime; s.store_name = this.store_name; s.vat_rate = this.vat_rate; s.vat_rate_reduced = this.vat_rate_reduced; s.fx = this.fx; s.payment_provider = this.payment_provider; }
+                        } catch (e) {}
+                        // PHASE 2 i18n: if the language was only a default guess (no ?lang / stored
+                        // pref / JWT locale), the tenant locale from /config may now imply a
+                        // different supported language (e.g. an IT tenant with no JWT) — re-language
+                        // the already-painted page in place, no reload needed.
+                        try { if (window.__posRelangFromConfig) window.__posRelangFromConfig(); } catch (e) {}
+                        console.log(`POS Config loaded: VAT ${this.vat_rate}% (${this.vat_year})`);
+                    }
+                } catch (e) {
+                    console.warn('Using default POS config:', e);
+                }
+            }
+        };
+
+        // Load POS config on page load
+        POSConfig.load();
+
+        // --- Reactive config mirror (fixes the async-load race) --------------------
+        // POSConfig.load() is async and POSConfig is NOT Alpine-reactive, so money/dates
+        // first-painted before /config resolves would keep the CHF/de-CH defaults forever
+        // (invisible pre-euro; the EUR store exposed it as a CHF checkout on an EUR till).
+        // Mirror currency/locale/denoms into an Alpine store the seams read via _cfg();
+        // updating the store re-renders every x-text that formats money or dates.
+        document.addEventListener('alpine:init', () => {
+            Alpine.store('cfg', {
+                currency: POSConfig.currency,
+                locale: POSConfig.locale,
+                denominations: POSConfig.denominations,
+                regime: POSConfig.regime,
+                store_name: POSConfig.store_name,
+                vat_rate: POSConfig.vat_rate,             // reactive so the "incl. VAT (X%)" label
+                vat_rate_reduced: POSConfig.vat_rate_reduced,  // follows /config, not the 8.1 default
+                fx: POSConfig.fx,                          // accepted-currency plan rates (foreign tender)
+                payment_provider: POSConfig.payment_provider,  // 🌍-1 M2 terminal sim flag
+            });
+        });
+        function _cfg(k) {
+            try {
+                const s = (window.Alpine && Alpine.store) ? Alpine.store('cfg') : null;
+                return (s && s[k] !== undefined && s[k] !== null) ? s[k] : POSConfig[k];
+            } catch (e) { return POSConfig[k]; }
+        }
+
+        // Price formatting helper — currency + locale from /config (CHF/de-CH default).
+        // The ONE money-display seam: every 'CHF ' + toFixed(2) leak routes through here.
+        function formatPrice(amount) {
+            // Coerce non-finite (undefined / NaN / a bad parse) to 0 so no price field ever
+            // renders "CHF NaN" (Angel hit this on the checkout Subtotal). Degrade to CHF 0.00
+            // — visibly wrong is recoverable; "NaN" reads as broken. Seal-fix for ALL callers.
+            const n = Number(amount);
+            return new Intl.NumberFormat(_cfg('locale'), {
+                style: 'currency',
+                currency: _cfg('currency')
+            }).format(Number.isFinite(n) ? n : 0);
+        }
+
+        // BL-26: the effective LINE total for a cart item at its quantity, honouring quantity-break
+        // tiers + mode. MIRRORS the server's pricing.tier_line_total() so the cart shows EXACTLY what
+        // the till charges (per_unit = price each; bundle = pack_total/min_qty, rounded at the line).
+        function _tierBest(item) {
+            const qty = Number(item.quantity) || 0;
+            const tiers = item && item.price_tiers;
+            if (!Array.isArray(tiers) || !tiers.length) return null;
+            let bestQ = null, bestUp = null;
+            for (const t of tiers) {
+                const mq = parseInt(t.min_qty, 10), up = parseFloat(t.unit_price);
+                if (!(mq >= 1) || isNaN(up) || qty < mq) continue;
+                if (bestQ === null || mq > bestQ) { bestQ = mq; bestUp = up; }
+            }
+            return bestQ === null ? null : { mq: bestQ, up: bestUp };
+        }
+        function tierLineTotal(item) {
+            const qty = Number(item.quantity) || 0;
+            const base = Number(item.price) || 0;
+            const best = _tierBest(item);
+            const eff = best ? ((item.tier_mode === 'bundle') ? best.up / best.mq : best.up) : base;
+            return Math.round(eff * qty * 100) / 100;
+        }
+        // True when a genuine volume break (min_qty >= 2) set the line price — for the "pack ✓" badge.
+        function tierApplied(item) {
+            const best = _tierBest(item);
+            return !!best && best.mq >= 2;
+        }
+        // BL-26: human-readable ladder rows for the product DETAIL card, so the cashier SEES the
+        // deal (like the Artemis site) and can trust the till. Mode-aware, mirrors the editor labels.
+        //   per_unit → "10+ · 4,50 each"      bundle → "Buy 3 for 8,00" (+ a "≈ 2,67 each" sub)
+        function tierRowLabel(product, row) {
+            const mq = parseInt(row.min_qty, 10);
+            const price = parseFloat(row.unit_price);
+            if (product && product.tier_mode === 'bundle') {
+                return t('catalog.tiers_buy') + ' ' + mq + ' ' + t('catalog.tiers_for') + ' ' + formatPrice(price);
+            }
+            return mq + '+ · ' + formatPrice(price) + ' ' + t('catalog.tiers_each');
+        }
+        // Only bundle rows carry a sub-line: the per-unit equivalent (informational).
+        function tierRowSub(product, row) {
+            if (!product || product.tier_mode !== 'bundle') return '';
+            const mq = parseInt(row.min_qty, 10);
+            const price = parseFloat(row.unit_price);
+            if (!(mq >= 1)) return '';
+            return '≈ ' + formatPrice(price / mq) + ' ' + t('catalog.tiers_each');
+        }
+
+        // Date/time locale seam — keyed off _cfg('locale') (de-CH default → Swiss
+        // dd.mm.yyyy). The ONE date/time seam: every hardcoded toLocaleDateString/
+        // toLocaleTimeString/toLocaleString routes through here so an IT till shows
+        // Italian dates and a CH till stays byte-identical. Accepts a Date, an ISO
+        // string, or an epoch; falsy → ''. Extra Intl options can be passed through.
+        function formatDate(value, options) {
+            if (value === null || value === undefined || value === '') return '';
+            const d = (value instanceof Date) ? value : new Date(value);
+            if (isNaN(d.getTime())) return '';
+            return d.toLocaleDateString(_cfg('locale'), options);
+        }
+
+        function formatTime(value, options) {
+            if (value === null || value === undefined || value === '') return '';
+            const d = (value instanceof Date) ? value : new Date(value);
+            if (isNaN(d.getTime())) return '';
+            return d.toLocaleTimeString(_cfg('locale'), options);
+        }
+
+        function formatDateTime(value, options) {
+            if (value === null || value === undefined || value === '') return '';
+            const d = (value instanceof Date) ? value : new Date(value);
+            if (isNaN(d.getTime())) return '';
+            return d.toLocaleString(_cfg('locale'), options);
+        }
+
+        // Cash-drawer denomination grid, sourced from /config `denominations` (the tenant
+        // currency's ordered face values) so the client grid can never disagree with the
+        // server's valid set. Returns [{k, v, display}] where k is the EXACT server string
+        // key ("0.50", "500" — never "0.5"), v is the numeric value, and display is a
+        // currency-aware label. CHF stays byte-identical to the old grid ('CHF ' + key);
+        // EUR shows cents as '5 c' + adds €500/1c/2c; USD shows '¢' + '$'.
+        function denomList() {
+            const cur = _cfg('currency');
+            return (_cfg('denominations') || []).map(function (k) {
+                const v = parseFloat(k);
+                let display;
+                if (cur === 'EUR') {
+                    display = v < 1 ? (Math.round(v * 100) + ' c') : ('€ ' + k);
+                } else if (cur === 'USD') {
+                    display = v < 1 ? (Math.round(v * 100) + '¢') : ('$ ' + k);
+                } else {
+                    display = 'CHF ' + k;   // CHF + any unknown currency: byte-identical legacy label
+                }
+                return { k: k, v: v, display: display };
+            });
+        }
+
+        // Contained (inclusive) VAT within a Swiss VAT-inclusive gross price.
+        // Shelf prices ALREADY include VAT, so VAT is extracted, never added on top:
+        // vat = gross * rate / (100 + rate). Mirrors the server's _inclusive_vat().
+        function calculateVAT(gross) {
+            return gross * POSConfig.vat_rate / (100 + POSConfig.vat_rate);
+        }
+
+        // Get current VAT rate for display
+        function getVATRate() {
+            return POSConfig.vat_rate;
+        }
+
+        // Calculate total with discount (inclusive VAT model).
+        // The gross (shelf price less discount) IS the total -- VAT lives inside it.
+        function calculateTotal(subtotal, discountPercent = 0) {
+            const discountAmount = subtotal * (discountPercent / 100);
+            const afterDiscount = subtotal - discountAmount;  // gross the customer pays
+            const vat = calculateVAT(afterDiscount);          // VAT contained within
+            return {
+                subtotal,
+                discountPercent,
+                discountAmount,
+                afterDiscount,
+                vat,
+                vatRate: POSConfig.vat_rate,
+                total: afterDiscount            // gross = total (VAT already included)
+            };
+        }
+
+        // Show toast notification
+        function showToast(message, type = 'info') {
+            const colors = {
+                success: 'bg-green-500',
+                error: 'bg-red-500',
+                warning: 'bg-yellow-500',
+                info: 'bg-blue-500'
+            };
+
+            const toast = document.createElement('div');
+            toast.className = `fixed top-4 right-4 ${colors[type]} text-white px-6 py-4 rounded-lg shadow-lg z-50 transform transition-all duration-300`;
+            toast.textContent = message;
+            toast.style.transform = 'translateX(400px)';
+
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.transform = 'translateX(0)';
+            }, 10);
+
+            setTimeout(() => {
+                toast.style.transform = 'translateX(400px)';
+                setTimeout(() => toast.remove(), 300);
+            }, 8000);  // 8 seconds - gives time to read/copy error messages
+        }
+    </script>
+
+    <!-- ===== PHASE 2 (Go-Italian) i18n engine — EN / IT / DE, Banco POS =====
+         Proven pattern ported from src/templates/isotto/base.html. POS_STRINGS is loaded
+         in <head> (pos-i18n.js). English is the byte-identical CH baseline; de-CH resolves
+         to German (Felix's real till); an unsupported locale falls to English, never blank. -->
+    <script>
+        // --- Language detection -------------------------------------------------------
+        // Order: ?lang= → localStorage 'pos_lang' → JWT 'locale' claim → POSConfig.locale's
+        // primary subtag → 'en'. Every branch is guarded by `POS_STRINGS[lang]`, so an
+        // unsupported locale (e.g. fr-CH until FR ships) can only ever fall back to English.
+        (function () {
+            // A supported UI language: has full chrome (POS_STRINGS) OR is a CONTENT language
+            // (fr/nl/es) — valid as _posLang so descriptions localize while chrome falls back to EN.
+            function isLang(l) { return !!(l && ((window.POS_STRINGS && POS_STRINGS[l]) || ['fr', 'nl', 'es'].indexOf(l) >= 0)); }
+            function primary(loc) {
+                if (!loc) return null;
+                var p = String(loc).toLowerCase().split(/[-_]/)[0];
+                return isLang(p) ? p : null;
+            }
+            var lang = null, source = 'default';
+            var params = new URLSearchParams(location.search);
+            var urlLang = params.get('lang');
+            if (urlLang) {
+                if (isLang(urlLang)) {
+                    lang = urlLang; source = 'url'; localStorage.setItem('pos_lang', urlLang);
+                } else { lang = 'en'; source = 'url-unsupported'; }   // explicit but unsupported → English
+            }
+            if (!lang) {
+                var stored = localStorage.getItem('pos_lang');
+                if (isLang(stored)) { lang = stored; source = 'stored'; }
+            }
+            if (!lang) {
+                // JWT 'locale' claim (Felix's de-CH → German). If the user's OWN locale is
+                // present but unsupported, honour "give them English" — do NOT fall through to
+                // the tenant default (so an fr-CH user lands on English, not the shop's German).
+                try {
+                    var tok = sessionStorage.getItem('pos_token');
+                    if (tok) {
+                        var payload = JSON.parse(atob(tok.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+                        if (payload && payload.locale) {
+                            var jl = primary(payload.locale);
+                            if (jl) { lang = jl; source = 'jwt'; }
+                            else { lang = 'en'; source = 'jwt-unsupported'; }
+                        }
+                    }
+                } catch (e) { /* ignore bad token */ }
+            }
+            if (!lang) {
+                // Tenant default from POSConfig.locale (de-CH → German on a CH till). At first
+                // paint /config may not have resolved yet; __posRelangFromConfig() re-checks
+                // this branch once the real tenant locale arrives.
+                var cl = primary(window.POSConfig && POSConfig.locale);
+                if (cl) { lang = cl; source = 'config'; }
+            }
+            if (!lang) { lang = 'en'; source = 'fallback'; }
+            // A "content language" (fr/nl/es) has no full chrome yet but IS a valid _posLang:
+            // buttons fall back to English (t() does that per-key) while DATA — product
+            // descriptions — comes through in that language (BL-36). Chrome follows later.
+            window._posLang = isLang(lang) ? lang : 'en';
+            window._posLangSource = source;
+            document.documentElement.lang = window._posLang;
+        })();
+
+        // Translation helper: t('checkout.title') → localized string; t('k',{n:'x'}) interpolates.
+        // Missing-key policy: fall back to English; if still missing, console.error (loud, for
+        // the parity gate) and return the raw key — but a data-i18n element keeps its literal
+        // English DOM text as fallback, so a missing key never blanks the till.
+        function t(key, replacements) {
+            var lang = window._posLang || 'en';
+            function look(L) {
+                var v = window.POS_STRINGS ? POS_STRINGS[L] : null;
+                if (!v) return undefined;
+                var ks = key.split('.');
+                for (var i = 0; i < ks.length; i++) {
+                    if (v && typeof v === 'object' && ks[i] in v) v = v[ks[i]]; else return undefined;
+                }
+                return (typeof v === 'string') ? v : undefined;
+            }
+            var val = look(lang);
+            if (val === undefined) val = look('en');
+            if (val === undefined) {
+                if (window.console && console.error) console.error('[i18n] missing key:', key);
+                return key;
+            }
+            // {ccy} ALWAYS resolves to the shop's currency, so any money label stays correct on a
+            // non-CHF shop (EUR Roma / USD). Works for both the data-i18n sweep and x-text t() calls.
+            // An explicit replacements.ccy still overrides. (Fixes hardcoded "(CHF)" leaks — Angel.)
+            if (val.indexOf('{ccy}') !== -1 && !(replacements && 'ccy' in replacements))
+                val = val.split('{ccy}').join(_cfg('currency') || 'CHF');   // reactive seam; re-swept after /config loads
+            if (replacements) {
+                for (var k in replacements) {
+                    if (Object.prototype.hasOwnProperty.call(replacements, k))
+                        val = val.split('{' + k + '}').join(replacements[k]);
+                }
+            }
+            return val;
+        }
+        window.t = t;
+
+        // ── Label print queue ───────────────────────────────────────────────────
+        // "Every hit, queued up" — as items are catalogued (scan-save / receive), their ids drop
+        // into a queue that survives across screens (localStorage). A "🖨️ Labels (N)" button opens
+        // the batch print page → the Brother QL-820 spits the whole roll. On-demand or batched.
+        window.LabelQueue = {
+            _key: 'banco_label_queue',
+            _read() { try { return JSON.parse(localStorage.getItem(this._key) || '[]'); } catch (e) { return []; } },
+            _write(a) { try { localStorage.setItem(this._key, JSON.stringify(a)); } catch (e) {} },
+            add(id) { if (!id) return; const a = this._read(); if (a.indexOf(id) < 0) { a.push(id); this._write(a); } },
+            ids() { return this._read(); },
+            count() { return this._read().length; },
+            clear() { this._write([]); },
+            printUrl(size) { const q = this._read().join(','); return q ? ('/pos/labels/batch?size=' + (size || 's') + '&ids=' + encodeURIComponent(q)) : null; },
+        };
+
+        // ── Web-search fallback (Felix's idea) ──────────────────────────────────
+        // Never dead-end a product hunt: when catalog / reference / supplier all miss, hand the
+        // operator a one-tap Google search pre-filled with the BARCODE (the strongest signal —
+        // the raw EAN usually finds the product) + the read/typed name. Their manual move,
+        // automated. Human still decides. Opens a new tab; no API, no key, no cost.
+        window.webSearchProduct = function (query, barcode) {
+            var q = [ (barcode || '').toString().trim(), (query || '').toString().trim() ]
+                    .filter(Boolean).join(' ').trim();
+            if (!q) return;
+            window.open('https://www.google.com/search?q=' + encodeURIComponent(q), '_blank', 'noopener');
+        };
+
+        // ── Unsaved-work guard ──────────────────────────────────────────────────
+        // A stray two-finger swipe (browser "back"), an Escape, a reload, or a mis-tapped
+        // nav link navigates the page away — and any in-progress work a screen keeps only
+        // in memory (the receiving delivery list, an open cart) vanishes with it, silently,
+        // no "wait, you're in the middle of something." A screen registers a "dirty check";
+        // while ANY registered check returns true, the browser asks "Leave site? Changes
+        // you made may not be saved." before it unloads — catching the swipe, the reload,
+        // the tab-close and the stray link alike. The check auto-relaxes when the work is
+        // saved (list emptied). For a screen with a LEGITIMATE forward navigation that
+        // carries its state (e.g. scan → checkout), call suppressOnce() right before it so
+        // the intended hop doesn't nag. Native dialog wording is fixed by the browser.
+        window.HelixDirtyGuard = (function () {
+            const checks = [];
+            let armed = false, skipNext = false;
+            function arm() {
+                if (armed) return;
+                armed = true;
+                window.addEventListener('beforeunload', function (e) {
+                    if (skipNext) { skipNext = false; return; }
+                    const dirty = checks.some(function (fn) { try { return !!fn(); } catch (_) { return false; } });
+                    if (dirty) { e.preventDefault(); e.returnValue = ''; return ''; }
+                });
+            }
+            return {
+                // register(fn) → fn() truthy means "I have unsaved work". Returns unregister().
+                register: function (fn) { arm(); checks.push(fn); return function () { const i = checks.indexOf(fn); if (i >= 0) checks.splice(i, 1); }; },
+                // Skip the guard for exactly the next unload (an intended, state-carrying nav).
+                suppressOnce: function () { skipNext = true; }
+            };
+        })();
+
+        // Switch language and reload (cart survives in sessionStorage across the reload).
+        function switchLanguage(newLang) {
+            if ((window.POS_STRINGS && POS_STRINGS[newLang]) || ['fr', 'nl', 'es'].indexOf(newLang) >= 0) {
+                localStorage.setItem('pos_lang', newLang);
+                window.location.reload();
+            }
+        }
+        window.switchLanguage = switchLanguage;
+
+        // --- Apply translations to the DOM --------------------------------------------
+        function applyI18n(el) {
+            if (!el || el.nodeType !== 1) return;
+            if (el.hasAttribute('data-i18n')) {
+                var v = t(el.getAttribute('data-i18n'));
+                if (v !== el.getAttribute('data-i18n')) el.textContent = v;
+            }
+            if (el.hasAttribute('data-i18n-placeholder')) {
+                var vp = t(el.getAttribute('data-i18n-placeholder'));
+                if (vp !== el.getAttribute('data-i18n-placeholder')) el.placeholder = vp;
+            }
+            if (el.hasAttribute('data-i18n-html')) {
+                var vh = t(el.getAttribute('data-i18n-html'));
+                if (vh !== el.getAttribute('data-i18n-html')) el.innerHTML = vh;
+            }
+        }
+        function sweepI18n(root) {
+            root = root || document;
+            if (root.nodeType === 1) applyI18n(root);
+            var nodes = root.querySelectorAll('[data-i18n],[data-i18n-placeholder],[data-i18n-html]');
+            for (var i = 0; i < nodes.length; i++) applyI18n(nodes[i]);
+        }
+        window.applyI18n = applyI18n;
+        window.sweepI18n = sweepI18n;
+
+        // Initial sweep (run now in case DOMContentLoaded already fired, and again on the event).
+        sweepI18n(document);
+        document.addEventListener('DOMContentLoaded', function () {
+            sweepI18n(document);
+            var sel = document.getElementById('pos-lang-switch');
+            if (sel) sel.value = window._posLang || 'en';
+            // Key-parity self-check (dev aid, cheap, once): en/it/de must share one key set.
+            try {
+                if (window.POS_STRINGS) {
+                    var flat = function (o, p, out) {
+                        for (var k in o) { if (!Object.prototype.hasOwnProperty.call(o, k)) continue;
+                            var kk = p ? p + '.' + k : k;
+                            if (o[k] && typeof o[k] === 'object') flat(o[k], kk, out); else out[kk] = 1; }
+                        return out; };
+                    var en = flat(POS_STRINGS.en || {}, '', {});
+                    ['it', 'de'].forEach(function (L) {
+                        var loc = flat(POS_STRINGS[L] || {}, '', {}), miss = [], extra = [];
+                        for (var k in en) if (!(k in loc)) miss.push(k);
+                        for (var k2 in loc) if (!(k2 in en)) extra.push(k2);
+                        if (miss.length || extra.length)
+                            console.error('[i18n] key-parity ' + L + ' vs en — missing:', miss, 'extra:', extra);
+                    });
+                }
+            } catch (e) {}
+        });
+
+        // Scoped MutationObserver for Alpine-rendered content. childList+subtree ONLY — we do
+        // NOT observe attributes or characterData, so scan.html's per-keystroke x-text updates
+        // to EXISTING text nodes never trigger a re-sweep (no scan-input lag). We only translate
+        // data-i18n markup inside freshly-added nodes.
+        (function () {
+            var obs = new MutationObserver(function (mutations) {
+                for (var m = 0; m < mutations.length; m++) {
+                    var added = mutations[m].addedNodes;
+                    for (var n = 0; n < added.length; n++) {
+                        var node = added[n];
+                        if (node.nodeType !== 1) continue;
+                        if (node.hasAttribute && (node.hasAttribute('data-i18n') ||
+                            node.hasAttribute('data-i18n-placeholder') || node.hasAttribute('data-i18n-html')))
+                            applyI18n(node);
+                        if (node.querySelectorAll) {
+                            var kids = node.querySelectorAll('[data-i18n],[data-i18n-placeholder],[data-i18n-html]');
+                            for (var q = 0; q < kids.length; q++) applyI18n(kids[q]);
+                        }
+                    }
+                }
+            });
+            function start() { obs.observe(document.body || document.documentElement, { childList: true, subtree: true }); }
+            if (document.body) start(); else document.addEventListener('DOMContentLoaded', start);
+        })();
+
+        // Re-language in place when /config resolves a tenant locale AFTER first paint — but
+        // ONLY if the language was a pure default guess (source 'config'/'default'/'fallback');
+        // an explicit ?lang / stored pref / JWT locale is never overridden.
+        window.__posRelangFromConfig = function () {
+            var src = window._posLangSource;
+            if (src !== 'config' && src !== 'default' && src !== 'fallback') return;
+            var loc = window.POSConfig && POSConfig.locale;
+            if (!loc) return;
+            var p = String(loc).toLowerCase().split(/[-_]/)[0];
+            var next = (window.POS_STRINGS && POS_STRINGS[p]) ? p : 'en';
+            if (next === window._posLang) return;
+            window._posLang = next;
+            document.documentElement.lang = next;
+            sweepI18n(document);
+            var sel = document.getElementById('pos-lang-switch');
+            if (sel) sel.value = next;
+        };
+    </script>
+
+    {% block extra_scripts %}{% endblock %}
+
+    <!-- Helix Status Bar — compact + icon-based; env / build / user always visible (kept SHA + version) -->
+    <footer class="helix-status-bar" id="helix-status">
+        <div class="status-section">
+            <span class="pulse ok" id="status-pulse" title="System status"></span>
+            <span id="status-text" class="sm-hide"></span>
+            {% set _e = (app_env | default('')) | lower %}
+            {% if 'prod' in _e %}{% set _ec = 'PRD' %}{% set _ecc = 'env-prd' %}
+            {% elif 'staging' in _e %}{% set _ec = 'STG' %}{% set _ecc = 'env-stg' %}
+            {% elif 'sandbox' in _e or 'uat' in _e %}{% set _ec = 'SBX' %}{% set _ecc = 'env-sbx' %}
+            {% elif 'local' in _e or 'dev' in _e %}{% set _ec = 'LCL' %}{% set _ecc = 'env-lcl' %}
+            {% else %}{% set _ec = '' %}{% set _ecc = '' %}{% endif %}
+            {% if _ec %}<span class="env-pill {{ _ecc }}" title="environment: {{ app_env }}">{{ _ec }}</span>{% endif %}
+            <span id="status-time" title="local time">--:--</span>
+            <span class="sb-build" data-build-iso="{{ build_date_iso or '' }}" title="build {{ app_version }} · {{ git_sha[:7] if git_sha else 'dev' }}{% if build_date %} · deployed {{ build_date }} (your local time){% endif %}">⚙ <span id="status-version">{{ app_version or '3.3.0' }}</span></span>
+        </div>
+        <div class="status-section">
+            <span id="status-screen" class="sm-hide" title="screen">{% block page_name %}POS{% endblock %}</span>
+            <span title="cashier">👤 <span id="status-user">--</span></span>
+            <select id="pos-lang-switch" onchange="switchLanguage(this.value)" title="Language / Sprache / Lingua"
+                style="background:#1e293b;color:#94a3b8;border:1px solid #475569;border-radius:4px;font-size:11px;padding:1px 3px;cursor:pointer;font-family:inherit;line-height:1;">
+                <option value="en" style="background:#1e293b;">EN</option>
+                <option value="de" style="background:#1e293b;">DE</option>
+                <option value="it" style="background:#1e293b;">IT</option>
+                <option value="fr" style="background:#1e293b;">FR</option>
+            </select>
+            <a id="cockpit-link" href="/pos/hypercare" title="Cockpit — manage all reports" style="display:none;text-decoration:none;background:none;border:none;cursor:pointer;font-size:16px;padding:0 2px;line-height:1;color:inherit;">🎛️</a>
+            <button id="bell-open" title="Notifications" style="position:relative;background:none;border:none;cursor:pointer;font-size:16px;padding:0 2px;line-height:1;color:inherit;">🔔<span id="bell-badge" style="display:none;position:absolute;top:-6px;right:-4px;background:#ef4444;color:#fff;font-size:9px;font-weight:700;min-width:14px;height:14px;line-height:14px;border-radius:7px;padding:0 3px;text-align:center;">0</span></button>
+            <button id="pulse-open" title="Shop Pulse — live stats" style="background:none;border:none;cursor:pointer;font-size:16px;padding:0 2px;line-height:1;color:inherit;">📊</button>
+        </div>
+    </footer>
+
+    <!-- ===== Reporter Bell: a user's own notifications (Hypercare PoC-3) ===== -->
+    <style>
+      .bell-panel{position:fixed;right:10px;bottom:54px;z-index:90;width:min(340px,92vw);max-height:60vh;
+        display:none;flex-direction:column;background:#fff;border:1px solid #e2e8f0;border-radius:12px;
+        box-shadow:0 12px 40px rgba(2,6,12,.28);overflow:hidden;font-family:Inter,system-ui,sans-serif}
+      .bell-panel.open{display:flex}
+      .bell-head{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #f1f5f9}
+      .bell-head b{font-size:14px;color:#0f172a}
+      .bell-head button{background:none;border:none;color:#6366f1;font-size:12px;cursor:pointer;font-weight:600}
+      .bell-list{overflow-y:auto;padding:4px}
+      .bell-item{padding:10px 10px;border-radius:8px;display:block}
+      .bell-item:hover{background:#f8fafc}
+      .bell-item.unread{background:#eef2ff}
+      .bell-item .t{font-size:13px;font-weight:700;color:#0f172a}
+      .bell-ref{display:inline-block;font:600 10px ui-monospace,SFMono-Regular,monospace;color:#6366f1;background:#eef2ff;border-radius:4px;padding:0 4px;margin-right:5px;vertical-align:1px}
+      .bell-item .b{font-size:12px;color:#475569;margin-top:2px;line-height:1.35}
+      .bell-item .ts{font-size:10px;color:#94a3b8;margin-top:3px}
+      .bell-empty{padding:24px 12px;text-align:center;color:#94a3b8;font-size:13px}
+    </style>
+    <div class="bell-panel" id="bell-panel">
+      <div class="bell-head">
+        <b>🔔 Notifications</b>
+        <button id="bell-markread">Mark all read</button>
+      </div>
+      <div class="bell-list" id="bell-list">
+        <div class="bell-empty">No notifications yet.</div>
+      </div>
+    </div>
+    <script>
+    (function(){
+      var panel=document.getElementById('bell-panel'), list=document.getElementById('bell-list'),
+          badge=document.getElementById('bell-badge'), btn=document.getElementById('bell-open'),
+          mark=document.getElementById('bell-markread');
+      if(!btn) return;
+      function esc(s){return (s||'').replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+      function ago(s){ if(!s) return ''; var d=new Date(s), m=Math.round((Date.now()-d)/60000);
+        if(m<1) return 'just now'; if(m<60) return m+'m ago'; var h=Math.round(m/60);
+        if(h<24) return h+'h ago'; return formatDate(d,{day:'2-digit',month:'2-digit'}); }
+      function render(d){
+        var items=d.items||[];
+        badge.style.display = d.unread>0 ? 'inline-block':'none';
+        badge.textContent = d.unread>9 ? '9+' : d.unread;
+        if(!items.length){ list.innerHTML='<div class="bell-empty">No notifications yet.</div>'; return; }
+        list.innerHTML = items.map(function(n){
+          var ref = n.item_number ? '<span class="bell-ref">BL-'+String(n.item_number).padStart(3,'0')+'</span>' : '';
+          var inner='<div class="t">'+ref+esc(n.title)+'</div><div class="b">'+esc(n.body)+'</div><div class="ts">'+ago(n.created_at)+'</div>';
+          var cls='bell-item'+(n.read?'':' unread');
+          // deep-link straight to THE report so "which one was that?" is answered in one tap
+          var href = n.link ? (esc(n.link)+(n.item_number?'?focus='+n.item_number:'')) : '';
+          return href ? '<a class="'+cls+'" href="'+href+'">'+inner+'</a>'
+                      : '<div class="'+cls+'">'+inner+'</div>';
+        }).join('');
+      }
+      function load(){
+        if(!sessionStorage.getItem('pos_token')) return;   // not logged in yet
+        API.get('/api/v1/pos/notifications?limit=20').then(render).catch(function(){});
+      }
+      btn.addEventListener('click',function(e){
+        e.stopPropagation();
+        var opening=!panel.classList.contains('open');
+        panel.classList.toggle('open', opening);
+        if(opening && badge.style.display!=='none'){
+          API.post('/api/v1/pos/notifications/read',{}).then(function(){ badge.style.display='none'; load(); }).catch(function(){});
+        }
+      });
+      mark&&mark.addEventListener('click',function(e){ e.stopPropagation();
+        API.post('/api/v1/pos/notifications/read',{}).then(load).catch(function(){}); });
+      document.addEventListener('click',function(e){ if(!panel.contains(e.target)&&e.target!==btn) panel.classList.remove('open'); });
+      // Reveal the 🎛️ Cockpit entry only for managers/admins (the bell → reports is for everyone).
+      var cockpit=document.getElementById('cockpit-link');
+      function revealCockpit(){ try{
+        if(cockpit && sessionStorage.getItem('pos_token') && AuthHelper.isManager()) cockpit.style.display='inline-block';
+      }catch(e){} }
+      // first load shortly after boot, then poll quietly
+      setTimeout(function(){ load(); revealCockpit(); }, 1500);
+      setInterval(function(){ load(); revealCockpit(); }, 45000);
+    })();
+    </script>
+
+    <!-- ===== Shop Pulse: a live system card behind the 📊 (replaces the dead /health link) ===== -->
+    <style>
+      .pulse-ov{position:fixed;inset:0;z-index:80;display:none;align-items:center;justify-content:center;
+        background:rgba(2,6,12,.7);backdrop-filter:blur(3px);padding:16px;font-family:Inter,system-ui,sans-serif}
+      .pulse-card{width:100%;max-width:460px;background:#0b1220;border:1px solid rgba(48,63,84,.8);border-radius:14px;
+        padding:22px;color:#e2e8f0;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+      .pulse-card h3{margin:0 0 2px;font-size:18px;font-weight:900;color:#f1f5f9;display:flex;align-items:center;gap:8px}
+      .pulse-card p.sub{margin:0 0 16px;font-size:12px;color:#94a3b8}
+      .pulse-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+      .pulse-tile{background:rgba(15,23,42,.6);border:1px solid rgba(48,63,84,.9);border-radius:10px;padding:12px 14px}
+      .pulse-tile .k{font-size:11px;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:.03em}
+      .pulse-tile .v{font-size:22px;font-weight:900;color:#f1f5f9;margin-top:3px;line-height:1.1}
+      .pulse-tile .v small{font-size:12px;font-weight:600;color:#94a3b8}
+      .pulse-tile.alert .v{color:#f59e0b}
+      .pulse-tile.span2{grid-column:1 / span 2}
+      .pulse-tile.sales .v{color:#34d399}
+      .pulse-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:4px;
+        font-size:11px;color:#64748b;border-top:1px solid rgba(48,63,84,.7);padding-top:12px}
+      .pulse-foot .build{font-family:ui-monospace,Menlo,monospace}
+      .pulse-foot .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:middle}
+      .pulse-foot .dot.ok{background:#22c55e;box-shadow:0 0 6px #22c55e}.pulse-foot .dot.err{background:#ef4444}
+      .pulse-btns{display:flex;gap:8px}
+      .pulse-btn{padding:7px 14px;border:1px solid rgba(48,63,84,.9);border-radius:8px;background:transparent;color:#cbd5e1;font-weight:600;cursor:pointer;font-size:13px}
+      .pulse-btn.primary{background:#C0392B;border-color:#C0392B;color:#fff}
+      .pulse-btn:hover{border-color:#34d399;color:#fff}
+    </style>
+    <div class="pulse-ov" id="pulse-ov">
+      <div class="pulse-card" role="dialog" aria-modal="true" aria-label="Shop Pulse">
+        <h3>📊 Shop Pulse <span id="pulse-shop" style="font-size:12px;font-weight:600;color:#94a3b8;"></span></h3>
+        <p class="sub" id="pulse-sub">Live snapshot of the till.</p>
+        <div class="pulse-grid" id="pulse-grid">
+          <div class="pulse-tile sales span2"><div class="k">Today's sales</div><div class="v" id="pulse-sales">—</div></div>
+          <div class="pulse-tile"><div class="k">Members</div><div class="v" id="pulse-members">—</div></div>
+          <div class="pulse-tile"><div class="k">Open drawers</div><div class="v" id="pulse-drawers">—</div></div>
+          <div class="pulse-tile"><div class="k">Catalog</div><div class="v" id="pulse-catalog">—</div></div>
+        </div>
+        <div class="pulse-foot">
+          <span><span class="dot" id="pulse-dbdot"></span><span id="pulse-env">—</span> · <span class="build" id="pulse-build">—</span></span>
+          <span class="pulse-btns">
+            <a class="pulse-btn" href="/health/dashboard" target="_blank" title="Full system diagnostics">Diagnostics ↗</a>
+            <button class="pulse-btn" id="pulse-refresh" type="button">Refresh</button>
+            <button class="pulse-btn primary" id="pulse-close" type="button">Close</button>
+          </span>
+        </div>
+      </div>
+    </div>
+    <script>(function(){
+      var openBtn=document.getElementById('pulse-open'),ov=document.getElementById('pulse-ov'),
+        closeBtn=document.getElementById('pulse-close'),refreshBtn=document.getElementById('pulse-refresh'),
+        sub=document.getElementById('pulse-sub');
+      function set(id,v){var e=document.getElementById(id);if(e)e.textContent=v;}
+      function show(){ov.style.display='flex';load();}
+      function hide(){ov.style.display='none';}
+      async function load(){
+        sub.textContent='Loading…';
+        try{
+          var j=await API.get('/api/v1/pos/system/pulse');
+          var t=j.today||{};
+          document.getElementById('pulse-sales').innerHTML=formatPrice(t.sales||0)+' <small>· '+(t.transactions||0)+' sale'+((t.transactions===1)?'':'s')+'</small>';
+          set('pulse-members',j.members!=null?j.members:'—');
+          set('pulse-drawers',j.open_drawers!=null?j.open_drawers:'—');
+          set('pulse-catalog',j.catalog!=null?j.catalog:'—');
+          set('pulse-shop',j.shop?('· '+j.shop):'');
+          var b=j.build||{};
+          set('pulse-build',(b.version?('v'+b.version):'')+(b.sha?(' ('+b.sha+')'):''));
+          set('pulse-env',(b.env||'').toUpperCase()||'—');
+          document.getElementById('pulse-dbdot').className='dot '+((j.db==='ok')?'ok':'err');
+          sub.textContent='Live snapshot · '+formatTime(new Date(),{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+        }catch(e){
+          sub.textContent='Could not load stats — '+(e&&e.message?e.message:'try again.');
+          document.getElementById('pulse-dbdot').className='dot err';
+        }
+      }
+      openBtn.onclick=show; closeBtn.onclick=hide; refreshBtn.onclick=load;
+      ov.onclick=function(e){if(e.target===ov)hide();};
+    })();</script>
+
+    <script>
+        // Status bar auto-update
+        (function() {
+            // BL-012: ONE timezone — the shop's (device-local). Label it once so a cashier
+            // never wonders "is this my time or server time". The short tz name (e.g. CEST)
+            // comes from the device; it auto-flips CET↔CEST with daylight saving.
+            function tzLabel(d) {
+                try {
+                    const parts = new Intl.DateTimeFormat('en-GB', { timeZoneName: 'short' }).formatToParts(d);
+                    const p = parts.find((x) => x.type === 'timeZoneName');
+                    return p ? p.value : '';
+                } catch (e) { return ''; }
+            }
+            const TZ = tzLabel(new Date());
+
+            // BL-012: the build stamp is committed in the author's tz (offset-carrying ISO).
+            // Render it in the SAME device-local zone as the live clock so both always agree.
+            (function localizeBuild() {
+                const span = document.querySelector('.sb-build');
+                const out = document.getElementById('status-build-date');
+                if (!span || !out) return;
+                const iso = span.getAttribute('data-build-iso');
+                if (!iso) return;
+                const d = new Date(iso);
+                if (isNaN(d.getTime())) return;
+                const p2 = (n) => String(n).padStart(2, '0');
+                const local = `${p2(d.getDate())}/${p2(d.getMonth() + 1)} ${p2(d.getHours())}:${p2(d.getMinutes())}`;
+                out.textContent = TZ ? `${local} ${TZ}` : local;
+            })();
+
+            function updateStatusBar() {
+                // Update time — device-local, labeled with the local tz (BL-012)
+                const now = new Date();
+                const timeStr = formatTime(now, { hour: '2-digit', minute: '2-digit' });
+                document.getElementById('status-time').textContent = timeStr;
+
+                // Update user from auth
+                const user = AuthHelper.getUserInfo();
+                if (user) {
+                    document.getElementById('status-user').textContent = user.username;
+                }
+            }
+
+            // Health check every 30 seconds
+            async function checkHealth() {
+                try {
+                    const response = await fetch('/health/healthz', { timeout: 5000 });
+                    const pulse = document.getElementById('status-pulse');
+                    const statusText = document.getElementById('status-text');
+
+                    if (response.ok) {
+                        pulse.className = 'pulse ok';
+                        statusText.textContent = '';
+                    } else {
+                        pulse.className = 'pulse warn';
+                        statusText.textContent = t('status.degraded');
+                    }
+                } catch (e) {
+                    document.getElementById('status-pulse').className = 'pulse error';
+                    document.getElementById('status-text').textContent = t('status.offline');
+                }
+            }
+
+            // Initial update
+            updateStatusBar();
+            checkHealth();
+
+            // Update time every second
+            setInterval(updateStatusBar, 1000);
+
+            // Health check every 30 seconds
+            setInterval(checkHealth, 30000);
+        })();
+    </script>
+
+    <!-- ===== In-app Feedback widget -> files into the shared Backlog board (/backlog) =====
+         Same seatback card as La Piazza, wired to the POS token + POST /api/v1/pos/feedback.
+         Only shows once logged in. Sits just above the status bar. -->
+    <style>
+      /* Feedback button: draggable so it never traps a Submit button under it
+         (Felix: "the feedback button is over it... drag it out of the way").
+         Defaults to mid-right edge — clear of both the header and the bottom
+         action row — and remembers wherever it's dragged (localStorage). */
+      /* A small circular 💬 FAB in the bottom-right corner, ABOVE the bottom nav, so it never
+         sits over content (it used to be a wide pill pinned center-right = worst spot; Felix
+         had to drag it). Icon only — the title gives the label on hover. Still draggable. */
+      .lpfb-btn{position:fixed;right:14px;bottom:104px;top:auto;z-index:70;display:none;
+        align-items:center;justify-content:center;width:48px;height:48px;padding:0;
+        border:none;border-radius:50%;background:#C0392B;color:#fff;font-size:22px;line-height:1;
+        cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;opacity:.92;
+        box-shadow:0 6px 20px rgba(0,0,0,.35)}
+      .lpfb-btn .lpfb-label{display:none}
+      .lpfb-btn.dragging{cursor:grabbing;opacity:.85}
+      .lpfb-btn:hover{background:#8B0000;opacity:1}
+      .lpfb-ov{position:fixed;inset:0;z-index:80;display:none;align-items:center;justify-content:center;
+        background:rgba(2,6,12,.7);backdrop-filter:blur(3px);padding:16px;font-family:Inter,system-ui,sans-serif}
+      .lpfb-card{width:100%;max-width:430px;background:#0b1220;border:1px solid rgba(48,63,84,.8);border-radius:14px;
+        padding:22px;color:#e2e8f0;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+      .lpfb-card h3{margin:0 0 4px;font-size:18px;font-weight:900;color:#f1f5f9}
+      .lpfb-card p.sub{margin:0 0 16px;font-size:13px;color:#94a3b8}
+      .lpfb-kinds{display:flex;gap:8px;margin-bottom:14px}
+      .lpfb-kind{flex:1;text-align:center;padding:9px 0;border:1px solid rgba(48,63,84,.9);border-radius:9px;
+        background:rgba(15,23,42,.6);color:#cbd5e1;font-size:13px;font-weight:600;cursor:pointer}
+      .lpfb-kind.on{border-color:#C0392B;background:rgba(192,57,43,.2);color:#fff}
+      .lpfb-sevlabel{font-size:11px;color:#94a3b8;font-weight:600;margin:2px 0 6px}
+      .lpfb-sevs{display:flex;gap:8px;margin-bottom:14px}
+      .lpfb-sev{flex:1;text-align:center;padding:8px 0;border:1px solid rgba(48,63,84,.9);border-radius:9px;
+        background:rgba(15,23,42,.6);color:#cbd5e1;font-size:12px;font-weight:600;cursor:pointer}
+      .lpfb-sev.on[data-sev="blocking"]{border-color:#ef4444;background:rgba(239,68,68,.18);color:#fff}
+      .lpfb-sev.on[data-sev="annoying"]{border-color:#f59e0b;background:rgba(245,158,11,.18);color:#fff}
+      .lpfb-sev.on[data-sev="cosmetic"]{border-color:#64748b;background:rgba(100,116,139,.22);color:#fff}
+      .lpfb-card input,.lpfb-card textarea{width:100%;box-sizing:border-box;margin-bottom:12px;padding:10px 12px;
+        background:#070d18;border:1px solid rgba(48,63,84,.9);border-radius:9px;color:#f1f5f9;font-size:14px;font-family:inherit}
+      .lpfb-card textarea{min-height:90px;resize:vertical}
+      .lpfb-row{display:flex;gap:10px;align-items:center;justify-content:flex-end}
+      .lpfb-msg{flex:1;font-size:13px;min-height:18px}
+      .lpfb-msg.ok{color:#34d399}.lpfb-msg.err{color:#f87171}
+      .lpfb-cancel{padding:9px 14px;border:1px solid rgba(48,63,84,.9);border-radius:9px;background:transparent;color:#94a3b8;font-weight:600;cursor:pointer}
+      .lpfb-send{padding:9px 18px;border:none;border-radius:9px;background:#C0392B;color:#fff;font-weight:700;cursor:pointer}
+      .lpfb-send:disabled{opacity:.5;cursor:default}
+      .lpfb-shotrow{display:flex;align-items:center;gap:10px;margin:-2px 0 12px}
+      .lpfb-capture{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border:1px solid rgba(48,63,84,.9);
+        border-radius:9px;background:rgba(15,23,42,.6);color:#cbd5e1;font-size:13px;font-weight:600;cursor:pointer}
+      .lpfb-capture:hover{border-color:#C0392B;color:#fff}
+      .lpfb-capture:disabled{opacity:.6;cursor:default}
+      .lpfb-thumb{position:relative;display:none;border:1px solid rgba(48,63,84,.9);border-radius:8px;overflow:hidden;background:#070d18}
+      .lpfb-thumb img{display:block;width:84px;height:54px;object-fit:cover}
+      .lpfb-thumb .x{position:absolute;top:-7px;right:-7px;width:20px;height:20px;border-radius:50%;border:none;
+        background:#C0392B;color:#fff;font-size:12px;font-weight:800;line-height:20px;cursor:pointer;padding:0}
+      .lpfb-attachrow{display:flex;flex-wrap:wrap;gap:8px;margin:-2px 0 10px}
+      .lpfb-files{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
+      .lpfb-file{position:relative;display:flex;align-items:center;gap:8px;max-width:100%;
+        padding:6px 28px 6px 8px;border:1px solid rgba(48,63,84,.9);border-radius:8px;background:#070d18}
+      .lpfb-file img{width:34px;height:34px;border-radius:5px;object-fit:cover;flex:none}
+      .lpfb-file .pdf{width:34px;height:34px;border-radius:5px;flex:none;display:flex;align-items:center;
+        justify-content:center;background:rgba(192,57,43,.18);color:#f87171;font-size:11px;font-weight:800}
+      .lpfb-file .nm{font-size:12px;color:#cbd5e1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px}
+      .lpfb-file .x{position:absolute;top:-7px;right:-7px;width:20px;height:20px;border-radius:50%;border:none;
+        background:#C0392B;color:#fff;font-size:12px;font-weight:800;line-height:20px;cursor:pointer;padding:0}
+      .lpfb-meta{font-size:11px;color:#64748b;margin:-4px 0 12px;line-height:1.5}
+      .lpfb-meta b{color:#94a3b8;font-weight:600}
+      #lpfb-done{text-align:center;padding:6px 4px}
+      .lpfb-done-icon{width:48px;height:48px;margin:2px auto 12px;border-radius:50%;background:rgba(52,211,153,.15);
+        color:#34d399;font-size:26px;font-weight:900;line-height:48px}
+      #lpfb-done h3{font-size:21px}
+      #lpfb-done .ref{color:#34d399}
+      #lpfb-done .lpfb-row{justify-content:center;margin-top:18px}
+      .lpfb-board{padding:9px 16px;border:1px solid rgba(48,63,84,.9);border-radius:9px;background:transparent;
+        color:#cbd5e1;font-weight:600;cursor:pointer;text-decoration:none;font-size:14px}
+      .lpfb-board:hover{border-color:#34d399;color:#fff}
+    </style>
+    <button class="lpfb-btn" id="lpfb-open" title="Send feedback" aria-label="Send feedback">💬<span class="lpfb-label">&nbsp;Feedback</span></button>
+    <div class="lpfb-ov" id="lpfb-ov">
+      <div class="lpfb-card" role="dialog" aria-modal="true" aria-label="Send feedback">
+        <div id="lpfb-form">
+          <h3>Send feedback</h3>
+          <p class="sub">Spot a bug or have an idea at the till? It goes straight to the workbench.</p>
+          <div class="lpfb-kinds" id="lpfb-kinds">
+            <div class="lpfb-kind on" data-kind="bug">🐛 Bug</div>
+            <div class="lpfb-kind" data-kind="idea">💡 Idea</div>
+            <div class="lpfb-kind" data-kind="other">💬 Other</div>
+          </div>
+          <div class="lpfb-sevlabel" id="lpfb-sevlabel">How bad is it?</div>
+          <div class="lpfb-sevs" id="lpfb-sevs">
+            <div class="lpfb-sev" data-sev="blocking">🔴 Blocking</div>
+            <div class="lpfb-sev on" data-sev="annoying">🟡 Annoying</div>
+            <div class="lpfb-sev" data-sev="cosmetic">⚪ Cosmetic</div>
+          </div>
+          <input id="lpfb-title" type="text" maxlength="200" placeholder="Short title (what's up?)" />
+          <textarea id="lpfb-body" maxlength="4000" placeholder="Details — what happened, what you expected, steps…"></textarea>
+          <div class="lpfb-shotrow">
+            <button class="lpfb-capture" id="lpfb-capture" type="button">📸 Recapture screen</button>
+            <div class="lpfb-thumb" id="lpfb-thumb"><img id="lpfb-thumb-img" alt="screenshot" /><button class="x" id="lpfb-thumb-x" type="button" title="Remove">✕</button></div>
+          </div>
+          <div class="lpfb-attachrow">
+            <button class="lpfb-capture" id="lpfb-attach" type="button">📎 Attach file</button>
+            <button class="lpfb-capture" id="lpfb-photo" type="button">📷 Take photo</button>
+          </div>
+          <!-- device picker (images + PDFs); camera input only surfaces a capture UI on mobile -->
+          <input type="file" id="lpfb-file-input" accept="image/*,application/pdf" multiple style="display:none" />
+          <input type="file" id="lpfb-cam-input" accept="image/*" capture="environment" style="display:none" />
+          <div class="lpfb-files" id="lpfb-files"></div>
+          <div class="lpfb-meta" id="lpfb-meta"></div>
+          <div class="lpfb-row">
+            <span class="lpfb-msg" id="lpfb-msg"></span>
+            <button class="lpfb-cancel" id="lpfb-cancel">Cancel</button>
+            <button class="lpfb-send" id="lpfb-send">Send</button>
+          </div>
+        </div>
+        <div id="lpfb-done" style="display:none">
+          <div class="lpfb-done-icon">✓</div>
+          <h3>Filed as <span class="ref" id="lpfb-done-ref">BL-000</span></h3>
+          <p class="sub" id="lpfb-done-sub">Thanks — it's on the workbench. 🐺</p>
+          <div class="lpfb-row">
+            <a class="lpfb-board" id="lpfb-done-board" href="/pos/my-tickets">View my report ↗</a>
+            <button class="lpfb-send" id="lpfb-done-ok">Done</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>(function(){
+      function token(){try{return AuthHelper.getToken();}catch(e){return null;}}
+      var open=document.getElementById('lpfb-open'),ov=document.getElementById('lpfb-ov'),
+        title=document.getElementById('lpfb-title'),body=document.getElementById('lpfb-body'),
+        msg=document.getElementById('lpfb-msg'),send=document.getElementById('lpfb-send'),
+        cancel=document.getElementById('lpfb-cancel'),kinds=document.getElementById('lpfb-kinds'),
+        sevs=document.getElementById('lpfb-sevs'),
+        capture=document.getElementById('lpfb-capture'),thumb=document.getElementById('lpfb-thumb'),
+        thumbImg=document.getElementById('lpfb-thumb-img'),thumbX=document.getElementById('lpfb-thumb-x'),
+        attachBtn=document.getElementById('lpfb-attach'),photoBtn=document.getElementById('lpfb-photo'),
+        fileInput=document.getElementById('lpfb-file-input'),camInput=document.getElementById('lpfb-cam-input'),
+        filesEl=document.getElementById('lpfb-files'),
+        metaEl=document.getElementById('lpfb-meta'),
+        formEl=document.getElementById('lpfb-form'),doneEl=document.getElementById('lpfb-done'),
+        doneRef=document.getElementById('lpfb-done-ref'),doneSub=document.getElementById('lpfb-done-sub'),
+        doneBoard=document.getElementById('lpfb-done-board'),
+        doneOk=document.getElementById('lpfb-done-ok'),kind='bug',sev='annoying',shot=null,attachments=[];
+      // Caps mirror the server (_clean_attachments): images + PDFs, 5 files, ~4.4MB each.
+      var ATTACH_MAX=5, ATTACH_MAX_BYTES=4400000;
+      // Reveal the button once a cashier is logged in. The token can land a tick
+      // after load (dashboard parses it from the URL fragment), so poll briefly.
+      function reveal(){if(token()){open.style.display='flex';return true;}return false;}
+      if(!reveal()){var tries=0,iv=setInterval(function(){if(reveal()||++tries>20)clearInterval(iv);},250);}
+
+      // Auto-collected context — travels with every report so we can analyse later
+      // (which screen, which browser, where they came from, viewport, etc.).
+      function collectMeta(){
+        var m={};
+        try{
+          m.path=location.pathname+location.search; m.url=location.href;
+          m.referrer=document.referrer||'';
+          m.userAgent=navigator.userAgent;
+          m.language=navigator.language||'';
+          m.platform=(navigator.userAgentData&&navigator.userAgentData.platform)||navigator.platform||'';
+          m.viewport=window.innerWidth+'×'+window.innerHeight;
+          m.screen=(window.screen?screen.width+'×'+screen.height:'');
+          m.dpr=window.devicePixelRatio||1;
+          m.online=navigator.onLine;
+          m.tz=(window.Intl&&Intl.DateTimeFormat)?Intl.DateTimeFormat().resolvedOptions().timeZone:'';
+          m.when=new Date().toISOString();
+          var v=document.getElementById('status-version'); m.app=v?(v.textContent||'').trim():'';
+          var u=token()&&AuthHelper.getUserInfo&&AuthHelper.getUserInfo(); if(u){m.user=u.username;}
+        }catch(e){}
+        return m;
+      }
+      // The console/network breadcrumbs the head buffer collected -- the half of a
+      // UI bug a screenshot can't show (a silent throw, a 500 you never saw).
+      function collectDiag(){ try{ return (window.__lpfbDiag&&window.__lpfbDiag.get())||[]; }catch(e){ return []; } }
+      function renderMeta(){
+        var m=collectMeta(), d=collectDiag(), errs=0;
+        d.forEach(function(x){ if(x.t!=='warn') errs++; });
+        var diagNote = d.length ? (' · <span style="color:'+(errs?'#f87171':'#94a3b8')+'">🔎 '+d.length+' log'+(d.length>1?'s':'')+(errs?' ('+errs+' error'+(errs>1?'s':'')+')':'')+'</span>') : '';
+        metaEl.innerHTML='<b>Auto-attached:</b> '+m.path+' · '+(m.platform||'?')+' · '+m.viewport+
+          (m.online?'':' · <span style="color:#f87171">offline</span>')+diagNote;
+      }
+      function show(){ov.style.display='flex';renderMeta();setTimeout(function(){title.focus();},50);}
+      function hide(){ov.style.display='none';}
+      function showForm(){formEl.style.display='';doneEl.style.display='none';}
+      // The result stays put -- the cashier reads the BL number and dismisses it
+      // themselves (the old auto-close vanished before you could read it).
+      function showDone(ref,num,hadShot,nFiles){doneRef.textContent=ref;
+        doneRef.title='Tap to copy';doneRef.style.cursor='pointer';doneRef.dataset.copy=ref;
+        if(num&&doneBoard){doneBoard.href='/pos/my-tickets?focus='+num;}
+        var bits=[];if(hadShot)bits.push('Screenshot attached.');
+        if(nFiles)bits.push(nFiles+' file'+(nFiles>1?'s':'')+' attached.');
+        doneSub.textContent=(bits.length?bits.join(' ')+' ':'')+"Tap the number to copy it. 🐺";
+        formEl.style.display='none';doneEl.style.display='block';}
+      doneRef.addEventListener('click',function(){var v=doneRef.dataset.copy||doneRef.textContent;
+        try{navigator.clipboard.writeText(v);}catch(e){}
+        var old=doneSub.textContent;doneSub.textContent='Copied '+v+' ✓ — note it down.';
+        setTimeout(function(){doneSub.textContent=old;},1800);});
+      function clearShot(){shot=null;thumb.style.display='none';thumbImg.removeAttribute('src');capture.textContent='📸 Capture screen';}
+      function clearAttachments(){attachments=[];fileInput.value='';camInput.value='';renderFiles();}
+      function reset(){title.value='';body.value='';msg.textContent='';msg.className='lpfb-msg';send.disabled=false;send.textContent='Send';
+        kind='bug';sev='annoying';clearShot();clearAttachments();showForm();
+        [].forEach.call(kinds.children,function(c){c.classList.toggle('on',c.getAttribute('data-kind')==='bug');});
+        [].forEach.call(sevs.children,function(c){c.classList.toggle('on',c.getAttribute('data-sev')==='annoying');});}
+      function openFeedback(){reset();show();autoShot();}
+      // Draggable button (pointer events = mouse + touch). A real drag must NOT
+      // also open the modal, so we only open if the pointer barely moved.
+      (function(){
+        var POS_KEY='lpfb_pos', DRAG_PX=6;
+        try{var saved=JSON.parse(localStorage.getItem(POS_KEY)||'null');}catch(e){var saved=null;}
+        function clamp(v,min,max){return Math.max(min,Math.min(max,v));}
+        function place(left,top){
+          var w=open.offsetWidth||120,h=open.offsetHeight||44;
+          left=clamp(left,4,window.innerWidth-w-4);
+          top=clamp(top,4,window.innerHeight-h-4);
+          open.style.left=left+'px';open.style.top=top+'px';
+          open.style.right='auto';open.style.bottom='auto';
+        }
+        if(saved&&typeof saved.left==='number'){place(saved.left,saved.top);}
+        var dragging=false,moved=false,sx=0,sy=0,ox=0,oy=0;
+        open.addEventListener('pointerdown',function(e){
+          dragging=true;moved=false;
+          var r=open.getBoundingClientRect();ox=r.left;oy=r.top;sx=e.clientX;sy=e.clientY;
+          open.setPointerCapture&&open.setPointerCapture(e.pointerId);
+        });
+        open.addEventListener('pointermove',function(e){
+          if(!dragging)return;
+          var dx=e.clientX-sx,dy=e.clientY-sy;
+          if(!moved&&Math.abs(dx)+Math.abs(dy)>DRAG_PX){moved=true;open.classList.add('dragging');}
+          if(moved){place(ox+dx,oy+dy);}
+        });
+        function endDrag(){
+          if(!dragging)return;dragging=false;open.classList.remove('dragging');
+          if(moved){
+            var r=open.getBoundingClientRect();
+            try{localStorage.setItem(POS_KEY,JSON.stringify({left:r.left,top:r.top}));}catch(e){}
+          }
+        }
+        open.addEventListener('pointerup',function(e){var was=moved;endDrag();if(!was)openFeedback();});
+        open.addEventListener('pointercancel',endDrag);
+        // Keep it on-screen if the viewport rotates/resizes (portrait<->landscape).
+        window.addEventListener('resize',function(){
+          if(open.style.left){place(parseFloat(open.style.left)||0,parseFloat(open.style.top)||0);}
+        });
+      })();
+      cancel.onclick=hide;
+      doneOk.onclick=hide;
+      ov.onclick=function(e){if(e.target===ov)hide();};
+      kinds.onclick=function(e){var k=e.target.closest('.lpfb-kind');if(!k)return;
+        kind=k.getAttribute('data-kind');
+        [].forEach.call(kinds.children,function(c){c.classList.toggle('on',c===k);});};
+      sevs.onclick=function(e){var s=e.target.closest('.lpfb-sev');if(!s)return;
+        sev=s.getAttribute('data-sev');
+        [].forEach.call(sevs.children,function(c){c.classList.toggle('on',c===s);});};
+      thumbX.onclick=clearShot;
+
+      // Grab the screen BEHIND the modal: hide the overlay, html2canvas the page,
+      // downscale to keep the base64 small, then restore the modal. `silent` is for
+      // the auto-capture on open (don't shout if it can't grab -- they can recapture).
+      function doCapture(silent){
+        if(typeof html2canvas!=='function'){ if(!silent){msg.textContent='Screenshot tool not loaded.';msg.className='lpfb-msg err';} return; }
+        if(!silent){msg.textContent='';msg.className='lpfb-msg';}
+        capture.disabled=true;capture.textContent='Capturing…';
+        ov.style.visibility='hidden';
+        setTimeout(function(){
+          html2canvas(document.body,{logging:false,useCORS:true,scale:1,
+            windowWidth:document.documentElement.scrollWidth,windowHeight:document.documentElement.scrollHeight})
+          .then(function(canvas){
+            ov.style.visibility='';
+            var maxW=1100,sc=Math.min(1,maxW/canvas.width);
+            var c2=document.createElement('canvas');
+            c2.width=Math.max(1,Math.round(canvas.width*sc));c2.height=Math.max(1,Math.round(canvas.height*sc));
+            c2.getContext('2d').drawImage(canvas,0,0,c2.width,c2.height);
+            shot=c2.toDataURL('image/jpeg',0.7);
+            thumbImg.src=shot;thumb.style.display='block';
+            capture.disabled=false;capture.textContent='📸 Recapture';
+          }).catch(function(){
+            ov.style.visibility='';capture.disabled=false;capture.textContent='📸 Capture screen';
+            if(!silent){msg.textContent='Could not capture the screen — you can still send without it.';msg.className='lpfb-msg err';}
+          });
+        },60);
+      }
+      // Auto-grab the screen the moment the card opens -- one less step per report.
+      function autoShot(){ doCapture(true); }
+      capture.onclick=function(){ doCapture(false); };
+
+      // ---- User attachments: pick files from the device or shoot one on mobile ----
+      // Each file is read into a base64 data-URL and shown as a chip. Images render a
+      // thumbnail; PDFs show a "PDF" tile + filename. Caps mirror the server so we
+      // fail fast with a clear message instead of a silent server-side drop.
+      function renderFiles(){
+        filesEl.innerHTML='';
+        attachments.forEach(function(a,i){
+          var chip=document.createElement('div');chip.className='lpfb-file';
+          if(a.type==='application/pdf'){
+            var p=document.createElement('div');p.className='pdf';p.textContent='PDF';chip.appendChild(p);
+          }else{
+            var img=document.createElement('img');img.src=a.data;img.alt=a.name;chip.appendChild(img);
+          }
+          var nm=document.createElement('span');nm.className='nm';nm.textContent=a.name;nm.title=a.name;chip.appendChild(nm);
+          var x=document.createElement('button');x.className='x';x.type='button';x.title='Remove';x.textContent='✕';
+          x.onclick=function(){attachments.splice(i,1);renderFiles();};chip.appendChild(x);
+          filesEl.appendChild(chip);
+        });
+      }
+      function addFiles(fileList){
+        var files=[].slice.call(fileList||[]);
+        if(!files.length)return;
+        files.forEach(function(file){
+          if(attachments.length>=ATTACH_MAX){
+            msg.textContent='Up to '+ATTACH_MAX+' files. Remove one to add another.';msg.className='lpfb-msg err';return;}
+          var isImg=/^image\//.test(file.type), isPdf=file.type==='application/pdf';
+          if(!isImg&&!isPdf){msg.textContent='Only images and PDFs can be attached.';msg.className='lpfb-msg err';return;}
+          if(file.size>ATTACH_MAX_BYTES){msg.textContent='"'+file.name+'" is too big (max ~4 MB each).';msg.className='lpfb-msg err';return;}
+          var r=new FileReader();
+          r.onload=function(){
+            attachments.push({name:file.name||(isPdf?'document.pdf':'photo.jpg'),
+              type:isPdf?'application/pdf':(file.type||'image/jpeg'),data:r.result});
+            renderFiles();
+          };
+          r.onerror=function(){msg.textContent='Could not read "'+file.name+'".';msg.className='lpfb-msg err';};
+          r.readAsDataURL(file);
+        });
+      }
+      attachBtn.onclick=function(){msg.textContent='';msg.className='lpfb-msg';fileInput.value='';fileInput.click();};
+      photoBtn.onclick=function(){msg.textContent='';msg.className='lpfb-msg';camInput.value='';camInput.click();};
+      fileInput.onchange=function(){addFiles(fileInput.files);};
+      camInput.onchange=function(){addFiles(camInput.files);};
+
+      send.onclick=function(){
+        var t=(title.value||'').trim();
+        if(t.length<3){msg.textContent='Give it a short title (3+ characters).';msg.className='lpfb-msg err';return;}
+        send.disabled=true;send.textContent='Sending…';msg.textContent='';msg.className='lpfb-msg';
+        // API.post injects the bearer token + handles silent refresh; returns parsed JSON.
+        API.post('/api/v1/pos/feedback',{kind:kind,severity:sev,title:t,body:(body.value||'').trim(),
+          screenshot:shot||null,attachments:attachments,meta:collectMeta(),diagnostics:collectDiag()})
+        .then(function(j){
+          if(j&&j.ok){showDone(j.ref,j.item_number,!!(j.screenshot||shot),(j.attachments!=null?j.attachments:attachments.length));}
+          else{msg.textContent=(j&&j.detail)?j.detail:'Something went wrong — try again.';
+            msg.className='lpfb-msg err';send.disabled=false;send.textContent='Send';}})
+        .catch(function(){msg.textContent='Network error — try again.';msg.className='lpfb-msg err';
+          send.disabled=false;send.textContent='Send';});
+      };
+    })();</script>
+
+    <!-- PWA service worker (Phase 0) + offline indicator + app-shell wiring. Scope /pos. -->
+    <!-- Offline = no sales (by design — we deliberately don't do offline sales; the use case is
+         tiny and the fiscal/compliance cost huge). A big, can't-miss banner that says WHY and HOW
+         to fix it, so nobody wastes time ringing a sale that won't go through. Toggled by sync(). -->
+    <div id="lp-offline-pill" role="alert" data-i18n-html="status.offline_banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:10000;background:#b45309;color:#fff;font:600 13px/1.45 Inter,system-ui,sans-serif;padding:11px 16px;padding-top:calc(11px + env(safe-area-inset-top));text-align:center;box-shadow:0 4px 16px rgba(0,0,0,.35)">⚠ <b>No internet — sales are paused.</b> Your cart is safe. Switch to mobile data or a hotspot, then carry on.</div>
+    <script>
+    (function(){
+      // Online/offline pill — in P0 this is a heads-up only (writes still need the network).
+      var pill=document.getElementById('lp-offline-pill');
+      function sync(){ if(pill) pill.style.display = navigator.onLine ? 'none' : 'block'; }
+      window.addEventListener('online', sync); window.addEventListener('offline', sync); sync();
+
+      // P1 offline catalog: warm the IndexedDB mirror in the background whenever we're online
+      // and logged in — and again the moment we come back online — so a network drop still
+      // lets the till scan + price from cache. Non-blocking; failures are silent.
+      function warmCatalog(){
+        try{
+          if(navigator.onLine && window.CatalogCache && sessionStorage.getItem('pos_token')){
+            CatalogCache.sync().catch(function(){});
+          }
+        }catch(e){}
+      }
+      window.addEventListener('online', warmCatalog);
+      setTimeout(warmCatalog, 1200);   // after first paint + token settle
+
+      // App-shell: hide chrome before login, light the current tab, badge the cart.
+      // A token in the URL fragment means the OAuth callback just landed us here and is about
+      // to store it — treat that as authed so we don't flash the chrome away then need a refresh.
+      var _authInFlight = location.hash && location.hash.indexOf('token=') !== -1;
+      if(!sessionStorage.getItem('pos_token') && !_authInFlight) document.body.classList.add('pre-auth');
+      var path = location.pathname;
+      Array.prototype.forEach.call(document.querySelectorAll('#app-nav a'), function(a){
+        var t=a.getAttribute('data-tab');
+        if(path===t || path.indexOf(t+'/')===0 || path===t) a.classList.add('active');
+      });
+      function cartBadge(){
+        try{
+          var c=JSON.parse(sessionStorage.getItem('pos_cart')||'[]');
+          var n=c.reduce(function(s,i){return s+(parseInt(i.quantity,10)||1);},0);
+          var b=document.getElementById('nav-cart-badge');
+          if(b){ if(n>0){ b.textContent=n; b.style.display=''; } else { b.style.display='none'; } }
+        }catch(e){}
+      }
+      cartBadge(); window.addEventListener('storage', cartBadge); setInterval(cartBadge, 1500);
+
+      // Register the service worker. Scope /pos (allowed via Service-Worker-Allowed header).
+      if('serviceWorker' in navigator){
+        // BL-011: kill the hard-refresh ritual. The in-app "Refresh" only reloads DATA, so a new
+        // build was never discovered without a full navigation. Now we (a) proactively check for
+        // updates during normal use, and (b) when one is ready, show a tap-to-update nudge — the
+        // cashier picks the moment (cart survives in sessionStorage across the reload). No surprise
+        // mid-sale reloads.
+        var swReg=null, refreshing=false;
+        navigator.serviceWorker.addEventListener('controllerchange', function(){
+          if(refreshing) return; refreshing=true; window.location.reload();
+        });
+        function showUpdateNudge(worker){
+          if(!worker || document.getElementById('lp-update')) return;
+          var b=document.createElement('button'); b.id='lp-update';
+          b.textContent='🔄 New version — tap to update';
+          b.style.cssText='position:fixed;left:50%;bottom:62px;transform:translateX(-50%);z-index:95;'
+            +'background:#4f46e5;color:#fff;border:none;border-radius:999px;padding:10px 16px;'
+            +'font:600 13px Inter,system-ui,sans-serif;box-shadow:0 8px 24px rgba(2,6,12,.3);cursor:pointer';
+          b.onclick=function(){ b.textContent='Updating…'; b.disabled=true; worker.postMessage({type:'SKIP_WAITING'}); };
+          document.body.appendChild(b);
+        }
+        function watch(reg){
+          if(reg.waiting) showUpdateNudge(reg.waiting);   // an update was already waiting
+          reg.addEventListener('updatefound', function(){
+            var nw=reg.installing;
+            nw && nw.addEventListener('statechange', function(){
+              if(nw.state==='installed' && navigator.serviceWorker.controller) showUpdateNudge(nw);
+            });
+          });
+        }
+        window.addEventListener('load', function(){
+          navigator.serviceWorker.register('/pos/sw.js', {scope:'/pos'})
+            .then(function(reg){ swReg=reg; reg.update&&reg.update(); watch(reg); })
+            .catch(function(e){ console.warn('SW register failed:', e); });
+        });
+        // discover updates during normal use, so no hard-refresh is ever needed
+        document.addEventListener('visibilitychange', function(){ if(!document.hidden && swReg) swReg.update(); });
+        setInterval(function(){ if(swReg) swReg.update(); }, 60000);
+      }
+    })();
+    </script>
+</body>
+</html>

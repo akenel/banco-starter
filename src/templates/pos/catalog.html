@@ -1,0 +1,1811 @@
+{% extends "pos/base.html" %}
+
+{% block title %}Catalog - HelixPOS{% endblock %}
+
+{% block content %}
+<!-- Catalog "review-card" restyle — scoped, REAL CSS (Tailwind Play CDN only compiles
+     @apply inside <style type="text/tailwind">; these are plain classes so they always apply). -->
+<style>
+    .cat-list { display: flex; flex-direction: column; gap: 12px; }
+
+    .cat-card {
+        display: flex; gap: 16px; align-items: stretch;
+        background: #fff; border: 1px solid #e5e7eb; border-radius: 14px;
+        padding: 14px 16px;
+        box-shadow: 0 1px 2px rgba(16,24,40,.04);
+        transition: box-shadow .15s ease, border-color .15s ease, transform .15s ease;
+    }
+    .cat-card:hover { box-shadow: 0 8px 22px -8px rgba(16,24,40,.20); border-color: #c7d2fe; }
+    .cat-card.is-inactive { opacity: .55; }
+
+    .cat-thumb {
+        width: 96px; height: 96px; flex: none; border-radius: 12px;
+        border: 1px solid #e5e7eb; background: #fafafa;
+        display: flex; align-items: center; justify-content: center;
+        overflow: hidden; cursor: pointer;
+    }
+    .cat-thumb img { width: 100%; height: 100%; object-fit: contain; }
+    .cat-thumb .ph { font-size: 34px; line-height: 1; }
+
+    .cat-body { flex: 1 1 auto; min-width: 0; cursor: pointer; display: flex; flex-direction: column; gap: 6px; }
+    .cat-name { font-weight: 700; font-size: 16px; color: #1d2125; line-height: 1.3; }
+    .cat-sku  {
+        font: 600 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+        background: #f1f1ef; color: #475569; padding: 1px 8px; border-radius: 6px;
+        white-space: nowrap;
+    }
+
+    .badge-cat {
+        display: inline-flex; align-items: center; gap: 5px;
+        background: #eef1f4; color: #334155;
+        font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px;
+        max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    /* BL-128: the SIZE badge — bold + tinted so 2g / 10g variants stand apart at a glance */
+    .badge-size {
+        display: inline-flex; align-items: center; gap: 3px;
+        background: #e0e7ff; color: #3730a3;
+        font-size: 13px; font-weight: 800; padding: 2px 9px; border-radius: 7px;
+        white-space: nowrap; flex: none;
+    }
+
+    .chip {
+        display: inline-flex; align-items: center; gap: 4px;
+        padding: 2px 9px; border-radius: 999px;
+        font-size: 11px; font-weight: 700; line-height: 1.5; white-space: nowrap;
+    }
+    .chip-age     { background: #fde2e2; color: #9b1c1c; }
+    .chip-class   { background: #e7e0ff; color: #4527a0; }
+    .chip-nopromo { background: #fef3c7; color: #92400e; }
+    .chip-tag     { background: #eef1f4; color: #334155; font-weight: 600; }
+    .chip-attr    { background: #eef2ff; color: #3730a3; font-weight: 600; }
+
+    .cat-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .cat-price { font-size: 20px; font-weight: 800; color: #4f46e5; letter-spacing: -.01em; }
+    .cat-hint { font-size: 11px; color: #a5b4fc; font-weight: 600; }
+
+    .cat-actions { flex: none; display: flex; flex-direction: column; gap: 8px;
+                   align-items: stretch; justify-content: center; }
+    .cat-edit, .cat-react {
+        display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+        min-height: 44px; padding: 0 16px; border-radius: 10px;
+        font-size: 14px; font-weight: 600; color: #fff; border: none; cursor: pointer;
+        transition: background-color .15s ease, transform .1s ease;
+    }
+    .cat-edit  { background: #4f46e5; } .cat-edit:hover  { background: #4338ca; }
+    .cat-react { background: #16a34a; } .cat-react:hover { background: #15803d; }
+    .cat-edit:active, .cat-react:active { transform: scale(.96); }
+
+    /* Summary stat strip (admin/catalog header) */
+    .cat-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .cat-stat  { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px 14px; }
+    .cat-stat .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #6b7280; font-weight: 600; }
+    .cat-stat .big { font-size: 24px; font-weight: 800; color: #1d2125; margin-top: 2px; }
+
+    /* Phone trim — keep tap targets ≥44px (memory: pos/base.html @media(max-width:480px)) */
+    @media (max-width: 480px) {
+        .cat-card  { gap: 12px; padding: 12px; }
+        .cat-thumb { width: 72px; height: 72px; }
+        .cat-name  { font-size: 15px; }
+        .cat-price { font-size: 18px; }
+        .cat-stats { grid-template-columns: repeat(2, 1fr); }
+        .cat-edit, .cat-react { width: 100%; }
+    }
+    @media (max-width: 360px) {
+        .cat-actions { align-self: flex-start; }
+    }
+</style>
+<div class="min-h-screen bg-gray-50" x-data="catalogData()">
+    <!-- Top Bar -->
+    <div class="bg-white shadow-md border-b-4 border-indigo-600">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <button @click="window.location.href='/pos/dashboard'" class="btn-secondary flex-none" title="Dashboard" aria-label="Dashboard">🏠
+                </button>
+                <!-- Back to the cleanup bench — always available, and returns to your exact spot when
+                     you came from there (Angel: "no link back to cleanup makes it clunky"). -->
+                <a :href="returnUrl || '/pos/cleanup?mode=bench'" class="btn-secondary flex-none" title="Back to cleanup">🧹 <span data-i18n="catalog.back_to_cleanup">Cleanup</span></a>
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900">📦 <span data-i18n="catalog.title">Catalog</span></h1>
+                    <p class="text-sm text-gray-600" data-i18n="catalog.subtitle">Manage products — edit, discontinue, add</p>
+                </div>
+            </div>
+            <button x-show="user.isManager" @click="openCreate()" class="btn-primary">➕ <span data-i18n="catalog.new_product">New product</span></button>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-4 py-6 space-y-4">
+        <!-- Manager-only notice -->
+        <div x-show="!user.isManager" class="bg-yellow-50 border-2 border-yellow-400 rounded-lg p-4 text-sm text-yellow-800" data-i18n-html="catalog.manager_notice">
+            You can browse the catalog, but editing, discontinuing and creating products require a
+            <strong>manager</strong> role. Ask a manager.
+        </div>
+
+        <!-- Search + filters -->
+        <div class="card">
+            <div class="flex flex-col md:flex-row gap-3 md:items-end">
+                <div class="flex-1">
+                    <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="catalog.search_label">Search</label>
+                    <div class="flex gap-2">
+                        <input type="text" x-model="q" @input.debounce.300ms="search()"
+                               placeholder="Name, SKU or barcode…" data-i18n-placeholder="catalog.search_placeholder" class="input-field flex-1">
+                        <!-- BL-10 (Felix): scan a barcode to pull the item up, no typing. -->
+                        <button type="button" @click="startSearchScan()" class="btn-secondary flex-none px-4" title="Scan to find">📷</button>
+                    </div>
+                </div>
+                <div class="w-full md:w-56">
+                    <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="catalog.category_label">Category</label>
+                    <!-- 2-level picker: categories nested under their level-1 group
+                         (Headshop, Papers & Co, …) via native <optgroup>. Group headers
+                         are non-selectable labels; picking a category still filters as
+                         before (x-model="category" → search()). -->
+                    <select x-model="category" @change="search()" class="input-field">
+                        <option value="" data-i18n="catalog.all_categories">All categories</option>
+                        <template x-for="g in groupedCategories()" :key="g.group">
+                            <!-- Group header + category options render through catLabel() for the
+                                 shop's language; the option :value stays the canonical English
+                                 name so filtering (x-model="category") is unaffected. -->
+                            <optgroup :label="catLabel(g.label)">
+                                <template x-for="c in g.cats" :key="c.name">
+                                    <option :value="c.name" x-text="catLabel(c.name) + ' (' + c.count + ')'"></option>
+                                </template>
+                            </optgroup>
+                        </template>
+                    </select>
+                </div>
+                <div class="w-full md:w-48">
+                    <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="catalog.sort_label">Sort</label>
+                    <select x-model="sort" @change="search()" class="input-field">
+                        <option value="" data-i18n="catalog.sort_best_match">Best match</option>
+                        <option value="name" data-i18n="catalog.sort_name">Name A–Z</option>
+                        <option value="price_asc" data-i18n="catalog.sort_price_asc">Price (low → high)</option>
+                        <option value="price_desc" data-i18n="catalog.sort_price_desc">Price (high → low)</option>
+                        <option value="recent" data-i18n="catalog.sort_recent">Recently added</option>
+                        <option value="stock" data-i18n="catalog.sort_stock">Stock (low → high)</option>
+                    </select>
+                </div>
+                <label class="flex items-center gap-2 text-sm text-gray-700 md:pb-2">
+                    <input type="checkbox" x-model="showDiscontinued" @change="onToggleDiscontinued()" class="w-4 h-4">
+                    <span data-i18n="catalog.show_discontinued">Show discontinued</span>
+                </label>
+            </div>
+            <p class="text-sm text-gray-600 mt-2">
+                <span x-show="!showDiscontinued && total > 0"><span x-text="total"></span> <span data-i18n="catalog.active_count">active</span> <span x-show="q.length===0 && !category" data-i18n="catalog.type_to_filter">— type to filter</span></span>
+                <span x-show="showDiscontinued" data-i18n="catalog.showing_discontinued">Showing discontinued products</span>
+            </p>
+        </div>
+
+        <!-- Summary stat strip — the catalog-header "feel" from the enrichment review -->
+        <div x-show="!showDiscontinued && results.length > 0" class="cat-stats">
+            <div class="cat-stat"><div class="lbl" data-i18n="catalog.stat_products">Products</div><div class="big" x-text="total"></div></div>
+            <div class="cat-stat"><div class="lbl" data-i18n="catalog.stat_categories">Categories</div><div class="big" x-text="categories.length"></div></div>
+            <div class="cat-stat"><div class="lbl" data-i18n="catalog.stat_age_restricted">Age-restricted (18+)</div><div class="big" x-text="ageCount()"></div></div>
+            <div class="cat-stat"><div class="lbl" data-i18n="catalog.stat_showing">Showing</div><div class="big" x-text="results.length"></div></div>
+        </div>
+
+        <!-- Results -->
+        <div class="card">
+            <div x-show="results.length === 0" class="text-center py-10 text-gray-500">
+                <span class="text-5xl block mb-3">🗂️</span>
+                <p x-text="loading ? t('common.loading') : t('catalog.no_products')"></p>
+                <!-- action lives in the persistent BL-127 row below (shown on 0 OR weak results) -->
+            </div>
+
+            <div class="cat-list">
+                <template x-for="p in results" :key="p.id">
+                    <div class="cat-card" :class="p.is_active === false ? 'is-inactive' : ''">
+                        <!-- Tappable photo: a big (≥72px) button → opens the picture bigger (lightbox).
+                             No photo (or a broken load) → falls back to the placeholder + opens details.
+                             Error is NON-destructive (tracks p._imgerr; never wipes image_url) so a
+                             cache-busted refetch can recover it. -->
+                        <div class="cat-thumb" role="button" tabindex="0"
+                             @click="hasImg(p) ? openLightbox(thumbSrc(p), p.name) : openDetail(p)"
+                             @keydown.enter="hasImg(p) ? openLightbox(thumbSrc(p), p.name) : openDetail(p)"
+                             :title="hasImg(p) ? t('catalog.tap_to_enlarge') : t('catalog.tap_for_details')">
+                            <img x-show="hasImg(p)" :src="thumbSrc(p)" loading="lazy" alt=""
+                                 @error="onImgError(p)" @load="p._imgerr = false">
+                            <span x-show="!hasImg(p)" class="ph">📦</span>
+                        </div>
+                        <div class="cat-body" @click="openDetail(p)" title="Tap for details">
+                            <div class="cat-meta">
+                                <!-- BL-128: SIZE badge so 2g vs 10g variants are obvious at a glance -->
+                                <span x-show="posProductSize(p.name)" class="badge-size">📏 <span x-text="posProductSize(p.name)"></span></span>
+                                <span class="cat-name" x-text="p.name"></span>
+                            </div>
+                            <div class="cat-meta">
+                                <span class="cat-sku" x-text="p.sku"></span>
+                                <span x-show="p.category" class="badge-cat">🏷️ <span x-text="catLabel(p.category)"></span></span>
+                                <span x-show="p.is_age_restricted" class="chip chip-age">🔞 18+</span>
+                                <span x-show="p.product_class && p.product_class !== 'standard'"
+                                      class="chip chip-class" x-text="classLabel(p.product_class)"></span>
+                                <span x-show="p.promo_restricted" class="chip chip-nopromo">🚫 <span data-i18n="catalog.no_promo">no promo</span></span>
+                            </div>
+                            <div class="cat-meta" style="margin-top:auto">
+                                <span class="cat-price" x-text="formatPrice(p.price)"></span>
+                                <span class="cat-hint" data-i18n="catalog.tap_for_details_hint">Tap for details ›</span>
+                            </div>
+                        </div>
+                        <div class="cat-actions">
+                            <button x-show="user.isManager && p.is_active !== false" @click="openEdit(p)"
+                                    class="cat-edit">✏️ <span data-i18n="common.edit">Edit</span></button>
+                            <button x-show="user.isManager && p.is_active === false" @click="reactivate(p)"
+                                    class="cat-react">↩️ <span data-i18n="catalog.reactivate">Reactivate</span></button>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <!-- Infinite scroll: this sentinel auto-loads the next page when it nears view.
+                 The button stays as a manual fallback (and for browsers without IO). -->
+            <div x-ref="moreSentinel" style="height:1px"></div>
+            <p x-show="loading && results.length > 0" class="text-center text-gray-400 text-sm mt-3" data-i18n="catalog.loading_more">Loading more…</p>
+            <button x-show="!showDiscontinued && !loading && results.length < total" @click="loadMore()"
+                    class="btn-secondary w-full mt-3">
+                <span data-i18n="catalog.show_more">Show more</span> (<span x-text="total - results.length"></span> <span data-i18n="catalog.more_count">more</span>)
+            </button>
+
+            <!-- BL-127: never dead-end. Whenever there's a query, the operator can ALWAYS look it up
+                 on Google OR create it from a photo — no matter how many (weak) near-matches came
+                 back. Fixes the button hiding the moment ≥1 result rendered. -->
+            <div x-show="!loading && (q||'').trim()"
+                 class="border-t mt-4 pt-3 flex flex-wrap items-center justify-center gap-2 text-sm">
+                <span class="text-gray-500" data-i18n="catalog.not_right_item">Not the right item?</span>
+                <button @click="webSearchProduct(q)" class="btn-secondary inline-flex items-center gap-1">
+                    🔎 <span data-i18n="catalog.search_web">Look it up on Google</span>
+                </button>
+                <button x-show="user.isManager" @click="openCreate()" class="btn-primary inline-flex items-center gap-1">
+                    ➕ <span data-i18n="catalog.create_from_photo">Create from photo</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product detail / PREVIEW modal (read-only look at the item; Edit is separate) -->
+    <div x-show="detailProduct" x-transition class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" @click.self="detailProduct=null" style="display:none;">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-start p-5 border-b">
+                <h2 class="text-xl font-bold text-gray-900 pr-4" x-text="detailProduct?.name"></h2>
+                <button @click="detailProduct=null" class="text-gray-400 hover:text-gray-700 text-3xl leading-none flex-none">&times;</button>
+            </div>
+            <div class="grid md:grid-cols-2 gap-5 p-5">
+                <div>
+                    <div class="w-full aspect-square bg-gray-50 rounded-xl border flex items-center justify-center overflow-hidden"
+                         :class="hasImg(detailProduct) ? 'cursor-zoom-in' : ''"
+                         @click="hasImg(detailProduct) && openLightbox(thumbSrc(detailProduct), detailProduct?.name)">
+                        <img x-show="hasImg(detailProduct)" :src="thumbSrc(detailProduct)" class="w-full h-full object-contain" alt=""
+                             @error="onImgError(detailProduct)" @load="if(detailProduct) detailProduct._imgerr=false">
+                        <span x-show="!hasImg(detailProduct)" class="text-7xl">📦</span>
+                    </div>
+                    <p class="text-3xl font-bold text-indigo-600 mt-4" x-text="formatPrice(detailProduct?.price)"></p>
+                    <div class="cat-meta mt-2">
+                        <span x-show="detailProduct?.is_age_restricted" class="chip chip-age">🔞 18+</span>
+                        <span x-show="detailProduct?.product_class && detailProduct?.product_class !== 'standard'"
+                              class="chip chip-class" x-text="classLabel(detailProduct?.product_class)"></span>
+                        <span x-show="detailProduct?.promo_restricted" class="chip chip-nopromo">🚫 no promo</span>
+                    </div>
+                    <!-- BL-26: quantity price breaks — the same ladder as the sell detail card, so the ladder is visible everywhere. -->
+                    <template x-if="detailProduct?.price_tiers && detailProduct.price_tiers.length">
+                        <div class="mt-4 border border-indigo-200 rounded-lg overflow-hidden text-sm">
+                            <div class="bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-800 flex items-center gap-2">
+                                <span>🏷️ <span data-i18n="scan.tier_heading">Quantity price breaks</span></span>
+                            </div>
+                            <ul class="divide-y divide-indigo-100">
+                                <li class="px-3 py-1.5 flex justify-between text-gray-500">
+                                    <span>1</span><span class="font-medium" x-text="formatPrice(detailProduct?.price)"></span>
+                                </li>
+                                <template x-for="(row, i) in detailProduct.price_tiers" :key="i">
+                                    <li class="px-3 py-1.5 flex justify-between items-baseline gap-2" x-show="Number(row.min_qty) >= 2">
+                                        <span class="text-gray-800 font-medium" x-text="tierRowLabel(detailProduct, row)"></span>
+                                        <span class="text-gray-400 text-xs flex-none" x-text="tierRowSub(detailProduct, row)"></span>
+                                    </li>
+                                </template>
+                            </ul>
+                        </div>
+                    </template>
+                    <div class="flex gap-2 mt-4 flex-wrap">
+                        <button x-show="user.isManager" @click="openEdit(detailProduct); detailProduct=null"
+                                class="btn-primary flex-1">✏️ <span data-i18n="catalog.edit_this_product">Edit this product</span></button>
+                        <!-- 🏷️ Print a label — Pam's one-tap: any staff, any item, on demand (Brother QL-820) -->
+                        <a :href="'/pos/products/' + (detailProduct?.id) + '/label'" target="_blank" x-show="detailProduct?.id"
+                           class="flex-none inline-flex items-center gap-1 px-3 py-2 rounded-lg border-2 border-emerald-200 text-emerald-700 font-semibold hover:border-emerald-400 hover:bg-emerald-50"
+                           :title="t('catalog.print_label')">🏷️ <span data-i18n="catalog.label">Label</span></a>
+                        <!-- Full product page — the living-catalogue view (guest browse / share) -->
+                        <a :href="'/pos/products/' + (detailProduct?.id) + '/page?lang=' + (detailProduct?._descLang || window._posLang || 'de')"
+                           target="_blank" x-show="detailProduct?.id"
+                           class="flex-none inline-flex items-center gap-1 px-3 py-2 rounded-lg border-2 border-gray-200 text-gray-600 font-semibold hover:border-gray-400 hover:bg-gray-50"
+                           :title="t('catalog.open_page')">🔎 <span data-i18n="catalog.page">Page</span></a>
+                        <!-- Postcard maker: any product → a beautiful shareable card in the current language -->
+                        <a :href="'/pos/products/' + (detailProduct?.id) + '/postcard?lang=' + (detailProduct?._descLang || window._posLang || 'de')"
+                           target="_blank" x-show="detailProduct?.id"
+                           class="flex-none inline-flex items-center gap-1 px-3 py-2 rounded-lg border-2 border-indigo-200 text-indigo-700 font-semibold hover:border-indigo-400 hover:bg-indigo-50"
+                           :title="t('catalog.make_postcard')">📇 <span data-i18n="catalog.postcard">Postcard</span></a>
+                    </div>
+                </div>
+                <div class="text-sm">
+                    <h3 class="font-semibold text-gray-900 mb-2" data-i18n="catalog.details_heading">Details</h3>
+                    <dl class="divide-y border-y">
+                        <div class="flex justify-between py-2"><dt class="text-gray-500" data-i18n="catalog.field_sku">SKU</dt><dd class="font-medium text-right" x-text="detailProduct?.sku"></dd></div>
+                        <div class="flex justify-between py-2" x-show="detailProduct?.barcode"><dt class="text-gray-500" data-i18n="catalog.field_barcode">Barcode</dt><dd class="font-medium text-right break-all" x-text="detailProduct?.barcode"></dd></div>
+                        <div class="flex justify-between py-2" x-show="detailProduct?.category"><dt class="text-gray-500" data-i18n="catalog.field_category">Category</dt><dd class="font-medium text-right" x-text="catLabel(detailProduct?.category)"></dd></div>
+                        <div class="flex justify-between py-2" x-show="detailProduct?.product_class"><dt class="text-gray-500" data-i18n="catalog.field_class">Class</dt><dd class="font-medium text-right" x-text="detailProduct?.product_class"></dd></div>
+                        <div class="flex justify-between py-2" x-show="detailProduct?.supplier_name"><dt class="text-gray-500" data-i18n="catalog.field_supplier">Supplier</dt><dd class="font-medium text-right" x-text="detailProduct?.supplier_name"></dd></div>
+                        <!-- Zero-perpetual (2026-07-08): a bare stock count only makes a cashier hesitate,
+                             so the number is MANAGER-only; everyone sees a ⚠ reorder flag, but ONLY on a
+                             real low-stock signal (min_stock set AND stock at/under it). -->
+                        <div class="flex justify-between py-2" x-show="user.isManager"><dt class="text-gray-500" data-i18n="catalog.field_stock">Stock</dt><dd class="font-medium text-right" x-text="(detailProduct?.stock_quantity ?? 0)"></dd></div>
+                        <div class="flex justify-between py-2" x-show="detailProduct && detailProduct.min_stock != null && detailProduct.min_stock > 0 && (detailProduct.stock_quantity ?? 0) <= detailProduct.min_stock"><dt class="text-gray-500" data-i18n="catalog.field_reorder">Reorder</dt><dd class="font-medium text-right text-amber-600">⚠ <span data-i18n="catalog.low_stock">low — reorder</span></dd></div>
+                    </dl>
+                    <template x-if="detailProduct?.description">
+                        <div class="mt-4">
+                            <h3 class="font-semibold text-gray-900 mb-1 flex items-center gap-2 flex-wrap">
+                                <span data-i18n="catalog.description_heading">Description</span>
+                                <!-- Translating… (first look-up to a language is an LLM call) -->
+                                <span x-show="detailProduct?._descTranslating" style="display:none;" class="text-[11px] font-normal text-indigo-500 inline-flex items-center gap-1">
+                                    <span class="inline-block h-3 w-3 border-2 border-indigo-300 border-t-indigo-600 rounded-full animate-spin"></span>
+                                    <span data-i18n="catalog.translating">Translating…</span>
+                                </span>
+                                <span x-show="detailProduct?._descProvenance === 'machine' && !detailProduct?._descTranslating" class="text-[11px] font-normal text-gray-400" title="machine-translated">🤖 <span data-i18n="catalog.auto_translated">auto-translated</span></span>
+                                <!-- Read the description in ANY language, whatever you're logged in as (Swiss polyglots + everyone else) -->
+                                <span class="ml-auto flex items-center gap-0.5 text-base leading-none">
+                                    <template x-for="fl in [['de','🇩🇪'],['en','🇬🇧'],['fr','🇫🇷'],['it','🇮🇹']]" :key="fl[0]">
+                                        <button type="button" @click="setDescLang(fl[0])" :title="fl[0].toUpperCase()" :disabled="detailProduct?._descTranslating"
+                                            :class="(detailProduct?._descLang || (window._posLang||'en')) === fl[0] ? 'ring-2 ring-indigo-400 rounded' : 'opacity-45 hover:opacity-100'"
+                                            class="px-0.5 rounded transition disabled:cursor-wait" x-text="fl[1]"></button>
+                                    </template>
+                                </span>
+                            </h3>
+                            <!-- whitespace-pre-line: the enriched descriptions carry real line breaks + • bullets. Without
+                                 this the browser collapses them into the "wall of text" nobody reads at a till. -->
+                            <p class="text-gray-700 whitespace-pre-line" x-text="detailProduct?.description"></p>
+                        </div>
+                    </template>
+                    <!-- Enriched key:value tags (brand/material/flavor…) surface as attribute chips,
+                         the rest as plain tag chips — the review-card "attributes" look. -->
+                    <template x-if="tagChips(detailProduct?.tags).attrs.length">
+                        <div class="mt-4">
+                            <h3 class="font-semibold text-gray-900 mb-1" data-i18n="catalog.attributes_heading">Attributes</h3>
+                            <div class="cat-meta">
+                                <template x-for="a in tagChips(detailProduct?.tags).attrs" :key="a">
+                                    <span class="chip chip-attr" x-text="a"></span>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                    <template x-if="tagChips(detailProduct?.tags).plain.length">
+                        <div class="mt-4">
+                            <h3 class="font-semibold text-gray-900 mb-1" data-i18n="catalog.tags_heading">Tags</h3>
+                            <div class="cat-meta">
+                                <template x-for="t in tagChips(detailProduct?.tags).plain" :key="t">
+                                    <span class="chip chip-tag" x-text="t"></span>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create / Edit modal -->
+    <div x-show="modalOpen" x-transition class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" @click.self="tryCloseEdit()" style="display:none;">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[92vh] overflow-y-auto">
+            <div class="flex justify-between items-start p-5 border-b sticky top-0 bg-white">
+                <h2 class="text-xl font-bold text-gray-900" x-text="editing ? t('catalog.modal_edit_title') : t('catalog.modal_new_title')"></h2>
+                <button @click="tryCloseEdit()" class="text-gray-400 hover:text-gray-700 text-3xl leading-none flex-none">&times;</button>
+            </div>
+            <div class="p-5 space-y-4">
+                <!-- ✨ AI assist: snap an unmarked item, let the model draft the fields (create mode only) -->
+                <div x-show="!editing" class="rounded-lg border border-indigo-200 bg-indigo-50 p-3">
+                    <div class="flex items-center gap-3">
+                        <label class="btn-primary flex-none cursor-pointer flex items-center gap-2"
+                               :class="aiBusy ? 'opacity-60 pointer-events-none' : ''">
+                            <span x-text="aiBusy ? t('catalog.ai_reading') : t('catalog.ai_snap_fill')"></span>
+                            <input type="file" accept="image/*" :capture="posCaptureAttr()" class="hidden"
+                                   @change="aiSuggest($event)" :disabled="aiBusy">
+                        </label>
+                        <!-- Laptop/desktop: shoot from the built-in WEBCAM (the file input can't drive it) -->
+                        <button type="button" x-show="!posIsTouchDevice()" @click="webcamSuggest()" :disabled="aiBusy"
+                                class="btn-secondary flex-none inline-flex items-center gap-1">📷 Webcam</button>
+                        <div class="text-sm text-gray-600">
+                            <span data-i18n="catalog.ai_help">No barcode? Photograph it — the AI drafts name, category &amp; description. You confirm.</span>
+                            <p x-show="aiNote" x-text="aiNote" class="text-xs mt-1 font-medium text-indigo-700"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="catalog.form_name">Name *</label>
+                        <input type="text" x-model="form.name" class="input-field" placeholder="Product name" data-i18n-placeholder="catalog.name_placeholder">
+                        <!-- BL-34: the "search similar" everywhere. Any create OR edit — find this item
+                             already in the catalog / at a supplier and grab the right photo + details. -->
+                        <button type="button" @click="searchSimilar()" :disabled="!(form.name||'').trim() || snapBusy"
+                                class="mt-1.5 inline-flex items-center gap-1.5 text-sm font-semibold text-indigo-600 hover:text-indigo-800 disabled:text-gray-300 disabled:cursor-not-allowed">
+                            🔎 <span x-text="snapBusy ? t('catalog.search_similar_busy') : t('catalog.search_similar')">Search similar</span>
+                        </button>
+                        <p class="text-xs text-gray-400 mt-0.5" data-i18n="catalog.search_similar_hint">Find it in the catalog or at a supplier — grab the right photo &amp; details.</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="catalog.form_sku">SKU *</label>
+                        <input type="text" x-model="form.sku" class="input-field font-mono" :readonly="editing"
+                               :class="editing ? 'bg-gray-100' : ''">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="catalog.form_barcode">Barcode</label>
+                        <div class="flex gap-2">
+                            <input type="text" x-model="form.barcode" class="input-field font-mono flex-1" placeholder="Scan or leave blank" data-i18n-placeholder="catalog.barcode_placeholder">
+                            <button type="button" @click="startBarcodeScan()" class="btn-secondary flex-none px-3" title="Scan barcode">📷</button>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1" data-i18n="catalog.barcode_hint">No barcode? Leave it blank — a code is generated automatically.</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="catalog.form_price">Price (CHF) *</label>
+                        <input type="number" step="0.05" min="0" x-model="form.price" class="input-field text-xl font-bold">
+                        <!-- Non-destructive supplier reference: what the supplier suggested (RRP), kept on
+                             adopt so you can price to BEAT it instead of losing it. Read-only. -->
+                        <p class="text-xs mt-1" x-show="form.supplier_price != null && parseFloat(form.supplier_price) > 0"
+                           :class="parseFloat(form.price) > 0 && parseFloat(form.price) < parseFloat(form.supplier_price) ? 'text-green-600 font-semibold' : 'text-gray-500'">
+                            <span data-i18n="catalog.supplier_ref">Supplier ref:</span>
+                            <b x-text="formatPrice(form.supplier_price)"></b>
+                            <span x-show="parseFloat(form.price) > 0 && parseFloat(form.price) < parseFloat(form.supplier_price)" data-i18n="catalog.beats_supplier">✓ you beat it</span>
+                            <span x-show="parseFloat(form.price) > 0 && parseFloat(form.price) > parseFloat(form.supplier_price)" data-i18n="catalog.above_supplier">— above supplier price</span>
+                        </p>
+                        <!-- Slice 3+: "found it on the supplier" — the source's FULL record (photo + description +
+                             price) with one-tap pull for each. Every pull auto-fills the supplier (the DB it was
+                             found in KNOWS who it is). Fuzzy name match — operator confirms. Display-only. -->
+                        <template x-if="form.compare && form.compare.matches && form.compare.matches.length">
+                            <div class="mt-1.5 border-t border-gray-200 pt-1.5 space-y-2">
+                                <template x-for="m in form.compare.matches" :key="m.ref_id">
+                                    <div class="text-xs border border-gray-200 rounded-lg p-2 bg-gray-50">
+                                        <div class="flex items-center gap-2 flex-wrap"
+                                             :class="parseFloat(form.price) > 0 && m.suggested_price && parseFloat(form.price) < parseFloat(m.suggested_price) ? 'text-green-600 font-semibold' : 'text-gray-600'">
+                                            <span class="text-gray-400" data-i18n="catalog.found_on">Found on</span>
+                                            <span class="font-semibold" x-text="m.supplier"></span>
+                                            <b x-text="formatPrice(m.suggested_price)"></b>
+                                            <span x-show="parseFloat(form.price) > 0 && m.suggested_price && parseFloat(form.price) < parseFloat(m.suggested_price)" data-i18n="catalog.beats_supplier">✓ you beat it</span>
+                                            <span x-show="parseFloat(form.price) > 0 && m.suggested_price && parseFloat(form.price) > parseFloat(m.suggested_price)" data-i18n="catalog.above_supplier">— above supplier price</span>
+                                            <span class="text-gray-400" x-show="m.similarity != null"><span x-text="Math.round(m.similarity*100)"></span>%</span>
+                                        </div>
+                                        <!-- BL-32+: the reference's own NAME (confirm it's the same item) + quick stats
+                                             (price delta vs your price · supplier cost); the photo enlarges on click. -->
+                                        <div class="text-gray-700 font-medium mt-1 truncate" x-show="m.title" x-text="m.title"></div>
+                                        <div class="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5" x-show="m.suggested_price != null || m.cost != null">
+                                            <span x-show="parseFloat(form.price) > 0 && m.suggested_price != null"
+                                                  :class="parseFloat(form.price) < parseFloat(m.suggested_price) ? 'text-green-600 font-semibold' : 'text-amber-600 font-semibold'"
+                                                  x-text="(parseFloat(form.price) < parseFloat(m.suggested_price) ? '▼ −' : '▲ +') + formatPrice(Math.abs(parseFloat(form.price) - parseFloat(m.suggested_price)))"></span>
+                                            <span class="text-gray-500" x-show="m.cost != null" x-text="t('catalog.cmp_cost') + ' ' + formatPrice(m.cost)"></span>
+                                        </div>
+                                        <div class="flex gap-2 mt-1.5" x-show="m.image_url || m.description">
+                                            <img x-show="m.image_url" :src="m.image_url" @click="openLightbox(m.image_url, m.title || m.supplier)" loading="lazy" alt=""
+                                                 class="w-16 h-16 rounded object-cover border flex-none bg-white cursor-zoom-in hover:ring-2 hover:ring-blue-400" :title="t('catalog.cmp_enlarge')">
+                                            <p class="text-gray-500 flex-1 min-w-0 line-clamp-4" x-show="m.description" x-text="m.description"></p>
+                                        </div>
+                                        <div class="flex items-center gap-2 mt-1.5 flex-wrap">
+                                            <button type="button" @click="pullAll(m)" class="px-2.5 py-1 rounded-md bg-blue-600 text-white font-semibold hover:bg-blue-700">
+                                                ⤵ <span data-i18n="catalog.use_all">Use all these details</span>
+                                            </button>
+                                            <span class="text-gray-300">·</span>
+                                            <button type="button" x-show="m.description" @click="pullFrom(m, 'desc')" class="text-blue-600 hover:underline" data-i18n="catalog.pull_desc">description</button>
+                                            <button type="button" x-show="m.image_url" @click="pullFrom(m, 'photo')" class="text-blue-600 hover:underline" data-i18n="catalog.pull_photo">photo</button>
+                                            <button type="button" x-show="m.barcode && !form.barcode" @click="pullFrom(m, 'barcode')" class="text-blue-600 hover:underline" data-i18n="catalog.use_barcode">barcode</button>
+                                            <span class="text-green-600" x-show="form.supplier_name === m.supplier" data-i18n="catalog.supplier_set">✓ supplier set</span>
+                                        </div>
+                                    </div>
+                                </template>
+                                <p class="text-gray-400 text-xs" data-i18n="catalog.compare_hint">Matched by name — confirm it's the same item before trusting the price.</p>
+                            </div>
+                        </template>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="catalog.form_cost">Cost (CHF)</label>
+                        <input type="number" step="0.05" min="0" x-model="form.cost" class="input-field">
+                        <p class="text-xs mt-1" x-show="parseFloat(form.cost) > 0 && parseFloat(form.price) > 0"
+                           :class="parseFloat(form.cost) > parseFloat(form.price) ? 'text-red-600 font-semibold' : 'text-gray-500'">
+                            <span x-show="parseFloat(form.cost) > parseFloat(form.price)" data-i18n="catalog.cost_above_price">⚠️ Cost is above price — you'd sell at a loss. </span>
+                            <span data-i18n="catalog.markup_label">Markup:</span> <b x-text="markupPct()"></b>
+                        </p>
+                    </div>
+                    <!-- BL-26: quantity-break (tier) pricing — buy more, pay less each. Papers etc.
+                         A break price is FINAL: a tiered line takes no further member/manual discount. -->
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <label class="block text-sm font-medium text-gray-700" data-i18n="catalog.tiers_label">Quantity price breaks</label>
+                            <button type="button" @click="addTier()" class="text-xs text-blue-600 hover:underline" data-i18n="catalog.tiers_add">+ Add break</button>
+                        </div>
+                        <p class="text-xs text-gray-500 mb-2" x-show="(form.price_tiers||[]).length===0" data-i18n="catalog.tiers_hint">Optional. Buy more, pay less — a break price is final (no extra discount).</p>
+                        <div class="flex items-center gap-3 text-xs mb-2 flex-wrap" x-show="(form.price_tiers||[]).length > 0">
+                            <span class="text-gray-500 flex-none" data-i18n="catalog.tiers_mode">Type:</span>
+                            <label class="flex items-center gap-1 cursor-pointer"><input type="radio" value="per_unit" x-model="form.tier_mode" class="w-3.5 h-3.5"><span data-i18n="catalog.tiers_mode_perunit">price EACH (10+ → 4.50 ea)</span></label>
+                            <label class="flex items-center gap-1 cursor-pointer"><input type="radio" value="bundle" x-model="form.tier_mode" @change="onTierModeChange()" class="w-3.5 h-3.5"><span data-i18n="catalog.tiers_mode_bundle">N for X total (3 for 10)</span></label>
+                        </div>
+                        <!-- loop var is `row` (NOT `t`) — `t` would shadow the global t() translation
+                             helper and calling t('catalog.…') below would throw ".t is not a function". -->
+                        <template x-for="(row, i) in (form.price_tiers||[])" :key="i">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="text-xs text-gray-500 flex-none" x-text="form.tier_mode === 'bundle' ? t('catalog.tiers_buy') : t('catalog.tiers_from')">From</span>
+                                <input type="number" step="1" min="1" x-model="row.min_qty" placeholder="qty" class="input-field w-20 text-sm">
+                                <span class="text-xs text-gray-500 flex-none" x-text="form.tier_mode === 'bundle' ? t('catalog.tiers_for') : '→'">→</span>
+                                <input type="number" step="0.05" min="0" x-model="row.unit_price" placeholder="0.00" class="input-field w-24 text-sm">
+                                <span class="text-xs text-gray-400 flex-none" x-text="form.tier_mode === 'bundle' ? t('catalog.tiers_total') : t('catalog.tiers_each')">each</span>
+                                <button type="button" @click="form.price_tiers.splice(i,1)" class="text-red-500 hover:text-red-700 flex-none text-lg leading-none" title="remove">×</button>
+                            </div>
+                        </template>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1"><span data-i18n="catalog.form_category">Category</span>
+                            <span class="text-xs text-gray-400 font-normal" data-i18n="catalog.form_category_hint">— what it is (on the wall)</span></label>
+                        <input type="text" x-model="form.category" list="catlist" class="input-field" placeholder="Pick existing or type new" data-i18n-placeholder="catalog.category_placeholder">
+                        <datalist id="catlist">
+                            <template x-for="name in allCategoryNames()" :key="name">
+                                <option :value="name"></option>
+                            </template>
+                        </datalist>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1"><span data-i18n="catalog.form_class">Class</span>
+                            <span class="text-xs text-gray-400 font-normal" data-i18n="catalog.form_class_hint">— how the till treats it</span></label>
+                        <select x-model="form.product_class" @change="onClassChange()" class="input-field">
+                            <template x-for="c in classes" :key="c.value">
+                                <option :value="c.value" x-text="c.label"></option>
+                            </template>
+                        </select>
+                        <p class="text-xs mt-1" :class="form.is_age_restricted ? 'text-red-600 font-medium' : 'text-gray-400'"
+                           x-text="form.is_age_restricted ? t('catalog.age_gated_note') : t('catalog.no_age_gate_note')"></p>
+                        <p class="text-xs mt-0.5" :class="classPromo() ? 'text-amber-700 font-medium' : 'text-gray-400'"
+                           x-text="classPromo() ? t('catalog.no_promo_note') : t('catalog.discountable_note')"></p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="catalog.form_supplier">Supplier</label>
+                        <!-- pick from known suppliers (datalist) — still tolerant of an existing value
+                             that isn't a formal supplier row (e.g. "Artemis"), so no data is lost. -->
+                        <input type="text" x-model="form.supplier_name" list="catalog-supplier-list" class="input-field" placeholder="(optional)" data-i18n-placeholder="catalog.optional_placeholder">
+                        <datalist id="catalog-supplier-list">
+                            <template x-for="s in suppliers" :key="s.id || s.code || s.name"><option :value="s.name"></option></template>
+                        </datalist>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1"><span data-i18n="catalog.form_photos">Photos</span>
+                            <span class="text-xs text-gray-400 font-normal" data-i18n="catalog.form_photos_hint">— a few angles; tap one to make it the cover</span></label>
+                        <div class="flex flex-wrap gap-2">
+                            <!-- existing photos (edit mode) -->
+                            <template x-for="img in gallery" :key="img.id">
+                                <div class="relative w-20 h-20 rounded-lg border overflow-hidden"
+                                     :class="img.is_cover ? 'ring-2 ring-indigo-500' : ''">
+                                    <img :src="img.url" class="w-full h-full object-cover cursor-pointer" @click="makeCover(img)"
+                                         title="Make cover" alt="">
+                                    <span x-show="img.is_cover" class="absolute bottom-0 inset-x-0 bg-indigo-600 text-white text-[10px] text-center leading-tight" data-i18n="catalog.cover_badge">cover</span>
+                                    <button @click="removeImage(img)" type="button"
+                                            class="absolute top-0 right-0 bg-red-600 text-white w-5 h-5 text-xs leading-none rounded-bl">✕</button>
+                                </div>
+                            </template>
+                            <!-- queued photos (create mode — uploaded on save) -->
+                            <template x-for="(ph, i) in pendingPhotos" :key="i">
+                                <div class="relative w-20 h-20 rounded-lg border border-dashed overflow-hidden">
+                                    <img :src="ph.preview" class="w-full h-full object-cover" alt="">
+                                    <button @click="removePending(i)" type="button"
+                                            class="absolute top-0 right-0 bg-red-600 text-white w-5 h-5 text-xs leading-none rounded-bl">✕</button>
+                                </div>
+                            </template>
+                            <!-- add another -->
+                            <label class="w-20 h-20 rounded-lg border-2 border-dashed flex flex-col items-center justify-center cursor-pointer text-gray-400 hover:border-indigo-400 hover:text-indigo-500 flex-none">
+                                <span class="text-2xl leading-none">📸</span>
+                                <span class="text-[10px] mt-1" x-text="uploadingPhoto ? '…' : t('catalog.add_photo')"></span>
+                                <input type="file" accept="image/*" :capture="posCaptureAttr()" class="hidden" @change="onPhoto($event)" :disabled="uploadingPhoto">
+                            </label>
+                        </div>
+                        <input type="text" x-model="form.image_url" x-show="gallery.length===0 && pendingPhotos.length===0"
+                               class="input-field mt-2 text-xs text-gray-500" placeholder="…or paste an image URL (https://…)" data-i18n-placeholder="catalog.image_url_placeholder">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            <span data-i18n="catalog.form_description">Description</span>
+                            <span x-show="enriching" class="ml-2 text-xs text-teal-600 animate-pulse">🌐 <span data-i18n="catalog.enriching">pulling full details from the supplier…</span></span>
+                        </label>
+                        <textarea x-model="form.description" rows="2" class="input-field" placeholder="(optional)" data-i18n-placeholder="catalog.optional_placeholder"></textarea>
+                    </div>
+                    <!-- No min/max/reorder thresholds: Banco runs zero perpetual inventory.
+                         Reorder guidance comes from sales velocity (v2), not a count. -->
+                    <label class="flex items-center gap-2 text-sm text-gray-700">
+                        <input type="checkbox" x-model="form.is_age_restricted" class="w-4 h-4"> <span data-i18n="catalog.age_restricted_check">18+ age-restricted</span>
+                        <span class="text-xs text-gray-400" data-i18n="catalog.age_restricted_hint">(usually set by Class — override here for an oddball)</span>
+                    </label>
+                </div>
+
+                <div class="flex flex-wrap gap-3 pt-2 border-t">
+                    <button @click="save()" :disabled="saving" class="btn-success flex-1">
+                        <span x-show="!saving" x-text="editing ? t('catalog.save_changes') : t('catalog.create_product')"></span>
+                        <span x-show="saving" style="display:none;" data-i18n="catalog.saving">Saving…</span>
+                    </button>
+                    <button x-show="editing" @click="discontinue()" :disabled="saving"
+                            class="bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg font-semibold">🗑️ <span data-i18n="catalog.discontinue">Discontinue</span></button>
+                    <!-- Permanent delete: ONLY when the item was never sold (mistakes/dupes). Hidden the
+                         moment it has sales — then history must be kept and Discontinue is the only path. -->
+                    <button x-show="editing && form._sales === 0" style="display:none;" @click="hardDelete()" :disabled="saving"
+                            class="border border-red-300 text-red-700 hover:bg-red-50 px-4 py-3 rounded-lg font-semibold">🔥 <span data-i18n="catalog.delete_permanent">Delete permanently</span></button>
+                </div>
+                <p class="text-xs text-gray-500" data-i18n="catalog.discontinue_hint">Discontinue = soft delete. The item stops selling but history is kept; you can reactivate it later.</p>
+                <p x-show="editing && form._sales === 0" style="display:none;" class="text-xs text-red-400" data-i18n="catalog.delete_permanent_hint">This item has never been sold, so it can be permanently removed. Sold items can only be discontinued.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- FIND-FIRST picker: snap → the AI reads it → these are the items ALREADY in the shop (or the
+         FourTwenty reference). Pick the real one instead of creating a duplicate; "new item" is the fallback. -->
+    <div x-show="snapOpen" x-transition class="fixed inset-0 z-[70] bg-black/60 flex items-center justify-center p-4" style="display:none;" @click.self="snapClose()">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-start p-5 border-b sticky top-0 bg-white">
+                <div>
+                    <h3 class="text-lg font-bold text-gray-900" data-i18n="catalog.snap_title">Is it already in the shop?</h3>
+                    <p class="text-xs text-gray-500 mt-1">
+                        <span data-i18n="catalog.snap_ai_saw">AI read</span>:
+                        <span class="font-medium text-gray-700" x-text="snap ? snap.query : ''"></span>
+                    </p>
+                </div>
+                <button @click="snapClose()" class="text-gray-400 hover:text-gray-700 text-3xl leading-none flex-none">&times;</button>
+            </div>
+            <div class="p-4 space-y-4">
+                <!-- In the live catalog: tap = open the existing one (no duplicate) -->
+                <div x-show="snap && snap.product_matches && snap.product_matches.length">
+                    <div class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2" data-i18n="catalog.snap_in_catalog">Already in your catalog</div>
+                    <template x-for="m in (snap ? snap.product_matches : [])" :key="m.id">
+                        <button @click="snapPickCatalog(m)" class="w-full flex items-center gap-3 p-2.5 mb-2 rounded-lg border border-gray-200 hover:border-indigo-400 hover:bg-indigo-50 text-left">
+                            <div class="w-12 h-12 flex-none bg-gray-50 rounded border flex items-center justify-center overflow-hidden">
+                                <img x-show="m.image_url" :src="m.image_url" class="w-full h-full object-contain" alt="" @error="$el.style.display='none'">
+                                <span x-show="!m.image_url" class="text-2xl">📦</span>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-1.5">
+                                    <span x-show="posProductSize(m.name)" class="badge-size" style="font-size:12px;padding:1px 7px;"><span x-text="posProductSize(m.name)"></span></span>
+                                    <div class="font-medium text-gray-900 truncate" x-text="m.name"></div>
+                                </div>
+                                <div class="text-xs text-gray-500 truncate"><span x-text="m.sku"></span> · <span x-text="formatPrice(m.price)"></span></div>
+                                <!-- BL-33: an inactive product still EXISTS + owns its barcode → surface it so the
+                                     operator reactivates instead of hitting the invisible-duplicate wall. -->
+                                <div class="text-[11px] text-amber-600 font-semibold mt-0.5" x-show="m.is_active === false">
+                                    ⏸ <span data-i18n="catalog.snap_inactive">Off — tap to reactivate</span>
+                                </div>
+                            </div>
+                            <span class="flex-none text-xs font-bold px-2 py-1 rounded-full"
+                                  :class="snapPct(m.score) >= 45 ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'">
+                                <span x-text="snapPct(m.score)"></span>% <span data-i18n="catalog.snap_match">match</span>
+                            </span>
+                        </button>
+                    </template>
+                </div>
+                <!-- FourTwenty reference: tap = fill the add-form from the supplier master -->
+                <div x-show="snap && snap.reference_matches && snap.reference_matches.length">
+                    <div class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2" data-i18n="catalog.snap_from_supplier">From FourTwenty (supplier)</div>
+                    <template x-for="m in (snap ? snap.reference_matches : [])" :key="m.id">
+                        <button @click="snapPickReference(m)" class="w-full flex items-center gap-3 p-2.5 mb-2 rounded-lg border border-gray-200 hover:border-blue-400 hover:bg-blue-50 text-left">
+                            <div class="w-12 h-12 flex-none bg-gray-50 rounded border flex items-center justify-center overflow-hidden">
+                                <img x-show="m.image_url" :src="m.image_url" class="w-full h-full object-contain" alt="" @error="$el.style.display='none'">
+                                <span x-show="!m.image_url" class="text-2xl">📦</span>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="font-medium text-gray-900 truncate" x-text="m.title"></div>
+                                <div class="text-xs text-gray-500 truncate">
+                                    <template x-if="m.supplier"><span class="font-semibold text-blue-600" x-text="m.supplier"></span></template>
+                                    <template x-if="m.supplier && m.suggested_price != null"><span> · </span></template>
+                                    <span x-text="m.suggested_price != null ? formatPrice(m.suggested_price) : ''"></span>
+                                </div>
+                            </div>
+                            <span class="flex-none text-xs font-bold px-2 py-1 rounded-full bg-blue-100 text-blue-700">
+                                <span x-text="snapPct(m.score)"></span>% <span data-i18n="catalog.snap_match">match</span>
+                            </span>
+                        </button>
+                    </template>
+                </div>
+                <!-- BL-35: not in EITHER local list → search the supplier sites live, adopt + self-heal -->
+                <div class="pt-2 border-t">
+                    <button x-show="!liveBusy" @click="searchSuppliersLive()"
+                            class="w-full py-2.5 rounded-lg border-2 border-dashed border-teal-300 text-teal-700 font-semibold hover:border-teal-500 hover:bg-teal-50">
+                        🌐 <span data-i18n="catalog.snap_live_search">Not here? Search supplier sites live</span>
+                    </button>
+                    <div x-show="liveBusy" class="w-full py-2.5 text-center text-sm text-gray-500 animate-pulse">
+                        🌐 <span data-i18n="catalog.snap_live_busy">Searching FourTwenty · Artemis · Near Dark…</span>
+                    </div>
+                    <div x-show="liveResults.length" class="mt-2">
+                        <div class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                            🌐 <span data-i18n="catalog.snap_live_results">Live from the supplier sites</span>
+                            <template x-if="liveVariants.length">
+                                <span class="normal-case font-normal text-gray-400">· <span data-i18n="catalog.snap_live_also">also searched</span> <span class="text-teal-600" x-text="liveVariants.join(', ')"></span></span>
+                            </template>
+                        </div>
+                        <template x-for="m in liveResults" :key="m.supplier + m.product_url">
+                            <button @click="snapPickLive(m)" class="w-full flex items-center gap-3 p-2.5 mb-2 rounded-lg border border-gray-200 hover:border-teal-400 hover:bg-teal-50 text-left">
+                                <div class="w-12 h-12 flex-none bg-gray-50 rounded border flex items-center justify-center overflow-hidden">
+                                    <img x-show="m.image_url" :src="m.image_url" class="w-full h-full object-contain" alt="" @error="$el.style.display='none'">
+                                    <span x-show="!m.image_url" class="text-2xl">📦</span>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="font-medium text-gray-900 truncate" x-text="m.title"></div>
+                                    <div class="text-xs text-gray-500 truncate">
+                                        <span class="font-semibold text-teal-700" x-text="m.supplier"></span>
+                                        <span class="ml-1 px-1.5 py-0.5 rounded text-[10px] font-semibold" :class="roleClass(m.role)" x-text="roleLabel(m.role)"></span>
+                                        <template x-if="m.price != null"> · <span x-text="m.currency + ' ' + m.price"></span></template>
+                                        <template x-if="m.base_price != null"><span class="text-gray-400" :title="'plan rate ' + m.fx_rate + (m.fx_as_of ? ' · ' + m.fx_as_of : '')"> ≈ <span x-text="m.base_currency + ' ' + m.base_price"></span></span></template>
+                                        <template x-if="m.price_tiers && m.price_tiers.length"><span class="text-teal-600"> · 🏷️<span x-text="m.price_tiers.length"></span></span></template>
+                                        <template x-if="m.barcode"><span class="text-gray-400"> · <span x-text="m.barcode"></span></span></template>
+                                    </div>
+                                </div>
+                                <span class="flex-none text-xs font-bold px-2 py-1 rounded-full bg-teal-100 text-teal-700">
+                                    <span x-text="snapPct(m.score)"></span>%
+                                </span>
+                            </button>
+                        </template>
+                    </div>
+                    <div x-show="liveSearched && !liveBusy && !liveResults.length" class="mt-2 text-center text-xs text-gray-400" data-i18n="catalog.snap_live_none">No live matches on the supplier sites.</div>
+                    <div x-show="Object.keys(liveErrors).length" class="mt-1 text-center text-[11px] text-amber-500">
+                        <span data-i18n="catalog.snap_live_err">Didn't answer</span>: <span x-text="Object.keys(liveErrors).join(', ')"></span>
+                    </div>
+                </div>
+
+                <!-- BL-127: no dead-end on a weak snap — look it up on Google, OR create from the photo draft -->
+                <div class="flex gap-2 mt-1">
+                    <button @click="webSearchProduct(snap ? snap.query : '')"
+                            class="flex-none py-3 px-4 rounded-lg border-2 border-dashed border-gray-300 text-gray-700 font-semibold hover:border-indigo-400 hover:text-indigo-700 inline-flex items-center gap-1">
+                        🔎 <span data-i18n="catalog.search_web">Look it up on Google</span>
+                    </button>
+                    <button @click="snapUseAiDraft()" class="flex-1 py-3 rounded-lg border-2 border-dashed border-gray-300 text-gray-700 font-semibold hover:border-indigo-400 hover:text-indigo-700">
+                        ➕ <span data-i18n="catalog.snap_none_new">None of these — create it</span> →
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BL-32: "you already have that one" — an enrich-the-existing dialog instead of a dead-end 409. -->
+    <div x-show="dup" x-transition class="fixed inset-0 z-[80] bg-black/60 flex items-center justify-center p-4" style="display:none;" @click.self="dup=null">
+        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-5 space-y-4">
+            <div>
+                <h3 class="text-lg font-bold text-gray-900" data-i18n="catalog.dup_title">This item already exists</h3>
+                <p class="text-sm text-gray-600 mt-1" data-i18n="catalog.dup_msg">You weren't adding something new — you were enriching an item Banco already has. Apply your changes to the existing one?</p>
+            </div>
+            <div class="grid grid-cols-2 gap-3 text-sm">
+                <div class="border rounded-lg p-3 bg-gray-50">
+                    <div class="text-xs font-semibold text-gray-500 mb-1" data-i18n="catalog.dup_existing">Existing</div>
+                    <div class="font-medium text-gray-900 break-words" x-text="dup && dup.existing ? dup.existing.name : ''"></div>
+                    <div class="text-gray-600 mt-1" x-text="dup && dup.existing ? formatPrice(dup.existing.price) : ''"></div>
+                    <div class="text-gray-400 text-xs mt-1 break-words" x-text="dup && dup.existing ? (dup.existing.description || '') : ''"></div>
+                </div>
+                <div class="border-2 border-green-400 rounded-lg p-3 bg-green-50">
+                    <div class="text-xs font-semibold text-green-700 mb-1" data-i18n="catalog.dup_yours">Your version</div>
+                    <div class="font-medium text-gray-900 break-words" x-text="form.name"></div>
+                    <div class="text-gray-600 mt-1" x-text="formatPrice(form.price)"></div>
+                    <div class="text-gray-400 text-xs mt-1 break-words" x-text="form.description || ''"></div>
+                </div>
+            </div>
+            <div class="flex flex-col gap-2">
+                <button @click="useMineOnExisting()" :disabled="saving" class="btn-success w-full" data-i18n="catalog.dup_use_mine">Update the existing with my details</button>
+                <button @click="dup=null" :disabled="saving" class="w-full text-gray-600 text-sm py-2 hover:underline" data-i18n="catalog.dup_keep">Keep the existing, discard mine</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- BL-128 #3: same-size look-alikes — "is it one of these?" before forking a duplicate. -->
+    <div x-show="nameDupes" x-transition class="fixed inset-0 z-[80] bg-black/60 flex items-center justify-center p-4" style="display:none;" @click.self="nameDupes=null">
+        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-5 space-y-4">
+            <div>
+                <h3 class="text-lg font-bold text-gray-900" data-i18n="catalog.namedup_title">Is it one of these?</h3>
+                <p class="text-sm text-gray-600 mt-1" data-i18n="catalog.namedup_msg">A very similar item — same name and size — is already in the catalog. Open it instead of creating a duplicate.</p>
+            </div>
+            <div class="space-y-2 max-h-72 overflow-y-auto">
+                <template x-for="m in (nameDupes || [])" :key="m.id">
+                    <button @click="useDupeMatch(m)" :disabled="saving"
+                            class="w-full text-left border rounded-lg p-3 hover:border-green-400 hover:bg-green-50 flex items-center gap-3">
+                        <img x-show="m.image_url" :src="m.image_url" class="w-12 h-12 rounded object-cover flex-shrink-0" alt="">
+                        <div class="min-w-0 flex-1">
+                            <div class="font-medium text-gray-900 break-words" x-text="m.name"></div>
+                            <div class="text-sm text-gray-600">
+                                <span x-show="posProductSize(m.name)" class="badge-size">📏 <span x-text="posProductSize(m.name)"></span></span>
+                                <span class="ml-1" x-text="m.price != null ? formatPrice(m.price) : ''"></span>
+                                <span class="text-gray-400 text-xs ml-1" x-text="m.category || ''"></span>
+                            </div>
+                        </div>
+                        <span class="text-green-600 text-sm font-semibold flex-shrink-0" data-i18n="catalog.namedup_use">Use this →</span>
+                    </button>
+                </template>
+            </div>
+            <div class="flex flex-col gap-2 pt-1">
+                <button @click="createAnyway()" :disabled="saving" class="w-full text-gray-700 text-sm py-2 border rounded-lg hover:bg-gray-50" data-i18n="catalog.namedup_create">No, these are different — create it anyway</button>
+                <button @click="nameDupes=null" :disabled="saving" class="w-full text-gray-500 text-sm py-2 hover:underline" data-i18n="catalog.namedup_cancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- BL-89: barcode scanner overlay (shared PosScanner) for the create/edit form -->
+    <div x-show="scanOpen" x-transition class="fixed inset-0 z-[70] bg-black flex flex-col" style="display:none;">
+        <div class="flex justify-between items-center px-4 py-3 bg-black/80 text-white">
+            <span class="font-semibold">📷 <span data-i18n="catalog.scan_barcode_title">Scan the barcode</span></span>
+            <button @click="stopScan()" class="text-white text-3xl leading-none px-2" aria-label="Cancel scan">&times;</button>
+        </div>
+        <div class="flex-1 relative flex items-center justify-center overflow-hidden">
+            <div id="cat-reader" class="w-full max-w-md"></div>
+            <!-- No-camera fallback: a calm note + "choose a photo from disc". Never a dead-end. -->
+            <div x-show="scanFallback" class="absolute inset-0 flex flex-col items-center justify-center text-center px-6 gap-4" style="display:none;">
+                <span class="text-5xl">📁</span>
+                <p class="text-white text-base max-w-xs" x-text="scanError || t('catalog.no_camera')"></p>
+                <label class="btn-primary cursor-pointer">
+                    📁 <span data-i18n="catalog.choose_photo">Choose a photo from your computer</span>
+                    <input type="file" accept="image/*" class="hidden" @change="onScanFile($event)">
+                </label>
+                <p class="text-white/60 text-xs max-w-xs" data-i18n="catalog.scan_fallback_hint">Pick a photo of the barcode and it'll be read from the image — or just cancel and type it.</p>
+            </div>
+            <p x-show="scanError && !scanFallback" class="absolute bottom-24 left-4 right-4 text-center text-white bg-red-600/90 rounded-lg px-4 py-3" x-text="scanError" style="display:none;"></p>
+        </div>
+        <div class="px-4 py-4 bg-black/80 text-center">
+            <button @click="stopScan()" class="btn-secondary" data-i18n="catalog.cancel_type_instead">Cancel — type it instead</button>
+        </div>
+    </div>
+
+    <!-- Image lightbox — tap a product photo to see it big. Tap anywhere / × / Esc to close. -->
+    <div x-show="lightboxSrc" x-transition class="fixed inset-0 z-[80] flex items-center justify-center bg-black/85 p-4"
+         @click="closeLightbox()" @keydown.escape.window="closeLightbox()" style="display:none;">
+        <img :src="lightboxSrc" :alt="lightboxAlt" class="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl" @click.stop>
+        <button @click="closeLightbox()" class="absolute top-4 right-4 text-white text-5xl leading-none px-2" aria-label="Close">&times;</button>
+    </div>
+</div>
+
+<script>
+    function catalogData() {
+        return {
+            user: {},
+            returnUrl: '',   // where to go "back" — set when opened from the cleanup bench (Details)
+            q: '',
+            category: '',
+            categories: [],
+            suppliers: [],   // active suppliers → the supplier pick-list on the product form
+            // BL-96 taxonomy — mirrors src/services/catalog_taxonomy.py (CONTROLLED set).
+            // CATEGORY = merchandising skeleton (grows freely); CLASS = behaviour (drives 18+/VAT).
+            catSkeleton: [
+                "CBD & Hemp", "Edibles", "Creams & Topicals", "Papers & Filters", "Grinders",
+                "Lighters", "Pipes & Bongs", "Vaporizers", "E-Liquids", "Tobacco & Cigarettes",
+                "Alcohol", "Grow Supplies", "Café", "Merch", "Accessories", "Other",
+            ],
+            classes: [
+                { value: "standard",         label: "Standard goods",      age: false, promo: false },
+                { value: "tobacco_nicotine", label: "Tobacco / Nicotine",  age: true,  promo: true  },
+                { value: "alcohol",          label: "Alcohol",             age: true,  promo: true  },
+                { value: "cbd_hemp",         label: "CBD — 18+ (flower/hash/vape/edibles)", age: true,  promo: false },
+                { value: "cbd_open",         label: "CBD — open (oils/seeds/cosmetics)",    age: false, promo: false },
+                { value: "cafe_food",        label: "Café food & drink",   age: false, promo: false },
+            ],
+            results: [],
+            total: 0,
+            skip: 0,
+            sort: 'recent',        // default: newest first — the stuff you just catalogued is on top
+            pageSize: 25,
+            loading: false,
+            _formSnapshot: null,   // form signature when the edit modal opened (unsaved-changes guard)
+            detailProduct: null,   // product shown in the read-only preview modal
+            showDiscontinued: false,
+
+            modalOpen: false,
+            editing: false,
+            saving: false,
+            dup: null,            // BL-32: set when a create hits an existing product → {existing_id, existing, conflict}
+            nameDupes: null,      // BL-128 #3: same-size look-alikes returned by the create guard → [{id,name,price,...}]
+            _forceCreate: false,  // BL-128 #3: true after "create it anyway" → next create bypasses the name guard
+            form: {},
+            gallery: [],          // existing photos (edit mode): [{id, url, is_cover}]
+            pendingPhotos: [],    // photos queued before the product exists (create): [{file, preview}]
+            uploadingPhoto: false,
+            aiBusy: false,        // photo→product AI suggest in flight
+            aiNote: '',           // result line: confidence + ms, or a graceful fallback note
+            snap: null,           // find-first: {suggestion, product_matches, reference_matches, best_match_score, query}
+            snapOpen: false,      // the "is it already in the shop?" picker
+            snapFile: null,       // the snapped photo, kept if the cashier goes "new item"
+            snapBusy: false,      // BL-34: manual "🔎 Search similar" in flight
+            // BL-35: live supplier-site search fallback
+            liveResults: [],
+            liveVariants: [],     // BL-38: extra language variants also searched (e.g. German)
+            liveBusy: false,
+            liveSearched: false,
+            liveErrors: {},
+            enriching: false,     // BL-35: pulling full description/tiers for a thin local pick
+
+            // BL-89: barcode scan on the form
+            scanOpen: false,
+            scanError: '',
+            scanFallback: false,   // no-camera: show the "choose a photo from disc" fallback
+            scanMode: '',          // 'search' | 'barcode' — where a fallback decode routes to
+
+            // Image lightbox (tap a product photo → see it big)
+            lightboxSrc: '',
+            lightboxAlt: '',
+
+            init() {
+                const userInfo = AuthHelper.getUserInfo();
+                if (!userInfo) { window.location.href = '/pos'; return; }
+                this.user = { ...userInfo, isManager: AuthHelper.isManager(), isAdmin: AuthHelper.isAdmin() };
+                this.loadCategories();
+                this.search();   // list the catalogue by default — no need to type first
+                // Deep-link from the product page's manager "Edit" button: /pos/catalog?edit={id}
+                // opens that product straight into the edit modal (openEdit fetches the full record).
+                const _p = new URLSearchParams(location.search);
+                const editId = _p.get('edit');
+                // Came from the cleanup bench? Remember where to send them back after saving.
+                const ret = _p.get('return');
+                if (ret && ret.startsWith('/pos/')) this.returnUrl = ret;   // same-origin path only
+                if (editId && this.user.isManager) this.$nextTick(() => this.openEdit({ id: editId }));
+                // Infinite scroll: load the next page as the sentinel nears the viewport.
+                this.$nextTick(() => {
+                    const sentinel = this.$refs.moreSentinel;
+                    if (!sentinel || !('IntersectionObserver' in window)) return;
+                    new IntersectionObserver((entries) => {
+                        if (entries[0].isIntersecting && !this.loading
+                            && !this.showDiscontinued && this.results.length < this.total) {
+                            this.loadMore();
+                        }
+                    }, { rootMargin: '300px' }).observe(sentinel);
+                });
+            },
+
+            async loadCategories() {
+                try {
+                    // Cache-bust: the category URL is stable, so a browser HTTP cache can
+                    // otherwise serve a stale list (a deleted category lingering with a
+                    // count > 0 -- the "ghost category"). Force a live re-fetch every load.
+                    const cats = await API.get('/api/v1/pos/search/categories?_=' + Date.now());
+                    // Keep product_group so the filter can nest categories under their
+                    // level-1 group (Headshop, Papers & Co, …). NULL group → Ungrouped.
+                    this.categories = (cats || []).map(c => ({
+                        name: c.name, count: c.count, group: c.product_group || null,
+                    }));
+                } catch (e) { console.warn('categories unavailable', e); }
+                try {
+                    // Supplier pick-list for the product form (choose from known suppliers, don't free-type).
+                    this.suppliers = await API.get('/api/v1/pos/suppliers');
+                } catch (e) { console.warn('suppliers unavailable', e); }
+            },
+
+            // Preferred order of the level-1 group headers in the Category dropdown.
+            // Anything the data carries that isn't listed here is appended (alpha),
+            // and no-group categories always sink to the trailing "Other / Ungrouped".
+            catGroupOrder: [
+                "Headshop", "Papers & Co", "CBD", "Vape & Co", "Shisha",
+                "Lifestyle", "Grow",
+            ],
+            UNGROUPED_KEY: "__ungrouped__",
+
+            // Nest the flat category list into [{ group, label, cats:[...] }] for the
+            // <optgroup> picker. Categories sort A→Z within each group; groups follow
+            // catGroupOrder, then any extra real groups alphabetically, then Ungrouped.
+            groupedCategories() {
+                const buckets = {};   // key -> { label, cats: [] }
+                for (const c of this.categories) {
+                    const g = (c.group && String(c.group).trim()) || '';
+                    const key = g || this.UNGROUPED_KEY;
+                    const label = g || 'Other / Ungrouped';
+                    if (!buckets[key]) buckets[key] = { label, cats: [] };
+                    buckets[key].cats.push(c);
+                }
+                const order = this.catGroupOrder;
+                const keys = Object.keys(buckets).sort((a, b) => {
+                    if (a === this.UNGROUPED_KEY) return 1;     // Ungrouped always last
+                    if (b === this.UNGROUPED_KEY) return -1;
+                    const ia = order.indexOf(a), ib = order.indexOf(b);
+                    if (ia !== -1 && ib !== -1) return ia - ib;  // both ranked
+                    if (ia !== -1) return -1;                    // ranked before unranked
+                    if (ib !== -1) return 1;
+                    return a.localeCompare(b);                   // both unranked: alpha
+                });
+                return keys.map(key => ({
+                    group: key,
+                    label: buckets[key].label,
+                    cats: buckets[key].cats.slice().sort((x, y) => x.name.localeCompare(y.name)),
+                }));
+            },
+
+            // Datalist = the skeleton (always offered) ∪ whatever already exists in the catalogue.
+            allCategoryNames() {
+                const seen = new Set();
+                const out = [];
+                for (const n of [...this.catSkeleton, ...this.categories.map(c => c.name)]) {
+                    const k = (n || '').trim();
+                    if (k && !seen.has(k.toLowerCase())) { seen.add(k.toLowerCase()); out.push(k); }
+                }
+                return out;
+            },
+
+            // Class drives the age gate: picking a class sets 18+ to its default (still overridable below).
+            onClassChange() {
+                const c = this.classes.find(x => x.value === this.form.product_class);
+                if (c) this.form.is_age_restricted = c.age;
+            },
+
+            // Promo policy of the currently-picked class (flag only — Phase F enforces).
+            classPromo() {
+                const c = this.classes.find(x => x.value === this.form.product_class);
+                return c ? !!c.promo : false;
+            },
+
+            _url(skip) {
+                return `/api/v1/pos/search?q=${encodeURIComponent(this.q)}`
+                    + `&category=${encodeURIComponent(this.category || '')}`
+                    + `&sort=${encodeURIComponent(this.sort || '')}`
+                    + `&limit=${this.pageSize}&skip=${skip}`;
+            },
+
+            async search() {
+                if (this.showDiscontinued) return;  // discontinued view is separate
+                // No early-out on empty q: an empty query lists the whole catalogue
+                // (paginated), so items always "come out in a list" without typing.
+                this.loading = true; this.skip = 0;
+                try {
+                    const data = await API.get(this._url(0));
+                    this.results = (data.items || []).map(p => ({ ...p, is_active: true }));
+                    this.total = data.total || 0;
+                } catch (e) { console.error(e); this.results = []; this.total = 0; }
+                finally { this.loading = false; }
+            },
+
+            async loadMore() {
+                this.loading = true;
+                try {
+                    const next = this.skip + this.pageSize;
+                    const data = await API.get(this._url(next));
+                    this.results = this.results.concat((data.items || []).map(p => ({ ...p, is_active: true })));
+                    this.total = data.total || this.total;
+                    this.skip = next;
+                } catch (e) { console.error(e); }
+                finally { this.loading = false; }
+            },
+
+            async onToggleDiscontinued() {
+                if (this.showDiscontinued) {
+                    await this.loadDiscontinued();
+                } else {
+                    this.results = []; this.total = 0; this.search();
+                }
+            },
+
+            async loadDiscontinued() {
+                this.loading = true;
+                try {
+                    // active_only=false returns all; keep only the inactive ones.
+                    const list = await API.get('/api/v1/pos/products?active_only=false&limit=200');
+                    this.results = (list || []).filter(p => p.is_active === false);
+                    this.total = this.results.length;
+                } catch (e) { console.error(e); this.results = []; this.total = 0; }
+                finally { this.loading = false; }
+            },
+
+            _blankForm() {
+                return {
+                    sku: 'SKU-' + Date.now(), barcode: '', name: '', description: '',
+                    price: '', cost: '', supplier_price: null, price_tiers: [], tier_mode: 'per_unit', compare: null,
+                    category: '', product_class: 'standard', supplier_name: '', image_url: '',
+                    is_age_restricted: false,
+                };
+            },
+
+            openCreate() {
+                this.editing = false;
+                this.form = this._blankForm();
+                this.gallery = []; this.pendingPhotos = []; this.uploadingPhoto = false;
+                this.aiBusy = false; this.aiNote = '';
+                this.modalOpen = true;
+                this._formSnapshot = this._formSig();   // baseline for the unsaved-changes guard
+            },
+
+            // ✨ Snap & fill: photograph an unmarked item → AI drafts the fields.
+            // Only fills BLANK fields (never clobbers what the manager already typed),
+            // and queues the same photo so it's saved as the product picture too.
+            // FIND-FIRST: snap → the AI reads the item → SEARCH the real catalog for it. If it's
+            // already in the shop (or the FourTwenty reference), show the picker so the cashier picks
+            // the existing row instead of creating a duplicate. No matches → straight to the AI draft.
+            // Desktop webcam → same snap-fill pipe as the file input (getUserMedia → File → aiSuggest).
+            async webcamSuggest() {
+                if (typeof window.PosCameraPhoto === 'undefined') return;
+                const file = await window.PosCameraPhoto.capture();
+                if (file) await this.aiSuggest({ target: { files: [file], value: '' } });
+            },
+
+            async aiSuggest(e) {
+                const f = e.target.files && e.target.files[0];
+                e.target.value = '';
+                if (!f) return;
+                if (!f.type.startsWith('image/')) { showToast(t('catalog.not_an_image'), 'warning'); return; }
+                this.aiBusy = true; this.aiNote = ''; this.snapFile = f;
+                try {
+                    const fd = new FormData(); fd.append('file', f);
+                    const r = await fetch('/api/v1/pos/products/snap-find', {
+                        method: 'POST', headers: { 'Authorization': `Bearer ${AuthHelper.getToken()}` }, body: fd });
+                    if (!r.ok) throw new Error('snap-find failed');
+                    const d = await r.json();
+                    const hasMatches = (d.product_matches && d.product_matches.length) ||
+                                       (d.reference_matches && d.reference_matches.length);
+                    // Open the picker EITHER way: even with no local match, the operator should
+                    // get the live supplier-search option before we assume it's a brand-new item
+                    // (BL-35 — this "in neither list" case is exactly what live search is for).
+                    this.snap = d;              // {suggestion, matches..., best_match_score, query}
+                    this._resetLive();
+                    this.snapOpen = true;       // "is it already in the shop?" — cashier decides
+                } catch (err) {
+                    console.warn('snap-find', err);
+                    this.aiNote = t('catalog.ai_unavailable');
+                } finally { this.aiBusy = false; }
+            },
+
+            // Fill the blank add-form fields from the AI's read + queue the shot as the photo.
+            _applyAiDraft(s, f) {
+                s = s || {};
+                const blank = v => v === '' || v === null || v === undefined;
+                if (blank(this.form.name) && s.name) this.form.name = s.name;
+                if (blank(this.form.category) && s.category) this.form.category = s.category;
+                if (blank(this.form.description) && s.description) this.form.description = s.description;
+                if (blank(this.form.price) && s.price_estimate != null) this.form.price = s.price_estimate;
+                if (f) this._queuePhoto(f);
+            },
+            _queuePhoto(f) {
+                const reader = new FileReader();
+                reader.onload = () => { this.pendingPhotos.push({ file: f, preview: reader.result }); };
+                reader.readAsDataURL(f);
+            },
+            _draftNote(d) {
+                return d && d.note ? d.note
+                    : `${t('catalog.ai_drafted_by')} ${d.provider} · ${(d.elapsed_ms/1000).toFixed(1)}s · ${t('catalog.ai_check_price')}`;
+            },
+
+            // BL-34: manual "🔎 Search similar" — the find-first picker from ANY create/edit, not just a
+            // snap. Runs find-matches on the current name so you can grab the right photo/details or
+            // find the existing item (even inactive). No photo — it's a name search.
+            async searchSimilar() {
+                const q = (this.form.name || '').trim();
+                if (!q) { showToast(t('catalog.search_similar_need_name'), 'warning'); return; }
+                this.snapBusy = true;
+                try {
+                    const d = await API.get(`/api/v1/pos/products/find-matches?q=${encodeURIComponent(q)}&limit=6`);
+                    // never offer the product being edited as a "match" against itself
+                    if (this.editing && this.form.id && d.product_matches) {
+                        d.product_matches = d.product_matches.filter(m => m.id !== this.form.id);
+                    }
+                    // Open the picker even with no local match — the operator can escalate to a
+                    // live supplier-site search from here (BL-35) instead of dead-ending on a toast.
+                    this.snap = d; this.snapFile = null; this._resetLive(); this.snapOpen = true;
+                } catch (e) {
+                    showToast(e.message || t('catalog.ai_unavailable'), 'error');
+                } finally { this.snapBusy = false; }
+            },
+
+            // Picker: it's ALREADY in the catalog → open the existing product (no duplicate).
+            // BL-33: if it's OFF (inactive), reactivate it FIRST, then open it — an inactive
+            // product is invisible in search yet blocks a create, so tapping it here is the
+            // one-move escape from that dead-end.
+            snapPickCatalog(m) {
+                this.snapOpen = false; this.snap = null; this.snapFile = null; this._resetLive();
+                this.modalOpen = false;   // leave the "new product" modal
+                if (m && m.is_active === false) {
+                    API.put(`/api/v1/pos/products/${m.id}`, { is_active: true })
+                        .then(() => { showToast(t('catalog.reactivated_toast'), 'success'); m.is_active = true; this.openEdit(m); })
+                        .catch(e => { showToast(e.message || t('catalog.reactivate_failed'), 'error'); this.openEdit(m); });
+                } else {
+                    this.openEdit(m);     // manage the one that already exists
+                }
+            },
+            // Picker: it's in the FourTwenty reference → fill the add-form from that master, keep the
+            // photo; the cashier reviews + prices + saves (the create path is dup-checked, BL-32).
+            snapPickReference(m) {
+                if (m) {
+                    // You EXPLICITLY chose this item → its details WIN when you're CREATING a product
+                    // (bring in the proper title/description/EAN/price/tiers, not your rough search seed).
+                    // When EDITING an existing product, stay conservative — fill only blanks so a
+                    // "search similar" grabs the photo/details without renaming/repricing it (BL-34).
+                    const take = !this.editing;
+                    const set = (field, val) => {
+                        if (val == null || val === '') return;
+                        if (take || !String(this.form[field] ?? '').trim()) this.form[field] = val;
+                    };
+                    set('name', m.name || m.title);
+                    set('description', m.description);
+                    set('barcode', m.barcode);
+                    set('category', m.category);
+                    if (m.suggested_price != null && (take || this.form.price === '' || this.form.price == null)) this.form.price = m.suggested_price;
+                    if (m.supplier) this.form.supplier_name = m.supplier;
+                    // Tier ladder (Artemis + FourTwenty): take it when creating, else only if none yet.
+                    if (Array.isArray(m.price_tiers) && m.price_tiers.length && (take || !(this.form.price_tiers || []).length)) {
+                        this.form.price_tiers = m.price_tiers.map(x => ({ min_qty: x.min_qty, unit_price: x.unit_price }));
+                        this.form.tier_mode = m.tier_mode || 'per_unit';
+                    }
+                    // Always prefer the supplier's PROFESSIONAL photo; fall back to the cashier's snap.
+                    if (m.image_url) {
+                        this.form.image_url = m.image_url;
+                    } else if (this.snapFile) {
+                        this._queuePhoto(this.snapFile);
+                    }
+                }
+                this.snapOpen = false; this.snap = null; this.snapFile = null;
+                this.aiNote = t('catalog.snap_from_ref_note');
+                this._resetLive();
+                this._maybeEnrich(m);   // thin local match? pull the full description + tiers live
+            },
+            // A local match can be THIN (the FourTwenty feed carries no description/tiers). When we
+            // adopt one, quietly pull the full details from the live supplier pages and merge the
+            // gaps — preferring Artemis's ENGLISH description. Live picks already carry everything.
+            async _maybeEnrich(m) {
+                if (!m || m.is_live) return;
+                const needsDesc = !String(this.form.description ?? '').trim();
+                const needsTiers = !(this.form.price_tiers || []).length;
+                const needsImg = !String(this.form.image_url ?? '').trim();
+                if (!needsDesc && !needsTiers && !needsImg) return;
+                const q = (m.title || m.name || this.form.name || '').trim();
+                if (!q) return;
+                this.enriching = true;
+                try {
+                    const d = await API.get(`/api/v1/pos/products/search-suppliers-live?q=${encodeURIComponent(q)}&limit=3`);
+                    const rs = d.results || [];
+                    if (!rs.length) return;
+                    if (needsDesc) {
+                        const eng = rs.find(r => r.supplier === 'Artemis' && String(r.description ?? '').trim());
+                        const any = rs.find(r => String(r.description ?? '').trim());
+                        const desc = (eng && eng.description) || (any && any.description);
+                        if (desc) this.form.description = desc;
+                    }
+                    if (needsTiers) {
+                        const wt = rs.find(r => r.price_tiers && r.price_tiers.length);
+                        if (wt) { this.form.price_tiers = wt.price_tiers.map(x => ({ min_qty: x.min_qty, unit_price: x.unit_price })); this.form.tier_mode = wt.tier_mode || 'per_unit'; }
+                    }
+                    if (needsImg) {
+                        const wi = rs.find(r => String(r.image_url ?? '').trim());
+                        if (wi) this.form.image_url = wi.image_url;
+                    }
+                } catch (e) { /* enrich is best-effort — the form is already usable */ }
+                finally { this.enriching = false; }
+            },
+            // Picker: none of these → it's genuinely new. Use the AI draft.
+            snapUseAiDraft() {
+                const d = this.snap || {};
+                // Snap path has an AI draft to apply; the typed "search similar" path doesn't —
+                // there we just close and keep whatever the operator already typed.
+                if (d.suggestion) {
+                    this._applyAiDraft(d.suggestion, this.snapFile);
+                    this.aiNote = this._draftNote(d);
+                }
+                this.snapOpen = false; this.snap = null; this.snapFile = null;
+                this._resetLive();
+            },
+            // BL-35: local search missed → go look on the supplier websites live.
+            async searchSuppliersLive() {
+                const q = (this.snap && this.snap.query) || (this.form.name || '').trim();
+                if (!q) { showToast(t('catalog.search_similar_need_name'), 'warning'); return; }
+                this.liveBusy = true; this.liveSearched = true; this.liveErrors = {};
+                try {
+                    const d = await API.get(`/api/v1/pos/products/search-suppliers-live?q=${encodeURIComponent(q)}&limit=4`);
+                    this.liveResults = d.results || [];
+                    this.liveErrors = d.errors || {};
+                    // BL-38: extra language variants we also searched (e.g. German), for transparency.
+                    this.liveVariants = (d.variants || []).filter(v => v && v.toLowerCase() !== q.toLowerCase());
+                } catch (e) {
+                    showToast(e.message || t('catalog.snap_live_failed'), 'error');
+                    this.liveResults = [];
+                } finally { this.liveBusy = false; }
+            },
+            // Picker: adopt a LIVE supplier result. Self-heal reference_products first (so next
+            // lookup is a local hit), then fill the add-form from the healed row. If the heal call
+            // fails we still adopt from the in-memory result — but drop a non-CHF price so a EUR
+            // (Near Dark) number never lands in a CHF price field.
+            async snapPickLive(m) {
+                let row = null;
+                try { row = await API.post('/api/v1/pos/products/adopt-live-reference', m); }
+                catch (e) { /* self-heal best-effort — fall through to the in-memory result */ }
+                const adopt = row && row.healed
+                    ? { ...m, ...row }
+                    : { ...m, suggested_price: (m.currency === 'CHF' ? m.price : null) };
+                this.snapPickReference(adopt);
+                this._resetLive();
+            },
+            _resetLive() { this.liveResults = []; this.liveVariants = []; this.liveSearched = false; this.liveErrors = {}; this.liveBusy = false; },
+            snapClose() { this.snapOpen = false; this._resetLive(); },
+            // BL-35 wholesale-vs-competitor labeling: what this site's price MEANS.
+            roleLabel(role) {
+                if (role === 'retail') return '🏪 ' + t('catalog.role_retail');
+                if (role === 'both') return '⚖️ ' + t('catalog.role_both');
+                return '💰 ' + t('catalog.role_wholesale');
+            },
+            roleClass(role) {
+                if (role === 'retail') return 'bg-orange-100 text-orange-700';
+                if (role === 'both') return 'bg-violet-100 text-violet-700';
+                return 'bg-emerald-100 text-emerald-700';
+            },
+            snapPct(score) { return Math.round((Number(score) || 0) * 100); },
+
+            // Add a photo. Editing an existing product → upload now (append to gallery).
+            // Creating → queue it; it uploads when the product is saved.
+            async onPhoto(e) {
+                const f = e.target.files && e.target.files[0];
+                e.target.value = '';   // let the same file be picked again
+                if (!f) return;
+                if (!f.type.startsWith('image/')) { showToast(t('catalog.not_an_image'), 'warning'); return; }
+                if (this.editing && this.form.id) {
+                    await this._uploadPhoto(this.form.id, f);
+                    await this.loadGallery(this.form.id);
+                } else {
+                    const reader = new FileReader();
+                    reader.onload = () => { this.pendingPhotos.push({ file: f, preview: reader.result }); };
+                    reader.readAsDataURL(f);
+                }
+            },
+
+            async _uploadPhoto(pid, file) {
+                this.uploadingPhoto = true;
+                try {
+                    const fd = new FormData(); fd.append('file', file);
+                    const r = await fetch(`/api/v1/pos/products/${pid}/images`, {
+                        method: 'POST', headers: { 'Authorization': `Bearer ${AuthHelper.getToken()}` }, body: fd });
+                    if (!r.ok) showToast(t('catalog.photo_upload_failed'), 'warning');
+                } catch (e) { console.warn('photo upload failed', e); showToast(t('catalog.photo_upload_failed'), 'warning'); }
+                finally { this.uploadingPhoto = false; }
+            },
+
+            async loadGallery(pid) {
+                try { const d = await API.get(`/api/v1/pos/products/${pid}/images`); this.gallery = d.items || []; }
+                catch (e) { this.gallery = []; }
+            },
+
+            removePending(i) { this.pendingPhotos.splice(i, 1); },
+
+            async removeImage(img) {
+                if (!confirm(t('catalog.confirm_remove_photo'))) return;
+                try { await API.delete(`/api/v1/pos/products/${this.form.id}/images/${img.id}`); await this.loadGallery(this.form.id); }
+                catch (e) { showToast(t('catalog.remove_photo_failed'), 'error'); }
+            },
+
+            async makeCover(img) {
+                if (img.is_cover) return;
+                try { await API.put(`/api/v1/pos/products/${this.form.id}/images/${img.id}/cover`, {}); await this.loadGallery(this.form.id); }
+                catch (e) { showToast(t('catalog.set_cover_failed'), 'error'); }
+            },
+
+            // Read-only preview — tap a product's image/info to SEE it (distinct from Edit).
+            // Pam and Felix both get this; the Edit button inside is manager-only. Show the
+            // list row immediately, then enrich with the full record (description/supplier/tags
+            // aren't in the search payload).
+            async openDetail(p) {
+                this.detailProduct = p;
+                try {
+                    const full = await API.get(`/api/v1/pos/products/${p.id}`);
+                    if (this.detailProduct && this.detailProduct.id === p.id) {
+                        // Keep the list row's image (it may carry the gallery-photo fallback the
+                        // single-product record's bare cover lacks) when full has none.
+                        this.detailProduct = {
+                            ...full,
+                            image_url: full.image_url || p.image_url,
+                            fallback_image_url: p.fallback_image_url,
+                            updated_at: full.updated_at || p.updated_at,
+                            promo_restricted: p.promo_restricted,
+                        };
+                    }
+                } catch (e) { /* keep the list-row data */ }
+                this._localizeDetail(p.id);
+            },
+            // BL-36: show the description in the operator's language. English is the base, so
+            // only non-English needs a lookup; the endpoint fills it on demand (Artemis native
+            // or Ollama) and caches. Best-effort — the base description stays if anything fails.
+            async _localizeDetail(id) {
+                const lang = (window._posLang || 'en');
+                if (lang === 'en') return;
+                try {
+                    const d = await API.get(`/api/v1/pos/products/${id}/i18n-description?lang=${encodeURIComponent(lang)}`);
+                    if (d && d.description && this.detailProduct && this.detailProduct.id === id) {
+                        this.detailProduct.description = d.description;
+                        this.detailProduct._descProvenance = d.provenance;
+                        this.detailProduct._descLang = lang;
+                    }
+                } catch (e) { /* keep the base description */ }
+            },
+            // Read this product's description in ANY language on demand (the four flags), no matter
+            // the signed-in language. Fills via BL-36 (Artemis-native or Ollama) and caches.
+            async setDescLang(lang) {
+                const id = this.detailProduct && this.detailProduct.id;
+                if (!id) return;
+                if (this.detailProduct._descTranslating) return;   // ignore taps mid-translate
+                this.detailProduct._descLang = lang;               // highlight the flag immediately
+                // First translation to a language is an LLM call — can take a beat on a slow line.
+                // Show "Translating…" so the operator knows it's working, not stuck.
+                this.detailProduct._descTranslating = true;
+                try {
+                    const d = await API.get(`/api/v1/pos/products/${id}/i18n-description?lang=${encodeURIComponent(lang)}`);
+                    if (d && this.detailProduct && this.detailProduct.id === id && this.detailProduct._descLang === lang) {
+                        if (d.description) this.detailProduct.description = d.description;
+                        this.detailProduct._descProvenance = d.provenance;
+                    }
+                } catch (e) { showToast(t('catalog.snap_live_failed') || 'translate failed', 'error'); }
+                finally { if (this.detailProduct && this.detailProduct.id === id) this.detailProduct._descTranslating = false; }
+            },
+
+            async openEdit(p) {
+                this.editing = true;
+                this.form = { id: p.id, ...this._blankForm(), ...p };  // start with row data
+                this.gallery = []; this.pendingPhotos = []; this.uploadingPhoto = false;
+                this.modalOpen = true;
+                try {
+                    // Enrich with the full record (cost, thresholds, supplier, etc.).
+                    const full = await API.get(`/api/v1/pos/products/${p.id}`);
+                    this.form = { ...this.form, ...full };
+                } catch (e) { /* keep row data */ }
+                this.form.price_tiers = Array.isArray(this.form.price_tiers) ? this.form.price_tiers : [];
+                this.form.tier_mode = this.form.tier_mode || 'per_unit';
+                this.loadGallery(p.id);
+                // Slice 3: live supplier price comparison (best FourTwenty match by name). Display-only.
+                try {
+                    const cmp = await API.get(`/api/v1/pos/products/${p.id}/supplier-compare`);
+                    this.form.compare = (cmp && cmp.matches && cmp.matches.length) ? cmp : null;
+                } catch (e) { this.form.compare = null; }
+                // Baseline the loaded form for the unsaved-changes guard (transient keys excluded).
+                this._formSnapshot = this._formSig();
+                // Sales count → the "Delete permanently" button only shows at 0 (never-sold).
+                this.form._sales = null;
+                try { this.form._sales = (await API.get(`/api/v1/pos/products/${p.id}/sales-count`)).sales; }
+                catch (e) { this.form._sales = null; }
+            },
+
+            // Everything editable in the form, minus transient/display keys — the signature the
+            // unsaved-changes guard compares against the snapshot taken when the modal opened.
+            _formSig() {
+                const f = {};
+                for (const k in this.form) { if (k === 'compare' || k[0] === '_') continue; f[k] = this.form[k]; }
+                return JSON.stringify(f);
+            },
+            get editDirty() {
+                return this._formSnapshot != null && this._formSig() !== this._formSnapshot;
+            },
+            // Close the create/edit modal — but a stray backdrop click / ✕ must not throw away
+            // unsaved edits (Angel: "you click outside and lose all your updates"). Clean form
+            // closes freely; a changed one asks first.
+            tryCloseEdit() {
+                if (this.editDirty && !confirm(t('catalog.discard_changes'))) return;
+                this.modalOpen = false;
+            },
+            // Permanently delete a never-sold product (mistakes/dupes). Server refuses if it has
+            // sales (409) → we fall back to explaining "discontinue instead". Irreversible → confirm.
+            async hardDelete() {
+                if (!confirm(t('catalog.delete_permanent_confirm'))) return;
+                this.saving = true;
+                try {
+                    await API.delete(`/api/v1/pos/products/${this.form.id}/permanent`);
+                    showToast(t('catalog.deleted_permanent_toast'), 'info');
+                    this._formSnapshot = null;   // don't let the guard fire on the now-gone item
+                    this.modalOpen = false;
+                    this.search();
+                } catch (e) {
+                    showToast(e.message || t('catalog.has_sales_cant_delete'), 'error');
+                } finally { this.saving = false; }
+            },
+
+            // Slice 3+: pull a field from a supplier match. Every pull ALSO sets the supplier — the DB
+            // it was found in knows exactly who it is, so the cashier never has to guess (Angel's point).
+            pullFrom(m, field) {
+                if (!m) return;
+                if (field === 'desc' && m.description) this.form.description = m.description;
+                if (field === 'photo' && m.image_url) this.form.image_url = m.image_url;
+                if (field === 'barcode' && m.barcode) this.form.barcode = m.barcode;
+                if (m.supplier) this.form.supplier_name = m.supplier;
+                showToast(t('catalog.pulled_one'), 'success');
+            },
+            // One tap: bring in EVERYTHING from this supplier match (Angel's "why wouldn't we do
+            // both") — description + photo + barcode + tier ladder + supplier — then enrich any gap
+            // live. A toast confirms it, because the filled fields sit below the fold.
+            pullAll(m) {
+                if (!m) return;
+                // "Use ALL" is an explicit "make this the supplier's item" → take its proper title too
+                // (replaces a rough seed like "tyc" with "Tycoon Gas 250ml"), not just the blank fields.
+                if (m.title || m.name) this.form.name = m.title || m.name;
+                if (m.description) this.form.description = m.description;
+                if (m.image_url) this.form.image_url = m.image_url;
+                if (m.barcode && !(this.form.barcode || '').trim()) this.form.barcode = m.barcode;
+                if (m.category && !(this.form.category || '').trim()) this.form.category = m.category;
+                if (Array.isArray(m.price_tiers) && m.price_tiers.length) {
+                    this.form.price_tiers = m.price_tiers.map(x => ({ min_qty: x.min_qty, unit_price: x.unit_price }));
+                    this.form.tier_mode = m.tier_mode || 'per_unit';
+                }
+                if (m.supplier) this.form.supplier_name = m.supplier;
+                showToast(t('catalog.pulled_all'), 'success');
+                this._maybeEnrich(m);   // thin match? pull the description/tiers it didn't carry, live
+            },
+
+            _payload() {
+                const num = v => (v === '' || v === null || v === undefined) ? null : Number(v);
+                return {
+                    sku: this.form.sku, barcode: this.form.barcode || null,
+                    name: this.form.name, description: this.form.description || null,
+                    price: num(this.form.price), cost: num(this.form.cost),
+                    category: this.form.category || null,
+                    product_class: this.form.product_class || 'standard',
+                    supplier_name: this.form.supplier_name || null,
+                    image_url: this.form.image_url || null,
+                    is_age_restricted: !!this.form.is_age_restricted,
+                    price_tiers: (this.form.price_tiers || []).filter(t => t.min_qty !== '' && t.min_qty != null && t.unit_price !== '' && t.unit_price != null).map(t => ({ min_qty: Number(t.min_qty), unit_price: String(t.unit_price) })),
+                    tier_mode: this.form.tier_mode || 'per_unit',
+                };
+            },
+
+            addTier() {
+                if (!Array.isArray(this.form.price_tiers)) this.form.price_tiers = [];
+                // per_unit's first row IS the single-unit base (qty 1); bundle has no "pack of
+                // one", so even its first row is a real pack the user types (qty >= 2). BL-31.
+                if (this.form.price_tiers.length === 0 && this.form.tier_mode !== 'bundle')
+                    this.form.price_tiers.push({ min_qty: 1, unit_price: this.form.price || '' });
+                else
+                    this.form.price_tiers.push({ min_qty: '', unit_price: '' });
+            },
+            // BL-31: switching to bundle drops any qty-1 "base" row (a bundle of one is
+            // meaningless = the product's own price), so the editor matches what the server
+            // stores — no confusing "Buy 1 for X" row and no save-time validation error.
+            onTierModeChange() {
+                if (this.form.tier_mode === 'bundle' && Array.isArray(this.form.price_tiers))
+                    this.form.price_tiers = this.form.price_tiers.filter(
+                        t => t.min_qty === '' || t.min_qty == null || Number(t.min_qty) >= 2);
+            },
+
+            markupPct() {
+                const p = parseFloat(this.form.price), c = parseFloat(this.form.cost);
+                if (!c || !p || c <= 0) return '—';
+                return Math.round((p - c) / c * 100) + '%';
+            },
+            async save() {
+                if (!this.form.name || !this.form.name.trim()) { showToast(t('catalog.name_required'), 'warning'); return; }
+                const price = parseFloat(this.form.price);
+                if (isNaN(price) || price < 0) { showToast(t('catalog.invalid_price'), 'warning'); return; }
+                const cost = parseFloat(this.form.cost);
+                if (!isNaN(cost) && cost > 0 && cost > price &&
+                    !confirm('Cost (' + formatPrice(cost) + ') is higher than the price (' + formatPrice(price) + ') — you would sell at a loss. Save anyway?')) return;
+                if (!this.editing && (!this.form.sku || !this.form.sku.trim())) { showToast(t('catalog.sku_required'), 'warning'); return; }
+
+                this.saving = true;
+                try {
+                    let productId = this.form.id;
+                    if (this.editing) {
+                        await API.put(`/api/v1/pos/products/${this.form.id}`, this._payload());
+                    } else {
+                        // BL-128 #3: after the operator confirms "create it anyway" we bypass the
+                        // same-size name-dedup guard; otherwise the guard may 409 with look-alikes.
+                        const url = this._forceCreate
+                            ? '/api/v1/pos/products?allow_duplicate=true'
+                            : '/api/v1/pos/products';
+                        const created = await API.post(url, this._payload());
+                        this._forceCreate = false;
+                        productId = created.id;
+                    }
+                    // Upload any queued photos (create mode) now that the product exists.
+                    if (productId && this.pendingPhotos.length) {
+                        for (const ph of this.pendingPhotos) { await this._uploadPhoto(productId, ph.file); }
+                        this.pendingPhotos = [];
+                    }
+                    showToast(this.editing ? t('catalog.saved') : t('catalog.product_created'), 'success');
+                    this.modalOpen = false;
+                    // Came from the cleanup bench via Details → send them straight back to their
+                    // spot (that item is now finished and drops off the list). Buttery loop.
+                    if (this.editing && this.returnUrl) {
+                        setTimeout(() => { window.location.href = this.returnUrl; }, 500);
+                        return;
+                    }
+                    this.showDiscontinued ? this.loadDiscontinued() : this.search();
+                } catch (e) {
+                    // BL-128 #3: a same-size, near-identical NAME already exists → the #1 dupe source.
+                    // Show the look-alikes so the operator can open the real one instead of forking it.
+                    if (!this.editing && e.status === 409 && e.detail && e.detail.conflict === 'name'
+                        && Array.isArray(e.detail.matches) && e.detail.matches.length) {
+                        this.nameDupes = e.detail.matches;
+                        this._forceCreate = false;
+                    }
+                    // BL-32: a create that hit an existing product (409 duplicate barcode/SKU) is NOT a
+                    // dead-end — surface the existing one so the operator can apply their enrichment to it.
+                    else if (!this.editing && e.status === 409 && e.detail && e.detail.existing_id) {
+                        try {
+                            const existing = await API.get(`/api/v1/pos/products/${e.detail.existing_id}`);
+                            this.dup = { existing_id: e.detail.existing_id, existing, conflict: e.detail.conflict };
+                        } catch (_) { showToast(e.message || t('catalog.save_failed'), 'error'); }
+                    } else {
+                        showToast(e.message || t('catalog.save_failed'), 'error');
+                    }
+                } finally { this.saving = false; }
+            },
+
+            // BL-32: apply the enriched form to the EXISTING product (keep its SKU; your data wins).
+            async useMineOnExisting() {
+                if (!this.dup || !this.dup.existing_id) return;
+                this.saving = true;
+                try {
+                    const payload = this._payload();
+                    delete payload.sku;   // keep the existing product's identity; apply only your enrichment
+                    if (!payload.barcode) delete payload.barcode;   // never wipe the existing barcode with an empty one
+                    await API.put(`/api/v1/pos/products/${this.dup.existing_id}`, payload);
+                    if (this.pendingPhotos.length) {
+                        for (const ph of this.pendingPhotos) { await this._uploadPhoto(this.dup.existing_id, ph.file); }
+                        this.pendingPhotos = [];
+                    }
+                    showToast(t('catalog.merged_into_existing'), 'success');
+                    this.dup = null; this.modalOpen = false;
+                    this.search();
+                } catch (e) {
+                    showToast(e.message || t('catalog.save_failed'), 'error');
+                } finally { this.saving = false; }
+            },
+
+            // BL-128 #3: "that's the one" — drop the dupe form and open the existing item to enrich it.
+            useDupeMatch(m) {
+                this.nameDupes = null;
+                this.pendingPhotos = [];
+                this.openEdit({ id: m.id });
+            },
+            // BL-128 #3: "no, these are different" — create anyway, bypassing the name guard this once.
+            createAnyway() {
+                this.nameDupes = null;
+                this._forceCreate = true;
+                this.save();
+            },
+
+            async discontinue() {
+                if (!confirm(t('catalog.confirm_discontinue'))) return;
+                this.saving = true;
+                try {
+                    await API.delete(`/api/v1/pos/products/${this.form.id}`);
+                    showToast(t('catalog.discontinued_toast'), 'info');
+                    this.modalOpen = false;
+                    this.search();
+                } catch (e) {
+                    showToast(e.message || t('catalog.discontinue_failed'), 'error');
+                } finally { this.saving = false; }
+            },
+
+            async reactivate(p) {
+                this.saving = true;
+                try {
+                    await API.put(`/api/v1/pos/products/${p.id}`, { is_active: true });
+                    showToast(t('catalog.reactivated_toast'), 'success');
+                    this.loadDiscontinued();
+                } catch (e) {
+                    showToast(e.message || t('catalog.reactivate_failed'), 'error');
+                } finally { this.saving = false; }
+            },
+
+            async startBarcodeScan() {
+                this.scanError = '';
+                this.scanFallback = false;
+                this.scanMode = 'barcode';
+                this.scanOpen = true;
+                await this.$nextTick();
+                window.PosScanner.start('cat-reader',
+                    (text) => {
+                        this.form.barcode = text;
+                        PosScanner.vibrate(60); PosScanner.beep();
+                        this.scanOpen = false;
+                        showToast(t('catalog.barcode_scanned'), 'success');
+                    },
+                    (err) => this.onScanCameraFail(err));
+            },
+
+            // BL-10 (Felix): scan a barcode to FIND an item in the catalogue instead of
+            // typing it. On a hit the code drops into the search box and the list filters
+            // to it. Reuses the same overlay (#cat-reader) as the create-form scanner.
+            async startSearchScan() {
+                this.scanError = '';
+                this.scanFallback = false;
+                this.scanMode = 'search';
+                this.scanOpen = true;
+                await this.$nextTick();
+                window.PosScanner.start('cat-reader',
+                    (text) => {
+                        this.q = text;
+                        PosScanner.vibrate(60); PosScanner.beep();
+                        this.scanOpen = false;
+                        this.search();
+                        showToast(t('catalog.scanned_showing_matches'), 'success');
+                    },
+                    (err) => this.onScanCameraFail(err));
+            },
+
+            // Camera couldn't open (no device / permission). Don't dead-end: keep the
+            // overlay open with a calm message + a "choose a photo from disc" fallback.
+            onScanCameraFail(err) {
+                const n = String((err && (err.name || err)) || '');
+                this.scanError = /permission|denied|NotAllowed/i.test(n)
+                    ? t('catalog.camera_blocked')
+                    : t('catalog.no_camera_here');
+                this.scanFallback = true;   // reveal the file picker, keep the modal open
+            },
+
+            // No-camera path: decode the barcode from a still photo chosen off disc.
+            async onScanFile(e) {
+                const f = e.target.files && e.target.files[0];
+                e.target.value = '';
+                if (!f) return;
+                if (!f.type.startsWith('image/')) { showToast(t('catalog.not_an_image'), 'warning'); return; }
+                this.scanError = t('catalog.reading_photo');
+                try {
+                    const text = await window.PosScanner.decodeFile(f);
+                    if (!text) throw new Error('no-code');
+                    PosScanner.vibrate(60); PosScanner.beep();
+                    this.scanOpen = false; this.scanFallback = false;
+                    if (this.scanMode === 'search') {
+                        this.q = text; this.search();
+                        showToast(t('catalog.scanned_showing_matches'), 'success');
+                    } else {
+                        this.form.barcode = text;
+                        showToast(t('catalog.barcode_scanned'), 'success');
+                    }
+                } catch (err) {
+                    console.warn('file decode', err);
+                    this.scanError = t('catalog.no_barcode_in_photo');
+                }
+            },
+
+            async stopScan() {
+                await window.PosScanner.stop();
+                this.scanOpen = false;
+                this.scanFallback = false;
+            },
+
+            formatPrice(amount) { return formatPrice(amount); },
+
+            // Is there a renderable photo for this product? (cover OR uploaded gallery photo,
+            // and the load hasn't permanently failed).
+            hasImg(p) { return !!(p && (p.image_url || p.fallback_image_url) && !p._imgerr); },
+
+            // Build a product image src with a cache-buster on OUR serve URLs (keyed on
+            // updated_at, else id) so a freshly-(re)uploaded photo shows without a hard
+            // refresh. External supplier URLs are left untouched. Once a cover URL has failed
+            // to load (_useFallback), serve the uploaded gallery photo instead.
+            thumbSrc(p) {
+                if (!p) return '';
+                let u = (p._useFallback && p.fallback_image_url) ? p.fallback_image_url : p.image_url;
+                if (!u) return '';
+                if (u.indexOf('/api/v1/pos/products/') !== -1) {
+                    const bust = String(p.updated_at || p.id || '').replace(/[^0-9A-Za-z]/g, '');
+                    if (bust) u += (u.indexOf('?') === -1 ? '?' : '&') + 'v=' + bust;
+                }
+                return u;
+            },
+
+            // Image failed to load. If the cover was a non-image URL but a real uploaded photo
+            // exists, swap to it once; otherwise fall back to the placeholder. Never wipes data.
+            onImgError(p) {
+                if (p && p.fallback_image_url && !p._useFallback
+                    && p.image_url !== p.fallback_image_url) { p._useFallback = true; }
+                else if (p) { p._imgerr = true; }
+            },
+
+            openLightbox(src, alt) { this.lightboxSrc = src || ''; this.lightboxAlt = alt || ''; },
+            closeLightbox() { this.lightboxSrc = ''; this.lightboxAlt = ''; },
+
+            // Friendly label for the behaviour class pill (mirrors the class list above).
+            classLabel(value) {
+                const c = this.classes.find(x => x.value === value);
+                if (c) return c.label.split('(')[0].trim();
+                return (value || '').replace(/_/g, ' ');
+            },
+
+            // Header stat: how many of the loaded rows are age-gated.
+            ageCount() { return this.results.filter(p => p.is_age_restricted).length; },
+
+            // Split a comma-separated tag string into "attribute" chips (key:value, e.g.
+            // brand:Backwoods → "brand · Backwoods") and plain tag chips. Mirrors the
+            // enrichment review's attributes/tags split. Namespaced keys (artemis:, path:)
+            // stay as plain tags so the attributes row reads clean.
+            tagChips(tags) {
+                const out = { attrs: [], plain: [] };
+                if (!tags) return out;
+                const ATTR = new Set(['brand','material','flavor','size','length','width',
+                                      'measure','raw_material','color']);
+                const seen = new Set();
+                for (let raw of String(tags).split(',')) {
+                    const t = raw.trim();
+                    if (!t || seen.has(t.toLowerCase())) continue;
+                    seen.add(t.toLowerCase());
+                    const i = t.indexOf(':');
+                    const key = i > 0 ? t.slice(0, i).toLowerCase() : '';
+                    if (key && ATTR.has(key)) out.attrs.push(key + ' · ' + t.slice(i + 1));
+                    else out.plain.push(t);
+                }
+                return out;
+            },
+        }
+    }
+</script>
+{% endblock %}
+
+{% block extra_scripts %}
+<!-- BL-89: vendored scanner + shared PosScanner helper (no runtime CDN) -->
+<script src="/static/vendor/html5-qrcode.min.js"></script>
+<script src="/static/pos-scanner.js?v=qr2"></script>
+{% endblock %}

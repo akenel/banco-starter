@@ -1,0 +1,201 @@
+{% extends "pos/base.html" %}
+
+{% block title %}Login - HelixPOS{% endblock %}
+
+{% block content %}
+{# Environment colour band — a glance tells you which box you're on. System-set from
+   HX_ENVIRONMENT, never user-editable. Starts at the login screen (per Angel). #}
+{% set _env = (environment | default('')) | lower %}
+{# Organic + mystical palette (Felix's taste): deep, alive, cosmic — and each env keeps a
+   distinct dominant hue so a glance still tells you which box you're on.
+   prod=green, staging=amber, sandbox=purple, local=charcoal. #}
+{% if 'prod' in _env %}
+  {% set _bg = 'from-emerald-700 via-teal-800 to-slate-900' %}{% set _label = 'PRODUCTION' %}{% set _pill = 'bg-emerald-900 text-emerald-50' %}
+{% elif 'staging' in _env %}
+  {% set _bg = 'from-amber-600 via-orange-700 to-rose-900' %}{% set _label = 'STAGING' %}{% set _pill = 'bg-amber-900 text-amber-50' %}
+{% elif 'sandbox' in _env or 'uat' in _env %}
+  {% set _bg = 'from-fuchsia-600 via-purple-700 to-indigo-900' %}{% set _label = 'SANDBOX' %}{% set _pill = 'bg-purple-900 text-purple-50' %}
+{% elif 'local' in _env or 'dev' in _env %}
+  {% set _bg = 'from-slate-700 via-gray-800 to-zinc-900' %}{% set _label = 'LOCAL' %}{% set _pill = 'bg-slate-900 text-slate-100' %}
+{% else %}
+  {% set _bg = 'from-indigo-700 via-purple-800 to-slate-900' %}{% set _label = '' %}{% set _pill = '' %}
+{% endif %}
+{# Settings override hook: a per-env value from StoreSettings (login_bg) wins when present,
+   otherwise the organic default above. Wiring the setting is a one-liner in the route. #}
+{% set _bg = login_bg | default(_bg, true) %}
+<div class="min-h-screen flex items-center justify-center bg-gradient-to-br {{ _bg }} p-4">
+    <div class="max-w-md w-full">
+        <!-- Logo/Branding -->
+        <div class="text-center mb-8">
+            {% if _label %}<div class="mb-3"><span class="inline-block px-4 py-1 rounded-full text-xs font-bold tracking-widest shadow-lg {{ _pill }}">{{ _label }}</span></div>{% endif %}
+            <div class="inline-block bg-white p-6 rounded-full shadow-2xl mb-4">
+                <span class="text-6xl">🛒</span>
+            </div>
+            <h1 class="text-4xl font-extrabold text-white mb-2">HelixPOS</h1>
+            <p class="text-xl text-white opacity-90">Artemis Store</p>
+        </div>
+
+        <!-- Login Card -->
+        <div class="bg-white rounded-2xl shadow-2xl p-8">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center" data-i18n="login.staff_login">
+                Staff Login
+            </h2>
+
+            <!-- Login with Keycloak button -->
+            <button
+                onclick="loginWithKeycloak()"
+                class="w-full btn-primary text-xl flex items-center justify-center space-x-3 mb-4">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
+                </svg>
+                <span data-i18n="login.login">Login</span>
+            </button>
+
+            <!-- Secondary actions: register, recover, and the escape hatch from "already logged in" -->
+            <div class="grid grid-cols-3 gap-2 mt-3 pt-4 border-t border-gray-100">
+                <button onclick="registerWithKeycloak()"
+                    class="flex flex-col items-center gap-1 py-2 px-1 rounded-lg border border-gray-200 text-gray-600 hover:border-indigo-400 hover:text-indigo-600 transition text-xs font-semibold">
+                    <span class="text-lg">✍️</span><span data-i18n="login.sign_up">Sign Up</span>
+                </button>
+                <button onclick="resetPassword()"
+                    class="flex flex-col items-center gap-1 py-2 px-1 rounded-lg border border-gray-200 text-gray-600 hover:border-amber-400 hover:text-amber-600 transition text-xs font-semibold">
+                    <span class="text-lg">🔑</span><span data-i18n="login.forgot_password">Forgot Password</span>
+                </button>
+                <button onclick="logoutKeycloak()"
+                    class="flex flex-col items-center gap-1 py-2 px-1 rounded-lg border border-gray-200 text-gray-600 hover:border-red-400 hover:text-red-600 transition text-xs font-semibold">
+                    <span class="text-lg">🚪</span><span data-i18n="login.log_out">Log Out</span>
+                </button>
+            </div>
+            <p class="mt-2 text-center text-xs text-gray-400" data-i18n-html="login.stuck_hint">Stuck on "already logged in"? Hit <b>Log Out</b>, then Login again.</p>
+
+            <div class="mt-6 text-center text-sm text-gray-600">
+                <p data-i18n="login.use_credentials">Use your Artemis Store credentials</p>
+                {# Demo logins are a convenience on the public sandbox/demo ONLY. NEVER on a real
+                   shop — staging + production carry live accounts, so printing working passwords
+                   on the public login page is a credential leak. Env-gate it. #}
+                {% if app_env not in ('staging', 'production') %}
+                <p class="mt-2 text-xs text-gray-500" data-i18n-html="login.demo_credentials">
+                    Demo: pam / helix_pass (Cashier)<br>
+                    felix / helix_pass (Admin)
+                </p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Build Info -->
+        <div class="mt-4 text-center text-gray-400 text-xs">
+            Build {{ app_version }} · {{ git_sha }} · {{ build_date }}
+        </div>
+
+        <!-- System Status -->
+        <div class="mt-6 text-center text-white text-sm">
+            <p class="opacity-75">🔐 Secure authentication via Keycloak</p>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Errors that mean "the Keycloak session went stale" (e.g. after a KC restart the browser
+    // still holds an identity cookie for a session KC no longer has → the code is rejected).
+    // These we RECOVER from automatically instead of making the operator hit Log Out by hand.
+    const KC_STALE_ERRORS = ['token_exchange_failed', 'no_token'];
+
+    window.addEventListener('DOMContentLoaded', () => {
+        const token = AuthHelper.getToken();
+        if (token) {
+            const user = AuthHelper.getUserInfo();
+            if (user && user.posRoles.length > 0) {
+                sessionStorage.removeItem('kc_recover_attempt');   // a good session clears the counter
+                window.location.href = '/pos/dashboard';
+                return;
+            }
+        }
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const error = urlParams.get('error');
+
+        // STEP 2 of auto-recovery: we just cleared the dead session and came back clean →
+        // start a fresh login by ourselves (one shot), so the operator never sees a dead end.
+        if (!token && !error && sessionStorage.getItem('kc_recover_pending') === '1') {
+            sessionStorage.removeItem('kc_recover_pending');
+            loginWithKeycloak();
+            return;
+        }
+
+        if (!error) return;
+        window.history.replaceState({}, document.title, '/pos');
+
+        // STEP 1 of auto-recovery: a stale-session error → clear the KC session and come back,
+        // but only ONCE (guarded) so a genuinely broken login can never loop.
+        const attempt = parseInt(sessionStorage.getItem('kc_recover_attempt') || '0', 10);
+        if (KC_STALE_ERRORS.includes(error) && attempt < 1) {
+            sessionStorage.setItem('kc_recover_attempt', String(attempt + 1));
+            sessionStorage.setItem('kc_recover_pending', '1');
+            const c = kcConfig();
+            try { AuthHelper.clearToken(); } catch (e) {}
+            window.location.href = `${c.keycloakUrl}/realms/${c.realm}/protocol/openid-connect/logout?` +
+                `post_logout_redirect_uri=${encodeURIComponent(window.location.origin + '/pos')}&client_id=${c.clientId}`;
+            return;
+        }
+
+        // Recovery already tried (or a different error) → show it + the manual escape hatch.
+        sessionStorage.removeItem('kc_recover_attempt');
+        sessionStorage.removeItem('kc_recover_pending');
+        showToast(t('login.login_failed') + error, 'error');
+    });
+
+    // One source of truth for the Keycloak endpoints.
+    // Local dev resolves keycloak.helix.local via Traefik; every public host
+    // (staging-bottega, bottega, banco) routes /realms/* to Keycloak through Caddy,
+    // so the browser must hit the SAME origin it's on -- never the local-only host.
+    function kcConfig() {
+        const _h = window.location.hostname;
+        // Starter/single-host override: when POS_KC_PUBLIC_URL is set on the server it is
+        // injected here, and the browser hits THAT Keycloak origin directly (e.g. a local
+        // `docker compose` stand-up with Keycloak on http://localhost:8080). Empty in prod.
+        const _override = '{{ pos_kc_public_url }}';
+        // Keycloak has ONE canonical front-door (KC_HOSTNAME_URL=https://lapiazza.app). The whole
+        // login leg must run on THAT host or the session cookie won't travel across hosts
+        // (400 / "Cookie not found"). We still come back to THIS host via redirectUri below.
+        const keycloakUrl = _override
+            ? _override
+            : (_h === 'helix.local' || _h === 'localhost' || _h === '127.0.0.1')
+                ? 'https://keycloak.helix.local'
+                : 'https://lapiazza.app';
+        return {
+            keycloakUrl,
+            realm: '{{ pos_realm }}',   // env-driven (settings.POS_REALM) — per-env realm split
+            clientId: 'helix_pos_web',
+            redirectUri: window.location.origin + '/pos/callback',
+        };
+    }
+
+    function loginWithKeycloak() {
+        const c = kcConfig();
+        window.location.href = `${c.keycloakUrl}/realms/${c.realm}/protocol/openid-connect/auth?` +
+            `client_id=${c.clientId}&redirect_uri=${encodeURIComponent(c.redirectUri)}&` +
+            `response_type=code&scope=${encodeURIComponent('openid profile email')}`;
+    }
+
+    function registerWithKeycloak() {
+        const c = kcConfig();
+        window.location.href = `${c.keycloakUrl}/realms/${c.realm}/protocol/openid-connect/registrations?` +
+            `client_id=${c.clientId}&redirect_uri=${encodeURIComponent(c.redirectUri)}&` +
+            `response_type=code&scope=openid`;
+    }
+
+    function resetPassword() {
+        const c = kcConfig();
+        window.location.href = `${c.keycloakUrl}/realms/${c.realm}/login-actions/reset-credentials?client_id=${c.clientId}`;
+    }
+
+    // The escape hatch: clear the local app token AND end the Keycloak SSO session,
+    // then come back to /pos clean. This is the cure for the "already logged in" dead-end.
+    function logoutKeycloak() {
+        const c = kcConfig();
+        try { AuthHelper.clearToken(); sessionStorage.removeItem('pos_cart'); } catch (e) {}
+        window.location.href = `${c.keycloakUrl}/realms/${c.realm}/protocol/openid-connect/logout?` +
+            `post_logout_redirect_uri=${encodeURIComponent(window.location.origin + '/pos')}&client_id=${c.clientId}`;
+    }
+</script>
+{% endblock %}

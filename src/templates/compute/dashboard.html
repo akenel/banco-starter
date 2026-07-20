@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LPCX — La Piazza Compute Exchange</title>
+
+<!-- FULL libraries only. No bundled subsets. (CLAUDE.md rule 9) -->
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/uplot@1.6.31/dist/uPlot.min.css">
+<script src="https://unpkg.com/uplot@1.6.31/dist/uPlot.iife.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+<script defer src="https://unpkg.com/alpinejs@3.14.1/dist/cdn.min.js"></script>
+
+<script>
+  tailwind.config = { theme: { extend: {
+    fontFamily: { sans:['Inter','system-ui','sans-serif'], mono:['"JetBrains Mono"','ui-monospace','monospace'] },
+    colors: { brand:'#C0392B', branddark:'#8B0000' },
+  } } };
+</script>
+<style>
+  body { background: radial-gradient(1200px 600px at 80% -10%, #14213055, transparent), #060910; }
+  .card { background: rgba(15,23,42,0.6); border: 1px solid rgba(30,41,59,0.9); }
+  .pulse-dot { animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.35;transform:scale(.82)} }
+  ::-webkit-scrollbar { width:8px;height:8px } ::-webkit-scrollbar-thumb { background:#1e293b;border-radius:8px }
+  .grad-rule { background:linear-gradient(90deg,#8B0000,#C0392B,transparent) }
+  [x-cloak] { display:none !important; }
+  .md { font-size:13px; line-height:1.55; }
+  .md h1,.md h2,.md h3 { font-weight:700; color:#e2e8f0; margin:.6em 0 .3em; }
+  .md h1{font-size:1.15rem} .md h2{font-size:1.05rem}
+  .md ul,.md ol { padding-left:1.2em; margin:.4em 0; } .md li { margin:.25em 0; }
+  .md a { color:#C0392B; text-decoration:none; } .md a:hover { text-decoration:underline; }
+  .md p { margin:.5em 0; } .md strong { color:#f1f5f9; }
+</style>
+</head>
+
+<body class="font-sans text-slate-200 min-h-screen antialiased" x-data="lpcx()" x-init="boot()">
+{% include "_lapiazza_nav.html" %}
+
+<!-- top bar -->
+<header class="sticky top-0 z-20 backdrop-blur-md bg-slate-950/70 border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-5 h-16 flex items-center gap-4">
+    <div class="flex items-center gap-2.5">
+      <div class="w-2.5 h-2.5 rounded-full bg-brand pulse-dot"></div>
+      <div class="leading-none">
+        <div class="font-extrabold tracking-tight text-[15px]">La Piazza <span class="text-brand">Compute Exchange</span></div>
+        <div class="text-[10px] text-slate-500 font-mono mt-0.5 tracking-wider">LPCX · WORKBENCH-AND-INFERENCE MARKETPLACE</div>
+      </div>
+    </div>
+    <nav class="ml-6 hidden sm:flex items-center gap-1 bg-slate-900/70 p-1 rounded-lg border border-slate-800">
+      <template x-for="v in views" :key="v.id">
+        <button @click="view=v.id" class="px-3.5 py-1.5 rounded-md text-xs font-semibold transition"
+          :class="view===v.id ? 'bg-brand text-white shadow' : 'text-slate-400 hover:text-slate-200'" x-text="v.label"></button>
+      </template>
+    </nav>
+    <div class="ml-auto flex items-center gap-4">
+      <div class="flex items-center gap-1.5 text-xs font-mono" :class="connected ? 'text-emerald-400' : 'text-amber-400'">
+        <span class="w-2 h-2 rounded-full pulse-dot" :class="connected?'bg-emerald-400':'bg-amber-400'"></span>
+        <span x-text="connected ? 'SSE · LIVE' : 'connecting…'"></span>
+      </div>
+      <div class="text-xs font-mono text-slate-500 tabular-nums" x-text="clock"></div>
+      <a href="/compute/faq" class="text-xs font-semibold text-slate-400 hover:text-brand transition">Help / FAQ</a>
+      <template x-if="me"><span class="text-xs font-mono text-slate-300">@<span x-text="me.username"></span></span></template>
+      <template x-if="!me"><button @click="login()" class="text-xs font-semibold text-brand hover:underline">Log in</button></template>
+    </div>
+  </div>
+  <div class="h-px grad-rule"></div>
+</header>
+
+<main class="max-w-7xl mx-auto px-5 py-6">
+
+  <!-- ============================ REQUESTER ============================ -->
+  <section x-show="view==='requester'" class="space-y-5">
+    <div class="flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <h1 class="text-xl font-bold">Requester Console</h1>
+        <p class="text-sm text-slate-500">Submit jobs to the shared brain, watch them live, kill in one click.</p>
+      </div>
+      <div class="card rounded-xl px-5 py-3 flex items-center gap-3">
+        <div class="text-[11px] uppercase tracking-wider text-slate-500">Credits</div>
+        <div class="font-mono text-2xl font-bold" x-text="credits ? credits.balance : '—'"></div>
+        <div class="text-[10px] text-slate-500 font-mono" x-show="credits" x-text="'1 cr = '+(credits?credits.credit_tokens:0)+' tok'"></div>
+      </div>
+    </div>
+
+    <div class="card rounded-xl p-5 flex flex-wrap items-center gap-3">
+      <!-- template catalog picker (the SOP allowlist) -->
+      <select x-model="selectedTemplate" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-200">
+        <template x-for="t in templates" :key="t.slug">
+          <option :value="t.slug" x-text="t.emoji+'  '+t.title+'  ·  ~'+t.est_credits+' cr'"></option>
+        </template>
+      </select>
+      <!-- node picker: which workbench runs it (its owner earns) -->
+      <select x-model="selectedNode" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-200">
+        <template x-for="n in nodes.filter(n=>n.status==='online')" :key="n.slug">
+          <option :value="n.slug" x-text="'🖥 '+n.slug+' ('+n.gpu+') · @'+n.owner"></option>
+        </template>
+      </select>
+      <!-- brain selector: shared (sponsored, counts against ceiling) vs BYO (your own) -->
+      <div class="flex items-center gap-1 bg-slate-900/70 p-1 rounded-lg border border-slate-800">
+        <button @click="brainMode='shared'" class="px-3 py-1.5 rounded-md text-xs font-semibold transition" :class="brainMode==='shared'?'bg-brand text-white':'text-slate-400 hover:text-slate-200'">Shared brain</button>
+        <button @click="brainMode='byo'" class="px-3 py-1.5 rounded-md text-xs font-semibold transition" :class="brainMode==='byo'?'bg-emerald-600 text-white':'text-slate-400 hover:text-slate-200'">BYO brain</button>
+      </div>
+      <input x-show="brainMode==='byo'" x-model="byoEndpoint" placeholder="http://my-ollama:11434" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs font-mono text-slate-200 w-56">
+
+      <!-- recipe inputs: only when the chosen template is a real (output-producing) recipe -->
+      <div x-show="recipeOf()" class="w-full flex flex-wrap items-end gap-3 pt-1">
+        <template x-for="inp in (recipeOf()?.inputs||[]).filter(i=>i.type!=='file')" :key="inp.name">
+          <div class="flex flex-col gap-1">
+            <label class="text-[10px] uppercase tracking-wider text-slate-500" x-text="inp.label"></label>
+            <select x-show="inp.type==='select'" x-model="jobInputs[inp.name]" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200">
+              <template x-for="o in (inp.options||[])" :key="o"><option :value="o" x-text="o"></option></template>
+            </select>
+            <input x-show="inp.type!=='select'" x-model="jobInputs[inp.name]" :placeholder="inp.label" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 w-72">
+          </div>
+        </template>
+        <span x-show="(recipeOf()?.inputs||[]).some(i=>i.type==='file')" class="text-[11px] text-amber-400/80 font-mono self-center">📎 file-input recipes run in <a href="/compute/bottega" class="underline">La Bottega</a></span>
+      </div>
+
+      <button @click="submit(1)" :disabled="!token" class="px-4 py-2.5 rounded-lg font-semibold text-sm bg-brand/90 hover:bg-brand text-white disabled:opacity-30 disabled:cursor-not-allowed transition">▶ Run</button>
+      <button @click="submit(10)" :disabled="!token" class="px-4 py-2.5 rounded-lg font-semibold text-sm border border-amber-500/40 text-amber-300 hover:bg-amber-500/10 disabled:opacity-30 disabled:cursor-not-allowed transition">⚡ Burst ×10</button>
+      <span class="text-xs text-slate-500 font-mono" x-show="!token">log in via LP to submit · the live feed below works without login</span>
+      <span class="text-xs text-emerald-400 font-mono" x-show="brainMode==='byo'">BYO = off the shared quota, 0 shared credits</span>
+      <span class="ml-auto text-xs font-mono text-slate-500" x-text="'shared brain '+brain.active+'/'+brain.cap+' slots · '+brain.waiting+' waiting in queue'"></span>
+    </div>
+
+    <div class="card rounded-xl overflow-hidden">
+      <div class="px-4 py-2.5 border-b border-slate-800 text-xs font-mono text-slate-400">my jobs</div>
+      <div class="divide-y divide-slate-800/70 max-h-[420px] overflow-y-auto">
+        <template x-for="j in myJobs()" :key="j.id">
+          <div class="px-4 py-3 flex items-center gap-3 text-sm">
+            <span class="font-mono text-slate-500 w-16">CJ-<span x-text="String(j.job_number).padStart(3,'0')"></span></span>
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide" :class="pill(j.status)" x-text="j.status"></span>
+            <div class="flex-1 h-2 rounded-full bg-slate-800 overflow-hidden max-w-xs">
+              <div class="h-full rounded-full transition-all duration-500" :class="barColor(j.status)" :style="`width:${j.progress}%`"></div>
+            </div>
+            <span class="font-mono text-[11px] text-amber-300 w-20 text-right" x-show="j.status==='queued'&&j.queue_position" x-text="'≈ #'+j.queue_position+' in line'"></span>
+            <span class="font-mono text-xs text-slate-400 w-24 text-right" x-text="j.tokens+' tok'"></span>
+            <span class="font-mono text-xs text-brand w-16 text-right" x-text="j.credits_burned+' cr'"></span>
+            <button @click="kill(j.id)" x-show="['running','queued'].includes(j.status)" class="text-xs px-2 py-1 rounded border border-rose-500/40 text-rose-300 hover:bg-rose-500/10">✕ kill</button>
+            <button @click="viewJob(j)" x-show="j.status==='done'" class="text-xs px-2 py-1 rounded border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10">view output</button>
+            <span x-show="j.reject_reason" class="text-[10px] text-rose-400 font-mono" x-text="j.reject_reason"></span>
+          </div>
+        </template>
+        <template x-if="myJobs().length===0">
+          <div class="px-4 py-8 text-center text-sm text-slate-600">no jobs yet — submit one above</div>
+        </template>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ ADMIN ============================ -->
+  <section x-show="view==='admin'" class="space-y-5" style="display:none">
+    <div>
+      <h1 class="text-xl font-bold">Square Admin</h1>
+      <p class="text-sm text-slate-500">The shared sponsored brain, live. Watch the ceiling.</p>
+    </div>
+
+    <!-- SHARED BRAIN LOAD gauge -->
+    <div class="card rounded-xl p-5 border-l-2" :class="bs().tank">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+        <div class="flex items-center gap-2.5">
+          <span class="w-2.5 h-2.5 rounded-full pulse-dot" :class="bs().dot"></span>
+          <span class="font-semibold text-sm">Shared Brain · Ollama Turbo <span class="text-slate-500 font-mono text-xs">(sponsored by Angel)</span></span>
+          <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-slate-800" :class="bs().txt" x-text="bs().label"></span>
+        </div>
+        <div class="font-mono text-sm"><span class="font-bold tabular-nums" :class="bs().txt" x-text="brain.active"></span><span class="text-slate-500"> / <span x-text="brain.cap"></span> slots · <span x-text="brain.waiting"></span> waiting</span></div>
+      </div>
+      <div class="flex justify-between text-xs font-mono text-slate-400 mb-1.5"><span>quota consumed</span><span :class="bs().txt" x-text="brain.load_pct+'%'"></span></div>
+      <div class="h-4 rounded-full bg-slate-800 overflow-hidden relative">
+        <div class="h-full bg-gradient-to-r transition-all duration-500" :class="bs().bar" :style="`width:${brain.load_pct}%`"></div>
+        <div class="absolute top-0 bottom-0 w-px bg-rose-300/70" style="left:86%"></div>
+      </div>
+      <div class="flex justify-between text-[10px] font-mono text-slate-600 mt-1">
+        <span x-text="brain.jobs_served+' served'"></span>
+        <span class="text-rose-400/70">↑ throttle wall</span>
+        <span x-text="'1 cr ≈ €'+brain.euro_per_credit"></span>
+      </div>
+      <div x-ref="loadChart" class="h-[120px] w-full mt-4"></div>
+    </div>
+
+    <!-- FAIR SHARE: per-user running slots vs the dynamic cap -->
+    <div class="card rounded-xl p-5" x-show="Object.keys(brain.by_user||{}).length">
+      <div class="flex items-center justify-between mb-3">
+        <span class="text-xs uppercase tracking-wider text-slate-500">Fair share · who's on the brain</span>
+        <span class="text-xs font-mono text-slate-400">cap/user now: <span class="text-brand font-bold" x-text="brain.cap_per_user"></span> · <span x-text="Object.keys(brain.by_user||{}).length"></span> active</span>
+      </div>
+      <div class="space-y-2">
+        <template x-for="[user,n] in Object.entries(brain.by_user||{})" :key="user">
+          <div class="flex items-center gap-3 text-sm">
+            <span class="font-mono text-slate-300 w-28 truncate" x-text="'@'+user"></span>
+            <div class="flex-1 h-2.5 rounded-full bg-slate-800 overflow-hidden">
+              <div class="h-full rounded-full bg-gradient-to-r from-emerald-500 to-brand transition-all duration-500"
+                   :style="`width:${Math.min(100, n/brain.cap*100)}%`"></div>
+            </div>
+            <span class="font-mono text-xs w-20 text-right" :class="n>brain.cap_per_user ? 'text-amber-400' : 'text-slate-400'"
+                  x-text="n+' / '+brain.cap_per_user"></span>
+          </div>
+        </template>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <template x-for="m in adminTiles()" :key="m.label">
+        <div class="card rounded-xl p-5">
+          <div class="text-[10px] uppercase tracking-wider text-slate-500" x-text="m.label"></div>
+          <div class="font-mono text-3xl font-bold mt-1 tabular-nums" :class="m.cls" x-text="m.val"></div>
+          <div class="text-xs text-slate-500 mt-1" x-text="m.sub"></div>
+        </div>
+      </template>
+    </div>
+
+    <div class="card rounded-xl overflow-hidden">
+      <div class="px-4 py-2.5 border-b border-slate-800 text-xs font-mono text-slate-400">recent jobs (all users)</div>
+      <div class="divide-y divide-slate-800/70 max-h-80 overflow-y-auto">
+        <template x-for="j in jobs" :key="j.id">
+          <div class="px-4 py-2.5 flex items-center gap-3 text-sm">
+            <span class="font-mono text-slate-500 w-16">CJ-<span x-text="String(j.job_number).padStart(3,'0')"></span></span>
+            <span class="text-slate-400 w-20 truncate" x-text="j.owner"></span>
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide" :class="pill(j.status)" x-text="j.status"></span>
+            <div class="flex-1 h-1.5 rounded-full bg-slate-800 overflow-hidden"><div class="h-full" :class="barColor(j.status)" :style="`width:${j.progress}%`"></div></div>
+            <span class="font-mono text-[11px] text-amber-300 w-16 text-right" x-show="j.status==='queued'&&j.queue_position" x-text="'#'+j.queue_position"></span>
+            <span class="font-mono text-xs text-brand w-14 text-right" x-text="j.credits_burned+' cr'"></span>
+          </div>
+        </template>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ PROVIDER ============================ -->
+  <section x-show="view==='provider'" class="space-y-5" style="display:none">
+    <div>
+      <h1 class="text-xl font-bold">Provider Console</h1>
+      <p class="text-sm text-slate-500">Lend your idle machine to the square. Jobs that run on it earn you credits.</p>
+    </div>
+
+    <!-- BYOH no-brainer callout -->
+    <div class="card rounded-xl p-4 border-l-2 border-emerald-500/50 text-sm">
+      <div class="flex items-start gap-3">
+        <span class="text-lg leading-none">🖥</span>
+        <div class="space-y-1">
+          <div class="font-semibold text-slate-200">Bring your own hardware — three steps</div>
+          <ol class="text-slate-400 text-xs space-y-0.5 list-decimal list-inside">
+            <li>Register your machine below (give it a name).</li>
+            <li>It reports what it can do — the <span class="text-emerald-300">green badges</span> show its tools.</li>
+            <li>Jobs it can run flow to it, and you <span class="text-emerald-400">earn credits</span>. Nothing exposed; unplug anytime.</li>
+          </ol>
+          <div class="text-xs text-slate-500 pt-0.5">
+            New to this? <a href="/compute/faq#byoh" class="text-brand hover:underline">What's BYO hardware?</a>
+            · <a href="/compute/faq#whatruns" class="text-brand hover:underline">What can my machine run?</a>
+            · <a href="/compute/faq#sponsor" class="text-emerald-400 hover:underline">Lend a GPU →</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card rounded-xl overflow-hidden">
+      <div class="px-4 py-2.5 border-b border-slate-800 text-xs font-mono text-slate-400">my nodes</div>
+      <div class="divide-y divide-slate-800/70">
+        <template x-for="n in myNodes()" :key="n.slug">
+          <div class="px-4 py-3 flex flex-wrap items-center gap-3 text-sm">
+            <div class="flex-1 min-w-[180px]">
+              <div class="font-mono font-semibold">🖥 <span x-text="n.slug"></span></div>
+              <div class="text-xs text-slate-500" x-text="n.label+' · '+n.gpu+' · ★'+n.reputation"></div>
+              <!-- BYOH capability window: what this box has, and what it can / can't run -->
+              <template x-if="n.capabilities && n.capabilities.tools">
+                <div class="mt-1.5" title="Green = this box has the tool. Greyed = it doesn't.">
+                  <div class="flex flex-wrap items-center gap-1">
+                    <template x-for="(present,tool) in n.capabilities.tools" :key="tool">
+                      <span class="px-1.5 py-0.5 rounded text-[10px] font-mono border"
+                            :class="present?'bg-emerald-500/10 text-emerald-300 border-emerald-500/30':'bg-slate-700/30 text-slate-500 border-slate-700 line-through'"
+                            :title="tool+': '+(present?'installed on this box':'not installed')"
+                            x-text="tool"></span>
+                    </template>
+                    <span class="px-1.5 py-0.5 rounded text-[10px] font-mono border border-slate-600 text-slate-400"
+                          x-show="n.capabilities.ram_mb" title="memory available on this box"
+                          x-text="Math.round(n.capabilities.ram_mb/1024)+'GB'"></span>
+                    <span class="px-1.5 py-0.5 rounded text-[10px] font-mono border"
+                          :class="n.capabilities.gpu?'bg-violet-500/10 text-violet-300 border-violet-500/30':'bg-slate-700/30 text-slate-500 border-slate-700'"
+                          :title="n.capabilities.gpu?'has a graphics card -- can run image/3D recipes':'no graphics card -- CPU recipes only'"
+                          x-text="n.capabilities.gpu?'GPU':'no GPU'"></span>
+                  </div>
+                  <div class="text-[11px] mt-1" title="Which recipes this box can and can't run, based on its tools.">
+                    <span class="text-emerald-400" x-text="'runs: '+nodeRuns(n).can.join(', ')"></span>
+                    <span class="text-slate-500" x-show="nodeRuns(n).cannot.length" x-text="' · can'+String.fromCharCode(39)+'t: '+nodeRuns(n).cannot.join(', ')"></span>
+                  </div>
+                </div>
+              </template>
+            </div>
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide"
+                  :class="n.status==='online'?'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30':n.status==='draining'?'bg-amber-500/15 text-amber-300 border border-amber-500/30':'bg-slate-600/30 text-slate-400 border border-slate-600'"
+                  x-text="n.status"></span>
+            <div class="text-right">
+              <div class="font-mono text-brand font-bold" x-text="'+'+n.earned+' cr'"></div>
+              <div class="text-[10px] text-slate-500" x-text="'earned · '+n.running+' running'"></div>
+            </div>
+            <div class="flex gap-1">
+              <button @click="setNodeStatus(n.slug,'online')" class="text-xs px-2 py-1 rounded border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10">online</button>
+              <button @click="setNodeStatus(n.slug,'draining')" class="text-xs px-2 py-1 rounded border border-amber-500/40 text-amber-300 hover:bg-amber-500/10">drain</button>
+              <button @click="setNodeStatus(n.slug,'offline')" class="text-xs px-2 py-1 rounded border border-rose-500/40 text-rose-300 hover:bg-rose-500/10">offline</button>
+            </div>
+          </div>
+        </template>
+        <template x-if="myNodes().length===0"><div class="px-4 py-8 text-center text-sm text-slate-600">no nodes yet — register one below</div></template>
+      </div>
+    </div>
+
+    <div class="card rounded-xl p-5 max-w-md">
+      <div class="text-xs uppercase tracking-wider text-slate-500 mb-3">Register a node</div>
+      <input x-model="regSlug" placeholder="slug (e.g. my-rig)" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm mb-2 font-mono">
+      <input x-model="regLabel" placeholder="label (e.g. My gaming PC)" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm mb-2">
+      <input x-model="regGpu" placeholder="gpu (e.g. RTX 4070)" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm mb-3">
+      <button @click="registerNode()" :disabled="!token||!regSlug" class="w-full py-2.5 rounded-lg font-semibold text-sm bg-brand/90 hover:bg-brand text-white disabled:opacity-30 transition">＋ Register node</button>
+      <div class="text-xs mt-2 font-mono" :class="walletMsgOk?'text-emerald-400':'text-rose-400'" x-text="providerMsg"></div>
+    </div>
+  </section>
+
+  <!-- ============================ WALLET ============================ -->
+  <section x-show="view==='wallet'" class="space-y-5" style="display:none">
+    <div class="flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <h1 class="text-xl font-bold">Wallet</h1>
+        <p class="text-sm text-slate-500">Credits flow both ways. Spend them, earn them, pass them to a neighbour.</p>
+      </div>
+      <div class="card rounded-xl px-5 py-3 flex items-center gap-3">
+        <div class="text-[11px] uppercase tracking-wider text-slate-500">Balance</div>
+        <div class="font-mono text-2xl font-bold" x-text="credits ? credits.balance : '—'"></div>
+        <div class="text-[10px] text-slate-500 font-mono" x-show="credits" x-text="'≈ €'+(credits?(credits.balance*credits.euro_per_credit).toFixed(3):0)"></div>
+      </div>
+    </div>
+
+    <div class="grid lg:grid-cols-3 gap-5">
+      <!-- send credits -->
+      <div class="card rounded-xl p-5">
+        <div class="text-xs uppercase tracking-wider text-slate-500 mb-3">Send credits to a neighbour</div>
+        <input x-model="xferTo" placeholder="username (e.g. nino)" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm mb-2">
+        <input x-model.number="xferAmount" type="number" min="1" placeholder="amount" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm mb-2 font-mono">
+        <input x-model="xferNote" placeholder="note (optional)" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm mb-3">
+        <button @click="sendCredits()" :disabled="!token||!xferTo||!xferAmount" class="w-full py-2.5 rounded-lg font-semibold text-sm bg-brand/90 hover:bg-brand text-white disabled:opacity-30 disabled:cursor-not-allowed transition">→ Send</button>
+        <div class="text-xs mt-2 font-mono" :class="walletMsgOk?'text-emerald-400':'text-rose-400'" x-text="walletMsg"></div>
+      </div>
+
+      <!-- admin grant -->
+      <div class="card rounded-xl p-5" x-show="isAdmin">
+        <div class="text-xs uppercase tracking-wider text-slate-500 mb-3">Grant credits <span class="text-amber-400">(admin)</span></div>
+        <input x-model="grantTo" placeholder="username" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm mb-2">
+        <input x-model.number="grantAmount" type="number" min="1" placeholder="amount" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm mb-2 font-mono">
+        <input x-model="grantNote" placeholder="reason (e.g. translated the menu)" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm mb-3">
+        <button @click="doGrant()" :disabled="!grantTo||!grantAmount" class="w-full py-2.5 rounded-lg font-semibold text-sm border border-amber-500/40 text-amber-300 hover:bg-amber-500/10 disabled:opacity-30 transition">＋ Grant</button>
+      </div>
+
+      <!-- history -->
+      <div class="card rounded-xl overflow-hidden" :class="isAdmin?'lg:col-span-1':'lg:col-span-2'">
+        <div class="px-4 py-2.5 border-b border-slate-800 text-xs font-mono text-slate-400 flex justify-between">
+          <span>credit history</span><button @click="fetchLedger()" class="text-slate-500 hover:text-slate-300">↻</button>
+        </div>
+        <div class="divide-y divide-slate-800/70 max-h-80 overflow-y-auto">
+          <template x-for="(e,i) in ledger" :key="i">
+            <div class="px-4 py-2.5 flex items-center gap-3 text-sm">
+              <span class="font-mono text-lg font-bold w-16 text-right" :class="e.amount>=0?'text-emerald-400':'text-rose-400'" x-text="(e.amount>=0?'+':'')+e.amount"></span>
+              <span class="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-slate-800 text-slate-400" x-text="e.kind"></span>
+              <span class="flex-1 text-xs text-slate-400 truncate" x-text="e.note"></span>
+            </div>
+          </template>
+          <template x-if="ledger.length===0"><div class="px-4 py-8 text-center text-sm text-slate-600">no activity yet</div></template>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="mt-10 pt-5 border-t border-slate-800 text-center text-xs text-slate-600 font-mono">
+    We host the square, not the model. · live SSE telemetry · controls = audited POST · Keycloak-scoped · credit = brain tokens ÷ <span x-text="brain.credit_tokens"></span>
+  </footer>
+</main>
+
+<!-- output viewer -->
+<div x-show="viewing" x-cloak @click.self="viewing=null" @keydown.escape.window="viewing=null"
+     class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+  <div class="card rounded-2xl max-w-2xl w-full max-h-[85vh] overflow-hidden flex flex-col">
+    <div class="h-1 grad-rule"></div>
+    <div class="px-5 py-3 flex items-center justify-between border-b border-slate-800">
+      <div class="font-mono text-sm text-slate-300">
+        CJ-<span x-text="viewing && String(viewing.job_number).padStart(3,'0')"></span>
+        · <span class="text-slate-200" x-text="viewing && viewing.template"></span>
+        · <span class="text-slate-500" x-text="viewing && ('ran on '+viewing.node)"></span>
+      </div>
+      <button @click="viewing=null" class="text-slate-500 hover:text-slate-200 text-lg leading-none">✕</button>
+    </div>
+    <div class="p-5 overflow-y-auto">
+      <template x-if="viewing && viewing.output && viewing.output_type==='json'">
+        <pre class="text-xs text-slate-300 whitespace-pre-wrap break-words" x-text="viewing.output"></pre>
+      </template>
+      <template x-if="viewing && viewing.output && viewing.output_type!=='json'">
+        <div class="md text-slate-300" x-html="renderMd(viewing.output)"></div>
+      </template>
+      <template x-if="viewing && !viewing.output">
+        <div class="text-sm text-slate-600">no output stored for this job</div>
+      </template>
+    </div>
+  </div>
+</div>
+
+
+<script>
+function lpcx() {
+  return {
+    views: [ {id:'requester',label:'Requester'}, {id:'provider',label:'Provider'}, {id:'wallet',label:'Wallet'}, {id:'admin',label:'Square Admin'} ],
+    view: 'requester',
+    clock: '', connected: false,
+    token: null, me: null, credits: null,
+    brainMode: 'shared', byoEndpoint: '',
+    templates: [], selectedTemplate: 'print-card',
+    recipes: [], jobInputs: {}, viewing: null,
+    nodes: [], selectedNode: 'lp-hetzner-0',
+    regSlug: '', regLabel: '', regGpu: '', providerMsg: '',
+    isAdmin: false, ledger: [],
+    xferTo: '', xferAmount: null, xferNote: '', walletMsg: '', walletMsgOk: false,
+    grantTo: '', grantAmount: null, grantNote: '',
+    brain: {active:0,waiting:0,cap:50,load_pct:0,tokens_total:0,jobs_served:0,euro_per_credit:0,credit_tokens:1000,by_user:{},cap_per_user:0},
+    jobs: [],
+    loadHist: [], loadChartU: null,
+
+    boot() {
+      this.token = this.loadToken();
+      this.me = this.decodeUser();
+      this.tickClock(); setInterval(()=>this.tickClock(), 1000);
+      this.connect();
+      this.refreshCredits();
+      this.fetchTemplates();
+      this.fetchRecipes();
+      this.fetchNodes();
+      this.fetchLedger();
+      this.$nextTick(()=>this.buildChart());
+    },
+    async fetchNodes() {
+      if (!this.token) return;
+      try {
+        const r = await fetch('/api/v1/compute/nodes', { headers: { 'Authorization': 'Bearer ' + this.token } });
+        if (r.ok) {
+          this.nodes = await r.json();
+          const online = this.nodes.filter(n=>n.status==='online');
+          if (online.length && !online.find(n=>n.slug===this.selectedNode)) this.selectedNode = online[0].slug;
+        }
+      } catch(_) {}
+    },
+    myNodes() { return this.me ? this.nodes.filter(n=>n.owner===this.me.username) : []; },
+    // BYOH: from a node's probed tools/gpu, what recipes can it run? (no surprises)
+    nodeRuns(n) {
+      const t = (n.capabilities && n.capabilities.tools) || {};
+      const gpu = !!(n.capabilities && n.capabilities.gpu);
+      const can = [], cannot = [];
+      (t.piper && t.ffmpeg ? can : cannot).push('voice');
+      (t.ffmpeg ? can : cannot).push('captions');
+      (t.puppeteer ? can : cannot).push('cards/print');
+      (t.puppeteer && t.ffmpeg ? can : cannot).push('video');
+      (gpu ? can : cannot).push('image/3D');
+      return { can, cannot };
+    },
+    async setNodeStatus(slug, st) {
+      if (!this.token) return;
+      try {
+        const r = await fetch(`/api/v1/compute/nodes/${slug}/status`, {
+          method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+this.token},
+          body: JSON.stringify({ status: st }),
+        });
+        if (r.ok) this.fetchNodes();
+      } catch(_) {}
+    },
+    async registerNode() {
+      if (!this.token) return;
+      this.providerMsg = '';
+      try {
+        const r = await fetch('/api/v1/compute/nodes', {
+          method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+this.token},
+          body: JSON.stringify({ slug:this.regSlug, label:this.regLabel||null, gpu:this.regGpu||'CPU' }),
+        });
+        const d = await r.json();
+        if (r.ok) { this.walletMsgOk=true; this.providerMsg='registered '+d.slug; this.regSlug=this.regLabel=this.regGpu=''; this.fetchNodes(); }
+        else { this.walletMsgOk=false; this.providerMsg=d.detail||('error '+r.status); }
+      } catch(e) { this.walletMsgOk=false; this.providerMsg='failed'; }
+    },
+    async fetchLedger() {
+      if (!this.token) return;
+      try {
+        const r = await fetch('/api/v1/compute/ledger?limit=25', { headers: { 'Authorization': 'Bearer ' + this.token } });
+        if (r.ok) this.ledger = await r.json();
+      } catch(_) {}
+    },
+    async sendCredits() {
+      if (!this.token) return;
+      this.walletMsg = '';
+      try {
+        const r = await fetch('/api/v1/compute/credits/transfer', {
+          method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+this.token},
+          body: JSON.stringify({ to_account:this.xferTo, amount:this.xferAmount, note:this.xferNote||null }),
+        });
+        const d = await r.json();
+        if (r.ok) { this.walletMsgOk=true; this.walletMsg='sent — balance '+d.balance; this.xferTo=''; this.xferAmount=null; this.xferNote=''; this.refreshCredits(); this.fetchLedger(); }
+        else { this.walletMsgOk=false; this.walletMsg=d.detail||('error '+r.status); }
+      } catch(e) { this.walletMsgOk=false; this.walletMsg='failed'; }
+    },
+    async doGrant() {
+      if (!this.token) return;
+      try {
+        const r = await fetch('/api/v1/compute/credits/grant', {
+          method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+this.token},
+          body: JSON.stringify({ account:this.grantTo, amount:this.grantAmount, note:this.grantNote||null }),
+        });
+        const d = await r.json();
+        if (r.ok) { this.walletMsgOk=true; this.walletMsg='granted '+this.grantAmount+' to @'+this.grantTo; this.grantTo=''; this.grantAmount=null; this.grantNote=''; this.refreshCredits(); this.fetchLedger(); }
+        else { this.walletMsgOk=false; this.walletMsg=d.detail||('error '+r.status); }
+      } catch(e) { this.walletMsgOk=false; this.walletMsg='failed'; }
+    },
+    async fetchTemplates() {
+      if (!this.token) return;
+      try {
+        const r = await fetch('/api/v1/compute/templates', { headers: { 'Authorization': 'Bearer ' + this.token } });
+        if (r.ok) {
+          this.templates = await r.json();
+          if (this.templates.length && !this.templates.find(t => t.slug === this.selectedTemplate))
+            this.selectedTemplate = this.templates[0].slug;
+        }
+      } catch(_) {}
+    },
+    tickClock(){ this.clock = new Date().toLocaleTimeString('en-GB'); },
+
+    loadToken() {
+      if (location.hash.includes('token=')) {
+        const t = location.hash.split('token=')[1].split('&')[0];
+        if (t) { sessionStorage.setItem('compute_token', t); localStorage.setItem('compute_token', t); history.replaceState({}, document.title, location.pathname); }
+      }
+      return sessionStorage.getItem('compute_token') || localStorage.getItem('compute_token') || sessionStorage.getItem('backlog_token') || localStorage.getItem('backlog_token');
+    },
+    login() {
+      const kc = location.hostname==='helix.local' ? 'https://keycloak.helix.local' : ('{{ lp_kc_url }}' || location.origin);
+      const redirect = encodeURIComponent(location.origin + '/compute/callback');
+      const state = encodeURIComponent(location.pathname);
+      location.href = `${kc}/realms/{{ lp_realm }}/protocol/openid-connect/auth?client_id={{ lp_client }}&redirect_uri=${redirect}&response_type=code&scope=openid%20profile&state=${state}`;
+    },
+    decodeUser() {
+      if (!this.token) return null;
+      try {
+        const p = JSON.parse(atob(this.token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+        if (p.exp * 1000 <= Date.now()) { this.token = null; return null; }
+        const roles = (p.realm_access?.roles || []);
+        this.isAdmin = roles.some(r => r.includes('camper-manager') || r.includes('camper-admin') || r.includes('lapiazza-admin'));
+        return { username: p.preferred_username || 'unknown' };
+      } catch(e) { return null; }
+    },
+
+    connect() {
+      const es = new EventSource('/api/v1/compute/stream');
+      es.onopen = () => this.connected = true;
+      es.onerror = () => this.connected = false;
+      es.onmessage = (e) => {
+        try {
+          const d = JSON.parse(e.data);
+          if (d.brain) { this.brain = d.brain; this.pushChart(d.brain.load_pct); }
+          if (d.jobs) this.jobs = d.jobs;
+        } catch(_) {}
+      };
+    },
+
+    async refreshCredits() {
+      if (!this.token) return;
+      try {
+        const r = await fetch('/api/v1/compute/credits', { headers: { 'Authorization': 'Bearer ' + this.token } });
+        if (r.ok) this.credits = await r.json();
+      } catch(_) {}
+    },
+    async fetchRecipes() {
+      if (!this.token) return;
+      try {
+        const r = await fetch('/api/v1/compute/bottega/recipes', { headers: { 'Authorization': 'Bearer ' + this.token } });
+        if (r.ok) this.recipes = await r.json();
+      } catch(_) {}
+    },
+    recipeOf() { return this.recipes.find(r => r.slug === this.selectedTemplate) || null; },
+    renderMd(s) { try { const h = window.marked ? marked.parse(s||'') : (s||''); return window.DOMPurify ? DOMPurify.sanitize(h) : ''; } catch(e){ return ''; } },
+    async viewJob(j) {
+      this.viewing = j;   // show immediately
+      try {               // then fetch the full record (output isn't in the SSE feed)
+        const r = await fetch('/api/v1/compute/jobs/'+j.id, { headers: { 'Authorization': 'Bearer ' + this.token } });
+        if (r.ok) this.viewing = await r.json();
+      } catch(_) {}
+    },
+    async submit(n) {
+      if (!this.token) return;
+      const body = { template:this.selectedTemplate, node:this.selectedNode, brain_mode:this.brainMode,
+                     inputs: this.recipeOf() ? this.jobInputs : {} };
+      if (this.brainMode==='byo' && this.byoEndpoint) body.byo_endpoint = this.byoEndpoint;
+      for (let i=0; i<n; i++) {
+        fetch('/api/v1/compute/jobs', {
+          method:'POST',
+          headers:{'Content-Type':'application/json','Authorization':'Bearer '+this.token},
+          body: JSON.stringify(body),
+        }).catch(()=>{});
+      }
+      setTimeout(()=>this.refreshCredits(), 1500);
+    },
+    async kill(id) {
+      if (!this.token) return;
+      fetch(`/api/v1/compute/jobs/${id}/kill`, { method:'POST', headers:{'Authorization':'Bearer '+this.token} }).catch(()=>{});
+    },
+
+    myJobs() { return this.me ? this.jobs.filter(j => j.owner === this.me.username) : []; },
+
+    pill(s) {
+      return {
+        running:'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30',
+        queued:'bg-slate-500/15 text-slate-300 border border-slate-600',
+        done:'bg-sky-500/15 text-sky-300 border border-sky-500/30',
+        killed:'bg-rose-500/15 text-rose-300 border border-rose-500/30',
+        failed:'bg-rose-500/15 text-rose-300 border border-rose-500/30',
+        rejected:'bg-amber-500/15 text-amber-300 border border-amber-500/30',
+      }[s] || 'bg-slate-700 text-slate-300';
+    },
+    barColor(s) {
+      if (s==='killed'||s==='failed'||s==='rejected') return 'bg-rose-600';
+      if (s==='done') return 'bg-sky-500';
+      return 'bg-gradient-to-r from-brand to-rose-400';
+    },
+    bs() {
+      const l = this.brain.load_pct;
+      if (l >= 86) return {bar:'from-rose-600 to-rose-400', txt:'text-rose-400', dot:'bg-rose-400', tank:'border-rose-500/50', label:'NEAR LIMIT — throttling'};
+      if (l >= 65) return {bar:'from-amber-500 to-orange-400', txt:'text-amber-400', dot:'bg-amber-400', tank:'border-amber-500/40', label:'heating up'};
+      return {bar:'from-emerald-500 to-brand', txt:'text-emerald-400', dot:'bg-emerald-400', tank:'border-slate-800', label:'healthy'};
+    },
+    adminTiles() {
+      return [
+        {label:'Brain slots', val:this.brain.active+'/'+this.brain.cap, sub:'concurrent now', cls:this.bs().txt},
+        {label:'Jobs served', val:this.brain.jobs_served, sub:'completed inferences', cls:'text-white'},
+        {label:'In queue', val:this.brain.waiting, sub:'waiting their turn (FIFO)', cls:this.brain.waiting>0?'text-amber-400':'text-slate-300'},
+        {label:'Tokens total', val:(this.brain.tokens_total/1000).toFixed(1)+'k', sub:'shared-brain work', cls:'text-brand'},
+      ];
+    },
+
+    buildChart() {
+      try {
+        this.loadHist = Array.from({length:40}, ()=>0);
+        if (!this.$refs.loadChart || !window.uPlot) return;
+        const el = this.$refs.loadChart;
+        const opts = {
+          width: el.clientWidth || 600, height: 120,
+          cursor:{show:false}, legend:{show:false}, scales:{x:{time:false}, y:{range:[0,100]}},
+          axes:[{show:false},{stroke:'#475569', grid:{stroke:'#1e293b'}, size:30}],
+          series:[ {}, { stroke:'#C0392B', width:2, fill:'#C0392B22', points:{show:false} } ],
+          padding:[8,4,2,2],
+        };
+        this.loadChartU = new uPlot(opts, [this.loadHist.map((_,i)=>i), this.loadHist.slice()], el);
+        window.addEventListener('resize', ()=>{ if(this.loadChartU) this.loadChartU.setSize({width:el.clientWidth, height:120}); });
+      } catch(e) { console.warn('uPlot init skipped', e); }
+    },
+    pushChart(v) {
+      if (!this.loadChartU) return;
+      this.loadHist.push(v); if (this.loadHist.length>40) this.loadHist.shift();
+      this.loadChartU.setData([ this.loadHist.map((_,i)=>i), this.loadHist.slice() ]);
+    },
+  };
+}
+</script>
+</body>
+</html>

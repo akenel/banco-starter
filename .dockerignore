@@ -1,0 +1,17 @@
+.git
+.gitignore
+.env
+*.env.local
+__pycache__/
+**/__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+keycloak/
+scripts/
+docs/
+*.md
+*.sql
+*.sql.gz
+*.sql.gz.gpg

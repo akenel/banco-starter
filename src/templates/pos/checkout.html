@@ -1,0 +1,1204 @@
+{% extends "pos/base.html" %}
+
+{% block title %}Checkout - HelixPOS{% endblock %}
+
+{% block content %}
+<style>
+  @keyframes wlPop{0%{transform:scale(.55);opacity:0}60%{transform:scale(1.12)}100%{transform:scale(1);opacity:1}}
+  @keyframes wlBeep{0%{box-shadow:0 0 0 0 rgba(55,194,106,.6)}100%{box-shadow:0 0 0 26px rgba(55,194,106,0)}}
+  @keyframes wlWave{0%{width:12px;height:12px;opacity:.9}100%{width:58px;height:58px;opacity:0}}
+  @keyframes wlSpin{to{transform:rotate(360deg)}}
+  .wl-pop{animation:wlPop .5s cubic-bezier(.2,1.3,.4,1)}
+  .wl-tap{background:linear-gradient(180deg,#37c26a,#0f8f4c);color:#04120a;font-weight:800;border:0;border-radius:12px;padding:12px 22px;font-size:15px;cursor:pointer;letter-spacing:.03em;box-shadow:0 6px 16px rgba(55,194,106,.3)}
+  .wl-tap:hover{filter:brightness(1.07)}
+  .wl-spin{width:36px;height:36px;border-radius:50%;border:3px solid rgba(95,211,169,.2);border-top-color:#5fd3a9;animation:wlSpin .8s linear infinite}
+  .wl-wave{width:58px;height:58px;position:relative;margin:2px auto}
+  .wl-wave i,.wl-wave::before,.wl-wave::after{content:"";position:absolute;inset:0;margin:auto;border:2.5px solid #37c26a;border-radius:50%;opacity:0;animation:wlWave 1.5s ease-out infinite}
+  .wl-wave i{animation-delay:.5s}.wl-wave::after{animation-delay:1s}
+  @media (prefers-reduced-motion:reduce){.wl-pop,.wl-spin,.wl-wave i,.wl-wave::before,.wl-wave::after{animation:none!important}}
+  [x-cloak]{display:none!important}
+</style>
+
+<div class="min-h-screen bg-gray-50" x-data="checkoutData()">
+<!-- 🌍-1 M2 SANDBOX — Worldline terminal overlay. Only shown for a card/TWINT sale on a
+     worldline_sim store; on prod ('manual') terminal.show never becomes true. -->
+<div x-cloak x-show="terminal.show" x-transition.opacity
+     @keydown.escape.window="terminalCancel()"
+     style="position:fixed;inset:0;z-index:70;background:rgba(15,17,22,.74);display:flex;align-items:center;justify-content:center;padding:20px">
+  <div style="width:340px;max-width:92vw;border-radius:26px;padding:16px;background:linear-gradient(160deg,#20262f,#12161c);border:1px solid #333b46;box-shadow:0 30px 60px rgba(0,0,0,.6)">
+    <div style="display:flex;justify-content:space-between;align-items:center;color:#8b95a3;font-size:10px;font-family:ui-monospace,monospace;letter-spacing:.12em;padding:0 6px 10px">
+      <span style="color:#c9d2dd;font-weight:700">worldline</span>
+      <span x-text="terminal.name + ' · TID ' + terminal.tid"></span>
+    </div>
+    <div style="border-radius:16px;background:radial-gradient(120% 90% at 50% 0%, #0e3a2a, #0b1f18 70%);min-height:240px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:22px;gap:12px;border:1px solid #0a2a1f">
+      <!-- amount / awaiting a tap -->
+      <template x-if="terminal.stage==='amount' || terminal.stage==='await'">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:12px">
+          <div :class="terminal.stage==='amount' ? 'wl-pop' : ''" style="color:#eafff5;font-weight:800;font-size:30px;letter-spacing:-.5px" x-text="formatPrice(terminal.amount)"></div>
+          <template x-if="terminal.stage==='await'">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:12px">
+              <div class="wl-wave"><i></i></div>
+              <div style="color:#9fe6c8;font-size:13px;font-weight:600" x-text="terminal.method==='twint' ? 'TWINT auflegen' : 'Karte auflegen'"></div>
+              <button class="wl-tap" @click="terminalTap()"><span x-text="terminal.method==='twint' ? '📱 TWINT' : '💳 Karte'"></span> auflegen</button>
+            </div>
+          </template>
+        </div>
+      </template>
+      <!-- processing -->
+      <template x-if="terminal.stage==='processing'">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:12px">
+          <div class="wl-spin"></div>
+          <div style="color:#9fe6c8;font-size:13px;font-weight:600">Verarbeitung…</div>
+        </div>
+      </template>
+      <!-- approved -->
+      <template x-if="terminal.stage==='approved'">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+          <div class="wl-pop" style="width:54px;height:54px;border-radius:50%;background:#37c26a;color:#04120a;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:800;animation:wlPop .4s cubic-bezier(.2,1.3,.4,1),wlBeep 1.4s ease-out">✓</div>
+          <div style="color:#8affc0;font-size:14px;font-weight:800;letter-spacing:.08em">GENEHMIGT</div>
+          <div style="color:#eafff5;font-weight:700;font-size:18px" x-text="formatPrice(terminal.amount)"></div>
+        </div>
+      </template>
+      <!-- declined -->
+      <template x-if="terminal.stage==='declined'">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+          <div class="wl-pop" style="width:54px;height:54px;border-radius:50%;background:#ec5b5b;color:#1a0505;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:800">✕</div>
+          <div style="color:#ff9d9d;font-size:14px;font-weight:800;letter-spacing:.08em">ABGELEHNT</div>
+          <div style="color:#ffbcbc;font-size:12px">Warenkorb behalten — erneut oder Bar</div>
+        </div>
+      </template>
+    </div>
+    <!-- controls: arm a decline (sim testing) + cancel — only while waiting -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding:0 4px;min-height:26px">
+      <label x-show="terminal.stage==='await'" style="color:#8b95a3;font-size:11px;display:flex;gap:6px;align-items:center;cursor:pointer">
+        <input type="checkbox" x-model="terminal.declineArmed" style="accent-color:#ec5b5b"> simulate decline
+      </label>
+      <button x-show="terminal.stage==='await' || terminal.stage==='amount'" @click="terminalCancel()"
+              style="margin-left:auto;background:#232a33;border:1px solid #333b46;color:#aeb8c4;border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer">Cancel</button>
+    </div>
+  </div>
+</div>
+
+    <div class="max-w-4xl mx-auto px-4 py-8">
+        <div class="card">
+            <h1 class="text-3xl font-bold text-gray-900 mb-6">💳 <span data-i18n="checkout.title">Checkout</span></h1>
+
+            <!-- Member banner (loyalty) -->
+            <div x-show="member" id="member-banner" class="mb-6 flex items-center justify-between rounded-lg p-4 bg-indigo-600 text-white">
+                <div class="flex items-center space-x-3">
+                    <span class="text-3xl">👤</span>
+                    <div>
+                        <p class="font-bold text-lg" x-text="member ? (member.handle + (member.instagram ? ' · ' + member.instagram : '')) : ''"></p>
+                        <p class="text-sm text-indigo-100">
+                            <span class="uppercase font-semibold" x-text="member ? member.loyalty_tier : ''"></span>
+                            <span x-show="member && member.tier_discount_percent > 0">
+                                · <span x-text="member ? member.tier_discount_percent : 0"></span>% member discount</span>
+                            <span x-show="member && member.tier_discount_percent == 0">· member</span>
+                            · <span x-text="member ? member.credits_balance : 0"></span> pts
+                        </p>
+                    </div>
+                </div>
+                <button @click="clearMember()" class="text-indigo-100 hover:text-white text-sm underline" data-i18n="checkout.remove_member">remove</button>
+            </div>
+            <div x-show="!member" class="mb-6 rounded-lg p-3 bg-gray-100 text-gray-600 text-sm flex justify-between items-center">
+                <span data-i18n="checkout.no_member">No member on this sale.</span>
+                <a href="/pos/customer-lookup" class="text-indigo-600 underline font-medium"><span data-i18n="checkout.add_member">Add a member</span> →</a>
+            </div>
+
+            <!-- Order Summary -->
+            <div class="mb-6">
+                <h2 class="text-xl font-semibold text-gray-900 mb-4" data-i18n="checkout.order_summary">Order Summary</h2>
+                <div class="bg-gray-50 rounded-lg p-4 space-y-2">
+                    <template x-for="(item, index) in cartData.cart" :key="index">
+                        <div class="flex justify-between">
+                            <span>
+                                <span x-text="`${item.quantity}x ${item.name}`"></span>
+                                <!-- 🔞 early warning for the cashier — same chip as the catalog -->
+                                <span x-show="isAgeLine(item)" class="chip chip-age">🔞 18+</span>
+                            </span>
+                            <span>
+                                <span x-text="formatPrice(tierLineTotal(item))"></span>
+                                <span x-show="tierApplied(item)" class="text-xs text-green-600 font-semibold ml-1" data-i18n="scan.tier_badge">pack ✓</span>
+                            </span>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- 🍽️ Dine-in / Takeaway — Swiss cafe VAT (8.1% in / 2.6% to-go) -->
+            <div class="mb-6" x-show="cartData.cart.some(i => i.product_class === 'cafe_food')">
+                <h2 class="text-xl font-semibold text-gray-900 mb-4">🍽️ <span data-i18n="checkout.service">Service</span></h2>
+                <div class="grid grid-cols-2 gap-4">
+                    <button @click="setConsumption('dine_in')"
+                        :class="consumption === 'dine_in' ? 'bg-indigo-600 text-white border-4 border-indigo-700 shadow-lg scale-[1.02]' : 'bg-white text-gray-800 border-2 border-gray-300'"
+                        class="card py-5 text-center cursor-pointer hover:shadow-lg transition">
+                        <span class="text-3xl mb-1 block">🍽️</span>
+                        <p class="font-bold text-lg" data-i18n="checkout.dine_in">Dine in</p>
+                        <p class="text-xs opacity-70" data-i18n="checkout.dine_in_rate">café food/drink @ 8.1%</p>
+                        <p class="text-xs font-bold mt-1" x-show="consumption === 'dine_in'">✓ <span data-i18n="checkout.selected">SELECTED</span></p>
+                    </button>
+                    <button @click="setConsumption('takeaway')"
+                        :class="consumption === 'takeaway' ? 'bg-teal-600 text-white border-4 border-teal-700 shadow-lg scale-[1.02]' : 'bg-white text-gray-800 border-2 border-gray-300'"
+                        class="card py-5 text-center cursor-pointer hover:shadow-lg transition">
+                        <span class="text-3xl mb-1 block">🥡</span>
+                        <p class="font-bold text-lg" data-i18n="checkout.takeaway">Takeaway</p>
+                        <p class="text-xs opacity-70" data-i18n="checkout.takeaway_rate">café food/drink @ 2.6%</p>
+                        <p class="text-xs font-bold mt-1" x-show="consumption === 'takeaway'">✓ <span data-i18n="checkout.selected">SELECTED</span></p>
+                    </button>
+                </div>
+                <p class="text-sm text-gray-500 mt-2">🇨🇭 <span data-i18n="checkout.swiss_law_note">Swiss law: a café seat makes the same item two prices. Alcohol & tobacco stay 8.1%.</span></p>
+            </div>
+
+            <!-- Member on the sale: their earned tier rate applies automatically to the eligible
+                 items. A manual discount STACKS on top (Felix's call) — see the Discount panel below. -->
+            <div class="mb-6" x-show="member && member.tier_discount_percent > 0">
+                <div class="rounded-lg p-3 bg-indigo-50 text-indigo-800 text-sm">
+                    🏅 <span x-text="t('checkout.member_rate_note', {tier: member ? member.loyalty_tier : '', n: member ? member.tier_discount_percent : 0})"></span>
+                </div>
+            </div>
+            <!-- 🏷️ Quick Discount (Pam's Rounding) — always available, even on a member sale. The
+                 manual % STACKS on the member's tier rate; presets over the remaining room (role cap
+                 minus the member's earned rate) are disabled so the combined total can't exceed the cap. -->
+            <div class="mb-6">
+                <h2 class="text-xl font-semibold text-gray-900 mb-4">🏷️ <span data-i18n="checkout.discount">Discount</span></h2>
+                <div class="grid grid-cols-3 md:grid-cols-5 gap-3">
+                    <button @click="applyDiscount(0)" :class="discount === 0 ? 'bg-gray-300' : 'bg-gray-100'" class="btn-secondary py-3" data-i18n="checkout.none">None</button>
+                    <button @click="applyDiscount(5)" :disabled="5 > manualCap()" :class="discount === 5 ? 'bg-green-300' : (5 > manualCap() ? 'bg-gray-100 opacity-40 cursor-not-allowed' : 'bg-green-100')" class="btn-secondary py-3">5%</button>
+                    <button @click="applyDiscount(10)" :disabled="10 > manualCap()" :class="discount === 10 ? 'bg-green-300' : (10 > manualCap() ? 'bg-gray-100 opacity-40 cursor-not-allowed' : 'bg-green-100')" class="btn-secondary py-3">10%</button>
+                    <button @click="applyDiscount(15)" :disabled="15 > manualCap()" :class="discount === 15 ? 'bg-yellow-300' : (15 > manualCap() ? 'bg-gray-100 opacity-40 cursor-not-allowed' : 'bg-yellow-100')" class="btn-secondary py-3">15%</button>
+                    <button @click="customDiscount()" class="btn-secondary py-3 bg-blue-100" data-i18n="checkout.custom">Custom</button>
+                </div>
+                <p class="text-sm text-gray-500 mt-2">💡 <span x-text="t('checkout.your_max_note', {n: manualCap()})"></span></p>
+            </div>
+
+            <!-- Price Breakdown -->
+            <div class="bg-indigo-50 rounded-lg p-6 mb-6 space-y-3">
+                <div class="flex justify-between">
+                    <span data-i18n="checkout.subtotal">Subtotal:</span>
+                    <span x-text="formatPrice(cartData.totals.subtotal)"></span>
+                </div>
+                <!-- BL-25: only show a discount row when a REAL discount applies. On a tobacco/alcohol-
+                     only cart the eligible subtotal is 0, so the amount is 0 — showing "5%: -0.00" was
+                     misleading. Show the row when it bites; otherwise a note that says WHY it's zero. -->
+                <div x-show="discountAmount > 0" class="flex justify-between text-green-600">
+                    <span>Discount (<span x-text="Number(discount)"></span>%):</span>
+                    <span x-text="'-' + formatPrice(discountAmount)"></span>
+                </div>
+                <div x-show="member && member.tier_discount_percent > 0 && memberDiscountAmount > 0" class="flex justify-between text-indigo-600">
+                    <span>Member discount (<span x-text="member ? member.loyalty_tier : ''"></span> <span x-text="member ? member.tier_discount_percent : 0"></span>%):</span>
+                    <span x-text="'-' + formatPrice(memberDiscountAmount)"></span>
+                </div>
+                <div x-show="welcomeDiscountAmount > 0" style="display:none;" class="flex justify-between text-emerald-600 font-semibold">
+                    <span>🎁 <span data-i18n="checkout.welcome_discount">First-order discount</span> (<span x-text="member ? member.welcome_discount_pct : 0"></span>%):</span>
+                    <span x-text="'-' + formatPrice(welcomeDiscountAmount)"></span>
+                </div>
+                <div x-show="(discount > 0 || (member && member.tier_discount_percent > 0)) && discountAmount === 0 && memberDiscountAmount === 0"
+                     class="flex justify-between text-amber-600 text-sm">
+                    <span data-i18n="checkout.no_discount_promo">No discount — tobacco/alcohol only</span>
+                    <span>−0.00</span>
+                </div>
+                <div class="border-t pt-3 flex justify-between text-xl font-bold">
+                    <span data-i18n="checkout.total">TOTAL:</span>
+                    <span class="text-indigo-600" x-text="formatPrice(cartData.totals.total)"></span>
+                </div>
+                <div class="flex justify-between text-sm text-gray-500 cursor-pointer select-none" @click="showVatInfo = !showVatInfo" title="Tap for the VAT breakdown">
+                    <span>
+                        <span data-i18n="checkout.incl_vat">incl. VAT:</span>
+                        (<span x-text="_cfg('vat_rate')"></span>%) <span class="text-gray-400">ⓘ</span>
+                    </span>
+                    <span x-text="formatPrice(cartData.totals.vat)"></span>
+                </div>
+                <!-- VAT breakdown tooltip (Angel): prices are VAT-INCLUSIVE, so the tax is contained IN
+                     the total, not added on top. Net = total − VAT. Reads the store's rate + currency. -->
+                <div x-show="showVatInfo" style="display:none" class="text-xs bg-blue-50 border border-blue-200 rounded-lg p-3 mt-1 space-y-1">
+                    <div class="flex justify-between"><span data-i18n="checkout.vat_net">Net goods (ex-VAT)</span>
+                        <span x-text="formatPrice((cartData.totals.total || 0) - (cartData.totals.vat || 0))"></span></div>
+                    <div class="flex justify-between"><span><span data-i18n="checkout.vat_only">VAT</span> (<span x-text="_cfg('vat_rate')"></span>%)</span>
+                        <span x-text="formatPrice(cartData.totals.vat)"></span></div>
+                    <div class="flex justify-between font-semibold border-t border-blue-200 pt-1"><span data-i18n="checkout.vat_total">Total paid</span>
+                        <span x-text="formatPrice(cartData.totals.total)"></span></div>
+                    <p class="text-blue-700 pt-1" data-i18n="checkout.vat_note">Prices include VAT — the tax is contained in the total, not added on top.</p>
+                </div>
+                <!-- Multi-currency tender (Block 0): what to collect if the customer pays in a foreign
+                     CASH currency, at the shop's plan-rate. Read-only courtesy — cards convert bank-side. -->
+                <div x-show="foreignTenders().length" class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-amber-800 bg-amber-50 rounded-lg px-3 py-2 mt-1">
+                    <span class="font-semibold whitespace-nowrap">💱 pay in cash:</span>
+                    <span class="flex flex-wrap gap-x-3 gap-y-1 justify-end">
+                        <template x-for="ft in foreignTenders()" :key="ft.ccy">
+                            <span>≈ <span class="font-bold" x-text="ft.ccy"></span> <span x-text="ft.amount"></span></span>
+                        </template>
+                    </span>
+                </div>
+                <!-- Per-rate split: appears once any line carries the reduced (takeaway) rate -->
+                <div x-show="cartData.totals.vatReduced > 0" class="flex justify-between text-xs">
+                    <span class="text-gray-400">
+                        <span x-text="_cfg('vat_rate')"></span>% <span x-text="formatPrice(cartData.totals.vatStandard)"></span>
+                        ·
+                        <span class="text-teal-600 font-semibold"><span x-text="_cfg('vat_rate_reduced')"></span>% <span x-text="formatPrice(cartData.totals.vatReduced)"></span></span>
+                    </span>
+                    <span class="text-teal-600 font-semibold uppercase tracking-wide" data-i18n="checkout.takeaway_tag">takeaway</span>
+                </div>
+            </div>
+
+            <!-- Payment Method -->
+            <div class="mb-6">
+                <h2 class="text-xl font-semibold text-gray-900 mb-4">💰 <span data-i18n="checkout.payment_method">Payment Method</span></h2>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <button
+                        @click="selectPayment('cash')"
+                        :class="paymentMethod === 'cash' ? 'bg-green-600 text-white border-4 border-green-700 shadow-lg' : 'bg-white text-gray-800 border-2 border-gray-300'"
+                        class="card py-6 text-center cursor-pointer hover:shadow-lg transition">
+                        <span class="text-4xl mb-2 block">💵</span>
+                        <p class="font-semibold" data-i18n="cash.cash">Cash</p>
+                    </button>
+                    <button
+                        @click="selectPayment('visa')"
+                        :class="paymentMethod === 'visa' ? 'bg-green-600 text-white border-4 border-green-700 shadow-lg' : 'bg-white text-gray-800 border-2 border-gray-300'"
+                        class="card py-6 text-center cursor-pointer hover:shadow-lg transition">
+                        <span class="text-4xl mb-2 block">💳</span>
+                        <p class="font-semibold">Visa/MC</p>
+                    </button>
+                    <button
+                        @click="selectPayment('debit')"
+                        :class="paymentMethod === 'debit' ? 'bg-green-600 text-white border-4 border-green-700 shadow-lg' : 'bg-white text-gray-800 border-2 border-gray-300'"
+                        class="card py-6 text-center cursor-pointer hover:shadow-lg transition">
+                        <span class="text-4xl mb-2 block">🏦</span>
+                        <p class="font-semibold" data-i18n="cash.debit">Debit</p>
+                    </button>
+                    <button
+                        @click="selectPayment('twint')"
+                        :class="paymentMethod === 'twint' ? 'bg-green-600 text-white border-4 border-green-700 shadow-lg' : 'bg-white text-gray-800 border-2 border-gray-300'"
+                        class="card py-6 text-center cursor-pointer hover:shadow-lg transition">
+                        <span class="text-4xl mb-2 block">📱</span>
+                        <p class="font-semibold">TWINT</p>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 💵 CASH QUICK ROUND (Only shows for CASH payments) -->
+            <div x-show="paymentMethod === 'cash'" x-transition class="mb-6">
+                <h2 class="text-xl font-semibold text-gray-900 mb-4">💵 <span data-i18n="cash.cash_received">Cash Received</span></h2>
+
+                <!-- Multi-currency (Block 1): which cash currency is the customer paying with? Home is the
+                     default; accepted foreign currencies come from the shop's rates. Change is ALWAYS in home. -->
+                <div x-show="foreignTenders().length" class="flex flex-wrap gap-2 mb-3">
+                    <button @click="tenderCcy=''; calculateChange()"
+                            :class="!tenderCcy ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700'"
+                            class="px-4 py-2 rounded-lg font-bold text-sm" x-text="homeCcy()"></button>
+                    <template x-for="ft in foreignTenders()" :key="ft.ccy">
+                        <button @click="tenderCcy=ft.ccy; calculateChange()"
+                                :class="tenderCcy===ft.ccy ? 'bg-amber-500 text-white' : 'bg-amber-50 text-amber-800 border border-amber-300'"
+                                class="px-4 py-2 rounded-lg font-bold text-sm">💱 <span x-text="ft.ccy"></span></button>
+                    </template>
+                </div>
+                <!-- Collect hint when paying in foreign cash -->
+                <div x-show="tenderCcy && tenderCcy !== homeCcy()" style="display:none" class="text-sm text-amber-800 bg-amber-50 rounded-lg px-3 py-2 mb-3">
+                    💱 Collect ≈ <strong><span x-text="tenderCcy"></span> <span x-text="exactTender().toFixed(2)"></span></strong>
+                    · 1 <span x-text="tenderCcy"></span> = <span x-text="tenderRate()"></span> <span x-text="homeCcy()"></span>
+                    · change in <strong x-text="homeCcy()"></strong>
+                </div>
+
+                <!-- Type the EXACT amount handed over (Swiss pay over: a 50 for a pack of gum, or
+                     72.50 with a 75.00, and take clean coins back). Free-form field is primary. -->
+                <div class="mb-3">
+                    <label class="block text-sm font-medium text-gray-700 mb-1"><span data-i18n="cash.received_word">Amount received</span> (<span x-text="tenderCcy || homeCcy()"></span>)</label>
+                    <input type="number" inputmode="decimal" step="0.05" min="0"
+                           x-model.number="cashReceived" @input="calculateChange()"
+                           placeholder="0.00"
+                           class="w-full px-4 py-3 border-2 border-green-300 rounded-lg text-3xl font-bold text-right focus:border-green-500 focus:outline-none">
+                </div>
+
+                <!-- Tap notes to ADD them up — a 50 and a 20 = 70. Swiss CHF notes. -->
+                <div class="grid grid-cols-3 md:grid-cols-6 gap-2 mb-3">
+                    <template x-for="note in [5,10,20,50,100,200]" :key="note">
+                        <button @click="addCash(note)" class="btn-secondary py-3 font-bold bg-green-100 hover:bg-green-200">+<span x-text="note"></span></button>
+                    </template>
+                </div>
+
+                <!-- Exact + Clear -->
+                <div class="grid grid-cols-2 gap-3 mb-4">
+                    <button @click="setCashReceived(exactTender())"
+                        :class="Math.round(cashReceived*100) === Math.round(exactTender()*100) && cashReceived > 0 ? 'bg-blue-500 text-white' : 'bg-blue-100'"
+                        class="btn-secondary py-3 font-bold" data-i18n="cash.exact">EXACT</button>
+                    <button @click="clearCash()" class="btn-secondary py-3 font-bold bg-gray-100 hover:bg-gray-200" data-i18n="cash.clear">CLEAR</button>
+                </div>
+
+                <!-- Cash Received Display -->
+                <div x-show="cashReceived > 0" class="bg-green-50 rounded-lg p-4 mb-4">
+                    <div class="flex justify-between text-lg">
+                        <span data-i18n="cash.cash_received_label">Cash Received:</span>
+                        <span class="font-bold text-green-700" x-text="(tenderCcy && tenderCcy !== homeCcy()) ? (tenderCcy + ' ' + (Number(cashReceived)||0).toFixed(2)) : formatPrice(cashReceived)"></span>
+                    </div>
+                    <div class="flex justify-between text-lg">
+                        <span data-i18n="cash.total_due">Total Due:</span>
+                        <span x-text="formatPrice(cartData.totals.total)"></span>
+                    </div>
+                    <div class="flex justify-between text-lg border-t pt-2 mt-2">
+                        <span data-i18n="cash.change">Change:</span>
+                        <span class="font-bold" :class="changeAmount >= 0 ? 'text-green-700' : 'text-red-600'"
+                              x-text="formatPrice(changeAmount)"></span>
+                    </div>
+                </div>
+
+                <!-- Insufficient cash: the received amount is less than the total due -->
+                <div x-show="cashReceived > 0 && cashShort()" class="bg-red-50 border border-red-300 rounded-lg p-3 mb-4 text-red-700 text-sm">
+                    ⚠️ Cash received is <strong><span x-text="formatPrice(Math.abs(changeAmount))"></span> short</strong> of the total.
+                    Collect more cash, pick a higher amount, or hit <strong>EXACT</strong>.
+                </div>
+
+                <!-- Quick Round + Treat -- always available once cash is on the counter -->
+                <div x-show="cashReceived > 0 && (!tenderCcy || tenderCcy === homeCcy())" class="mb-4">
+                    <h3 class="text-md font-semibold text-gray-700 mb-2">🎯 <span data-i18n="checkout.quick_options">Quick Options</span></h3>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button x-show="changeAmount > 0" @click="applyQuickRound()"
+                            class="bg-yellow-100 hover:bg-yellow-200 p-3 rounded-lg text-left">
+                            <span class="block font-bold text-yellow-800">Round to <span x-text="formatPrice(cashReceived)"></span></span>
+                            <span class="text-sm text-yellow-600">Give back <span x-text="formatPrice(Math.floor(changeAmount))"></span> (clean notes)</span>
+                        </button>
+                        <button @click="showChangeProducts = !showChangeProducts"
+                            class="bg-pink-100 hover:bg-pink-200 p-3 rounded-lg text-left">
+                            <span class="block font-bold text-pink-800">🍭 <span data-i18n="checkout.give_treat">Give a Treat</span></span>
+                            <span class="text-sm text-pink-600" data-i18n="checkout.on_house_note">On the house — free with the sale</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Treats (Pink Punch Model) -- always free giveaways -->
+                <div x-show="showChangeProducts" x-transition class="bg-pink-50 rounded-lg p-4 mb-4">
+                    <h3 class="text-md font-semibold text-pink-800 mb-3">🍭 <span data-i18n="checkout.pick_treat">Pick a treat — on the house</span></h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        <template x-for="product in changeProducts" :key="product.name">
+                            <button @click="addChangeProduct(product)"
+                                class="bg-white hover:bg-pink-100 p-2 rounded border text-center">
+                                <span class="block text-2xl" x-text="product.emoji"></span>
+                                <span class="block text-sm font-semibold" x-text="product.name"></span>
+                                <span class="block text-xs text-green-600 font-semibold" data-i18n="checkout.free">FREE</span>
+                            </button>
+                        </template>
+                    </div>
+                    <p class="text-xs text-pink-600 mt-2" data-i18n="checkout.treat_note">Customer gets a treat, you keep cleaner change!</p>
+                </div>
+            </div>
+
+            <!-- Dry Run Preview -->
+            <div class="bg-yellow-50 border-2 border-yellow-400 rounded-lg p-6 mb-6">
+                <h2 class="text-lg font-semibold text-yellow-800 mb-3">⚠️ <span data-i18n="checkout.dry_run_preview">Dry Run Preview</span></h2>
+                <div class="space-y-2 text-sm text-yellow-900">
+                    <p>• <span data-i18n="checkout.dry_cash_drawer">Cash drawer:</span> <span x-text="paymentMethod === 'cash' ? '+' + formatPrice(cartData.totals.total) : formatPrice(0) + ' (electronic)'"></span></p>
+                    <p>• <span data-i18n="checkout.dry_inventory">Inventory:</span> <span x-text="inventoryPreview()"></span></p>
+                    <p>• <span data-i18n="checkout.dry_receipt">Receipt: Will print to POS printer</span></p>
+                    <p>• <span data-i18n="checkout.dry_daily_total">Daily total:</span> +<span x-text="formatPrice(cartData.totals.total)"></span></p>
+                </div>
+            </div>
+
+            <!-- Confirmation -->
+            <div class="mb-6 text-center">
+                <p class="text-lg text-gray-700">❓ <span data-i18n="checkout.confirm_prompt">Does everything look correct?</span></p>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="grid grid-cols-3 gap-4">
+                <button @click="goBack()" class="btn-secondary">
+                    ❌ <span data-i18n="common.cancel">Cancel</span>
+                </button>
+                <button @click="goBack()" class="btn-secondary">
+                    ✏️ <span data-i18n="checkout.edit_cart">Edit Cart</span>
+                </button>
+                <button @click="completeTransaction()"
+                        :disabled="processing || cashShort()"
+                        :class="cashShort() ? 'opacity-50 cursor-not-allowed' : ''"
+                        class="btn-success">
+                    <span x-show="!processing">✅ <span data-i18n="checkout.confirm_complete">Confirm &amp; Complete</span></span>
+                    <span x-show="processing" class="inline-flex items-center gap-2">
+                        <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                        </svg>
+                        <span data-i18n="checkout.processing">Processing…</span>
+                    </span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom discount modal (replaces the native prompt) -->
+    <div x-show="showDiscountModal" x-transition.opacity
+         class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+         @click.self="showDiscountModal = false" @keydown.escape.window="showDiscountModal = false" style="display:none;">
+        <div class="card w-full max-w-sm">
+            <h3 class="text-xl font-bold text-gray-900 mb-1">🏷️ <span data-i18n="checkout.custom_discount_title">Custom discount</span></h3>
+            <p class="text-sm text-gray-500 mb-4" x-text="t('checkout.custom_discount_hint_dyn', {n: manualCap()})">Enter a percentage.</p>
+            <input type="number" min="0" :max="manualCap()" step="1" x-ref="discountInput" x-model="discountInput"
+                   @keyup.enter="applyCustomDiscount()" placeholder="e.g. 12" data-i18n-placeholder="checkout.custom_discount_placeholder" class="input-field text-2xl font-bold text-center mb-4">
+            <div class="flex gap-3">
+                <button @click="showDiscountModal = false" class="btn-secondary flex-1" data-i18n="common.cancel">Cancel</button>
+                <button @click="applyCustomDiscount()" class="btn-primary flex-1" data-i18n="checkout.apply">Apply</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🔞 AGE STOP modal — fires when the cart holds an 18+ line and no of-age member
+         is attached. Three moves: SIGN UP (name + DOB) · CONFIRM 18+ walk-in (ID checked)
+         · REFUSE (drop the 18+ line). The server is the real gate; this is the counter UX. -->
+    <div x-show="showAgeModal" x-transition.opacity
+         class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+         @keydown.escape.window="ageRefuse()" style="display:none;">
+        <div class="card w-full max-w-md">
+            <div class="text-center mb-4">
+                <div class="text-4xl mb-1">🔞</div>
+                <h3 class="text-xl font-bold text-red-700" data-i18n="checkout.age_title">Age-restricted sale — 18+</h3>
+                <p class="text-sm text-gray-600 mt-1" data-i18n-html="checkout.age_body">
+                    This cart has an <b>18+ item</b> and no of-age member is attached.
+                    Verify age before completing.
+                </p>
+            </div>
+
+            <!-- Minor member attached: a DOB-proven under-18 can't be sold 18+ items — no walk-in
+                 attestation overrides it (server is authoritative). Only way forward: remove the
+                 member (wrong card / sell as walk-in) or drop the 18+ items. -->
+            <div x-show="member && memberIsMinor(member)"
+                 class="border border-red-300 bg-red-50 rounded-lg p-3 mb-3 text-sm text-red-800">
+                ⚠ <b x-text="member ? member.handle : ''"></b>
+                <span data-i18n="checkout.member_under_18">is under 18 — 18+ items can't be sold to them.</span>
+            </div>
+            <button x-show="member && memberIsMinor(member)" @click="ageRemoveMember()"
+                    class="btn-secondary w-full mb-3">
+                👤 <span data-i18n="checkout.remove_member_continue">Remove member &amp; continue</span>
+            </button>
+
+            <!-- Move 1: SIGN UP a member with a real DOB (NO gender field) -->
+            <div x-show="!(member && memberIsMinor(member))" class="border border-indigo-200 rounded-lg p-4 mb-3 bg-indigo-50">
+                <p class="font-semibold text-indigo-800 mb-2">👤 <span data-i18n="checkout.age_signup_heading">Sign up a member</span></p>
+                <input type="text" x-model="ageForm.handle" placeholder="Name / handle" data-i18n-placeholder="checkout.name_handle_placeholder"
+                       class="input-field mb-2">
+                <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="checkout.dob_label">Date of birth</label>
+                <input type="date" x-model="ageForm.birthdate" class="input-field mb-1">
+                <label class="flex items-center gap-2 text-xs text-gray-600 mb-2 mt-1">
+                    <input type="checkbox" x-model="ageForm.marketing_consent" class="w-4 h-4">
+                    <span data-i18n="checkout.marketing_consent">Send offers (SMS/email) — optional</span>
+                </label>
+                <button @click="ageSignup()" :disabled="ageProcessing"
+                        class="btn-primary w-full" :class="ageProcessing ? 'opacity-50 cursor-not-allowed' : ''"
+                        data-i18n="checkout.create_member_continue">
+                    Create member &amp; continue
+                </button>
+                <p class="text-xs text-gray-500 mt-1" data-i18n="checkout.dob_note">DOB proves 18+ automatically. Under 18 can join but can't buy 18+ items.</p>
+            </div>
+
+            <!-- Move 2: CONFIRM a walk-in is 18+ (ID checked) — hidden when a KNOWN-minor member is
+                 attached (it can't clear the server gate; would just loop). -->
+            <button x-show="!(member && memberIsMinor(member))" @click="ageConfirmWalkin()"
+                    class="btn-success w-full mb-3">
+                ✅ <span data-i18n="checkout.confirm_walkin">Confirm 18+ walk-in — ID checked</span>
+            </button>
+
+            <!-- Move 3: REFUSE — drop the 18+ line(s) and cancel the gate -->
+            <button @click="ageRefuse()" class="btn-danger w-full">
+                🚫 <span data-i18n="checkout.refuse_remove">Refuse — remove 18+ item(s)</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function checkoutData() {
+        return {
+            cartData: {cart: [], totals: {}, discount: 0, transactionId: ''},
+            showDiscountModal: false,  // custom-discount modal (replaces native prompt)
+            showVatInfo: false,        // tap the "incl. VAT" line → net/VAT/total breakdown tooltip
+            discountInput: '',
+            member: null,              // loyalty member attached to this sale
+            memberDiscountAmount: 0,   // display-only; the server applies it once at checkout
+            kioskCartCode: '',         // set when ringing out a kiosk held order (v2b)
+            welcomeDiscountAmount: 0,  // display-only first-order welcome discount; server is authoritative
+            // 🔞 Age gate (18+). The server is the real gate; this is the counter UX.
+            showAgeModal: false,       // cashier STOP modal for an unverified 18+ sale
+            ageVerified: false,        // cashier attested a walk-in is 18+ (ID checked)
+            ageProcessing: false,      // signup in flight
+            ageForm: { handle: '', birthdate: '', marketing_consent: false },
+            paymentMethod: 'visa',
+            processing: false,
+            discount: 0,
+            discountAmount: 0,
+            maxDiscount: 100,   // live per-role cap from store settings (loaded in init)
+            consumption: 'dine_in',   // dine-in (8.1%) vs takeaway (2.6%) — cafe food/drink only
+
+            // Cash Quick Round
+            cashReceived: 0,      // amount handed over — in tenderCcy when a foreign currency is picked
+            changeAmount: 0,      // change to give, ALWAYS in the home currency
+            tenderCcy: '',        // '' = home currency; else an accepted foreign cash currency (Block 1)
+            changeGap: 0,
+            showChangeProducts: false,
+            quickRoundApplied: false,
+
+            // Treats come from the real 'Treats' catalog (loaded in init) so each
+            // giveaway decrements stock + carries a cost for tax. emoji is by SKU.
+            changeProducts: [],
+            treatEmoji: {
+                'TREAT-LOLLIPOP': '🍭', 'TREAT-GUMMY': '🍬', 'TREAT-PAPERS': '📄',
+                'TREAT-STICKER': '✨', 'TREAT-LIGHTER': '🔥', 'TREAT-GRINDERCARD': '🃏'
+            },
+
+            // 🌍-1 M2 SANDBOX — the in-checkout Worldline terminal overlay (worldline_sim only).
+            // The amount reaches the terminal, the customer "taps", approved/declined flows back —
+            // the same experience Pam gets when the real terminal is wired. State + tiny machine below.
+            terminal: { show: false, stage: 'idle', amount: 0, method: '', name: 'AXIUM DX8000', tid: '25409030', declineArmed: false },
+            _termResolve: null, _termReject: null,
+
+            // Returns a Promise that resolves with the capture {method, outcome, terminal, tid} on
+            // approval, or REJECTS on decline/cancel (caller keeps the cart). method: 'twint' | 'card'.
+            runTerminal(amount, payMethod) {
+                return new Promise((resolve, reject) => {
+                    this._termResolve = resolve; this._termReject = reject;
+                    this.terminal = {
+                        show: true, stage: 'amount', amount: Number(amount) || 0,
+                        method: (payMethod === 'twint' ? 'twint' : 'card'),
+                        name: 'AXIUM DX8000', tid: '25409030', declineArmed: false
+                    };
+                    // amount pops, then the terminal asks for the card/phone
+                    setTimeout(() => { if (this.terminal.show) this.terminal.stage = 'await'; }, 750);
+                });
+            },
+            terminalTap() {
+                if (this.terminal.stage !== 'await') return;
+                const declined = this.terminal.declineArmed;
+                const cap = { method: this.terminal.method, outcome: declined ? 'decline' : 'approve',
+                              terminal: this.terminal.name, tid: this.terminal.tid };
+                this.terminal.stage = 'processing';
+                setTimeout(() => {
+                    this.terminal.stage = declined ? 'declined' : 'approved';
+                    setTimeout(() => {
+                        this.terminal.show = false;
+                        if (declined) { if (this._termReject) this._termReject('declined'); }
+                        else { if (this._termResolve) this._termResolve(cap); }
+                    }, declined ? 1500 : 1150);
+                }, 1250);
+            },
+            terminalCancel() {
+                if (!this.terminal.show) return;
+                this.terminal.show = false;
+                if (this._termReject) this._termReject('cancelled');
+            },
+
+            async init() {
+                // Back-forward cache guard: if the browser restores this page from bfcache (Back button)
+                // AFTER the sale cleared the cart, it would show the frozen "Processing…" spinner of a
+                // closed deal. Bounce straight to a fresh New Sale so a completed order never reappears.
+                window.addEventListener('pageshow', (e) => {
+                    if (e.persisted && !sessionStorage.getItem('pos_cart')) {
+                        window.location.replace('/pos/scan');
+                    }
+                });
+
+                const stored = sessionStorage.getItem('pos_cart');
+                if (!stored) {
+                    showToast(t('checkout.toast_no_cart'), 'warning');
+                    setTimeout(() => window.location.replace('/pos/scan'), 1000);
+                    return;
+                }
+
+                this.cartData = JSON.parse(stored);
+                this.discount = this.cartData.discount || 0;
+                this.consumption = this.cartData.consumption || 'dine_in';
+                this.loadDiscountCap();   // live per-role discount ceiling (matches the server guard)
+                // A member may have been picked on the lookup page ("Use for Checkout").
+                try {
+                    const m = sessionStorage.getItem('checkout_customer');
+                    if (m) this.member = JSON.parse(m);
+                } catch (e) { this.member = null; }
+                // Kiosk held order being rung out → its member's first-order welcome discount applies.
+                this.kioskCartCode = sessionStorage.getItem('pos_kiosk_cart_code') || '';
+                // Separate lanes (Felix's call 2026-07-13): the manual discount is independent of
+                // the member's tier, which stacks on top automatically. No member-based clamp — the
+                // manual was already bounded by the role cap on the scan page, and the tier applies
+                // regardless (a platinum member's 20% still lands even with a 15%-capped cashier).
+                this.recalculateTotals();
+
+                // Load the treats catalog (real products) for the "give a treat" picker.
+                try {
+                    const treats = await API.get('/api/v1/pos/products?category=Treats&limit=50');
+                    this.changeProducts = (treats || [])
+                        .filter(t => t.is_active)
+                        .map(t => ({ id: t.id, name: t.name, retailValue: parseFloat(t.price || 0),
+                                     emoji: this.treatEmoji[t.sku] || '🎁' }));
+                } catch (e) { console.warn('treats unavailable', e); }
+            },
+
+            selectPayment(method) {
+                this.paymentMethod = method;
+                // Reset cash fields when switching payment method
+                if (method !== 'cash') {
+                    this.cashReceived = 0;
+                    this.changeAmount = 0;
+                    this.changeGap = 0;
+                    this.showChangeProducts = false;
+                    this.quickRoundApplied = false;
+                }
+            },
+
+            setCashReceived(amount) {
+                this.cashReceived = Math.round((Number(amount) || 0) * 100) / 100;
+                this.quickRoundApplied = false;
+                this.calculateChange();
+            },
+
+            // Tap-to-add a note (a 50 and a 20 = 70) — accumulates onto whatever's already entered.
+            addCash(amount) {
+                this.cashReceived = Math.round(((Number(this.cashReceived) || 0) + amount) * 100) / 100;
+                this.quickRoundApplied = false;
+                this.calculateChange();
+            },
+
+            clearCash() {
+                this.cashReceived = 0;
+                this.quickRoundApplied = false;
+                this.calculateChange();
+            },
+
+            // Cash is genuinely short only when it's below the total by a whole cent
+            // (integer-cent compare avoids float dust failing an exactly-paid sale).
+            cashShort() {
+                if (this.paymentMethod !== 'cash') return false;
+                // Compare the HOME-currency equivalent of what was handed over against the total.
+                const recvHome = (Number(this.cashReceived) || 0) * this.tenderRate();
+                return Math.round(recvHome * 100) < Math.round((this.cartData.totals.total || 0) * 100);
+            },
+            // The exact amount to collect in the current tender currency (foreign: total ÷ rate).
+            exactTender() {
+                const total = Number(this.cartData.totals.total) || 0;
+                const r = this.tenderRate();
+                return Math.round((r === 1 ? total : total / r) * 100) / 100;
+            },
+
+            calculateChange() {
+                const total = this.cartData.totals.total;
+                // cashReceived is in the tender currency; convert to the HOME currency for the change.
+                // Change is ALWAYS given in the home currency (the drawer's float). rate = home per 1 foreign.
+                const recvHome = (Number(this.cashReceived) || 0) * this.tenderRate();   // empty/NaN -> 0
+                // Round to whole cents -- the discount/VAT math leaves float dust
+                // (e.g. 10.0000001), which otherwise reads as a "0.00 short" on an
+                // exactly-paid sale. Compare in cents, not raw floats.
+                this.changeAmount = Math.round((recvHome - total) * 100) / 100;
+                // Gap is the cents part that could be rounded
+                this.changeGap = this.changeAmount > 0 ? (this.changeAmount % 1) : Math.abs(this.changeAmount);
+                // (Treats are free now -- no affordability filtering; the old filter
+                //  also permanently mutated the list, dropping treats after one call.)
+            },
+
+            applyQuickRound() {
+                // Only meaningful when the customer OVERpaid -- never when cash is short
+                // (rounding up would deepen the deficit).
+                if (this.changeAmount < 0) {
+                    showToast(t('cash.toast_cash_less'), 'warning');
+                    return;
+                }
+                // Round total UP to match cash received (customer gets clean change)
+                const total = this.cartData.totals.total;
+                const roundedTotal = this.cashReceived - Math.floor(this.changeAmount);
+
+                // Inclusive VAT: the rounded total IS the gross paid. The round "discount"
+                // is just how far we trimmed the gross; the contained VAT is extracted from
+                // the rounded gross (gross * rate / (100 + rate)).
+                const subtotal = this.cartData.totals.subtotal;
+                const roundDiscount = subtotal - roundedTotal;
+
+                this.cartData.totals.roundDiscount = roundDiscount;
+                this.cartData.totals.total = roundedTotal;
+                this.cartData.totals.vat = roundedTotal * POSConfig.vat_rate / (100 + POSConfig.vat_rate);
+
+                this.quickRoundApplied = true;
+                this.calculateChange();
+                sessionStorage.setItem('pos_cart', JSON.stringify(this.cartData));
+                showToast(t('cash.toast_rounded', {n: formatPrice(roundedTotal)}), 'success');
+            },
+
+            addChangeProduct(product) {
+                // A treat is FREE -- on the house. It does NOT change the total (the
+                // customer already paid); we just record the giveaway on the sale.
+                // retailValue is kept for tax/COGS tracking.
+                this.cartData.cart.push({
+                    id: product.id,            // real product id -> stock decrements
+                    product_id: product.id,
+                    name: product.name + ' (Treat)',
+                    price: 0,                  // free to the customer
+                    quantity: 1,
+                    isChangeProduct: true,
+                    isGiveaway: true,
+                    retailValue: product.retailValue
+                });
+                // total unchanged -- recalc only to keep VAT/derived fields consistent
+                this.recalculateTotals();
+                this.calculateChange();
+                this.showChangeProducts = false;
+
+                sessionStorage.setItem('pos_cart', JSON.stringify(this.cartData));
+                showToast(`${product.emoji} ${product.name} ${t('checkout.on_the_house_suffix')}`, 'success');
+            },
+
+            // Per-role discount ceiling, live from store settings (same value the server enforces).
+            async loadDiscountCap() {
+                try {
+                    const d = await API.get('/api/v1/pos/discount-cap');
+                    if (d && d.max_discount_pct != null) this.maxDiscount = d.max_discount_pct;
+                } catch (e) { /* keep default */ }
+            },
+
+            // The cashier's manual-discount ceiling — a fat-finger guard on their OWN entry only,
+            // independent of any member. The member's tier is the shop's loyalty promise and stacks
+            // on top automatically (uncapped by role). Cashier 15 / manager 70 / owner 100.
+            manualCap() {
+                return this.maxDiscount;
+            },
+
+            applyDiscount(percent) {
+                // Respect the live per-role cap (the server rejects over-cap anyway; this is the UX).
+                const cap = this.manualCap();
+                if (percent > cap) {
+                    showToast(t('checkout.err_max_discount', {n: cap}), 'warning');
+                    percent = cap;
+                }
+                this.discount = percent;
+                this.cartData.discount = percent;
+                this.recalculateTotals();
+                this.calculateChange(); // Recalculate change after discount
+                sessionStorage.setItem('pos_cart', JSON.stringify(this.cartData));
+                showToast(t('checkout.toast_discount_applied', {n: percent}), 'success');
+            },
+
+            customDiscount() {
+                this.discountInput = '';
+                this.showDiscountModal = true;
+                this.$nextTick(() => { if (this.$refs.discountInput) this.$refs.discountInput.focus(); });
+            },
+            applyCustomDiscount() {
+                const percent = Math.min(this.manualCap(), Math.max(0, parseFloat(this.discountInput) || 0));
+                this.applyDiscount(percent);
+                this.showDiscountModal = false;
+            },
+
+            setConsumption(mode) {
+                // dine_in (cafe food/drink @ 8.1%) vs takeaway (@ 2.6%). Alcohol, tobacco
+                // and retail goods are unaffected (always 8.1%) — the per-line class decides.
+                this.consumption = mode;
+                this.cartData.consumption = mode;
+                this.recalculateTotals();
+                this.calculateChange();
+                sessionStorage.setItem('pos_cart', JSON.stringify(this.cartData));
+            },
+
+            // Mirror of the server's class_promo_restricted: tobacco/alcohol get NO discount.
+            isPromoRestricted(it) {
+                return !!(it && (it.promo_restricted ||
+                    ['tobacco_nicotine', 'alcohol'].includes(it.product_class)));
+            },
+            recalculateTotals() {
+                // Sum the lines, then split the contained VAT by each line's Swiss rate so the
+                // breakdown shows 8.1% vs 2.6% live as the cashier flips dine-in/takeaway.
+                const lineSum = this.cartData.cart.reduce(
+                    (s, it) => s + tierLineTotal(it), 0);
+                const subtotal = lineSum || this.cartData.totals.subtotal || 0;
+                // BOTH the manual and the member discount apply to the ELIGIBLE (non-promo-restricted)
+                // portion only — tobacco/alcohol never get a promo discount (Swiss law). Mirrors the
+                // server so the Dry Run Preview total matches the charge. Manual & member STACK off the
+                // same eligible base as separate lanes (member tier auto + cashier manual = summed).
+                const eligibleSum = this.cartData.cart.reduce(
+                    (s, it) => s + ((this.isPromoRestricted(it) || tierApplied(it)) ? 0 : tierLineTotal(it)), 0);
+                this.discountAmount = eligibleSum * (this.discount / 100);   // manual, eligible items only
+                const afterDiscount = subtotal - this.discountAmount;
+                const memberPct = (this.member && this.member.tier_discount_percent) || 0;
+                this.memberDiscountAmount = eligibleSum * (memberPct / 100); // member, eligible items only
+                // First-order welcome discount (kiosk v2b): its own lane on the eligible portion,
+                // only when ringing out that member's held order. Server applies + consumes it; this
+                // mirrors the math so shown == charged.
+                const welcomePct = (this.kioskCartCode && this.member && this.member.welcome_discount_pct) || 0;
+                this.welcomeDiscountAmount = eligibleSum * (welcomePct / 100);
+                // Safety floor (mirrors the server): the combined discount can never exceed the
+                // eligible items — the total floors at the non-discountable portion, never negative.
+                const floorTotal = subtotal - eligibleSum;   // promo-restricted (tobacco/alcohol) portion
+                const gross = Math.max(floorTotal, afterDiscount - this.memberDiscountAmount - this.welcomeDiscountAmount);  // gross paid
+                // Spread the discount evenly across lines so each line's contained VAT
+                // reflects its share of the discounted gross.
+                const factor = subtotal > 0 ? gross / subtotal : 1;
+                const STD = POSConfig.vat_rate;                       // 8.1
+                const RED = POSConfig.vat_rate_reduced != null ? POSConfig.vat_rate_reduced : 2.6;
+                let vatStd = 0, vatRed = 0;
+                this.cartData.cart.forEach(it => {
+                    const lineGross = (it.price || 0) * (it.quantity || 0) * factor;
+                    // Cafe food/drink is 8.1% dine-in, 2.6% takeaway; everything else 8.1%.
+                    const reduced = (it.product_class === 'cafe_food' && this.consumption === 'takeaway');
+                    const rate = reduced ? RED : STD;
+                    const v = lineGross * rate / (100 + rate);         // inclusive VAT contained in the gross
+                    if (reduced) vatRed += v; else vatStd += v;
+                });
+                // Persist the freshly-summed subtotal so the "Subtotal" line renders the real value.
+                // BUGFIX: recalc wrote total/vat/discount but never subtotal, so the display kept the
+                // cart's stale/undefined totals.subtotal → "CHF NaN" (total was right, subtotal wasn't).
+                this.cartData.totals.subtotal = subtotal;
+                this.cartData.totals.discountAmount = this.discountAmount;
+                this.cartData.totals.memberDiscountAmount = this.memberDiscountAmount;
+                this.cartData.totals.vatStandard = vatStd;
+                this.cartData.totals.vatReduced = vatRed;
+                this.cartData.totals.vat = vatStd + vatRed;
+                this.cartData.totals.total = gross;
+                this.cartData.consumption = this.consumption;
+            },
+
+            // Multi-currency tender (Block 0): the total shown in each accepted FOREIGN cash currency,
+            // at the shop's plan-rate (home ÷ rate). Read-only courtesy for the cashier. Only when the
+            // fx table's base matches this shop's home currency (else those rates aren't for this shop).
+            homeCcy() { return (_cfg('currency') || 'CHF').toUpperCase(); },
+            // Accepted FOREIGN cash currencies (from the shop's fx table, base = home currency), each with
+            // its plan-rate and the amount to collect for the current total. Reads _cfg (reactive) — fixes
+            // the earlier window.POSConfig bug (POSConfig is a const, so it was always empty).
+            foreignTenders() {
+                const fx = _cfg('fx');
+                const home = this.homeCcy();
+                if (!fx || !fx.rates || (fx.base || '').toUpperCase() !== home) return [];
+                const total = Number(this.cartData.totals.total) || 0;
+                const out = [];
+                for (const ccy of Object.keys(fx.rates)) {
+                    const rate = Number(fx.rates[ccy]);
+                    if (!(rate > 0) || ccy.toUpperCase() === home) continue;
+                    out.push({ ccy: ccy.toUpperCase(), rate, amount: total > 0 ? (total / rate).toFixed(2) : '0.00' });
+                }
+                return out;
+            },
+            // The plan-rate for the currently-picked tender currency (1 for the home currency).
+            tenderRate() {
+                if (!this.tenderCcy || this.tenderCcy === this.homeCcy()) return 1;
+                const ft = this.foreignTenders().find(f => f.ccy === this.tenderCcy);
+                return ft ? ft.rate : 1;
+            },
+
+            clearMember() {
+                this.member = null;
+                try { sessionStorage.removeItem('checkout_customer'); } catch (e) {}
+                this.recalculateTotals();
+            },
+
+            inventoryPreview() {
+                const counts = {};
+                this.cartData.cart.forEach(item => {
+                    if (!item.isCatalogItem) {
+                        counts[item.name] = (counts[item.name] || 0) + item.quantity;
+                    }
+                });
+                return Object.entries(counts).map(([name, qty]) => `-${qty} ${name}`).join(', ') || t('checkout.no_inventory_changes');
+            },
+
+            // ---- 🔞 Age gate (18+) helpers ------------------------------------
+            // A line is 18+ if the product carries the flag, or its class is one of the
+            // restricted classes (mirrors the server's class-derived truth).
+            isAgeLine(item) {
+                if (!item) return false;
+                if (item.is_age_restricted) return true;
+                return ['alcohol', 'tobacco_nicotine', 'cbd_hemp'].includes(item.product_class);
+            },
+            cartHasAge() {
+                return this.cartData.cart.some(i => this.isAgeLine(i));
+            },
+            // Whole years between a YYYY-MM-DD DOB and today (null if unparseable).
+            ageFromDob(dob) {
+                if (!dob) return null;
+                const d = new Date(dob + 'T00:00:00');
+                if (isNaN(d.getTime())) return null;
+                const now = new Date();
+                let age = now.getFullYear() - d.getFullYear();
+                const m = now.getMonth() - d.getMonth();
+                if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age--;
+                return age;
+            },
+            // Member is of age = (DOB present AND ≥18) OR (no DOB AND age_confirmed).
+            // Mirrors the server rule so legacy members (no DOB, age_confirmed) don't trip the gate.
+            memberOfAge(m) {
+                if (!m) return false;
+                // Prefer the server's authoritative call when present (single source of truth).
+                if (m.is_of_age === true || m.is_of_age === false) return m.is_of_age;
+                if (m.birthdate) {
+                    const a = this.ageFromDob(m.birthdate);
+                    return a !== null && a >= 18;
+                }
+                return m.age_confirmed !== false;
+            },
+            // PROVEN under 18 by DOB — authoritative (matches the server). No walk-in attestation can
+            // clear this; the cashier must remove the member or drop the 18+ items.
+            memberIsMinor(m) {
+                if (!m || !m.birthdate) return false;
+                const a = this.ageFromDob(m.birthdate);
+                return a !== null && a < 18;
+            },
+            // Show the STOP modal when: cart has an 18+ line, cashier hasn't attested,
+            // and there's no of-age member attached.
+            needsAgeGate() {
+                if (!this.cartHasAge()) return false;
+                if (this.ageVerified) return false;
+                if (this.member && this.memberOfAge(this.member)) return false;
+                return true;
+            },
+            // Move 1: sign up a member with a REAL DOB (no gender field anywhere).
+            async ageSignup() {
+                if (!this.ageForm.handle || !this.ageForm.handle.trim()) {
+                    showToast(t('checkout.toast_enter_handle'), 'warning'); return;
+                }
+                if (!this.ageForm.birthdate) {
+                    showToast(t('checkout.toast_enter_dob'), 'warning'); return;
+                }
+                const age = this.ageFromDob(this.ageForm.birthdate);
+                if (age === null) { showToast(t('checkout.toast_invalid_dob'), 'warning'); return; }
+                if (age < 18) {
+                    showToast(t('checkout.toast_under_18', {n: age}), 'warning');
+                    return;
+                }
+                this.ageProcessing = true;
+                try {
+                    // DOB proves 18+, so age_confirmed rides true for the enroll gate.
+                    const created = await API.post('/api/v1/customers', {
+                        handle: this.ageForm.handle.trim(),
+                        birthdate: this.ageForm.birthdate,
+                        age_confirmed: true,
+                        marketing_consent: !!this.ageForm.marketing_consent
+                    });
+                    // Attach the new of-age member -> server clears the sale as method=member.
+                    this.member = {
+                        id: created.id,
+                        handle: created.handle,
+                        birthdate: this.ageForm.birthdate,
+                        age_confirmed: true,
+                        loyalty_tier: 'crack',
+                        tier_discount_percent: 0,
+                        credits_balance: created.credits_awarded || 0
+                    };
+                    sessionStorage.setItem('checkout_customer', JSON.stringify(this.member));
+                    this.showAgeModal = false;
+                    this.ageProcessing = false;
+                    this.ageForm = { handle: '', birthdate: '', marketing_consent: false };
+                    this.recalculateTotals();
+                    showToast(`👤 ${created.handle} ${t('checkout.toast_signed_up_suffix')}`, 'success');
+                    this.completeTransaction();
+                } catch (error) {
+                    this.ageProcessing = false;
+                    showToast((error && error.message) || t('checkout.toast_create_member_failed'), 'warning');
+                }
+            },
+            // Move 2: cashier attests the walk-in is 18+ (ID checked) -> age_verified on the payload.
+            ageConfirmWalkin() {
+                this.ageVerified = true;
+                this.showAgeModal = false;
+                this.completeTransaction();
+            },
+            // Minor member attached: detach them (wrong card, or selling to an of-age walk-in instead).
+            // The modal re-evaluates — with no member it offers the normal walk-in/sign-up moves.
+            ageRemoveMember() {
+                this.clearMember();
+                // Keep the STOP modal open (cart still has an 18+ line) but now the minor banner is
+                // gone and the walk-in / sign-up moves show. If the cart no longer needs a gate, close.
+                if (!this.needsAgeGate()) this.showAgeModal = false;
+            },
+            // Move 3: refuse -> strip the 18+ line(s) from the sale.
+            ageRefuse() {
+                this.cartData.cart = this.cartData.cart.filter(i => !this.isAgeLine(i));
+                this.showAgeModal = false;
+                this.recalculateTotals();
+                this.calculateChange();
+                sessionStorage.setItem('pos_cart', JSON.stringify(this.cartData));
+                if (this.cartData.cart.length === 0) {
+                    showToast(t('checkout.toast_age_removed_empty'), 'warning');
+                    setTimeout(() => window.location.href = '/pos/scan', 900);
+                } else {
+                    showToast(t('checkout.toast_age_removed'), 'success');
+                }
+            },
+
+            async completeTransaction() {
+                if (!this.paymentMethod) {
+                    showToast(t('cash.toast_select_payment'), 'warning');
+                    return;
+                }
+
+                // 🔞 Age gate: an 18+ line with no of-age member and no cashier attestation
+                // must stop at the counter first. The server rejects it anyway (400) — this
+                // just gives the cashier the 3 moves before the round-trip.
+                if (this.needsAgeGate()) {
+                    this.showAgeModal = true;
+                    return;
+                }
+
+                // For cash payments, require cash received amount
+                if (this.paymentMethod === 'cash' && this.cashReceived <= 0) {
+                    showToast(t('cash.toast_select_cash'), 'warning');
+                    return;
+                }
+
+                // Never complete an UNDERPAID cash sale (integer-cent compare).
+                if (this.cashShort()) {
+                    const short = formatPrice(this.cartData.totals.total - this.cashReceived);
+                    showToast(t('cash.toast_cash_short', {n: short}), 'warning');
+                    return;
+                }
+
+                // No connection = no sale. We deliberately do NOT do offline sales (the use case
+                // is tiny and the fiscal/compliance cost is huge) — we just tell the cashier
+                // plainly and keep the cart so nothing is lost. The persistent banner explains
+                // the fix (mobile data / hotspot); the moment they reconnect, Complete works.
+                if (!navigator.onLine) {
+                    sessionStorage.setItem('pos_cart', JSON.stringify(this.cartData));  // cart is safe
+                    showToast(t('checkout.toast_no_internet'), 'warning');
+                    return;
+                }
+
+                // Cash needs an OPEN drawer — check before ringing anything up, so the
+                // money always lands in a shift that reconciles at close. Card/TWINT skip this.
+                if (this.paymentMethod === 'cash') {
+                    let drawerOpen = false;
+                    try { const s = await API.get('/api/v1/pos/shift/current'); drawerOpen = !!(s && s.open); } catch (e) {}
+                    if (!drawerOpen) {
+                        sessionStorage.setItem('pos_cart', JSON.stringify(this.cartData));  // keep the sale
+                        if (confirm(t('cash.confirm_open_drawer'))) {
+                            window.location.href = '/pos/shift';
+                        }
+                        return;
+                    }
+                }
+
+                // For cash, show change in confirmation
+                let confirmMsg = t('checkout.confirm_complete_txn', {n: formatPrice(this.cartData.totals.total)});
+                if (this.paymentMethod === 'cash' && this.changeAmount > 0) {
+                    confirmMsg += `\n\n${t('cash.confirm_cash_received_label')} ${formatPrice(this.cashReceived)}\n${t('cash.confirm_change_label')} ${formatPrice(this.changeAmount)}`;
+                }
+
+                // 🌍-1 M2 SANDBOX: for a CARD/TWINT sale on a worldline_sim store, the terminal overlay
+                // IS the confirmation — the amount goes to the (mock) terminal, the customer taps, and the
+                // result flows back. Approved → proceed; declined/cancelled → keep the cart, no sale.
+                let terminalCapture = null;
+                const _isCard = (this.paymentMethod === 'visa' || this.paymentMethod === 'debit' || this.paymentMethod === 'twint');
+                if (_isCard && _cfg('payment_provider') === 'worldline_sim') {
+                    try {
+                        terminalCapture = await this.runTerminal(this.cartData.totals.total, this.paymentMethod);
+                    } catch (e) {
+                        if (e === 'declined') showToast('Card declined — cart kept. Retry, or take cash.', 'warning');
+                        return;   // cart preserved, no sale
+                    }
+                } else {
+                    if (!confirm(confirmMsg)) { return; }
+                }
+
+                this.processing = true;
+
+                try {
+                    // P2.1: ring the WHOLE cart + payment in ONE atomic, idempotent call.
+                    // One idempotency key per sale attempt, PERSISTED so a double-tap or a
+                    // timed-out retry rings the SAME sale exactly once (the server adopts it on
+                    // the client_uuid) — never twice. Cleared only on success; kept on error so
+                    // a retry reuses it.
+                    let clientUuid = sessionStorage.getItem('pos_sale_uuid');
+                    if (!clientUuid) {
+                        clientUuid = (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
+                            : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+                                const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+                            });
+                        sessionStorage.setItem('pos_sale_uuid', clientUuid);
+                    }
+
+                    // Build the cart lines. Custom lines (manual catalog 'catalog…' + change
+                    // 'change_…') have no product_id: send name + unit_price instead. Treats are
+                    // real products given free (is_giveaway) -> stock + COGS still tracked.
+                    const lines = this.cartData.cart.map(item => {
+                        const isGiveaway = !!item.isGiveaway;
+                        const isCustom = !isGiveaway && (item.isCatalogItem === true
+                            || /^(catalog|change_|otf)/.test(item.id.toString()));
+                        return {
+                            product_id: isCustom ? null : (item.product_id || item.id),
+                            quantity: item.quantity,
+                            unit_price: item.price.toString(),
+                            name: isCustom ? item.name : null,
+                            is_giveaway: isGiveaway,
+                            consumption: this.consumption   // dine_in | takeaway -> server snapshots per-line VAT
+                        };
+                    });
+
+                    const body = {
+                        client_uuid: clientUuid,
+                        lines: lines,
+                        payment_method: this.paymentMethod,
+                        // cart-wide, applied once. Coerce to a real number: a blank field is "" and
+                        // "".toString() posted "" → Pydantic 422 "not a valid decimal". Number("")→0.
+                        discount_percent: (Number(this.cartData.discount) || 0).toString(),
+                        // 🔞 cashier attestation for an 18+ walk-in (server default is false).
+                        // An of-age member attached via customer_id clears the gate without this.
+                        age_verified: this.ageVerified
+                    };
+                    if (this.paymentMethod === 'cash') {
+                        body.amount_tendered = (Number(this.cashReceived) || 0).toFixed(2);   // in the tender currency
+                        // Multi-currency (Block 1): tell the server which foreign cash was handed over — it
+                        // converts to home, computes change in home, and stamps the tender detail on the sale.
+                        if (this.tenderCcy && this.tenderCcy !== this.homeCcy()) body.tender_currency = this.tenderCcy;
+                    }
+                    // Attach the loyalty member -> server applies tier discount + earns points.
+                    if (this.member && this.member.id) {
+                        body.customer_id = this.member.id;
+                    }
+                    // Ringing out a kiosk held order → server applies + consumes the welcome discount
+                    // and claims the cart, atomically inside this sale.
+                    if (this.kioskCartCode) {
+                        body.kiosk_cart_code = this.kioskCartCode;
+                    }
+                    // 🌍-1 M2 SANDBOX: hand the mock-terminal capture to the server → it drives the sim
+                    // adapter, records the PaymentModel row, and gates the sale on approval.
+                    if (terminalCapture) body.terminal_capture = terminalCapture;
+
+                    const sale = await API.post('/api/v1/pos/sales', body);
+
+                    // Sale is done: clear cart + member + the spent idempotency key.
+                    sessionStorage.removeItem('pos_cart');
+                    sessionStorage.removeItem('checkout_customer');
+                    sessionStorage.removeItem('pos_sale_uuid');
+                    sessionStorage.removeItem('pos_kiosk_cart_code');
+
+                    showToast(t('checkout.toast_txn_completed'), 'success');
+
+                    // Redirect to the receipt with REPLACE (not href): a closed deal must leave the
+                    // history stack, so Back from the receipt goes to a fresh New Sale — never back to
+                    // this now-empty checkout showing a stale "Processing…" spinner.
+                    setTimeout(() => {
+                        window.location.replace(`/pos/receipt/${sale.id}`);
+                    }, 500);
+
+                } catch (error) {
+                    // Tell a SERVER BLIP apart from a real REJECTION. A blip = offline, a 5xx, or a
+                    // deploy restart cutting the request off (no status at all). A rejection = 4xx
+                    // (drawer not open, insufficient payment, discount cap) — actionable, retrying
+                    // won't help. A blip is RETRY-SAFE: the sale either never committed, or it did and
+                    // the persisted client_uuid makes the retry adopt it ONCE — it can't ring twice.
+                    // So on a blip we keep the cart + key and say "try again"; on a rejection we show
+                    // the real reason. (This is what makes a deploy mid-checkout a non-event.)
+                    const status = error && error.status;
+                    const blip = !status || status >= 500;
+                    if (blip) {
+                        sessionStorage.setItem('pos_cart', JSON.stringify(this.cartData));  // cart safe; key kept
+                        showToast(navigator.onLine
+                            ? t('checkout.toast_server_blip_online')
+                            : t('checkout.toast_server_blip_offline'),
+                            'warning');
+                    } else if (status === 400 && /18\+|age.?restricted|verify age|of.?age/i.test(error.message || '')) {
+                        // The SERVER age gate fired but the client pre-check missed it (e.g. a member
+                        // whose age wasn't confirmed in the loaded object). Route to the STOP modal so
+                        // the cashier gets the 3 moves (attest 18+ / sign up / refuse) — not a dead-end toast.
+                        this.showAgeModal = true;
+                    } else {
+                        showToast(error.message || t('checkout.toast_complete_failed'), 'warning');
+                    }
+                    this.processing = false;
+                }
+            },
+
+            goBack() {
+                window.location.href = '/pos/scan';
+            },
+
+            formatPrice(amount) {
+                return formatPrice(amount);
+            }
+        }
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,312 @@
+# File: src/db/models/store_settings_model.py
+"""
+Store Settings Model for Felix's Artemis Store POS System
+
+Configuration for each store location:
+- VAT rate (changes yearly in Switzerland)
+- Company information (name, address, VAT number)
+- Contact details (phone, email, website)
+- Receipt settings
+- Multi-store support (Store 1, Store 2, etc.)
+"""
+from datetime import datetime, timezone
+from decimal import Decimal
+from uuid import uuid4
+
+from sqlalchemy import String, Numeric, Boolean, DateTime, Integer, Text
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Mapped, mapped_column
+
+from src.db.models.base import Base
+
+
+class StoreSettingsModel(Base):
+    """
+    Store configuration settings.
+
+    Each store location has its own settings record.
+    Default: Store 1 (Artemis Store main location)
+    Future: Store 2, 3, etc. when Felix expands
+    """
+    __tablename__ = "store_settings"
+
+    # Primary Key
+    id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+        nullable=False
+    )
+
+    # Store Identification
+    store_number: Mapped[int] = mapped_column(
+        Integer,
+        unique=True,
+        nullable=False,
+        comment="Store number (1, 2, 3...). Used for multi-store selection."
+    )
+
+    store_name: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+        comment="Display name (e.g., 'Artemis Store - Zurich')"
+    )
+
+    # The shop's own internal SKU prefix, used when a received item has no supplier (the
+    # 'house' code). Receiving mints house goods as PREFIX-#### from this. Nullable → the
+    # server falls back to 'ITEM'. Never 'ART' (reads as 'article') or 'LZ' (legacy).
+    house_sku_prefix: Mapped[str | None] = mapped_column(
+        String(8),
+        nullable=True,
+        comment="Shop's internal SKU prefix for house/no-supplier goods (default 'ITEM')"
+    )
+
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+        nullable=False,
+        comment="Is this store currently operational?"
+    )
+
+    # Company Information (for receipts)
+    legal_name: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+        comment="Legal business name"
+    )
+
+    address_line1: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+        comment="Street address"
+    )
+
+    address_line2: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        comment="Additional address info (suite, building, etc.)"
+    )
+
+    city: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False
+    )
+
+    postal_code: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False
+    )
+
+    country: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+        default="Switzerland"
+    )
+
+    # Contact Information
+    phone: Mapped[str | None] = mapped_column(
+        String(50),
+        nullable=True,
+        comment="Store phone number"
+    )
+
+    email: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        comment="Store email address"
+    )
+
+    website: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        comment="Store website URL"
+    )
+
+    # Swiss VAT Information
+    vat_number: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        comment="Swiss VAT registration number (CHE-XXX.XXX.XXX MWST)"
+    )
+
+    vat_rate: Mapped[Decimal] = mapped_column(
+        Numeric(5, 2),
+        nullable=False,
+        default=Decimal("8.1"),
+        comment="Current VAT rate percentage (e.g., 8.1 for 8.1%). Changes yearly in Switzerland."
+    )
+
+    # Receipt Settings
+    receipt_header: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
+        comment="Optional header text printed on receipts"
+    )
+
+    receipt_footer: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
+        comment="Optional footer text (e.g., 'Thank you for your purchase!')"
+    )
+
+    receipt_logo_url: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
+        comment="URL to store logo for receipts (MinIO path)"
+    )
+
+    # Shop profile — hours + social links (the full storefront identity)
+    opening_hours: Mapped[str | None] = mapped_column(
+        String(500), nullable=True,
+        comment="Free text, e.g. 'Mon–Wed 11–19, Thu–Fri 11–20, Sat 11–17'")
+    facebook_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    instagram_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    founded_year: Mapped[str | None] = mapped_column(
+        String(10), nullable=True, comment="e.g. '1999'")
+
+    # Fiscal regime seam (PHASE 0, Go-Italian): per-tenant regime/currency/locale, default CH.
+    # A CH tenant seeds+backfills to these exact values so it stays byte-identical to today.
+    # NOT NULL with CH defaults so ORM-created rows match the SQL migration backfill.
+    fiscal_regime: Mapped[str] = mapped_column(
+        String(8), nullable=False, default="CH",
+        comment="Fiscal regime code (CH today; unblocks IT). Single selector for VAT/currency/locale behaviour.")
+    currency: Mapped[str] = mapped_column(
+        String(8), nullable=False, default="CHF",
+        comment="ISO currency code (CHF for CH).")
+    locale: Mapped[str] = mapped_column(
+        String(12), nullable=False, default="de-CH",
+        comment="BCP-47 locale (de-CH for CH).")
+
+    # N-rate VAT table (Piece C, Go-Italian): the tenant's editable rate MENU as a JSON string —
+    # an ordered list of {code, label, rate, default}. NULL/empty → the engine falls back to the
+    # CH config default table (POS_VAT_RATE / POS_VAT_RATE_REDUCED), so a CH shop that never opens
+    # the editor is BYTE-IDENTICAL to today. This manages the rate list + values ONLY; WHICH product
+    # class maps to WHICH rate (class→rate assignment) is a SEPARATE layer — for CH it is already
+    # correct (standard/reduced/cafe_split in the taxonomy); for IT it is TBD-by-commercialista and
+    # deliberately NOT invented here (the seal lesson).
+    vat_rates: Mapped[str | None] = mapped_column(
+        Text, nullable=True,
+        comment="Per-tenant N-rate VAT table as JSON [{code,label,rate,default}]. NULL → CH config default.")
+
+    # Accepted-currency plan rates (multi-currency TENDER): {base, as_of, rates:{EUR:0.96,…}} as a JSON
+    # string. NULL → currency.DEFAULT_FX. ⚠️ The DB column was ADDED via ALTER (2026-07-13) but never
+    # mapped here — so ORM writes to it vanished silently (fx_rates never persisted, config always read
+    # DEFAULT_FX via getattr→None). Mapping it fixed that (2026-07-18). Admin-only to edit.
+    fx_rates: Mapped[str | None] = mapped_column(
+        Text, nullable=True,
+        comment="Accepted-currency plan rates as JSON {base,as_of,rates}. NULL → currency.DEFAULT_FX.")
+
+    # 🌍-1 payments seam (2026-07-18): which electronic terminal provider drives this shop's
+    # till. 'manual' (default) = no terminal integration; the cashier takes cash/card/TWINT by
+    # hand exactly as today. 'worldline' (M2) drives Felix's existing ep2 terminal via TIM.
+    # NOT NULL DEFAULT 'manual' so every existing row backfills byte-identical. See
+    # docs/SPEC-payments-seam.md.
+    payment_provider: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="manual",
+        comment="Electronic terminal provider: manual (default, no integration) | worldline | sumup")
+
+    # La Piazza module (Artemis Premium) -- the switch the shop flips to tie its
+    # catalog to the public marketplace. ON => products can be pushed as drafts to
+    # La Piazza (the env-matching instance) under the shop's own business account.
+    lapiazza_enabled: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+        comment="Master switch: is the La Piazza module turned on for this shop?"
+    )
+    lapiazza_autodraft: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+        comment="Override: auto-push every new product as a La Piazza draft (owner still publishes)"
+    )
+    lapiazza_business_id: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+        comment="The shop's La Piazza (borrowhood realm) business account id -- publishes AS this"
+    )
+
+    # Discount Settings
+    cashier_max_discount: Mapped[Decimal] = mapped_column(
+        Numeric(5, 2),
+        nullable=False,
+        default=Decimal("10.0"),
+        comment="Maximum discount percentage cashiers can apply (e.g., 10.0 = 10%)"
+    )
+
+    # BL-047b — the shop's default cost markup (%). Drives the cost-EYEBALL on the cleanup card:
+    # cost = price × (1 − markup%). A GUESS the manager accepts/tweaks, never an auto-written cost.
+    # Per-class industry defaults live in services/costing.py; this is the shop's fallback.
+    default_markup_pct: Mapped[Decimal] = mapped_column(
+        Numeric(5, 2),
+        nullable=False,
+        default=Decimal("50.0"),
+        comment="Default cost markup % for the eyeball estimate (cost = price × (1 − markup/100))"
+    )
+
+    manager_max_discount: Mapped[Decimal] = mapped_column(
+        Numeric(5, 2),
+        nullable=False,
+        default=Decimal("100.0"),
+        comment="Maximum discount percentage managers can apply (100 = unlimited)"
+    )
+
+    # Customer Loyalty Settings
+    loyalty_tier1_threshold: Mapped[Decimal] = mapped_column(
+        Numeric(10, 2),
+        nullable=False,
+        default=Decimal("0.00"),
+        comment="Minimum purchase for tier 1 loyalty discount (CHF)"
+    )
+
+    loyalty_tier1_discount: Mapped[Decimal] = mapped_column(
+        Numeric(5, 2),
+        nullable=False,
+        default=Decimal("10.0"),
+        comment="Tier 1 loyalty discount percentage"
+    )
+
+    loyalty_tier2_threshold: Mapped[Decimal] = mapped_column(
+        Numeric(10, 2),
+        nullable=False,
+        default=Decimal("1000.00"),
+        comment="Minimum purchase for tier 2 loyalty discount (CHF)"
+    )
+
+    loyalty_tier2_discount: Mapped[Decimal] = mapped_column(
+        Numeric(5, 2),
+        nullable=False,
+        default=Decimal("15.0"),
+        comment="Tier 2 loyalty discount percentage"
+    )
+
+    loyalty_tier3_threshold: Mapped[Decimal] = mapped_column(
+        Numeric(10, 2),
+        nullable=False,
+        default=Decimal("5000.00"),
+        comment="Minimum purchase for tier 3 loyalty discount (CHF)"
+    )
+
+    loyalty_tier3_discount: Mapped[Decimal] = mapped_column(
+        Numeric(5, 2),
+        nullable=False,
+        default=Decimal("25.0"),
+        comment="Tier 3 loyalty discount percentage"
+    )
+
+    # Metadata
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
+
+    def __repr__(self):
+        return f"<StoreSettings(store_number={self.store_number}, name='{self.store_name}', vat_rate={self.vat_rate}%)>"

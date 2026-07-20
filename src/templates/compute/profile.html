@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% if profile %}@{{ profile.slug or profile.username }} · La Bottega{% else %}{{ slug }} · La Bottega{% endif %}</title>
+{% if profile %}
+<meta name="description" content="{{ (profile.tagline ~ ' — ' if profile.tagline else '') }}{{ (profile.bio or '')[:180] }}">
+<meta property="og:type" content="profile">
+<meta property="og:title" content="@{{ profile.slug or profile.username }} — {{ profile.tagline or 'on La Piazza' }}">
+<meta property="og:description" content="{{ (profile.bio or '')[:200] }}">
+<meta property="og:image" content="{{ og_image }}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:url" content="{{ share_url }}">
+<meta property="og:site_name" content="La Piazza">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="@{{ profile.slug or profile.username }} — {{ profile.tagline or 'on La Piazza' }}">
+<meta name="twitter:description" content="{{ (profile.bio or '')[:200] }}">
+<meta name="twitter:image" content="{{ og_image }}">
+{% endif %}
+<!-- FULL libraries only. No bundled subsets. (CLAUDE.md rule 9) -->
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script>
+  tailwind.config = { theme: { extend: {
+    fontFamily: { sans:['Inter','system-ui','sans-serif'], mono:['"JetBrains Mono"','ui-monospace','monospace'] },
+    colors: { brand:'#C0392B', branddark:'#8B0000' },
+  } } };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+<style>
+  body { background:#060910; }
+  .card { background: rgba(15,23,42,0.65); border: 1px solid rgba(30,41,59,0.9); }
+  .grad-rule { background:linear-gradient(90deg,#8B0000,#C0392B,transparent) }
+  /* per-slug hero (deterministic palette from hue) -- always renders, no external image */
+  .hero {
+    height: 180px;
+    background:
+      radial-gradient(130% 140% at 0% 0%, hsl({{ hue }} 78% 32% / .95), transparent 58%),
+      radial-gradient(130% 140% at 100% 10%, hsl({{ (hue + 55) % 360 }} 72% 30% / .85), transparent 55%),
+      linear-gradient(120deg, #0b1220, #060910 70%);
+    position: relative; overflow: hidden;
+  }
+  .hero::after { /* subtle grid texture for depth */
+    content:""; position:absolute; inset:0; opacity:.5;
+    background-image:
+      linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px);
+    background-size: 34px 34px; mask-image: radial-gradient(120% 90% at 50% 0%, #000, transparent 75%);
+  }
+  .hero-mark { position:absolute; right:-10px; bottom:-26px; width:200px; opacity:.10; filter:grayscale(1) contrast(1.2); }
+  .avatar {
+    background: linear-gradient(135deg, hsl({{ hue }} 72% 56%), hsl({{ (hue + 40) % 360 }} 70% 42%));
+  }
+  .chip { transition: transform .12s ease, border-color .12s ease, background .12s ease; }
+  .chip:hover { transform: translateY(-1px); }
+  .share-btn { transition: background .12s ease, transform .12s ease; }
+  .share-btn:hover { transform: translateY(-1px); }
+  .md{font-size:15px;line-height:1.65;color:#cbd5e1}
+  .md h1,.md h2,.md h3{color:#f1f5f9;font-weight:800;margin:.8rem 0 .3rem}
+  .md h2{font-size:1.15rem}.md h3{font-size:1rem}
+  .md p{margin:.5rem 0}.md ul,.md ol{margin:.5rem 0 .5rem 1.2rem;list-style:disc}
+  .md li{margin:.2rem 0}.md strong{color:#f8fafc}.md a{color:#C0392B}.md em{color:#e2e8f0}
+  .md code{background:#0b1220;padding:1px 5px;border-radius:4px;font-size:.9em}
+  .lpe-ov{position:fixed;inset:0;z-index:90;display:none;align-items:flex-start;justify-content:center;
+    background:rgba(2,6,12,.75);backdrop-filter:blur(3px);padding:24px 14px;overflow:auto}
+  .lpe-card{width:100%;max-width:540px;background:#0b1220;border:1px solid rgba(48,63,84,.9);border-radius:14px;padding:22px}
+  .lpe-card h3{font-size:18px;font-weight:900;color:#f1f5f9;margin:0 0 6px}
+  .lpe-card label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#94a3b8;margin:12px 0 4px}
+  .lpe-card input,.lpe-card textarea{width:100%;box-sizing:border-box;padding:9px 11px;background:#070d18;
+    border:1px solid rgba(48,63,84,.9);border-radius:9px;color:#f1f5f9;font-size:14px;font-family:inherit}
+  .lpe-card textarea{min-height:120px;resize:vertical}
+  .lpe-row{display:flex;gap:10px;justify-content:flex-end;align-items:center;margin-top:16px}
+  .lpe-row .msg{flex:1;font-size:13px}
+  .lpe-cancel{padding:9px 14px;border:1px solid rgba(48,63,84,.9);border-radius:9px;background:transparent;color:#94a3b8;font-weight:600;cursor:pointer}
+  .lpe-save{padding:9px 18px;border:none;border-radius:9px;background:#C0392B;color:#fff;font-weight:700;cursor:pointer}
+  .lpe-save:disabled{opacity:.5}
+</style>
+</head>
+<body class="font-sans text-slate-200 min-h-screen antialiased">
+
+{% include "_lapiazza_nav.html" %}
+
+<div class="max-w-2xl mx-auto px-4 sm:px-5 py-8">
+
+  {% if profile %}
+  <script>window.LP_PROFILE = {
+    username: {{ profile.username | tojson }}, slug: {{ (profile.slug or profile.username) | tojson }},
+    bio: {{ (profile.bio or '') | tojson }}, tagline: {{ (profile.tagline or '') | tojson }},
+    skills: {{ (profile.skills or []) | tojson }}, categories: {{ (profile.categories or []) | tojson }} };</script>
+  <!-- storefront card -->
+  <div class="card rounded-2xl overflow-hidden shadow-2xl shadow-black/40">
+
+    <!-- hero banner (default, mind-blowing, per-slug palette) -->
+    <div class="hero">
+      <img src="/static/lapiazza-wolf.png" alt="" class="hero-mark" onerror="this.style.display='none'">
+    </div>
+    <div class="h-1 grad-rule"></div>
+
+    <div class="px-6 sm:px-7 pb-7">
+      <!-- avatar overlapping the banner -->
+      <div class="flex items-end justify-between -mt-12 mb-1">
+        <div class="avatar w-24 h-24 rounded-2xl ring-4 ring-[#060910] shadow-xl flex items-center justify-center text-4xl font-black text-white shrink-0">
+          {{ ((profile.slug or profile.username)[0] | upper) if (profile.slug or profile.username) else '?' }}
+        </div>
+        <!-- share row -->
+        <div class="flex items-center gap-2 mb-1">
+          <a class="share-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#25D366]/15 border border-[#25D366]/40 text-[#25D366]" target="_blank" rel="noopener"
+             href="https://wa.me/?text={{ (profile.tagline ~ ' — ' ~ share_url) | urlencode }}">WhatsApp</a>
+          <a class="share-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#229ED9]/15 border border-[#229ED9]/40 text-[#4cc2f1]" target="_blank" rel="noopener"
+             href="https://t.me/share/url?url={{ share_url | urlencode }}&text={{ (profile.tagline or '') | urlencode }}">Telegram</a>
+          <button onclick="navigator.clipboard.writeText('{{ share_url }}').then(()=>{this.textContent='Copied ✓'})"
+             class="share-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 border border-slate-700 text-slate-300">Copy link</button>
+          <button id="lpeEdit" onclick="lpeOpen()" style="display:none"
+             class="share-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-brand/20 border border-brand/50 text-brand">✎ Edit</button>
+        </div>
+      </div>
+
+      <h1 class="text-2xl font-black tracking-tight">@{{ profile.slug or profile.username }}</h1>
+      {% if profile.tagline %}<p class="text-brand font-semibold mt-1 text-[15px]">{{ profile.tagline }}</p>{% endif %}
+      {% if profile.completeness %}
+      <div class="mt-2 inline-flex items-center gap-1.5 text-[11px] font-mono text-emerald-400">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Bottega {{ profile.completeness }}% complete
+      </div>{% endif %}
+
+      {% if profile.bio %}
+      <div class="md mt-6" id="bioMd">{{ profile.bio }}</div>
+      {% endif %}
+
+      {% if profile.skills %}
+      <div class="mt-6">
+        <div class="text-[10px] uppercase tracking-wider text-slate-500 mb-2">Skills</div>
+        <div class="flex flex-wrap gap-2">
+          {% for s in profile.skills %}
+          <a href="https://lapiazza.app/members?q={{ s | urlencode }}" target="_blank" rel="noopener"
+             class="chip px-2.5 py-1 rounded-lg text-xs font-mono bg-slate-800/80 border border-slate-700 text-slate-300 hover:border-slate-500 hover:text-white">{{ s }}</a>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      {% if profile.categories %}
+      <div class="mt-5">
+        <div class="text-[10px] uppercase tracking-wider text-slate-500 mb-2">Offers</div>
+        <div class="flex flex-wrap gap-2">
+          {% for c in profile.categories %}
+          <a href="https://lapiazza.app/members?q={{ c | urlencode }}" target="_blank" rel="noopener"
+             class="chip px-2.5 py-1 rounded-lg text-xs font-semibold bg-brand/15 border border-brand/30 text-brand hover:bg-brand/25">{{ c }}</a>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- the hook: a stranger's first move -->
+      <div class="mt-7 pt-5 border-t border-slate-800 flex flex-col sm:flex-row items-center gap-3 justify-between">
+        <span class="text-xs text-slate-500">Built on La Piazza from a CV in 30 seconds — the square where ideas become things.</span>
+        <a href="/get-started" class="shrink-0 px-4 py-2 rounded-lg font-bold text-sm bg-brand hover:bg-branddark text-white">Make your own free →</a>
+      </div>
+    </div>
+  </div>
+
+  {% else %}
+  <!-- no profile yet -->
+  <div class="card rounded-2xl overflow-hidden shadow-2xl shadow-black/40">
+    <div class="hero"><img src="/static/lapiazza-wolf.png" alt="" class="hero-mark" onerror="this.style.display='none'"></div>
+    <div class="h-1 grad-rule"></div>
+    <div class="p-10 text-center">
+      <h1 class="text-xl font-bold">@{{ slug }} hasn't built a Bottega yet</h1>
+      <p class="text-sm text-slate-500 mt-2 max-w-md mx-auto">A Bottega is your storefront — bio, skills, offers — built from your CV (or a sentence) in 30 seconds. Then you give, rent, sell, ask, teach, host. The imagination machine.</p>
+      <a href="/get-started" class="inline-block mt-5 px-5 py-2.5 rounded-lg font-bold text-sm bg-brand hover:bg-branddark text-white">Build yours free →</a>
+    </div>
+  </div>
+  {% endif %}
+
+  <footer class="mt-8 text-center text-xs text-slate-600 font-mono">
+    La <a href="/" class="text-brand hover:underline">Piazza</a> · <a href="https://lapiazza.app" class="hover:text-slate-400" target="_blank" rel="noopener">the Square</a> · <a href="/compute/bottega" class="hover:text-slate-400">the Workshop</a> · we host the square, not the model
+  </footer>
+</div>
+
+<!-- owner edit modal (edits the Bottega profile via /apply, which snapshots history first) -->
+<div class="lpe-ov" id="lpeOv">
+  <div class="lpe-card">
+    <h3>Edit your Bottega</h3>
+    <div style="font-size:12px;color:#64748b;margin-bottom:8px">Only you can see this. Changes snapshot the old version (undoable).</div>
+    <label>Tagline</label>
+    <input id="lpeTag" maxlength="200" placeholder="one line that sells you">
+    <label>Bio <span style="text-transform:none;color:#64748b">— Markdown supported (**bold**, lists, links)</span></label>
+    <textarea id="lpeBio" placeholder="Tell your story…"></textarea>
+    <label>Skills <span style="text-transform:none;color:#64748b">— comma-separated</span></label>
+    <input id="lpeSkills" placeholder="sap pi/po, azure, abap">
+    <label>Offers <span style="text-transform:none;color:#64748b">— comma-separated</span></label>
+    <input id="lpeCats" placeholder="enterprise integration, cloud">
+    <label>Handle <span style="text-transform:none;color:#64748b">— your /u/ address</span></label>
+    <input id="lpeSlug" placeholder="thesapspecialist">
+    <div class="lpe-row">
+      <span class="msg" id="lpeMsg"></span>
+      <button class="lpe-cancel" onclick="lpeClose()">Cancel</button>
+      <button class="lpe-save" id="lpeSaveBtn" onclick="lpeSave()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var P = window.LP_PROFILE || null;
+  // render the bio as Markdown (upgrade the server-rendered fallback text)
+  var bioEl = document.getElementById('bioMd');
+  if(bioEl && P){ var h = window.marked ? marked.parse(P.bio||'') : (P.bio||''); if(window.DOMPurify) bioEl.innerHTML = DOMPurify.sanitize(h); }
+  // owner detection: reveal Edit only if the logged-in member owns this profile
+  var tok=null; try{ tok=localStorage.getItem('compute_token'); }catch(e){}
+  function me(){ if(!tok) return null; try{ var p=JSON.parse(atob(tok.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))); if(p.exp*1000<=Date.now())return null; return p.preferred_username||null; }catch(e){return null;} }
+  if(P && me() && me()===P.username){ var b=document.getElementById('lpeEdit'); if(b) b.style.display='inline-block'; }
+  var ov=document.getElementById('lpeOv');
+  window.lpeOpen=function(){ if(!P) return;
+    document.getElementById('lpeTag').value=P.tagline||'';
+    document.getElementById('lpeBio').value=P.bio||'';
+    document.getElementById('lpeSkills').value=(P.skills||[]).join(', ');
+    document.getElementById('lpeCats').value=(P.categories||[]).join(', ');
+    document.getElementById('lpeSlug').value=P.slug||'';
+    document.getElementById('lpeMsg').textContent=''; ov.style.display='flex'; };
+  window.lpeClose=function(){ ov.style.display='none'; };
+  ov.addEventListener('click',function(e){ if(e.target===ov) lpeClose(); });
+  window.lpeSave=function(){
+    var btn=document.getElementById('lpeSaveBtn'), msg=document.getElementById('lpeMsg');
+    var toList=function(s){ return (s||'').split(',').map(function(x){return x.trim();}).filter(Boolean); };
+    var body={ tagline:document.getElementById('lpeTag').value.trim(), bio:document.getElementById('lpeBio').value,
+      skills:toList(document.getElementById('lpeSkills').value), categories:toList(document.getElementById('lpeCats').value),
+      slug:document.getElementById('lpeSlug').value.trim() };
+    btn.disabled=true; btn.textContent='Saving…'; msg.style.color='#94a3b8'; msg.textContent='';
+    fetch('/api/v1/compute/bottega/apply',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify(body)})
+    .then(function(r){ return r.json().then(function(j){return{ok:r.ok,j:j};}); })
+    .then(function(res){ if(res.ok){ msg.style.color='#34d399'; msg.textContent='Saved ✓';
+        var url=(res.j&&res.j.url)?res.j.url:('/u/'+body.slug); setTimeout(function(){ location.href=url; },700); }
+      else { msg.style.color='#f87171'; msg.textContent=(res.j&&res.j.detail)?res.j.detail:'Save failed'; btn.disabled=false; btn.textContent='Save'; } })
+    .catch(function(){ msg.style.color='#f87171'; msg.textContent='Network error'; btn.disabled=false; btn.textContent='Save'; });
+  };
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,119 @@
+# File: src/services/store_settings_seeding.py
+"""
+Store Settings Seeding Service for Felix's Artemis Store POS System
+
+Seeds default store configuration:
+- Store 1: Artemis Store (main location)
+- VAT rate: 8.1% (Swiss rate for 2025)
+- Default company information
+- Receipt settings
+- Discount limits
+- Customer loyalty tiers
+"""
+import logging
+from decimal import Decimal
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+
+from src.db.models import StoreSettingsModel
+
+logger = logging.getLogger(__name__)
+
+
+async def seed_store_settings(db: AsyncSession) -> None:
+    """
+    Seed default store settings for Artemis Store.
+
+    Creates Store #1 configuration if it doesn't exist.
+    Idempotent - safe to run multiple times.
+    """
+    # Check if Store 1 already exists
+    result = await db.execute(
+        select(StoreSettingsModel).where(StoreSettingsModel.store_number == 1)
+    )
+    existing_store = result.scalar_one_or_none()
+
+    if existing_store:
+        logger.info(f"Store settings already exist for Store #{existing_store.store_number} - skipping seed")
+        return
+
+    # Create default Store #1 settings
+    store1 = StoreSettingsModel(
+        store_number=1,
+        store_name="Artemis Lucerne - Headshop",
+        is_active=True,
+
+        # Company Information (Felix's real shop — Artemis GmbH, Luzern, since 1999)
+        legal_name="Artemis GmbH",
+        address_line1="Murbacherstrasse 37",
+        address_line2="",  # Optional
+        city="Luzern",
+        postal_code="6003",
+        country="Switzerland",
+
+        # Contact Information
+        phone="041 220 22 22",
+        email="contact@artemisluzern.ch",
+        website="artemisluzern.ch",
+
+        # Swiss VAT Information. ⟶ TODO: replace with Felix's real CHE-UID before go-live.
+        vat_number="CHE-XXX.XXX.XXX MWST",
+        vat_rate=Decimal("8.1"),  # Swiss VAT standard rate
+
+        # Fiscal regime seam (PHASE 0): explicit CH values — identical to the model/SQL
+        # defaults, so a seeded Store #1 and a migration-backfilled row are byte-identical.
+        fiscal_regime="CH",
+        currency="CHF",
+        locale="de-CH",
+
+        # Receipt Settings
+        receipt_header="Thank you for shopping at Artemis!",
+        receipt_footer="Kräuter & Düfte seit 1999 🌿",
+        receipt_logo_url="/static/artemis-logo.png",
+
+        # Shop profile (⟶ Felix fills the social links via Settings → Contact & Links)
+        opening_hours="Mon–Wed: 11:00–19:00\nThu–Fri: 11:00–20:00\nSat: 11:00–17:00",
+        founded_year="1999",
+        facebook_url=None,
+        instagram_url=None,
+
+        # Discount Settings
+        cashier_max_discount=Decimal("10.0"),   # cashier default — a shop dials this in Settings
+        manager_max_discount=Decimal("25.0"),    # manager MIDDLE tier — dialed up per shop; admin stays 100%
+
+        # Customer Loyalty Settings (from user requirements)
+        loyalty_tier1_threshold=Decimal("0.00"),  # All customers
+        loyalty_tier1_discount=Decimal("10.0"),  # 10% base loyalty
+
+        loyalty_tier2_threshold=Decimal("1000.00"),  # CHF 1000+ lifetime
+        loyalty_tier2_discount=Decimal("15.0"),  # 15% loyal customer
+
+        loyalty_tier3_threshold=Decimal("5000.00"),  # CHF 5000+ lifetime
+        loyalty_tier3_discount=Decimal("25.0"),  # 25% VIP customer
+    )
+
+    db.add(store1)
+    await db.commit()
+    await db.refresh(store1)
+
+    logger.info(f"✅ Seeded Store #{store1.store_number}: {store1.store_name} (VAT: {store1.vat_rate}%)")
+
+
+async def get_active_store_settings(db: AsyncSession, store_number: int = 1) -> StoreSettingsModel | None:
+    """
+    Get store settings for a specific store number.
+
+    Args:
+        db: Database session
+        store_number: Store number (default: 1)
+
+    Returns:
+        StoreSettingsModel or None if not found
+    """
+    result = await db.execute(
+        select(StoreSettingsModel).where(
+            StoreSettingsModel.store_number == store_number,
+            StoreSettingsModel.is_active == True
+        )
+    )
+    return result.scalar_one_or_none()

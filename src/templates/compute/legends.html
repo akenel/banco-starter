@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta property="og:title" content="La Piazza"><meta name="twitter:card" content="summary_large_image">
+<meta property="og:image" content="{{ request.headers.get('x-forwarded-proto','https') }}://{{ request.headers.get('x-forwarded-host') or request.url.netloc }}/og/lapiazza-og-v3.png">
+<title>The Legends · La Piazza</title>
+<meta name="description" content="Pick a master. Ask them anything. You could be on this wall someday.">
+<script src="https://cdn.tailwindcss.com"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script>
+  tailwind.config = { theme:{ extend:{
+    fontFamily:{ sans:['Inter','system-ui','sans-serif'], mono:['"JetBrains Mono"','monospace'] },
+    colors:{ brand:'#C0392B', branddark:'#8B0000' } } } };
+</script>
+<style>
+  body{ background:radial-gradient(1100px 600px at 50% -12%, #1f2a44, transparent), #060910; }
+  .card{ background:rgba(15,23,42,.65); border:1px solid rgba(30,41,59,.9); }
+  .card:hover{ border-color:rgba(192,57,43,.5); }
+  .grad-rule{ background:linear-gradient(90deg,#8B0000,#C0392B,transparent); }
+  .md{ font-size:15px; line-height:1.65; color:#cbd5e1; }
+  .md h1,.md h2,.md h3{ color:#f1f5f9; font-weight:800; margin:.8rem 0 .3rem; } .md h2{font-size:1.15rem}
+  .md p{ margin:.5rem 0; } .md ul,.md ol{ margin:.5rem 0 .5rem 1.2rem; list-style:disc; } .md li{margin:.2rem 0}
+  .md strong{ color:#f8fafc; } .md a{ color:#C0392B; } .md table{width:100%;border-collapse:collapse;margin:.5rem 0}
+  .md td,.md th{ border:1px solid #334155; padding:4px 8px; font-size:.85rem; }
+  .av{ background:linear-gradient(135deg,#C0392B,#8B0000); }
+</style>
+</head>
+<body class="font-sans text-slate-200 min-h-screen antialiased">
+{% include "_lapiazza_nav.html" %}
+
+<div class="max-w-4xl mx-auto px-4 sm:px-5 py-8" x-data="legends()" x-init="init()">
+
+  <!-- header -->
+  <div class="text-center mb-7">
+    <h1 class="text-3xl sm:text-4xl font-black text-white">The Legends</h1>
+    <p class="text-slate-400 mt-1">Pick a master. Ask them anything. <span class="text-brand font-semibold">You could be on this wall someday.</span></p>
+  </div>
+
+  <!-- not logged in -->
+  <div x-show="!token" class="card rounded-2xl p-10 text-center max-w-md mx-auto">
+    <div class="text-4xl mb-3">🐺</div>
+    <p class="text-slate-300 mb-5">Log in to ask the masters.</p>
+    <button @click="login()" class="px-5 py-2.5 rounded-lg font-bold text-sm bg-brand hover:bg-branddark text-white">Log in</button>
+  </div>
+
+  <template x-if="token">
+  <div>
+    <!-- search: find a master by name across all houses -->
+    <div class="mb-5 relative max-w-xl mx-auto">
+      <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500">🔍</span>
+      <input x-model="q" @input="runSearch()" @keyup.escape="clearSearch()" type="search"
+             placeholder="Search a master by name — type &quot;Ben&quot; for Benjamin Franklin"
+             class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-10 pr-24 py-2.5 text-sm text-slate-200 focus:border-brand outline-none">
+      <button @click="runSearch()"
+              class="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-lg bg-brand/90 hover:bg-brand text-white text-xs font-semibold">Search</button>
+    </div>
+
+    <!-- breadcrumb -->
+    <div class="flex items-center gap-2 text-sm text-slate-500 mb-4" x-show="view!=='houses'">
+      <button @click="view='houses'; clearSearch()" class="hover:text-slate-300">← All Houses</button>
+      <span x-show="house" class="text-slate-600">/</span>
+      <span x-show="house" class="text-slate-300" x-text="house"></span>
+      <span x-show="!house && searching" class="text-slate-300" x-text="'Results for &quot;'+q+'&quot; ('+people.length+')'"></span>
+    </div>
+
+    <!-- HOUSES -->
+    <div x-show="view==='houses'">
+      <!-- Your Masters: recently asked (auto-added on ask) -- jump straight back, no House-hunting. -->
+      <div x-show="recent.length" class="mb-5">
+        <div class="text-[11px] uppercase tracking-wider text-slate-500 mb-2">⭐ Your Masters</div>
+        <div class="flex flex-wrap gap-2">
+          <template x-for="m in recent" :key="m">
+            <button @click="openMaster(m)" class="px-3 py-1.5 rounded-full text-xs font-semibold bg-brand/15 border border-brand/40 text-slate-200 hover:bg-brand/25 transition" x-text="m"></button>
+          </template>
+        </div>
+      </div>
+      <div x-show="loading" class="text-center text-slate-500 py-10">Gathering the legends…</div>
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <template x-for="h in houses" :key="h.name">
+          <button @click="openHouse(h.name)" class="card rounded-xl p-4 text-left transition" x-show="h.count>0">
+            <div class="font-extrabold text-white" x-text="h.name"></div>
+            <div class="text-[12px] text-slate-400 mt-1 leading-snug" x-text="h.desc"></div>
+            <div class="text-[11px] font-mono text-brand mt-2" x-text="h.count + ' masters'"></div>
+          </button>
+        </template>
+      </div>
+    </div>
+
+    <!-- PEOPLE -->
+    <div x-show="view==='people'">
+      <div x-show="loading" class="text-center text-slate-500 py-10">Loading…</div>
+      <div class="grid sm:grid-cols-2 gap-3">
+        <template x-for="p in pageItems()" :key="p.name">
+          <button @click="select(p)" class="card rounded-xl p-4 text-left flex gap-3 transition">
+            <div class="av w-11 h-11 rounded-lg flex items-center justify-center text-lg font-black text-white shrink-0" x-text="(p.name||'?').charAt(0).toUpperCase()"></div>
+            <div class="min-w-0">
+              <div class="font-bold text-white truncate" x-text="p.name"></div>
+              <div class="text-[12px] text-brand truncate" x-text="p.workshop || p.tagline"></div>
+              <div class="text-[12px] text-slate-400 mt-1 line-clamp-2" x-text="(p.bio||'').slice(0,120)"></div>
+            </div>
+          </button>
+        </template>
+      </div>
+      <!-- pager -->
+      <div class="flex items-center justify-center gap-4 mt-5 text-sm" x-show="people.length>perPage">
+        <button @click="page=Math.max(0,page-1)" :disabled="page===0" class="px-3 py-1.5 rounded-lg card disabled:opacity-30">← Prev</button>
+        <span class="text-slate-500 font-mono" x-text="(page+1)+' / '+Math.ceil(people.length/perPage)"></span>
+        <button @click="page=Math.min(Math.ceil(people.length/perPage)-1,page+1)" :disabled="(page+1)>=Math.ceil(people.length/perPage)" class="px-3 py-1.5 rounded-lg card disabled:opacity-30">Next →</button>
+      </div>
+    </div>
+
+    <!-- ASK -->
+    <div x-show="view==='ask'" x-cloak>
+      <div class="card rounded-2xl overflow-hidden">
+        <div class="h-1 grad-rule"></div>
+        <div class="p-6">
+          <div class="flex gap-4 items-start">
+            <div class="av w-16 h-16 rounded-xl flex items-center justify-center text-2xl font-black text-white shrink-0" x-text="(selected?.name||'?').charAt(0).toUpperCase()"></div>
+            <div class="min-w-0">
+              <h2 class="text-xl font-black text-white" x-text="selected?.name"></h2>
+              <div class="text-brand text-sm font-semibold" x-text="selected?.tagline || selected?.workshop"></div>
+            </div>
+          </div>
+          <p class="text-[13px] text-slate-400 mt-3" x-show="selected?.bio" x-text="selected?.bio"></p>
+          <button x-show="selected?.bio" @click="readAloud((selected.name||'')+'. '+(selected.tagline||'')+'. '+(selected.bio||''))" :title="speaking?'Stop':'Read this profile aloud'" class="mt-2 px-3 py-1 rounded-lg text-[11px] font-semibold bg-purple-700/70 hover:bg-purple-600 text-white" x-text="speaking?'⏹ Stop':'🔊 Read profile'"></button>
+
+          <div x-show="suggested.length" class="mt-5">
+            <div class="text-[11px] uppercase tracking-wider text-slate-500 mb-2" x-text="suggestedFor?'Try asking — picked for you ✨':'Try asking'"></div>
+            <div class="flex flex-col gap-2">
+              <template x-for="q in suggested" :key="q">
+                <button @click="question=q" class="text-left text-[13px] px-3 py-2 rounded-lg card text-slate-300 hover:text-white transition" x-text="'“'+q+'”'"></button>
+              </template>
+            </div>
+          </div>
+
+          <!-- Transparency: the ACTUAL context handed to the master -- visible + editable, never buried -->
+          <div class="mt-5" x-show="portrait">
+            <button @click="showWrapper=!showWrapper" class="text-[11px] uppercase tracking-wider text-slate-500 hover:text-slate-300 flex items-center gap-1.5">
+              <span x-text="showWrapper?'▾':'▸'"></span> 📋 What <span x-text="(selected?.name||'they').split(' ')[0]"></span> knows about you
+            </button>
+            <div x-show="showWrapper" x-cloak class="mt-2">
+              <textarea x-model="portrait" rows="5" class="w-full px-3 py-2 rounded-lg bg-[#070d18] border border-slate-700 text-slate-300 text-[12px] leading-relaxed"></textarea>
+              <p class="text-[10px] text-slate-600 mt-1">This is the context we hand the master — it's yours. Edit it, and they'll answer based on this.</p>
+            </div>
+          </div>
+
+          <label class="block text-[11px] uppercase tracking-wider text-slate-500 mt-5 mb-1">What are you facing?</label>
+          <textarea x-model="question" rows="3" placeholder="Ask your master anything…"
+            class="w-full px-3 py-2 rounded-lg bg-[#070d18] border border-slate-700 text-slate-100 text-sm"></textarea>
+          <div class="flex items-center gap-3 mt-3 flex-wrap">
+            <button @click="ask()" :disabled="busy || !question.trim()"
+              class="px-5 py-2.5 rounded-lg font-bold text-sm bg-brand hover:bg-branddark text-white disabled:opacity-30"
+              x-text="busy ? 'Asking…' : ('Ask ' + (selected?.name||'').split(' ')[0])"></button>
+            <!-- POC: the master's reply language (narrow: EN/IT). Defaults from your locale. -->
+            <div class="flex items-center gap-1 text-[11px]">
+              <span class="text-slate-500 mr-1">Reply in</span>
+              <button type="button" @click="lang='en'" :class="lang==='en'?'bg-brand text-white':'bg-slate-800 text-slate-400 hover:text-slate-200'" class="px-2 py-1 rounded font-bold">EN</button>
+              <button type="button" @click="lang='it'" :class="lang==='it'?'bg-brand text-white':'bg-slate-800 text-slate-400 hover:text-slate-200'" class="px-2 py-1 rounded font-bold">IT</button>
+            </div>
+            <span class="text-xs text-red-400" x-text="err"></span>
+          </div>
+
+          <div x-show="answer" class="mt-6 pt-5 border-t border-slate-800">
+            <!-- The master's answer is platinum gold -> first-class artifact handling (consistent with recipe outputs).
+                 Save/Share route through /s/{id}: serial № + staging "not distributable" watermark come free. -->
+            <div class="flex flex-wrap gap-2 mb-4">
+              <button @click="readAloud(answer, lang)" :title="speaking?'Stop reading':'Read this answer aloud'" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-purple-700/80 hover:bg-purple-600 text-white" x-text="speaking?'⏹ Stop':'🔊 Read this'"></button>
+              <button @click="openReading()" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-700/80 hover:bg-amber-600 text-white">📖 Reading mode</button>
+              <button @click="copyOut()" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200" x-text="copied?'✓ copied':'📋 Copy'"></button>
+              <button @click="downloadOut()" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200">⬇ Download</button>
+              <button @click="saveSession()" :disabled="saving||!token" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-brand/90 hover:bg-brand text-white disabled:opacity-40" x-text="savedMsg||(savedId?'📌 Pinned':'📓 Save to Blueprint')"></button>
+              <button @click="shareTg()" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-sky-700/80 hover:bg-sky-600 text-white">✈️ Telegram</button>
+              <button @click="shareWa()" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-700/80 hover:bg-emerald-600 text-white">🟢 WhatsApp</button>
+            </div>
+            <div class="md" id="answerMd"></div>
+
+            <!-- Reading mode: the clean full-screen text interface for studying the gold (enrichment grows here later).
+                 Print-friendly: 🖨️ Save as PDF prints ONLY the sheet, clean black-on-white (fixes the blank-print bug). -->
+            <style>
+              @media print {
+                body * { visibility: hidden !important; }
+                #readingSheet, #readingSheet * { visibility: visible !important; color: #111 !important; }
+                #readingOverlay { position: static !important; background: #fff !important; overflow: visible !important; }
+                #readingSheet { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; max-width: 100% !important; margin: 0 !important; padding: 1.2cm !important; }
+                #readingSheet a { color: #111 !important; text-decoration: underline; }
+                .no-print { display: none !important; }
+              }
+            </style>
+            <div id="readingOverlay" x-show="reading" x-cloak class="fixed inset-0 z-[70] bg-[#0a0f1a] overflow-y-auto" style="display:none">
+              <div id="readingSheet" class="max-w-3xl mx-auto px-5 py-8">
+                <div class="flex items-start justify-between gap-4 mb-6 sticky top-0 bg-[#0a0f1a] py-2 z-10">
+                  <div>
+                    <div class="text-[11px] uppercase tracking-wider text-slate-500">📖 Reading — <span x-text="(selected&&selected.name)||''"></span></div>
+                    <div class="text-sm text-slate-400 mt-1" x-text="question"></div>
+                  </div>
+                  <div class="flex gap-2 flex-shrink-0 no-print">
+                    <button @click="postcardIt()" :disabled="pcBusy" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-brand/80 hover:bg-brand text-white disabled:opacity-40" x-text="pcBusy?'…':'🖼️ Postcard it →'"></button>
+                    <button @click="reading=false" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200">✕ Close</button>
+                  </div>
+                </div>
+                <div class="md" id="readingMd" style="font-size:17px;line-height:1.75"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="text-center text-xs text-slate-600 mt-5">These are example masters. <a href="/get-started" class="text-brand hover:underline">Build your Bottega</a> and earn your place on the wall.</p>
+    </div>
+  </div>
+  </template>
+</div>
+
+<script>
+function legends(){
+  return {
+    token:null, houses:[], people:[], allPeople:[], house:null, view:'houses', q:'', searching:false,
+    page:0, perPage:12, selected:null, question:'', answer:'', busy:false, err:'', loading:false, suggested:[], suggestedFor:false, portrait:'', showWrapper:false,
+    copied:false, saving:false, savedId:null, savedMsg:'', reading:false, recent:[], pcBusy:false, speaking:false, lang:'en',
+    init(){
+      // capture token from callback hash, else localStorage
+      if(location.hash.indexOf('token=')>-1){
+        try{ this.token = new URLSearchParams(location.hash.slice(1)).get('token');
+          localStorage.setItem('compute_token', this.token); history.replaceState(null,'',location.pathname); }catch(e){}
+      }
+      if(!this.token){ try{ this.token = localStorage.getItem('compute_token'); }catch(e){} }
+      // Deep-link from the Square: ?ask=<master name> -> remember across login, then open that master
+      try{ const a=new URLSearchParams(location.search).get('ask');
+        if(a){ localStorage.setItem('lp_pending_ask', a); history.replaceState(null,'',location.pathname); } }catch(e){}
+      // Default reply language: bh_lang cookie (from the Square) -> device language -> English. Narrow: EN/IT.
+      try{ const c=document.cookie.match(/(?:^|;\s*)bh_lang=([a-z]{2})/i); var d=(c&&c[1])||((navigator.language||'en').slice(0,2)); this.lang=(d.toLowerCase()==='it')?'it':'en'; }catch(e){ this.lang='en'; }
+      if(this.token){ this.loadHouses(); this.loadRecent(); this.consumePendingAsk(); }
+    },
+    consumePendingAsk(){
+      try{ const name=localStorage.getItem('lp_pending_ask');
+        if(name){ localStorage.removeItem('lp_pending_ask'); this.openMaster(name); } }catch(e){}
+    },
+    hdr(){ return { 'Authorization':'Bearer '+this.token }; },
+    async loadRecent(){
+      // Auto-favorites: the masters you've already asked (from your Blueprint sessions). Find them again, fast.
+      try{ const r=await fetch('/api/v1/compute/bottega/sessions',{headers:this.hdr()});
+        if(!r.ok) return; const rows=await r.json(); const names=[];
+        for(const s of rows){ if(s.slug!=='mentor-session') continue;
+          const m=(s.title||'').replace(/^Ask\s+/i,'').split(' — ')[0].trim();
+          if(m && !names.includes(m)){ names.push(m); if(names.length>=8) break; } }
+        this.recent=names;
+      }catch(e){}
+    },
+    async openMaster(name){
+      try{ const r=await fetch('/api/v1/compute/bottega/legends?q='+encodeURIComponent(name),{headers:this.hdr()});
+        const d=await r.json(); const list=d.legends||[]; const p=list.find(x=>x.name===name)||list[0];
+        if(p) this.select(p); }catch(e){ this.err='could not open '+name; }
+    },
+    async loadHouses(){
+      this.loading=true;
+      try{ const r=await fetch('/api/v1/compute/bottega/legends/houses',{headers:this.hdr()});
+        if(r.status===401||r.status===403){ this.token=null; return; }
+        const d=await r.json(); this.houses=d.houses||[]; }catch(e){ this.err='could not load'; }
+      this.loading=false;
+    },
+    async ensureAll(){
+      if(this.allPeople.length) return;
+      try{ const r=await fetch('/api/v1/compute/bottega/legends',{headers:this.hdr()});
+        const d=await r.json(); this.allPeople=d.legends||[]; }catch(e){}
+    },
+    async runSearch(){
+      const term=(this.q||'').trim().toLowerCase();
+      if(!term){ this.clearSearch(); return; }
+      await this.ensureAll();
+      this.searching=true; this.house=null; this.view='people'; this.page=0;
+      // name match across all houses -- "ben" finds Benjamin Franklin
+      this.people=this.allPeople.filter(p=>(p.name||'').toLowerCase().includes(term));
+    },
+    clearSearch(){ this.q=''; this.searching=false; this.view='houses'; this.house=null; },
+    async openHouse(name){
+      this.searching=false; this.house=name; this.view='people'; this.page=0; this.loading=true; this.people=[];
+      try{ const r=await fetch('/api/v1/compute/bottega/legends?house='+encodeURIComponent(name),{headers:this.hdr()});
+        const d=await r.json(); this.people=d.legends||[]; }catch(e){ this.err='could not load'; }
+      this.loading=false;
+    },
+    pageItems(){ const s=this.page*this.perPage; return this.people.slice(s,s+this.perPage); },
+    select(p){ this.selected=p; this.question=''; this.answer=''; this.err=''; this.suggested=[]; this.suggestedFor=false; this.portrait=''; this.showWrapper=false; this.view='ask'; window.scrollTo(0,0);
+      fetch('/api/v1/compute/bottega/legends/questions?name='+encodeURIComponent(p.name),{headers:this.hdr()})
+        .then(r=>r.json()).then(d=>{ if(this.selected&&this.selected.name===p.name){ this.suggested=d.questions||[]; this.suggestedFor=!!d.personalized; } }).catch(()=>{});
+      fetch('/api/v1/compute/bottega/portrait',{headers:this.hdr()})
+        .then(r=>r.json()).then(d=>{ this.portrait=d.portrait||''; }).catch(()=>{}); },
+    async ask(){
+      if(!this.question.trim()) return;
+      this.busy=true; this.err=''; this.answer=''; this.savedId=null; this.savedMsg='';
+      try{
+        const body=new URLSearchParams({ mentor:this.selected.name, situation:this.question, portrait:this.portrait, language:this.lang });
+        const r=await fetch('/api/v1/compute/bottega/recipes/mentor-session/run',{ method:'POST',
+          headers:{ 'Authorization':'Bearer '+this.token, 'Content-Type':'application/x-www-form-urlencoded' }, body });
+        const d=await r.json();
+        if(r.ok){ this.answer=d.result||''; this.$nextTick(()=>{ const el=document.getElementById('answerMd');
+          if(el){ const h=window.marked?marked.parse(this.answer):this.answer; el.innerHTML=window.DOMPurify?DOMPurify.sanitize(h):''; } }); }
+        else { this.err=d.detail||('error '+r.status); }
+      }catch(e){ this.err='failed — try again'; }
+      this.busy=false;
+    },
+    // --- The master's answer as a first-class artifact (copy / save-to-blueprint / share / reading) ---
+    _answerTitle(){ return ('Ask '+((this.selected&&this.selected.name)||'a master')+(this.question?(' — '+this.question.slice(0,60)):'')).slice(0,140); },
+    _text(){ const m=(this.selected&&this.selected.name)||'a master'; return '# '+m+'\n\n## Asked\n'+this.question+'\n\n## Answer\n'+this.answer+'\n'; },
+    copyOut(){ navigator.clipboard.writeText(this._text()).then(()=>{ this.copied=true; setTimeout(()=>this.copied=false,1500); }).catch(()=>{}); },
+    async saveSession(){
+      if(!this.answer||!this.token) return; this.saving=true;
+      try{ const r=await fetch('/api/v1/compute/bottega/sessions',{method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+this.token},
+        body:JSON.stringify({slug:'mentor-session', title:this._answerTitle(),
+          inputs:{mentor:(this.selected&&this.selected.name)||'', question:this.question},
+          output:this.answer, output_type:'markdown'})});
+        if(r.ok){ const d=await r.json(); this.savedId=d.id; this.savedMsg='✓ Saved'; setTimeout(()=>this.savedMsg='',2000); } }catch(e){}
+      this.saving=false;
+    },
+    async _shareUrl(){ if(!this.savedId) await this.saveSession(); return this.savedId?(location.origin+'/s/'+this.savedId):location.origin; },
+    async shareTg(){ const u=await this._shareUrl(); const t=this._answerTitle();
+      window.open('https://t.me/share/url?url='+encodeURIComponent(u)+'&text='+encodeURIComponent(t),'_blank'); },
+    async shareWa(){ const u=await this._shareUrl(); const t=this._answerTitle()+' — ';
+      window.open('https://wa.me/?text='+encodeURIComponent(t+u),'_blank'); },
+    readAloud(text, lang){ try{ const s=window.speechSynthesis; if(!s){ this.err='your browser has no voice'; return; }
+      if(s.speaking){ s.cancel(); this.speaking=false; return; }
+      const u=new SpeechSynthesisUtterance(String(text||'').replace(/[#*_>`\[\]]/g,'').replace(/\n+/g,'. '));
+      u.lang=(lang==='it')?'it-IT':'en-US';   // voice follows the answer's language (no English robot on Italian)
+      u.rate=0.92; u.onend=()=>{this.speaking=false}; u.onerror=()=>{this.speaking=false};
+      s.speak(u); this.speaking=true; }catch(e){ this.speaking=false; } },
+    openReading(){ this.reading=true; this.$nextTick(()=>{ const el=document.getElementById('readingMd');
+      if(el){ const h=window.marked?marked.parse(this.answer):this.answer; el.innerHTML=window.DOMPurify?DOMPurify.sanitize(h):''; } }); },
+    async postcardIt(){ this.pcBusy=true; try{ if(!this.savedId) await this.saveSession(); if(this.savedId) window.open(location.origin+'/s/'+this.savedId,'_blank'); }catch(e){} this.pcBusy=false; },
+    _fname(){ const m=((this.selected&&this.selected.name)||'master').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,''); const q=(this.question||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,24); return 'ask-'+m+(q?('_'+q):'')+'.md'; },
+    downloadOut(){ const b=new Blob([this._text()],{type:'text/markdown'}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=this._fname(); a.click(); },
+    login(){
+      const kc = location.hostname==='helix.local' ? 'https://keycloak.helix.local' : ('{{ lp_kc_url }}' || location.origin);
+      const redirect = encodeURIComponent(location.origin + '/compute/callback');
+      const state = encodeURIComponent('/compute/legends');
+      location.href = `${kc}/realms/{{ lp_realm }}/protocol/openid-connect/auth?client_id={{ lp_client }}&redirect_uri=${redirect}&response_type=code&scope=openid%20profile&state=${state}`;
+    },
+  };
+}
+</script>
+</body>
+</html>

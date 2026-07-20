@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Camper & Tour{% endblock %} - Gestione Servizi</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Alpine.js for reactive components -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    <!-- Inter font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            font-family: 'Inter', sans-serif;
+            --primary: #d97706;
+            --primary-dark: #b45309;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+        }
+
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+
+        .btn-primary {
+            @apply bg-amber-600 hover:bg-amber-700 text-white font-semibold py-3 px-5 rounded-lg shadow-lg transition-all duration-200;
+        }
+        .btn-secondary {
+            @apply bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-3 px-5 rounded-lg shadow transition-all duration-200;
+        }
+        .btn-danger {
+            @apply bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-5 rounded-lg shadow-lg transition-all duration-200;
+        }
+        .btn-success {
+            @apply bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-5 rounded-lg shadow-lg transition-all duration-200;
+        }
+        .card {
+            @apply bg-white rounded-xl shadow-lg p-6;
+        }
+        .input-field {
+            @apply w-full px-4 py-3 text-lg border-2 border-gray-300 rounded-lg focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all;
+        }
+
+        /* Status bar */
+        .helix-status-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 28px;
+            background: linear-gradient(to right, #78350f, #92400e);
+            color: #fbbf24;
+            font-size: 12px;
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            z-index: 9999;
+            border-top: 1px solid #b45309;
+        }
+        .helix-status-bar .pulse {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 6px;
+            animation: pulse-glow 2s infinite;
+        }
+        .helix-status-bar .pulse.ok { background: #22c55e; box-shadow: 0 0 6px #22c55e; }
+        .helix-status-bar .pulse.warn { background: #eab308; box-shadow: 0 0 6px #eab308; }
+        .helix-status-bar .pulse.error { background: #ef4444; box-shadow: 0 0 6px #ef4444; }
+        @keyframes pulse-glow {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        .helix-status-bar .status-section {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .helix-status-bar .divider { color: #b45309; }
+        body { padding-bottom: 32px; }
+
+        /* Status badges */
+        .badge { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium; }
+        .badge-quoted { @apply bg-gray-100 text-gray-800; }
+        .badge-approved { @apply bg-blue-100 text-blue-800; }
+        .badge-in_progress { @apply bg-amber-100 text-amber-800; }
+        .badge-waiting_parts { @apply bg-red-100 text-red-800; }
+        .badge-completed { @apply bg-green-100 text-green-800; }
+        .badge-invoiced { @apply bg-purple-100 text-purple-800; }
+        .badge-inspection { @apply bg-purple-100 text-purple-800; }
+        .badge-cancelled { @apply bg-gray-200 text-gray-500; }
+
+        /* Vehicle status badges */
+        .badge-checked_in { @apply bg-blue-100 text-blue-800; }
+        .badge-in_service { @apply bg-amber-100 text-amber-800; }
+        .badge-ready_for_pickup { @apply bg-green-100 text-green-800; }
+        .badge-picked_up { @apply bg-gray-100 text-gray-800; }
+    </style>
+
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+    {% include "partials/platform_nav.html" %}
+
+    {% block content %}{% endblock %}
+
+    <!-- i18n translations -->
+    <script src="/static/camper-i18n.js?v=20260221b"></script>
+
+    <!-- Global JavaScript utilities -->
+    <script>
+        // ===== i18n: Language Detection =====
+        // Priority: 1) ?lang=xx URL param  2) localStorage  3) Keycloak locale  4) default 'it'
+        (function() {
+            const params = new URLSearchParams(window.location.search);
+            const urlLang = params.get('lang');
+            if (urlLang && CAMPER_STRINGS[urlLang]) {
+                localStorage.setItem('camper_lang', urlLang);
+            }
+            let lang = localStorage.getItem('camper_lang');
+            // If no explicit choice, try Keycloak user locale
+            if (!lang) {
+                try {
+                    const token = sessionStorage.getItem('camper_token');
+                    if (token) {
+                        const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+                        if (payload.locale && CAMPER_STRINGS[payload.locale]) {
+                            lang = payload.locale;
+                        }
+                    }
+                } catch (e) { /* ignore parse errors */ }
+            }
+            lang = lang || 'it';
+            window._camperLang = CAMPER_STRINGS[lang] ? lang : 'it';
+            document.documentElement.lang = window._camperLang === 'it' ? 'it' : 'en';
+        })();
+
+        // Switch language and reload
+        function switchLanguage(newLang) {
+            if (CAMPER_STRINGS[newLang]) {
+                localStorage.setItem('camper_lang', newLang);
+                window.location.reload();
+            }
+        }
+
+        // Translation helper: t('nav.dashboard') => translated string
+        function t(key, replacements) {
+            const lang = window._camperLang || 'it';
+            const keys = key.split('.');
+            let val = CAMPER_STRINGS[lang];
+            for (const k of keys) {
+                if (val && typeof val === 'object' && k in val) {
+                    val = val[k];
+                } else {
+                    // Fallback to Italian
+                    let fb = CAMPER_STRINGS.it;
+                    for (const fk of keys) {
+                        if (fb && typeof fb === 'object' && fk in fb) fb = fb[fk]; else return key;
+                    }
+                    return typeof fb === 'string' ? fb : key;
+                }
+            }
+            if (replacements && typeof val === 'string') {
+                for (const [rk, rv] of Object.entries(replacements)) {
+                    val = val.replace('{' + rk + '}', rv);
+                }
+            }
+            return val;
+        }
+
+        // JWT token management for Camper & Tour
+        const CamperAuth = {
+            _expiryWarningShown: false,
+            _expiryTimer: null,
+
+            getToken() {
+                const token = sessionStorage.getItem('camper_token');
+                if (token) {
+                    // Check expiry without circular call
+                    try {
+                        const payload = this.decodeToken(token);
+                        const exp = payload?.exp ? payload.exp * 1000 : 0;
+                        if (Date.now() >= exp) {
+                            // Token is dead -- clear it so the page redirects to login
+                            this.clearToken();
+                            return null;
+                        }
+                    } catch (e) {
+                        this.clearToken();
+                        return null;
+                    }
+                }
+                return token;
+            },
+            setToken(token) {
+                sessionStorage.setItem('camper_token', token);
+                this._expiryWarningShown = false;
+                this._startExpiryWatch();
+            },
+            clearToken() {
+                sessionStorage.removeItem('camper_token');
+                if (this._expiryTimer) clearInterval(this._expiryTimer);
+            },
+            decodeToken(token) {
+                try {
+                    const base64Url = token.split('.')[1];
+                    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                    const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+                        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                    }).join(''));
+                    return JSON.parse(jsonPayload);
+                } catch (e) {
+                    console.error('Failed to decode token:', e);
+                    return null;
+                }
+            },
+            getTokenExpiry() {
+                const token = this.getToken();
+                if (!token) return null;
+                const payload = this.decodeToken(token);
+                return payload?.exp ? payload.exp * 1000 : null; // ms
+            },
+            isTokenExpired() {
+                const exp = this.getTokenExpiry();
+                return exp ? Date.now() >= exp : true;
+            },
+            getMinutesRemaining() {
+                const exp = this.getTokenExpiry();
+                if (!exp) return 0;
+                return Math.max(0, Math.floor((exp - Date.now()) / 60000));
+            },
+            _startExpiryWatch() {
+                if (this._expiryTimer) clearInterval(this._expiryTimer);
+                this._expiryTimer = setInterval(() => {
+                    const mins = this.getMinutesRemaining();
+                    if (mins <= 5 && mins > 0 && !this._expiryWarningShown) {
+                        this._expiryWarningShown = true;
+                        this._showExpiryWarning(mins);
+                    }
+                    if (mins <= 0) {
+                        clearInterval(this._expiryTimer);
+                    }
+                }, 30000); // check every 30s
+            },
+            _showExpiryWarning(mins) {
+                // Show non-blocking banner at the top -- don't redirect, don't destroy form data
+                const banner = document.createElement('div');
+                banner.id = 'session-expiry-banner';
+                banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:10000;background:#fbbf24;color:#78350f;padding:12px 24px;text-align:center;font-weight:600;font-size:14px;box-shadow:0 2px 8px rgba(0,0,0,0.2);';
+                banner.innerHTML = `
+                    ${t('system.session_expiry', {mins: mins})}
+                    <button onclick="CamperAuth._silentReauth()" style="margin-left:16px;background:#78350f;color:white;border:none;padding:6px 16px;border-radius:6px;cursor:pointer;font-weight:600;">
+                        ${t('system.renew_session')}
+                    </button>
+                    <button onclick="this.parentElement.remove()" style="margin-left:8px;background:transparent;border:1px solid #78350f;color:#78350f;padding:6px 12px;border-radius:6px;cursor:pointer;">
+                        ${t('common.close')}
+                    </button>
+                `;
+                const existing = document.getElementById('session-expiry-banner');
+                if (existing) existing.remove();
+                document.body.appendChild(banner);
+            },
+            async _silentReauth() {
+                // Open KC login in a popup -- if the SSO session is still active, it auto-completes
+                const keycloakUrl = window.location.hostname === 'helix.local' ? 'https://keycloak.helix.local' : window.location.origin;
+                const realm = '{{ camper_realm }}';
+                const redirectUri = encodeURIComponent(window.location.origin + '/camper/dashboard');
+                const authUrl = `${keycloakUrl}/realms/${realm}/protocol/openid-connect/auth?client_id=camper_service_web&redirect_uri=${redirectUri}&response_type=token&scope=openid`;
+
+                // Try iframe first (silent if SSO session alive)
+                try {
+                    const iframe = document.createElement('iframe');
+                    iframe.style.display = 'none';
+                    iframe.src = authUrl + '&prompt=none';
+                    document.body.appendChild(iframe);
+
+                    await new Promise((resolve, reject) => {
+                        iframe.onload = () => {
+                            try {
+                                const hash = iframe.contentWindow.location.hash;
+                                if (hash && hash.includes('token=')) {
+                                    const token = hash.split('token=')[1]?.split('&')[0];
+                                    if (token) {
+                                        CamperAuth.setToken(token);
+                                        const banner = document.getElementById('session-expiry-banner');
+                                        if (banner) banner.remove();
+                                        showToast(t('system.session_renewed'), 'success');
+                                        resolve();
+                                        return;
+                                    }
+                                }
+                                reject('No token in iframe response');
+                            } catch (e) {
+                                reject(e); // cross-origin = KC needs interaction
+                            }
+                        };
+                        setTimeout(() => reject('timeout'), 5000);
+                    });
+                    iframe.remove();
+                } catch (e) {
+                    // Iframe failed (cross-origin or KC needs login) -- open popup
+                    console.log('Silent reauth failed, opening login popup:', e);
+                    const popup = window.open(authUrl, 'camper_reauth', 'width=500,height=600');
+                    if (popup) {
+                        showToast(t('system.login_popup'), 'info');
+                    } else {
+                        showToast(t('system.popup_blocked'), 'warning');
+                    }
+                }
+            },
+            getUserInfo() {
+                const token = this.getToken();
+                if (!token) return null;
+                const payload = this.decodeToken(token);
+                if (!payload) return null;
+                const roles = (payload.realm_access?.roles || []).filter(r => r.includes('camper-'));
+                return {
+                    username: payload.preferred_username || 'Unknown',
+                    firstName: payload.given_name || '',
+                    lastName: payload.family_name || '',
+                    email: payload.email || '',
+                    locale: payload.locale || '',
+                    roles: roles
+                };
+            },
+            hasRole(role) {
+                const user = this.getUserInfo();
+                return user && user.roles.some(r => r.includes(role));
+            },
+            isAdmin() { return this.hasRole('camper-admin'); },
+            isManager() { return this.hasRole('camper-manager') || this.isAdmin(); },
+            isMechanic() { return this.hasRole('camper-mechanic') || this.isManager(); },
+            isCounter() { return this.hasRole('camper-counter') || this.isManager(); },
+            logout() {
+                this.clearToken();
+                const keycloakUrl = window.location.hostname === 'helix.local' ? 'https://keycloak.helix.local' : window.location.origin;
+                const realm = '{{ camper_realm }}';
+                const redirectUri = encodeURIComponent(window.location.origin + '/camper');
+                window.location.href = `${keycloakUrl}/realms/${realm}/protocol/openid-connect/logout?post_logout_redirect_uri=${redirectUri}&client_id=camper_service_web`;
+            }
+        };
+
+        // Start expiry watch if token exists on page load
+        if (CamperAuth.getToken()) CamperAuth._startExpiryWatch();
+
+        // API helper with automatic auth
+        const API = {
+            _sessionExpiredShown: false,
+
+            async call(endpoint, options = {}) {
+                const token = CamperAuth.getToken();
+                const defaultHeaders = {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                };
+                if (token) {
+                    defaultHeaders['Authorization'] = `Bearer ${token}`;
+                }
+                const config = {
+                    ...options,
+                    headers: { ...defaultHeaders, ...options.headers }
+                };
+                try {
+                    const response = await fetch(endpoint, config);
+                    if (response.status === 401) {
+                        // DON'T logout immediately -- show warning, let user save their work
+                        if (!this._sessionExpiredShown) {
+                            this._sessionExpiredShown = true;
+                            showToast(t('system.session_expired'), 'warning');
+                            CamperAuth._showExpiryWarning(0);
+                        }
+                        throw new Error(t('system.session_expired'));
+                    }
+                    if (!response.ok) {
+                        const error = await response.json().catch(() => ({}));
+                        let detail = error.detail;
+                        if (Array.isArray(detail)) detail = detail.map(d => d.msg || JSON.stringify(d)).join('; ');
+                        throw new Error(detail || t('system.error_status', {status: response.status}));
+                    }
+                    // Reset the flag on successful auth
+                    this._sessionExpiredShown = false;
+                    if (response.status === 204) return null;
+                    return await response.json();
+                } catch (error) {
+                    console.error('API call failed:', error);
+                    throw error;
+                }
+            },
+            get(endpoint) { return this.call(endpoint, { method: 'GET' }); },
+            post(endpoint, data) { return this.call(endpoint, { method: 'POST', body: JSON.stringify(data) }); },
+            put(endpoint, data) { return this.call(endpoint, { method: 'PUT', body: JSON.stringify(data) }); },
+            patch(endpoint, data) { return this.call(endpoint, { method: 'PATCH', body: JSON.stringify(data) }); },
+            delete(endpoint) { return this.call(endpoint, { method: 'DELETE' }); }
+        };
+
+        // Camper config (language-aware)
+        const CamperConfig = {
+            currency: 'EUR',
+            lang: window._camperLang || 'it',
+            locale: (window._camperLang === 'en') ? 'en-GB' : 'it-IT',
+            vat_rate: 22
+        };
+
+        // Price formatting (EUR)
+        function formatPrice(amount) {
+            return new Intl.NumberFormat(CamperConfig.locale, {
+                style: 'currency',
+                currency: CamperConfig.currency
+            }).format(amount);
+        }
+
+        // Date formatting (locale-aware)
+        function formatDate(dateStr) {
+            if (!dateStr) return '-';
+            return new Date(dateStr).toLocaleDateString(CamperConfig.locale, {
+                day: '2-digit', month: '2-digit', year: 'numeric'
+            });
+        }
+
+        function formatDateTime(dateStr) {
+            if (!dateStr) return '-';
+            return new Date(dateStr).toLocaleString(CamperConfig.locale, {
+                day: '2-digit', month: '2-digit', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+        }
+
+        // Status labels (from i18n dictionary)
+        const JOB_STATUS_LABELS = CAMPER_STRINGS[CamperConfig.lang].status.job;
+        const QUOTATION_STATUS_LABELS = CAMPER_STRINGS[CamperConfig.lang].status.quotation;
+        const PO_STATUS_LABELS = CAMPER_STRINGS[CamperConfig.lang].status.po;
+        const PAYMENT_STATUS_LABELS = CAMPER_STRINGS[CamperConfig.lang].status.payment;
+        const VEHICLE_STATUS_LABELS = CAMPER_STRINGS[CamperConfig.lang].status.vehicle;
+        const JOB_TYPE_LABELS = CAMPER_STRINGS[CamperConfig.lang].status.job_type;
+        const VEHICLE_TYPE_LABELS = CAMPER_STRINGS[CamperConfig.lang].status.vehicle_type;
+
+        // Toast notification
+        function showToast(message, type = 'info') {
+            const colors = {
+                success: 'bg-green-500',
+                error: 'bg-red-500',
+                warning: 'bg-yellow-500',
+                info: 'bg-blue-500'
+            };
+            const toast = document.createElement('div');
+            toast.className = `fixed top-4 right-4 ${colors[type]} text-white px-6 py-4 rounded-lg shadow-lg z-50 transform transition-all duration-300`;
+            toast.textContent = message;
+            toast.style.transform = 'translateX(400px)';
+            document.body.appendChild(toast);
+            setTimeout(() => { toast.style.transform = 'translateX(0)'; }, 10);
+            setTimeout(() => {
+                toast.style.transform = 'translateX(400px)';
+                setTimeout(() => toast.remove(), 300);
+            }, 5000);
+        }
+    </script>
+
+    {% block extra_scripts %}{% endblock %}
+
+    <!-- Status Bar -->
+    <footer class="helix-status-bar" id="helix-status">
+        <div class="status-section">
+            <span class="pulse ok" id="status-pulse"></span>
+            <span id="status-text" data-i18n="system.ok">Sistema OK</span>
+            <span class="divider">|</span>
+            <span id="status-time">--:--</span>
+        </div>
+        <div class="status-section">
+            <span id="status-screen">{% block page_name %}Camper & Tour{% endblock %}</span>
+            <span class="divider">|</span>
+            <select id="lang-switch" onchange="switchLanguage(this.value)"
+                style="background:#78350f;color:#fbbf24;border:1px solid #b45309;border-radius:3px;font-size:12px;padding:1px 4px;cursor:pointer;font-family:inherit;">
+                <option value="it" style="background:#78350f;">IT</option>
+                <option value="en" style="background:#78350f;">EN</option>
+            </select>
+            <span class="divider">|</span>
+            <span id="status-user">--</span>
+        </div>
+    </footer>
+
+    <script>
+        // ===== i18n: translate a single element =====
+        function applyI18n(el) {
+            if (el.hasAttribute('data-i18n')) {
+                const key = el.getAttribute('data-i18n');
+                const val = t(key);
+                if (val !== key) el.textContent = val;
+            }
+            if (el.hasAttribute('data-i18n-placeholder')) {
+                const key = el.getAttribute('data-i18n-placeholder');
+                const val = t(key);
+                if (val !== key) el.placeholder = val;
+            }
+            if (el.hasAttribute('data-i18n-html')) {
+                const key = el.getAttribute('data-i18n-html');
+                const val = t(key);
+                if (val !== key) el.innerHTML = val;
+            }
+        }
+
+        // ===== i18n: initial sweep on DOMContentLoaded =====
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('[data-i18n]').forEach(applyI18n);
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(applyI18n);
+            document.querySelectorAll('[data-i18n-html]').forEach(applyI18n);
+        });
+
+        // ===== i18n: MutationObserver for Alpine.js dynamic content =====
+        (function() {
+            const observer = new MutationObserver(function(mutations) {
+                for (const mutation of mutations) {
+                    for (const node of mutation.addedNodes) {
+                        if (node.nodeType !== 1) continue;
+                        applyI18n(node);
+                        node.querySelectorAll('[data-i18n], [data-i18n-placeholder], [data-i18n-html]').forEach(applyI18n);
+                    }
+                }
+            });
+            observer.observe(document.body || document.documentElement, { childList: true, subtree: true });
+        })();
+
+        (function() {
+            // Translate status bar page name
+            const screenEl = document.getElementById('status-screen');
+            if (screenEl) {
+                const pageI18nMap = {
+                    'Cruscotto': 'nav.dashboard', 'Accettazione': 'nav.checkin',
+                    'Lavori': 'nav.jobs', 'Clienti': 'nav.customers',
+                    'Appuntamenti': 'nav.appointments', 'Preventivi': 'nav.quotations',
+                    'Ordini': 'nav.purchase_orders', 'Fatture': 'nav.invoices',
+                    'Calendario': 'nav.calendar', 'Dettaglio Lavoro': 'nav.jobs',
+                    'Dettaglio Preventivo': 'nav.quotations', 'Corsie Officina': 'nav.jobs',
+                };
+                const key = pageI18nMap[screenEl.textContent.trim()];
+                if (key) screenEl.textContent = t(key);
+            }
+
+            function updateStatusBar() {
+                const now = new Date();
+                document.getElementById('status-time').textContent =
+                    now.toLocaleTimeString(CamperConfig.locale, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                const user = CamperAuth.getUserInfo();
+                if (user) {
+                    document.getElementById('status-user').textContent = user.username;
+                }
+            }
+            async function checkHealth() {
+                try {
+                    const response = await fetch('/health/healthz', { timeout: 5000 });
+                    const pulse = document.getElementById('status-pulse');
+                    const statusText = document.getElementById('status-text');
+                    if (response.ok) {
+                        pulse.className = 'pulse ok';
+                        statusText.textContent = t('system.ok');
+                    } else {
+                        pulse.className = 'pulse warn';
+                        statusText.textContent = t('system.degraded');
+                    }
+                } catch (e) {
+                    document.getElementById('status-pulse').className = 'pulse error';
+                    document.getElementById('status-text').textContent = t('system.offline');
+                }
+            }
+            // Set language dropdown to current language
+            const langSwitch = document.getElementById('lang-switch');
+            if (langSwitch) langSwitch.value = window._camperLang || 'it';
+
+            updateStatusBar();
+            checkHealth();
+            setInterval(updateStatusBar, 1000);
+            setInterval(checkHealth, 30000);
+        })();
+    </script>
+</body>
+</html>

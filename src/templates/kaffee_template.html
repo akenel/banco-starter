@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="{{LANG}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{C_GREETING}} — BANCO</title>
+<!--
+  BANCO · Head-Shop outreach · PERSONALIZED BOOK-A-COFFEE LANDING (per company, per language)
+  One template + a DE/FR/IT/EN string catalog (coffee_service.CHROME). Token = shop identity →
+  greet by name + their logo/photo + the region's language. Anti-cheese, one action, honest
+  self-qualifier. {{C_*}} = chrome (catalog); {{LANDING_INTRO}} = per-shop AI copy (default fallback).
+-->
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: "Helvetica Neue", Arial, sans-serif; background: #faf6f0; color: #2a2a2a;
+         line-height: 1.5; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 460px; margin: 0 auto; }
+  .hero { position: relative; padding: 26px 22px 22px; overflow: hidden; }
+  .hero .bg { position: absolute; inset: 0; background-image: url({{SHOP_IMG}}); background-size: cover;
+              background-position: center; opacity: 0.16; z-index: 0; }
+  .hero .top { position: relative; z-index: 1; display: flex; justify-content: space-between; align-items: flex-start; }
+  .rule { height: 4px; width: 44px; background: #8B5E34; border-radius: 2px; }
+  .logo { width: 60px; height: 34px; background-image: url({{SHOP_LOGO}}); background-size: contain;
+          background-repeat: no-repeat; background-position: top right; }
+  h1 { position: relative; z-index: 1; font-size: 30px; font-weight: 800; letter-spacing: -0.5px;
+       line-height: 1.04; margin-top: 18px; }
+  h1 .sub { display: block; font-size: 17px; font-weight: 600; color: #8B5E34; margin-top: 7px; }
+  .body { padding: 4px 22px 40px; }
+  .intro { font-size: 15px; color: #3a3a3a; margin-top: 18px; }
+  .intro b { color: #1a1a1a; }
+  .video { margin: 22px 0; aspect-ratio: 16/10; background: #efe7db; border: 1px dashed #c9b8a4;
+           border-radius: 12px; display: flex; flex-direction: column; align-items: center;
+           justify-content: center; text-align: center; color: #9a8a74; font-size: 13px; padding: 16px; }
+  .qual { margin-top: 26px; }
+  .qual h2 { font-size: 17px; font-weight: 800; }
+  .qual .lead { font-size: 13.5px; color: #6a5d4c; margin: 4px 0 16px; font-style: italic; }
+  .box { border-radius: 12px; padding: 16px 16px 14px; margin-bottom: 12px; }
+  .box.fit { background: #eef4ea; border: 1px solid #cfe0c4; }
+  .box.nofit { background: #f6efe8; border: 1px solid #e4d3c2; }
+  .box .head { font-size: 14px; font-weight: 800; margin-bottom: 8px; }
+  .box.fit .head { color: #3f6b34; }
+  .box.nofit .head { color: #9c5a2c; }
+  .box ul { list-style: none; }
+  .box li { font-size: 13.5px; margin: 5px 0; padding-left: 20px; position: relative; }
+  .box.fit li::before { content: "✓"; position: absolute; left: 0; color: #3f6b34; font-weight: 800; }
+  .box.nofit li::before { content: "✕"; position: absolute; left: 0; color: #9c5a2c; font-weight: 800; }
+  .fineprint { font-size: 13px; color: #5a5045; margin-top: 4px; font-weight: 600; }
+  .cta { margin-top: 30px; }
+  .cta h2 { font-size: 19px; font-weight: 800; }
+  .btn { display: block; width: 100%; padding: 16px; margin-top: 14px; font-size: 16px; font-weight: 800;
+         color: #fff; background: #8B5E34; border: none; border-radius: 10px; cursor: pointer; text-align: center; }
+  .opt { display: flex; align-items: center; gap: 11px; padding: 14px 15px; margin-top: 10px; border: 1.5px solid #d8ccbc;
+         border-radius: 11px; font-size: 15px; font-weight: 700; color: #2a2a2a; cursor: pointer; background: #fff; }
+  .opt input { width: 21px; height: 21px; flex: 0 0 auto; accent-color: #8B5E34; }
+  .opt:has(input:checked) { border-color: #8B5E34; background: #f6efe6; }
+  .cmt { width: 100%; padding: 12px 14px; font-size: 15px; border: 1px solid #d8ccbc; border-radius: 11px;
+         margin-top: 12px; font-family: inherit; background: #fff; }
+  .writein { margin-top: 12px; }
+  .writein summary { font-size: 13px; color: #8B5E34; cursor: pointer; font-weight: 700; }
+  .writein input { width: 100%; padding: 12px 14px; font-size: 15px; border: 1px solid #d8ccbc;
+                   border-radius: 10px; margin-top: 10px; background: #fff; font-family: inherit; }
+  .cta .note { font-size: 12.5px; color: #8a7c6a; margin-top: 12px; text-align: center; }
+  .foot { margin-top: 30px; padding-top: 18px; border-top: 1px solid #e6dccd; font-size: 12.5px; color: #8a7c6a; }
+  .foot b { color: #8B5E34; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero">
+      <div class="bg"></div>
+      <div class="top"><div class="rule"></div><div class="logo"></div></div>
+      <h1>{{C_GREETING}} {{FIRST_NAME}}.<span class="sub">{{C_HERO_SUB}}</span></h1>
+    </div>
+
+    <div class="body">
+      <p class="intro">{{LANDING_INTRO}}</p>
+
+      <div class="qual">
+        <h2>{{C_QUAL_H}}</h2>
+        <div class="lead">{{C_QUAL_LEAD}}</div>
+        <div class="box fit">
+          <div class="head">{{C_FIT_HEAD}}</div>
+          <ul>
+            <li>{{C_FIT_1}}</li>
+            <li>{{C_FIT_2}}</li>
+            <li>{{C_FIT_3}}</li>
+            <li>{{C_FIT_4}}</li>
+            <li>{{C_FIT_5}}</li>
+          </ul>
+        </div>
+        <div class="box nofit">
+          <div class="head">{{C_NOFIT_HEAD}}</div>
+          <ul>
+            <li>{{C_NOFIT_1}}</li>
+            <li>{{C_NOFIT_2}}</li>
+          </ul>
+        </div>
+        <p class="fineprint">{{C_FINEPRINT}}</p>
+      </div>
+
+      <div class="cta">
+        <h2>{{C_CTA_H}}</h2>
+        <p style="font-size:14px;color:#3a3a3a;margin-top:6px">{{C_CTA_P}}</p>
+        <form method="post" action="/kaffee/ja">
+          <input type="hidden" name="token" value="{{TOKEN}}">
+          <label class="opt"><input type="radio" name="option" value="call" required><span>{{C_OPT_CALL}}</span></label>
+          <label class="opt"><input type="radio" name="option" value="shop"><span>{{C_OPT_SHOP}}</span></label>
+          <label class="opt"><input type="radio" name="option" value="meet"><span>{{C_OPT_MEET}}</span></label>
+          <input class="cmt" type="text" name="comment" placeholder="{{C_PLACEHOLDER}}">
+          <button class="btn" type="submit">{{C_BTN}}</button>
+        </form>
+        <div class="note">{{C_NOTE}}</div>
+      </div>
+
+      <div class="foot">
+        &mdash; <b>Angel</b> &middot; BANCO &middot; La Piazza 🐺<br>
+        Ecolution GmbH &middot; Mattenweg 5 &middot; 6375 Beckenried<br>
+        <a href="mailto:ecolution.gmbh@gmail.com" style="color:#8B5E34;font-weight:700">ecolution.gmbh@gmail.com</a><br>
+        <span style="color:#a99a86">{{C_FOOT}}</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

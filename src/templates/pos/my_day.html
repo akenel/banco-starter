@@ -1,0 +1,509 @@
+{% extends "pos/base.html" %}
+
+{% block title %}My Day - HelixPOS{% endblock %}
+{% block page_name %}My Day{% endblock %}
+
+{#
+  My Day — the employee-facing daily checkup (timesheet + living day view).
+  Felix's proud spreadsheet, but a no-brainer on a phone: big buttons, tooltips,
+  an inline "how this works" SOP so a first-day worker feels welcome, never lost.
+  Rides the EXISTING dark HR engine: GET /api/v1/hr/me, /time-entries/my, /stats/my-month,
+  POST /api/v1/hr/time-entries. Trust-first: she self-reports start/finish; she can fix it.
+#}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50" x-data="myDayData()" x-init="init()">
+
+    <!-- Top Bar -->
+    <div class="bg-white shadow-md border-b-4 border-indigo-600">
+        <div class="max-w-2xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <button @click="goDashboard()" class="btn-secondary flex-none" title="Dashboard" aria-label="Dashboard">🏠</button>
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900" data-i18n="myday.title">📅 My Day</h1>
+                    <p class="text-sm text-gray-600" x-text="todayLabel"></p>
+                </div>
+            </div>
+            <button @click="helpOpen = true" title="How this works" class="btn-secondary text-sm" data-i18n="myday.help">❓ Help</button>
+        </div>
+    </div>
+
+    <div class="max-w-2xl mx-auto px-4 py-6 space-y-6">
+
+        <!-- Loading -->
+        <div x-show="loading" class="text-center py-20 text-gray-400" data-i18n="myday.loading">Loading your day…</div>
+
+        <!-- Error banner -->
+        <div x-show="error" class="bg-red-100 text-red-800 rounded-lg p-3 text-sm" x-text="error"></div>
+
+        <!-- ============ NO HR CARD YET (graceful, welcoming) ============ -->
+        <div x-show="!loading && noProfile" class="card text-center py-10">
+            <div class="text-5xl mb-3">👋</div>
+            <h2 class="text-xl font-bold text-gray-900 mb-2" data-i18n="myday.welcome_title">Welcome! Let's get you set up.</h2>
+            <p class="text-gray-600 max-w-md mx-auto" data-i18n-html="myday.welcome_body">Your staff card isn't linked to this login yet.
+                Ask <span class="font-semibold">Felix</span> to add you in <span class="font-semibold">Staff</span>,
+                then your timesheet shows up right here — and closing your day takes one tap.</p>
+        </div>
+
+        <!-- ============ MAIN: MY DAY ============ -->
+        <template x-if="!loading && !noProfile">
+        <div class="space-y-6">
+
+            <!-- Greeting -->
+            <div class="card bg-gradient-to-br from-indigo-600 to-indigo-700 text-white">
+                <p class="text-indigo-100 text-sm" x-text="greeting"></p>
+                <h2 class="text-2xl font-extrabold mt-1" x-text="t('myday.hi_name', { n: (profile.first_name || user.username || t('myday.there')) })"></h2>
+                <p class="text-indigo-100 text-sm mt-1" x-show="profile.role" x-text="profile.role"></p>
+            </div>
+
+            <!-- Living day view: my sales so far -->
+            <div class="card">
+                <div class="flex items-center justify-between mb-1">
+                    <h3 class="text-lg font-bold text-gray-900" data-i18n="myday.sales_so_far">🛒 My sales so far today</h3>
+                    <button @click="goSales()" class="text-sm text-indigo-600 hover:underline" data-i18n="myday.see_each_sale">See each sale →</button>
+                </div>
+                <p class="text-sm text-gray-500 mb-4" data-i18n="myday.sales_hint">Updates as you ring sales. Tap "See each sale" for today's list of receipts.</p>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <p class="text-xs text-gray-500 uppercase tracking-wide" data-i18n="myday.sales_label">Sales</p>
+                        <p class="price-display mt-1" x-text="formatPrice(sales.total)"></p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <p class="text-xs text-gray-500 uppercase tracking-wide" data-i18n="myday.transactions">Transactions</p>
+                        <p class="text-3xl font-bold text-gray-800 mt-1" x-text="sales.count"></p>
+                    </div>
+                </div>
+                <p x-show="!sales.available" class="text-xs text-gray-400 mt-3"><span data-i18n="myday.open_drawer_pre">Open your drawer in</span> <button @click="goDrawer()" class="text-indigo-600 underline" data-i18n="myday.my_drawer">My Drawer</button> <span data-i18n="myday.open_drawer_post">to track today's takings.</span></p>
+            </div>
+
+            <!-- ============ TODAY ALREADY CLOSED OUT ============ -->
+            <div x-show="todayEntry && !editing" class="card border-2 border-green-500">
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="text-2xl">✅</span>
+                    <h3 class="text-lg font-bold text-gray-900" data-i18n="myday.day_closed_title">Your day is closed out</h3>
+                </div>
+                <div class="grid grid-cols-3 gap-3 text-center mb-4">
+                    <div class="bg-gray-50 rounded-lg p-3">
+                        <p class="text-xs text-gray-500" data-i18n="myday.started">Started</p>
+                        <p class="text-lg font-bold text-gray-800" x-text="(todayEntry && todayEntry.start_time) || '—'"></p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3">
+                        <p class="text-xs text-gray-500" data-i18n="myday.finished">Finished</p>
+                        <p class="text-lg font-bold text-gray-800" x-text="(todayEntry && todayEntry.end_time) || '—'"></p>
+                    </div>
+                    <div class="bg-indigo-50 rounded-lg p-3">
+                        <p class="text-xs text-gray-500" data-i18n="myday.hours">Hours</p>
+                        <p class="text-lg font-bold text-indigo-700" x-text="(todayEntry ? Number(todayEntry.hours).toFixed(2) : '0') + 'h'"></p>
+                    </div>
+                </div>
+                <p class="text-sm text-gray-600" x-show="todayEntry && todayEntry.description">
+                    📝 <span x-text="todayEntry && todayEntry.description"></span></p>
+                <div class="flex items-center justify-between mt-4">
+                    <span class="text-xs font-semibold px-2 py-1 rounded-full"
+                          :class="statusClass(todayEntry && todayEntry.status)"
+                          x-text="statusLabel(todayEntry && todayEntry.status)"></span>
+                    <button x-show="todayEntry && todayEntry.status === 'draft'" @click="startEdit()"
+                            class="text-sm text-indigo-600 hover:underline" data-i18n="myday.fix_it">✏️ Fix it</button>
+                </div>
+                <p x-show="todayEntry && todayEntry.status !== 'draft'" class="text-xs text-gray-400 mt-2" data-i18n="myday.already_sent">
+                    Already sent to Felix — ask him if it needs a change.</p>
+            </div>
+
+            <!-- ============ CLOSE OUT MY DAY (the form) ============ -->
+            <div x-show="!todayEntry || editing" class="card">
+                <h3 class="text-lg font-bold text-gray-900 mb-1" data-i18n="myday.close_out_title">⏱️ Close out my day</h3>
+                <p class="text-sm text-gray-500 mb-4" data-i18n="myday.close_out_hint">Put the time you walked in and the time you're walking out.
+                    It's yours to enter — be honest, it's that simple.</p>
+
+                <!-- Auto-tally: start time pre-filled from your login -->
+                <div x-show="presence.present" class="bg-green-50 border border-green-200 text-green-800 rounded-lg p-3 text-sm mb-4">
+                    <span data-i18n="myday.tracked_pre">✓ We tracked you in at</span> <b x-text="hhmmLocal(presence.first_login)"></b> <span data-i18n="myday.tracked_post">— your start time is filled in for you. Just set your finish time when you leave.</span>
+                </div>
+
+                <!-- Start / Finish -->
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">
+                            <span data-i18n="myday.start_time">Start time</span>
+                            <span title="When you walked in this morning." class="text-gray-400 cursor-help">ⓘ</span>
+                        </label>
+                        <input type="time" x-model="form.start_time" class="input-field text-center">
+                        <button @click="form.start_time = nowHHMM()" class="text-xs text-indigo-600 hover:underline mt-1" data-i18n="myday.set_to_now">Set to now</button>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">
+                            <span data-i18n="myday.finish_time">Finish time</span>
+                            <span title="When you're walking out. You can put the time you're about to leave." class="text-gray-400 cursor-help">ⓘ</span>
+                        </label>
+                        <input type="time" x-model="form.end_time" class="input-field text-center">
+                        <button @click="form.end_time = nowHHMM()" class="text-xs text-indigo-600 hover:underline mt-1" data-i18n="myday.set_to_now">Set to now</button>
+                    </div>
+                </div>
+
+                <!-- Lunch / break -->
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">
+                        <span data-i18n="myday.lunch_break">Lunch / break</span>
+                        <span title="Unpaid break time. Swiss rule: 30 min if you work over 5.5h." class="text-gray-400 cursor-help">ⓘ</span>
+                    </label>
+                    <div class="flex flex-wrap gap-2">
+                        <template x-for="b in breakChoices" :key="b">
+                            <button @click="form.break_minutes = b"
+                                    class="px-4 py-3 rounded-lg font-semibold border-2 transition"
+                                    :class="form.break_minutes === b ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-600'"
+                                    x-text="b === 0 ? t('myday.none') : b + ' ' + t('myday.min')"></button>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Type of day (default Regular) -->
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold text-gray-700 mb-2" data-i18n="myday.type_of_day">Type of day</label>
+                    <select x-model="form.entry_type" class="input-field">
+                        <option value="regular" data-i18n="myday.type_regular">🟢 Regular shift</option>
+                        <option value="overtime" data-i18n="myday.type_overtime">⏫ Overtime</option>
+                        <option value="holiday" data-i18n="myday.type_holiday">🏖️ Holiday (Ferien)</option>
+                        <option value="sick" data-i18n="myday.type_sick">🤒 Sick (Krankheit)</option>
+                    </select>
+                </div>
+
+                <!-- Computed hours -->
+                <div class="bg-indigo-50 rounded-lg p-4 mb-4 flex items-center justify-between">
+                    <span class="font-semibold text-gray-700" data-i18n="myday.hours_worked">Hours worked</span>
+                    <span class="text-3xl font-extrabold text-indigo-700" x-text="computedHours().toFixed(2) + 'h'"></span>
+                </div>
+                <p x-show="form.start_time && form.end_time && computedHours() <= 0"
+                   class="text-sm text-amber-600 -mt-2 mb-4" data-i18n="myday.finish_after_start">Finish time should be after start time.</p>
+
+                <!-- ============ AI END-OF-DAY NOTE (optional, drafts itself) ============ -->
+                <div class="mb-5 bg-indigo-50/40 border border-indigo-100 rounded-lg p-4">
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="text-sm font-bold text-gray-800"><span data-i18n="myday.how_day_go">🌙 How did the day go?</span>
+                            <span class="text-gray-400 font-normal" data-i18n="myday.optional">(optional)</span></label>
+                        <button @click="draftSurvey()" :disabled="survey.loading" type="button"
+                                class="btn-secondary text-sm whitespace-nowrap">
+                            <span x-show="!survey.loading" data-i18n="myday.draft_it">✨ Draft it for me</span>
+                            <span x-show="survey.loading" data-i18n="myday.reading_day">Reading your day…</span>
+                        </button>
+                    </div>
+                    <p class="text-xs text-gray-500 mb-3" data-i18n="myday.ai_note_hint">Banco reads today's sales and writes your note —
+                        just confirm or tweak. Felix gets it next to the numbers.</p>
+
+                    <!-- How busy -->
+                    <div class="mb-3">
+                        <label class="block text-xs font-semibold text-gray-600 mb-1" data-i18n="myday.how_busy">How busy was it?</label>
+                        <div class="flex flex-wrap gap-2">
+                            <template x-for="lvl in ['busy','steady','slow']" :key="lvl">
+                                <button @click="survey.busy_level = (survey.busy_level === lvl ? '' : lvl)" type="button"
+                                        class="px-4 py-2 rounded-lg font-semibold border-2 capitalize transition"
+                                        :class="survey.busy_level === lvl ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-600'"
+                                        x-text="t('myday.busy_' + lvl)"></button>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Footfall + weather -->
+                    <div class="grid grid-cols-2 gap-3 mb-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1" data-i18n="myday.customers_approx">Customers (approx)</label>
+                            <input type="number" min="0" x-model.number="survey.footfall" class="input-field text-center">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1" data-i18n="myday.weather">Weather</label>
+                            <input type="text" x-model="survey.weather" maxlength="40"
+                                   placeholder="sunny, rain…" data-i18n-placeholder="myday.weather_placeholder" class="input-field">
+                            <p x-show="survey.weather && survey.ai" style="display:none;" class="text-[10px] text-gray-400 mt-1" data-i18n="myday.weather_auto">🛰️ auto — from the shop's location today</p>
+                        </div>
+                    </div>
+
+                    <!-- The note itself (this is what's saved) -->
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1" data-i18n="myday.in_a_line">In a line or two</label>
+                        <textarea x-model="survey.summary" rows="2" maxlength="500"
+                                  placeholder="Busy afternoon, a few regulars in…" data-i18n-placeholder="myday.summary_placeholder"
+                                  class="input-field text-base"></textarea>
+                    </div>
+                    <p x-show="survey.drafted && !survey.ai" class="text-xs text-amber-600 mt-2" data-i18n="myday.drafted_hint">
+                        Drafted straight from your numbers — still good to send.</p>
+                </div>
+
+                <button @click="closeMyDay()"
+                        :disabled="processing || computedHours() <= 0 && form.entry_type === 'regular'"
+                        class="btn-success w-full text-lg">
+                    <span x-show="!processing" x-text="editing ? t('myday.save_changes') : t('myday.close_out_btn')"></span>
+                    <span x-show="processing" data-i18n="myday.saving">Saving…</span>
+                </button>
+                <button x-show="editing" @click="cancelEdit()" class="btn-secondary w-full mt-2" data-i18n="myday.cancel">Cancel</button>
+            </div>
+
+            <!-- ============ RECENT DAYS ============ -->
+            <div class="card" x-show="recent.length">
+                <h3 class="text-lg font-bold text-gray-900 mb-3" data-i18n="myday.recent_days">📖 My recent days</h3>
+                <div class="divide-y">
+                    <template x-for="e in recent" :key="e.id">
+                        <div class="flex items-center justify-between py-3">
+                            <div>
+                                <p class="font-semibold text-gray-800" x-text="prettyDate(e.entry_date)"></p>
+                                <p class="text-xs text-gray-500"
+                                   x-text="(e.start_time || '—') + ' – ' + (e.end_time || '—') + ' · ' + typeLabel(e.entry_type)"></p>
+                            </div>
+                            <div class="text-right">
+                                <p class="font-bold text-gray-800" x-text="Number(e.hours).toFixed(2) + 'h'"></p>
+                                <span class="text-xs font-semibold px-2 py-0.5 rounded-full"
+                                      :class="statusClass(e.status)" x-text="statusLabel(e.status)"></span>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+                <div class="mt-4 pt-3 border-t flex items-center justify-between text-sm" x-show="monthHours !== null">
+                    <span class="text-gray-500" data-i18n="myday.hours_this_month">Hours this month</span>
+                    <span class="font-bold text-gray-800" x-text="Number(monthHours).toFixed(2) + 'h'"></span>
+                </div>
+            </div>
+
+        </div>
+        </template>
+    </div>
+
+    <!-- ============ HELP / SOP PANEL (the welcoming, built-in how-to) ============ -->
+    <div x-show="helpOpen" x-cloak class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4"
+         @click.self="helpOpen = false">
+        <div class="bg-white w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl p-6 max-h-[85vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xl font-bold text-gray-900" data-i18n="myday.help_title">📅 How "My Day" works</h3>
+                <button @click="helpOpen = false" class="text-gray-400 hover:text-gray-700 text-2xl leading-none">&times;</button>
+            </div>
+            <ol class="space-y-4 text-gray-700">
+                <li class="flex gap-3"><span class="text-xl">1️⃣</span><span data-i18n-html="myday.help_1">
+                    <span class="font-semibold">Through the day,</span> peek here any time to see your hours
+                    and what you've sold so far.</span></li>
+                <li class="flex gap-3"><span class="text-xl">2️⃣</span><span data-i18n-html="myday.help_2">
+                    <span class="font-semibold">When you leave,</span> put your <em>start time</em> and
+                    <em>finish time</em>, pick your lunch break, and the hours add up for you.</span></li>
+                <li class="flex gap-3"><span class="text-xl">3️⃣</span><span data-i18n-html="myday.help_3">
+                    <span class="font-semibold">Tap "Close out my day."</span> That's it — Felix gets it
+                    for the books and your pay. No paper, no math.</span></li>
+                <li class="flex gap-3"><span class="text-xl">🤝</span><span data-i18n-html="myday.help_4">
+                    <span class="font-semibold">It's on trust.</span> You enter your own times honestly —
+                    you can even put the minute you're about to walk out. It's your call.</span></li>
+            </ol>
+            <div class="mt-5 bg-gray-50 rounded-lg p-4 text-sm text-gray-600" data-i18n-html="myday.help_note">
+                <span class="font-semibold">Not a cashier today?</span> No problem — just cleaning or stocking
+                still counts. Close out your hours the same way.
+            </div>
+            <button @click="helpOpen = false" class="btn-primary w-full mt-6" data-i18n="myday.got_it">Got it 👍</button>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<style>[x-cloak]{display:none!important}</style>
+<script>
+function myDayData() {
+    return {
+        loading: true,
+        processing: false,
+        error: '',
+        noProfile: false,
+        helpOpen: false,
+        editing: false,
+        user: {},
+        profile: {},                 // /api/v1/hr/me
+        todayLabel: '',
+        greeting: '',
+        todayEntry: null,            // today's saved entry, if any
+        recent: [],
+        monthHours: null,
+        sales: { total: 0, count: 0, available: false },
+        presence: { present: false, first_login: null, suggested_hours: 0, active: false },
+        breakChoices: [0, 30, 60],
+        form: { start_time: '', end_time: '', break_minutes: 30, entry_type: 'regular', description: '' },
+        // AI end-of-day survey: drafts itself from the day's sales; the human confirms.
+        survey: { loading: false, drafted: false, ai: false, busy_level: '', footfall: null, weather: '', summary: '' },
+
+        async init() {
+            this.user = AuthHelper.getUserInfo() || {};
+            const now = new Date();
+            this.todayLabel = formatDate(now, { weekday: 'long', day: 'numeric', month: 'long' });
+            const h = now.getHours();
+            this.greeting = h < 12 ? t('myday.good_morning') : (h < 18 ? t('myday.good_afternoon') : t('myday.good_evening'));
+            await this.loadProfile();
+            if (this.noProfile) { this.loading = false; return; }
+            await this.loadEntries();   // sets todayEntry first so presence doesn't overwrite a saved start
+            await Promise.all([this.loadStats(), this.loadSales(), this.loadPresence()]);
+            this.loading = false;
+        },
+
+        async loadPresence() {
+            // Auto-tally source: when did you first log in today.
+            try {
+                const p = await API.get('/api/v1/pos/shift/today');
+                if (p) this.presence = p;
+                if (this.presence.present && this.presence.first_login && !this.todayEntry && !this.form.start_time) {
+                    this.form.start_time = this.hhmmLocal(this.presence.first_login);
+                }
+            } catch (e) { /* presence is a nicety — never block the screen */ }
+        },
+        hhmmLocal(iso) {
+            if (!iso) return '';
+            try { const d = new Date(iso); return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'); }
+            catch (e) { return ''; }
+        },
+
+        async loadProfile() {
+            try {
+                this.profile = await API.get('/api/v1/hr/me') || {};
+            } catch (e) {
+                // 404 = no staff card linked to this login yet → welcoming empty state.
+                if ((e.message || '').includes('No employee') || (e.message || '').includes('404')) {
+                    this.noProfile = true;
+                } else {
+                    this.error = t('myday.err_load_profile') + (e.message || '');
+                }
+            }
+        },
+
+        async loadEntries() {
+            try {
+                const data = await API.get('/api/v1/hr/time-entries/my');
+                const entries = (data && data.entries) || [];
+                const today = this.isoToday();
+                this.todayEntry = entries.find(e => e.entry_date === today) || null;
+                this.recent = entries.filter(e => e.entry_date !== today).slice(0, 5);
+                if (this.todayEntry) this.prefillFrom(this.todayEntry);
+            } catch (e) { /* non-fatal — form still usable */ }
+        },
+
+        async loadStats() {
+            try {
+                const s = await API.get('/api/v1/hr/stats/my-month');
+                if (s && s.total_hours != null) this.monthHours = s.total_hours;
+                else if (s && s.hours != null) this.monthHours = s.hours;
+            } catch (e) { /* optional */ }
+        },
+
+        async loadSales() {
+            // "My sales so far today" — scoped to ME via daily-summary?mine=true (same cashier
+            // resolver the sales use). Was reading the OPEN DRAWER only, so it showed 0 for
+            // card/TWINT sales (no drawer) and after the drawer closed, even though the sales
+            // were really there (Angel's TEST-B01 finding). Day-scoped is the correct meaning.
+            try {
+                const ds = await API.get('/api/v1/pos/reports/daily-summary?mine=true');
+                this.sales.total = this.num(ds.total_sales);
+                this.sales.count = ds.total_transactions || 0;
+                this.sales.available = true;
+            } catch (e) { /* not available — tile shows the hint */ }
+        },
+
+        prefillFrom(e) {
+            this.form.start_time = e.start_time || '';
+            this.form.end_time = e.end_time || '';
+            this.form.break_minutes = (e.break_minutes != null) ? e.break_minutes : 30;
+            this.form.entry_type = e.entry_type || 'regular';
+            this.form.description = e.description || '';
+            // Re-open an existing note straight into the survey summary so it stays editable.
+            this.survey.summary = e.description || '';
+        },
+
+        // ✨ The AI End-of-Day Survey: Banco reads today's sales and drafts the note.
+        async draftSurvey() {
+            this.survey.loading = true; this.error = '';
+            try {
+                const d = await API.post('/api/v1/pos/day-survey/draft', {});
+                this.survey.busy_level = d.busy_level || '';
+                this.survey.footfall = (d.footfall_estimate != null) ? d.footfall_estimate : null;
+                this.survey.summary = d.summary || this.survey.summary;
+                // Weather comes from the SHOP'S OWN ADDRESS (Open-Meteo, free, keyless) — a real source,
+                // never typed. Only fills a blank so it never stomps a value the operator already set.
+                if (d.weather && !((this.survey.weather || '').trim())) this.survey.weather = d.weather;
+                this.survey.ai = !!d.ai;
+                this.survey.drafted = true;
+            } catch (e) {
+                this.error = t('myday.err_draft') + (e.message || '') + t('myday.err_draft_suffix');
+            }
+            this.survey.loading = false;
+        },
+
+        // Fold the confirmed survey into ONE human-readable note for Felix (no JSON in the books).
+        composeNote() {
+            const bits = [];
+            const head = [];
+            const lbl = { busy: t('myday.busy_cap'), steady: t('myday.steady_cap'), slow: t('myday.slow_cap') }[this.survey.busy_level];
+            if (lbl) head.push(lbl);
+            if (this.survey.footfall) head.push('~' + parseInt(this.survey.footfall) + t('myday.customers_suffix'));
+            if (head.length) bits.push(head.join(' · '));
+            if ((this.survey.weather || '').trim()) bits.push(t('myday.weather_prefix') + this.survey.weather.trim());
+            if ((this.survey.summary || '').trim()) bits.push(this.survey.summary.trim());
+            return bits.join('\n');
+        },
+
+        num(v) { const n = parseFloat(v); return isNaN(n) ? 0 : n; },
+        isoToday() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); },
+        nowHHMM() { const d = new Date(); return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'); },
+
+        // Hours = (finish − start) − break, rounded to the nearest 0.25 (schema increment).
+        computedHours() {
+            const s = this.toMin(this.form.start_time), e = this.toMin(this.form.end_time);
+            if (s == null || e == null || e <= s) return 0;
+            let h = (e - s - (parseInt(this.form.break_minutes) || 0)) / 60;
+            if (h < 0) h = 0;
+            return Math.round(h * 4) / 4;
+        },
+        toMin(hhmm) { if (!hhmm || !/^\d{2}:\d{2}$/.test(hhmm)) return null; const [h,m] = hhmm.split(':').map(Number); return h*60+m; },
+
+        prettyDate(iso) { try { return formatDate(iso + 'T00:00:00', { weekday:'short', day:'numeric', month:'short' }); } catch(e){ return iso; } },
+        typeLabel(ty) { return ({regular:t('myday.tl_regular'), overtime:t('myday.tl_overtime'), holiday:t('myday.tl_holiday'), sick:t('myday.tl_sick'), remote:t('myday.tl_remote'), unpaid:t('myday.tl_unpaid'), public_holiday:t('myday.tl_public_holiday'), training:t('myday.tl_training')})[ty] || ty; },
+        statusLabel(s) { return ({draft:t('myday.status_draft'), submitted:t('myday.status_submitted'), approved:t('myday.status_approved'), rejected:t('myday.status_rejected'), paid:t('myday.status_paid')})[s] || s; },
+        statusClass(s) {
+            return ({
+                draft: 'bg-gray-100 text-gray-600',
+                submitted: 'bg-blue-100 text-blue-700',
+                approved: 'bg-green-100 text-green-700',
+                rejected: 'bg-red-100 text-red-700',
+                paid: 'bg-indigo-100 text-indigo-700',
+            })[s] || 'bg-gray-100 text-gray-600';
+        },
+
+        startEdit() { this.editing = true; this.prefillFrom(this.todayEntry); },
+        cancelEdit() { this.editing = false; this.prefillFrom(this.todayEntry); },
+
+        async closeMyDay() {
+            const hours = this.computedHours();
+            if (hours <= 0 && this.form.entry_type === 'regular') {
+                this.error = t('myday.err_add_times'); return;
+            }
+            this.processing = true; this.error = '';
+            const payload = {
+                entry_date: this.isoToday(),
+                entry_type: this.form.entry_type,
+                hours: hours,
+                start_time: this.form.start_time || null,
+                end_time: this.form.end_time || null,
+                break_minutes: parseInt(this.form.break_minutes) || 0,
+                description: this.composeNote().trim() || null,
+            };
+            try {
+                if (this.editing && this.todayEntry) {
+                    await API.put('/api/v1/hr/time-entries/' + this.todayEntry.id, payload);
+                } else {
+                    await API.post('/api/v1/hr/time-entries', payload);
+                }
+                this.editing = false;
+                await this.loadEntries();
+                await this.loadStats();
+                showToast(this.editing ? t('myday.saved_toast') : t('myday.closed_toast'), 'success');
+            } catch (e) {
+                this.error = e.message || t('myday.err_save');
+            }
+            this.processing = false;
+        },
+
+        goDashboard() { window.location.href = '/pos/dashboard'; },
+        goDrawer() { window.location.href = '/pos/shift'; },
+        goSales() { window.location.href = '/pos/transactions'; },   // BL-012: list the sales she rang today, not the cash drawer
+    };
+}
+</script>
+{% endblock %}

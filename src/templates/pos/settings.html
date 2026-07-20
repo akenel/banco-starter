@@ -1,0 +1,672 @@
+{% extends "pos/base.html" %}
+
+{% block title %}Settings - HelixPOS{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50" x-data="settingsData()" x-init="init()">
+    <!-- Top Bar -->
+    <div class="bg-white shadow-md border-b-4 border-indigo-600">
+        <div class="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-4">
+                <button @click="window.location.href='/pos/dashboard'" class="btn-secondary flex-none" title="Dashboard" aria-label="Dashboard">🏠
+                </button>
+                <div>
+                    <h1 class="text-xl font-bold text-gray-900"><span data-i18n="settings.title">⚙️ Store Settings</span></h1>
+                    <p class="text-xs text-gray-500" data-i18n="settings.subtitle">Your shop's profile — shows on every receipt</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <label class="flex items-center gap-2 text-sm text-gray-600">
+                    <span data-i18n="settings.language">🌐 Language</span>
+                    <select onchange="switchLanguage(this.value)"
+                        x-init="$el.value = (window._posLang || 'en')"
+                        class="border-2 border-gray-300 rounded-lg px-2 py-1 text-sm bg-white">
+                        <option value="en">English</option>
+                        <option value="de">Deutsch</option>
+                        <option value="fr">Français</option>
+                        <option value="it">Italiano</option>
+                    </select>
+                </label>
+                <button x-show="canEdit" @click="save()" :disabled="saving" class="btn-success">
+                <span x-show="!saving" data-i18n="settings.save">💾 Save</span>
+                <span x-show="saving" style="display:none;" data-i18n="settings.saving">Saving…</span>
+            </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-4xl mx-auto px-4 py-6">
+        <div x-show="!canEdit" class="bg-blue-50 border border-blue-300 rounded-lg p-4 text-blue-800 text-sm mb-4" data-i18n="settings.view_only">
+            👁️ View only — this is the store configuration. Only a manager or admin can change it.
+        </div>
+        <div x-show="canEdit && !canEditDiscounts" class="bg-blue-50 border border-blue-300 rounded-lg p-4 text-blue-800 text-sm mb-4" data-i18n="settings.manager_note">
+            ✏️ You can edit store settings — except the discount limits, which are admin-only.
+        </div>
+
+        <div>
+            <!-- Tabs -->
+            <div class="flex flex-wrap gap-1 border-b mb-5">
+                <template x-for="t in visibleTabs()" :key="t.id">
+                    <button @click="tab=t.id"
+                        class="px-4 py-2 text-sm font-semibold rounded-t-lg -mb-px border-b-2"
+                        :class="tab===t.id ? 'border-indigo-600 text-indigo-700 bg-white' : 'border-transparent text-gray-500 hover:text-gray-800'"
+                        x-text="t.label"></button>
+                </template>
+            </div>
+
+            <!-- The whole form is a fieldset: disabled = read-only for anyone who can't edit
+                 (a pure cashier). Managers + admins can edit; the discounts section below has its
+                 OWN admin-only fieldset nested inside, so a manager edits everything but discounts. -->
+            <fieldset :disabled="!canEdit" class="bg-white rounded-xl shadow p-5 space-y-4 border-0 min-w-0 disabled:opacity-100">
+
+                <!-- IDENTITY & ADDRESS -->
+                <div x-show="tab==='identity'" class="space-y-4">
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div><label class="lbl" data-i18n="settings.store_name">Store name</label><input type="text" x-model="form.store_name" class="input-field" placeholder="Artemis Lucerne - Headshop"></div>
+                        <div><label class="lbl" data-i18n="settings.legal_name">Legal / company name</label><input type="text" x-model="form.legal_name" class="input-field" placeholder="Artemis GmbH"></div>
+                        <div><label class="lbl" data-i18n="settings.address">Address</label><input type="text" x-model="form.address_line1" class="input-field" placeholder="Murbacherstrasse 37"></div>
+                        <div><label class="lbl" data-i18n="settings.address_line2">Address line 2</label><input type="text" x-model="form.address_line2" class="input-field" data-i18n-placeholder="settings.ph_optional" placeholder="(optional)"></div>
+                        <div><label class="lbl" data-i18n="settings.postal_code">Postal code</label><input type="text" x-model="form.postal_code" class="input-field" placeholder="6003"></div>
+                        <div><label class="lbl" data-i18n="settings.city">City</label><input type="text" x-model="form.city" class="input-field" placeholder="Luzern"></div>
+                        <div><label class="lbl" data-i18n="settings.country">Country</label><input type="text" x-model="form.country" class="input-field" placeholder="Switzerland"></div>
+                        <div><label class="lbl" data-i18n="settings.founded_year">Founded (year)</label><input type="text" x-model="form.founded_year" class="input-field" placeholder="1999"></div>
+                    </div>
+                    <!-- BL-047: tell the operator the address does double duty. Angel: "mention in Settings
+                         that the address drives the weather — this is your weather report, people." -->
+                    <p class="text-xs text-gray-500 flex items-start gap-1.5 mt-1">
+                        <span>🛰️</span>
+                        <span data-i18n="settings.address_weather_note">Your <b>city</b> is also your daily weather report — Banco fills the weather on each timesheet automatically from a real source, so nobody has to type (or guess) it. Keep the city accurate.</span>
+                    </p>
+                </div>
+
+                <!-- CONTACT & LINKS -->
+                <div x-show="tab==='contact'" class="space-y-4">
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div><label class="lbl" data-i18n="settings.phone">Phone</label><input type="text" x-model="form.phone" class="input-field" placeholder="041 220 22 22"></div>
+                        <div><label class="lbl" data-i18n="settings.email">Email</label><input type="text" x-model="form.email" class="input-field" placeholder="contact@artemisluzern.ch"></div>
+                        <div><label class="lbl" data-i18n="settings.website">Website</label><input type="text" x-model="form.website" class="input-field" placeholder="artemisluzern.ch"></div>
+                        <div><label class="lbl" data-i18n="settings.facebook">Facebook</label><input type="text" x-model="form.facebook_url" class="input-field" placeholder="facebook.com/…"></div>
+                        <div><label class="lbl" data-i18n="settings.instagram">Instagram</label><input type="text" x-model="form.instagram_url" class="input-field" placeholder="instagram.com/…"></div>
+                    </div>
+                </div>
+
+                <!-- HOURS -->
+                <div x-show="tab==='hours'" class="space-y-2">
+                    <label class="lbl" data-i18n="settings.opening_hours">Opening hours</label>
+                    <textarea x-model="form.opening_hours" rows="4" class="input-field"
+                        placeholder="Mon–Wed: 11:00–19:00&#10;Thu–Fri: 11:00–20:00&#10;Sat: 11:00–17:00"></textarea>
+                    <p class="text-xs text-gray-500" data-i18n="settings.opening_hours_hint">Free text — one line per range. Shows on the receipt / shop profile.</p>
+                </div>
+
+                <!-- TAX -->
+                <div x-show="tab==='tax'" class="space-y-5">
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div><label class="lbl">Currency 🔒</label>
+                            <select x-model="form.currency" :disabled="!isAdmin" class="input-field">
+                                <option value="CHF">CHF — Swiss Franc</option>
+                                <option value="EUR">EUR — Euro</option>
+                                <option value="USD">USD — US Dollar</option>
+                                <option value="GBP">GBP — Pound Sterling</option>
+                            </select>
+                            <p class="text-xs text-gray-500 mt-1" x-show="!isAdmin">🔒 Admin only. The shop's trading currency — how every price is shown &amp; charged. Not derived from the address or VAT number.</p>
+                            <p class="text-xs text-amber-600 mt-1" x-show="isAdmin">Changes how <strong>every</strong> price is displayed and charged — a provisioning decision, not a daily toggle.</p></div>
+                        <div><label class="lbl" data-i18n="settings.vat_number">VAT number (UID)</label>
+                            <input type="text" x-model="form.vat_number" class="input-field font-mono" placeholder="CHE-XXX.XXX.XXX MWST">
+                            <p class="text-xs text-amber-600 mt-1" x-show="!form.vat_number || (form.vat_number||'').includes('X')" data-i18n="settings.vat_number_warn">⟶ enter the real CHE-UID before going live</p></div>
+                    </div>
+
+                    <!-- N-RATE VAT TABLE EDITOR (Piece C) -->
+                    <div class="border-t pt-4">
+                        <div class="flex items-center justify-between flex-wrap gap-2 mb-1">
+                            <h3 class="text-base font-bold text-gray-900" data-i18n="settings.vat_rates_title">VAT rates</h3>
+                            <button @click="addRate()" class="btn-secondary text-sm" data-i18n="settings.add_rate">➕ Add rate</button>
+                        </div>
+                        <p class="text-xs text-gray-500 mb-3" data-i18n="settings.vat_rates_hint">The list of tax rates this shop charges. The default is the standard / catch-all rate. Which product gets which rate is set on the product.</p>
+
+                        <!-- column headers (desktop) -->
+                        <div class="hidden md:grid grid-cols-12 gap-2 text-xs font-semibold text-gray-500 px-1 mb-1">
+                            <div class="col-span-2" data-i18n="settings.rate_code">Code</div>
+                            <div class="col-span-4" data-i18n="settings.rate_label">Label</div>
+                            <div class="col-span-2" data-i18n="settings.rate_percent">Rate %</div>
+                            <div class="col-span-2 text-center" data-i18n="settings.rate_default">Default</div>
+                            <div class="col-span-2"></div>
+                        </div>
+
+                        <div class="space-y-2">
+                            <template x-for="(r, i) in (form.vat_rates || [])" :key="i">
+                                <div class="grid grid-cols-12 gap-2 items-center">
+                                    <input type="text" x-model="r.code" class="col-span-4 md:col-span-2 input-field font-mono" :placeholder="t('settings.rate_code')">
+                                    <input type="text" x-model="r.label" class="col-span-8 md:col-span-4 input-field" :placeholder="t('settings.rate_label')">
+                                    <input type="number" step="0.1" min="0" max="100" x-model="r.rate" class="col-span-5 md:col-span-2 input-field" placeholder="8.1">
+                                    <div class="col-span-4 md:col-span-2 flex justify-center">
+                                        <label class="flex items-center gap-1 text-xs text-gray-600">
+                                            <input type="radio" name="vatDefault" :checked="r.default" @change="setDefault(i)" class="w-5 h-5">
+                                            <span class="md:hidden" data-i18n="settings.rate_default">Default</span>
+                                        </label>
+                                    </div>
+                                    <div class="col-span-3 md:col-span-2 flex justify-end">
+                                        <button @click="removeRate(i)" class="px-3 py-2 rounded-lg text-red-700 bg-red-50 hover:bg-red-100"
+                                                :title="t('settings.remove_rate')" :disabled="(form.vat_rates||[]).length <= 1">🗑️</button>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                        <p x-show="vatError" class="text-sm text-red-600 mt-2" x-text="vatError"></p>
+                    </div>
+
+                    <!-- ACCEPTED CURRENCIES & RATES (multi-currency TENDER) — admin only -->
+                    <div class="border-t pt-4">
+                        <div class="flex items-center justify-between flex-wrap gap-2 mb-1">
+                            <h3 class="text-base font-bold text-gray-900">💱 Accepted currencies &amp; rates 🔒</h3>
+                            <button type="button" @click="fxRows.push({ccy:'',rate:''})" x-show="isAdmin" class="btn-secondary text-sm">➕ Add currency</button>
+                        </div>
+                        <p class="text-xs text-gray-500 mb-3">Foreign <strong>cash</strong> you accept, at your own plan-rate. Rate = how many <strong x-text="form.currency||'CHF'"></strong> you give per 1 unit of that currency. Set once, review when you like. 🔒 Admin only. (Cards are unaffected — the customer's bank converts.)</p>
+                        <div class="space-y-2">
+                            <template x-for="(r, i) in fxRows" :key="i">
+                                <div class="grid grid-cols-12 gap-2 items-center">
+                                    <!-- Only FOREIGN currencies are addable — the shop's own home currency
+                                         is filtered out (you take home cash normally; it's not a "foreign" rate). -->
+                                    <select x-model="r.ccy" :disabled="!isAdmin" class="col-span-4 md:col-span-2 input-field font-mono">
+                                        <option value="">—</option>
+                                        <template x-for="c in ['CHF','EUR','USD','CAD','GBP','CNY','PLN','SEK','NOK','DKK'].filter(c => c !== (form.currency||'').toUpperCase())" :key="c">
+                                            <option :value="c" x-text="c"></option>
+                                        </template>
+                                    </select>
+                                    <input type="number" step="0.0001" min="0" x-model="r.rate" :disabled="!isAdmin" class="col-span-4 md:col-span-3 input-field" placeholder="0.96">
+                                    <div class="col-span-3 md:col-span-5 text-xs text-gray-500">1 <span class="font-mono" x-text="(r.ccy||'?').toUpperCase()"></span> = <span x-text="r.rate||'?'"></span> <span x-text="form.currency||'CHF'"></span></div>
+                                    <div class="col-span-1 md:col-span-2 flex justify-end">
+                                        <button type="button" @click="fxRows.splice(i,1)" x-show="isAdmin" class="px-3 py-2 rounded-lg text-red-700 bg-red-50 hover:bg-red-100">🗑️</button>
+                                    </div>
+                                </div>
+                            </template>
+                            <p x-show="!fxRows.length" class="text-xs text-gray-400">No foreign currencies accepted yet — cash only in <span x-text="form.currency||'CHF'"></span>.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- RECEIPT & GRAPHICS -->
+                <div x-show="tab==='graphics'" class="space-y-4">
+                    <div><label class="lbl" data-i18n="settings.receipt_header">Receipt header line</label><input type="text" x-model="form.receipt_header" class="input-field" placeholder="Thank you for shopping at Artemis!"></div>
+                    <div><label class="lbl" data-i18n="settings.receipt_footer">Receipt footer line</label><input type="text" x-model="form.receipt_footer" class="input-field" placeholder="Kräuter &amp; Düfte seit 1999 🌿"></div>
+                    <div>
+                        <label class="lbl" data-i18n="settings.logo_url">Logo URL</label>
+                        <input type="text" x-model="form.receipt_logo_url" class="input-field font-mono text-xs" placeholder="/static/artemis-logo.png">
+                        <div x-show="form.receipt_logo_url" class="mt-2 p-3 bg-gray-50 rounded-lg border inline-block">
+                            <img :src="form.receipt_logo_url" class="h-16" alt="logo preview" @error="$el.style.opacity=0.2">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DISCOUNTS -->
+                <div x-show="tab==='discounts'" class="space-y-4">
+                    <!-- BL-047b — Cost markup (manager-editable, NOT admin-locked like the discount caps).
+                         Drives the cost EYEBALL on the Catalog Cockpit. Angel: "like a discount section for
+                         the markup — default from settings, and the guesses are semi-educated by type." -->
+                    <div class="bg-white rounded-lg border p-4 space-y-2">
+                        <label class="lbl font-semibold" data-i18n="settings.markup_title">💰 Default cost markup</label>
+                        <div class="max-w-xs">
+                            <div class="flex items-center gap-2">
+                                <input type="number" step="1" min="0" max="99" x-model="form.default_markup_pct" class="input-field" placeholder="50">
+                                <span class="text-gray-500">%</span>
+                            </div>
+                        </div>
+                        <p class="text-xs text-gray-500" data-i18n="settings.markup_hint">Powers the cost <b>eyeball</b> on the Catalog Cockpit: <b>cost = price − markup</b>. It's a semi-educated <b>guess</b> — tobacco, CBD, papers and café each get their own industry-standard default automatically; this is the fallback for everything else. Nothing is written until a manager enters it, and a real delivery-slip cost always wins.</p>
+                    </div>
+
+                    <!-- ADMIN-ONLY nested fieldset: a manager can open this tab and SEE the caps but
+                         not change them (self-cap risk) — only an admin edits. Nested inside the outer
+                         fieldset, so a cashier (outer disabled) is locked out here too. -->
+                    <div x-show="canEdit && !canEditDiscounts" class="bg-amber-50 border border-amber-300 rounded-lg p-3 text-amber-800 text-sm" data-i18n="settings.discounts_admin_only">
+                        🔒 Discount limits are admin-only — a manager can't change discount caps.
+                    </div>
+                    <fieldset :disabled="!canEditDiscounts" class="border-0 p-0 m-0 min-w-0 space-y-4 disabled:opacity-100">
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div><label class="lbl" data-i18n="settings.cashier_max_discount">Cashier max discount (%)</label><input type="number" step="1" min="0" max="100" x-model="form.cashier_max_discount" class="input-field" placeholder="10"></div>
+                            <div><label class="lbl" data-i18n="settings.manager_max_discount">Manager max discount (%)</label><input type="number" step="1" min="0" max="100" x-model="form.manager_max_discount" class="input-field" placeholder="25"></div>
+                        </div>
+                        <p class="text-xs text-gray-500" data-i18n="settings.discounts_hint">Admin is always unlimited. Enforced server-side at checkout.</p>
+
+                        <!-- 🏅 Member loyalty tiers — Felix owns these numbers (spend earns the tier,
+                             the tier earns a standing % on eligible items; tobacco/alcohol never
+                             discount). Bronze = every member, points only. Applies to ALL members
+                             automatically from their lifetime spend the next time they buy. -->
+                        <div class="pt-2 mt-2 border-t border-gray-200">
+                            <h3 class="font-semibold text-gray-800 mb-1">🏅 <span data-i18n="settings.loyalty_tiers">Member loyalty tiers</span></h3>
+                            <p class="text-xs text-gray-500 mb-3" data-i18n="settings.loyalty_tiers_hint">Bronze = points only. Set the spend (CHF) that earns each tier and its standing discount. Tobacco &amp; alcohol are never discounted. Applies to every member automatically.</p>
+                            <div class="space-y-3">
+                                <div class="grid grid-cols-3 gap-3 items-end">
+                                    <div class="text-sm font-medium text-gray-600 pb-2">🥈 <span data-i18n="settings.tier_silver">Silver</span></div>
+                                    <div><label class="lbl" data-i18n="settings.tier_threshold">Spend ≥ (CHF)</label><input type="number" step="1" min="0" x-model="form.loyalty_tier1_threshold" class="input-field" placeholder="500"></div>
+                                    <div><label class="lbl" data-i18n="settings.tier_discount">Discount (%)</label><input type="number" step="1" min="0" max="100" x-model="form.loyalty_tier1_discount" class="input-field" placeholder="5"></div>
+                                </div>
+                                <div class="grid grid-cols-3 gap-3 items-end">
+                                    <div class="text-sm font-medium text-gray-600 pb-2">🥇 <span data-i18n="settings.tier_gold">Gold</span></div>
+                                    <div><input type="number" step="1" min="0" x-model="form.loyalty_tier2_threshold" class="input-field" placeholder="1000"></div>
+                                    <div><input type="number" step="1" min="0" max="100" x-model="form.loyalty_tier2_discount" class="input-field" placeholder="10"></div>
+                                </div>
+                                <div class="grid grid-cols-3 gap-3 items-end">
+                                    <div class="text-sm font-medium text-gray-600 pb-2">💎 <span data-i18n="settings.tier_platinum">Platinum</span></div>
+                                    <div><input type="number" step="1" min="0" x-model="form.loyalty_tier3_threshold" class="input-field" placeholder="2000"></div>
+                                    <div><input type="number" step="1" min="0" max="100" x-model="form.loyalty_tier3_discount" class="input-field" placeholder="15"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </fieldset>
+                </div>
+
+                <!-- STAFF & LOGINS  (add an employee + link their till login) -->
+                <div x-show="tab==='staff' && isAdmin" class="space-y-5">
+                    <div class="flex items-center justify-between flex-wrap gap-3">
+                        <p class="text-base text-gray-600" data-i18n="settings.staff_intro">Add each person once, then link the till login they use.</p>
+                        <button @click="showAdd = !showAdd" class="btn-primary text-lg"
+                                x-text="showAdd ? t('settings.close_x') : t('settings.add_new_employee')"></button>
+                    </div>
+
+                    <!-- ADD NEW EMPLOYEE -->
+                    <div x-show="showAdd" class="border-2 border-indigo-200 rounded-xl p-4 bg-indigo-50 space-y-3">
+                        <h3 class="text-lg font-bold text-gray-900" data-i18n="settings.new_staff_card">New staff card</h3>
+                        <div class="grid md:grid-cols-2 gap-3">
+                            <div><label class="lbl" data-i18n="settings.first_name_req">First name *</label><input type="text" x-model="newEmp.first_name" class="input-field text-lg"></div>
+                            <div><label class="lbl" data-i18n="settings.last_name_req">Last name *</label><input type="text" x-model="newEmp.last_name" class="input-field text-lg"></div>
+                            <div><label class="lbl" data-i18n="settings.ahv_req">AHV number *</label><input type="text" x-model="newEmp.ahv_number" class="input-field text-lg font-mono" placeholder="756.XXXX.XXXX.XX"></div>
+                            <div><label class="lbl" data-i18n="settings.dob_req">Date of birth *</label><input type="date" x-model="newEmp.date_of_birth" class="input-field text-lg"></div>
+                            <div><label class="lbl" data-i18n="settings.email_req">Email *</label><input type="email" x-model="newEmp.email" class="input-field text-lg"></div>
+                            <div><label class="lbl" data-i18n="settings.phone">Phone</label><input type="text" x-model="newEmp.phone" class="input-field text-lg"></div>
+                            <div><label class="lbl" data-i18n="settings.street_req">Street *</label><input type="text" x-model="newEmp.street" class="input-field text-lg"></div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div><label class="lbl" data-i18n="settings.postal_code_req">Postal code *</label><input type="text" x-model="newEmp.postal_code" class="input-field text-lg"></div>
+                                <div><label class="lbl" data-i18n="settings.city_req">City *</label><input type="text" x-model="newEmp.city" class="input-field text-lg"></div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3 flex-wrap">
+                            <button @click="addEmployee()" :disabled="adding" class="btn-success text-lg"
+                                    x-text="adding ? t('settings.saving') : t('settings.save_new_employee')"></button>
+                            <span x-show="staffMsg" class="text-base" :class="staffOk ? 'text-green-600' : 'text-red-600'" x-text="staffMsg"></span>
+                        </div>
+                        <p class="text-xs text-gray-500" data-i18n="settings.staff_pay_hint">Pay &amp; bank details (IBAN, rate, contract) are filled in later — this is just the who's-who card.</p>
+                    </div>
+
+                    <!-- STAFF LIST -->
+                    <div x-show="staffLoading" class="text-gray-400 py-6 text-center" data-i18n="settings.loading_staff">Loading staff…</div>
+                    <template x-for="e in staff" :key="e.id">
+                        <div class="border rounded-xl p-4">
+                            <div class="flex items-center justify-between flex-wrap gap-2">
+                                <div>
+                                    <h3 class="text-xl font-bold text-gray-900" x-text="e.first_name + ' ' + e.last_name"></h3>
+                                    <p class="text-sm text-gray-500" x-text="(e.employee_number||'—') + ' · ' + (e.email||'')"></p>
+                                </div>
+                                <span class="text-sm font-semibold px-3 py-1 rounded-full"
+                                      :class="e.is_linked ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'"
+                                      x-text="e.is_linked ? t('settings.login_linked') : t('settings.no_login')"></span>
+                            </div>
+                            <div class="mt-3 flex flex-wrap items-end gap-3">
+                                <div class="flex-1 min-w-[150px]">
+                                    <label class="lbl" data-i18n="settings.till_login">Till login (username)</label>
+                                    <input type="text" x-model="e._draft" placeholder="e.g. pam"
+                                           autocomplete="off" autocapitalize="none" class="input-field text-lg lowercase">
+                                </div>
+                                <div class="flex-1 min-w-[150px]">
+                                    <label class="lbl"><span data-i18n="settings.password">Password</span> <span class="text-gray-400 font-normal" data-i18n="settings.password_hint">(to create a sign-in)</span></label>
+                                    <input type="text" x-model="e._pw" data-i18n-placeholder="settings.ph_leave_blank_keep" placeholder="leave blank to keep"
+                                           autocomplete="off" class="input-field text-lg">
+                                </div>
+                                <button @click="saveCashierLink(e)" :disabled="e._saving || !(e._draft && e._draft.trim())"
+                                        class="btn-primary text-lg"
+                                        x-text="e._saving ? t('settings.saving') : ((e._pw && e._pw.trim()) ? t('settings.create_signin') : (e.is_linked ? t('settings.update') : t('settings.link')))"></button>
+                                <button x-show="e.is_linked" @click="unlinkCashier(e)" :disabled="e._saving" class="btn-secondary text-lg" data-i18n="settings.unlink">Unlink</button>
+                            </div>
+                            <div x-show="e.is_linked" class="mt-2">
+                                <button @click="emailSetup(e)" :disabled="e._saving"
+                                        class="text-base px-4 py-3 rounded-lg font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100"
+                                        title="Email this person a link so they pick their own password"
+                                        data-i18n="settings.email_setup_link">
+                                    📧 Email them a setup link instead</button>
+                                <span class="text-sm text-gray-400 ml-2" data-i18n="settings.needs_real_email">(needs a real email on their card)</span>
+                            </div>
+                            <p x-show="e._msg" class="text-base mt-2" :class="e._ok ? 'text-green-600' : 'text-red-600'" x-text="e._msg"></p>
+
+                            <!-- POS role: Cashier ⇄ Manager (the role-lifecycle, one tap) -->
+                            <div x-show="e.is_linked" class="mt-3 flex items-center gap-2 flex-wrap">
+                                <span class="text-sm text-gray-500 font-medium" data-i18n="settings.role_label">Role:</span>
+                                <template x-if="e.pos_role === 'admin'">
+                                    <span class="text-sm font-bold text-purple-700 px-3 py-1 rounded-full bg-purple-50">👑 <span data-i18n="settings.role_admin">Admin</span></span>
+                                </template>
+                                <template x-if="e.pos_role !== 'admin'">
+                                    <div class="inline-flex rounded-lg border border-gray-300 overflow-hidden">
+                                        <button @click="setRole(e,'cashier')" :disabled="e._roleSaving"
+                                                :class="e.pos_role==='cashier' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'"
+                                                class="px-4 py-2 text-sm font-semibold">💰 <span data-i18n="settings.role_cashier">Cashier</span></button>
+                                        <button @click="setRole(e,'manager')" :disabled="e._roleSaving"
+                                                :class="e.pos_role==='manager' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'"
+                                                class="px-4 py-2 text-sm font-semibold border-l border-gray-300">👔 <span data-i18n="settings.role_manager">Manager</span></button>
+                                    </div>
+                                </template>
+                                <span x-show="e._roleMsg" class="text-sm" :class="e._roleOk ? 'text-green-600' : 'text-red-600'" x-text="e._roleMsg"></span>
+                            </div>
+
+                            <!-- edit details / delete -->
+                            <div class="mt-3 pt-3 border-t flex flex-wrap gap-2">
+                                <button @click="toggleEdit(e)" class="btn-secondary text-base"
+                                        x-text="e._editing ? t('settings.close_x') : t('settings.edit_details')"></button>
+                                <button @click="deleteEmp(e)" :disabled="e._saving"
+                                        class="text-base px-4 py-3 rounded-lg font-semibold text-red-700 bg-red-50 hover:bg-red-100" data-i18n="settings.delete">🗑️ Delete</button>
+                            </div>
+
+                            <!-- BL-11: x-if (not x-show) so the e._card.* x-models only exist in the
+                                 DOM once the card is fetched. x-show kept them bound while _card was
+                                 null → "Cannot read properties of null (ahv_number…)" on page load. -->
+                            <template x-if="e._editing && e._card">
+                            <div class="mt-3 bg-gray-50 rounded-xl p-4 space-y-3">
+                                <div class="grid md:grid-cols-2 gap-3">
+                                    <div><label class="lbl" data-i18n="settings.first_name">First name</label><input type="text" x-model="e._card.first_name" class="input-field text-lg"></div>
+                                    <div><label class="lbl" data-i18n="settings.last_name">Last name</label><input type="text" x-model="e._card.last_name" class="input-field text-lg"></div>
+                                    <div><label class="lbl" data-i18n="settings.email">Email</label><input type="email" x-model="e._card.email" class="input-field text-lg"></div>
+                                    <div><label class="lbl" data-i18n="settings.phone">Phone</label><input type="text" x-model="e._card.phone" class="input-field text-lg"></div>
+                                    <div><label class="lbl" data-i18n="settings.ahv">AHV number</label><input type="text" x-model="e._card.ahv_number" class="input-field text-lg font-mono"></div>
+                                    <div><label class="lbl" data-i18n="settings.dob">Date of birth</label><input type="date" x-model="e._card.date_of_birth" class="input-field text-lg"></div>
+                                    <div><label class="lbl" data-i18n="settings.street">Street</label><input type="text" x-model="e._card.street" class="input-field text-lg"></div>
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div><label class="lbl" data-i18n="settings.postal">Postal</label><input type="text" x-model="e._card.postal_code" class="input-field text-lg"></div>
+                                        <div><label class="lbl" data-i18n="settings.city">City</label><input type="text" x-model="e._card.city" class="input-field text-lg"></div>
+                                    </div>
+                                </div>
+                                <button @click="saveCard(e)" :disabled="e._cardSaving" class="btn-success text-lg"
+                                        x-text="e._cardSaving ? t('settings.saving') : t('settings.save_changes')"></button>
+                                <span x-show="e._cardMsg" class="text-base ml-2" :class="e._cardOk ? 'text-green-600' : 'text-red-600'" x-text="e._cardMsg"></span>
+                            </div>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+
+            </fieldset>
+
+            <div class="flex justify-end mt-5" x-show="tab !== 'staff' && canEdit">
+                <button @click="save()" :disabled="saving" class="btn-success">
+                    <span x-show="!saving" data-i18n="settings.save_settings">💾 Save settings</span>
+                    <span x-show="saving" style="display:none;" data-i18n="settings.saving">Saving…</span>
+                </button>
+            </div>
+        </div>
+        </template>
+    </div>
+</div>
+
+<style>.lbl{display:block;font-size:.875rem;font-weight:500;color:#374151;margin-bottom:.25rem;}</style>
+
+<script>
+    function settingsData() {
+        return {
+            isAdmin: false,
+            isManager: false,      // manager OR admin
+            canEdit: false,        // manager/admin can edit general settings; a cashier is view-only
+            canEditDiscounts: false, // discount caps are admin-only (self-cap risk)
+            saving: false,
+            form: {},
+            fxRows: [],            // editable accepted-currency rows [{ccy, rate}] (multi-currency tender)
+            vatError: '',
+            tab: 'identity',
+            tabs: [
+                { id:'identity', label:t('settings.tab_identity') },
+                { id:'contact',  label:t('settings.tab_contact') },
+                { id:'hours',    label:t('settings.tab_hours') },
+                { id:'tax',      label:t('settings.tab_tax') },
+                { id:'graphics', label:t('settings.tab_graphics') },
+                { id:'discounts',label:t('settings.tab_discounts') },
+                { id:'staff',    label:t('settings.tab_staff') },
+            ],
+            STORE: 1,
+
+            // Staff & Logins tab
+            staff: [], staffLoading: false,
+            showAdd: false, adding: false, newEmp: {},
+            staffMsg: '', staffOk: false,
+
+            async init() {
+                const userInfo = AuthHelper.getUserInfo();
+                if (!userInfo) { window.location.href = '/pos'; return; }
+                this.isAdmin = AuthHelper.isAdmin();
+                this.isManager = AuthHelper.isManager();   // true for admin too
+                this.canEdit = this.isManager;             // manager + admin edit general settings
+                this.canEditDiscounts = this.isAdmin;      // discount caps: admin only
+                await this.load();
+                this.loadStaff();
+            },
+
+            // Staff tab is admin-only (PII + login provisioning); hide it for everyone else.
+            visibleTabs() {
+                return this.isAdmin ? this.tabs : this.tabs.filter(t => t.id !== 'staff');
+            },
+
+            async loadStaff() {
+                if (!this.isAdmin) return;
+                this.staffLoading = true;
+                try {
+                    const d = await API.get('/api/v1/hr/employees');
+                    this.staff = (d.employees || []).map(e => ({
+                        ...e, _draft: e.login_username || '', _pw: '', _saving: false, _msg: '', _ok: false,
+                        _editing: false, _card: null, _cardSaving: false, _cardMsg: '', _cardOk: false,
+                        _roleSaving: false, _roleMsg: '', _roleOk: false,
+                    }));
+                } catch (e) { showToast(t('settings.toast_load_staff_failed'), 'error'); }
+                this.staffLoading = false;
+            },
+
+            async addEmployee() {
+                const n = this.newEmp;
+                const need = ['first_name','last_name','ahv_number','date_of_birth','email','street','postal_code','city'];
+                for (const k of need) {
+                    if (!((n[k] || '').toString().trim())) { this.staffOk = false; this.staffMsg = t('settings.fill_all_fields'); return; }
+                }
+                this.adding = true; this.staffMsg = '';
+                try {
+                    await API.post('/api/v1/hr/employees', n);
+                    this.staffOk = true; this.staffMsg = t('settings.toast_added', {name: n.first_name || ''});
+                    this.newEmp = {}; this.showAdd = false;
+                    showToast(t('settings.toast_employee_added'), 'success');
+                    await this.loadStaff();
+                } catch (e) { this.staffOk = false; this.staffMsg = e.message || t('settings.toast_add_failed'); }
+                this.adding = false;
+            },
+
+            async saveCashierLink(e) {
+                const username = (e._draft || '').trim().toLowerCase();
+                if (!username) { e._ok = false; e._msg = t('settings.type_login_first'); return; }
+                const pw = (e._pw || '').trim();
+                if (pw && pw.length < 6) { e._ok = false; e._msg = t('settings.password_min'); return; }
+                e._saving = true; e._msg = '';
+                try {
+                    // With a password → create/reset a REAL sign-in (Keycloak). Without → just link the label.
+                    const res = pw
+                        ? await API.post('/api/v1/hr/employees/' + e.id + '/provision-login', { username, password: pw })
+                        : await API.post('/api/v1/hr/employees/' + e.id + '/link', { username });
+                    e.is_linked = (res.is_linked !== false); e.login_username = res.login_username || username;
+                    e._draft = e.login_username; e._pw = '';
+                    e._ok = true; e._msg = res.message || t('settings.saved');
+                    showToast(t('settings.toast_staff_ok', {name: e.first_name}), 'success');
+                } catch (err) { e._ok = false; e._msg = err.message || t('settings.could_not_save'); }
+                e._saving = false;
+            },
+
+            async unlinkCashier(e) {
+                e._saving = true; e._msg = '';
+                try {
+                    await API.post('/api/v1/hr/employees/' + e.id + '/link', { username: '' });
+                    e.is_linked = false; e.login_username = null; e._draft = ''; e._ok = true; e._msg = t('settings.unlinked');
+                } catch (err) { e._ok = false; e._msg = err.message || t('settings.could_not_unlink'); }
+                e._saving = false;
+            },
+
+            // Promote/demote between Cashier and Manager (banco role-lifecycle). The person picks
+            // up the new role on their NEXT login — so promote, then have them sign out and in.
+            async setRole(e, role) {
+                if (e.pos_role === role || e._roleSaving) return;
+                e._roleSaving = true; e._roleMsg = '';
+                try {
+                    const res = await API.post('/api/v1/hr/employees/' + e.id + '/set-pos-role', { role });
+                    e.pos_role = res.pos_role || role;
+                    e._roleOk = true;
+                    e._roleMsg = t('settings.role_next_login') || 'Saved — active on their next login';
+                    showToast(res.message || t('settings.saved'), 'success');
+                } catch (err) { e._roleOk = false; e._roleMsg = err.message || t('settings.could_not_save'); }
+                e._roleSaving = false;
+            },
+
+            // Self-set password: email the hire a Keycloak link so THEY pick their password.
+            // Needs SMTP on the realm (run scripts/configure_kc_smtp.py once) + a real email.
+            async emailSetup(e) {
+                e._saving = true; e._msg = '';
+                try {
+                    const res = await API.post('/api/v1/hr/employees/' + e.id + '/email-setup',
+                                               { email: (e.email || '').trim() });
+                    e._ok = true; e._msg = res.message || t('settings.setup_link_sent');
+                    showToast(t('settings.toast_link_sent'), 'success');
+                } catch (err) { e._ok = false; e._msg = err.message || t('settings.could_not_send_setup'); }
+                e._saving = false;
+            },
+
+            async toggleEdit(e) {
+                if (e._editing) { e._editing = false; return; }
+                e._cardMsg = ''; e._cardOk = false;
+                try {
+                    e._card = await API.get('/api/v1/hr/employees/' + e.id);  // full who's-who card
+                    e._editing = true;
+                } catch (err) { e._ok = false; e._msg = err.message || t('settings.could_not_load_card'); }
+            },
+
+            async saveCard(e) {
+                const c = e._card || {};
+                if (!(c.first_name || '').trim() || !(c.last_name || '').trim()) {
+                    e._cardOk = false; e._cardMsg = t('settings.name_blank'); return;
+                }
+                e._cardSaving = true; e._cardMsg = '';
+                try {
+                    const res = await API.put('/api/v1/hr/employees/' + e.id, {
+                        first_name: c.first_name, last_name: c.last_name, email: c.email, phone: c.phone,
+                        ahv_number: c.ahv_number, date_of_birth: c.date_of_birth,
+                        street: c.street, postal_code: c.postal_code, city: c.city,
+                    });
+                    e.first_name = res.first_name; e.last_name = res.last_name; e.email = res.email;
+                    e._cardOk = true; e._cardMsg = t('settings.saved');
+                    showToast(t('settings.toast_updated', {name: res.first_name}), 'success');
+                } catch (err) { e._cardOk = false; e._cardMsg = err.message || t('settings.could_not_save'); }
+                e._cardSaving = false;
+            },
+
+            async deleteEmp(e) {
+                if (!confirm(t('settings.confirm_delete', {name: e.first_name + ' ' + e.last_name}))) return;
+                e._saving = true; e._msg = '';
+                try {
+                    await API.delete('/api/v1/hr/employees/' + e.id);
+                    this.staff = this.staff.filter(x => x.id !== e.id);
+                    showToast(t('settings.toast_removed', {name: e.first_name || t('settings.employee_fallback')}), 'success');
+                } catch (err) { e._ok = false; e._msg = err.message || t('settings.could_not_delete'); e._saving = false; }
+            },
+
+            async load() {
+                try {
+                    this.form = await API.get(`/api/v1/pos/settings/${this.STORE}`);
+                    // Piece C: the API pre-fills vat_rates (stored table, else CH config default). Be
+                    // defensive — if it's missing/empty, seed the CH two-rate default so the editor
+                    // always shows editable rows (never persisted unless the admin saves).
+                    if (!Array.isArray(this.form.vat_rates) || this.form.vat_rates.length === 0) {
+                        this.form.vat_rates = [
+                            { code: 'A', label: 'standard', rate: '8.1', default: true },
+                            { code: 'B', label: 'reduced',  rate: '2.6', default: false },
+                        ];
+                    }
+                    // Multi-currency tender: build editable FX rows from the fx_rates dict the API returns.
+                    const _fxr = (this.form.fx_rates && this.form.fx_rates.rates) || {};
+                    this.fxRows = Object.keys(_fxr).map(k => ({ ccy: k, rate: _fxr[k] }));
+                }
+                catch (e) { console.error('load settings failed', e); showToast(t('settings.toast_load_settings_failed'), 'error'); }
+            },
+
+            // --- N-rate VAT table editor (Piece C) — manages the rate MENU (list + values) only ----
+            addRate() {
+                if (!Array.isArray(this.form.vat_rates)) this.form.vat_rates = [];
+                this.form.vat_rates.push({ code: '', label: '', rate: '', default: this.form.vat_rates.length === 0 });
+            },
+            removeRate(i) {
+                const rows = this.form.vat_rates || [];
+                if (rows.length <= 1) return;               // always keep ≥1 rate
+                const wasDefault = rows[i] && rows[i].default;
+                rows.splice(i, 1);
+                if (wasDefault && rows.length && !rows.some(r => r.default)) rows[0].default = true;
+            },
+            setDefault(i) {
+                (this.form.vat_rates || []).forEach((r, j) => { r.default = (j === i); });
+            },
+            validateVatRates() {
+                const rows = this.form.vat_rates || [];
+                if (rows.length < 1) return t('settings.vat_err_need_one');
+                const codes = new Set();
+                let defaults = 0;
+                for (const r of rows) {
+                    const code = (r.code || '').toString().trim();
+                    if (!code) return t('settings.vat_err_need_code');
+                    if (codes.has(code)) return t('settings.vat_err_dup_code', { code });
+                    codes.add(code);
+                    const rate = parseFloat(r.rate);
+                    if (isNaN(rate) || rate < 0 || rate > 100) return t('settings.vat_err_bad_rate', { code });
+                    if (r.default) defaults++;
+                }
+                if (defaults !== 1) return t('settings.vat_err_one_default');
+                return '';
+            },
+
+            async save() {
+                if (!this.isAdmin) { showToast(t('settings.admins_only'), 'warning'); return; }
+                // Piece C: validate the VAT rate menu before saving (≥1 row, exactly 1 default,
+                // unique codes, rates 0–100). Block the save + surface the error on the Tax tab.
+                this.vatError = this.validateVatRates();
+                if (this.vatError) { this.tab = 'tax'; showToast(this.vatError, 'error'); return; }
+                this.saving = true;
+                const F = this.form;
+                // Normalised rate rows (rate as a plain string) + mirror the default into the scalar.
+                const vatRows = (F.vat_rates || []).map(r => ({
+                    code: (r.code || '').toString().trim(),
+                    label: (r.label || '').toString().trim() || (r.code || '').toString().trim(),
+                    rate: parseFloat(r.rate).toString(),
+                    default: !!r.default,
+                }));
+                const defRow = vatRows.find(r => r.default) || vatRows[0];
+                // Accepted-currency plan rates → {base, as_of, rates} (admin-only). Built as a LOCAL const
+                // here (like vatRows) — an arrow IIFE referencing this.fxRows inside the payload literal
+                // came back empty in Alpine's method scope, so the client was sending fx_rates:null.
+                const fxRates = {};
+                (this.fxRows || []).forEach(r => {
+                    const c = (r.ccy || '').trim().toUpperCase();
+                    const v = parseFloat(r.rate);
+                    if (c && v > 0) fxRates[c] = v;
+                });
+                const fxPayload = Object.keys(fxRates).length
+                    ? { base: (F.currency || 'CHF'), as_of: 'custom', rates: fxRates } : null;
+                const payload = {
+                    store_name: F.store_name, legal_name: F.legal_name,
+                    address_line1: F.address_line1, address_line2: F.address_line2,
+                    city: F.city, postal_code: F.postal_code, country: F.country, founded_year: F.founded_year,
+                    currency: F.currency,   // admin-only; server strips it for non-admins
+                    fx_rates: fxPayload,    // admin-only; server strips it for non-admins
+                    phone: F.phone, email: F.email, website: F.website,
+                    facebook_url: F.facebook_url, instagram_url: F.instagram_url, opening_hours: F.opening_hours,
+                    vat_number: F.vat_number, vat_rate: defRow ? defRow.rate : F.vat_rate,
+                    vat_rates: vatRows,
+                    receipt_header: F.receipt_header, receipt_footer: F.receipt_footer, receipt_logo_url: F.receipt_logo_url,
+                    cashier_max_discount: F.cashier_max_discount, manager_max_discount: F.manager_max_discount,
+                    loyalty_tier1_threshold: F.loyalty_tier1_threshold, loyalty_tier1_discount: F.loyalty_tier1_discount,
+                    loyalty_tier2_threshold: F.loyalty_tier2_threshold, loyalty_tier2_discount: F.loyalty_tier2_discount,
+                    loyalty_tier3_threshold: F.loyalty_tier3_threshold, loyalty_tier3_discount: F.loyalty_tier3_discount,
+                };
+                try {
+                    this.form = await API.put(`/api/v1/pos/settings/${this.STORE}`, payload);
+                    if (!Array.isArray(this.form.vat_rates) || this.form.vat_rates.length === 0) this.form.vat_rates = vatRows;
+                    this.vatError = '';
+                    showToast(t('settings.toast_saved_receipt'), 'success');
+                } catch (e) { showToast(e.message || t('settings.save_failed'), 'error'); }
+                finally { this.saving = false; }
+            },
+        };
+    }
+</script>
+{% endblock %}

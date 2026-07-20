@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta property="og:title" content="The Concierge · La Piazza"><meta name="twitter:card" content="summary_large_image">
+<meta property="og:image" content="{{ request.headers.get('x-forwarded-proto','https') }}://{{ request.headers.get('x-forwarded-host') or request.url.netloc }}/og/lapiazza-og-v3.png">
+<title>The Concierge · La Piazza</title>
+<meta name="description" content="Cleopatra, your greeter at the front door. She meets you in your own tongue and learns who you are, so every master in the Bottega helps the real you.">
+<script src="https://cdn.tailwindcss.com"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script>
+  tailwind.config = { theme:{ extend:{
+    fontFamily:{ sans:['Inter','system-ui','sans-serif'], mono:['"JetBrains Mono"','monospace'] },
+    colors:{ brand:'#C0392B', branddark:'#8B0000' } } } };
+</script>
+<style>
+  body{ background:radial-gradient(1100px 600px at 50% -12%, #1f2a44, transparent), #060910; }
+  .card{ background:rgba(15,23,42,.65); border:1px solid rgba(30,41,59,.9); }
+  .av{ background:linear-gradient(135deg,#C0392B,#8B0000); }
+  .grad-rule{ background:linear-gradient(90deg,#8B0000,#C0392B,transparent); }
+  .md{ font-size:15px; line-height:1.6; color:#e2e8f0; }
+  .md p{ margin:.35rem 0; } .md ul,.md ol{ margin:.4rem 0 .4rem 1.1rem; list-style:disc; } .md li{margin:.15rem 0}
+  .md strong{ color:#f8fafc; }
+  .bubble-me{ background:linear-gradient(135deg,#C0392B,#8B0000); }
+  .bubble-h{ background:rgba(15,23,42,.92); border:1px solid rgba(51,65,85,.9); }
+  .chip{ background:rgba(192,57,43,.14); border:1px solid rgba(192,57,43,.4); color:#fca5a5; }
+  .bar{ height:6px; border-radius:6px; background:#1e293b; overflow:hidden; }
+  .bar > span{ display:block; height:100%; background:linear-gradient(90deg,#8B0000,#C0392B); }
+  [x-cloak]{ display:none !important; }
+  /* phones: no title row + tighter chrome -> the conversation gets the landscape. sm+: roomier. */
+  .convo-h{ height:calc(100dvh - 104px); }
+  @media (min-width:640px){ .convo-h{ height:calc(100dvh - 150px); } }
+  @keyframes blink{0%,80%,100%{opacity:.25}40%{opacity:1}}
+  .dot{ animation:blink 1.4s infinite both; } .dot:nth-child(2){animation-delay:.2s} .dot:nth-child(3){animation-delay:.4s}
+</style>
+</head>
+<body class="font-sans text-slate-200 min-h-screen antialiased">
+{% include "_lapiazza_nav.html" %}
+
+<div class="max-w-5xl mx-auto px-4 sm:px-5 py-2 sm:py-4" x-data="concierge()" x-init="init()">
+
+  <!-- header (slim line; HIDDEN on phones — the nav already says 👑 Concierge, so the conversation gets the whole screen) -->
+  <div class="hidden sm:flex items-center justify-center gap-2.5 mb-3 mt-0.5">
+    <span class="text-2xl leading-none">👑</span>
+    <div class="text-center sm:text-left">
+      <h1 class="text-lg sm:text-xl font-black text-white leading-tight">Cleopatra <span class="text-slate-500 font-semibold text-sm">· your greeter</span></h1>
+      <p class="text-slate-500 text-xs hidden sm:block leading-tight">She meets you in your own tongue — the more she knows you, the better every master helps.</p>
+    </div>
+  </div>
+
+  <!-- not logged in -->
+  <div x-show="!token" class="card rounded-2xl p-10 text-center max-w-md mx-auto">
+    <div class="text-4xl mb-3">🐺</div>
+    <p class="text-slate-300 mb-5">Log in to meet your Concierge.</p>
+    <button @click="login()" class="px-5 py-2.5 rounded-lg font-bold text-sm bg-brand hover:bg-branddark text-white">Log in</button>
+  </div>
+
+  <template x-if="token">
+  <div class="grid md:grid-cols-3 gap-5">
+
+    <!-- chat column -->
+    <div class="md:col-span-2 card rounded-2xl flex flex-col convo-h">
+      <!-- language picker + voice controls -->
+      <div class="border-b border-slate-800">
+        <div class="flex items-center justify-between px-4 py-2.5">
+          <div class="flex items-center gap-2 text-sm text-slate-400"><span class="w-2 h-2 rounded-full bg-green-500"></span> Cleopatra is in</div>
+          <div class="flex items-center gap-1.5 text-xs">
+            <button @click="voiceOpen=!voiceOpen" :title="voiceOpen?'Hide voice controls':'Voice controls'"
+              :class="voiceOpen ? 'text-brand' : 'text-slate-400 hover:text-slate-200'" class="mr-1 text-base leading-none">🔊</button>
+            <span class="text-slate-500">Reply in</span>
+            <template x-for="opt in langs" :key="opt.code">
+              <button @click="lang=opt.code"
+                :class="lang===opt.code ? 'bg-brand text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'"
+                class="px-2.5 py-1 rounded-md font-semibold" x-text="opt.label"></button>
+            </template>
+          </div>
+        </div>
+        <!-- voice player controls (speed / volume / voice) -- persisted, so it never pops twice -->
+        <div x-show="voiceOpen" x-cloak class="px-4 pb-3 pt-1 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-slate-400 border-t border-slate-800/60">
+          <label class="flex items-center gap-2">Speed
+            <input type="range" min="0.6" max="1.3" step="0.05" x-model.number="rate" @input="persistVoice()" class="accent-brand w-24">
+            <span class="w-10 text-slate-300" x-text="rate.toFixed(2)+'×'"></span>
+          </label>
+          <label class="flex items-center gap-2">Volume
+            <input type="range" min="0" max="1" step="0.05" x-model.number="volume" @input="persistVoice()" class="accent-brand w-24">
+            <span class="w-10 text-slate-300" x-text="Math.round(volume*100)+'%'"></span>
+          </label>
+          <label class="flex items-center gap-2">Voice
+            <select x-model="voiceName" @change="persistVoice()" class="bg-slate-800 border border-slate-700 rounded px-1.5 py-1 text-slate-200 max-w-[170px]">
+              <option value="">Auto (best for language)</option>
+              <template x-for="v in voicePicks" :key="v.name"><option :value="v.name" x-text="v.label"></option></template>
+            </select>
+          </label>
+          <button @click="testVoice()" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300">▶ Test</button>
+        </div>
+      </div>
+
+      <!-- thread -->
+      <div id="thread" class="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+        <template x-for="(m,i) in messages" :key="i">
+          <div>
+            <!-- normal chat bubble (the guest, or Cleopatra) -->
+            <template x-if="m.role!=='dispatch' && m.role!=='handoff'">
+              <div :class="m.role==='member' ? 'justify-end' : 'justify-start'" class="flex">
+                <div class="max-w-[85%]">
+                  <div :class="m.role==='member' ? 'bubble-me text-white' : 'bubble-h'"
+                       class="rounded-2xl px-4 py-2.5">
+                    <div x-show="m.role==='member'" class="text-[15px] leading-relaxed whitespace-pre-wrap" x-text="m.content"></div>
+                    <div x-show="m.role!=='member'" class="md" x-html="render(m.content)"></div>
+                  </div>
+                  <div x-show="m.role!=='member'" class="mt-1.5 ml-1">
+                    <button @click="readAloud(m)" class="text-sm text-slate-400 hover:text-brand inline-flex items-center gap-1 py-1.5 px-2.5 rounded-lg border border-slate-700/60 hover:border-brand transition" :class="speaking?'text-brand border-brand':''" x-text="speaking?'⏹ Stop reading':'🔊 Read aloud'"></button>
+                  </div>
+                </div>
+              </div>
+            </template>
+            <!-- the handoff: Cleopatra dispatched the question; the masters answer (cards) -->
+            <template x-if="m.role==='dispatch'">
+              <div class="space-y-2.5">
+                <div class="text-[11px] text-slate-500 flex items-center gap-1.5"><span class="text-sm">🏛️</span> Cleopatra dispatched this to the court</div>
+                <template x-if="!m.masters || !m.masters.length">
+                  <div class="bubble-h rounded-2xl px-4 py-3 text-sm text-slate-400" x-text="m.note || 'No master on the board fit this one — let me ask you a little more.'"></div>
+                </template>
+                <template x-for="mm in (m.masters||[])" :key="mm.name">
+                  <div class="bubble-h rounded-2xl px-4 py-3">
+                    <div class="flex items-center justify-between gap-2 mb-1.5">
+                      <div class="flex items-center gap-2">
+                        <span class="av w-7 h-7 rounded-full flex items-center justify-center text-white text-[11px] font-bold shrink-0" x-text="initials(mm.name)"></span>
+                        <div class="leading-tight">
+                          <div class="font-bold text-white text-sm" x-text="mm.name"></div>
+                          <div class="text-[11px] text-slate-500" x-text="mm.house"></div>
+                        </div>
+                      </div>
+                      <button @click="readAloud({content:mm.answer, lang:m.language})" class="text-base leading-none text-slate-400 hover:text-brand shrink-0 p-1.5 rounded-lg border border-slate-700/60 hover:border-brand transition" title="Read aloud">🔊</button>
+                    </div>
+                    <div x-show="mm.why_this_one" class="text-[11px] italic text-slate-500 mb-1.5" x-text="'Why '+(mm.name||'').split(' ')[0]+' — '+mm.why_this_one"></div>
+                    <div class="md" x-html="render(mm.answer)"></div>
+                  </div>
+                </template>
+              </div>
+            </template>
+            <!-- R4: the handoff -- a master takes the desk (greets you, gives a first step) -->
+            <template x-if="m.role==='handoff'">
+              <div class="space-y-2.5">
+                <template x-if="m.failed">
+                  <div class="bubble-h rounded-2xl px-4 py-3 text-sm text-slate-400">
+                    <span class="text-brand">👑</span> <span x-text="m.reason"></span>
+                  </div>
+                </template>
+                <template x-if="!m.failed">
+                  <div>
+                    <div class="text-[11px] text-slate-500 flex items-center gap-1.5 mb-2"><span class="text-sm">🎭</span> Cleopatra introduced you — <span x-text="(m.master||'').split(' ')[0]"></span> is at your desk now</div>
+                    <div class="bubble-h rounded-2xl px-4 py-3">
+                      <div class="flex items-center gap-2 mb-2">
+                        <span class="av w-8 h-8 rounded-full flex items-center justify-center text-white text-[11px] font-bold shrink-0" x-text="initials(m.master)"></span>
+                        <div class="leading-tight">
+                          <div class="font-bold text-white text-sm" x-text="m.master"></div>
+                          <div class="text-[11px] text-slate-500" x-text="m.house"></div>
+                        </div>
+                      </div>
+                      <div x-show="m.why" class="text-[11px] italic text-slate-500 mb-2" x-text="m.why"></div>
+                      <div class="md" x-html="render(m.opening)"></div>
+                      <div x-show="m.first_step" class="mt-2.5 rounded-lg border border-brand/30 bg-brand/5 px-3 py-2">
+                        <div class="text-[10px] uppercase tracking-wide text-brand mb-0.5">Your first step</div>
+                        <div class="text-[13px] text-slate-100" x-text="m.first_step"></div>
+                      </div>
+                      <div class="mt-3 flex items-center gap-3">
+                        <a href="/compute/me" class="text-sm font-semibold text-brand hover:brightness-125 inline-flex items-center gap-1">Continue with <span x-text="(m.master||'').split(' ')[0]"></span> →</a>
+                        <span class="text-[11px] text-slate-500">It's on your Today board too.</span>
+                      </div>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </template>
+          </div>
+        </template>
+        <!-- typing -->
+        <div x-show="busy" class="flex justify-start">
+          <div class="bubble-h rounded-2xl px-4 py-3">
+            <span class="dot inline-block w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+            <span class="dot inline-block w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+            <span class="dot inline-block w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 📋 Recap: every few turns, read back what Cleo understands and ask the member to confirm -->
+      <div x-show="!busy && recap.open" x-cloak class="px-4 pb-1">
+        <div class="rounded-xl border border-slate-600 bg-slate-800/50 p-3">
+          <div class="text-[11px] uppercase tracking-wide text-slate-300 flex items-center gap-1.5 mb-2"><span>📋</span> <span x-text="S('recap_title')"></span></div>
+          <div class="space-y-1 mb-2.5">
+            <template x-for="it in recapItems()" :key="it.label">
+              <div class="text-[12.5px] leading-snug"><span class="text-slate-500" x-text="it.label+': '"></span><span class="text-slate-100" x-text="it.value"></span></div>
+            </template>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button @click="confirmRecap()" class="text-xs px-3 py-1.5 rounded-lg bg-brand hover:bg-branddark text-white font-semibold" x-text="S('recap_yes')"></button>
+            <button @click="correctRecap()" class="text-xs px-3 py-1.5 rounded-lg border border-slate-600 hover:border-slate-400 text-slate-200" x-text="S('recap_fix')"></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 🎯 Sharpen: ranked either/or questions that tighten the RIASEC portrait ("narrow it down") -->
+      <div x-show="!busy && !recap.open && (canSharpen() || sharpen.open || sharpen.loading)" class="px-4 pb-1">
+        <!-- collapsed trigger -->
+        <button x-show="!sharpen.open && !sharpen.loading" @click="openSharpen()"
+          class="w-full text-left text-xs px-3 py-2 rounded-lg border border-brand/40 bg-brand/10 text-brand hover:brightness-125 transition flex items-center gap-2">
+          <span class="text-sm">🎯</span>
+          <span>Narrow it down — a few quick questions to sharpen your profile</span>
+        </button>
+        <!-- loading -->
+        <div x-show="sharpen.loading" class="text-xs text-slate-500 px-3 py-2 flex items-center gap-2">
+          <span class="text-sm">🎯</span> Lining up a couple of questions…
+        </div>
+        <!-- active ranked question -->
+        <div x-show="sharpen.open && curQ()" x-cloak class="rounded-xl border border-brand/40 bg-brand/5 p-3">
+          <div class="flex items-center justify-between mb-2">
+            <div class="text-[11px] uppercase tracking-wide text-brand flex items-center gap-1.5">
+              <span>🎯</span> Sharpen
+              <span class="text-slate-500 normal-case" x-text="'· '+(sharpen.idx+1)+' of '+sharpen.questions.length"></span>
+            </div>
+            <button @click="closeSharpen()" class="text-slate-500 hover:text-slate-300 text-xs">Done</button>
+          </div>
+          <div class="text-sm text-slate-100 mb-2.5" x-text="curQ() && curQ().question"></div>
+          <div class="flex flex-col sm:flex-row gap-2">
+            <template x-for="opt in (curQ() ? curQ().options : [])" :key="opt.label">
+              <button @click="answerSharpen(opt)" :disabled="busy"
+                class="flex-1 text-sm px-3 py-2 rounded-lg border border-slate-700 bg-slate-800/70 hover:border-brand hover:bg-brand/10 text-slate-100 transition text-left disabled:opacity-40"
+                x-text="opt.label"></button>
+            </template>
+          </div>
+          <div class="mt-2">
+            <button @click="skipSharpen()" :disabled="busy" class="text-[11px] text-slate-500 hover:text-slate-300 disabled:opacity-40">Skip this one</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cleo's profile-aware next moves -- tap to say it -->
+      <div x-show="suggestions.length && !busy && !sharpen.open" class="px-4 pb-1 flex flex-wrap gap-1.5">
+        <template x-for="s in suggestions" :key="s">
+          <button @click="pick(s)" class="text-xs px-2.5 py-1 rounded-full chip hover:brightness-150 transition" x-text="s"></button>
+        </template>
+      </div>
+
+      <!-- R4: the warm handoff -- Cleo offers to introduce the master who fits, once there's a card -->
+      <div x-show="canHandoff() && !sharpen.open && !recap.open" class="px-4 pb-1">
+        <button @click="handoff()"
+          class="w-full text-left text-xs px-3 py-2 rounded-lg border border-brand/40 bg-brand/10 text-brand hover:brightness-125 transition flex items-center gap-2">
+          <span class="text-sm">🎭</span>
+          <span>I think I know who can help you — meet the master who fits, and I'll set you up with a first step.</span>
+        </button>
+      </div>
+
+      <!-- composer -->
+      <div class="border-t border-slate-800 p-3">
+        <div x-show="expired" class="mb-2 flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-xs"
+             style="background:rgba(120,53,15,.35);border:1px solid rgba(180,83,9,.5);color:#fcd34d">
+          <span>⏱️ Session timed out — your chat is saved.</span>
+          <button @click="login()" class="px-2.5 py-1 rounded-md bg-brand hover:bg-branddark text-white font-semibold">Log in again</button>
+        </div>
+        <!-- the input surface: a real, roomy editor -->
+        <div class="rounded-xl bg-slate-900 border border-slate-700 focus-within:border-brand transition-colors">
+          <textarea x-ref="ta" x-model="draft" :maxlength="MAXLEN" @input="autogrow()" @keydown.enter="onEnter($event)" rows="3"
+            placeholder="Tell Cleopatra who you are — or ask a question…&#10;(Enter to send · Shift+Enter for a new line)"
+            class="w-full resize-none bg-transparent px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none"
+            style="min-height:4.75rem;max-height:15rem"></textarea>
+          <div class="flex items-center justify-between px-2.5 pb-2 pt-0.5">
+            <div class="flex items-center gap-1 text-slate-400">
+              <button x-show="micSupported" @click="toggleMic()" :title="micOn?'Stop listening':'Talk to Cleopatra'"
+                :class="micOn ? 'text-red-400 animate-pulse bg-red-500/10' : 'hover:bg-slate-800 hover:text-slate-200'"
+                class="px-2 py-1 rounded-md text-base leading-none">🎤</button>
+              <span x-show="micOn" x-cloak class="text-[11px] text-red-400">listening…</span>
+              <button x-show="draft && !micOn" @click="clearComposer()" title="Clear"
+                class="px-2 py-1 rounded-md hover:bg-slate-800 hover:text-slate-200 text-sm leading-none">🗑️</button>
+              <span class="text-[11px]" x-show="draft && !micOn"
+                :class="draft.length > MAXLEN*0.9 ? 'text-amber-400' : 'text-slate-600'"
+                x-text="draft.length+' / '+MAXLEN"></span>
+            </div>
+            <div class="flex items-center gap-2">
+              <button @click="dispatchQ()" :disabled="busy||!canSend()" title="Hand this question to the two best masters on the board"
+                class="px-3 py-1.5 rounded-lg font-bold text-sm bg-slate-800 hover:bg-slate-700 text-slate-200 disabled:opacity-40 whitespace-nowrap">🏛️ Masters</button>
+              <button @click="send()" :disabled="busy||!canSend()"
+                class="px-4 py-1.5 rounded-lg font-bold text-sm bg-brand hover:bg-branddark text-white disabled:opacity-40">Send</button>
+            </div>
+          </div>
+        </div>
+        <p class="text-[11px] text-slate-600 mt-1.5"><span class="text-slate-500">🎤</span> talk or type · <span class="text-slate-500">Send</span> talks to Cleopatra · <span class="text-slate-500">🏛️ Masters</span> dispatches to the court</p>
+        <p x-show="err" x-text="err" class="text-xs text-red-400 mt-1.5"></p>
+      </div>
+    </div>
+
+    <!-- record column: what Cleopatra has learned (transparency / it's YOUR memory) -->
+    <div class="card rounded-2xl p-4 overflow-y-auto convo-h">
+      <div class="flex items-center justify-between gap-2 mb-1">
+        <div class="flex items-center gap-2 min-w-0">
+          <span class="text-lg">🧠</span>
+          <h2 class="font-bold text-white text-sm truncate" x-text="S('learned')">What Cleopatra has learned</h2>
+        </div>
+        <!-- Start fresh: wipe the card + chat back to blank (two-step confirm) -->
+        <div class="shrink-0">
+          <button x-show="!resetConfirm" @click="resetConfirm=true" :disabled="busy||resetBusy"
+            class="text-[11px] text-slate-500 hover:text-brand inline-flex items-center gap-1 disabled:opacity-40"
+            :title="S('reset_tip')"><span class="text-xs leading-none">↺</span> <span x-text="S('reset')"></span></button>
+          <div x-show="resetConfirm" x-cloak class="flex items-center gap-1.5">
+            <button @click="resetCard()" :disabled="resetBusy"
+              class="text-[11px] px-2 py-1 rounded bg-brand hover:bg-branddark text-white font-semibold disabled:opacity-50"
+              x-text="resetBusy ? S('reset_busy') : S('reset_yes')"></button>
+            <button @click="resetConfirm=false" :disabled="resetBusy"
+              class="text-[11px] px-2 py-1 rounded border border-slate-600 hover:border-slate-400 text-slate-300"
+              x-text="S('reset_no')"></button>
+          </div>
+        </div>
+      </div>
+      <p class="text-[11px] text-slate-500 mb-4" x-text="S('memory')">This is your memory — yours to see. Every master reads it.</p>
+
+      <div x-show="empty()" class="text-slate-500 text-xs italic" x-text="S('nothing')">Nothing yet. Say hello and tell her a little about you.</div>
+
+      <div class="space-y-3 text-sm">
+        <template x-for="f in fields" :key="f.k">
+          <div x-show="has(f.k)">
+            <div class="text-[11px] uppercase tracking-wide text-slate-500 cursor-help decoration-dotted underline underline-offset-2 decoration-slate-700" :title="tip(f.k)" x-text="pl(f)"></div>
+            <div class="text-slate-200" x-text="show(f.k)"></div>
+          </div>
+        </template>
+
+        <!-- lists -->
+        <template x-for="lf in listFields" :key="lf.k">
+          <div x-show="(record[lf.k]||[]).length">
+            <div class="text-[11px] uppercase tracking-wide text-slate-500 mb-1 cursor-help decoration-dotted underline underline-offset-2 decoration-slate-700" :title="tip(lf.k)" x-text="pl(lf)"></div>
+            <div class="flex flex-wrap gap-1.5">
+              <template x-for="v in (record[lf.k]||[])" :key="v">
+                <span class="chip text-[11px] px-2 py-0.5 rounded-full" x-text="v"></span>
+              </template>
+            </div>
+          </div>
+        </template>
+
+        <!-- RIASEC mini-bars -->
+        <div x-show="hasRiasec()">
+          <div class="text-[11px] uppercase tracking-wide text-slate-500 mb-0.5 cursor-help decoration-dotted underline underline-offset-2 decoration-slate-700" :title="tip('riasec')" x-text="S('interests')">Your Natural Strengths</div>
+          <div class="text-[9px] text-slate-600 mb-1.5">(RIASEC aptitude)</div>
+          <template x-for="t in riasecRows()" :key="t.k">
+            <div class="mb-1.5" x-show="t.v>0">
+              <div class="flex justify-between text-[11px] text-slate-400"><span x-text="t.label"></span><span x-text="t.v"></span></div>
+              <div class="bar"><span :style="'width:'+t.v+'%'"></span></div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  </template>
+</div>
+
+<script>
+function concierge(){
+  return {
+    token:null, lang:'auto', langs:[{code:'auto',label:'Auto'},{code:'en',label:'EN'},{code:'it',label:'IT'}],
+    messages:[], draft:'', busy:false, err:'', expired:false, MAXLEN:2000,
+    suggestions:[],
+    // 🎯 Sharpen: a ranked batch of either/or questions that tighten RIASEC (the member's own ask)
+    sharpen:{ open:false, loading:false, questions:[], idx:0 },
+    // 📋 Recap: every few turns, show what Cleo understands and ask "is this right?" (keeps focus)
+    recap:{ open:false }, memberTurns:0, lastRecapTurn:0,
+    resetConfirm:false, resetBusy:false,
+    starters:['Continue in English','Parliamo in italiano','Let me tell you about myself','What can you do for me?'],
+    record:{},
+    // voice player: speed / volume / chosen voice -- all persisted (never pops ears twice)
+    voiceOpen:false, rate:0.92, volume:0.85, voiceName:'', voices:[], voicePicks:[], speaking:false,
+    fields:[
+      {k:'preferred_language',label:'Speaks',it:'Parla'}, {k:'language_level',label:'Level',it:'Livello'},
+      {k:'birthdate_hint',label:'Born',it:'Nato/a'},
+      {k:'goal',label:'Goal',it:'Obiettivo'}, {k:'why_they_came',label:'Why they came',it:'Perché è qui'},
+      {k:'background',label:'Background',it:'Storia'}, {k:'current_seat',label:'Today',it:'Oggi'},
+      {k:'fit_insight',label:'Where they\'d thrive',it:'Dove fiorirebbe'}, {k:'health_energy',label:'Body / energy',it:'Corpo / energia'},
+      {k:'generation',label:'Generation',it:'Generazione'}, {k:'life_stage',label:'Life stage',it:'Fase di vita'},
+      {k:'top_holland_code',label:'Holland code',it:'Codice Holland'}, {k:'suggested_house',label:'House',it:'Casa'},
+    ],
+    listFields:[
+      {k:'aptitudes',label:'What lights them up',it:'Cosa lo/la accende'}, {k:'certificates_or_teachers',label:'Certs / teachers',it:'Certificati / maestri'},
+      {k:'affinities',label:'Affinities',it:'Affinità'}, {k:'conflicts',label:'Tensions noticed',it:'Tensioni notate'},
+    ],
+    init(){
+      if(location.hash.indexOf('token=')>-1){
+        try{ this.token=new URLSearchParams(location.hash.slice(1)).get('token');
+          localStorage.setItem('compute_token',this.token); history.replaceState(null,'',location.pathname);}catch(e){}
+      }
+      if(!this.token){ try{ this.token=localStorage.getItem('compute_token'); }catch(e){} }
+      // language stays on 'auto': the masters' rule -- the guest's WORDS decide the tongue, not a
+      // mark they carried in (a cookie). The picker (Auto/EN/IT) is their explicit override.
+      // restore a message that was being typed when the session timed out (survives the re-login redirect)
+      try{ const pd=localStorage.getItem('cg_pending_draft'); if(pd){ this.draft=pd; localStorage.removeItem('cg_pending_draft'); } }catch(e){}
+      // restore voice preferences (speed / volume / chosen voice)
+      try{ const v=JSON.parse(localStorage.getItem('cg_voice')||'{}');
+        if(typeof v.rate==='number') this.rate=v.rate;
+        if(typeof v.volume==='number') this.volume=v.volume;
+        if(v.voiceName) this.voiceName=v.voiceName; }catch(e){}
+      this.loadVoices();
+      try{ if(window.speechSynthesis) speechSynthesis.onvoiceschanged=()=>this.loadVoices(); }catch(e){}
+      if(this.token){ this.load(); }
+    },
+    hdr(){ return {'Authorization':'Bearer '+this.token}; },
+    render(t){ const h=window.marked?marked.parse(t||''):(t||''); return window.DOMPurify?DOMPurify.sanitize(h):h; },
+    scroll(){ this.$nextTick(()=>{ const el=document.getElementById('thread'); if(el) el.scrollTop=el.scrollHeight; }); },
+    pick(s){ this.draft=s; this.send(); },
+    // --- 🎯 Sharpen: ranked personality questions that tighten RIASEC -----------------------
+    // Cheap, client-side readiness (no brain call): once Cleo knows >=2 things, offer to sharpen.
+    canSharpen(){
+      let known=0;
+      for(const f of this.fields){ if(this.has(f.k)) known++; }
+      for(const lf of this.listFields){ if((this.record[lf.k]||[]).length) known++; }
+      if(this.hasRiasec()) known++;
+      return known>=2;
+    },
+    curQ(){ return this.sharpen.questions[this.sharpen.idx] || null; },
+    async loadSharpen(){
+      if(!this.token){ return; }
+      this.sharpen.loading=true; this.err='';
+      try{
+        const r=await fetch('/api/v1/compute/bottega/concierge/sharpen?language='+encodeURIComponent(this.lang),{headers:this.hdr()});
+        if(!r.ok){ this.sharpen.questions=[]; return; }
+        const d=await r.json();
+        this.sharpen.questions = d.questions||[];
+        this.sharpen.idx=0;
+      }catch(e){ this.sharpen.questions=[]; }
+      finally{ this.sharpen.loading=false; }
+    },
+    async openSharpen(){
+      await this.loadSharpen();
+      if(this.sharpen.questions.length){ this.sharpen.open=true; }
+      else { this.err='Tell Cleopatra a little more first, then we can sharpen.'; }
+    },
+    closeSharpen(){ this.sharpen.open=false; },
+    skipSharpen(){
+      if(this.sharpen.idx < this.sharpen.questions.length-1){ this.sharpen.idx++; }
+      else { this.sharpen.open=false; this.sharpen.questions=[]; }
+    },
+    async answerSharpen(opt){
+      if(this.busy) return;
+      const more = this.sharpen.idx < this.sharpen.questions.length-1;
+      this.sharpen.open=false;            // the answer goes into the chat as a member turn
+      this.draft=opt.label;
+      await this.send();                  // chat -> extraction re-scores RIASEC; record panel updates live
+      if(more){ this.sharpen.idx++; this.sharpen.open=true; }   // next ranked question
+      else { this.sharpen.questions=[]; }                       // ran the batch; trigger reappears if still ready
+    },
+    // --- composer: roomy multi-line + microphone (talk to the machine) ----------------------
+    autogrow(){ const ta=this.$refs.ta; if(!ta) return; ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight,240)+'px'; },
+    onEnter(e){ if(e.shiftKey) return; e.preventDefault(); this.send(); },   // Enter sends, Shift+Enter = newline
+    canSend(){ const t=this.draft.trim(); return !!t && t.length<=this.MAXLEN; },
+    clearComposer(){ this.draft=''; this.$nextTick(()=>this.autogrow()); },
+    // Web Speech API: speech -> text, all in the browser (no upload, no file, nothing to scan).
+    // On mobile Chrome this opens the phone mic. Dictates into the draft; you edit, then send.
+    micOn:false, micSupported:('webkitSpeechRecognition' in window)||('SpeechRecognition' in window),
+    _rec:null, _micBase:'',
+    toggleMic(){ this.micOn ? this.stopMic() : this.startMic(); },
+    startMic(){
+      if(!this.micSupported){ this.err='Your browser can\'t do voice input — try Chrome.'; return; }
+      try{
+        const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+        const r=new SR();
+        r.lang = (this.lang==='it') ? 'it-IT' : 'en-US';   // follows the Reply-in picker (auto -> en)
+        r.continuous=true; r.interimResults=true;
+        this._micBase = this.draft ? this.draft.trim()+' ' : '';   // text that existed before mic
+        // Reconcile the FULL results[] array each event -- robust to BOTH engines:
+        //  - desktop Chrome: entries are DISTINCT sequential phrases -> append them.
+        //  - Android/Fairphone Chrome: entries are GROWING/REVISED restatements of the
+        //    SAME utterance ("I" / "I was" / "I was kind of...") -> newer wins, don't append.
+        // The old "sum all results" produced the staircase "I I was I was kind of..." on the phone.
+        r.onresult=(ev)=>{
+          const segs=[];
+          for(let i=0;i<ev.results.length;i++) segs.push(ev.results[i][0].transcript);
+          this.draft = (this._micBase + this._reconcileSpeech(segs)).replace(/\s+/g,' ').trimStart().slice(0,this.MAXLEN);
+          this.$nextTick(()=>this.autogrow());
+        };
+        r.onerror=(e)=>{ if(e&&e.error==='not-allowed') this.err='Microphone blocked — allow mic access to talk.'; this.stopMic(); };
+        r.onend=()=>{ this.micOn=false; };
+        this._rec=r; this.micOn=true; this.err=''; r.start();
+      }catch(e){ this.err='Could not start the microphone.'; this.micOn=false; }
+    },
+    stopMic(){ this.micOn=false; try{ if(this._rec) this._rec.stop(); }catch(e){} },
+    // Fold a SpeechRecognition results[] array into clean text (see startMic for why).
+    _reconcileSpeech(segments){
+      let built='';
+      for(const raw of segments){
+        const t=(raw||'').trim(); if(!t) continue;
+        if(!built){ built=t; continue; }
+        const a=built.toLowerCase(), b=t.toLowerCase();
+        if(b.startsWith(a)){ built=t; continue; }            // pure cumulative growth -> take longer
+        if(a.startsWith(b) || a.endsWith(b)){ continue; }     // already contained -> ignore
+        let i=0; const n=Math.min(a.length,b.length);
+        while(i<n && a[i]===b[i]) i++;                         // longest common leading run
+        if(i >= a.length*0.5){ built=t; continue; }            // same utterance, revised -> newer wins
+        built=(built+' '+t).trim();                            // genuinely new phrase -> append
+      }
+      return built.replace(/\s+/g,' ').trim();
+    },
+    async load(){
+      try{
+        const r=await fetch('/api/v1/compute/bottega/concierge/record',{headers:this.hdr()});
+        if(r.status===401||r.status===403){ this.token=null; return; }
+        const d=await r.json();
+        this.record=d.record||{};
+        this.messages=(d.transcript||[]).map(m=>({role:m.role==='member'?'member':'concierge',content:m.content}));
+        if(!this.messages.length){ await this.send(true); }  // fire the opening
+        else this.scroll();
+      }catch(e){ this.err='Could not reach the Concierge.'; }
+    },
+    async send(opening){
+      if(!opening && !this.canSend()) return;
+      this.stopMic();
+      const msg = opening ? '' : this.draft.trim();
+      if(!opening){
+        this.messages.push({role:'member',content:msg});
+        this.draft=''; this.$nextTick(()=>this.autogrow());
+      }
+      this.busy=true; this.err=''; this.suggestions=[]; this.scroll();
+      try{
+        const r=await fetch('/api/v1/compute/bottega/concierge/chat',{
+          method:'POST', headers:{'Content-Type':'application/json',...this.hdr()},
+          body:JSON.stringify({message:msg, language:this.lang})});
+        if(!r.ok){
+          if(r.status===401||r.status===403){
+            // session timed out: don't lose the message — stash it, undo the optimistic bubble, offer re-login
+            if(!opening){ this.messages.pop(); this.draft=msg; try{ localStorage.setItem('cg_pending_draft',msg); }catch(e){} }
+            this.expired=true; this.err='Your session timed out — log in again to continue. Your chat and your message are saved.';
+            this.busy=false; return;
+          }
+          this.err = r.status===503 ? 'Cleopatra stepped away — try again in a moment.' : ('Something hiccuped (error '+r.status+'). Try again.');
+          this.busy=false; return;
+        }
+        this.expired=false;
+        const d=await r.json();
+        this.messages.push({role:'concierge',content:d.reply,lang:d.language||'en'});
+        if(d.record) this.record=d.record;
+        this.suggestions = d.opening ? this.starters : (d.suggestions||[]);
+        if(!opening){ this.memberTurns++; this.maybeRecap(); }   // E2: offer a check-in every few turns
+      }catch(e){ this.err='Network hiccup — try again.'; }
+      this.busy=false; this.scroll();
+    },
+    // the handoff: dispatch the question to the 2 best masters on the board (Concierge v2)
+    async dispatchQ(){
+      if(this.busy || !this.canSend()) return;
+      this.stopMic();
+      const q=this.draft.trim();
+      this.messages.push({role:'member',content:q});
+      this.draft=''; this.$nextTick(()=>this.autogrow());
+      this.busy=true; this.err=''; this.suggestions=[]; this.scroll();
+      try{
+        const r=await fetch('/api/v1/compute/bottega/concierge/dispatch',{
+          method:'POST', headers:{'Content-Type':'application/json',...this.hdr()},
+          body:JSON.stringify({question:q, language:this.lang})});
+        if(!r.ok){
+          if(r.status===401||r.status===403){
+            this.messages.pop(); this.draft=q; try{ localStorage.setItem('cg_pending_draft',q); }catch(e){}
+            this.expired=true; this.err='Your session timed out — log in again. Your question is saved.';
+            this.busy=false; return;
+          }
+          this.err = r.status===503 ? 'The court stepped away — try again in a moment.' : ('Something hiccuped (error '+r.status+'). Try again.');
+          this.busy=false; return;
+        }
+        this.expired=false;
+        const d=await r.json();
+        this.messages.push({role:'dispatch', masters:d.masters||[], language:d.language||'en',
+                            note:d.note, next_action:d.next_action});
+      }catch(e){ this.err='Network hiccup — try again.'; }
+      this.busy=false; this.scroll();
+    },
+    // R4: the warm handoff -- Cleo matches the card to ONE master who takes the desk (a thread + a first step)
+    canHandoff(){ return !this.busy && !this.empty() && !(this.record && this.record.current_host); },
+    async handoff(){
+      if(this.busy || !this.canHandoff()) return;
+      this.stopMic();
+      this.busy=true; this.err=''; this.suggestions=[]; this.scroll();
+      try{
+        const r=await fetch('/api/v1/compute/bottega/concierge/handoff',{
+          method:'POST', headers:{'Content-Type':'application/json',...this.hdr()},
+          body:JSON.stringify({language:this.lang})});
+        if(!r.ok){
+          if(r.status===401||r.status===403){ this.expired=true; this.err='Your session timed out — log in again.'; this.busy=false; return; }
+          this.err = r.status===503 ? 'The court stepped away — try again in a moment.' : ('Something hiccuped (error '+r.status+'). Try again.');
+          this.busy=false; return;
+        }
+        this.expired=false;
+        const d=await r.json();
+        if(d.handoff){
+          this.messages.push({role:'handoff', master:d.master, house:d.house, why:d.why,
+                              first_step:d.first_step, opening:d.opening, thread_id:d.thread_id, language:d.language||'en'});
+          if(this.record) this.record.current_host=d.master;   // the master now mans the desk
+        } else {
+          this.messages.push({role:'handoff', failed:true, reason:d.reason||'Let me learn a little more about you first.'});
+        }
+      }catch(e){ this.err='Network hiccup — try again.'; }
+      this.busy=false; this.scroll();
+    },
+    initials(n){ return (n||'').split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase(); },
+    // record panel helpers
+    DEF:{generation:'unknown',age_band:'unknown',gender:'unknown',life_stage:'unknown'},
+    has(k){ const v=this.record[k]; return v && v!=='unknown' && (''+v).trim()!==''; },
+    show(k){
+      const v=this.record[k];
+      // Decode the Holland code INLINE (mobile has no hover tooltip): "RIA — Realistic · Investigative · Artistic".
+      if(k==='top_holland_code' && v){
+        const it=this.panelLang()==='it';
+        const M=it?{R:'Realistico',I:'Investigativo',A:'Artistico',S:'Sociale',E:'Intraprendente',C:'Convenzionale'}
+                  :{R:'Realistic',I:'Investigative',A:'Artistic',S:'Social',E:'Enterprising',C:'Conventional'};
+        const names=(''+v).toUpperCase().replace(/[^RIASEC]/g,'').split('').map(c=>M[c]).filter(Boolean);
+        return names.length ? (v+' — '+names.join(' · ')) : v;
+      }
+      return v;
+    },
+    empty(){ return this.fields.every(f=>!this.has(f.k)) && this.listFields.every(lf=>!(this.record[lf.k]||[]).length) && !this.hasRiasec(); },
+    hasRiasec(){ const r=this.record.riasec||{}; return Object.values(r).some(v=>v>0); },
+    // B3: the record panel follows the conversation's language. Explicit picker wins; under Auto we
+    // read the language Cleo actually settled on (preferred_language / reply language). EN otherwise.
+    panelLang(){ const p=(this.lang&&this.lang!=='auto')?this.lang:(this.record.preferred_language||this.record.language||'en'); return (''+p).toLowerCase().slice(0,2)==='it'?'it':'en'; },
+    pl(f){ return this.panelLang()==='it'?(f.it||f.label):f.label; },
+    i18n:{
+      learned:{en:'What Cleopatra has learned', it:'Cosa ha imparato Cleopatra'},
+      memory:{en:'This is your memory — yours to see. Every master reads it.', it:'Questa è la tua memoria — tua da vedere. Ogni maestro la legge.'},
+      nothing:{en:'Nothing yet. Say hello and tell her a little about you.', it:'Ancora niente. Salutala e raccontale un po\' di te.'},
+      interests:{en:'Your Natural Strengths', it:'I tuoi punti di forza naturali'},
+      recap_title:{en:'Quick check — here\'s what I understand. Is this right?', it:'Verifica veloce — ecco cosa ho capito. È corretto?'},
+      recap_yes:{en:'✓ Yes, that\'s me', it:'✓ Sì, sono io'},
+      recap_fix:{en:'✏️ Let me correct something', it:'✏️ Vorrei correggere qualcosa'},
+      reset:{en:'Start fresh', it:'Ricomincia'},
+      reset_tip:{en:'Wipe your card and chat and start over from a blank slate', it:'Cancella la tua scheda e la chat e ricomincia da zero'},
+      reset_yes:{en:'✓ Wipe & restart', it:'✓ Cancella e riparti'},
+      reset_no:{en:'Cancel', it:'Annulla'},
+      reset_busy:{en:'Resetting…', it:'Ripristino…'},
+    },
+    S(key){ const e=this.i18n[key]; if(!e) return ''; return this.panelLang()==='it'?(e.it||e.en):e.en; },
+    // E1: plain-language tooltips so a member understands each term (hover on desktop). Localised.
+    tips:{
+      preferred_language:{en:'The language Cleopatra speaks with you.', it:'La lingua in cui Cleopatra ti parla.'},
+      language_level:{en:'How strong you are in that language.', it:'Quanto la padroneggi.'},
+      birthdate_hint:{en:'Whatever you shared about your age — it helps tailor the help.', it:'Quello che hai condiviso sulla tua età — aiuta a personalizzare.'},
+      goal:{en:'What you want to achieve.', it:'Cosa vuoi raggiungere.'},
+      why_they_came:{en:'Why you came to La Piazza.', it:'Perché sei venuto a La Piazza.'},
+      background:{en:'Your history, trade, years.', it:'La tua storia, il mestiere, gli anni.'},
+      current_seat:{en:'What you actually do today.', it:'Cosa fai davvero oggi.'},
+      fit_insight:{en:'Where you\'d likely thrive vs where you are now.', it:'Dove fioriresti rispetto a dove sei ora.'},
+      health_energy:{en:'Anything about your body/energy that shapes the help.', it:'Ciò che riguarda corpo/energia e influenza l\'aiuto.'},
+      generation:{en:'Your generation — gently inferred, never demanded.', it:'La tua generazione — dedotta con garbo, mai richiesta.'},
+      life_stage:{en:'Launching, building, peak, transitioning, or legacy.', it:'Avvio, costruzione, apice, transizione o eredità.'},
+      top_holland_code:{en:'Your strongest RIASEC interest themes, as letters.', it:'I tuoi temi di interesse RIASEC più forti, in lettere.'},
+      suggested_house:{en:'Which of La Piazza\'s Houses fits you best.', it:'Quale Casa di La Piazza ti si addice di più.'},
+      aptitudes:{en:'What you\'re good at and drawn to.', it:'Ciò in cui sei bravo e che ti attrae.'},
+      certificates_or_teachers:{en:'Your certifications and the people who shaped you.', it:'Le tue certificazioni e le persone che ti hanno formato.'},
+      affinities:{en:'The masters and Houses you gravitate toward.', it:'I maestri e le Case verso cui gravita il tuo interesse.'},
+      conflicts:{en:'Gentle contradictions Cleopatra noticed — recorded, not judged.', it:'Piccole contraddizioni notate da Cleopatra — annotate, non giudicate.'},
+      riasec:{en:'RIASEC — a well-known aptitude model (Realistic, Investigative, Artistic, Social, Enterprising, Conventional). It maps your INTERESTS to help find work you\'d love.', it:'RIASEC — un noto modello attitudinale (Realistico, Investigativo, Artistico, Sociale, Intraprendente, Convenzionale). Mappa i tuoi INTERESSI per aiutarti a trovare un lavoro che ami.'},
+    },
+    tip(key){ const e=this.tips[key]; if(!e) return ''; return this.panelLang()==='it'?(e.it||e.en):e.en; },
+    // E2 recap: how many fields Cleo has, the key ones to read back, and when to offer a check-in.
+    filledCount(){ let n=0; for(const f of this.fields){ if(this.has(f.k)) n++; } for(const lf of this.listFields){ if((this.record[lf.k]||[]).length) n++; } if(this.hasRiasec()) n++; return n; },
+    recapItems(){
+      const keys=['goal','why_they_came','background','current_seat','fit_insight','top_holland_code','suggested_house'];
+      const out=[];
+      for(const k of keys){ if(this.has(k)){ const f=this.fields.find(x=>x.k===k); out.push({label:f?this.pl(f):k, value:this.show(k)}); } }
+      const apt=this.record.aptitudes||[]; if(apt.length){ const lf=this.listFields.find(x=>x.k==='aptitudes'); out.push({label:lf?this.pl(lf):'aptitudes', value:apt.slice(0,4).join(', ')}); }
+      const rr=this.riasecRows().filter(t=>t.v>0).slice(0,3); if(rr.length){ out.push({label:this.S('interests'), value:rr.map(t=>t.label).join(' · ')}); }
+      return out;
+    },
+    maybeRecap(){ if(this.recap.open||this.sharpen.open) return;
+      if(this.memberTurns - this.lastRecapTurn >= 5 && this.filledCount() >= 3){ this.recap.open=true; this.lastRecapTurn=this.memberTurns; this.scroll(); } },
+    confirmRecap(){ this.recap.open=false; },
+    correctRecap(){ this.recap.open=false; this.$nextTick(()=>{ if(this.$refs.ta) this.$refs.ta.focus(); }); },
+    // Start fresh: wipe the card + chat back to blank, then fire a brand-new opening. The honest
+    // re-test path (a messy/testing profile can't keep dragging Cleo down) and a real member feature.
+    async resetCard(){
+      if(this.resetBusy) return;
+      this.resetBusy=true; this.err='';
+      try{
+        const r=await fetch('/api/v1/compute/bottega/concierge/reset',{
+          method:'POST', headers:{'Content-Type':'application/json',...this.hdr()},
+          body:JSON.stringify({})});
+        if(!r.ok){
+          if(r.status===401||r.status===403){ this.expired=true; this.err='Your session timed out — log in again.'; return; }
+          this.err='Could not start fresh — try again.'; return;
+        }
+        const d=await r.json();
+        // local state back to a blank slate, mirroring the server
+        this.messages=[]; this.record=d.record||{}; this.suggestions=[];
+        this.memberTurns=0; this.lastRecapTurn=0; this.recap.open=false;
+        this.sharpen.open=false; this.sharpen.questions=[]; this.resetConfirm=false; this.expired=false;
+        await this.send(true);   // fresh greeting, exactly like a brand-new guest
+      }catch(e){ this.err='Network hiccup — try again.'; }
+      finally{ this.resetBusy=false; }
+    },
+    riasecRows(){ const r=this.record.riasec||{}; const L=this.panelLang()==='it'?{realistic:'Realistico',investigative:'Investigativo',artistic:'Artistico',social:'Sociale',enterprising:'Intraprendente',conventional:'Convenzionale'}:{realistic:'Realistic',investigative:'Investigative',artistic:'Artistic',social:'Social',enterprising:'Enterprising',conventional:'Conventional'};
+      return Object.keys(L).map(k=>({k,label:L[k],v:r[k]||0})).sort((a,b)=>b.v-a.v); },
+    // voice follows the language of THIS reply (the masters' rule), not the picker.
+    // EN/IT are the home tongues; we also sniff DE/FR/ES so an off-menu reply (Angel's German
+    // "just for spass") gets a NATIVE voice instead of an English one mangling it ("goofy German").
+    ttsLang(t){ t=' '+(t||'').toLowerCase()+' '; const s={it:0,de:0,fr:0,es:0};
+      [' il ',' che ',' di ',' per ',' sono ',' ciao',' grazie',' più',' cosa',' della ',' con ',' vorrei '].forEach(w=>{if(t.indexOf(w)>-1)s.it++;});
+      if(/[àèìòù]/.test(t)) s.it++;
+      [' und ',' ich ',' nicht ',' ist ',' das ',' sie ',' wir ',' möchten ',' sprechen',' deutsch',' ein ',' sehr ',' danke'].forEach(w=>{if(t.indexOf(w)>-1)s.de++;});
+      if(/[äöüß]/.test(t)) s.de++;
+      [' vous ',' parlez',' je ',' ne ',' pas ',' une ',' allemand',' français',' merci',' bonjour',' oui '].forEach(w=>{if(t.indexOf(w)>-1)s.fr++;});
+      [' usted ',' gracias',' hola',' qué ',' está',' por favor',' soy '].forEach(w=>{if(t.indexOf(w)>-1)s.es++;});
+      if(/[ñ¿¡]/.test(t)) s.es++;
+      const best=Object.keys(s).reduce((a,b)=>s[b]>s[a]?b:a,'it');
+      if(s[best]<2) return 'en-US';
+      return {it:'it-IT',de:'de-DE',fr:'fr-FR',es:'es-ES'}[best]; },
+    loadVoices(){
+      try{ const all=(window.speechSynthesis&&speechSynthesis.getVoices())||[];
+        this.voices=all;
+        this.voicePicks=all.filter(v=>/^(en|it)/i.test(v.lang)).map(v=>({name:v.name,label:v.name+' · '+v.lang}));
+      }catch(e){}
+    },
+    pickVoice(bcp){
+      const want=(bcp||'en-US').slice(0,2).toLowerCase();   // 'it-IT' -> 'it', 'de-DE' -> 'de'
+      // an explicit choice wins ONLY if it matches the reply's language; else auto-pick the sweetest match
+      if(this.voiceName){ const c=this.voices.find(v=>v.name===this.voiceName); if(c&&c.lang.toLowerCase().startsWith(want)) return c; }
+      const cands=this.voices.filter(v=>v.lang.toLowerCase().startsWith(want));
+      if(!cands.length) return null;   // no native voice installed -> let the browser default for u.lang
+      const nice=cands.find(v=>/female|google|natural|samantha|alice|federica|karen|moira|tessa|aria|jenny|libby/i.test(v.name));
+      return nice||cands[0];
+    },
+    persistVoice(){ try{ localStorage.setItem('cg_voice',JSON.stringify({rate:this.rate,volume:this.volume,voiceName:this.voiceName})); }catch(e){} },
+    testVoice(){ const l=(this.lang==='it')?'it':'en';
+      this.readAloud({lang:l, content:(l==='it')?'Benvenuto. Questa è la mia voce — regola pure velocità e volume.':'Welcome. This is my voice — set the speed and volume to your liking.'}); },
+    readAloud(m){
+      try{ const s=window.speechSynthesis; if(!s) return;
+        // TOGGLE: if anything is speaking/queued, a click STOPS it (the reported "couldn't turn it off")
+        if(s.speaking || s.pending){ s.cancel(); this.speaking=false; return; }
+        const text=(typeof m==='string')?m:(m&&m.content)||'';
+        // explicit Italian picker is authoritative; otherwise read the TEXT's true language
+        // (so a German reply gets a German voice, not en-US mangling it)
+        const bcp=(m&&m.lang==='it')?'it-IT':this.ttsLang(text);
+        const plain=text.replace(/[#*_`>\-]/g,' ').replace(/\s+/g,' ').trim();
+        const u=new SpeechSynthesisUtterance(plain);
+        u.lang=bcp;
+        u.rate=this.rate; u.volume=this.volume;
+        const v=this.pickVoice(bcp); if(v) u.voice=v;
+        u.onend=()=>{ this.speaking=false; }; u.onerror=()=>{ this.speaking=false; };
+        this.speaking=true; s.speak(u);
+      }catch(e){ this.speaking=false; }
+    },
+    login(){
+      const kc = location.hostname==='helix.local' ? 'https://keycloak.helix.local' : ('{{ lp_kc_url }}' || location.origin);
+      const redirect = encodeURIComponent(location.origin + '/compute/callback');
+      const state = encodeURIComponent('/compute/concierge');
+      location.href = `${kc}/realms/{{ lp_realm }}/protocol/openid-connect/auth?client_id={{ lp_client }}&redirect_uri=${redirect}&response_type=code&scope=openid%20profile&state=${state}`;
+    },
+  };
+}
+</script>
+</body>
+</html>

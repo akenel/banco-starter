@@ -1,0 +1,1388 @@
+# File: src/routes/isotto_router.py
+"""
+ISOTTO Sport Print Shop API Router.
+Handles customers, print orders, and dashboard for Famous Guy's shop.
+
+Prefix: /api/v1/print-shop
+
+Since 1968. Via Buscaino, Trapani.
+"The postcard is the handshake. The coffee is the close."
+"""
+import logging
+from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func, and_, delete
+from datetime import datetime, date, timezone
+from decimal import Decimal
+from uuid import UUID
+from typing import Optional
+from pathlib import Path
+
+from src.core.config import settings  # ISOTTO_REALM — env-driven realm (identity consolidation)
+from src.db.database import get_db_session
+from src.db.models.isotto_customer_model import IsottoCustomerModel
+from src.db.models.isotto_order_model import IsottoOrderModel, OrderStatus, ProductType
+from src.db.models.isotto_activity_model import IsottoOrderActivityModel, IsottoActivityType
+from src.db.models.isotto_invoice_model import IsottoInvoiceModel, IsottoPaymentStatus
+from src.db.models.isotto_order_line_item_model import IsottoOrderLineItemModel, LineItemStatus
+from src.db.models.isotto_catalog_model import IsottoCatalogProductModel
+from src.db.models.isotto_catalog_stock_model import IsottoCatalogStockModel
+from src.schemas.isotto_schema import (
+    IsottoCustomerCreate, IsottoCustomerUpdate, IsottoCustomerRead,
+    PrintOrderCreate, PrintOrderUpdate, PrintOrderRead, PrintOrderStatusUpdate,
+    IsottoDashboardSummary,
+    IsottoInvoiceCreate, IsottoInvoiceUpdate, IsottoInvoiceRead, IsottoPaymentRecord,
+    IsottoOrderActivityRead, IsottoOrderCommentCreate,
+    IsottoLineItemCreate, IsottoLineItemUpdate, IsottoLineItemRead, IsottoLineItemStatusUpdate,
+    IsottoRosterImport, IsottoSizeSummary, IsottoSizeSummaryItem,
+)
+from src.core.keycloak_auth import require_roles
+
+logger = logging.getLogger(__name__)
+
+# API Router (JSON endpoints)
+router = APIRouter(prefix="/api/v1/print-shop", tags=["ISOTTO Sport - Print Shop"])
+
+# HTML Router (Web UI pages for Famous Guy's team)
+html_router = APIRouter(tags=["ISOTTO Sport - Print Shop UI"])
+
+# Setup Jinja2 templates
+templates_dir = Path(__file__).parent.parent / "templates"
+templates = Jinja2Templates(directory=str(templates_dir))
+templates.env.globals["isotto_realm"] = settings.ISOTTO_REALM  # injected into login/base JS
+
+
+# ================================================================
+# AUTH HELPERS (ISOTTO-specific role shortcuts)
+# ================================================================
+
+def require_any_isotto_role():
+    """Any authenticated print shop staff"""
+    return require_roles([
+        "isotto-counter",
+        "isotto-designer",
+        "isotto-operator",
+        "isotto-manager",
+        "isotto-admin",
+    ])
+
+
+def require_isotto_operator_or_above():
+    """Operator, designer, manager, or admin"""
+    return require_roles([
+        "isotto-operator",
+        "isotto-designer",
+        "isotto-manager",
+        "isotto-admin",
+    ])
+
+
+def require_isotto_manager_or_admin():
+    """Manager or admin only"""
+    return require_roles([
+        "isotto-manager",
+        "isotto-admin",
+    ])
+
+
+# ================================================================
+# ACTIVITY LOGGING HELPER
+# ================================================================
+
+async def log_activity(
+    db: AsyncSession,
+    order_id: UUID,
+    activity_type: IsottoActivityType,
+    actor: str,
+    old_value: str = None,
+    new_value: str = None,
+    comment: str = None,
+):
+    """Append an activity entry to the order audit trail."""
+    activity = IsottoOrderActivityModel(
+        order_id=order_id,
+        activity_type=activity_type,
+        actor=actor,
+        old_value=old_value,
+        new_value=new_value,
+        comment=comment,
+    )
+    db.add(activity)
+
+
+# ================================================================
+# CUSTOMER ENDPOINTS
+# ================================================================
+
+@router.post("/customers", response_model=IsottoCustomerRead, status_code=status.HTTP_201_CREATED)
+async def create_customer(
+    customer: IsottoCustomerCreate,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(require_any_isotto_role()),
+):
+    """Create customer profile (any print shop role)"""
+    new_customer = IsottoCustomerModel(
+        **customer.model_dump(),
+        first_order_date=date.today(),
+        last_order_date=date.today(),
+        order_count=0,
+    )
+    db.add(new_customer)
+    await db.commit()
+    await db.refresh(new_customer)
+
+    logger.info(f"ISOTTO customer created: {new_customer.name} by {current_user['username']}")
+    return new_customer
+
+
+@router.get("/customers", response_model=list[IsottoCustomerRead])
+async def list_customers(
+    search: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 100,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(require_any_isotto_role()),
+):
+    """List/search customers (any print shop role)"""
+    query = select(IsottoCustomerModel)
+
+    if search:
+        query = query.where(
+            IsottoCustomerModel.name.ilike(f"%{search}%") |
+            IsottoCustomerModel.company_name.ilike(f"%{search}%") |
+            IsottoCustomerModel.phone.ilike(f"%{search}%") |
+            IsottoCustomerModel.email.ilike(f"%{search}%")
+        )
+
+    query = query.order_by(IsottoCustomerModel.last_order_date.desc().nullslast()).offset(skip).limit(limit)
+    result = await db.execute(query)
+    return result.scalars().all()
+
+
+@router.get("/customers/{customer_id}", response_model=IsottoCustomerRead)
+async def get_customer(
+    customer_id: UUID,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(require_any_isotto_role()),
+):
+    """Get customer with order history"""
+    result = await db.execute(
+        select(IsottoCustomerModel).where(IsottoCustomerModel.id == customer_id)
+    )
+    customer = result.scalar_one_or_none()
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    return customer
+
+
+@router.put("/customers/{customer_id}", response_model=IsottoCustomerRead)
+async def update_customer(
+    customer_id: UUID,
+    customer_update: IsottoCustomerUpdate,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(require_any_isotto_role()),
+):
+    """Update customer info (any print shop role)"""
+    result = await db.execute(
+        select(IsottoCustomerModel).where(IsottoCustomerModel.id == customer_id)
+    )
+    customer = result.scalar_one_or_none()
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+
+    update_data = customer_update.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(customer, field, value)
+
+    customer.updated_at = datetime.now(timezone.utc)
+    await db.commit()
+    await db.refresh(customer)
+
+    logger.info(f"ISOTTO customer updated: {customer.name} by {current_user['username']}")
+    return customer
+
+
+# ================================================================
+# ORDER ENDPOINTS
+# ================================================================
+
+@router.post("/orders", response_model=PrintOrderRead, status_code=status.HTTP_201_CREATED)
+async def create_order(
+    order: PrintOrderCreate,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(require_any_isotto_role()),
+):
+    """Create new print order (starts as QUOTED)"""
+    # Verify customer exists
+    customer_result = await db.execute(
+        select(IsottoCustomerModel).where(IsottoCustomerModel.id == order.customer_id)
+    )
+    if not customer_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Customer not found")
+
+    # Generate order number
+    today = date.today().strftime("%Y%m%d")
+    count_result = await db.execute(
+        select(func.count()).where(
+            IsottoOrderModel.order_number.like(f"ORD-{today}-%")
+        )
+    )
+    count = count_result.scalar() or 0
+    order_number = f"ORD-{today}-{count + 1:04d}"
+
+    order_data = order.model_dump()
+    order_data["order_number"] = order_number
+    order_data["status"] = OrderStatus.QUOTED
+    order_data["quoted_at"] = datetime.now(timezone.utc)
+    new_order = IsottoOrderModel(**order_data)
+    db.add(new_order)
+    await db.commit()
+    await db.refresh(new_order)
+
+    logger.info(f"ISOTTO order created: {order_number} by {current_user['username']}")
+    return new_order
+
+
+@router.get("/orders", response_model=list[PrintOrderRead])
+async def list_orders(
+    status_filter: Optional[str] = None,
+    product_type: Optional[str] = None,
+    customer_id: Optional[UUID] = None,
+    search: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 100,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(require_any_isotto_role()),
+):
+    """List orders with filters (any print shop role)"""
+    query = select(IsottoOrderModel)
+
+    if status_filter:
+        try:
+            os = OrderStatus(status_filter)
+            query = query.where(IsottoOrderModel.status == os)
+        except ValueError:
+            pass
+
+    if product_type:
+        try:
+            pt = ProductType(product_type)
+            query = query.where(IsottoOrderModel.product_type == pt)
+        except ValueError:
+            pass
+
+    if customer_id:
+        query = query.where(IsottoOrderModel.customer_id == customer_id)
+
+    if search:
+        query = query.where(
+            IsottoOrderModel.order_number.ilike(f"%{search}%") |
+            IsottoOrderModel.title.ilike(f"%{search}%")
+        )
+
+    query = query.order_by(IsottoOrderModel.created_at.desc()).offset(skip).limit(limit)
+    result = await db.execute(query)
+    return result.scalars().all()
+
+
+@router.get("/orders/{order_id}", response_model=PrintOrderRead)
+async def get_order(
+    order_id: UUID,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(require_any_isotto_role()),
+):
+    """Get full order details"""
+    result = await db.execute(
+        select(IsottoOrderModel).where(IsottoOrderModel.id == order_id)
+    )
+    order = result.scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=404, detail="Print order not found")
+    return order
+
+
+@router.put("/orders/{order_id}", response_model=PrintOrderRead)
+async def update_order(
+    order_id: UUID,
+    order_update: PrintOrderUpdate,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(require_isotto_operator_or_above()),
+):
+    """Update order details (operator/designer/manager/admin)"""
+    result = await db.execute(
+        select(IsottoOrderModel).where(IsottoOrderModel.id == order_id)
+    )
+    order = result.scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=404, detail="Print order not found")
+
+    update_data = order_update.model_dump(exclude_unset=True)
+    username = current_user["username"]
+
+    # Log assignment changes
+    if "assigned_to" in update_data and update_data["assigned_to"] != order.assigned_to:
+        await log_activity(db, order.id, IsottoActivityType.ASSIGNED, username,
+                           old_value=order.assigned_to, new_value=update_data["assigned_to"])
+
+    # Handle proof approval timestamp + log
+    if "proof_approved" in update_data and update_data["proof_approved"] and not order.proof_approved:
+        order.proof_approved_at = datetime.now(timezone.utc)
+        await log_activity(db, order.id, IsottoActivityType.PROOF_APPROVED, username,
+                           new_value="approved")
+
+    for field, value in update_data.items():
+        setattr(order, field, value)
+
+    order.updated_at = datetime.now(timezone.utc)
+    await db.commit()
+    await db.refresh(order)
+
+    logger.info(f"ISOTTO order updated: {order.order_number} by {username}")
+    return order
+
+
+@router.patch("/orders/{order_id}/status", response_model=PrintOrderRead)
+async def update_order_status(
+    order_id: UUID,
+    status_update: PrintOrderStatusUpdate,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(require_isotto_operator_or_above()),
+):
+    """Advance order status (operator/designer/manager/admin)"""
+    result = await db.execute(
+        select(IsottoOrderModel).where(IsottoOrderModel.id == order_id)
+    )
+    order = result.scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=404, detail="Print order not found")
+
+    old_status = order.status
+    username = current_user["username"]
+    order.status = status_update.status
+    order.updated_at = datetime.now(timezone.utc)
+
+    # Auto-set timestamps based on status transitions
+    if status_update.status == OrderStatus.APPROVED and not order.approved_at:
+        order.approved_at = datetime.now(timezone.utc)
+    elif status_update.status == OrderStatus.IN_PRODUCTION and not order.production_started_at:
+        order.production_started_at = datetime.now(timezone.utc)
+    elif status_update.status in (OrderStatus.READY, OrderStatus.QUALITY_CHECK) and not order.completed_at:
+        order.completed_at = datetime.now(timezone.utc)
+    elif status_update.status == OrderStatus.PICKED_UP and not order.picked_up_at:
+        order.picked_up_at = datetime.now(timezone.utc)
+
+    # Log the status change
+    await log_activity(db, order.id, IsottoActivityType.STATUS_CHANGE, username,
+                       old_value=old_status.value, new_value=status_update.status.value)
+
+    await db.commit()
+    await db.refresh(order)
+
+    logger.info(f"ISOTTO order {order.order_number}: {old_status.value} -> {status_update.status.value} by {username}")
+    return order
+
+
+@router.post("/orders/{order_id}/approve", response_model=PrintOrderRead)
+async def approve_order(
+    order_id: UUID,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(require_any_isotto_role()),
+):
+    """Customer approves quote -> status becomes APPROVED"""
+    result = await db.execute(
+        select(IsottoOrderModel).where(IsottoOrderModel.id == order_id)
+    )
+    order = result.scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=404, detail="Print order not found")
+
+    if order.status != OrderStatus.QUOTED:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Can only approve orders in QUOTED status. Current: {order.status.value}"
+        )
+
+    old_status = order.status
+    username = current_user["username"]
+    order.status = OrderStatus.APPROVED
+    order.approved_at = datetime.now(timezone.utc)
+    order.updated_at = datetime.now(timezone.utc)
+
+    await log_activity(db, order.id, IsottoActivityType.STATUS_CHANGE, username,
+                       old_value=old_status.value, new_value=OrderStatus.APPROVED.value)
+
+    await db.commit()
+    await db.refresh(order)
+
+    logger.info(f"ISOTTO order {order.order_number} APPROVED by {username}")
+    return order
+
+
+@router.post("/orders/{order_id}/complete", response_model=PrintOrderRead)
+async def complete_order(
+    order_id: UUID,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(require_isotto_operator_or_above()),
+):
+    """Mark order production complete -> READY for pickup"""
+    result = await db.execute(
+        select(IsottoOrderModel).where(IsottoOrderModel.id == order_id)
+    )
+    order = result.scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=404, detail="Print order not found")
+
+    if order.status not in (OrderStatus.IN_PRODUCTION, OrderStatus.QUALITY_CHECK, OrderStatus.APPROVED):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot complete order in {order.status.value} status"
+        )
+
+    old_status = order.status
+    username = current_user["username"]
+    order.status = OrderStatus.READY
+    order.completed_at = datetime.now(timezone.utc)
+    order.updated_at = datetime.now(timezone.utc)
+
+    # Update customer stats
+    customer_result = await db.execute(
+        select(IsottoCustomerModel).where(IsottoCustomerModel.id == order.customer_id)
+    )
+    customer = customer_result.scalar_one_or_none()
+    if customer:
+        customer.last_order_date = date.today()
+        customer.order_count = (customer.order_count or 0) + 1
+        customer.total_spend = (customer.total_spend or Decimal("0.00")) + order.total_price
+
+    await log_activity(db, order.id, IsottoActivityType.STATUS_CHANGE, username,
+                       old_value=old_status.value, new_value=OrderStatus.READY.value)
+
+    await db.commit()
+    await db.refresh(order)
+
+    logger.info(f"ISOTTO order {order.order_number} COMPLETED by {username}: {order.total_price} EUR")
+    return order
+
+
+# ================================================================
+# ORDER LINE ITEM ENDPOINTS
+# ================================================================
+
+@router.post("/orders/{order_id}/items", response_model=IsottoLineItemRead, status_code=status.HTTP_201_CREATED)
+async def create_line_item(
+    order_id: UUID,
+    item: IsottoLineItemCreate,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(require_any_isotto_role()),
+):
+    """Add a line item to an order"""
+    # Verify order exists
+    order_result = await db.execute(
+        select(IsottoOrderModel).where(IsottoOrderModel.id == order_id)
+    )
+    order = order_result.scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=404, detail="Print order not found")
+
+    # Verify catalog product if provided
+    if item.catalog_product_id:
+        product_result = await db.execute(
+            select(IsottoCatalogProductModel).where(IsottoCatalogProductModel.id == item.catalog_product_id)
+        )
+        if not product_result.scalar_one_or_none():
+            raise HTTPException(status_code=404, detail="Catalog product not found")
+
+    new_item = IsottoOrderLineItemModel(
+        order_id=order_id,
+        **item.model_dump(),
+    )
+    db.add(new_item)
+    await db.commit()
+    await db.refresh(new_item)
+
+    logger.info(f"ISOTTO line item added to order {order.order_number}: {new_item.name_text or 'unnamed'} by {current_user['username']}")
+    return new_item
+
+
+@router.get("/orders/{order_id}/items", response_model=list[IsottoLineItemRead])
+async def list_line_items(
+    order_id: UUID,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(require_any_isotto_role()),
+):
+    """List all line items for an order (sorted by sort_order)"""
+    # Verify order exists
+    order_result = await db.execute(
+        select(IsottoOrderModel).where(IsottoOrderModel.id == order_id)
+    )
+    if not order_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Print order not found")
+
+    result = await db.execute(
+        select(IsottoOrderLineItemModel)
+        .where(IsottoOrderLineItemModel.order_id == order_id)
+        .order_by(IsottoOrderLineItemModel.sort_order)
+    )
+    return result.scalars().all()
+
+
+@router.put("/orders/{order_id}/items/{item_id}", response_model=IsottoLineItemRead)
+async def update_line_item(
+    order_id: UUID,
+    item_id: UUID,
+    item_update: IsottoLineItemUpdate,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(require_any_isotto_role()),
+):
+    """Update a line item"""
+    result = await db.execute(
+        select(IsottoOrderLineItemModel).where(
+            IsottoOrderLineItemModel.id == item_id,
+            IsottoOrderLineItemModel.order_id == order_id,
+        )
+    )
+    item = result.scalar_one_or_none()
+    if not item:
+        raise HTTPException(status_code=404, detail="Line item not found")
+
+    update_data = item_update.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(item, field, value)
+
+    item.updated_at = datetime.now(timezone.utc)
+    await db.commit()
+    await db.refresh(item)
+
+    logger.info(f"ISOTTO line item updated: {item.name_text or item.id} by {current_user['username']}")
+    return item
+
+
+@router.delete("/orders/{order_id}/items/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_line_item(
+    order_id: UUID,
+    item_id: UUID,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(require_any_isotto_role()),
+):
+    """Delete a line item"""
+    result = await db.execute(
+        select(IsottoOrderLineItemModel).where(
+            IsottoOrderLineItemModel.id == item_id,
+            IsottoOrderLineItemModel.order_id == order_id,
+        )
+    )
+    item = result.scalar_one_or_none()
+    if not item:
+        raise HTTPException(status_code=404, detail="Line item not found")
+
+    await db.delete(item)
+    await db.commit()
+
+    logger.info(f"ISOTTO line item deleted: {item_id} from order {order_id} by {current_user['username']}")
+
+
+@router.patch("/orders/{order_id}/items/{item_id}/status", response_model=IsottoLineItemRead)
+async def update_line_item_status(
+    order_id: UUID,
+    item_id: UUID,
+    status_update: IsottoLineItemStatusUpdate,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(require_isotto_operator_or_above()),
+):
+    """Advance line item status (operator+)"""
+    result = await db.execute(
+        select(IsottoOrderLineItemModel).where(
+            IsottoOrderLineItemModel.id == item_id,
+            IsottoOrderLineItemModel.order_id == order_id,
+        )
+    )
+    item = result.scalar_one_or_none()
+    if not item:
+        raise HTTPException(status_code=404, detail="Line item not found")
+
+    old_status = item.status
+    item.status = status_update.status
+    item.updated_at = datetime.now(timezone.utc)
+    await db.commit()
+    await db.refresh(item)
+
+    logger.info(f"ISOTTO line item {item_id}: {old_status.value} -> {status_update.status.value} by {current_user['username']}")
+    return item
+
+
+# ================================================================
+# ROSTER IMPORT (THE KILLER FEATURE)
+# ================================================================
+
+@router.post("/orders/{order_id}/roster", response_model=list[IsottoLineItemRead], status_code=status.HTTP_201_CREATED)
+async def import_roster(
+    order_id: UUID,
+    roster_data: IsottoRosterImport,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(require_any_isotto_role()),
+):
+    """Bulk create line items from a roster (THE KILLER FEATURE for team orders)"""
+    # Verify order exists
+    order_result = await db.execute(
+        select(IsottoOrderModel).where(IsottoOrderModel.id == order_id)
+    )
+    order = order_result.scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=404, detail="Print order not found")
+
+    # Verify catalog product if provided
+    if roster_data.catalog_product_id:
+        product_result = await db.execute(
+            select(IsottoCatalogProductModel).where(IsottoCatalogProductModel.id == roster_data.catalog_product_id)
+        )
+        if not product_result.scalar_one_or_none():
+            raise HTTPException(status_code=404, detail="Catalog product not found")
+
+    # Get current max sort_order
+    existing_items = await db.execute(
+        select(func.max(IsottoOrderLineItemModel.sort_order))
+        .where(IsottoOrderLineItemModel.order_id == order_id)
+    )
+    max_sort = existing_items.scalar() or 0
+
+    # Create line items from roster
+    created_items = []
+    for i, entry in enumerate(roster_data.roster):
+        item = IsottoOrderLineItemModel(
+            order_id=order_id,
+            catalog_product_id=roster_data.catalog_product_id,
+            sort_order=max_sort + i + 1,
+            color=entry.color or roster_data.color,
+            size=entry.size,
+            name_text=entry.name_text,
+            number_text=entry.number_text,
+            custom_text=entry.custom_text,
+            font_name=roster_data.font_name,
+            text_color=roster_data.text_color,
+            artwork_placement=roster_data.artwork_placement,
+            unit_price=roster_data.unit_price,
+            notes=entry.notes,
+        )
+        db.add(item)
+        created_items.append(item)
+
+    # Auto-mark order as team order
+    if not order.is_team_order:
+        order.is_team_order = True
+        order.updated_at = datetime.now(timezone.utc)
+
+    await db.commit()
+
+    # Refresh all items to get IDs
+    for item in created_items:
+        await db.refresh(item)
+
+    username = current_user['username']
+    await log_activity(db, order_id, IsottoActivityType.COMMENT, username,
+                       comment=f"Roster imported: {len(created_items)} items")
+    await db.commit()
+
+    logger.info(f"ISOTTO roster imported: {len(created_items)} items for order {order.order_number} by {username}")
+    return created_items
+
+
+# ================================================================
+# SIZE AGGREGATION
+# ================================================================
+
+@router.get("/orders/{order_id}/size-summary", response_model=IsottoSizeSummary)
+async def get_size_summary(
+    order_id: UUID,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(require_any_isotto_role()),
+):
+    """Get size aggregation for an order (sizes + counts + stock comparison)"""
+    # Verify order exists
+    order_result = await db.execute(
+        select(IsottoOrderModel).where(IsottoOrderModel.id == order_id)
+    )
+    if not order_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Print order not found")
+
+    # Get all line items for this order (exclude cancelled)
+    items_result = await db.execute(
+        select(IsottoOrderLineItemModel)
+        .where(
+            IsottoOrderLineItemModel.order_id == order_id,
+            IsottoOrderLineItemModel.status != LineItemStatus.CANCELLED,
+        )
+    )
+    items = items_result.scalars().all()
+
+    if not items:
+        return IsottoSizeSummary(
+            order_id=order_id,
+            total_items=0,
+            sizes=[],
+            colors={},
+        )
+
+    # Aggregate sizes
+    size_counts: dict[str, int] = {}
+    color_counts: dict[str, int] = {}
+    catalog_product_id = None
+
+    for item in items:
+        if item.size:
+            size_counts[item.size] = size_counts.get(item.size, 0) + 1
+        if item.color:
+            color_counts[item.color] = color_counts.get(item.color, 0) + 1
+        if item.catalog_product_id:
+            catalog_product_id = item.catalog_product_id
+
+    # Get stock levels if we have a catalog product
+    stock_by_size: dict[str, int] = {}
+    if catalog_product_id:
+        stock_result = await db.execute(
+            select(IsottoCatalogStockModel)
+            .where(IsottoCatalogStockModel.product_id == catalog_product_id)
+        )
+        for stock in stock_result.scalars().all():
+            key = stock.size
+            stock_by_size[key] = stock_by_size.get(key, 0) + max(0, stock.quantity_on_hand - stock.quantity_reserved)
+
+    # Build size summary items
+    size_summary = []
+    for size, count in sorted(size_counts.items()):
+        available = stock_by_size.get(size, 0)
+        need_to_order = max(0, count - available)
+        size_summary.append(IsottoSizeSummaryItem(
+            size=size,
+            count=count,
+            stock_available=available,
+            need_to_order=need_to_order,
+        ))
+
+    return IsottoSizeSummary(
+        order_id=order_id,
+        total_items=len(items),
+        sizes=size_summary,
+        colors=color_counts,
+    )
+
+
+# ================================================================
+# ORDER ACTIVITY ENDPOINTS
+# ================================================================
+
+@router.get("/orders/{order_id}/activities", response_model=list[IsottoOrderActivityRead])
+async def get_order_activities(
+    order_id: UUID,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(require_any_isotto_role()),
+):
+    """Get activity trail for an order (newest first)"""
+    # Verify order exists
+    order_result = await db.execute(
+        select(IsottoOrderModel).where(IsottoOrderModel.id == order_id)
+    )
+    if not order_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Print order not found")
+
+    result = await db.execute(
+        select(IsottoOrderActivityModel)
+        .where(IsottoOrderActivityModel.order_id == order_id)
+        .order_by(IsottoOrderActivityModel.created_at.desc())
+    )
+    return result.scalars().all()
+
+
+@router.post("/orders/{order_id}/comment", response_model=IsottoOrderActivityRead, status_code=status.HTTP_201_CREATED)
+async def add_order_comment(
+    order_id: UUID,
+    comment_data: IsottoOrderCommentCreate,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(require_any_isotto_role()),
+):
+    """Add a comment to an order's activity trail"""
+    # Verify order exists
+    order_result = await db.execute(
+        select(IsottoOrderModel).where(IsottoOrderModel.id == order_id)
+    )
+    if not order_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Print order not found")
+
+    username = current_user["username"]
+    activity = IsottoOrderActivityModel(
+        order_id=order_id,
+        activity_type=IsottoActivityType.COMMENT,
+        actor=username,
+        comment=comment_data.comment,
+    )
+    db.add(activity)
+    await db.commit()
+    await db.refresh(activity)
+
+    logger.info(f"ISOTTO comment on order {order_id} by {username}")
+    return activity
+
+
+# ================================================================
+# INVOICE ENDPOINTS
+# ================================================================
+
+@router.post("/invoices", response_model=IsottoInvoiceRead, status_code=status.HTTP_201_CREATED)
+async def create_invoice(
+    invoice_data: IsottoInvoiceCreate,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(require_any_isotto_role()),
+):
+    """Create invoice from a completed order"""
+    # Verify order exists and is in a valid state
+    order_result = await db.execute(
+        select(IsottoOrderModel).where(IsottoOrderModel.id == invoice_data.order_id)
+    )
+    order = order_result.scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=404, detail="Print order not found")
+
+    if order.status not in (OrderStatus.READY, OrderStatus.PICKED_UP, OrderStatus.INVOICED):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot invoice order in {order.status.value} status. Order must be READY, PICKED_UP, or INVOICED."
+        )
+
+    # Generate invoice number
+    today = date.today().strftime("%Y%m%d")
+    count_result = await db.execute(
+        select(func.count()).where(
+            IsottoInvoiceModel.invoice_number.like(f"INV-{today}-%")
+        )
+    )
+    count = count_result.scalar() or 0
+    invoice_number = f"INV-{today}-{count + 1:04d}"
+
+    # Calculate financials
+    line_items = [item.model_dump() for item in invoice_data.line_items]
+    subtotal = sum(Decimal(str(item["line_total"])) for item in line_items)
+    vat_rate = Decimal("22.00")
+    vat_amount = (subtotal * vat_rate / Decimal("100")).quantize(Decimal("0.01"))
+    total = subtotal + vat_amount
+    deposit = invoice_data.deposit_applied or Decimal("0.00")
+    amount_due = total - deposit
+
+    username = current_user["username"]
+
+    new_invoice = IsottoInvoiceModel(
+        invoice_number=invoice_number,
+        order_id=order.id,
+        customer_id=order.customer_id,
+        line_items=line_items,
+        subtotal=subtotal,
+        vat_rate=vat_rate,
+        vat_amount=vat_amount,
+        total=total,
+        deposit_applied=deposit,
+        amount_due=amount_due,
+        due_date=invoice_data.due_date,
+        notes=invoice_data.notes,
+        created_by=username,
+    )
+    db.add(new_invoice)
+
+    # Update order status to INVOICED
+    order.status = OrderStatus.INVOICED
+    order.updated_at = datetime.now(timezone.utc)
+
+    # Log activity
+    await log_activity(db, order.id, IsottoActivityType.INVOICE_CREATED, username,
+                       new_value=invoice_number)
+
+    await db.commit()
+    await db.refresh(new_invoice)
+
+    logger.info(f"ISOTTO invoice created: {invoice_number} for order {order.order_number} by {username}")
+    return new_invoice
+
+
+@router.get("/invoices", response_model=list[IsottoInvoiceRead])
+async def list_invoices(
+    status_filter: Optional[str] = None,
+    customer_id: Optional[UUID] = None,
+    skip: int = 0,
+    limit: int = 100,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(require_any_isotto_role()),
+):
+    """List invoices with filters"""
+    query = select(IsottoInvoiceModel)
+
+    if status_filter:
+        try:
+            ps = IsottoPaymentStatus(status_filter)
+            query = query.where(IsottoInvoiceModel.payment_status == ps)
+        except ValueError:
+            pass
+
+    if customer_id:
+        query = query.where(IsottoInvoiceModel.customer_id == customer_id)
+
+    query = query.order_by(IsottoInvoiceModel.created_at.desc()).offset(skip).limit(limit)
+    result = await db.execute(query)
+    return result.scalars().all()
+
+
+@router.get("/invoices/{invoice_id}", response_model=IsottoInvoiceRead)
+async def get_invoice(
+    invoice_id: UUID,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(require_any_isotto_role()),
+):
+    """Get single invoice"""
+    result = await db.execute(
+        select(IsottoInvoiceModel).where(IsottoInvoiceModel.id == invoice_id)
+    )
+    invoice = result.scalar_one_or_none()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    return invoice
+
+
+@router.put("/invoices/{invoice_id}", response_model=IsottoInvoiceRead)
+async def update_invoice(
+    invoice_id: UUID,
+    invoice_update: IsottoInvoiceUpdate,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(require_isotto_manager_or_admin()),
+):
+    """Update invoice (manager/admin only)"""
+    result = await db.execute(
+        select(IsottoInvoiceModel).where(IsottoInvoiceModel.id == invoice_id)
+    )
+    invoice = result.scalar_one_or_none()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+
+    update_data = invoice_update.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(invoice, field, value)
+
+    # Recalculate amount_due if deposit changed
+    if "deposit_applied" in update_data:
+        invoice.amount_due = invoice.total - invoice.deposit_applied
+
+    invoice.updated_at = datetime.now(timezone.utc)
+    await db.commit()
+    await db.refresh(invoice)
+
+    logger.info(f"ISOTTO invoice updated: {invoice.invoice_number} by {current_user['username']}")
+    return invoice
+
+
+@router.patch("/invoices/{invoice_id}/payment", response_model=IsottoInvoiceRead)
+async def record_payment(
+    invoice_id: UUID,
+    payment: IsottoPaymentRecord,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(require_any_isotto_role()),
+):
+    """Record a payment on an invoice (any staff)"""
+    result = await db.execute(
+        select(IsottoInvoiceModel).where(IsottoInvoiceModel.id == invoice_id)
+    )
+    invoice = result.scalar_one_or_none()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+
+    username = current_user["username"]
+    old_status = invoice.payment_status
+
+    invoice.payment_method = payment.payment_method
+
+    if payment.amount and payment.amount < invoice.amount_due:
+        # Partial payment
+        invoice.payment_status = IsottoPaymentStatus.PARTIAL
+        invoice.amount_due = invoice.amount_due - payment.amount
+    else:
+        # Full payment
+        invoice.payment_status = IsottoPaymentStatus.PAID
+        invoice.paid_at = datetime.now(timezone.utc)
+        invoice.amount_due = Decimal("0.00")
+
+    invoice.updated_at = datetime.now(timezone.utc)
+
+    # Log payment activity on the order
+    await log_activity(db, invoice.order_id, IsottoActivityType.PAYMENT, username,
+                       old_value=old_status.value, new_value=invoice.payment_status.value,
+                       comment=f"{payment.payment_method}: {invoice.invoice_number}")
+
+    await db.commit()
+    await db.refresh(invoice)
+
+    logger.info(f"ISOTTO payment recorded: {invoice.invoice_number} ({invoice.payment_status.value}) by {username}")
+    return invoice
+
+
+# ================================================================
+# DASHBOARD
+# ================================================================
+
+@router.get("/dashboard", response_model=IsottoDashboardSummary)
+async def get_dashboard(
+    db: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(require_any_isotto_role()),
+):
+    """One-screen overview for Famous Guy"""
+    # Orders in production
+    in_production_result = await db.execute(
+        select(func.count()).where(IsottoOrderModel.status == OrderStatus.IN_PRODUCTION)
+    )
+    orders_in_production = in_production_result.scalar() or 0
+
+    # Pending approval (quoted)
+    pending_result = await db.execute(
+        select(func.count()).where(IsottoOrderModel.status == OrderStatus.QUOTED)
+    )
+    orders_pending_approval = pending_result.scalar() or 0
+
+    # Ready for pickup
+    ready_result = await db.execute(
+        select(func.count()).where(IsottoOrderModel.status == OrderStatus.READY)
+    )
+    orders_ready = ready_result.scalar() or 0
+
+    # Quality check
+    qc_result = await db.execute(
+        select(func.count()).where(IsottoOrderModel.status == OrderStatus.QUALITY_CHECK)
+    )
+    orders_in_quality_check = qc_result.scalar() or 0
+
+    # Completed today
+    today_start = datetime.combine(date.today(), datetime.min.time(), tzinfo=timezone.utc)
+    today_end = datetime.combine(date.today(), datetime.max.time(), tzinfo=timezone.utc)
+    completed_today_result = await db.execute(
+        select(func.count()).where(
+            and_(
+                IsottoOrderModel.completed_at >= today_start,
+                IsottoOrderModel.completed_at <= today_end,
+            )
+        )
+    )
+    orders_completed_today = completed_today_result.scalar() or 0
+
+    # Total orders all-time
+    total_result = await db.execute(select(func.count()).select_from(IsottoOrderModel))
+    total_orders = total_result.scalar() or 0
+
+    # Pending invoices (unpaid)
+    pending_inv_result = await db.execute(
+        select(func.count()).where(
+            IsottoInvoiceModel.payment_status.in_([
+                IsottoPaymentStatus.PENDING,
+                IsottoPaymentStatus.DEPOSIT_PAID,
+                IsottoPaymentStatus.PARTIAL,
+                IsottoPaymentStatus.OVERDUE,
+            ])
+        )
+    )
+    pending_invoices = pending_inv_result.scalar() or 0
+
+    # Revenue this month (paid invoices)
+    month_start = datetime.combine(date.today().replace(day=1), datetime.min.time(), tzinfo=timezone.utc)
+    revenue_result = await db.execute(
+        select(func.coalesce(func.sum(IsottoInvoiceModel.total), 0)).where(
+            and_(
+                IsottoInvoiceModel.payment_status == IsottoPaymentStatus.PAID,
+                IsottoInvoiceModel.paid_at >= month_start,
+            )
+        )
+    )
+    revenue_this_month = revenue_result.scalar() or Decimal("0.00")
+
+    return IsottoDashboardSummary(
+        orders_in_production=orders_in_production,
+        orders_pending_approval=orders_pending_approval,
+        orders_ready=orders_ready,
+        orders_completed_today=orders_completed_today,
+        orders_in_quality_check=orders_in_quality_check,
+        total_orders=total_orders,
+        pending_invoices=pending_invoices,
+        revenue_this_month=revenue_this_month,
+    )
+
+
+# ================================================================
+# PREVIEW GENERATION ENDPOINTS
+# ================================================================
+
+@router.post("/orders/{order_id}/previews")
+async def generate_order_previews(
+    order_id: UUID,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(require_any_isotto_role()),
+):
+    """Generate preview PNGs for all line items in an order"""
+    from src.services.isotto_preview_service import generate_order_previews as gen_previews
+
+    # Verify order exists
+    order_result = await db.execute(
+        select(IsottoOrderModel).where(IsottoOrderModel.id == order_id)
+    )
+    if not order_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    result = await gen_previews(db, order_id)
+    logger.info(f"ISOTTO previews generated for order {order_id}: {result['generated']}/{result['total']} by {current_user['username']}")
+    return result
+
+
+@router.get("/orders/{order_id}/previews")
+async def get_order_previews(
+    order_id: UUID,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(require_any_isotto_role()),
+):
+    """Get preview info for all line items in an order"""
+    items_result = await db.execute(
+        select(IsottoOrderLineItemModel)
+        .where(IsottoOrderLineItemModel.order_id == order_id)
+        .order_by(IsottoOrderLineItemModel.sort_order)
+    )
+    items = items_result.scalars().all()
+
+    previews = []
+    for item in items:
+        previews.append({
+            "item_id": str(item.id),
+            "sort_order": item.sort_order,
+            "name_text": item.name_text,
+            "number_text": item.number_text,
+            "size": item.size,
+            "color": item.color,
+            "status": item.status.value if item.status else "pending",
+            "preview_image_url": item.preview_image_url,
+            "unit_price": float(item.unit_price) if item.unit_price else 0,
+        })
+
+    return {"order_id": str(order_id), "previews": previews, "total": len(previews)}
+
+
+# ================================================================
+# PRINT QUEUE ENDPOINTS
+# ================================================================
+
+@router.get("/print-queue")
+async def get_print_queue(
+    status_filter: Optional[str] = None,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(require_any_isotto_role()),
+):
+    """
+    Get all line items ready for printing (STOCK_RECEIVED, PRINTING, QUALITY_CHECK).
+    Grouped by order for the operator's workflow view.
+    """
+    # Default: show items that are actionable
+    statuses = [LineItemStatus.STOCK_RECEIVED, LineItemStatus.PRINTING, LineItemStatus.QUALITY_CHECK]
+
+    if status_filter:
+        try:
+            statuses = [LineItemStatus(status_filter)]
+        except ValueError:
+            pass
+
+    items_result = await db.execute(
+        select(IsottoOrderLineItemModel)
+        .where(IsottoOrderLineItemModel.status.in_(statuses))
+        .order_by(
+            IsottoOrderLineItemModel.order_id,
+            IsottoOrderLineItemModel.sort_order,
+        )
+    )
+    items = items_result.scalars().all()
+
+    # Group by order
+    orders_map = {}
+    for item in items:
+        oid = str(item.order_id)
+        if oid not in orders_map:
+            orders_map[oid] = {"order_id": oid, "items": []}
+        orders_map[oid]["items"].append({
+            "item_id": str(item.id),
+            "sort_order": item.sort_order,
+            "name_text": item.name_text,
+            "number_text": item.number_text,
+            "size": item.size,
+            "color": item.color,
+            "status": item.status.value,
+            "preview_image_url": item.preview_image_url,
+            "artwork_placement": item.artwork_placement,
+            "notes": item.notes,
+        })
+
+    # Enrich with order info
+    order_ids = list(orders_map.keys())
+    if order_ids:
+        orders_result = await db.execute(
+            select(IsottoOrderModel).where(IsottoOrderModel.id.in_(order_ids))
+        )
+        for order in orders_result.scalars().all():
+            oid = str(order.id)
+            if oid in orders_map:
+                orders_map[oid]["order_number"] = order.order_number
+                orders_map[oid]["title"] = order.title
+                orders_map[oid]["team_name"] = order.team_name
+                orders_map[oid]["status"] = order.status.value
+
+    return {
+        "queue": list(orders_map.values()),
+        "total_items": len(items),
+        "total_orders": len(orders_map),
+    }
+
+
+@router.patch("/print-queue/bulk-status")
+async def bulk_update_print_queue_status(
+    item_ids: list[UUID],
+    new_status: str,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(require_any_isotto_role()),
+):
+    """Bulk status update for print queue items (operator advances multiple items)"""
+    try:
+        target_status = LineItemStatus(new_status)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid status: {new_status}")
+
+    updated = 0
+    for item_id in item_ids:
+        result = await db.execute(
+            select(IsottoOrderLineItemModel).where(IsottoOrderLineItemModel.id == item_id)
+        )
+        item = result.scalar_one_or_none()
+        if item:
+            item.status = target_status
+            item.updated_at = datetime.now(timezone.utc)
+            updated += 1
+
+    await db.commit()
+
+    logger.info(f"ISOTTO print queue bulk update: {updated} items -> {new_status} by {current_user['username']}")
+    return {"updated": updated, "new_status": new_status}
+
+
+# ================================================================
+# HTML WEB UI ROUTES (Famous Guy's Team Interface)
+# ================================================================
+
+@html_router.get("/print-shop", response_class=HTMLResponse, name="isotto_login")
+async def isotto_login(request: Request):
+    """ISOTTO Sport login page - entry point"""
+    return templates.TemplateResponse("isotto/login.html", {"request": request})
+
+
+@html_router.get("/print-shop/callback")
+async def isotto_oauth_callback(request: Request, code: str = None, error: str = None):
+    """
+    OAuth2 Callback - Server-side token exchange.
+    Same pattern as Camper: browser -> Keycloak -> code -> server exchanges -> redirect with token.
+    """
+    import httpx
+    from fastapi.responses import RedirectResponse
+
+    if error:
+        logger.error(f"ISOTTO OAuth callback error: {error}")
+        return RedirectResponse(url="/print-shop?error=" + error)
+
+    if not code:
+        logger.warning("ISOTTO OAuth callback without code")
+        return RedirectResponse(url="/print-shop?error=no_code")
+
+    # Keycloak config -- internal Docker URL for server-to-server
+    keycloak_internal_url = "http://keycloak:8080"
+    realm = settings.ISOTTO_REALM
+    client_id = "isotto_print_web"
+
+    # Reconstruct redirect_uri from forwarded headers (must match browser's original)
+    forwarded_proto = request.headers.get("x-forwarded-proto", "https")
+    forwarded_host = request.headers.get("x-forwarded-host") or request.headers.get("host", "helix.local")
+    redirect_uri = f"{forwarded_proto}://{forwarded_host}/print-shop/callback"
+
+    logger.info(f"ISOTTO token exchange redirect_uri: {redirect_uri}")
+
+    token_endpoint = f"{keycloak_internal_url}/realms/{realm}/protocol/openid-connect/token"
+
+    try:
+        async with httpx.AsyncClient(verify=False, timeout=10.0) as client:
+            response = await client.post(
+                token_endpoint,
+                data={
+                    "grant_type": "authorization_code",
+                    "client_id": client_id,
+                    "code": code,
+                    "redirect_uri": redirect_uri
+                },
+                headers={"Content-Type": "application/x-www-form-urlencoded"}
+            )
+
+            if response.status_code != 200:
+                logger.error(f"ISOTTO token exchange failed: {response.status_code} - {response.text}")
+                return RedirectResponse(url="/print-shop?error=token_exchange_failed")
+
+            tokens = response.json()
+            access_token = tokens.get("access_token")
+
+            if not access_token:
+                logger.error("ISOTTO: No access_token in response")
+                return RedirectResponse(url="/print-shop?error=no_token")
+
+            logger.info("ISOTTO OAuth callback successful, redirecting to dashboard")
+            return RedirectResponse(url=f"/print-shop/dashboard#token={access_token}")
+
+    except Exception as e:
+        logger.error(f"ISOTTO token exchange exception: {e}")
+        return RedirectResponse(url="/print-shop?error=token_exchange_error")
+
+
+@html_router.get("/print-shop/dashboard", response_class=HTMLResponse, name="isotto_dashboard")
+async def isotto_dashboard_page(request: Request):
+    """Dashboard - Morning overview for Famous Guy"""
+    return templates.TemplateResponse("isotto/dashboard.html", {"request": request})
+
+
+@html_router.get("/print-shop/orders", response_class=HTMLResponse, name="isotto_orders")
+async def isotto_orders_page(request: Request):
+    """Order board - filterable list of all print orders"""
+    return templates.TemplateResponse("isotto/orders.html", {"request": request})
+
+
+@html_router.get("/print-shop/orders/new", response_class=HTMLResponse, name="isotto_order_new")
+async def isotto_order_new_page(request: Request):
+    """New order - create a quotation"""
+    return templates.TemplateResponse("isotto/order_detail.html", {"request": request})
+
+
+@html_router.get("/print-shop/orders/{order_id}", response_class=HTMLResponse, name="isotto_order_detail")
+async def isotto_order_detail_page(request: Request, order_id: str):
+    """Order detail - view, edit, advance status"""
+    return templates.TemplateResponse("isotto/order_detail.html", {"request": request})
+
+
+@html_router.get("/print-shop/invoices", response_class=HTMLResponse, name="isotto_invoices")
+async def isotto_invoices_page(request: Request):
+    """Invoice management - list, filter, record payments"""
+    return templates.TemplateResponse("isotto/invoices.html", {"request": request})
+
+
+@html_router.get("/print-shop/customers", response_class=HTMLResponse, name="isotto_customers")
+async def isotto_customers_page(request: Request):
+    """Customer lookup - search and manage profiles"""
+    return templates.TemplateResponse("isotto/customers.html", {"request": request})
+
+
+@html_router.get("/print-shop/orders/{order_id}/previews", response_class=HTMLResponse, name="isotto_preview_gallery")
+async def isotto_preview_gallery_page(request: Request, order_id: str):
+    """Preview gallery - review personalization previews before production"""
+    return templates.TemplateResponse("isotto/preview_gallery.html", {"request": request})
+
+
+@html_router.get("/print-shop/print-queue", response_class=HTMLResponse, name="isotto_print_queue")
+async def isotto_print_queue_page(request: Request):
+    """Print queue - operator workflow for production"""
+    return templates.TemplateResponse("isotto/print_queue.html", {"request": request})

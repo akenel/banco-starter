@@ -1,0 +1,109 @@
+# ================================================================
+# Banco POS — minimal single-host stack (the "Own Your Banco" starter)
+#   postgres  — the one hard dependency (app schema auto-creates on boot)
+#   keycloak  — OIDC login; realm auto-imported from ./keycloak/import
+#   minio     — S3-compatible image/artifact store (snap-fill, OG cards)
+#   app       — the FastAPI POS itself
+#
+# One command:  docker compose up --build   (after: cp .env.example .env)
+# Then:  ./scripts/standup.sh   to apply the audit log.
+# ================================================================
+services:
+
+  postgres:
+    image: postgres:17.6
+    container_name: banco-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # first-init only: create the separate `keycloak` database
+      - ./scripts/db/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      # host-side access only; the app reaches Postgres in-network on 5432
+      - "${POSTGRES_HOST_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0.4
+    container_name: banco-keycloak
+    restart: unless-stopped
+    command: ["start-dev", "--import-realm", "--http-port=8080"]
+    environment:
+      # admin console creds (also used by the app for the KC health/admin calls)
+      KEYCLOAK_ADMIN: ${HX_SUPER_NAME}
+      KEYCLOAK_ADMIN_PASSWORD: ${HX_SUPER_PASSWORD}
+      # KC stores its own data in the dedicated `keycloak` database
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: ${POSTGRES_USER}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME_STRICT: "false"
+      KC_HEALTH_ENABLED: "true"
+    volumes:
+      - ./keycloak/import:/opt/keycloak/data/import:ro
+    ports:
+      - "${KC_HOST_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      # KC 24 exposes /health/ready on the mgmt port 9000
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && cat <&3 | grep -q 'UP'"]
+      interval: 15s
+      timeout: 10s
+      retries: 15
+      start_period: 40s
+
+  minio:
+    image: minio/minio:latest
+    container_name: banco-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+    volumes:
+      - minio_data:/data
+    ports:
+      - "${MINIO_HOST_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_HOST_PORT:-9001}:9001"
+    healthcheck:
+      test: ["CMD-SHELL", "mc ready local || exit 0"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: banco-pos:latest
+    container_name: banco-app
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "${APP_HOST_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health/healthz', timeout=5)\""]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+volumes:
+  postgres_data:
+  minio_data:

@@ -1,0 +1,848 @@
+{% extends "camper/base.html" %}
+
+{% block title %}Dettaglio Lavoro - Camper & Tour{% endblock %}
+{% block page_name %}Dettaglio Lavoro{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50" x-data="jobDetailData()">
+    <!-- Top Navigation -->
+    <nav class="bg-white shadow-lg sticky top-0 z-10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-4">
+                    <span class="text-2xl">&#x1F69C;</span>
+                    <div>
+                        <h1 class="text-xl font-bold text-gray-900" data-i18n="brand.name">Camper & Tour</h1>
+                        <p class="text-xs text-gray-500" data-i18n="brand.subtitle">Gestione Servizi</p>
+                    </div>
+                </div>
+                <div class="hidden md:flex items-center space-x-1">
+                    <a href="/camper/dashboard" class="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100"><span data-i18n="nav.dashboard">Cruscotto</span></a>
+                    <a href="/camper/checkin" class="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100"><span data-i18n="nav.checkin">Accettazione</span></a>
+                    <a href="/camper/jobs" class="px-3 py-2 rounded-lg text-sm font-medium bg-amber-100 text-amber-800"><span data-i18n="nav.jobs">Lavori</span></a>
+                    <a href="/camper/customers" class="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100"><span data-i18n="nav.customers">Clienti</span></a>
+                    <a href="/camper/appointments" class="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100"><span data-i18n="nav.appointments">Appuntamenti</span></a>
+                    <a href="/camper/quotations" class="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100"><span data-i18n="nav.quotations">Preventivi</span></a>
+                    <a href="/camper/purchase-orders" class="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100"><span data-i18n="nav.purchase_orders">Ordini</span></a>
+                    <a href="/camper/invoices" class="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100"><span data-i18n="nav.invoices">Fatture</span></a>
+                    <a href="/camper/calendar" class="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100"><span data-i18n="nav.calendar">Calendario</span></a>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <span class="text-sm text-gray-600" x-text="user.username"></span>
+                    <button @click="CamperAuth.logout()" class="text-red-600 hover:text-red-700 text-sm" data-i18n="nav.logout">Esci</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Mobile Nav -->
+    <div class="md:hidden bg-white border-b px-4 py-2 flex space-x-2 overflow-x-auto">
+        <a href="/camper/dashboard" class="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 bg-gray-50 whitespace-nowrap"><span data-i18n="nav.dashboard">Cruscotto</span></a>
+        <a href="/camper/checkin" class="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 bg-gray-50 whitespace-nowrap"><span data-i18n="nav.checkin">Accettazione</span></a>
+        <a href="/camper/jobs" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-100 text-amber-800 whitespace-nowrap"><span data-i18n="nav.jobs">Lavori</span></a>
+        <a href="/camper/customers" class="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 bg-gray-50 whitespace-nowrap"><span data-i18n="nav.customers">Clienti</span></a>
+        <a href="/camper/appointments" class="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 bg-gray-50 whitespace-nowrap"><span data-i18n="nav.appointments">Appuntamenti</span></a>
+        <a href="/camper/quotations" class="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 bg-gray-50 whitespace-nowrap"><span data-i18n="nav.quotations">Preventivi</span></a>
+        <a href="/camper/purchase-orders" class="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 bg-gray-50 whitespace-nowrap"><span data-i18n="nav.purchase_orders">Ordini</span></a>
+        <a href="/camper/invoices" class="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 bg-gray-50 whitespace-nowrap"><span data-i18n="nav.invoices">Fatture</span></a>
+        <a href="/camper/calendar" class="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 bg-gray-50 whitespace-nowrap"><span data-i18n="nav.calendar">Calendario</span></a>
+    </div>
+
+    <main class="max-w-4xl mx-auto px-4 py-6">
+        <!-- Back link -->
+        <a href="/camper/jobs" class="text-amber-600 hover:text-amber-700 text-sm mb-4 inline-block">&larr; <span data-i18n="job_detail.back_to_jobs">Torna ai lavori</span></a>
+
+        <!-- Loading -->
+        <template x-if="loading">
+            <div class="card text-center py-12">
+                <p class="text-gray-500" x-text="t('common.loading')">Caricamento...</p>
+            </div>
+        </template>
+
+        <!-- CREATE MODE -->
+        <template x-if="!loading && createMode">
+            <div class="card">
+                <h2 class="text-2xl font-bold text-gray-900 mb-6" x-text="t('job_detail.new_quote_title')">Nuovo Preventivo</h2>
+                <form @submit.prevent="createJob()">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 mb-1" x-text="t('job_detail.label_title') + ' *'">Titolo *</label>
+                            <input type="text" x-model="newJob.title" class="input-field" required
+                                   :placeholder="t('job_detail.title_placeholder')">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 mb-1" x-text="t('job_detail.label_description')">Descrizione</label>
+                            <textarea x-model="newJob.description" class="input-field" rows="3"
+                                      :placeholder="t('job_detail.desc_placeholder')"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1" x-text="t('job_detail.label_vehicle_id') + ' *'">Veicolo (ID) *</label>
+                            <input type="text" x-model="newJob.vehicle_id" class="input-field" required
+                                   :placeholder="t('job_detail.vehicle_id_placeholder')">
+                            <p class="text-xs text-gray-400 mt-1" x-text="t('job_detail.vehicle_hint')">Usa Accettazione per cercare il veicolo</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1" x-text="t('job_detail.label_customer_id') + ' *'">Cliente (ID) *</label>
+                            <input type="text" x-model="newJob.customer_id" class="input-field" required
+                                   :placeholder="t('job_detail.customer_id_placeholder')">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1" x-text="t('job_detail.label_job_type')">Tipo Lavoro</label>
+                            <select x-model="newJob.job_type" class="input-field">
+                                <template x-for="(label, key) in JOB_TYPE_LABELS" :key="key">
+                                    <option :value="key" x-text="label"></option>
+                                </template>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1" x-text="t('job_detail.label_assigned_to')">Assegnato a</label>
+                            <select x-model="newJob.assigned_to" class="input-field">
+                                <option value="" x-text="t('common.unassigned')">Non assegnato</option>
+                                <option value="Sebastino">Sebastino</option>
+                                <option value="Maximo">Maximo</option>
+                                <option value="Seppi">Seppi</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1" x-text="t('job_detail.label_estimated_hours')">Ore Stimate</label>
+                            <input type="number" x-model.number="newJob.estimated_hours" class="input-field" min="0" step="0.5">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1" x-text="t('job_detail.label_estimated_parts')">Costo Ricambi Stimato</label>
+                            <input type="number" x-model.number="newJob.estimated_parts_cost" class="input-field" min="0" step="0.01">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1" x-text="t('job_detail.label_estimated_total')">Totale Stimato</label>
+                            <input type="number" x-model.number="newJob.estimated_total" class="input-field" min="0" step="0.01">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1" x-text="t('job_detail.label_scheduled_date')">Data Prevista</label>
+                            <input type="date" x-model="newJob.scheduled_date" class="input-field">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 mb-1" x-text="t('job_detail.label_customer_notes')">Note Cliente</label>
+                            <textarea x-model="newJob.customer_notes" class="input-field" rows="2"
+                                      :placeholder="t('job_detail.customer_notes_placeholder')"></textarea>
+                        </div>
+                    </div>
+                    <div class="flex space-x-3">
+                        <button type="submit" class="btn-primary" :disabled="saving">
+                            <span x-show="!saving" x-text="t('job_detail.create_quote')">Crea Preventivo</span>
+                            <span x-show="saving" x-text="t('common.saving')">Salvataggio...</span>
+                        </button>
+                        <a href="/camper/jobs" class="btn-secondary" x-text="t('common.cancel')">Annulla</a>
+                    </div>
+                </form>
+            </div>
+        </template>
+
+        <!-- VIEW/EDIT MODE -->
+        <template x-if="!loading && !createMode && job.id">
+            <div>
+                <!-- Header -->
+                <div class="card mb-6">
+                    <div class="flex flex-wrap justify-between items-start gap-4">
+                        <div>
+                            <p class="text-sm font-mono text-gray-500" x-text="job.job_number"></p>
+                            <h2 class="text-2xl font-bold text-gray-900" x-text="job.title"></h2>
+                            <p class="text-sm text-gray-600 mt-1">
+                                <span x-text="vehiclePlate"></span> &middot;
+                                <span x-text="customerName"></span>
+                            </p>
+                        </div>
+                        <span class="badge text-sm px-3 py-1" :class="'badge-' + job.status"
+                              x-text="JOB_STATUS_LABELS[job.status] || job.status"></span>
+                    </div>
+                </div>
+
+                <!-- Deposit Section (v2) -->
+                <template x-if="job.deposit_required > 0 || job.deposit_paid > 0">
+                    <div class="card mb-6" :class="job.deposit_paid >= job.deposit_required ? 'border-l-4 border-green-500' : 'border-l-4 border-amber-500'">
+                        <h3 class="text-lg font-bold text-gray-900 mb-3" x-text="t('job_detail.deposit_title')">Acconto</h3>
+                        <div class="grid grid-cols-3 gap-4 text-sm">
+                            <div>
+                                <span class="text-gray-500 block" x-text="t('job_detail.deposit_required')">Richiesto</span>
+                                <span class="font-bold text-lg" x-text="formatPrice(job.deposit_required)"></span>
+                            </div>
+                            <div>
+                                <span class="text-gray-500 block" x-text="t('job_detail.deposit_paid')">Versato</span>
+                                <span class="font-bold text-lg" :class="job.deposit_paid >= job.deposit_required ? 'text-green-600' : 'text-amber-600'"
+                                      x-text="formatPrice(job.deposit_paid)"></span>
+                            </div>
+                            <div>
+                                <span class="text-gray-500 block" x-text="t('job_detail.deposit_date')">Data Pagamento</span>
+                                <span class="font-semibold" x-text="formatDateTime(job.deposit_paid_at)"></span>
+                            </div>
+                        </div>
+                        <template x-if="job.deposit_paid < job.deposit_required && user.isCounter">
+                            <div class="mt-4 flex items-center space-x-3">
+                                <input type="number" x-model.number="depositAmount" class="input-field w-40 text-sm py-2" min="0" step="0.01" :placeholder="t('job_detail.deposit_amount_placeholder')">
+                                <select x-model="depositMethod" class="input-field w-40 text-sm py-2">
+                                    <option value="cash" x-text="t('job_detail.deposit_cash')">Contanti</option>
+                                    <option value="card" x-text="t('job_detail.deposit_card')">Carta</option>
+                                    <option value="transfer" x-text="t('job_detail.deposit_transfer')">Bonifico</option>
+                                </select>
+                                <button @click="recordDeposit()" class="btn-success text-sm py-2" x-text="t('job_detail.record_deposit')">Registra Acconto</button>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+
+                <!-- Inspection Section (v2) -->
+                <template x-if="job.inspected_by || job.status === 'inspection'">
+                    <div class="card mb-6" :class="job.inspection_passed ? 'border-l-4 border-green-500' : 'border-l-4 border-purple-500'">
+                        <h3 class="text-lg font-bold text-gray-900 mb-3" x-text="t('job_detail.inspection_title')">Ispezione</h3>
+                        <template x-if="job.inspected_by">
+                            <div class="grid grid-cols-3 gap-4 text-sm">
+                                <div>
+                                    <span class="text-gray-500 block" x-text="t('job_detail.inspection_result')">Esito</span>
+                                    <span class="font-bold" :class="job.inspection_passed ? 'text-green-600' : 'text-red-600'"
+                                          x-text="job.inspection_passed ? t('job_detail.inspection_passed') : t('job_detail.inspection_failed')"></span>
+                                </div>
+                                <div>
+                                    <span class="text-gray-500 block" x-text="t('job_detail.inspector')">Ispettore</span>
+                                    <span class="font-semibold" x-text="job.inspected_by"></span>
+                                </div>
+                                <div>
+                                    <span class="text-gray-500 block" x-text="t('job_detail.inspection_date')">Data</span>
+                                    <span class="font-semibold" x-text="formatDateTime(job.inspected_at)"></span>
+                                </div>
+                            </div>
+                        </template>
+                        <template x-if="job.inspection_notes">
+                            <div class="mt-3">
+                                <span class="text-gray-500 text-sm block" x-text="t('job_detail.inspection_notes_label')">Note Ispezione</span>
+                                <p class="text-sm text-gray-700 whitespace-pre-line" x-text="job.inspection_notes"></p>
+                            </div>
+                        </template>
+                        <template x-if="job.status === 'inspection' && user.isManager">
+                            <div class="mt-4">
+                                <textarea x-model="inspectionNotes" class="input-field text-sm mb-3" rows="2" :placeholder="t('job_detail.inspection_notes_placeholder')"></textarea>
+                                <div class="flex space-x-3">
+                                    <button @click="passInspection()" class="btn-success text-sm py-2" x-text="t('job_detail.pass_inspection')">Ispezione Superata</button>
+                                    <button @click="failInspection()" class="btn-danger text-sm py-2" x-text="t('job_detail.fail_inspection')">Non Superata</button>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+
+                <!-- Quote Section -->
+                <div class="card mb-6">
+                    <h3 class="text-lg font-bold text-gray-900 mb-4" x-text="t('job_detail.quote_title')">Preventivo</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        <div>
+                            <span class="text-gray-500 block" x-text="t('job_detail.estimated_hours')">Ore Stimate</span>
+                            <span class="font-semibold" x-text="job.estimated_hours + 'h'"></span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500 block" x-text="t('job_detail.estimated_parts')">Ricambi Stimati</span>
+                            <span class="font-semibold" x-text="formatPrice(job.estimated_parts_cost)"></span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500 block" x-text="t('job_detail.estimated_total')">Totale Stimato</span>
+                            <span class="font-bold text-lg text-amber-600" x-text="formatPrice(job.estimated_total)"></span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500 block" x-text="t('job_detail.valid_until')">Valido Fino a</span>
+                            <span class="font-semibold" x-text="formatDate(job.quote_valid_until)"></span>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex flex-wrap gap-2">
+                        <template x-if="job.status === 'quoted' && user.isManager">
+                            <button @click="approveJob()" class="btn-success text-sm py-2" x-text="t('job_detail.approve_quote')">Approva Preventivo</button>
+                        </template>
+                        <template x-if="job.status === 'quoted'">
+                            <a :href="'/camper/quotations?job_id=' + job.id" class="btn-secondary text-sm py-2" x-text="t('job_detail.create_formal_quote')">Crea Preventivo Formale</a>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Work Section -->
+                <div class="card mb-6">
+                    <h3 class="text-lg font-bold text-gray-900 mb-4" x-text="t('job_detail.work_title')">Lavoro</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1" x-text="t('common.type')">Tipo</label>
+                            <p class="text-sm" x-text="JOB_TYPE_LABELS[job.job_type] || job.job_type"></p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1" x-text="t('job_detail.label_assigned_to')">Assegnato a</label>
+                            <template x-if="editing && user.isManager">
+                                <select x-model="editData.assigned_to" class="input-field text-sm py-2">
+                                    <option value="" x-text="t('common.unassigned')">Non assegnato</option>
+                                    <option value="Sebastino">Sebastino</option>
+                                    <option value="Maximo">Maximo</option>
+                                    <option value="Seppi">Seppi</option>
+                                </select>
+                            </template>
+                            <template x-if="!editing || !user.isManager">
+                                <p class="text-sm" x-text="job.assigned_to || t('common.unassigned')"></p>
+                            </template>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1" x-text="t('job_detail.actual_hours')">Ore Effettive</label>
+                            <template x-if="editing">
+                                <input type="number" x-model.number="editData.actual_hours" class="input-field text-sm py-2" min="0" step="0.5">
+                            </template>
+                            <template x-if="!editing">
+                                <p class="text-sm" x-text="job.actual_hours + 'h'"></p>
+                            </template>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1" x-text="t('job_detail.actual_parts_cost')">Costo Ricambi Effettivo</label>
+                            <template x-if="editing">
+                                <input type="number" x-model.number="editData.actual_parts_cost" class="input-field text-sm py-2" min="0" step="0.01">
+                            </template>
+                            <template x-if="!editing">
+                                <p class="text-sm" x-text="formatPrice(job.actual_parts_cost)"></p>
+                            </template>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1" x-text="t('job_detail.labor_cost')">Costo Manodopera</label>
+                            <p class="text-sm" x-text="formatPrice(job.actual_labor_cost)"></p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1" x-text="t('job_detail.actual_total')">Totale Effettivo</label>
+                            <p class="text-lg font-bold text-green-600" x-text="formatPrice(job.actual_total)"></p>
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1" x-text="t('job_detail.parts_used')">Ricambi Usati</label>
+                        <template x-if="editing">
+                            <textarea x-model="editData.parts_used" class="input-field text-sm" rows="2"
+                                      :placeholder="t('job_detail.parts_used_placeholder')"></textarea>
+                        </template>
+                        <template x-if="!editing">
+                            <p class="text-sm text-gray-600" x-text="job.parts_used || '-'"></p>
+                        </template>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4 mt-4">
+                        <div class="flex items-center space-x-2">
+                            <template x-if="editing">
+                                <input type="checkbox" x-model="editData.parts_on_order" class="w-4 h-4">
+                            </template>
+                            <template x-if="!editing">
+                                <span x-text="job.parts_on_order ? t('common.yes') : t('common.no')" class="text-sm"></span>
+                            </template>
+                            <label class="text-sm text-gray-700" x-text="t('job_detail.parts_on_order')">Ricambi in ordine</label>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1" x-text="t('job_detail.po_number')">N. Ordine</label>
+                            <template x-if="editing">
+                                <input type="text" x-model="editData.parts_po_number" class="input-field text-sm py-2">
+                            </template>
+                            <template x-if="!editing">
+                                <p class="text-sm" x-text="job.parts_po_number || '-'"></p>
+                            </template>
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1" x-text="t('job_detail.work_performed')">Lavoro Eseguito</label>
+                        <template x-if="editing">
+                            <textarea x-model="editData.work_performed" class="input-field text-sm" rows="3"
+                                      :placeholder="t('job_detail.work_performed_placeholder')"></textarea>
+                        </template>
+                        <template x-if="!editing">
+                            <p class="text-sm text-gray-600 whitespace-pre-line" x-text="job.work_performed || '-'"></p>
+                        </template>
+                    </div>
+
+                    <div class="mt-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1" x-text="t('job_detail.issue_found')">Problema Riscontrato</label>
+                        <template x-if="editing">
+                            <textarea x-model="editData.issue_found" class="input-field text-sm" rows="3"
+                                      :placeholder="t('job_detail.issue_found_placeholder')"></textarea>
+                        </template>
+                        <template x-if="!editing">
+                            <p class="text-sm text-gray-600 whitespace-pre-line" x-text="job.issue_found || '-'"></p>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Notes Section -->
+                <div class="card mb-6">
+                    <h3 class="text-lg font-bold text-gray-900 mb-4" x-text="t('job_detail.notes_title')">Note</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1" x-text="t('job_detail.customer_notes')">Note Cliente</label>
+                            <template x-if="editing">
+                                <textarea x-model="editData.customer_notes" class="input-field text-sm" rows="3"></textarea>
+                            </template>
+                            <template x-if="!editing">
+                                <p class="text-sm text-gray-600 whitespace-pre-line" x-text="job.customer_notes || '-'"></p>
+                            </template>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1" x-text="t('job_detail.mechanic_notes')">Note Meccanico</label>
+                            <template x-if="editing">
+                                <textarea x-model="editData.mechanic_notes" class="input-field text-sm" rows="3"></textarea>
+                            </template>
+                            <template x-if="!editing">
+                                <p class="text-sm text-gray-600 whitespace-pre-line" x-text="job.mechanic_notes || '-'"></p>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Timeline Section -->
+                <div class="card mb-6">
+                    <h3 class="text-lg font-bold text-gray-900 mb-4" x-text="t('job_detail.timeline_title')">Tempistica</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        <div>
+                            <span class="text-gray-500 block" x-text="t('job_detail.scheduled_date')">Data Prevista</span>
+                            <span class="font-semibold" x-text="formatDate(job.scheduled_date)"></span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500 block" x-text="t('job_detail.started_at')">Iniziato</span>
+                            <span class="font-semibold" x-text="formatDateTime(job.started_at)"></span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500 block" x-text="t('job_detail.completed_at')">Completato</span>
+                            <span class="font-semibold" x-text="formatDateTime(job.completed_at)"></span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500 block" x-text="t('job_detail.picked_up_at')">Ritirato</span>
+                            <span class="font-semibold" x-text="formatDateTime(job.picked_up_at)"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Follow-up Section -->
+                <div class="card mb-6">
+                    <h3 class="text-lg font-bold text-gray-900 mb-4" x-text="t('job_detail.followup_title')">Follow-up</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                        <div class="flex items-center space-x-2">
+                            <template x-if="editing">
+                                <input type="checkbox" x-model="editData.follow_up_required" class="w-4 h-4">
+                            </template>
+                            <template x-if="!editing">
+                                <span x-text="job.follow_up_required ? t('common.yes') : t('common.no')"></span>
+                            </template>
+                            <label class="text-gray-700" x-text="t('job_detail.followup_required')">Follow-up richiesto</label>
+                        </div>
+                        <div>
+                            <span class="text-gray-500 block" x-text="t('job_detail.next_service')">Prossimo Servizio</span>
+                            <template x-if="editing">
+                                <input type="date" x-model="editData.next_service_date" class="input-field text-sm py-2">
+                            </template>
+                            <template x-if="!editing">
+                                <span class="font-semibold" x-text="formatDate(job.next_service_date)"></span>
+                            </template>
+                        </div>
+                        <div>
+                            <span class="text-gray-500 block" x-text="t('job_detail.followup_notes')">Note Follow-up</span>
+                            <template x-if="editing">
+                                <textarea x-model="editData.follow_up_notes" class="input-field text-sm" rows="2"></textarea>
+                            </template>
+                            <template x-if="!editing">
+                                <span x-text="job.follow_up_notes || '-'"></span>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Related Documents (v2) -->
+                <div class="card mb-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-bold text-gray-900" x-text="t('job_detail.documents_title')">Documenti</h3>
+                        <span class="text-sm text-gray-500" x-text="documents.length + ' ' + t('common.files')"></span>
+                    </div>
+                    <template x-if="documents.length === 0">
+                        <p class="text-sm text-gray-500" x-text="t('job_detail.no_documents')">Nessun documento allegato.</p>
+                    </template>
+                    <template x-if="documents.length > 0">
+                        <div class="space-y-2">
+                            <template x-for="doc in documents" :key="doc.id">
+                                <div class="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-3">
+                                    <div class="flex items-center space-x-3 min-w-0">
+                                        <!-- Thumbnail for images (loaded via JS with auth token) -->
+                                        <template x-if="doc.file_type && doc.file_type.startsWith('image/')">
+                                            <img x-init="loadThumbnail($el, doc.id)"
+                                                 class="w-10 h-10 rounded object-cover border border-gray-200 flex-shrink-0"
+                                                 :alt="doc.file_name" src="">
+                                        </template>
+                                        <template x-if="!doc.file_type || !doc.file_type.startsWith('image/')">
+                                            <div class="w-10 h-10 rounded bg-gray-200 flex items-center justify-center flex-shrink-0">
+                                                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                                                </svg>
+                                            </div>
+                                        </template>
+                                        <div class="min-w-0">
+                                            <span class="text-sm font-medium text-gray-900 truncate block" x-text="doc.file_name"></span>
+                                            <span class="text-xs text-gray-500" x-text="(doc.file_size / 1024).toFixed(0) + ' KB'"></span>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center space-x-2 flex-shrink-0">
+                                        <!-- View (fetches with auth, opens blob in new tab) -->
+                                        <button @click="viewDocument(doc.id)"
+                                           class="text-blue-600 hover:text-blue-700 text-sm font-medium cursor-pointer bg-transparent border-0">View</button>
+                                        <!-- Download (fetches with auth, triggers save dialog) -->
+                                        <button @click="downloadDocument(doc.id, doc.file_name)"
+                                           class="text-amber-600 hover:text-amber-700 text-sm font-medium cursor-pointer bg-transparent border-0"
+                                           x-text="t('common.download')">Scarica</button>
+                                        <!-- Delete (manager/admin only) -->
+                                        <template x-if="user.isManager || user.isAdmin">
+                                            <button @click="deleteDocument(doc.id, doc.file_name)"
+                                                    class="text-red-500 hover:text-red-700 text-sm font-medium">
+                                                Delete
+                                            </button>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+
+                    <!-- Upload -->
+                    <div class="mt-4 border-t pt-4">
+                        <div class="flex items-center space-x-3">
+                            <input type="file" id="docUpload" @change="uploadDocument($event)" class="text-sm">
+                            <span x-show="uploading" class="text-sm text-gray-500" x-text="t('job_detail.uploading')">Caricamento...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="card flex flex-wrap gap-3">
+                    <!-- Edit/Save -->
+                    <template x-if="!editing && user.isMechanic">
+                        <button @click="startEditing()" class="btn-secondary" x-text="t('job_detail.btn_edit')">Modifica</button>
+                    </template>
+                    <template x-if="editing">
+                        <button @click="saveJob()" class="btn-primary" :disabled="saving">
+                            <span x-show="!saving" x-text="t('common.save_changes')">Salva Modifiche</span>
+                            <span x-show="saving" x-text="t('common.saving')">Salvataggio...</span>
+                        </button>
+                    </template>
+                    <template x-if="editing">
+                        <button @click="cancelEditing()" class="btn-secondary" x-text="t('common.cancel')">Annulla</button>
+                    </template>
+
+                    <!-- Status Actions -->
+                    <template x-if="job.status === 'quoted' && user.isManager">
+                        <button @click="approveJob()" class="btn-success" x-text="t('job_detail.approve_quote')">Approva Preventivo</button>
+                    </template>
+                    <template x-if="job.status === 'approved' && user.isMechanic">
+                        <button @click="advanceStatus('in_progress')" class="btn-primary" x-text="t('job_detail.btn_start_work')">Inizia Lavoro</button>
+                    </template>
+                    <template x-if="job.status === 'in_progress' && user.isMechanic">
+                        <button @click="submitForInspection()" class="btn-primary" x-text="t('job_detail.btn_submit_inspection')">Invia a Ispezione</button>
+                    </template>
+                    <template x-if="(job.status === 'in_progress' || job.status === 'waiting_parts') && user.isMechanic">
+                        <button @click="completeJob()" class="btn-success" x-text="t('job_detail.btn_mark_completed')">Segna Completato</button>
+                    </template>
+                    <template x-if="job.status === 'in_progress' && user.isMechanic">
+                        <button @click="advanceStatus('waiting_parts')" class="btn-danger" x-text="t('job_detail.btn_waiting_parts')">Attesa Ricambi</button>
+                    </template>
+                    <template x-if="job.status === 'completed' && user.isManager">
+                        <button @click="advanceStatus('invoiced')" class="btn-primary" x-text="t('job_detail.btn_invoice')">Fattura</button>
+                    </template>
+                </div>
+            </div>
+        </template>
+    </main>
+</div>
+
+<script>
+    function jobDetailData() {
+        return {
+            user: { username: '', isAdmin: false, isManager: false, isMechanic: false, isCounter: false },
+            job: {},
+            vehiclePlate: '...',
+            customerName: '...',
+            loading: true,
+            editing: false,
+            saving: false,
+            createMode: false,
+            editData: {},
+            documents: [],
+            uploading: false,
+            inspectionNotes: '',
+            depositAmount: 0,
+            depositMethod: 'cash',
+            newJob: {
+                title: '', description: '', vehicle_id: '', customer_id: '',
+                job_type: 'repair', assigned_to: '',
+                estimated_hours: 0, estimated_parts_cost: 0, estimated_total: 0,
+                scheduled_date: '', customer_notes: ''
+            },
+
+            init() {
+                const token = CamperAuth.getToken();
+                if (!token) { window.location.href = '/camper'; return; }
+                const userInfo = CamperAuth.getUserInfo();
+                if (!userInfo || userInfo.roles.length === 0) { CamperAuth.logout(); return; }
+                this.user = {
+                    ...userInfo,
+                    isAdmin: CamperAuth.isAdmin(),
+                    isManager: CamperAuth.isManager(),
+                    isMechanic: CamperAuth.isMechanic(),
+                    isCounter: CamperAuth.isCounter()
+                };
+
+                const path = window.location.pathname;
+                if (path.endsWith('/new')) {
+                    this.createMode = true;
+                    this.loading = false;
+                    const params = new URLSearchParams(window.location.search);
+                    if (params.get('vehicle_id')) this.newJob.vehicle_id = params.get('vehicle_id');
+                    if (params.get('customer_id')) this.newJob.customer_id = params.get('customer_id');
+                    return;
+                }
+
+                const parts = path.split('/');
+                const jobId = parts[parts.length - 1];
+                this.loadJob(jobId);
+            },
+
+            async loadJob(jobId) {
+                try {
+                    this.job = await API.get('/api/v1/camper/jobs/' + jobId);
+                    try {
+                        const vehicle = await API.get('/api/v1/camper/vehicles/' + this.job.vehicle_id);
+                        this.vehiclePlate = vehicle.registration_plate;
+                    } catch (e) { this.vehiclePlate = '?'; }
+                    try {
+                        const customer = await API.get('/api/v1/camper/customers/' + this.job.customer_id);
+                        this.customerName = customer.name;
+                    } catch (e) { this.customerName = '?'; }
+                    // Load documents
+                    try {
+                        this.documents = await API.get('/api/v1/camper/documents?entity_type=job&entity_id=' + jobId);
+                    } catch (e) { this.documents = []; }
+                } catch (e) {
+                    showToast(t('job_detail.toast_load_error') + e.message, 'error');
+                } finally {
+                    this.loading = false;
+                }
+            },
+
+            async createJob() {
+                if (!this.newJob.title || !this.newJob.vehicle_id || !this.newJob.customer_id) {
+                    showToast(t('job_detail.toast_create_validation'), 'warning');
+                    return;
+                }
+                this.saving = true;
+                try {
+                    const created = await API.post('/api/v1/camper/jobs', this.newJob);
+                    showToast(t('job_detail.toast_quote_created') + created.job_number, 'success');
+                    window.location.href = '/camper/jobs/' + created.id;
+                } catch (e) {
+                    showToast(t('common.error') + ': ' + e.message, 'error');
+                } finally {
+                    this.saving = false;
+                }
+            },
+
+            startEditing() {
+                this.editData = {
+                    assigned_to: this.job.assigned_to || '',
+                    actual_hours: this.job.actual_hours,
+                    actual_parts_cost: parseFloat(this.job.actual_parts_cost),
+                    parts_used: this.job.parts_used || '',
+                    parts_on_order: this.job.parts_on_order,
+                    parts_po_number: this.job.parts_po_number || '',
+                    work_performed: this.job.work_performed || '',
+                    issue_found: this.job.issue_found || '',
+                    customer_notes: this.job.customer_notes || '',
+                    mechanic_notes: this.job.mechanic_notes || '',
+                    follow_up_required: this.job.follow_up_required,
+                    follow_up_notes: this.job.follow_up_notes || '',
+                    next_service_date: this.job.next_service_date || ''
+                };
+                this.editing = true;
+            },
+
+            cancelEditing() {
+                this.editing = false;
+                this.editData = {};
+            },
+
+            async saveJob() {
+                this.saving = true;
+                try {
+                    // Clean empty strings to null so Pydantic doesn't choke on Optional[date] fields
+                    const payload = {...this.editData};
+                    for (const [k, v] of Object.entries(payload)) {
+                        if (v === '') payload[k] = null;
+                    }
+                    this.job = await API.put('/api/v1/camper/jobs/' + this.job.id, payload);
+                    this.editing = false;
+                    showToast(t('job_detail.toast_changes_saved'), 'success');
+                } catch (e) {
+                    showToast(t('common.error') + ': ' + e.message, 'error');
+                } finally {
+                    this.saving = false;
+                }
+            },
+
+            async approveJob() {
+                try {
+                    this.job = await API.post('/api/v1/camper/jobs/' + this.job.id + '/approve');
+                    showToast(t('job_detail.toast_quote_approved'), 'success');
+                } catch (e) {
+                    showToast(t('common.error') + ': ' + e.message, 'error');
+                }
+            },
+
+            async advanceStatus(newStatus) {
+                try {
+                    this.job = await API.patch('/api/v1/camper/jobs/' + this.job.id + '/status', { status: newStatus });
+                    showToast(t('job_detail.toast_status_updated') + JOB_STATUS_LABELS[newStatus], 'success');
+                } catch (e) {
+                    showToast(t('common.error') + ': ' + e.message, 'error');
+                }
+            },
+
+            async completeJob() {
+                try {
+                    this.job = await API.post('/api/v1/camper/jobs/' + this.job.id + '/complete');
+                    showToast(t('job_detail.toast_job_completed'), 'success');
+                } catch (e) {
+                    showToast(t('common.error') + ': ' + e.message, 'error');
+                }
+            },
+
+            async submitForInspection() {
+                try {
+                    this.job = await API.post('/api/v1/camper/jobs/' + this.job.id + '/submit-inspection');
+                    showToast(t('job_detail.toast_sent_inspection'), 'success');
+                } catch (e) {
+                    showToast(t('common.error') + ': ' + e.message, 'error');
+                }
+            },
+
+            async passInspection() {
+                try {
+                    this.job = await API.post('/api/v1/camper/jobs/' + this.job.id + '/pass-inspection', { notes: this.inspectionNotes });
+                    showToast(t('job_detail.toast_inspection_passed'), 'success');
+                } catch (e) {
+                    showToast(t('common.error') + ': ' + e.message, 'error');
+                }
+            },
+
+            async failInspection() {
+                if (!this.inspectionNotes) {
+                    showToast(t('job_detail.toast_enter_inspection_notes'), 'warning');
+                    return;
+                }
+                try {
+                    this.job = await API.post('/api/v1/camper/jobs/' + this.job.id + '/fail-inspection', { notes: this.inspectionNotes });
+                    showToast(t('job_detail.toast_inspection_failed'), 'warning');
+                } catch (e) {
+                    showToast(t('common.error') + ': ' + e.message, 'error');
+                }
+            },
+
+            async recordDeposit() {
+                if (!this.depositAmount || this.depositAmount <= 0) {
+                    showToast(t('job_detail.toast_enter_valid_amount'), 'warning');
+                    return;
+                }
+                try {
+                    this.job = await API.post('/api/v1/camper/jobs/' + this.job.id + '/record-deposit', {
+                        amount: this.depositAmount,
+                        payment_method: this.depositMethod
+                    });
+                    this.depositAmount = 0;
+                    showToast(t('job_detail.toast_deposit_recorded'), 'success');
+                } catch (e) {
+                    showToast(t('common.error') + ': ' + e.message, 'error');
+                }
+            },
+
+            async uploadDocument(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                this.uploading = true;
+                try {
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('entity_type', 'job');
+                    formData.append('entity_id', this.job.id);
+                    formData.append('description', file.name);
+
+                    const token = CamperAuth.getToken();
+                    const response = await fetch('/api/v1/camper/documents/upload', {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}` },
+                        body: formData
+                    });
+                    if (!response.ok) throw new Error('Upload failed');
+                    const doc = await response.json();
+                    this.documents.push(doc);
+                    showToast(t('job_detail.toast_document_uploaded'), 'success');
+                    event.target.value = '';
+                } catch (e) {
+                    showToast(t('job_detail.toast_upload_error') + e.message, 'error');
+                } finally {
+                    this.uploading = false;
+                }
+            },
+
+            async loadThumbnail(imgEl, docId) {
+                try {
+                    const token = CamperAuth.getToken();
+                    const resp = await fetch('/api/v1/camper/documents/' + docId + '/download?inline=true', {
+                        headers: { 'Authorization': 'Bearer ' + token }
+                    });
+                    if (resp.ok) {
+                        const blob = await resp.blob();
+                        imgEl.src = URL.createObjectURL(blob);
+                    }
+                } catch (e) { /* thumbnail failed -- not critical */ }
+            },
+
+            async viewDocument(docId) {
+                try {
+                    const token = CamperAuth.getToken();
+                    const resp = await fetch('/api/v1/camper/documents/' + docId + '/download?inline=true', {
+                        headers: { 'Authorization': 'Bearer ' + token }
+                    });
+                    if (!resp.ok) throw new Error('Failed to load file');
+                    const blob = await resp.blob();
+                    const url = URL.createObjectURL(blob);
+                    window.open(url, '_blank');
+                } catch (e) {
+                    showToast('View failed: ' + e.message, 'error');
+                }
+            },
+
+            async downloadDocument(docId, fileName) {
+                try {
+                    const token = CamperAuth.getToken();
+                    const resp = await fetch('/api/v1/camper/documents/' + docId + '/download', {
+                        headers: { 'Authorization': 'Bearer ' + token }
+                    });
+                    if (!resp.ok) throw new Error('Failed to download file');
+                    const blob = await resp.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = fileName;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                } catch (e) {
+                    showToast('Download failed: ' + e.message, 'error');
+                }
+            },
+
+            async deleteDocument(docId, fileName) {
+                if (!confirm('Delete "' + fileName + '"? This cannot be undone.')) return;
+                try {
+                    await API.delete('/api/v1/camper/documents/' + docId);
+                    this.documents = this.documents.filter(d => d.id !== docId);
+                    showToast('Document deleted', 'success');
+                } catch (e) {
+                    showToast('Delete failed: ' + e.message, 'error');
+                }
+            }
+        }
+    }
+</script>
+{% endblock %}

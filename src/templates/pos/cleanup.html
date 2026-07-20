@@ -1,0 +1,893 @@
+{% extends "pos/base.html" %}
+
+{% block title %}Catalog Cockpit - HelixPOS - Artemis Store{% endblock %}
+
+{% block content %}
+<style>
+  @keyframes pcSlide { 0%{left:-40%} 100%{left:100%} }
+  .pc-bar-fill { position:absolute; top:0; height:100%; width:40%; background:#4f46e5; animation:pcSlide 1.1s ease-in-out infinite; }
+</style>
+<div class="min-h-screen bg-gray-50" x-data="cleanupData()" x-init="init()">
+    <!-- 📇 Postcard is server-rendered in a new tab and can take a few seconds — show an
+         indeterminate progress bar so the operator knows it's working (Angel's ask). -->
+    <div x-show="postcardBusy" x-transition style="display:none;" class="fixed top-0 left-0 right-0 z-[95] h-1 bg-indigo-100 overflow-hidden">
+        <div class="pc-bar-fill"></div>
+    </div>
+    <div x-show="postcardBusy" x-transition style="display:none;" class="fixed top-2 left-1/2 -translate-x-1/2 z-[95] bg-indigo-600 text-white text-sm font-semibold px-4 py-1.5 rounded-full shadow-lg">
+        📇 <span data-i18n="cleanup.postcard_building">Building postcard… opening in a new tab</span>
+    </div>
+    <div class="max-w-4xl mx-auto px-4 py-8">
+
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-2 flex-wrap gap-2">
+            <div class="flex items-center gap-3">
+                <button @click="goDashboard()" class="btn-secondary flex-none" title="Dashboard" aria-label="Dashboard">🏠</button>
+                <h1 class="text-2xl sm:text-3xl font-bold text-gray-900" data-i18n="cleanup.title">🧹 Catalog Cockpit</h1>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <button @click="goCatalog()" class="btn-secondary" data-i18n="cleanup.catalog">📦 Catalog</button>
+                <button @click="goReports()" class="btn-secondary" data-i18n="cleanup.reports">📊 Reports</button>
+            </div>
+        </div>
+
+        <!-- Manager-only notice -->
+        <div x-show="!user.isManager" class="bg-yellow-50 border-2 border-yellow-400 rounded-lg p-4 text-sm text-yellow-800" data-i18n="cleanup.manager_notice">
+            This cockpit is for managers. Ask a manager to finish setting up quick-added products.
+        </div>
+
+        <template x-if="user.isManager">
+            <div>
+                <!-- Mode tabs: the reactive safety net vs the migration workbench (BL-98) -->
+                <div class="flex gap-2 mb-3 border-b border-gray-200">
+                    <button @click="setMode('sold')" class="px-4 py-2 -mb-px border-b-2 font-semibold text-sm"
+                            :class="mode === 'sold' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-gray-500 hover:text-gray-700'">
+                        🧹 <span data-i18n="cleanup.tab_sold">Sold &amp; unfinished</span>
+                    </button>
+                    <button @click="setMode('bench')" class="px-4 py-2 -mb-px border-b-2 font-semibold text-sm"
+                            :class="mode === 'bench' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-gray-500 hover:text-gray-700'">
+                        🛠️ <span data-i18n="cleanup.tab_bench">The Bench</span>
+                    </button>
+                </div>
+
+                <p x-show="mode === 'sold'" class="text-gray-600 mb-4" data-i18n-html="cleanup.intro">Products that <b>sold</b> but still need setting up — a real category and a cost.
+                    Busiest first. The cashier rings it in; you tidy it here. Nothing falls through.</p>
+                <p x-show="mode === 'bench'" style="display:none;" class="text-gray-600 mb-4" data-i18n-html="cleanup.intro_bench">The <b>migration workbench</b> — every product that isn't finished yet, sold or not.
+                    Needs a photo, a description, a real category and a cost. Ordered by category, so a batch is a <b>shelf</b>.</p>
+
+                <!-- BENCH: progress counter — the number that replaces the paper binder -->
+                <div x-show="mode === 'bench'" style="display:none;" class="card mb-4">
+                    <div class="flex items-end justify-between gap-3 flex-wrap">
+                        <div>
+                            <p class="text-gray-500 text-xs uppercase tracking-wide" data-i18n="cleanup.progress">Catalog complete</p>
+                            <p class="text-3xl font-bold text-gray-900">
+                                <span x-text="progress.done.toLocaleString()"></span><span class="text-gray-400 text-xl"> / </span><span class="text-gray-500 text-xl" x-text="progress.total.toLocaleString()"></span>
+                            </p>
+                            <p class="text-sm text-gray-500">
+                                <span class="font-semibold text-amber-600" x-text="progress.remaining.toLocaleString()"></span>
+                                <span data-i18n="cleanup.still_to_do">still to do</span>
+                                <span x-show="gapFilter" style="display:none;" class="text-indigo-600 font-medium">· <span x-text="gapLabel()"></span></span>
+                            </p>
+                        </div>
+                        <button @click="load()" class="btn-secondary" :disabled="loading">
+                            <span x-show="!loading">🔄 <span data-i18n="cleanup.refresh">Refresh</span></span>
+                            <span x-show="loading" style="display:none;" data-i18n="cleanup.loading">Loading…</span>
+                        </button>
+                    </div>
+                    <!-- progress bar -->
+                    <div class="w-full bg-gray-200 rounded-full h-2.5 mt-3">
+                        <div class="bg-green-600 h-2.5 rounded-full transition-all" :style="'width: ' + pct + '%'"></div>
+                    </div>
+
+                    <!-- Work one shelf at a time -->
+                    <div class="flex gap-2 mt-3 flex-wrap items-end">
+                        <div class="flex-1 min-w-[180px]">
+                            <label class="block text-xs font-medium text-gray-500 mb-1" data-i18n="cleanup.f_shelf">Shelf (category) — blank = all</label>
+                            <input type="text" x-model="catFilter" list="bench-cats" @keydown.enter="applyShelf()"
+                                   placeholder="e.g. Bongs" data-i18n-placeholder="cleanup.ph_shelf" class="input-field">
+                            <datalist id="bench-cats"><template x-for="c in categories" :key="c.name"><option :value="c.name"></option></template></datalist>
+                        </div>
+                        <button @click="applyShelf()" class="btn-secondary" data-i18n="cleanup.apply_shelf">🔎 Work this shelf</button>
+                        <!-- BL-131: take the shelf away from the screen — fill it at the shelf, import it back. -->
+                        <button @click="exportWorklist()" class="btn-secondary" :disabled="exporting"
+                                :title="catFilter ? 'Download this shelf as a spreadsheet' : 'Download the whole worklist as a spreadsheet'">
+                            <span x-show="!exporting">📊 <span data-i18n="cleanup.export_xlsx">Export worklist (Excel)</span></span>
+                            <span x-show="exporting" style="display:none;" data-i18n="cleanup.exporting">Building…</span>
+                        </button>
+                        <!-- step 2: bring the filled sheet back -->
+                        <button @click="$refs.wbFile.click()" class="btn-secondary" :disabled="importing">
+                            <span x-show="!importing">📥 <span data-i18n="cleanup.import_xlsx">Import filled worklist</span></span>
+                            <span x-show="importing" style="display:none;" data-i18n="cleanup.importing">Reading…</span>
+                        </button>
+                        <input type="file" x-ref="wbFile" class="hidden" accept=".xlsx"
+                               @change="previewImport($event.target.files[0]); $event.target.value=''">
+                    </div>
+
+                    <!-- BL-98 gap filter: work ONE missing thing at a time. "Most are just cost —
+                         show me only the ones missing a photo." Each chip carries its live count. -->
+                    <div class="flex gap-2 mt-3 flex-wrap items-center border-t pt-3">
+                        <span class="text-xs font-medium text-gray-500 mr-1" data-i18n="cleanup.f_missing">Show only missing:</span>
+                        <button @click="setGap('')"
+                                :class="!gapFilter ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-300'"
+                                class="px-3 py-1.5 rounded-full text-sm font-semibold border">
+                            <span data-i18n="cleanup.gap_all">All gaps</span> <span class="opacity-70" x-text="'(' + (gapCounts.all||0).toLocaleString() + ')'"></span>
+                        </button>
+                        <button @click="setGap('photo')"
+                                :class="gapFilter==='photo' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-300'"
+                                class="px-3 py-1.5 rounded-full text-sm font-semibold border">
+                            📷 <span data-i18n="cleanup.gap_photo">Photo</span> <span class="opacity-70" x-text="'(' + (gapCounts.photo||0).toLocaleString() + ')'"></span>
+                        </button>
+                        <button @click="setGap('description')"
+                                :class="gapFilter==='description' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-300'"
+                                class="px-3 py-1.5 rounded-full text-sm font-semibold border">
+                            📝 <span data-i18n="cleanup.gap_description">Description</span> <span class="opacity-70" x-text="'(' + (gapCounts.description||0).toLocaleString() + ')'"></span>
+                        </button>
+                        <button @click="setGap('category')"
+                                :class="gapFilter==='category' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-300'"
+                                class="px-3 py-1.5 rounded-full text-sm font-semibold border">
+                            🏷️ <span data-i18n="cleanup.gap_category">Category</span> <span class="opacity-70" x-text="'(' + (gapCounts.category||0).toLocaleString() + ')'"></span>
+                        </button>
+                        <button @click="setGap('cost')"
+                                :class="gapFilter==='cost' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-300'"
+                                class="px-3 py-1.5 rounded-full text-sm font-semibold border">
+                            💰 <span data-i18n="cleanup.gap_cost">Cost</span> <span class="opacity-70" x-text="'(' + (gapCounts.cost||0).toLocaleString() + ')'"></span>
+                        </button>
+                    </div>
+
+                    <!-- Rookie workbench: a BOUNDED batch by when items were added — finish yesterday's
+                         before they pile up. Flexes to the whole week for a Friday close. + "keep tabs". -->
+                    <div class="flex gap-2 mt-3 flex-wrap items-center border-t pt-3">
+                        <span class="text-xs font-medium text-gray-500 mr-1" data-i18n="cleanup.f_added">Added:</span>
+                        <template x-for="pd in [['','cleanup.pd_all'],['today','cleanup.pd_today'],['yesterday','cleanup.pd_yesterday'],['week','cleanup.pd_week']]" :key="pd[0]">
+                            <button @click="setPeriod(pd[0])"
+                                    :class="periodFilter===pd[0] ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-600 border-gray-300'"
+                                    class="px-3 py-1.5 rounded-full text-sm font-semibold border">
+                                📅 <span x-text="t(pd[1])"></span>
+                            </button>
+                        </template>
+                        <button @click="toggleNoted()"
+                                :class="notedOnly ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-gray-600 border-gray-300'"
+                                class="px-3 py-1.5 rounded-full text-sm font-semibold border ml-2">
+                            🗒️ <span data-i18n="cleanup.f_noted">My notes</span> <span class="opacity-70" x-text="'(' + (gapCounts.noted||0).toLocaleString() + ')'"></span>
+                        </button>
+                    </div>
+
+                    <p class="text-xs text-gray-500 mt-2" data-i18n="cleanup.export_hint">Take it to the shelf: fill in the variant, the price and scan the barcode straight into the sheet — then import it back and the AI finishes the rest.</p>
+
+                    <!-- Batch flags — scope the whole sheet in one line before importing it. -->
+                    <div class="flex gap-2 mt-3 flex-wrap items-end border-t pt-3">
+                        <div class="flex-1 min-w-[160px]">
+                            <label class="block text-xs font-medium text-gray-500 mb-1" data-i18n="cleanup.f_site">Look things up on (optional)</label>
+                            <input type="text" x-model="impSourceSite" placeholder="e.g. gizeh.online" class="input-field">
+                        </div>
+                        <div class="flex-1 min-w-[140px]">
+                            <label class="block text-xs font-medium text-gray-500 mb-1" data-i18n="cleanup.f_supplier">Supplier for this batch (optional)</label>
+                            <input type="text" x-model="impSupplier" placeholder="e.g. FourTwenty" class="input-field">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BL-131 step 2: the import preview — nothing is written until you approve it. -->
+                <div x-show="imp" x-transition class="fixed inset-0 z-[80] bg-black/60 flex items-center justify-center p-4"
+                     style="display:none;" @click.self="imp=null">
+                    <div class="bg-white rounded-2xl shadow-xl max-w-3xl w-full p-5 space-y-4 max-h-[90vh] flex flex-col">
+                        <div>
+                            <h3 class="text-lg font-bold text-gray-900" data-i18n="cleanup.imp_title">Preview — nothing has changed yet</h3>
+                            <p class="text-sm text-gray-600 mt-1" x-text="imp && imp.message"></p>
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+                            <div class="border rounded-lg p-2 bg-green-50 border-green-200">
+                                <div class="text-xl font-bold text-green-700" x-text="imp && imp.counts.update"></div>
+                                <div class="text-xs text-gray-600" data-i18n="cleanup.imp_update">will update</div>
+                            </div>
+                            <div class="border rounded-lg p-2 bg-amber-50 border-amber-200">
+                                <div class="text-xl font-bold text-amber-700" x-text="imp && imp.counts.conflict"></div>
+                                <div class="text-xs text-gray-600" data-i18n="cleanup.imp_conflict">conflicts</div>
+                            </div>
+                            <div class="border rounded-lg p-2 bg-red-50 border-red-200">
+                                <div class="text-xl font-bold text-red-700" x-text="imp && imp.counts.error"></div>
+                                <div class="text-xs text-gray-600" data-i18n="cleanup.imp_error">errors</div>
+                            </div>
+                            <div class="border rounded-lg p-2 bg-gray-50">
+                                <div class="text-xl font-bold text-gray-600" x-text="imp && (imp.counts.nochange + imp.counts.skip)"></div>
+                                <div class="text-xs text-gray-600" data-i18n="cleanup.imp_untouched">untouched</div>
+                            </div>
+                        </div>
+                        <div class="overflow-y-auto border rounded-lg divide-y flex-1 text-sm">
+                            <template x-for="r in (imp ? imp.results : [])" :key="r.row">
+                                <div class="p-2 flex gap-2 items-start"
+                                     :class="{'bg-amber-50': r.status==='conflict', 'bg-red-50': r.status==='error'}">
+                                    <span class="font-mono text-xs text-gray-400 flex-none pt-0.5" x-text="'r'+r.row"></span>
+                                    <span class="flex-none" x-text="{update:'✅',conflict:'⚠️',error:'❌',skip:'⏭',nochange:'·'}[r.status]"></span>
+                                    <div class="min-w-0 flex-1">
+                                        <div class="font-medium text-gray-900 truncate" x-text="r.name || r.sku"></div>
+                                        <div class="text-xs" :class="r.status==='update' ? 'text-gray-500' : 'text-gray-700'" x-text="r.detail"></div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <button @click="applyImport()" :disabled="impSaving || !imp || !imp.counts.update" class="btn-success w-full">
+                                <span x-show="!impSaving">✅ <span data-i18n="cleanup.imp_apply">Apply</span> <span x-text="imp && imp.counts.update"></span> <span data-i18n="cleanup.imp_changes">change(s)</span></span>
+                                <span x-show="impSaving" style="display:none;" data-i18n="cleanup.imp_applying">Applying…</span>
+                            </button>
+                            <button @click="imp=null" :disabled="impSaving" class="w-full text-gray-600 text-sm py-2 hover:underline" data-i18n="cleanup.imp_cancel">Cancel — change nothing</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Big preview — the whole point is to STOP squinting, so show it big and say what it is. -->
+                <div x-show="zoom" x-transition class="fixed inset-0 z-[90] bg-black/80 flex items-center justify-center p-4"
+                     style="display:none;" @click="zoom = null" @keydown.escape.window="zoom = null">
+                    <div class="max-w-3xl w-full" @click.stop>
+                        <img :src="zoom && zoom.image_url" class="w-full max-h-[70vh] object-contain rounded-lg bg-white" alt="">
+                        <div class="mt-3 bg-white rounded-lg p-3 flex items-start justify-between gap-3 flex-wrap">
+                            <div class="min-w-0">
+                                <p class="font-bold text-gray-900 break-words" x-text="zoom && zoom.name"></p>
+                                <p class="text-xs text-gray-400" x-text="zoom && zoom.sku"></p>
+                                <p class="text-sm text-gray-600 mt-1">
+                                    <span x-show="zoom && zoom.price" x-text="zoom && formatPrice(zoom.price)"></span>
+                                    <span x-show="zoom && zoom.category" class="text-gray-400"> · <span x-text="zoom && zoom.category"></span></span>
+                                </p>
+                            </div>
+                            <div class="flex gap-2 flex-none">
+                                <a :href="zoom ? detailsUrl(zoom.product_id) : '#'" class="btn-secondary text-sm">🔎 <span data-i18n="cleanup.open_details">Details</span></a>
+                                <a :href="zoom ? '/pos/products/' + zoom.product_id + '/postcard' : '#'" target="_blank" @click="pcOpening()" class="btn-secondary text-sm">📇 <span data-i18n="cleanup.open_postcard">Postcard</span></a>
+                                <button @click="zoom = null" class="btn-secondary text-sm" data-i18n="cleanup.close">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SOLD: summary -->
+                <div x-show="mode === 'sold'" class="card mb-4 flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-xs uppercase tracking-wide" data-i18n="cleanup.need_setup">Need setup</p>
+                        <p class="text-3xl font-bold" :class="items.length ? 'text-amber-600' : 'text-green-600'" x-text="items.length"></p>
+                    </div>
+                    <button @click="load()" class="btn-secondary" :disabled="loading">
+                        <span x-show="!loading">🔄 <span data-i18n="cleanup.refresh">Refresh</span></span>
+                        <span x-show="loading" style="display:none;" data-i18n="cleanup.loading">Loading…</span>
+                    </button>
+                </div>
+
+                <!-- Bulk cleanup bar — mass delete / discontinue the junk (test rows, dupes) -->
+                <div x-show="items.length > 0" class="card mb-3 flex items-center justify-between flex-wrap gap-2 border-2"
+                     :class="selectedIds.length ? 'border-red-300 bg-red-50' : 'border-transparent'">
+                    <label class="flex items-center gap-2 text-sm font-semibold text-gray-700 cursor-pointer select-none">
+                        <input type="checkbox" class="w-5 h-5 accent-indigo-600" :checked="allSelected" @change="toggleAll($event)">
+                        <span x-show="!selectedIds.length" data-i18n="cleanup.select_all">Select all</span>
+                        <span x-show="selectedIds.length" style="display:none;"><span x-text="selectedIds.length"></span> <span data-i18n="cleanup.selected">selected</span></span>
+                    </label>
+                    <div class="flex gap-2" x-show="selectedIds.length" style="display:none;">
+                        <button @click="bulkDelete('discontinue')" :disabled="bulkBusy" class="btn-secondary">
+                            🚫 <span data-i18n="cleanup.discontinue">Discontinue</span> <span x-text="selectedIds.length"></span>
+                        </button>
+                        <button @click="bulkDelete('permanent')" :disabled="bulkBusy"
+                                class="px-3 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold text-sm">
+                            🗑 <span data-i18n="cleanup.delete">Delete</span> <span x-text="selectedIds.length"></span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Empty / all-clear -->
+                <div x-show="!loading && items.length === 0" class="card text-center py-10">
+                    <p class="text-5xl mb-2">🎉</p>
+                    <p class="text-lg font-semibold text-gray-800" data-i18n="cleanup.all_clear">All caught up</p>
+                    <p x-show="mode === 'sold'" class="text-gray-500" data-i18n="cleanup.all_clear_sub">Every product that has sold is fully set up.</p>
+                    <p x-show="mode === 'bench'" style="display:none;" class="text-gray-500" data-i18n="cleanup.all_clear_bench">Every product in this shelf is finished. Pick another shelf, or clear the filter.</p>
+                </div>
+
+                <!-- Queue -->
+                <div class="space-y-3">
+                    <template x-for="p in items" :key="p.product_id">
+                        <div class="card" :class="!!selected[p.product_id] ? 'ring-2 ring-red-400' : ''">
+                            <div class="flex gap-3">
+                                <!-- Select for bulk delete -->
+                                <input type="checkbox" class="w-5 h-5 accent-indigo-600 mt-1 flex-none"
+                                       :checked="!!selected[p.product_id]" @change="toggle(p.product_id)"
+                                       :aria-label="'Select ' + p.name">
+                                <!-- Photo. CLICK IT TO SEE IT BIG. Angel, working the bench: "this looks
+                                     like a duplicate and I'm not sure if it's king size or regular from the
+                                     small pic — big preview so I don't have to squint." He's deciding
+                                     dupe-or-not and which VARIANT off a 64px thumbnail; that's the exact
+                                     moment he needs to actually SEE the pack. -->
+                                <button type="button" x-show="p.image_url" @click="zoom = p"
+                                        class="w-16 h-16 rounded-lg border bg-white flex-none overflow-hidden hover:ring-2 hover:ring-indigo-400 cursor-zoom-in"
+                                        :title="'Look closer: ' + p.name">
+                                    <img :src="p.image_url" class="w-full h-full object-cover" alt="">
+                                </button>
+                                <div x-show="!p.image_url" class="w-16 h-16 rounded-lg border bg-white flex-none flex items-center justify-center">
+                                    <span class="text-2xl">📦</span>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="font-bold text-gray-900 break-words" x-text="p.name"></p>
+                                    <p class="text-xs text-gray-400 truncate" x-text="p.sku"></p>
+                                    <!-- Get OFF this card to the full record without losing your place. -->
+                                    <p class="flex gap-3 mt-1 text-xs">
+                                        <a :href="detailsUrl(p.product_id)"
+                                           class="text-indigo-600 font-semibold hover:underline"
+                                           data-i18n="cleanup.open_details">🔎 Details</a>
+                                        <a :href="'/pos/products/' + p.product_id + '/postcard'" target="_blank"
+                                           @click="pcOpening()"
+                                           class="text-indigo-600 font-semibold hover:underline"
+                                           data-i18n="cleanup.open_postcard">📇 Postcard</a>
+                                    </p>
+                                    <p x-show="mode === 'sold'" class="text-sm text-gray-600 mt-1">
+                                        <span class="font-semibold text-indigo-600" x-text="'× ' + p.qty_sold"></span>
+                                        <span data-i18n="cleanup.sold"> sold</span>
+                                        <span x-show="p.revenue"> · <span x-text="formatPrice(p.revenue)"></span></span>
+                                        <span x-show="p.last_sold" class="text-gray-400"> · <span data-i18n="cleanup.last"> last</span> <span x-text="shortDate(p.last_sold)"></span></span>
+                                    </p>
+                                    <p x-show="mode === 'bench' && p.category" style="display:none;" class="text-sm text-gray-500 mt-1" x-text="p.category"></p>
+                                    <!-- Gap chips -->
+                                    <div class="flex flex-wrap gap-1 mt-2 items-center">
+                                        <!-- Readiness (bench): catches the lazy "done" — Unsorted / weak
+                                             description / no photo — even when the hard gaps look filled. -->
+                                        <span x-show="mode === 'bench' && readyBadge(p).score < 100" style="display:none;"
+                                              class="text-xs px-2 py-0.5 rounded-full font-semibold"
+                                              :class="readyBadge(p).score >= 75 ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-700'"
+                                              :title="readyBadge(p).why">
+                                            ⚠ <span x-text="readyBadge(p).score + '% ready'"></span> · <span x-text="readyBadge(p).why"></span>
+                                        </span>
+                                        <span x-show="mode === 'bench' && p.work_note" style="display:none;"
+                                              class="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200"
+                                              :title="p.work_note" data-i18n="cleanup.chip_noted">🗒️ noted</span>
+                                        <span x-show="p.gaps.category" class="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700" data-i18n="cleanup.chip_category">🏷️ no category</span>
+                                        <span x-show="p.gaps.cost" class="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700" data-i18n="cleanup.chip_cost">💰 no cost</span>
+                                        <span x-show="p.gaps.description" style="display:none;" class="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700" data-i18n="cleanup.chip_desc">📝 no description</span>
+                                        <span x-show="p.gaps.photo" class="text-xs px-2 py-0.5 rounded-full" :class="mode === 'bench' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500'" data-i18n="cleanup.chip_photo">📷 no photo</span>
+                                        <span x-show="p.is_age_restricted" class="text-xs px-2 py-0.5 rounded-full bg-red-50 text-red-800">🔞 18+</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Inline fix -->
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3 pt-3 border-t">
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-500 mb-1" data-i18n="cleanup.f_category">Category</label>
+                                    <input type="text" x-model="p._category" :list="'cats-' + p.product_id"
+                                           placeholder="e.g. Papers & Filters" data-i18n-placeholder="cleanup.ph_category" class="input-field">
+                                    <datalist :id="'cats-' + p.product_id"><template x-for="c in categories" :key="c.name"><option :value="c.name"></option></template></datalist>
+                                </div>
+                                <div>
+                                    <!-- BL-136: the currency follows the STORE (Rome trades in EUR) — a hardcoded
+                                         "Cost (CHF)" asks the operator for money the shop doesn't take. -->
+                                    <label class="block text-xs font-medium text-gray-500 mb-1">
+                                        <span data-i18n="cleanup.f_price">Sells for</span>
+                                        (<span x-text="_cfg('currency')"></span>)
+                                    </label>
+                                    <input type="number" step="0.05" min="0" x-model="p._price" placeholder="0.00" class="input-field">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-500 mb-1">
+                                        <span data-i18n="cleanup.f_cost_bare">Cost</span>
+                                        (<span x-text="_cfg('currency')"></span>)
+                                        <!-- Angel: "should show the suggested retail selling price, then the user can
+                                             eyeball a cost and move on quickly, or look it up on an old delivery slip."
+                                             You cannot guess a cost against a price you can't see. -->
+                                        <span x-show="p.price" class="text-gray-400 font-normal">
+                                            · <span data-i18n="cleanup.sells_for">sells for</span>
+                                            <span class="font-semibold text-gray-600" x-text="formatPrice(p.price)"></span>
+                                        </span>
+                                    </label>
+                                    <div class="flex gap-1">
+                                        <input type="number" step="0.05" min="0" x-model="p._cost" placeholder="0.00" class="input-field">
+                                        <!-- BL-047b: the EYEBALL is no longer a hardcoded ½. Pick a markup and it
+                                             fills the cost box (cost = price × (1 − markup%)) — a defensible GUESS the
+                                             manager keeps or replaces with the real slip. Default is the product's
+                                             CLASS markup (the ABC: tobacco thin, papers/standard 50%), then the shop's
+                                             own default, then presets. Only shows when there's a price to work from. -->
+                                        <select x-show="p.price" @change="applyMarkup(p, $event.target.value); $event.target.value=''"
+                                                class="input-field text-xs px-1 flex-none" style="width:auto"
+                                                title="Eyeball the cost from a markup — a guess until you verify it">
+                                            <option value="">≈ guess…</option>
+                                            <option :value="classMarkup(p)">📦 by type (<span x-text="classMarkup(p)"></span>%)</option>
+                                            <option :value="shopMarkup()">🏪 shop default (<span x-text="shopMarkup()"></span>%)</option>
+                                            <template x-for="m in (_cfg('markup_choices') || [])" :key="m">
+                                                <option :value="m" x-text="m + '%'"></option>
+                                            </template>
+                                        </select>
+                                    </div>
+                                    <p x-show="p._costEyeballed" style="display:none;" class="text-[10px] text-amber-600 mt-0.5" data-i18n="cleanup.cost_estimated">≈ estimated from markup — verify against a delivery slip</p>
+                                </div>
+
+                                <!-- BENCH ONLY: description + photo (the other two master-data gaps) -->
+                                <div x-show="mode === 'bench'" style="display:none;" class="sm:col-span-2">
+                                    <label class="block text-xs font-medium text-gray-500 mb-1" data-i18n="cleanup.f_desc">Description</label>
+                                    <textarea x-model="p._description" rows="2" class="input-field"
+                                              placeholder="What is it? Two lines is plenty." data-i18n-placeholder="cleanup.ph_desc"></textarea>
+                                </div>
+
+                                <!-- Rookie note: why it's parked + the next step, so he never stares at
+                                     an item stuck. Quick-tags drop a starter in so the box is never blank. -->
+                                <div x-show="mode === 'bench'" style="display:none;" class="sm:col-span-2">
+                                    <label class="block text-xs font-medium text-gray-500 mb-1">
+                                        🗒️ <span data-i18n="cleanup.f_worknote">Note — why it's parked / next step</span>
+                                    </label>
+                                    <div class="flex gap-1 flex-wrap mb-1">
+                                        <template x-for="qt in ['cleanup.qt_slip','cleanup.qt_supplier','cleanup.qt_pic','cleanup.qt_desc','cleanup.qt_ask']" :key="qt">
+                                            <button type="button" @click="addNoteTag(p, t(qt))"
+                                                    class="text-[11px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100"
+                                                    x-text="t(qt)"></button>
+                                        </template>
+                                    </div>
+                                    <textarea x-model="p._workNote" rows="2" class="input-field bg-amber-50/40"
+                                              placeholder="e.g. no cost yet — need the delivery slip; check supplier price Monday"
+                                              data-i18n-placeholder="cleanup.ph_worknote"></textarea>
+                                </div>
+                                <div x-show="mode === 'bench'" style="display:none;" class="sm:col-span-2">
+                                    <label class="block text-xs font-medium text-gray-500 mb-1">
+                                        <span data-i18n="cleanup.f_photo">Photo</span>
+                                        <!-- Angel: "can we have a link for the article, not just choose file
+                                             and upload — the google images lookup link for example." He's
+                                             already got the tab open; save-to-disk-then-upload is the exact
+                                             donkey-work the import already deleted. Brand-scoped when we know
+                                             the brand, so the results are the REAL pack, not gibberish. -->
+                                        <a :href="'https://www.google.com/search?tbm=isch&q=' + encodeURIComponent(p.name || '')"
+                                           target="_blank" class="text-indigo-600 font-semibold hover:underline ml-1"
+                                           data-i18n="cleanup.find_photo">🖼️ find one</a>
+                                    </label>
+                                    <div class="flex gap-1">
+                                        <!-- paste ANY link: the product page, or the image itself -->
+                                        <input type="url" x-model="p._imgUrl" @keydown.enter="photoFromUrl(p)"
+                                               placeholder="paste a link…" data-i18n-placeholder="cleanup.ph_imgurl"
+                                               class="input-field flex-1 min-w-0">
+                                        <button type="button" @click="photoFromUrl(p)"
+                                                :disabled="p._uploading || !p._imgUrl" class="btn-secondary px-2 text-xs whitespace-nowrap">
+                                            <span x-show="!p._uploading" data-i18n="cleanup.get_photo">Get it</span>
+                                            <span x-show="p._uploading" style="display:none;">…</span>
+                                        </button>
+                                    </div>
+                                    <input type="file" accept="image/*" capture="environment"
+                                           @change="uploadPhoto(p, $event)" :disabled="p._uploading" class="input-field mt-1">
+                                    <p x-show="p._uploading" style="display:none;" class="text-xs text-gray-500 mt-1" data-i18n="cleanup.uploading">Uploading…</p>
+                                </div>
+
+                                <label class="sm:col-span-2 flex items-center gap-3 p-2 rounded-lg border-2 cursor-pointer select-none"
+                                       :class="p._age ? 'bg-red-50 border-red-400' : 'bg-gray-50 border-gray-200'">
+                                    <input type="checkbox" x-model="p._age" class="w-5 h-5 accent-red-600 flex-none">
+                                    <span x-text="p._age ? '🔞' : '✅'"></span>
+                                    <span class="text-sm font-semibold" :class="p._age ? 'text-red-800' : 'text-gray-700'" data-i18n="cleanup.f_age">18+ — needs ID? (tobacco, alcohol, CBD flower…)</span>
+                                </label>
+                            </div>
+                            <div class="flex justify-between items-center mt-3">
+                                <button @click="deleteOne(p)" :disabled="p._saving || bulkBusy"
+                                        class="text-sm text-red-600 hover:text-red-800 font-medium px-2 py-2"
+                                        title="Delete or discontinue this one" data-i18n="cleanup.delete_one">🗑 Delete</button>
+                                <button @click="save(p)" :disabled="p._saving" class="btn-success">
+                                    <span x-show="!p._saving">✅ <span data-i18n="cleanup.save">Save &amp; done</span></span>
+                                    <span x-show="p._saving" style="display:none;" data-i18n="cleanup.saving">Saving…</span>
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- BENCH: next batch -->
+                <div x-show="mode === 'bench' && items.length > 0" style="display:none;" class="flex justify-between items-center mt-4">
+                    <button @click="prevBatch()" class="btn-secondary" :disabled="offset === 0 || loading">← <span data-i18n="cleanup.prev_batch">Previous</span></button>
+                    <p class="text-sm text-gray-500">
+                        <span data-i18n="cleanup.batch">Batch</span>
+                        <span class="font-semibold" x-text="(offset + 1) + '–' + (offset + items.length)"></span>
+                        <span data-i18n="cleanup.of">of</span>
+                        <span class="font-semibold" x-text="progress.remaining.toLocaleString()"></span>
+                    </p>
+                    <button @click="nextBatch()" class="btn-secondary" :disabled="loading || (offset + items.length) >= progress.remaining"><span data-i18n="cleanup.next_batch">Next batch</span> →</button>
+                </div>
+            </div>
+        </template>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function cleanupData() {
+        return {
+            user: {},
+            items: [],
+            categories: [],
+            loading: false,
+            // BL-98 — the bench (enrichment) mode. 'sold' = the original reactive safety net.
+            mode: 'sold',
+            offset: 0,
+            limit: 20,
+            catFilter: '',
+            zoom: null,            // BL-141: the product being previewed big (stop squinting)
+            exporting: false,      // BL-131: xlsx worklist download in flight
+            importing: false,      // BL-131 step 2: dry-run in flight
+            impSaving: false,      // …and the apply
+            imp: null,             // the dry-run result awaiting approval
+            impFile: null,         // the file we previewed — re-sent verbatim on apply
+            // Batch flags: scope the whole sheet in one line. "source_site: gizeh.online" is the one
+            // that matters most — a lookup pointed at the right site is the difference between a 0.95
+            // match and a 0.60 guess.
+            impSourceSite: '',
+            impSupplier: '',
+            progress: { done: 0, total: 0, remaining: 0 },
+            // BL-98 gap filter — narrow the bench to ONE missing thing ('' = all four).
+            gapFilter: '',
+            gapCounts: { all: 0, photo: 0, description: 0, category: 0, cost: 0, noted: 0 },
+            // Rookie workbench: bounded date batch + "keep tabs" noted filter.
+            periodFilter: '',   // '' = all · today · yesterday · week
+            notedOnly: false,   // show only items I've parked with a note
+            postcardBusy: false, _pcT: null,   // indeterminate bar while a postcard tab loads
+            selected: {},          // product_id -> true (bulk-delete selection)
+            bulkBusy: false,
+
+            get pct() {
+                if (!this.progress.total) return 0;
+                return Math.round((this.progress.done / this.progress.total) * 100);
+            },
+
+            get selectedIds() {
+                return Object.keys(this.selected).filter(k => this.selected[k]);
+            },
+            get allSelected() {
+                return this.items.length > 0 && this.items.every(p => this.selected[p.product_id]);
+            },
+            toggle(id) { this.selected = { ...this.selected, [id]: !this.selected[id] }; },
+            toggleAll(ev) {
+                const on = ev.target.checked;
+                const next = {};
+                if (on) this.items.forEach(p => { next[p.product_id] = true; });
+                this.selected = next;
+            },
+
+            async deleteOne(p) {
+                await this.bulkDelete('permanent', [p.product_id]);
+            },
+
+            async bulkDelete(action, onlyIds) {
+                const ids = onlyIds || this.selectedIds;
+                if (!ids.length) return;
+                const verb = action === 'permanent'
+                    ? (t('cleanup.confirm_delete') || 'Permanently delete')
+                    : (t('cleanup.confirm_discontinue') || 'Discontinue');
+                if (!confirm(`${verb} ${ids.length} ${ids.length === 1 ? 'product' : 'products'}?`)) return;
+                this.bulkBusy = true;
+                try {
+                    const res = await API.post('/api/v1/pos/products/bulk-delete', { product_ids: ids, action });
+                    const gone = new Set([...(res.deleted || []), ...(res.discontinued || [])]);
+                    this.items = this.items.filter(x => !gone.has(x.product_id));
+                    // drop the removed ids from the selection
+                    const sel = { ...this.selected };
+                    gone.forEach(id => delete sel[id]);
+                    this.selected = sel;
+                    const skipped = res.skipped_sold || [];
+                    if (gone.size) {
+                        showToast((t('cleanup.toast_removed') || '{n} removed').replace('{n}', gone.size), 'success');
+                    }
+                    if (skipped.length) {
+                        // Honest guardrail: sold products can't be nuked — offer discontinue instead.
+                        showToast((t('cleanup.toast_kept_sold') ||
+                            "{n} kept — they've sold. Use Discontinue for those.").replace('{n}', skipped.length), 'warning');
+                    }
+                    if (this.mode === 'bench') await this.load();   // refresh counter/next batch
+                } catch (e) {
+                    console.error('bulk delete failed', e);
+                    showToast(t('cleanup.toast_delete_failed') || 'Delete failed', 'error');
+                } finally { this.bulkBusy = false; }
+            },
+
+            async init() {
+                const info = AuthHelper.getUserInfo();
+                this.user = { ...info, isManager: AuthHelper.isManager(), isAdmin: AuthHelper.isAdmin() };
+                if (!this.user.isManager) return;
+                // Deep-link: /pos/cleanup?mode=bench lands straight on the workbench. Returning
+                // from a Details edit carries gap/category/offset too, so you land back on the
+                // EXACT batch you left (the buttery "edit one, back to my spot" loop).
+                const qs = new URLSearchParams(window.location.search);
+                if (qs.get('mode') === 'bench') this.mode = 'bench';
+                if (qs.get('gap')) this.gapFilter = qs.get('gap');
+                if (qs.get('category')) this.catFilter = qs.get('category');
+                if (qs.get('offset')) this.offset = parseInt(qs.get('offset'), 10) || 0;
+                await this.loadCategories();
+                await this.load();
+            },
+
+            // The bench view as a URL — so Details can send us back to the same spot after save.
+            benchUrl() {
+                const p = new URLSearchParams({ mode: 'bench' });
+                if (this.gapFilter) p.set('gap', this.gapFilter);
+                if (this.catFilter) p.set('category', this.catFilter);
+                if (this.offset) p.set('offset', String(this.offset));
+                return '/pos/cleanup?' + p.toString();
+            },
+            // Details opens the full product editor IN THIS TAB, carrying a return link so saving
+            // sends you straight back to the bench where you left off (Angel: "that's buttery").
+            detailsUrl(pid) {
+                return '/pos/catalog?edit=' + pid + '&return=' + encodeURIComponent(this.benchUrl());
+            },
+
+            setMode(m) {
+                if (this.mode === m) return;
+                this.mode = m;
+                this.offset = 0;
+                this.load();
+            },
+
+            applyShelf() { this.offset = 0; this.load(); },
+            // BL-98 gap filter: jump to just the items missing ONE thing (photo/description/…).
+            setGap(kind) { this.gapFilter = (this.gapFilter === kind) ? '' : kind; this.offset = 0; this.load(); },
+            // Rookie workbench: bounded date batch (yesterday / this week / …).
+            setPeriod(pd) { this.periodFilter = (this.periodFilter === pd) ? '' : pd; this.offset = 0; this.load(); },
+            toggleNoted() { this.notedOnly = !this.notedOnly; this.offset = 0; this.load(); },
+            // Quick-tag: drop a "next step" stub into the note so he never stares at a blank box.
+            addNoteTag(p, tag) {
+                const cur = (p._workNote || '').trim();
+                p._workNote = cur ? (cur + (cur.endsWith('\n') ? '' : '\n') + tag) : tag;
+            },
+            readyBadge(p) {
+                const q = p.quality || { score: 100, gripes: [] };
+                const label = { category: 'Unsorted', cost: 'no cost', photo: 'no/weak photo', description: 'weak description' };
+                return { score: q.score, why: (q.gripes || []).map(g => label[g] || g).join(' · ') };
+            },
+            // Postcard opens in a new tab (server-rendered, slow). Flash a progress bar so the
+            // operator sees it's working; auto-clear (we can't observe the other tab's finish).
+            pcOpening() { this.postcardBusy = true; clearTimeout(this._pcT); this._pcT = setTimeout(() => { this.postcardBusy = false; }, 7000); },
+            gapLabel() {
+                return ({ photo: '📷 missing a photo', description: '📝 missing a description',
+                          category: '🏷️ missing a category', cost: '💰 missing a cost' })[this.gapFilter]
+                       || 'unfinished (any gap)';
+            },
+
+            // BL-131: download the worklist as a real .xlsx. A plain <a href> can't carry the bearer
+            // token, so fetch the bytes with auth and hand the browser a blob.
+            async exportWorklist() {
+                this.exporting = true;
+                try {
+                    const q = this.catFilter ? `?category=${encodeURIComponent(this.catFilter)}` : '';
+                    const r = await fetch(`/api/v1/pos/catalog/worklist.xlsx${q}`, {
+                        headers: { 'Authorization': `Bearer ${AuthHelper.getToken()}` },
+                    });
+                    if (!r.ok) throw new Error(`Export failed (${r.status})`);
+                    const blob = await r.blob();
+                    const cd = r.headers.get('Content-Disposition') || '';
+                    const m = cd.match(/filename="([^"]+)"/);
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = m ? m[1] : 'banco-worklist.xlsx';
+                    a.click();
+                    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+                    showToast(t('cleanup.export_done'), 'success');
+                } catch (e) {
+                    showToast(e.message || t('cleanup.export_failed'), 'error');
+                } finally { this.exporting = false; }
+            },
+
+            // BL-131 step 2: preview FIRST — the same dry-run discipline that caught the BL-CAT
+            // mistakes before they shipped. Nothing is written until the operator approves.
+            async _sendWorkbook(fileObj, dryRun) {
+                const fd = new FormData();
+                fd.append('file', fileObj);
+                const q = new URLSearchParams({ dry_run: dryRun });
+                if (this.impSourceSite) q.set('source_site', this.impSourceSite);
+                if (this.impSupplier) q.set('supplier', this.impSupplier);
+                const r = await fetch(`/api/v1/pos/catalog/worklist/import?${q}`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${AuthHelper.getToken()}` },
+                    body: fd,
+                });
+                const d = await r.json().catch(() => ({}));
+                if (!r.ok) throw new Error(d.detail || `Import failed (${r.status})`);
+                return d;
+            },
+
+            async previewImport(fileObj) {
+                if (!fileObj) return;
+                this.importing = true;
+                try {
+                    this.impFile = fileObj;
+                    this.imp = await this._sendWorkbook(fileObj, true);
+                } catch (e) {
+                    showToast(e.message || t('cleanup.import_failed'), 'error');
+                    this.impFile = null;
+                } finally { this.importing = false; }
+            },
+
+            async applyImport() {
+                if (!this.impFile) return;
+                this.impSaving = true;
+                try {
+                    const d = await this._sendWorkbook(this.impFile, false);
+                    showToast(d.message || t('cleanup.import_done'), 'success');
+                    this.imp = null; this.impFile = null;
+                    this.load();                       // the bench shrinks — show it
+                } catch (e) {
+                    showToast(e.message || t('cleanup.import_failed'), 'error');
+                } finally { this.impSaving = false; }
+            },
+
+            nextBatch() { this.offset += this.limit; this.load(); },
+            prevBatch() { this.offset = Math.max(0, this.offset - this.limit); this.load(); },
+
+            async loadCategories() {
+                try {
+                    const cats = await API.get('/api/v1/pos/search/categories');
+                    // Only offer REAL categories in the picker (never the "On the fly" placeholder).
+                    this.categories = (cats || [])
+                        .filter(c => c.name && !/^on the fly$/i.test(c.name))
+                        .map(c => ({ name: c.name }));
+                } catch (e) { console.warn('categories unavailable', e); }
+            },
+
+            async load() {
+                this.loading = true;
+                try {
+                    let url = '/api/v1/pos/catalog/cleanup-queue?mode=' + this.mode;
+                    if (this.mode === 'bench') {
+                        url += `&limit=${this.limit}&offset=${this.offset}`;
+                        const shelf = (this.catFilter || '').trim();
+                        if (shelf) url += `&category=${encodeURIComponent(shelf)}`;
+                        if (this.gapFilter) url += `&gap=${encodeURIComponent(this.gapFilter)}`;
+                        if (this.periodFilter) url += `&period=${encodeURIComponent(this.periodFilter)}`;
+                        if (this.notedOnly) url += `&noted=true`;
+                    }
+                    const data = await API.get(url);
+                    this.items = (data.items || []).map(p => ({
+                        ...p,
+                        // editable working copies — blank the placeholder so the manager types a real one
+                        _category: (p.gaps.category ? '' : (p.category || '')),
+                        _cost: (p.cost != null ? p.cost : ''),
+                        _price: (p.price != null && p.price > 0 ? p.price : ''),   // BL-142: settable here
+                        _costEyeballed: false,   // BL-047b: true once the eyeball fills the cost
+                        _imgUrl: '',
+                        _description: (p.description || ''),
+                        _workNote: (p.work_note || ''),   // rookie's parked-why / next-step note
+                        _age: !!p.is_age_restricted,
+                        _saving: false,
+                        _uploading: false,
+                    }));
+                    if (this.mode === 'bench') {
+                        this.progress = {
+                            done: data.done || 0,
+                            total: data.total || 0,
+                            remaining: data.remaining || 0,
+                        };
+                        if (data.gap_counts) this.gapCounts = data.gap_counts;
+                        // Worked the last item off the final batch? Step back so we're not on an empty page.
+                        if (!this.items.length && this.offset > 0) {
+                            this.offset = Math.max(0, this.offset - this.limit);
+                            return await this.load();
+                        }
+                    }
+                } catch (e) {
+                    console.error('cleanup queue failed', e);
+                    showToast(t('cleanup.toast_load_failed') || 'Could not load the queue', 'error');
+                } finally { this.loading = false; }
+            },
+
+            // BL-142: paste a link — a product page OR the image itself — and we fetch + store it.
+            // BL-047b — the cost eyeball. All estimates; a real slip cost always wins.
+            shopMarkup() { return Number(_cfg('default_markup_pct')) || 50; },
+            classMarkup(p) {
+                const m = (_cfg('class_markup') || {})[p.product_class];
+                return (m != null) ? Number(m) : this.shopMarkup();
+            },
+            applyMarkup(p, pct) {
+                pct = Number(pct);
+                if (!p.price || !(pct >= 0 && pct < 100)) return;
+                p._cost = (p.price * (1 - pct / 100)).toFixed(2);
+                p._costEyeballed = true;   // flag it as a guess, not a verified number
+            },
+
+            async photoFromUrl(p) {
+                const url = (p._imgUrl || '').trim();
+                if (!url) return;
+                p._uploading = true;
+                try {
+                    const res = await API.post(`/api/v1/pos/products/${p.product_id}/images/from-url`, { url });
+                    p.image_url = (res && (res.image_url || res.url)) || p.image_url;
+                    p.gaps.photo = false;
+                    p._imgUrl = '';
+                    if (res && res.thumbnail_warning) {
+                        showToast(t('cleanup.toast_thumb') ||
+                            'Got it — but that was a Google thumbnail (small). Open the image first for a big one.', 'warning');
+                    } else {
+                        showToast(t('cleanup.toast_photo') || 'Photo added', 'success');
+                    }
+                } catch (e) {
+                    showToast(e.message || t('cleanup.toast_photo_failed') || 'Could not get that picture', 'error');
+                } finally { p._uploading = false; }
+            },
+
+            async uploadPhoto(p, ev) {
+                const file = ev.target.files && ev.target.files[0];
+                if (!file) return;
+                p._uploading = true;
+                try {
+                    // Raw fetch, Authorization only: a multipart body needs the BROWSER to set
+                    // Content-Type (it carries the boundary). API.call() hard-sets application/json,
+                    // so it can't carry a file — same pattern catalog.html/scan.html already use.
+                    const fd = new FormData();
+                    fd.append('file', file);
+                    const r = await fetch(`/api/v1/pos/products/${p.product_id}/images`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${AuthHelper.getToken()}` },
+                        body: fd,
+                    });
+                    if (!r.ok) throw new Error('upload failed');
+                    // First photo becomes the cover (products.image_url) server-side.
+                    const res = await r.json();
+                    p.image_url = (res && (res.image_url || res.url)) || p.image_url;
+                    p.gaps.photo = !p.image_url;
+                    showToast(t('cleanup.toast_photo') || 'Photo added', 'success');
+                } catch (e) {
+                    console.error('photo upload failed', e);
+                    showToast(t('cleanup.toast_photo_failed') || 'Photo upload failed', 'error');
+                } finally {
+                    p._uploading = false;
+                    ev.target.value = '';   // let the same file be re-picked after a failure
+                }
+            },
+
+            async save(p) {
+                const cat = (p._category || '').trim();
+                const desc = (p._description || '').trim();
+                const costRaw = (p._cost === '' || p._cost === null) ? null : parseFloat(p._cost);
+                if (costRaw !== null && (isNaN(costRaw) || costRaw < 0)) {
+                    showToast(t('cleanup.toast_bad_cost') || 'Enter a valid cost', 'warning'); return;
+                }
+                // BL-142 — Angel: "says cost and stuff but no listed price". The card asked what it COST
+                // us but never let you say what it SELLS for, so a 0.00 product could never be finished
+                // from the bench at all.
+                const priceRaw = (p._price === '' || p._price === null) ? null : parseFloat(p._price);
+                if (priceRaw !== null && (isNaN(priceRaw) || priceRaw < 0)) {
+                    showToast(t('cleanup.toast_bad_price') || 'Enter a valid price', 'warning'); return;
+                }
+                const payload = { is_age_restricted: !!p._age };
+                if (cat) payload.category = cat;
+                if (costRaw !== null) payload.cost = costRaw;
+                if (priceRaw !== null) payload.price = priceRaw;
+                if (this.mode === 'bench' && desc) payload.description = desc;
+                // Rookie note travels with every save (incl. clearing) so "why parked / next step" sticks.
+                if (this.mode === 'bench') payload.work_note = (p._workNote || '').trim() || null;
+                p._saving = true;
+                try {
+                    await API.put(`/api/v1/pos/products/${p.product_id}`, payload);
+                    // Recompute the objective gaps; an item leaves the queue only when they're ALL filled.
+                    // Bench gates on four (category, cost, description, photo); sold gates on two.
+                    const stillCat = !cat && p.gaps.category;
+                    const stillCost = (costRaw === null) && p.gaps.cost;
+                    let cleared = !stillCat && !stillCost;
+                    if (this.mode === 'bench') {
+                        const stillDesc = !desc;
+                        const stillPhoto = !p.image_url;
+                        cleared = cleared && !stillDesc && !stillPhoto;
+                    }
+                    showToast(t('cleanup.toast_saved') || 'Saved', 'success');
+                    if (cleared) {
+                        this.items = this.items.filter(x => x.product_id !== p.product_id);
+                        if (this.mode === 'bench') {
+                            // The counter is the point — keep it honest as items come off the bench.
+                            this.progress.done += 1;
+                            this.progress.remaining = Math.max(0, this.progress.remaining - 1);
+                            if (!this.items.length) await this.load();   // pull the next batch
+                        }
+                    } else {
+                        await this.load();   // partial — keep it, refresh its live values
+                    }
+                } catch (e) {
+                    console.error('save failed', e);
+                    showToast(t('cleanup.toast_save_failed') || 'Save failed', 'error');
+                } finally { p._saving = false; }
+            },
+
+            shortDate(iso) {
+                if (!iso) return '';
+                try { return new Date(iso).toLocaleDateString(); } catch (e) { return iso.slice(0, 10); }
+            },
+            // Deliberately NOT a local formatter. This page used to define its own
+            //   formatPrice(v) { return 'CHF ' + v.toFixed(2) }
+            // which SHADOWED base.html's shared seam — "the ONE money-display seam" — and printed
+            // "sells for CHF 4.95" one line away from a label reading "Cost (EUR)" in an EUR shop
+            // (Artemis Roma). Delegate, so the currency follows /config like everywhere else.
+            formatPrice(v) { return window.formatPrice(Number(v) || 0); },
+            goDashboard() { window.location.href = '/pos/dashboard'; },
+            goCatalog() { window.location.href = '/pos/catalog'; },
+            goReports() { window.location.href = '/pos/reports'; },
+        };
+    }
+</script>
+{% endblock %}

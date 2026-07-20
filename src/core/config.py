@@ -1,0 +1,331 @@
+import asyncio
+import logging
+from functools import lru_cache
+from typing import List, Optional
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field, SecretStr, EmailStr
+
+# ----------------------------------------------------------------------
+# LOGGER
+# ----------------------------------------------------------------------
+logger = logging.getLogger("🌱 HelixNet.Config")
+logger.setLevel(logging.INFO)
+# ----------------------------------------------------------------------
+# SETTINGS CLASS
+# ----------------------------------------------------------------------
+class Settings(BaseSettings):
+    """
+    Application configuration focused on resolving the authentication issues.
+    """
+    API_VERSION: str
+    OPENAPI_URL: str 
+    DOCS_URL: str 
+    FASTAPI_BASE_URL: str
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        extra="ignore",
+        case_sensitive=True,
+    )
+# 🧠 Key essentails   
+
+# Keycloak
+    # Set the default to the correct internal Docker network URL (http://service:port)
+    KEYCLOAK_HELIX_REALM_INTERNAL_URL: str 
+    KEYCLOAK_BASE_URL: str 
+    KEYCLOAK_SERVER_URL: str
+    KEYCLOAK_MASTER_REALM: str
+    HX_SUPER_NAME: str
+    HX_SUPER_PASSWORD: str
+    KEYCLOAK_EXTERNAL_URL: str
+    KEYCLOAK_DEV_REALM: str
+    KEYCLOAK_REALM: str
+    KEYCLOAK_MASTER_REALM: str = "master"
+    # La Piazza (Bottega) auth realm + public client. Env-driven so staging can
+    # point at its own dedicated realm (lapiazza-realm-staging) without code edits.
+    LP_REALM: str = "lapiazza-realm-dev"
+    LP_CLIENT: str = "lapiazza_web"
+    # Artemis Premium publish — the confidential client the server uses to IMPERSONATE the shop's
+    # business account via KC token-exchange (no password; required for Model A in prod where the
+    # owner sets their own password). When LP_PUBLISHER_SECRET is unset, lp_publish falls back to the
+    # provisioned-credential password grant (dev/sandbox only). Set the SECRET per-env via env var.
+    LP_PUBLISHER_CLIENT: str = "lapiazza_publisher"
+    LP_PUBLISHER_SECRET: str = ""
+    # POS (HelixPOS / Banco) auth realm. Env-driven (was hardcoded in keycloak_auth.py)
+    # so Phase 2 of the identity consolidation can repoint POS at the unified realm
+    # WITHOUT a code edit. Default keeps today's behavior. See HELIX-IDENTITY-ARCHITECTURE.md.
+    POS_REALM: str = "kc-pos-realm-dev"
+    # Camper & Tour (garage) auth realm. Env-driven (was hardcoded in camper_router /
+    # backlog_router / qa_router + their templates) so the identity consolidation can repoint it
+    # at the unified env realm WITHOUT a code edit. See IDENTITY-CONSOLIDATION-PLAN.md.
+    CAMPER_REALM: str = "kc-camper-service-realm-dev"
+    # ISOTTO (print shop) auth realm. Env-driven (was hardcoded in isotto_router + templates)
+    # for the same reason. Default keeps today's behavior.
+    ISOTTO_REALM: str = "kc-isotto-print-realm-dev"
+    # Browser-facing Keycloak host for the LP realm — MUST match the realm's frontendUrl, or the
+    # interactive login dead-ends on "you are already logged in" when app host != KC host.
+    # prod borrowhood frontendUrl = lapiazza.app (default); staging overrides to staging-bottega.
+    LP_KC_PUBLIC_URL: str = "https://lapiazza.app"
+# Seeder superuser
+    HX_SUPER_NAME:  str = "helix_user"
+    HX_SUPER_EMAIL: EmailStr 
+    HX_SUPER_PASSWORD:  str 
+
+    KC_HOSTNAME: str 
+    KC_HTTP_PORT: int
+# Clients & service account
+    KEYCLOAK_CLIENT_ID: str = "helix_user"
+    # KEYCLOAK_CLIENT_SECRET: SecretStr
+    KEYCLOAK_SERVICE_CLIENT_ID:  str = "helix_user"
+    KC_HOSTNAME_ADMIN_URL: str 
+
+    KEYCLOAK_CLIENT_SECRET: str 
+    KEYCLOAK_SERVICE_CLIENT_SECRET: str 
+
+# --- App Metadata ---
+    KC_EXTERNAL_URL: str 
+    HX_ENVIRONMENT: str 
+    PROJECT_NAME: str 
+    PROJECT_APP_VERSION: str
+    API_V1_STR: str 
+    APP_HOST: str 
+    APP_PORT: int 
+    BACKEND_CORS_ORIGINS: List[str] = ["*"]
+# --- Security ---
+    VAULT_DEV_ROOT_TOKEN_ID: str 
+    VAULT_ADDR: str 
+    VAULT_TOKEN: SecretStr
+    VAULT_DEV_LISTEN_ADDRESS: str
+#  SECURITY Keys / Tokens
+    SECRET_KEY: str
+    KEYCLOAK_ALGORITHM: str = "RS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    REFRESH_TOKEN_EXPIRE_DAYS_DEFAULT: int = 7
+    USE_HTTP_ONLY_REFRESH_COOKIE: bool = False
+    REFRESH_COOKIE_NAME: str = "refresh_token"
+# Database
+    POSTGRES_HOST: str = "postgres"
+    POSTGRES_PORT: int = 5432
+    POSTGRES_DB: str 
+    POSTGRES_TEST_DB: str 
+    POSTGRES_USER: str
+    POSTGRES_PASSWORD: SecretStr
+    DB_POOL_SIZE: int = 5
+    DB_ECHO: bool = False
+    DB_MAX_OVERFLOW: int = 10
+# RabbitMQ / Redis
+    RABBITMQ_HOST: str 
+    RABBITMQ_PORT: int
+    RABBITMQ_USER: str 
+    RABBITMQ_PASS: SecretStr
+    REDIS_HOST: str
+    REDIS_PORT: int 
+# MinIO
+    MINIO_HOST: str 
+    MINIO_PORT: int 
+    MINIO_BUCKET: str 
+    MINIO_ACCESS_KEY: str = SecretStr
+    MINIO_SECRET_KEY: str = SecretStr
+    MINIO_SECURE: bool = False
+
+# POS Configuration (HelixPOS)
+    POS_VAT_RATE: float = 8.1  # Swiss VAT rate (2025: 8.1%, 2024: 7.7%)
+    POS_VAT_RATE_REDUCED: float = 2.6  # Reduced rate -- takeaway food / non-alc drink (Art. 25 MWSTG)
+    POS_VAT_YEAR: int = 2025
+    POS_CURRENCY: str = "CHF"
+    POS_LOCALE: str = "de-CH"
+
+# Computed properties
+    @property
+    def KEYCLOAK_ISSUER_URL(self) -> str:
+        # Note: This still uses KC_HOSTNAME (external) but with http and port 8080. 
+        # For external clients, this might be fine, but S2S must use KEYCLOAK_SERVER_URL.
+        return f"http://{self.KC_HOSTNAME}:{self.KC_HTTP_PORT}/realms/{self.KEYCLOAK_REALM}"
+    @property
+    def KEYCLOAK_JWKS_URL(self) -> str:
+        return f"{self.KEYCLOAK_ISSUER_URL}/protocol/openid-connect/certs"
+    @property
+    def POSTGRES_SYNC_URI(self) -> str:
+        return (
+            f"postgresql+psycopg://{self.POSTGRES_USER}:"
+            f"{self.POSTGRES_PASSWORD.get_secret_value()}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        )
+    @property
+    def POSTGRES_ASYNC_URI(self) -> str:
+        return (
+            f"postgresql+asyncpg://{self.POSTGRES_USER}:"
+            f"{self.POSTGRES_PASSWORD.get_secret_value()}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        )
+    SQUARE_DB: str = "borrowhood"   # the marketplace DB (read-only bridge); same Postgres instance
+    # The Square (La Piazza marketplace) write-side bridge (Cleo draft-listing handoff).
+    # API URL = internal service name for server-to-server calls (same Docker network);
+    # PUBLIC URL = browser-facing host, used to build cover-image + view links the user clicks.
+    SQUARE_API_URL: str = "http://borrowhood:8000"     # staging overrides -> borrowhood_staging:8000
+    SQUARE_PUBLIC_URL: str = "https://lapiazza.app"     # staging overrides -> https://staging.lapiazza.app
+    @property
+    def SQUARE_ASYNC_URI(self) -> str:
+        return (
+            f"postgresql+asyncpg://{self.POSTGRES_USER}:"
+            f"{self.POSTGRES_PASSWORD.get_secret_value()}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.SQUARE_DB}"
+        )
+    @property
+    def CELERY_BROKER_URI(self) -> str:
+        return f"amqp://{self.RABBITMQ_USER}:{self.RABBITMQ_PASS}@{self.RABBITMQ_HOST}:{self.RABBITMQ_PORT}//"
+    @property
+    def CELERY_BACKEND_URI(self) -> str:
+        return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/1"
+    @property
+    def MINIO_ENDPOINT_URL(self) -> str:
+        proto = "https" if self.MINIO_SECURE else "http"
+        return f"{proto}://{self.MINIO_HOST}:{self.MINIO_PORT}"
+    # --- KEYCLOAK ADMIN CREDENTIALS (The Fix) ---
+    KEYCLOAK_ADMIN_USER: str = Field(
+        default="admin",
+        alias="KEYCLOAK_ADMIN_USER"
+    )
+    KEYCLOAK_ADMIN_PASSWORD: SecretStr = Field(
+        alias="KEYCLOAK_ADMIN_PASSWORD"
+    )
+    # --- MINIO CREDENTIALS ---
+    MINIO_ACCESS_KEY: str = Field(
+        default="helix_user", 
+        alias="MINIO_ACCESS_KEY"
+    )
+    MINIO_SECRET_KEY: str = Field(
+        default="helix_pass",
+        alias="MINIO_SECRET_KEY"
+    )
+    @property
+    def DEBUG_KC_ADMIN_PASSWORD(self) -> str:
+        if self.KEYCLOAK_ADMIN_PASSWORD:
+            return self.KEYCLOAK_ADMIN_PASSWORD.get_secret_value()
+        return "N/A"
+# ----------------------------------------------------------------------
+# nice clean startup printer (single definition)
+# ----------------------------------------------------------------------
+def _print_startup_matrix(s: Settings) -> None:
+    """Console-friendly startup matrix (keeps it small and safe)."""
+# Print Header with maximum pride
+    print("\n" + "⚡" * 80)
+    print(f" 💥 HALT! CONFIG MATRIX INITIATED: {s.PROJECT_NAME} (v{s.PROJECT_APP_VERSION}) 💥")
+    print(" 🥋 QA PASSED: CHUCK NORRIS TRIPLE ROUNDHOUSE CONFIGURATION CHECK COMPLETE 🥋")
+    print("⚡" * 80)   
+# --- 2. IDENTITY PROVIDER (KEYCLOAK) CONFIG ---
+    print("\n" + "=" * 20 + " 🔑 IDENTITY PROVIDER (KEYCLOAK) " + "=" * 23)
+    # NOTE: Printing the internal host used for S2S calls
+    print(f"  KC Internal Host:   {s.KEYCLOAK_SERVER_URL}") 
+    print(f"  KC Realm Name:      {s.KEYCLOAK_REALM}")
+    print(f"  KC Issuer URL:      {s.KEYCLOAK_ISSUER_URL}")
+    print(f"  KC JWKS URL:        {s.KEYCLOAK_JWKS_URL}")
+
+    print("-" * 59)
+    print("  Service Client (Runtime Admin):")
+    # print(f"    ID:             {s.KEYCLOAK_CLIENT_ID}")
+    # print(f"    Secret:         {s.KEYCLOAK_CLIENT_SECRET}")
+
+    print("-" * 59)
+    print("  Master/Bootstrap Admin:")
+    print(f"    User:           {s.HX_SUPER_NAME}") # Print the HX_SUPER_NAME used for bootstrapping
+    print(f"    Password:       {'Present' if s.HX_SUPER_PASSWORD else '❌ MISSING'}")
+    print(f"  External Admin URL: {s.KC_EXTERNAL_URL}/admin") # Assuming KC_EXTERNAL_URL is available 
+# --- 3. PERSISTENCE LAYER CONFIG ---
+    print("\n" + "=" * 20 + " 💾 PERSISTENCE (DB, Cache, Storage) " + "=" * 18)
+# Database
+    print(f"  Postgres Host:      {s.POSTGRES_HOST}:{s.POSTGRES_PORT}")
+    print(f"  Postgres DB Name:   {s.POSTGRES_DB} (User: {s.POSTGRES_USER})")
+    print(f"  Postgres Sync URI:  {s.POSTGRES_SYNC_URI.split('@')[0]}@...")
+    print(f"  Postgres Async URI: {s.POSTGRES_ASYNC_URI.split('@')[0]}@...")
+# Object Storage (MinIO)
+    print(f"  MinIO Host:         {s.MINIO_HOST}:{s.MINIO_PORT}")
+    print(f"  MinIO Endpoint URL: {s.MINIO_ENDPOINT_URL}")
+    print(f"  MinIO Bucket:       {s.MINIO_BUCKET} (Key: {s.MINIO_ACCESS_KEY})")
+# --- 4. ASYNCHRONOUS TASK CONFIG ---
+    print("\n" + "=" * 20 + " 📩 MESSAGE BROKERS (Celery) " + "=" * 26)
+# RabbitMQ
+    print(f"  RabbitMQ Host:      {s.RABBITMQ_HOST}:{s.RABBITMQ_PORT}")
+    print(f"  Celery Broker URI:  {s.CELERY_BROKER_URI.split('@')[0]}@...")
+# Redis
+    print(f"  Redis Host:         {s.REDIS_HOST}:{s.REDIS_PORT}")
+    print(f"  Celery Backend URI: {s.CELERY_BACKEND_URI}")
+    print("\n" + "⚡" * 80)
+    print(" 🚀 CONFIGURATION LOADED. PROCEEDING TO SERVICE INITIALIZATION. 🚀")
+    print("⚡" * 80 + "\n")
+# ----------------------------------------------------------------------
+# singleton factory
+# ----------------------------------------------------------------------
+@lru_cache()
+def get_settings() -> Settings:
+    s = Settings()
+    # print startup matrix on creation once
+    _print_startup_matrix(s)
+    return s
+# ----------------------------------------------------------------------
+# helper functions that use lazy imports to avoid circulars
+# ----------------------------------------------------------------------
+async def get_keycloak_admin_token(max_retries: int = 10, retry_delay: int = 5) -> Optional[str]:
+    """
+    Acquire Keycloak admin token for startup tasks.
+    Uses lazy imports (httpx) and references get_settings() at runtime.
+    """
+    import httpx  # lazy import
+    s = get_settings()
+    # token_url now correctly uses the fixed KEYCLOAK_SERVER_URL
+    token_url = f"{s.KEYCLOAK_SERVER_URL}/realms/{s.KEYCLOAK_MASTER_REALM}/protocol/openid-connect/token"
+    token_url = f"{s.KEYCLOAK_SERVER_URL}/realms/{s.KEYCLOAK_MASTER_REALM}/protocol/openid-connect/token"
+
+    auth_data = {
+        "grant_type": "password",
+        "client_id": "admin-cli",
+        # FIX: Use configuration variables for credentials
+        "username": s.HX_SUPER_NAME,
+        "password": s.HX_SUPER_PASSWORD,
+    }
+    for attempt in range(1, max_retries + 1):
+        try:
+            # verify=False is often needed for internal S2S calls when not using proper CAs
+            async with httpx.AsyncClient(verify=False, timeout=10) as client:
+                resp = await client.post(token_url, data=auth_data, headers={"Content-Type": "application/x-www-form-urlencoded"})
+                resp.raise_for_status()
+                payload = resp.json()
+                logger.info(f"✅ [SUCCESS] Admin token acquired on attempt {attempt}")
+                return payload.get("access_token")
+        except httpx.HTTPStatusError as he:
+            logger.warning(
+                f"❌ [401 FAILED KICKiS] Status {he.response.status_code} on attempt {attempt}. Keycloak Error Body: {he.response.json()}. Retrying in {retry_delay}s."
+            )
+        except Exception as e:
+            logger.warning(f"⚠️ [CONNECTION FAIL] Keycloak network error on attempt {attempt}/{max_retries}. Error Type: {type(e).__name__}. Retrying in {retry_delay}s.")
+
+        if attempt < max_retries:
+            await asyncio.sleep(retry_delay)
+    logger.error("🚨 KEYCLOAK HALT: Admin Token acquisition failed after all attempts. Check MASTER_REALM credentials/client configuration match both realms.")
+    return None
+
+async def create_initial_users(db) -> None:
+    """
+    Seeder that creates initial superuser in DB and Keycloak.
+    Use lazy imports to avoid circular dependencies with db/models or services.
+    """
+    # Lazy imports to avoid circular import at module import time
+    from sqlalchemy import select
+    from src.db.models import UserModel  # import here to avoid circulars
+    s = get_settings()
+
+    logger.info("🌱 Starting initial user seeding...")
+    token = await get_keycloak_admin_token()
+    if not token:
+        logger.error("🚨 [HALT] Cannot proceed with user seeding: Keycloak Admin Token missing.")
+        return
+    stmt = select(UserModel).where(UserModel.username == s.HX_SUPER_NAME)
+    result = await db.execute(stmt)
+    if result.scalar_one_or_none():
+        logger.info("⏭️ Superuser already exists, skipping seeding.")
+        return
+    # Insert DB creation + remote Keycloak creation logic here.
+    # Keep this function minimal. Prefer calling KeycloakProxyService from runtime code
+    # where an aiohttp.ClientSession can be injected. Do not import KeycloakProxyService here at module level.
+    logger.info("🎯 Seeder: superuser creation needs application-specific implementation.")
+# ----------------------------------------------------------------------
+# instantiate module-level settings singleton (safe)
+# ----------------------------------------------------------------------
+settings = get_settings()

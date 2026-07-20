@@ -1,0 +1,281 @@
+# File: app/db/models/__init__.py
+# Purpose: Imports all SQLAlchemy models so they are registered with the Base metadata
+# and exports all model names (including old aliases) for package-level imports.
+from .base import Base
+from .team_model import TeamModel
+from .job_model import JobModel
+from .artifact_model import ArtifactModel
+from .message_tasks_model import MessageTaskModel
+from .initializer_model import InitializerModel
+from .pipeline_tasks_model import PipelineTaskModel
+from .task_model import TaskModel
+from .refresh_token_model import RefreshTokenModel
+from .user_model import UserModel
+
+# POS Models (Felix's Artemis Store)
+from .product_model import ProductModel, ProductBarcodeModel, ProductImageModel, ProductTranslationModel
+from .reference_product_model import ReferenceProductModel  # BL-97 reference catalog (product master)
+from .pos_stock_movement_model import PosStockMovementModel
+from .transaction_model import TransactionModel, TransactionStatus, PaymentMethod
+from .line_item_model import LineItemModel
+from .store_settings_model import StoreSettingsModel
+from .payment_model import PaymentModel  # 🌍-1 terminal settlements (Worldline TIM first)
+from .kiosk_cart_model import KioskCartModel  # banco kiosk v2 — guest held orders
+
+# CRACK Loyalty Models (Customer + KB Gamification)
+from .customer_model import CustomerModel, CrackLevel, LoyaltyTier, PreferredContact
+from .kb_contribution_model import KBContributionModel, KBStatus, KBCategory
+from .credit_transaction_model import CreditTransactionModel, CreditTransactionType
+
+# Sourcing System Models (Bestellungen)
+from .supplier_model import SupplierModel
+from .sourcing_request_model import SourcingRequestModel, SourcingNoteModel
+
+# HR/Payroll Models (BLQ Module)
+from .employee_model import EmployeeModel, ContractType, EmployeeStatus
+from .time_entry_model import TimeEntryModel, EntryType, EntryStatus
+from .payroll_run_model import PayrollRunModel, PayrollRunStatus
+from .payslip_model import PaySlipModel
+
+# Shift & Session Management (BLQ: Handoff WIZARD)
+from .shift_session_model import ShiftSessionModel, SessionStatus
+
+# Cash Shift -- per-cashier drawer accountability (the lockbox model)
+from .cash_shift_model import (
+    CashShiftModel, CashShiftStatus, CashMovementModel, CashMovementKind,
+)
+
+# E2E Track & Trace Models (THE SPINE)
+from .farm_model import FarmModel, FarmType
+from .batch_model import BatchModel, BatchStatus, FreshnessRule
+from .lab_test_model import LabTestModel, LabTestStatus, QualityGrade
+from .traceable_item_model import TraceableItemModel, LifecycleStage, LocationType
+from .trace_event_model import TraceEventModel, ActorType
+
+# Equipment Supply Chain Models (YUKI & CHARLIE's Domain)
+from .equipment_supplier_model import EquipmentSupplierModel, SupplierType
+from .equipment_model import EquipmentModel, EquipmentType, EquipmentStatus
+from .purchase_order_model import PurchaseOrderModel, POStatus
+from .shipment_model import ShipmentModel, ShipmentType, ShipmentStatus
+from .customs_clearance_model import CustomsClearanceModel, CustomsStatus
+from .maintenance_event_model import MaintenanceEventModel, MaintenanceType, MaintenanceStatus
+from .equipment_acquisition_model import EquipmentAcquisitionModel, AcquisitionType, AcquisitionStatus, UrgencyLevel
+
+# Camper & Tour Service Management (Sebastino's Shop, Trapani)
+from .camper_vehicle_model import CamperVehicleModel, VehicleType, VehicleStatus
+from .camper_customer_model import CamperCustomerModel, CustomerLanguage
+from .camper_bay_model import CamperBayModel, BayType
+from .camper_service_job_model import CamperServiceJobModel, JobType, JobStatus, ServiceJobActivityModel, ServiceJobActivityType
+from .camper_work_log_model import CamperWorkLogModel, LogType
+from .camper_quotation_model import CamperQuotationModel, QuotationStatus
+from .camper_purchase_order_model import CamperPurchaseOrderModel, CamperPOStatus
+from .camper_invoice_model import CamperInvoiceModel, PaymentStatus
+from .camper_document_model import CamperDocumentModel
+from .camper_shared_resource_model import CamperSharedResourceModel, ResourceType
+from .camper_resource_booking_model import CamperResourceBookingModel, BookingStatus
+from .camper_appointment_model import CamperAppointmentModel, AppointmentType, AppointmentPriority, AppointmentStatus
+from .camper_supplier_model import CamperSupplierModel
+
+# ISOTTO Sport Print Shop (Via Buscaino, Trapani - since 1968)
+from .isotto_customer_model import IsottoCustomerModel
+from .isotto_order_model import IsottoOrderModel, ProductType, OrderStatus, ColorMode, DuplexMode, Lamination
+from .isotto_supplier_model import IsottoSupplierModel
+from .isotto_catalog_model import IsottoCatalogProductModel, IsottoMerchCategory, IsottoPrintMethod
+from .isotto_catalog_stock_model import IsottoCatalogStockModel
+from .isotto_order_line_item_model import IsottoOrderLineItemModel, LineItemStatus
+from .isotto_purchase_order_model import IsottoPurchaseOrderModel, IsottoPOStatus
+from .isotto_artwork_model import IsottoArtworkModel
+from .isotto_activity_model import IsottoOrderActivityModel  # referenced by IsottoOrderModel relationship
+from .isotto_invoice_model import IsottoInvoiceModel  # referenced by IsottoOrderModel relationship
+
+# QA Testing Dashboard (Anne's Testing Checklist)
+from .qa_test_result_model import QATestResultModel, TestStatus, QABugReportModel, BugSeverity, BugStatus, QABugActivityModel, BugActivityType
+
+# Backlog (Unified Board -- dev tasks, bug fixes, camper jobs, business ops)
+from .backlog_model import BacklogItemModel, BacklogItemType, BacklogStatus, BacklogPriority, BacklogActivityModel, BacklogActivityType
+
+# POS in-app notifications (Hypercare reporter bell)
+from .pos_notification_model import POSNotificationModel
+
+# BL-21/22 — the Order Book (reorder pencil-list + per-line supplier pick)
+from .reorder_item_model import ReorderItemModel, REORDER_REASONS, REORDER_STATUSES
+
+# LPCX -- La Piazza Compute Exchange (jobs + credit ledger + template catalog)
+from .compute_model import (
+    ComputeJobModel, ComputeJobStatus, ComputeLedgerModel, ComputeLedgerKind,
+    ComputeTemplateModel, ComputeNodeModel, ComputeNodeStatus,
+)
+from .bottega_model import BottegaProfileModel, BottegaProfileHistoryModel, BottegaSessionModel, BottegaTaskModel
+
+__all__ = [
+    "Base",
+    "UserModel",
+    "TeamModel",
+    "RefreshTokenModel",
+    "JobModel",
+    "TaskModel",
+    "ArtifactModel",
+    "MessageTaskModel",
+    "PipelineTaskModel",
+    "InitializerModel",
+    # POS Models
+    "ProductModel",
+    "ProductBarcodeModel",
+    "ProductImageModel",
+    "ProductTranslationModel",
+    "ReferenceProductModel",
+    "PosStockMovementModel",
+    "TransactionModel",
+    "TransactionStatus",
+    "PaymentMethod",
+    "LineItemModel",
+    "StoreSettingsModel",
+    "PaymentModel",
+    "KioskCartModel",
+    # CRACK Loyalty Models
+    "CustomerModel",
+    "CrackLevel",
+    "LoyaltyTier",
+    "PreferredContact",
+    "KBContributionModel",
+    "KBStatus",
+    "KBCategory",
+    "CreditTransactionModel",
+    "CreditTransactionType",
+    # Sourcing System Models
+    "SupplierModel",
+    "SourcingRequestModel",
+    "SourcingNoteModel",
+    # HR/Payroll Models
+    "EmployeeModel",
+    "ContractType",
+    "EmployeeStatus",
+    "TimeEntryModel",
+    "EntryType",
+    "EntryStatus",
+    "PayrollRunModel",
+    "PayrollRunStatus",
+    "PaySlipModel",
+    # Shift & Session
+    "ShiftSessionModel",
+    "SessionStatus",
+    # Cash Shift (per-cashier drawer)
+    "CashShiftModel",
+    "CashShiftStatus",
+    "CashMovementModel",
+    "CashMovementKind",
+    # E2E Track & Trace Models (THE SPINE)
+    "FarmModel",
+    "FarmType",
+    "BatchModel",
+    "BatchStatus",
+    "FreshnessRule",
+    "LabTestModel",
+    "LabTestStatus",
+    "QualityGrade",
+    "TraceableItemModel",
+    "LifecycleStage",
+    "LocationType",
+    "TraceEventModel",
+    "ActorType",
+    # Equipment Supply Chain Models (YUKI & CHARLIE)
+    "EquipmentSupplierModel",
+    "SupplierType",
+    "EquipmentModel",
+    "EquipmentType",
+    "EquipmentStatus",
+    "PurchaseOrderModel",
+    "POStatus",
+    "ShipmentModel",
+    "ShipmentType",
+    "ShipmentStatus",
+    "CustomsClearanceModel",
+    "CustomsStatus",
+    "MaintenanceEventModel",
+    "MaintenanceType",
+    "MaintenanceStatus",
+    # Equipment Acquisition (BUY vs LEASE vs RENT)
+    "EquipmentAcquisitionModel",
+    "AcquisitionType",
+    "AcquisitionStatus",
+    "UrgencyLevel",
+    # Camper & Tour Service Management
+    "CamperVehicleModel",
+    "VehicleType",
+    "VehicleStatus",
+    "CamperCustomerModel",
+    "CustomerLanguage",
+    "CamperBayModel",
+    "BayType",
+    "CamperServiceJobModel",
+    "JobType",
+    "JobStatus",
+    "ServiceJobActivityModel",
+    "ServiceJobActivityType",
+    "CamperWorkLogModel",
+    "LogType",
+    "CamperQuotationModel",
+    "QuotationStatus",
+    "CamperPurchaseOrderModel",
+    "CamperPOStatus",
+    "CamperInvoiceModel",
+    "PaymentStatus",
+    "CamperDocumentModel",
+    "CamperSharedResourceModel",
+    "ResourceType",
+    "CamperResourceBookingModel",
+    "BookingStatus",
+    "CamperAppointmentModel",
+    "AppointmentType",
+    "AppointmentPriority",
+    "AppointmentStatus",
+    # Camper Supplier Directory
+    "CamperSupplierModel",
+    # ISOTTO Sport Print Shop
+    "IsottoCustomerModel",
+    "IsottoOrderModel",
+    "ProductType",
+    "OrderStatus",
+    "ColorMode",
+    "DuplexMode",
+    "Lamination",
+    "IsottoSupplierModel",
+    "IsottoCatalogProductModel",
+    "IsottoMerchCategory",
+    "IsottoPrintMethod",
+    "IsottoCatalogStockModel",
+    "IsottoOrderLineItemModel",
+    "LineItemStatus",
+    "IsottoPurchaseOrderModel",
+    "IsottoPOStatus",
+    "IsottoArtworkModel",
+    "IsottoOrderActivityModel",
+    "IsottoInvoiceModel",
+    # QA Testing Dashboard
+    "QATestResultModel",
+    "TestStatus",
+    "QABugReportModel",
+    "BugSeverity",
+    "BugStatus",
+    "QABugActivityModel",
+    "BugActivityType",
+    # Backlog (Unified Board)
+    "BacklogItemModel",
+    "BacklogItemType",
+    "BacklogStatus",
+    "BacklogPriority",
+    "BacklogActivityModel",
+    "BacklogActivityType",
+    "POSNotificationModel",
+    # LPCX -- La Piazza Compute Exchange
+    "ComputeJobModel",
+    "ComputeJobStatus",
+    "ComputeLedgerModel",
+    "ComputeLedgerKind",
+    "ComputeTemplateModel",
+    "ComputeNodeModel",
+    "ComputeNodeStatus",
+    "BottegaProfileModel",
+    "BottegaProfileHistoryModel",
+    "BottegaTaskModel",
+]

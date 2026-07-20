@@ -1,0 +1,989 @@
+{% extends "pos/base.html" %}
+
+{% block title %}Receiving - HelixPOS{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50" x-data="receivingData()">
+    <!-- Top Bar -->
+    <div class="bg-white shadow-md border-b-4 border-emerald-600">
+        <div class="max-w-3xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-4">
+                <button @click="window.location.href='/pos/dashboard'" class="btn-secondary flex-none" title="Dashboard" aria-label="Dashboard">🏠
+                </button>
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900" data-i18n="receiving.title">📥 Receiving</h1>
+                    <p class="text-sm text-gray-600" data-i18n="receiving.subtitle">Scan each item that arrived — new ones join the catalogue</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-3xl mx-auto px-4 py-6 space-y-4">
+        <!-- Manager-only notice -->
+        <div x-show="!user.isManager" class="bg-yellow-50 border-2 border-yellow-400 rounded-lg p-4 text-sm text-yellow-800" data-i18n-html="receiving.manager_only">
+            Receiving requires a <strong>manager</strong> role. Ask a manager.
+        </div>
+
+        <template x-if="user.isManager">
+        <div class="space-y-4">
+            <!-- Supplier picker — who delivered this? Pick one or add a new source. -->
+            <div class="bg-white rounded-xl shadow p-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1"><span data-i18n="receiving.supplier">Supplier</span> <span class="text-gray-400 font-normal" data-i18n="receiving.supplier_hint">(who delivered this?)</span></label>
+                <select x-model="supplierId" @change="onSupplierChange()" class="input-field">
+                    <option value="" data-i18n="receiving.select_supplier">— select a supplier —</option>
+                    <template x-for="s in suppliers" :key="s.id">
+                        <option :value="s.id" x-text="(s.prefix ? s.prefix + ' · ' : '') + s.name"></option>
+                    </template>
+                    <option value="__new__" data-i18n="receiving.add_new_supplier">➕ Add new supplier…</option>
+                </select>
+
+                <!-- Inline add-new-supplier form (no leaving the receiving screen) -->
+                <div x-show="addingSupplier" style="display:none;" class="mt-3 border-2 border-emerald-200 bg-emerald-50 rounded-lg p-3 space-y-2">
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1" data-i18n-html="receiving.prefix_label">Prefix (2-3 letters)</label>
+                            <input type="text" x-model="newSup.prefix" @input="newSup.prefix=(newSup.prefix||'').toUpperCase()"
+                                   maxlength="3" placeholder="FTW" class="input-field font-mono uppercase"
+                                   :class="newSupError ? 'border-red-500' : ''">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1" data-i18n="receiving.full_name">Full name</label>
+                            <input type="text" x-model="newSup.name" placeholder="FourTwenty" class="input-field">
+                        </div>
+                    </div>
+                    <input type="text" x-model="newSup.source_url" placeholder="https://… (optional)" data-i18n-placeholder="receiving.source_url_placeholder" class="input-field text-sm">
+                    <p x-show="newSupError" x-text="newSupError" class="text-xs text-red-600" style="display:none;"></p>
+                    <div class="flex gap-2">
+                        <button type="button" @click="saveSupplier()" :disabled="newSupSaving || !!newSupError || !(newSup.name||'').trim()" class="btn-success flex-1 text-sm">
+                            <span x-show="!newSupSaving" data-i18n="receiving.add_supplier">✅ Add supplier</span>
+                            <span x-show="newSupSaving" style="display:none;" data-i18n="receiving.saving">Saving…</span>
+                        </button>
+                        <button type="button" @click="cancelAddSupplier()" class="btn-secondary text-sm" data-i18n="receiving.cancel">Cancel</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scan / add row -->
+            <div class="bg-white rounded-xl shadow p-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="receiving.scan_or_type">Scan or type a barcode</label>
+                <div class="flex gap-2">
+                    <input type="text" x-model="barcodeInput" @keyup.enter="lookup()"
+                           inputmode="numeric" placeholder="e.g. 7610000123463"
+                           class="input-field font-mono flex-1">
+                    <button type="button" @click="startScan()" class="btn-primary flex-none px-4" data-i18n="receiving.scan_btn">📷 Scan</button>
+                    <button type="button" @click="lookup()" class="btn-success flex-none px-4" data-i18n="receiving.add">Add</button>
+                </div>
+                <p x-show="lookupMsg" x-text="lookupMsg" class="text-sm mt-2 text-gray-500" style="display:none;"></p>
+                <!-- No barcode at all (a maker's goods — Sylvie's felt cases, Cynthia's balms).
+                     Don't fake a code: lead with the camera, AI names it, you set the price. -->
+                <button type="button" @click="newItemNoBarcode()"
+                        class="btn-secondary w-full mt-3 flex items-center justify-center gap-2">
+                    <span>📷</span><span data-i18n="receiving.new_no_barcode">New item — no barcode (photograph it)</span>
+                </button>
+                <!-- 📄 Read the whole delivery slip at once: AI extracts every line + matches it. -->
+                <label class="w-full mt-2 flex items-center justify-center gap-2 cursor-pointer rounded-lg border-2 border-dashed border-indigo-300 text-indigo-700 hover:bg-indigo-50 py-2.5 font-semibold"
+                       :class="slipBusy ? 'opacity-60 pointer-events-none' : ''">
+                    <span x-text="slipBusy ? ('🔍 ' + (slipProgress || t('receiving.slip_reading'))) : ('📄 ' + t('receiving.read_slip'))"></span>
+                    <!-- multiple = a slip that spans pages: pick page 1 + page 2 (no capture → gallery multi-select). -->
+                    <input type="file" accept="image/*" multiple class="hidden" @change="readSlip($event)" :disabled="slipBusy">
+                </label>
+            </div>
+
+            <!-- Label queue: every received item queues a label → print the roll (Brother QL-820) -->
+            <button x-show="labelCount > 0" style="display:none;" @click="openLabelQueue()"
+                    class="w-full py-2.5 rounded-lg border-2 border-emerald-300 text-emerald-700 font-bold flex items-center justify-center gap-2">
+                🖨️ <span data-i18n="receiving.print_labels">Print labels</span> (<span x-text="labelCount"></span>)
+            </button>
+
+            <!-- Receiving list -->
+            <div class="bg-white rounded-xl shadow">
+                <div class="px-4 py-3 border-b flex justify-between items-center">
+                    <h2 class="font-semibold text-gray-900" data-i18n="receiving.delivery">Delivery</h2>
+                    <span class="text-sm text-gray-500"><span x-text="lines.length"></span> <span data-i18n="receiving.items_suffix">item(s)</span><template x-if="discrepancies.length"><span class="text-amber-600"> · ⚠ <span x-text="discrepancies.length"></span> <span data-i18n="receiving.not_received_short">not received</span></span></template></span>
+                </div>
+
+                <div x-show="!lines.length" class="px-4 py-10 text-center text-gray-400" style="display:none;" data-i18n="receiving.empty">
+                    Nothing added yet. Scan the first item.
+                </div>
+
+                <template x-for="(l, i) in lines" :key="l.product_id">
+                    <div class="px-4 py-3 border-b flex items-center gap-3">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2">
+                                <p class="font-medium text-gray-900 truncate" x-text="l.name"></p>
+                                <!-- BL-96: age flag rides in from the product (class-derived). Cashier sees 18+ at receiving. -->
+                                <span x-show="l.age_restricted" class="flex-none inline-flex items-center rounded-full bg-red-100 text-red-700 text-[10px] font-bold px-1.5 py-0.5">🔞 18+</span>
+                            </div>
+                            <p class="text-xs text-gray-500 font-mono">
+                                <span x-text="l.barcode || t('receiving.no_barcode')"></span>
+                                <span x-show="l.category" class="text-gray-400"> · <span x-text="l.category"></span></span>
+                            </p>
+                        </div>
+                        <div class="flex items-center flex-none">
+                            <button type="button" @click="removeLine(i)" class="text-gray-400 hover:text-red-600 text-2xl leading-none px-2" :title="t('receiving.remove')">&times;</button>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- ⚠ Not received: the slip's lines that DIDN'T arrive — kept visible with their
+                     reason so nothing silently vanishes (Angel: "everything accounted for"). -->
+                <template x-if="discrepancies.length">
+                    <div>
+                        <div class="px-4 py-2 text-xs font-semibold text-amber-700 bg-amber-50 border-b border-t">
+                            ⚠ <span data-i18n="receiving.not_received_heading">Not received</span> (<span x-text="discrepancies.length"></span>)
+                        </div>
+                        <template x-for="(dq, i) in discrepancies" :key="'d'+i">
+                            <div class="px-4 py-2.5 border-b flex items-center gap-3" style="background:rgba(251,191,36,.08)">
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm text-gray-600 truncate line-through" x-text="dq.name"></p>
+                                    <p class="text-xs text-amber-700">×<span x-text="dq.qty"></span> · <span x-text="dq.reasonLabel"></span></p>
+                                </div>
+                                <button type="button" @click="discrepancies.splice(i, 1)" class="text-gray-400 hover:text-red-600 text-2xl leading-none px-2" :title="t('receiving.remove')">&times;</button>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+
+                <div class="px-4 py-3 space-y-3">
+                    <!-- Slip provenance captured from the AI read — stamped on every line's audit
+                         record (who + when are automatic). Shown so the operator sees where it's from. -->
+                    <div x-show="slip.delivery_note_no || slip.supplier" style="display:none;"
+                         class="bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 text-sm text-emerald-800">
+                        📄 <span data-i18n="receiving.from_slip">From delivery slip</span>:
+                        <b x-show="slip.supplier" x-text="slip.supplier"></b><template x-if="slip.delivery_note_no"><span> · <span x-text="slip.delivery_note_no"></span></span></template><template x-if="slip.date"><span> · <span x-text="slip.date"></span></span></template>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1"><span data-i18n="receiving.delivery_note">Delivery note</span> <span class="text-gray-400 font-normal" data-i18n="receiving.optional">(optional)</span></label>
+                        <input type="text" x-model="reference" maxlength="140" placeholder="e.g. FourTwenty invoice 4821"
+                               class="input-field">
+                        <p class="text-xs text-gray-400 mt-1" data-i18n="receiving.delivery_note_hint">Stamped on every item received now — supplier, slip no. and date, for tracking later.</p>
+                    </div>
+                    <button type="button" @click="confirm()" :disabled="!lines.length || saving"
+                            class="btn-success w-full text-lg">
+                        <span x-show="!saving"><span data-i18n="receiving.receive">✅ Receive</span> <span x-text="lines.length"></span> <span data-i18n="receiving.items_suffix">item(s)</span></span>
+                        <span x-show="saving" style="display:none;" data-i18n="receiving.receiving_progress">Receiving…</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Last receipt result -->
+            <div x-show="result" style="display:none;" class="bg-emerald-50 border-2 border-emerald-400 rounded-xl p-4">
+                <p class="font-semibold text-emerald-800 mb-2"><span data-i18n="receiving.catalogued">✅ Catalogued</span> <span x-text="result?.received_lines"></span> <span data-i18n="receiving.items_suffix">item(s)</span></p>
+                <template x-for="r in (result?.lines || [])" :key="r.product_id">
+                    <p class="text-sm text-emerald-900" x-text="r.name + t('receiving.on_file')"></p>
+                </template>
+            </div>
+        </div>
+        </template>
+    </div>
+
+    <!-- Camera scan overlay (shared PosScanner) -->
+    <div x-show="scanOpen" x-transition class="fixed inset-0 z-[60] bg-black flex flex-col" style="display:none;">
+        <div class="flex justify-between items-center px-4 py-3 bg-black/80 text-white">
+            <span class="font-semibold" data-i18n="receiving.aim_barcode">📷 Aim at the barcode</span>
+            <button @click="stopScan()" class="text-white text-3xl leading-none px-2" :aria-label="t('receiving.cancel_scan_aria')">&times;</button>
+        </div>
+        <div class="flex-1 relative flex items-center justify-center overflow-hidden">
+            <div id="rcv-reader" class="w-full max-w-md"></div>
+            <!-- No-camera fallback: a calm note + "choose a photo from disc". Never a dead-end. -->
+            <div x-show="scanFallback" class="absolute inset-0 flex flex-col items-center justify-center text-center px-6 gap-4" style="display:none;">
+                <span class="text-5xl">📁</span>
+                <p class="text-white text-base max-w-xs" x-text="scanError || t('receiving.no_camera_device')"></p>
+                <label class="btn-primary cursor-pointer">
+                    <span data-i18n="receiving.choose_photo">📁 Choose a photo from your computer</span>
+                    <input type="file" accept="image/*" class="hidden" @change="onScanFile($event)">
+                </label>
+                <p class="text-white/60 text-xs max-w-xs" data-i18n="receiving.pick_photo_hint">Pick a photo of the barcode and it'll be read from the image — or just cancel and type it.</p>
+            </div>
+            <p x-show="scanError && !scanFallback" class="absolute bottom-24 left-4 right-4 text-center text-white bg-red-600/90 rounded-lg px-4 py-3" x-text="scanError" style="display:none;"></p>
+        </div>
+        <div class="px-4 py-4 bg-black/80 text-center">
+            <p x-show="scanLive" class="text-green-300 font-mono text-lg mb-2" x-text="t('receiving.reading') + scanLive" style="display:none;"></p>
+            <p class="text-white/60 text-xs mb-2" data-i18n="receiving.hold_steady">Hold steady — confirms after reading the same code twice</p>
+            <button @click="stopScan()" class="btn-secondary" data-i18n="receiving.cancel_keyboard">Cancel — use keyboard</button>
+        </div>
+    </div>
+
+    <!-- Unknown item → lazy create, then add to the delivery -->
+    <div x-show="newOpen" x-transition class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" @click.self="tryCloseNew()" style="display:none;">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+            <div class="flex justify-between items-start p-5 border-b">
+                <div>
+                    <h2 class="text-xl font-bold text-gray-900" data-i18n="receiving.new_item">🆕 New item</h2>
+                    <p class="text-sm text-gray-600 mt-1" data-i18n="receiving.new_item_hint">Find it in the catalogue (photo + price come with it), or add it fresh.</p>
+                </div>
+                <button @click="tryCloseNew()" class="text-gray-400 hover:text-gray-700 text-3xl leading-none flex-none">&times;</button>
+            </div>
+            <div class="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
+                <!-- Per-item supplier: sets the SKU prefix (ECO-####) + tags the product. Defaults
+                     to the session supplier, overridable here (supplier is per ITEM, not a cage). -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="receiving.item_supplier">Supplier for this item</label>
+                    <select x-model="itemSupplierId" @change="applyTradeDiscount()" class="input-field">
+                        <option value="" data-i18n="receiving.house_supplier">— House (own code) —</option>
+                        <template x-for="s in suppliers" :key="s.id">
+                            <option :value="s.id" x-text="s.name + (s.prefix ? ' · '+s.prefix : '')"></option>
+                        </template>
+                    </select>
+                    <p class="text-xs text-gray-500 mt-1" x-text="t('receiving.sku_preview', {code: skuPreviewPrefix + '-####'})"></p>
+                </div>
+
+                <!-- Photo-first hero (no-barcode maker item): snap → AI names it → find-first
+                     search → set price. The lead action, so nobody fakes a barcode. -->
+                <div x-show="photoFirst" class="bg-emerald-50 border-2 border-emerald-300 rounded-xl p-4 text-center" style="display:none;">
+                    <template x-if="newPhotoData">
+                        <img :src="newPhotoData" alt="" class="mx-auto mb-3 max-h-40 rounded-lg object-contain">
+                    </template>
+                    <label class="btn-primary cursor-pointer inline-flex items-center gap-2"
+                           :class="aiBusy ? 'opacity-60 pointer-events-none' : ''">
+                        <span x-text="aiBusy ? ('🔍 ' + t('receiving.ai_reading')) : (newPhotoData ? ('📷 ' + t('receiving.retake')) : ('📷 ' + t('receiving.photo_first_cta')))"></span>
+                        <input type="file" accept="image/*" :capture="posCaptureAttr()" class="hidden" @change="aiSnapFill($event)" :disabled="aiBusy">
+                    </label>
+                    <p x-show="!newPhotoData && !aiNote" class="text-xs text-emerald-700 mt-2" data-i18n="receiving.photo_first_hint">No barcode? Photograph it — AI names it and searches the catalogue.</p>
+                    <p x-show="aiNote" x-text="aiNote" class="text-xs text-gray-600 mt-2" style="display:none;"></p>
+                </div>
+
+                <!-- Barcode box: only when there IS a code (a scan miss). A no-barcode maker
+                     item leaves it blank + hidden — an empty "Barcode" field just confuses. -->
+                <div x-show="newBarcode || !photoFirst" style="display:none;">
+                    <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="receiving.barcode">Barcode</label>
+                    <input type="text" x-model="newBarcode" readonly class="input-field bg-gray-100 font-mono">
+                </div>
+
+                <!-- Adopt from the 7k reference catalogue: auto on a scan-miss, or search by name. -->
+                <div class="bg-emerald-50/60 border border-emerald-200 rounded-lg p-3">
+                    <label class="block text-sm font-medium text-emerald-800 mb-1" data-i18n="receiving.find_catalogue">🔎 Find it in the catalogue</label>
+                    <input type="text" x-model="refQuery" @input.debounce.350ms="searchRef(refQuery, '')"
+                           placeholder="search by name…" data-i18n-placeholder="receiving.search_by_name_placeholder" class="input-field">
+                    <p x-show="refSearching" class="text-xs text-gray-400 mt-1" style="display:none;" data-i18n="receiving.searching">searching…</p>
+                    <div x-show="refMatches.length" class="mt-2 max-h-52 overflow-y-auto divide-y border rounded-lg bg-white" style="display:none;">
+                        <template x-for="r in refMatches" :key="r.id">
+                            <button type="button" @click="useRef(r)"
+                                    class="w-full flex items-center gap-3 p-2 text-left hover:bg-emerald-50"
+                                    :class="selectedRef && selectedRef.id===r.id ? 'bg-emerald-100' : ''">
+                                <img x-show="r.image_url" :src="r.image_url" loading="lazy" alt=""
+                                     class="w-10 h-10 object-cover rounded flex-none bg-gray-100">
+                                <span class="flex-1 min-w-0">
+                                    <span class="block text-sm font-medium text-gray-900 truncate" x-text="r.name"></span>
+                                    <span class="block text-xs text-gray-500"
+                                          x-text="(r.price!=null ? formatPrice(r.price) : t('receiving.no_price')) + (r.supplier ? ' · '+r.supplier : '')"></span>
+                                </span>
+                                <span x-show="selectedRef && selectedRef.id===r.id" class="text-emerald-600 font-bold flex-none">✓</span>
+                            </button>
+                        </template>
+                    </div>
+                    <p x-show="selectedRef" class="text-xs text-emerald-700 mt-1" style="display:none;">
+                        <span data-i18n="receiving.using_prefix">✓ Using</span> <b x-text="selectedRef?.name"></b> <span data-i18n="receiving.using_suffix">— its photo &amp; details come with it. Set your price/cost below.</span>
+                    </p>
+                    <!-- 🔎 TIER-2 web lookup: barcode → free DB (UPCitemdb/OPF) → pick an image, use the
+                         title/description. Quota-aware; Google fallback on a miss or when the day's used up. -->
+                    <div x-show="!refSearching && !refMatches.length && ((newBarcode||'').trim() || (refQuery||'').trim() || (newName||'').trim())" class="mt-2" style="display:none;">
+                        <button type="button" @click="runWebLookup()" :disabled="webBusy"
+                                class="text-sm text-indigo-700 font-semibold inline-flex items-center gap-1">
+                            <span x-text="webBusy ? ('🔍 ' + t('receiving.web_looking')) : ('🔎 ' + t('receiving.web_lookup'))"></span>
+                        </button>
+                        <template x-if="web">
+                            <div class="mt-2 border rounded-lg p-2 bg-gray-50">
+                                <p x-show="web.quota" class="text-[11px] mb-1" :class="(web.quota && web.quota.remaining <= 15) ? 'text-red-600 font-semibold' : 'text-gray-400'"
+                                   x-text="web.quota ? t('receiving.web_quota', {n: web.quota.remaining, total: web.quota.limit}) : ''"></p>
+                                <template x-if="web.found">
+                                    <div>
+                                        <!-- multiple images → pick ONE (we store one, keep it simple) -->
+                                        <div x-show="web.images.length" class="flex gap-1.5 overflow-x-auto pb-1 mb-1">
+                                            <template x-for="img in web.images" :key="img">
+                                                <img :src="img" @click="webImage=img" loading="lazy" onerror="this.style.display='none'"
+                                                     class="w-14 h-14 object-cover rounded flex-none cursor-pointer border-2"
+                                                     :class="webImage===img ? 'border-emerald-500' : 'border-transparent'">
+                                            </template>
+                                        </div>
+                                        <p class="font-semibold text-gray-900 text-sm" x-text="web.title"></p>
+                                        <p x-show="web.brand" class="text-xs text-gray-500" x-text="web.brand"></p>
+                                        <p x-show="web.description" class="text-xs text-gray-600 mt-1" x-text="web.description"></p>
+                                        <p x-show="web.lang_hint" class="text-[11px] text-amber-600 mt-1" x-text="t('receiving.web_lang', {lang: (web.lang_hint||'').toUpperCase()})"></p>
+                                        <button type="button" @click="useWebResult()" class="btn-success text-xs px-3 py-1 mt-2" data-i18n="receiving.web_use">✓ Use this</button>
+                                    </div>
+                                </template>
+                                <template x-if="!web.found">
+                                    <div>
+                                        <p class="text-xs text-gray-500" x-text="web.note==='quota_exhausted' ? t('receiving.web_quota_out') : t('receiving.web_none')"></p>
+                                        <a x-show="web.google_url" :href="web.google_url" target="_blank" rel="noopener"
+                                           class="text-sm text-indigo-700 font-semibold inline-flex items-center gap-1 mt-1">🔎 <span data-i18n="receiving.search_web">Search the web</span></a>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="receiving.product_name">Product name</label>
+                    <input type="text" x-model="newName" @keyup.enter="createAndAdd()" placeholder="e.g. Grinder 4-part 50mm" class="input-field">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="receiving.sale_price">Sale price (CHF)</label>
+                    <input type="number" step="0.05" min="0" x-model="newPrice" @input="applyTradeDiscount()" @keyup.enter="createAndAdd()" placeholder="0.00" class="input-field text-2xl font-bold">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="receiving.cost_label">Cost — what you pay (CHF per unit)</label>
+                    <input type="number" step="0.01" min="0" x-model="newCost" @input="costAutoFilled=false" @keyup.enter="createAndAdd()" placeholder="0.00" class="input-field text-xl font-bold">
+                    <!-- Trade-discount auto-fill hint: the cost was derived from the supplier's deal, not typed. -->
+                    <p x-show="costAutoFilled && supplierDiscountPct > 0" class="text-xs text-emerald-700 mt-1" style="display:none;"
+                       x-text="t('receiving.cost_autofill_hint', {pct: supplierDiscountPct, retail: formatPrice(newPrice)})"></p>
+                    <!-- Box → single helper: you buy a box (papers, cigarettes…), sell singles. -->
+                    <div class="mt-2 flex items-center flex-wrap gap-2 text-xs text-gray-500">
+                        <span data-i18n="receiving.bought_box">Bought a box? Paid CHF</span>
+                        <input type="number" min="0" step="0.05" x-model.number="boxCost" @input="calcUnitCost()" placeholder="box" data-i18n-placeholder="receiving.box_placeholder" class="w-20 input-field py-1 text-sm">
+                        <span data-i18n="receiving.box_for">for</span>
+                        <input type="number" min="1" step="1" x-model.number="boxUnits" @input="calcUnitCost()" placeholder="units" data-i18n-placeholder="receiving.units_placeholder" class="w-16 input-field py-1 text-sm">
+                        <span data-i18n="receiving.units">units</span>
+                        <span x-show="boxCost > 0 && boxUnits > 0" class="text-emerald-700 font-semibold">= <span x-text="formatPrice(boxCost / boxUnits)"></span><span data-i18n="receiving.per_unit_suffix">/unit</span></span>
+                    </div>
+                    <!-- Live margin sanity: makes a fat-fingered cost/price obvious BEFORE saving.
+                         Green when you make money, red when cost ≥ price (you'd sell at a loss). -->
+                    <p x-show="marginText()" x-text="marginText()" style="display:none;"
+                       :class="marginBad ? 'text-red-600 font-semibold' : 'text-emerald-700'" class="text-xs mt-1"></p>
+                </div>
+                <button @click="createAndAdd()" :disabled="newSaving" class="btn-success w-full">
+                    <span x-show="!newSaving" x-text="selectedRef ? t('receiving.adopt_add') : t('receiving.add_to_delivery')"></span>
+                    <span x-show="newSaving" style="display:none;" data-i18n="receiving.saving">Saving…</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 📄 Delivery-slip review: AI-extracted lines, each matched to the catalogue → confirm/add -->
+    <div x-show="slipOpen" x-transition class="fixed inset-0 z-[65] flex items-center justify-center bg-black/50 p-4" @click.self="slipOpen=false" style="display:none;">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[88vh] flex flex-col">
+            <div class="flex justify-between items-start p-5 border-b">
+                <div>
+                    <h2 class="text-xl font-bold text-gray-900">📄 <span data-i18n="receiving.slip_title">Delivery slip</span></h2>
+                    <p class="text-sm text-gray-500 mt-1">
+                        <span x-show="slip.supplier" x-text="slip.supplier"></span>
+                        <span x-show="slip.delivery_note_no"> · <span x-text="slip.delivery_note_no"></span></span>
+                        <span x-show="slip.date"> · <span x-text="slip.date"></span></span>
+                    </p>
+                    <p class="text-xs mt-1 font-semibold" :class="slipMatchedCount === (slip.lines||[]).length ? 'text-emerald-600' : 'text-amber-600'"
+                       x-text="t('receiving.slip_matched_of', {n: slipMatchedCount, total: (slip.lines||[]).length})"></p>
+                </div>
+                <button @click="slipOpen=false" class="text-gray-400 hover:text-gray-700 text-3xl leading-none flex-none">&times;</button>
+            </div>
+            <!-- Select-all bar (a goods-receipt checklist: tick what actually ARRIVED) -->
+            <div x-show="(slip.lines||[]).length" style="display:none;" class="px-4 py-2 border-b bg-gray-50 flex items-center justify-between text-sm flex-none">
+                <label class="flex items-center gap-2 font-medium text-gray-700 cursor-pointer">
+                    <input type="checkbox" class="w-4 h-4" :checked="slipAllReceived" @change="toggleAllReceived($event.target.checked)">
+                    <span data-i18n="receiving.slip_all_received">All received</span>
+                </label>
+                <span class="text-gray-500"><b x-text="slipReceivedCount"></b> / <span x-text="(slip.lines||[]).length"></span> <span data-i18n="receiving.slip_received_word">received</span></span>
+            </div>
+            <!-- SCROLLS on its own (explicit cap in vh — robust regardless of the modal's flex height),
+                 so the footer "Add received" button is ALWAYS reachable no matter how long the slip. -->
+            <div class="overflow-y-auto p-4 space-y-2" style="max-height:55vh">
+                <p x-show="!slip.lines || !slip.lines.length" class="text-center text-gray-400 py-6" data-i18n="receiving.slip_none">No lines read — try a clearer photo.</p>
+                <template x-for="(l, i) in (slip.lines||[])" :key="i">
+                    <div class="border rounded-lg p-3" :class="!l._received ? 'bg-gray-50 border-gray-200 opacity-70' : (l._added ? 'bg-emerald-50 border-emerald-300' : 'bg-white')">
+                        <div class="flex items-start gap-2">
+                            <input type="checkbox" x-model="l._received" class="w-4 h-4 mt-0.5 flex-none">
+                            <div class="flex-1 min-w-0">
+                                <div class="flex justify-between gap-2">
+                                    <p class="font-medium text-gray-900 text-sm" x-text="l.description"></p>
+                                    <span class="text-xs text-gray-500 flex-none">×<span x-text="l.quantity"></span><template x-if="l.unit_price != null"><span> · <span x-text="formatPrice(l.unit_price)"></span></span></template></span>
+                                </div>
+                                <template x-if="l.matches && l.matches.length">
+                                    <div class="mt-1 flex items-center justify-between gap-2">
+                                        <span class="text-xs text-emerald-700 min-w-0 truncate">✓ <b x-text="l.matches[0].name"></b> <span class="text-gray-400" x-text="'('+Math.round((l.matches[0].score||0)*100)+'%)'"></span></span>
+                                        <span x-show="l._added" class="text-xs text-emerald-700 font-semibold flex-none" data-i18n="receiving.slip_added">✓ added</span>
+                                    </div>
+                                </template>
+                                <template x-if="!l.matches || !l.matches.length">
+                                    <div class="mt-1 flex items-center justify-between gap-2">
+                                        <span class="text-xs text-amber-600" data-i18n="receiving.slip_no_match">no catalogue match</span>
+                                        <button x-show="l._received" @click="slipNewItem(l)" class="btn-secondary text-xs px-3 py-1 flex-none" data-i18n="receiving.slip_new">＋ New item</button>
+                                    </div>
+                                </template>
+                                <!-- Not received → why? (short-shipped, damaged, wrong item, back-order) -->
+                                <div x-show="!l._received" class="mt-2">
+                                    <select x-model="l._reason" class="input-field py-1 text-xs">
+                                        <option value="" data-i18n="receiving.reason_pick">— reason not received —</option>
+                                        <option value="short" data-i18n="receiving.reason_short">Short-shipped (missing)</option>
+                                        <option value="damaged" data-i18n="receiving.reason_damaged">Damaged</option>
+                                        <option value="wrong" data-i18n="receiving.reason_wrong">Wrong item</option>
+                                        <option value="backorder" data-i18n="receiving.reason_backorder">Back-order (to follow)</option>
+                                        <option value="other" data-i18n="receiving.reason_other">Other</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+            <div class="p-4 border-t flex gap-2 flex-none">
+                <button @click="addReceivedSlip()" :disabled="!slipReceivableCount" class="btn-success flex-1"
+                        x-text="t('receiving.slip_add_received', {n: slipReceivableCount})"></button>
+                <button @click="slipOpen=false" class="btn-secondary" data-i18n="receiving.slip_done">Done</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function receivingData() {
+        return {
+            user: {},
+            barcodeInput: '',
+            lookupMsg: '',
+            lines: [],            // {product_id, name, barcode} — one row per arrived item, no count
+            reference: '',
+            saving: false,
+            result: null,
+
+            // camera
+            scanOpen: false,
+            scanError: '',
+            scanFallback: false,   // no-camera: show the "choose a photo from disc" fallback
+            scanLive: '',
+
+            // lazy create
+            newOpen: false,
+            newBarcode: '',
+            newName: '',
+            newPrice: '',
+            newCost: '',          // purchase cost per unit
+            costAutoFilled: false, // true = cost came from the supplier's trade discount (not typed by hand)
+            itemSupplierId: '',   // per-item supplier (defaults to the session pick; sets the SKU prefix + tag)
+            slipBusy: false,      // reading a delivery slip (AI in flight)
+            slipProgress: '',     // "Reading page X/Y…" while a multi-page slip is read
+            slipOpen: false,      // the slip-review modal
+            slip: { lines: [] },  // AI-extracted slip: {supplier, delivery_note_no, date, lines:[…]}
+            discrepancies: [],    // slip lines that did NOT arrive: [{name, qty, reason, reasonLabel}]
+            webBusy: false,       // Tier-2 web lookup in flight
+            web: null,            // web-lookup result {found,title,brand,category,description,images,quota,lang_hint,google_url,note}
+            webImage: '',         // the image the operator PICKED from the web result (we store one)
+            webDesc: '',          // description carried from the web result
+            labelCount: 0,        // labels queued for the printer (LabelQueue)
+            photoFirst: false,    // true = no-barcode maker item → lead the modal with the camera
+            newPhotoFile: null,   // the snapped item photo (File), uploaded after create
+            newPhotoData: '',     // data-URL preview of the snapped photo
+            aiBusy: false,        // photo→product AI suggest in flight
+            aiNote: '',           // human note after an AI read
+            boxCost: '',          // box helper: paid this for the box…
+            boxUnits: '',         // …split across this many units
+            newSaving: false,
+
+            // adopt-from-reference (the 7k catalogue): pre-fills name+price, carries the photo
+            refQuery: '',
+            refMatches: [],
+            refSearching: false,
+            selectedRef: null,
+
+            // supplier picker — pick the import source, or add a new one inline
+            suppliers: [],
+            supplierId: '',
+            addingSupplier: false,
+            newSup: { prefix: '', name: '', source_url: '' },
+            newSupSaving: false,
+
+            init() {
+                const info = (AuthHelper.getUserInfo && AuthHelper.getUserInfo()) || {};
+                this.user = { ...info, isManager: AuthHelper.isManager(), isAdmin: AuthHelper.isAdmin() };
+                if (this.user.isManager) this.loadSuppliers();
+                // Don't let a stray swipe/Escape throw away an in-progress delivery: warn while
+                // the list has items OR the new-item form is open. Receiving has no forward nav,
+                // so any departure with work on screen is a real "you're abandoning this batch".
+                if (window.HelixDirtyGuard) HelixDirtyGuard.register(() => this.lines.length > 0 || this.newOpen);
+                if (window.LabelQueue) this.labelCount = LabelQueue.count();   // labels waiting to print
+            },
+            openLabelQueue() { const u = window.LabelQueue && LabelQueue.printUrl('s'); if (u) window.open(u, '_blank'); },
+
+            // ---- supplier picker ----
+            get newSupError() {
+                const p = (this.newSup.prefix || '').trim().toUpperCase();
+                if (!p) return t('receiving.prefix_required');
+                if (!/^[A-Z]{2,3}$/.test(p)) return t('receiving.prefix_format');
+                if (['ART', 'LZ'].includes(p)) return t('receiving.prefix_reserved', {n: p});
+                return '';
+            },
+            async loadSuppliers() {
+                try { this.suppliers = await API.get('/api/v1/pos/suppliers'); }
+                catch (e) { this.suppliers = []; }
+            },
+            onSupplierChange() {
+                if (this.supplierId === '__new__') {
+                    this.addingSupplier = true;
+                    this.supplierId = '';
+                    this.newSup = { prefix: '', name: '', source_url: '' };
+                }
+                // Picking a supplier with a trade-discount deal re-suggests the cost from the price.
+                this.applyTradeDiscount();
+            },
+            // The trade discount on the item's supplier (the modal pick; falls back to session).
+            get supplierDiscountPct() {
+                const id = this.itemSupplierId || this.supplierId;
+                const s = this.suppliers.find(x => x.id === id);
+                const p = s ? Number(s.trade_discount_pct) : 0;
+                return (isFinite(p) && p > 0) ? p : 0;
+            },
+            // The SKU prefix this item will get: the supplier's own, else 'ITEM' (house). Preview only —
+            // the server mints the authoritative PREFIX-#### (and the house prefix comes from settings).
+            get skuPreviewPrefix() {
+                const s = this.suppliers.find(x => x.id === this.itemSupplierId);
+                return (s && s.prefix) ? s.prefix : 'ITEM';
+            },
+            // Auto-fill the COST from the RETAIL (sale) price when the supplier gives a trade
+            // discount — the Ecolution deal: shelf = Sylvie's Etsy price, cost = shelf × (1 − pct/100).
+            // Only ever fills a BLANK cost or one WE auto-filled; a hand-typed cost is never clobbered.
+            // Mirrors the server's cost_from_retail() (round to the cent, half-up).
+            applyTradeDiscount() {
+                const pct = this.supplierDiscountPct;
+                const retail = parseFloat(this.newPrice);
+                if (pct <= 0 || !(retail > 0)) {
+                    if (this.costAutoFilled) { this.newCost = ''; this.costAutoFilled = false; }
+                    return;
+                }
+                if (this.newCost !== '' && !this.costAutoFilled) return;  // respect a manual cost
+                this.newCost = (Math.round(retail * (100 - pct)) / 100).toFixed(2);
+                this.costAutoFilled = true;
+            },
+            cancelAddSupplier() { this.addingSupplier = false; },
+            async saveSupplier() {
+                if (this.newSupError) return;
+                this.newSupSaving = true;
+                try {
+                    const s = await API.post('/api/v1/pos/suppliers', {
+                        prefix: this.newSup.prefix,
+                        name: (this.newSup.name || '').trim(),
+                        source_url: (this.newSup.source_url || '').trim() || null,
+                    });
+                    await this.loadSuppliers();
+                    this.supplierId = s.id;          // auto-select the one just added
+                    this.addingSupplier = false;
+                    showToast(s.name + t('receiving.added_suffix'), 'success');
+                } catch (e) {
+                    showToast(e.message || t('receiving.could_not_add_supplier'), 'error');
+                } finally {
+                    this.newSupSaving = false;
+                }
+            },
+
+            async lookup() {
+                const bc = (this.barcodeInput || '').trim();
+                if (!bc) return;
+                this.lookupMsg = '';
+                try {
+                    const p = await API.get(`/api/v1/pos/products/barcode/${encodeURIComponent(bc)}`);
+                    this.addProduct(p);
+                    this.barcodeInput = '';
+                } catch (err) {
+                    // The API helper throws Error(detail) with no .status, so match the
+                    // 404 detail text ("...not found") to open the create modal. Anything
+                    // else (network/500) is a real error worth showing.
+                    const msg = String(err.message || err);
+                    if (/not found/i.test(msg) || err.status === 404) {
+                        this.openNew(bc);
+                    } else {
+                        this.lookupMsg = msg || t('receiving.lookup_failed');
+                    }
+                }
+            },
+
+            addProduct(p) {
+                // No count — one row per item. Scanning the same item twice is a no-op.
+                if (this.lines.find(l => l.product_id === p.id)) {
+                    showToast(p.name + t('receiving.already_on_list'), 'info');
+                    return;
+                }
+                this.lines.unshift({
+                    product_id: p.id, name: p.name, barcode: p.barcode,
+                    age_restricted: !!p.is_age_restricted, category: p.category || '',
+                });
+                showToast(p.name + t('receiving.added_suffix'), 'success');
+            },
+
+            removeLine(i) { this.lines.splice(i, 1); },
+
+            // ---- camera (shared, hardened PosScanner) ----
+            async startScan() {
+                if (typeof window.PosScanner === 'undefined') { showToast(t('receiving.scanner_not_loaded'), 'warning'); return; }
+                this.scanError = ''; this.scanFallback = false; this.scanLive = ''; this.scanOpen = true;
+                await this.$nextTick();
+                window.PosScanner.start('rcv-reader',
+                    (text) => {
+                        this.scanOpen = false; this.scanLive = '';
+                        window.PosScanner.vibrate(60); window.PosScanner.beep();
+                        this.barcodeInput = (text || '').trim();
+                        this.lookup();
+                    },
+                    (err) => {
+                        // Don't dead-end: keep the overlay open with a calm message + a
+                        // "choose a photo from disc" fallback (decodes the barcode from a still).
+                        const n = String((err && (err.name || err)) || '');
+                        this.scanError = /permission|denied|NotAllowed/i.test(n)
+                            ? t('receiving.camera_blocked')
+                            : t('receiving.no_camera_here');
+                        this.scanFallback = true;
+                    },
+                    { onProgress: (t) => { this.scanLive = t; } });
+            },
+            // No-camera path: decode the barcode from a still photo chosen off disc.
+            async onScanFile(e) {
+                const f = e.target.files && e.target.files[0];
+                e.target.value = '';
+                if (!f) return;
+                if (!f.type.startsWith('image/')) { showToast(t('receiving.not_an_image'), 'warning'); return; }
+                this.scanError = t('receiving.reading_photo');
+                try {
+                    const text = await window.PosScanner.decodeFile(f);
+                    if (!text) throw new Error('no-code');
+                    this.scanOpen = false; this.scanFallback = false; this.scanLive = '';
+                    window.PosScanner.vibrate(60); window.PosScanner.beep();
+                    this.barcodeInput = text;
+                    this.lookup();
+                } catch (err) {
+                    console.warn('file decode', err);
+                    this.scanError = t('receiving.photo_no_barcode');
+                }
+            },
+            async stopScan() { await window.PosScanner.stop(); this.scanOpen = false; this.scanFallback = false; this.scanLive = ''; },
+
+            // A real barcode has no spaces and a sane length (EAN 8-14 digits, or a short
+            // internal code). A product NAME has spaces / is long. The receiving box says
+            // "scan or type a barcode", so a new hire naturally types the NAME there — and
+            // it must NOT become the barcode (and, via 'LZ-'+bc, the immutable SKU).
+            looksLikeBarcode(s) {
+                s = (s || '').trim();
+                return !!s && s.length <= 24 && !/\s/.test(s);
+            },
+
+            // ---- lazy create ----
+            openNew(seed) {
+                seed = (seed || '').trim();
+                const isBarcode = this.looksLikeBarcode(seed);
+                // A code seeds the barcode field; a name-shaped seed seeds the NAME field
+                // (empty barcode → a clean 'LZ-<timestamp>' SKU is minted instead of 'LZ-<name>').
+                this.newBarcode = isBarcode ? seed : '';
+                this.newName = isBarcode ? '' : seed;
+                this.newPrice = ''; this.newCost = ''; this.costAutoFilled = false;
+                this.boxCost = ''; this.boxUnits = ''; this.newSaving = false;
+                this.refQuery = ''; this.refMatches = []; this.selectedRef = null;
+                this.photoFirst = false; this.newPhotoFile = null; this.newPhotoData = ''; this.aiBusy = false; this.aiNote = '';
+                this.web = null; this.webBusy = false; this.webImage = ''; this.webDesc = '';
+                this.itemSupplierId = this.supplierId || '';   // default to the session supplier; overridable per item
+                this.newOpen = true;
+                // Auto-look up in the 7k reference catalogue — by code if it's a barcode,
+                // else by the typed name — so a tap can fill name+price+photo (adopt).
+                if (isBarcode) this.searchRef('', seed);
+                else if (seed) this.searchRef(seed, '');
+                // AUTO web-lookup on a barcode miss (the holster-guy flow) — result waiting, no tap.
+                if (isBarcode) this.$nextTick(() => this.runWebLookup());
+            },
+
+            // Search the reference catalogue (by typed name, or by the scanned barcode).
+            async searchRef(q, bc) {
+                q = (q || '').trim(); bc = (bc || '').trim();
+                if (!q && !bc) { this.refMatches = []; return; }
+                this.refSearching = true;
+                try {
+                    const res = await API.get(`/api/v1/pos/reference/search?q=${encodeURIComponent(q)}&barcode=${encodeURIComponent(bc)}&limit=6`);
+                    this.refMatches = (res && res.items) || [];
+                } catch (e) {
+                    this.refMatches = [];
+                } finally {
+                    this.refSearching = false;
+                }
+            },
+            // Pick a reference match → pre-fill the form. Photo + details ride along on adopt (save).
+            useRef(r) {
+                this.selectedRef = r;
+                this.newName = r.name || this.newName;
+                if (r.price != null) this.newPrice = r.price;
+                this.applyTradeDiscount();   // adopt sets the retail price → re-suggest the cost
+            },
+            // Has the new-item form got work in it worth protecting from an accidental close?
+            newDirty() {
+                return !!((this.newName || '').trim() || this.newPrice !== '' || this.newCost !== ''
+                    || this.newPhotoData || this.selectedRef || (this.refQuery || '').trim());
+            },
+            // Close the new-item modal, but ask first if there's unsaved entry — a mis-tap on the
+            // backdrop or the ✕ (the common way work vanishes on mobile) no longer discards silently.
+            tryCloseNew() {
+                if (this.newDirty() && !confirm(t('receiving.discard_confirm'))) return;
+                this.newOpen = false;
+            },
+            // 📄 Read a whole delivery slip: photo → AI extracts every line → each matched to the
+            // catalogue → review + add. The big-lever maker/supplier migration (spec, "read the slip").
+            // Read ONE OR MORE pages of a delivery note (a big order spans pages — load page 1 + 2).
+            // Each page → the AI reads it; lines are MERGED, the header comes from the first page
+            // that has one. Reads pages in order so the "Reading page X/Y…" count is honest.
+            async readSlip(e) {
+                const files = Array.from((e.target && e.target.files) || []);
+                if (e.target) e.target.value = '';
+                if (!files.length) return;
+                for (const f of files) {
+                    if (!f.type.startsWith('image/')) { showToast(t('receiving.not_an_image'), 'warning'); return; }
+                }
+                this.slipBusy = true;
+                this.slipProgress = files.length > 1 ? t('receiving.slip_page', {n: 1, total: files.length}) : '';
+                try {
+                    let header = null;
+                    const allLines = [];
+                    for (let i = 0; i < files.length; i++) {
+                        this.slipProgress = files.length > 1 ? t('receiving.slip_page', {n: i + 1, total: files.length}) : '';
+                        const fd = new FormData(); fd.append('file', files[i]);
+                        const r = await fetch('/api/v1/pos/receiving/read-slip', {
+                            method: 'POST', headers: { 'Authorization': `Bearer ${AuthHelper.getToken()}` }, body: fd });
+                        if (!r.ok) throw new Error('read-slip ' + r.status);
+                        const d = await r.json();
+                        if (!header && (d.supplier || d.delivery_note_no || d.date)) header = d;   // header lives on page 1
+                        (d.lines || []).forEach(l => allLines.push(l));
+                    }
+                    header = header || {};
+                    allLines.forEach(l => { l._received = true; l._reason = ''; });   // default: everything arrived
+                    this.slip = { supplier: header.supplier, delivery_note_no: header.delivery_note_no, date: header.date, lines: allLines };
+                    // Stamp provenance onto the delivery so EVERY line received is tracked (supplier ·
+                    // note-no · date → the stock-movement reference; who + when are already automatic).
+                    const meta = [header.supplier, header.delivery_note_no, header.date].filter(Boolean).join(' · ');
+                    if (meta) this.reference = meta;
+                    // Auto-select a matching known supplier so new items inherit the right prefix/tag.
+                    if (header.supplier) {
+                        const sl = header.supplier.toLowerCase(), first = sl.split(/\s+/)[0];
+                        const s = this.suppliers.find(x => x.name && (sl.includes(x.name.toLowerCase()) || x.name.toLowerCase().includes(first)));
+                        if (s) this.supplierId = s.id;
+                    }
+                    this.slipOpen = true;
+                    if (!allLines.length) showToast(t('receiving.slip_none'), 'info');
+                } catch (err) {
+                    console.warn('read-slip', err);
+                    showToast(t('receiving.slip_failed'), 'error');
+                } finally { this.slipBusy = false; this.slipProgress = ''; }
+            },
+            // Add a slip line's top catalogue match to the delivery (it already exists → catalogue event).
+            addSlipMatch(l) {
+                const m = l.matches && l.matches[0];
+                if (!m) return;
+                this.addProduct(m);
+                l._added = true;
+            },
+            get slipMatchedCount() {
+                return (this.slip.lines || []).filter(l => l.matches && l.matches.length).length;
+            },
+            get slipReceivedCount() {
+                return (this.slip.lines || []).filter(l => l._received).length;
+            },
+            get slipAllReceived() {
+                const ls = this.slip.lines || [];
+                return ls.length > 0 && ls.every(l => l._received);
+            },
+            // Checked + has a catalogue match + not already added → what "Add received" will add.
+            get slipReceivableCount() {
+                return (this.slip.lines || []).filter(l => l._received && l.matches && l.matches.length && !l._added).length;
+            },
+            toggleAllReceived(v) {
+                (this.slip.lines || []).forEach(l => { l._received = !!v; });
+            },
+            // Human label for a not-received reason code.
+            reasonLabel(code) {
+                const m = { short: 'reason_short', damaged: 'reason_damaged', wrong: 'reason_wrong', backorder: 'reason_backorder', other: 'reason_other' };
+                return t('receiving.' + (m[code] || 'reason_other'));
+            },
+            // Add every RECEIVED, matched line to the delivery; KEEP the not-received ones visible
+            // (with their reason) so the whole slip is accounted for — nothing silently vanishes.
+            addReceivedSlip() {
+                (this.slip.lines || []).forEach(l => {
+                    if (l._received && l.matches && l.matches.length && !l._added) this.addSlipMatch(l);
+                });
+                (this.slip.lines || []).forEach(l => {
+                    if (!l._received && !l._loggedMissing) {
+                        this.discrepancies.push({ name: l.description, qty: l.quantity, reason: l._reason || 'other', reasonLabel: this.reasonLabel(l._reason) });
+                        l._loggedMissing = true;
+                    }
+                });
+                // Also stamp a short shortfall note on the delivery-note reference for the audit trail.
+                if (this.discrepancies.length) {
+                    const note = t('receiving.slip_not_received', {n: this.discrepancies.length});
+                    if (this.reference.indexOf(note) === -1) this.reference = (this.reference + ' · ' + note).replace(/^ · /, '').slice(0, 140);
+                }
+                this.slipOpen = false;   // back to the delivery, where received + not-received both show
+            },
+            // No slip match → open the New-item modal pre-filled with the slip's description + price.
+            slipNewItem(l) {
+                this.slipOpen = false;
+                this.openNew(l.description || '');
+                if (l.unit_price != null) { this.newPrice = l.unit_price; this.applyTradeDiscount(); }
+            },
+            // 🔎 TIER-2: resolve an unknown item from the free web DBs by barcode (+name). Fills the
+            // form on confirm; the operator picks one image from several. Quota-aware, Google fallback.
+            async runWebLookup() {
+                this.webBusy = true; this.web = null; this.webImage = ''; this.webDesc = '';
+                try {
+                    const p = new URLSearchParams({ barcode: this.newBarcode || '', name: this.newName || this.refQuery || '' });
+                    this.web = await API.get('/api/v1/pos/products/web-lookup?' + p.toString());
+                    if (this.web && this.web.images && this.web.images.length) this.webImage = this.web.images[0];
+                } catch (e) {
+                    this.web = { found: false, note: 'error', google_url: null, quota: null, images: [] };
+                } finally { this.webBusy = false; }
+            },
+            // Adopt the web result into the new-item form (title if empty + the picked image + description).
+            useWebResult() {
+                if (!this.web) return;
+                if (this.web.title && !(this.newName || '').trim()) this.newName = this.web.title;
+                this.webDesc = this.web.description || '';
+                showToast(t('receiving.web_used'), 'success');
+            },
+            // No barcode at all → open the New-item modal blank, camera-first (the maker path:
+            // Sylvie's felt cases, Cynthia's balms). No code to fake; the photo leads.
+            newItemNoBarcode() {
+                this.openNew('');
+                this.photoFirst = true;
+            },
+            // ✨ Snap & fill: photograph the item → AI names it → find-first search the catalogue
+            // + reference (maybe it's already there) → pre-fill name/price for the new case.
+            // Keeps the shot as the product photo (uploaded on save). Same engine as the till scan.
+            async aiSnapFill(e) {
+                const f = e.target.files && e.target.files[0];
+                e.target.value = '';
+                if (!f) return;
+                if (!f.type.startsWith('image/')) { showToast(t('receiving.not_an_image'), 'warning'); return; }
+                this.newPhotoFile = f;
+                const reader = new FileReader();
+                reader.onload = () => { this.newPhotoData = reader.result; };
+                reader.readAsDataURL(f);
+                this.aiBusy = true; this.aiNote = '';
+                try {
+                    const fd = new FormData(); fd.append('file', f);
+                    const r = await fetch('/api/v1/pos/products/ai-suggest', {
+                        method: 'POST', headers: { 'Authorization': `Bearer ${AuthHelper.getToken()}` }, body: fd });
+                    if (!r.ok) throw new Error('ai-suggest failed');
+                    const d = await r.json();
+                    const s = d.suggestion || {};
+                    const blank = v => v === '' || v === null || v === undefined;
+                    if (s.name) { this.refQuery = s.name; this.searchRef(s.name, ''); }  // find-first
+                    if (blank(this.newName) && s.name) this.newName = s.name;
+                    if (blank(this.newPrice) && s.price_estimate != null) { this.newPrice = s.price_estimate; this.applyTradeDiscount(); }
+                    this.aiNote = d.note || t('receiving.ai_read_note');
+                } catch (err) {
+                    console.warn('ai snap', err);
+                    this.aiNote = t('receiving.ai_unavailable');
+                } finally { this.aiBusy = false; }
+            },
+            // Selling below cost is almost always a fat-finger (cost 37.50, price 25). True when
+            // both are set and cost exceeds price — drives the red hint + the save-time confirm.
+            get marginBad() {
+                const p = parseFloat(this.newPrice), c = parseFloat(this.newCost);
+                return !isNaN(p) && p > 0 && !isNaN(c) && c > 0 && c > p;
+            },
+            // Live margin line under the cost field. '' when either number is missing.
+            marginText() {
+                const p = parseFloat(this.newPrice), c = parseFloat(this.newCost);
+                if (isNaN(p) || p <= 0 || isNaN(c) || c <= 0) return '';
+                if (c > p) return t('receiving.margin_loss', {amount: formatPrice(c - p)});
+                const pct = Math.round(((p - c) / p) * 100);
+                return t('receiving.margin_ok', {amount: formatPrice(p - c), pct: pct});
+            },
+            // Box → single: bought a box, sell singles. Per-unit cost = box / units.
+            calcUnitCost() {
+                const c = parseFloat(this.boxCost), n = parseInt(this.boxUnits, 10);
+                if (c > 0 && n > 0) { this.newCost = (c / n).toFixed(2); this.costAutoFilled = false; }
+            },
+            async createAndAdd() {
+                const price = parseFloat(this.newPrice);
+                if (isNaN(price) || price <= 0) { showToast(t('receiving.enter_valid_price'), 'warning'); return; }
+                const cost = parseFloat(this.newCost);          // optional purchase cost/unit
+                // Sensible check: cost above the sale price = a loss. Confirm (don't block —
+                // a clearance markdown is legit), so a fat-fingered cost/price gets caught here.
+                if (!isNaN(cost) && cost > price &&
+                    !confirm(t('receiving.below_cost_confirm', {cost: formatPrice(cost), price: formatPrice(price)}))) return;
+                const bc = (this.newBarcode || '').trim();
+                this.newSaving = true;
+                try {
+                    let p;
+                    if (this.selectedRef) {
+                        // Adopt from the reference catalogue — copies title/photo/details, binds the
+                        // scanned barcode, sets the price (idempotent if already adopted).
+                        p = await API.post(`/api/v1/pos/reference/${this.selectedRef.id}/adopt`, {
+                            barcode: bc || null,
+                            price,
+                        });
+                        // Override the cost with what was actually paid on the slip, if entered.
+                        if (!isNaN(cost) && cost >= 0) {
+                            try { p = await API.put(`/api/v1/pos/products/${p.id}`, { cost }); } catch (e) {}
+                        }
+                    } else {
+                        if (!this.newName.trim()) { showToast(t('receiving.enter_product_name'), 'warning'); this.newSaving = false; return; }
+                        // Zero perpetual inventory: receiving just catalogues the item. The server
+                        // mints the identity (PREFIX-#### SKU + internal EAN-13 if no real barcode)
+                        // and tags the supplier — sku below is only a fallback if minting is skipped.
+                        p = await API.post('/api/v1/pos/products', {
+                            barcode: bc || null,
+                            sku: bc ? ('LZ-' + bc) : ('LZ-' + Date.now()),
+                            name: this.newName.trim(),
+                            price,
+                            cost: (!isNaN(cost) && cost >= 0) ? cost : null,
+                            stock_quantity: 0,
+                            supplier_id: this.itemSupplierId || null,
+                            mint_identity: true,
+                            // Tier-2 web result: the picked image + description ride along (hotlink now,
+                            // adopted to our storage later). Only when the operator used a web lookup.
+                            image_url: this.webImage || null,
+                            description: this.webDesc || null,
+                        });
+                    }
+                    // A snapped photo (no-barcode maker item) → upload it as the product cover.
+                    if (this.newPhotoFile && p && p.id) {
+                        try {
+                            const ifd = new FormData(); ifd.append('file', this.newPhotoFile);
+                            const ir = await fetch(`/api/v1/pos/products/${p.id}/images`, {
+                                method: 'POST', headers: { 'Authorization': `Bearer ${AuthHelper.getToken()}` }, body: ifd });
+                            if (!ir.ok) {
+                                let why = 'HTTP ' + ir.status;
+                                try { const ej = await ir.json(); if (ej && ej.detail) why = (typeof ej.detail === 'string') ? ej.detail : JSON.stringify(ej.detail); } catch (_) {}
+                                showToast(t('receiving.photo_not_attached') + ' — ' + why, 'warning');
+                            }
+                        } catch (imgErr) {
+                            console.warn('photo upload failed', imgErr);
+                            showToast(t('receiving.photo_not_attached'), 'warning');
+                        }
+                    }
+                    this.addProduct(p);
+                    this.newOpen = false;
+                    this.barcodeInput = '';
+                } catch (err) {
+                    showToast(err.message || t('receiving.could_not_add_product'), 'error');
+                } finally {
+                    this.newSaving = false;
+                }
+            },
+
+            async confirm() {
+                if (!this.lines.length) return;
+                // No count in zero perpetual inventory — each arrived item posts as one.
+                const items = this.lines.map(l => ({ product_id: l.product_id, quantity: 1 }));
+                this.saving = true;
+                try {
+                    const res = await API.post('/api/v1/pos/receiving', {
+                        items,
+                        reference: (this.reference || '').trim() || null,
+                    });
+                    this.result = res;
+                    const n = this.lines.length;
+                    // Queue a label for each received item (→ 🖨️ Labels N → QL-820 prints the roll).
+                    if (window.LabelQueue) { this.lines.forEach(l => LabelQueue.add(l.product_id)); this.labelCount = LabelQueue.count(); }
+                    this.lines = [];
+                    this.reference = '';
+                    this.discrepancies = [];   // fresh slate for the next delivery
+                    this.slip = { lines: [] };
+                    showToast(t('receiving.catalogued_n', {n: n}), 'success');
+                } catch (err) {
+                    showToast(err.message || t('receiving.receiving_failed'), 'error');
+                } finally {
+                    this.saving = false;
+                }
+            },
+        }
+    }
+</script>
+{% endblock %}
+
+{% block extra_scripts %}
+<!-- BL-91: vendored scanner + shared PosScanner (no runtime CDN) -->
+<script src="/static/vendor/html5-qrcode.min.js"></script>
+<script src="/static/pos-scanner.js?v=qr2"></script>
+{% endblock %}

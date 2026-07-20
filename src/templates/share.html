@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ title }} · La Piazza</title>
+<meta name="description" content="{{ snippet }}">
+<!-- Open Graph: this is what makes Telegram/WhatsApp/X render a postcard preview -->
+<meta property="og:type" content="article">
+<meta property="og:title" content="{{ title }}">
+<meta property="og:description" content="{{ snippet }}">
+<meta property="og:image" content="{{ og_image }}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:url" content="{{ share_url }}">
+<meta property="og:site_name" content="La Piazza">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{ title }}">
+<meta name="twitter:description" content="{{ snippet }}">
+<meta name="twitter:image" content="{{ og_image }}">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script>
+  tailwind.config = { theme: { extend: {
+    fontFamily: { sans:['Inter','system-ui','sans-serif'], mono:['"JetBrains Mono"','monospace'] },
+    colors: { brand:'#C0392B', branddark:'#8B0000' },
+  } } };
+</script>
+<style>
+  body { background: radial-gradient(1100px 600px at 50% -12%, #1f2a44, transparent), #060910; }
+  .card { background: rgba(15,23,42,0.7); border: 1px solid rgba(30,41,59,0.9); }
+  .grad-rule { background:linear-gradient(90deg,#8B0000,#C0392B,transparent) }
+  .md h1,.md h2{font-weight:800;margin:1rem 0 .5rem;color:#f1f5f9}
+  .md h2{font-size:1.25rem}.md h3{font-weight:700;margin:.8rem 0 .3rem;color:#e2e8f0}
+  .md p{margin:.5rem 0;line-height:1.6}.md ul,.md ol{margin:.5rem 0 .5rem 1.2rem;list-style:disc}
+  .md li{margin:.2rem 0}.md strong{color:#f8fafc}.md a{color:#C0392B}
+  .md table{width:100%;border-collapse:collapse;margin:.6rem 0}.md td,.md th{border:1px solid #334155;padding:4px 8px;font-size:.85rem}
+  .md blockquote{border-left:3px solid #C0392B;padding-left:12px;color:#94a3b8;font-style:italic;margin:.6rem 0}
+  /* Print: a clean, ink-friendly, ONE-page keepsake — strip nav/CTA/chrome, white card, dark text. */
+  @media print {
+    body{background:#fff !important}
+    #doorway,.no-print{display:none !important}
+    .card{background:#fff !important;border:1px solid #ccc !important;box-shadow:none !important}
+    .card h1,.card .text-white{color:#111 !important;text-shadow:none !important}
+    .md,.md h1,.md h2,.md h3,.md p,.md li,.md strong,.md blockquote{color:#111 !important}
+    .md a{color:#8B0000 !important}
+    .text-slate-500,.text-slate-400,.text-slate-300,.text-slate-600{color:#333 !important}
+    .text-emerald-400{color:#0a7d33 !important}
+    .max-w-2xl{max-width:100% !important;padding:0 !important}
+    .card .grad-rule{background:#C0392B !important}
+    @page{margin:1.2cm}
+  }
+</style>
+</head>
+<body class="font-sans text-slate-300 min-h-screen antialiased">
+<div class="no-print">{% include "_lapiazza_nav.html" %}</div>
+<div class="max-w-2xl mx-auto px-5 py-10">
+
+  <!-- the postcard -->
+  <div class="card rounded-2xl overflow-hidden">
+    <!-- cover -->
+    <div class="relative">
+      <img src="{{ cover }}" alt="La Piazza" class="w-full h-56 object-cover object-center bg-slate-900">
+      <div class="absolute inset-0 bg-gradient-to-t from-[#060910] via-transparent to-transparent"></div>
+      <div class="absolute bottom-3 left-5 right-5">
+        <h1 class="text-2xl sm:text-3xl font-black text-white drop-shadow-lg">{{ title }}</h1>
+      </div>
+    </div>
+    <div class="h-1 grad-rule"></div>
+
+    <!-- serial / byline (Banksy-style serialization) -->
+    <div class="px-6 pt-4 flex items-center justify-between text-[11px] font-mono text-slate-500">
+      <span>№ {{ serial }}{% if version > 1 %} · v{{ version }}{% endif %}{% if creator %} · by @{{ creator }}{% endif %}</span>
+      <span>{{ created }}</span>
+    </div>
+
+    <!-- the asked + answer -->
+    <div class="px-6 py-5">
+      {% if inputs %}
+      <div class="text-xs text-slate-500 mb-4 pb-3 border-b border-slate-800">
+        {% for k, v in inputs.items() %}{% if v and k not in ['source','raw'] and not k.startswith('_') and v is string %}<span class="uppercase text-[10px] text-slate-600">{{ k }}</span> <span class="text-slate-300">{{ v }}</span>&nbsp;&nbsp;{% endif %}{% endfor %}
+      </div>
+      {% endif %}
+      <div class="md text-slate-300" id="content"></div>
+    </div>
+
+    <!-- Banksy beat: provenance + QR. Authenticity, NOT surveillance — the QR opens THIS exact
+         canonical artifact and tracks nothing about whoever scans it. We sign the work, not the viewer. -->
+    <div class="px-6 py-4 border-t border-slate-800/70 flex items-center gap-4">
+      <div id="qr" class="bg-white p-1.5 rounded-lg shrink-0 leading-none" title="Scan to open the original"></div>
+      <div class="text-[11px] text-slate-400 leading-relaxed min-w-0">
+        <div class="text-emerald-400 font-bold">✓ Authentic on La Piazza</div>
+        <div class="font-mono text-slate-300">№ {{ serial }}{% if creator %} · @{{ creator }}{% endif %}{% if created %} · {{ created }}{% endif %}</div>
+        <div class="text-slate-600">Scan to open this exact original. We sign the work, not the viewer. 🐺</div>
+      </div>
+    </div>
+
+    <!-- footer -->
+    <div class="px-6 py-4 border-t border-slate-800/70 flex items-center justify-between">
+      <span class="text-xs text-slate-500">Made on <a href="/" class="text-brand font-semibold">La Piazza</a> — the square where ideas become things</span>
+      <a href="/get-started" class="no-print text-xs font-semibold px-3 py-1.5 rounded-lg bg-brand hover:bg-branddark text-white">Make your own →</a>
+    </div>
+  </div>
+
+  <!-- the doorway (Share-L): turn a viewer into a member. A pitch, not a dead-end. -->
+  <div id="doorway" class="mt-8 rounded-2xl border border-brand/30 bg-gradient-to-br from-brand/12 to-transparent p-6 sm:p-7 text-center">
+    <h2 class="text-xl sm:text-2xl font-black text-white">This was made on La Piazza.</h2>
+    <p class="mt-2 text-[15px] text-slate-300 max-w-md mx-auto">
+      Your own <span class="text-white font-semibold">workshop</span> where AI mentors help you build —
+      then a <span class="text-white font-semibold">square</span> to show it off.
+    </p>
+    <div class="mt-4 flex flex-wrap justify-center gap-2 text-xs text-slate-400">
+      <span class="px-2.5 py-1 rounded-lg bg-slate-800/70 border border-slate-700">🎁 Give</span>
+      <span class="px-2.5 py-1 rounded-lg bg-slate-800/70 border border-slate-700">🔑 Rent</span>
+      <span class="px-2.5 py-1 rounded-lg bg-slate-800/70 border border-slate-700">🛠️ Sell your skills</span>
+      <span class="px-2.5 py-1 rounded-lg bg-slate-800/70 border border-slate-700">❓ Ask</span>
+      <span class="px-2.5 py-1 rounded-lg bg-slate-800/70 border border-slate-700">🎟️ Host</span>
+      <span class="px-2.5 py-1 rounded-lg bg-slate-800/70 border border-slate-700">📚 Teach</span>
+    </div>
+    <a href="/get-started" class="inline-block mt-5 px-6 py-3 rounded-xl font-bold bg-brand hover:bg-branddark text-white shadow-lg shadow-brand/20">Make your own — free →</a>
+    <div class="mt-3 text-xs text-slate-500">30 seconds · 300 free credits to start · <a href="/get-started" class="text-brand hover:underline">Already a member? Log in</a></div>
+  </div>
+
+</div>
+
+<script id="raw" type="text/plain">{{ content }}</script>
+<script>
+  const raw = document.getElementById('raw').textContent;
+  const html = window.marked ? marked.parse(raw) : raw.replace(/\n/g,'<br>');
+  document.getElementById('content').innerHTML = window.DOMPurify ? DOMPurify.sanitize(html) : '';
+  // QR -> the canonical artifact URL (provenance, no tracking). Client-side render, no external call.
+  try { new QRCode(document.getElementById('qr'), { text: {{ share_url|tojson }}, width: 80, height: 80,
+    colorDark: '#0b1220', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M }); } catch(e){}
+  // logged-in members are already in -- don't pitch them the signup doorway
+  try { if (localStorage.getItem('compute_token')) { var _d=document.getElementById('doorway'); if(_d) _d.style.display='none'; } } catch(e){}
+</script>
+</body>
+</html>
