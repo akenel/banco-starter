@@ -3,6 +3,10 @@
 Print this. Walk it top to bottom on the day before (or morning of) go-live. If any box can't be ticked,
 you're not live yet. The order matters — safety net first.
 
+## 🌐 Public shop? (if Banco is on the internet, not just your laptop)
+- [ ] **HTTPS + a real domain are set up** ([guide 7](07-going-to-production.md)) — the localhost demo is plain HTTP and NOT safe to expose.
+- [ ] **Keycloak is in production mode** (`start`, not `start-dev`) and its redirect URIs use your real domain.
+
 ## 🛟 Safety net (do these FIRST)
 - [ ] **Backups are ON** — a scheduled encrypted backup runs automatically (see [guide 6](06-own-your-data-backups.md)).
 - [ ] **Backups reach your own B2 bucket** — you've seen at least one backup file land in Backblaze.

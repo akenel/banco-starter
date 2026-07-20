@@ -19,9 +19,13 @@ Everything runs in Docker. You need:
 cp .env.example .env
 ```
 
+> ⚠️ **Do this FIRST — before `docker compose up`.** There is no `.env` until you copy it, and the app won't
+> start without one. It's the #1 skipped step.
+
 The defaults in `.env.example` stand up a working local stack as-is. For a laptop
-demo you can leave them. Before exposing anything to a network, change every value
-marked `🔒 CHANGE` (passwords + `SECRET_KEY`).
+demo you can leave them. **Before exposing anything to a network** (a real shop on the internet), you must change
+every `🔒 CHANGE` value AND put it behind HTTPS — see **[onboarding/07-going-to-production.md](onboarding/07-going-to-production.md)**.
+The localhost demo runs over plain HTTP on purpose; that is **not** safe for a public shop.
 
 ## 2. Start
 

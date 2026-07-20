@@ -64,18 +64,24 @@ sudo systemctl enable --now docker
 sudo usermod -aG docker $USER
 ```
 
-> ⚠️ **Compose plugin gotcha (Debian 13 "trixie"):** `docker.io` does **not** include the `docker compose`
-> command, and Debian 13 dropped the `docker-compose-v2` apt package (Debian 12 had it). If `apt` says
-> *"unable to locate package docker-compose-v2"* or `docker compose version` fails, install Docker's official
-> compose v2 plugin directly (works on any distro):
+> ⚠️ **Docker plugin gotcha (Debian 13 "trixie") — you need TWO plugins.** `docker.io` ships **neither** the
+> `docker compose` command **nor** `buildx` (which building the app image requires — you'll see
+> *"compose build requires buildx 0.17.0 or later"*). Debian 13 also dropped the `docker-compose-v2` apt package.
+> Install both official plugins directly (works on any distro). No root needed — user-level plugins:
 > ```bash
-> sudo mkdir -p /usr/local/lib/docker/cli-plugins
-> sudo curl -SL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 \
->      -o /usr/local/lib/docker/cli-plugins/docker-compose
-> sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
-> docker compose version   # should print v2.x
+> mkdir -p ~/.docker/cli-plugins
+> # 1) compose v2
+> curl -SL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 \
+>      -o ~/.docker/cli-plugins/docker-compose && chmod +x ~/.docker/cli-plugins/docker-compose
+> # 2) buildx (needed for `docker compose --build`)
+> curl -SL https://github.com/docker/buildx/releases/download/v0.35.0/buildx-v0.35.0.linux-amd64 \
+>      -o ~/.docker/cli-plugins/docker-buildx && chmod +x ~/.docker/cli-plugins/docker-buildx
+> docker compose version   # v2.x
+> docker buildx version     # v0.35.x (any ≥ 0.17)
 > ```
 > Don't use the old `docker-compose` (v1, with a hyphen) — Banco's scripts need `docker compose` (v2, a space).
+> (Prefer everything bundled? Install from Docker's official repo — `docker-ce` includes compose + buildx —
+> instead of Debian's `docker.io`.)
 
 Then **log out and back in** (so you can run `docker` without `sudo`), and test:
 ```bash
