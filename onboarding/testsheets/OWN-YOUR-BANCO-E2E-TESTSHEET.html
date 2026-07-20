@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Own Your Banco — clone, run &amp; restore (E2E)</title>
+<style>
+  :root{ --red:#157F52; --dark:#0f5c3b; --ink:#1f2937; --mut:#6b7280; --line:#e5e7eb; --ok:#059669; --bg:#f6f8f7; --green:#1b4332; --gold:#b0862f; }
+  *{ box-sizing:border-box; }
+  body{ font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; color:var(--ink); background:var(--bg); margin:0; line-height:1.5; }
+  a{ color:var(--red); }
+  header{ position:sticky; top:0; z-index:10; background:#fff; border-bottom:2px solid var(--red); padding:14px 20px; box-shadow:0 2px 8px rgba(0,0,0,.06); }
+  .htop{ display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+  h1{ font-size:19px; margin:0; }
+  h1 small{ color:var(--mut); font-weight:500; font-size:13px; display:block; margin-top:2px; }
+  .meters{ display:flex; align-items:center; gap:18px; }
+  .meter{ text-align:center; }
+  .meter b{ font-size:20px; color:var(--red); display:block; }
+  .meter span{ font-size:11px; color:var(--mut); text-transform:uppercase; letter-spacing:.04em; }
+  .timer{ font-variant-numeric:tabular-nums; font-size:22px; font-weight:700; color:var(--ink); }
+  .btn{ border:1px solid var(--line); background:#fff; border-radius:8px; padding:6px 12px; font-size:13px; cursor:pointer; }
+  .btn:hover{ background:#f0f0f0; }
+  .btn.red{ background:var(--red); color:#fff; border-color:var(--red); }
+  main{ max-width:920px; margin:0 auto; padding:24px 20px 80px; }
+  .lead{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin-bottom:22px; }
+  section{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:18px 20px; margin-bottom:18px; }
+  section h2{ font-size:16px; margin:0 0 4px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  section .why{ color:var(--mut); font-size:13px; margin:0 0 12px; }
+  code{ font-family:ui-monospace,Menlo,monospace; font-size:12px; background:#f3f4f6; border:1px solid var(--line); border-radius:5px; padding:1px 5px; }
+  .cmd{ display:block; font-family:ui-monospace,Menlo,monospace; font-size:12.5px; background:#0f172a; color:#e2e8f0; border-radius:8px; padding:9px 12px; margin:6px 0; white-space:pre-wrap; word-break:break-word; }
+  .cmd .c{ color:#7dd3fc; }
+  ol.steps{ margin:0; padding:0; list-style:none; }
+  ol.steps li{ display:flex; gap:10px; padding:8px 0; border-top:1px dashed var(--line); align-items:flex-start; }
+  ol.steps li:first-child{ border-top:none; }
+  .verdict{ display:flex; gap:4px; flex:none; margin-top:1px; }
+  .vbtn{ border:1px solid var(--line); background:#fff; border-radius:7px; padding:4px 8px; font-size:11px; font-weight:700; cursor:pointer; color:var(--mut); letter-spacing:.02em; white-space:nowrap; }
+  .vbtn:hover{ background:#f6f6f6; }
+  .vbtn.v-pass.on{ background:#059669; border-color:#059669; color:#fff; }
+  .vbtn.v-fail.on{ background:#C0392B; border-color:#C0392B; color:#fff; }
+  .vbtn.v-issue.on{ background:#d97706; border-color:#d97706; color:#fff; }
+  @media (max-width:600px){ .vbtn{ padding:4px 6px; font-size:10px; } ol.steps li{ flex-wrap:wrap; } }
+  .step-body{ flex:1; min-width:220px; }
+  .exp{ color:var(--ok); font-size:12.5px; }
+  .exp::before{ content:"✓ expect: "; font-weight:600; }
+  textarea{ width:100%; border:1px solid var(--line); border-radius:8px; padding:8px 10px; font:inherit; font-size:13px; margin-top:10px; resize:vertical; min-height:54px; }
+  textarea.step-cm{ margin-top:0; min-height:32px; font-size:12.5px; background:#fcfcfd; flex:1; }
+  .step-extra{ margin-top:8px; }
+  .cm-row{ display:flex; gap:6px; align-items:flex-start; }
+  .mic-btn{ border:1px solid var(--line); background:#fff; border-radius:8px; padding:4px 9px; cursor:pointer; font-size:15px; flex:none; }
+  .mic-btn.on{ background:#e6f6ee; border-color:var(--red); color:var(--red); animation:pulse 1s infinite; }
+  @keyframes pulse{ 50%{ opacity:.45 } }
+  .shot-zone{ margin-top:6px; border:1.5px dashed var(--line); border-radius:8px; padding:8px 10px; font-size:12px; color:var(--mut); cursor:pointer; background:#fafafa; }
+  .shot-zone:focus, .shot-zone.drag{ outline:none; border-color:var(--red); background:#f2fbf6; color:var(--ink); }
+  .thumbs{ display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; }
+  .thumbs .sh{ position:relative; }
+  .thumbs img{ height:66px; border-radius:6px; border:1px solid var(--line); cursor:zoom-in; display:block; }
+  .thumbs .rm{ position:absolute; top:-7px; right:-7px; background:var(--red); color:#fff; border:none; border-radius:99px; width:19px; height:19px; font-size:11px; cursor:pointer; line-height:1; }
+  .hidden{ display:none; }
+  label.cm{ font-size:11px; color:var(--mut); text-transform:uppercase; letter-spacing:.04em; }
+  .tag{ font-size:11px; font-weight:700; padding:2px 8px; border-radius:99px; background:#dcfce7; color:#065f46; }
+  .tag.you{ background:#e0edff; color:#1e40af; }
+  .tag.bonus{ background:#fef3c7; color:#92400e; }
+  .tag.danger{ background:#fee2e2; color:#991b1b; }
+  .safety{ border:1px solid var(--green); background:#f0f7f2; border-radius:10px; padding:10px 13px; margin:8px 0; font-size:12.5px; }
+  .safety b{ color:var(--green); }
+  .biglink{ text-decoration:none; display:inline-block; margin:2px 8px 8px 0; background:var(--red); color:#fff; padding:7px 13px; border-radius:8px; font-weight:600; font-size:13px; }
+  footer{ text-align:center; color:var(--mut); font-size:12px; padding:20px; }
+  @media print{ header{ position:static; } .btn,.open{ display:none; } body{ background:#fff; } .cmd{ background:#eef2f7; color:#0f172a; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="htop">
+    <h1>🐺 Own Your Banco — Clone, Run &amp; Restore<small>Pretend you just found Banco online and have never seen the code. Follow the steps → a working shop on your computer → then bring a real shop back from a backup.</small><small style="color:#157F52;font-weight:700;letter-spacing:.05em">🐺 La Piazza · № LP-UAT-20260720-OWN-YOUR-BANCO · rev.1 · registered</small></h1>
+    <div class="meters">
+      <div class="meter"><b id="prog">0/0</b><span>done</span></div>
+      <div class="meter"><b id="tally" style="font-size:15px">✓0 ✗0 ⚠0</b><span>pass / fail / issue</span></div>
+      <div class="meter"><span class="timer" id="clock">00:00</span><span>elapsed</span></div>
+      <button class="btn" id="startBtn" onclick="toggleTimer()">▶ Start</button>
+      <button class="btn" onclick="resetTimer()">reset</button>
+      <button class="btn" onclick="copyReport()">⧉ Copy text</button>
+      <button class="btn red" onclick="exportReport()">⬇ Export report</button>
+    </div>
+  </div>
+</header>
+<main>
+  <div class="lead">
+    <strong>What this is:</strong> a walk-through that proves you can <strong>own Banco</strong> — download it, turn it on,
+    and even rebuild a real shop from a backup — <em>without needing the person who built it.</em> Each step has one thing to do
+    and a green <span class="exp" style="font-size:12px"></span>line telling you what should happen. If it does → hit <strong style="color:#059669">✓ OK</strong>.
+    If it doesn't → <strong style="color:#C0392B">✗ FAIL</strong>. If it half-worked or looked weird → <strong style="color:#d97706">⚠ ISSUE</strong> and jot a note (type or 🎤 speak) + paste a 📋 screenshot.
+    <br><br>
+    <strong>You need three things only:</strong>
+    <div style="margin:8px 0">
+      <span class="tag">1 · a computer with Docker installed &amp; running</span>
+      <span class="tag">2 · a terminal (the black typing window)</span>
+      <span class="tag">3 · ~2 GB free disk + 10 minutes</span>
+    </div>
+    <span class="tag you">🧍 You do every step — no coding, just copy-paste commands</span>
+    <div class="safety">🛟 <b>Can't break anything:</b> this runs only on <b>your own machine</b>, in Docker. Nothing here touches any live shop. To wipe it all and start fresh: <code>docker compose down -v</code>. That's the reset button.</div>
+    <div class="safety" style="border-color:var(--gold);background:#fffdf5"><b style="color:var(--gold)">📍 A note on the web address:</b> the steps use <code>http://localhost:8000</code> (the default). If you changed a <code>*_HOST_PORT</code> in your <code>.env</code>, swap 8000 for your number (e.g. <code>3000</code>). Everything else is identical.</div>
+  </div>
+
+  <!-- 0 -->
+  <section>
+    <h2>0 · Get the code <span class="tag you">you</span></h2>
+    <p class="why">Download Banco to your machine. This is the whole thing — one folder.</p>
+    <ol class="steps" data-sec="get">
+      <li><div class="step-body">First check Docker is awake. In your terminal, type:
+        <span class="cmd">docker --version</span>
+        <span class="exp">it prints a version like "Docker version 27.x" (no red error). If it errors, start Docker Desktop first and wait for the whale icon.</span></div></li>
+      <li><div class="step-body">Now download Banco and step into the folder:
+        <span class="cmd">git clone https://github.com/akenel/banco-starter.git
+cd banco-starter</span>
+        <span class="exp">a <code>banco-starter</code> folder appears. Inside you can see <code>compose.yml</code>, <code>README.md</code>, <code>src</code>, <code>scripts</code>.</span></div></li>
+    </ol>
+    <label class="cm">notes</label><textarea data-cm="get" placeholder="Did the download work? Did cd move you into the folder?"></textarea>
+  </section>
+
+  <!-- 1 -->
+  <section>
+    <h2>1 · Make your settings file <span class="tag you">you</span></h2>
+    <p class="why">Copy the example settings to a real one. The defaults already work — you don't have to change anything to start.</p>
+    <ol class="steps" data-sec="env">
+      <li><div class="step-body">Copy the example:
+        <span class="cmd">cp .env.example .env</span>
+        <span class="exp">a new file called <code>.env</code> now exists next to <code>.env.example</code>.</span></div></li>
+    </ol>
+    <label class="cm">notes</label><textarea data-cm="env" placeholder="Did .env get created?"></textarea>
+  </section>
+
+  <!-- 2 -->
+  <section>
+    <h2>2 · Turn it on (one command) <span class="tag you">you · wait a few min</span></h2>
+    <p class="why">This starts four pieces at once: the database, the login system (Keycloak), the picture store (MinIO), and Banco itself. First time is slow — it downloads &amp; builds. Grab a coffee. ☕</p>
+    <ol class="steps" data-sec="up">
+      <li><div class="step-body">Start everything:
+        <span class="cmd">docker compose up --build -d</span>
+        <span class="exp">it churns for a few minutes, then ends with green/white lines (no red "error"). You get your terminal back.</span></div></li>
+      <li><div class="step-body">Check the four pieces are running:
+        <span class="cmd">docker compose ps</span>
+        <span class="exp">you see <code>banco-postgres</code>, <code>banco-keycloak</code>, <code>banco-minio</code>, <code>banco-app</code> — all "running".</span></div></li>
+      <li><div class="step-body">Wait for Banco to say it's ready:
+        <span class="cmd">docker compose logs -f app</span>
+        <span class="exp">you see a line like <code>✨ HelixNet Core READY to serve requests</code>. Then press <strong>Ctrl+C</strong> to stop watching (this does NOT stop the app).</span></div></li>
+    </ol>
+    <label class="cm">notes</label><textarea data-cm="up" placeholder="All four running? Did you see 'READY to serve requests'? How long did it take?"></textarea>
+  </section>
+
+  <!-- 3 -->
+  <section>
+    <h2>3 · Install the change-log (one command) <span class="tag you">you</span></h2>
+    <p class="why">Adds the "who changed what, when" history (the audit log). One command, then it prints your links.</p>
+    <ol class="steps" data-sec="standup">
+      <li><div class="step-body">Run it:
+        <span class="cmd">./scripts/standup.sh</span>
+        <span class="exp">it prints <code>✅ Audit log installed</code> and shows the POS + login links.</span></div></li>
+    </ol>
+    <label class="cm">notes</label><textarea data-cm="standup" placeholder="Did it say 'Audit log installed'?"></textarea>
+  </section>
+
+  <!-- 4 -->
+  <section>
+    <h2>4 · Open the shop &amp; log in <span class="tag you">you · in your browser</span></h2>
+    <p class="why">The moment of truth — see it in a browser and sign in.</p>
+    <a class="biglink" href="http://localhost:8000/pos" target="_blank">Open the till ↗ localhost:8000/pos</a>
+    <ol class="steps" data-sec="login">
+      <li><div class="step-body">Open <a href="http://localhost:8000/pos" target="_blank">http://localhost:8000/pos</a> in your browser. <span class="exp">the Banco <strong>login screen</strong> appears (a real page, not an error).</span></div></li>
+      <li><div class="step-body">Log in with the demo cashier — username <code>pam</code>, password <code>pam</code>. <span class="exp">you land inside the POS: products, a cart, checkout — a working till.</span></div></li>
+    </ol>
+    <label class="cm">notes</label><textarea data-cm="login" placeholder="Login screen showed? pam/pam got you in?"></textarea>
+  </section>
+
+  <!-- 5 -->
+  <section>
+    <h2>5 · Poke it — it really works <span class="tag you">you</span></h2>
+    <p class="why">A quick tyre-kick so you believe it's a real shop, not a screenshot.</p>
+    <ol class="steps" data-sec="poke">
+      <li><div class="step-body">In the till, search for a product and add it to the cart. <span class="exp">it adds, the price and total show.</span></div></li>
+      <li><div class="step-body">Open the change-log cockpit: <a href="http://localhost:8000/pos/audit" target="_blank">http://localhost:8000/pos/audit</a>. (If it asks you to log in as a manager, use <code>ralph</code> / <code>ralph</code>.) <span class="exp">the 🕵️ Audit Log page opens — filters, a timeline, who/when/what.</span></div></li>
+    </ol>
+    <label class="cm">notes</label><textarea data-cm="poke" placeholder="Cart worked? Audit cockpit opened?"></textarea>
+  </section>
+
+  <!-- 6 BONUS -->
+  <section>
+    <h2>6 · 🎁 BONUS — bring a REAL shop back from a backup <span class="tag bonus">the juicy part</span></h2>
+    <p class="why">This is the whole reason "you own it" matters. With a <strong>read-only backup key</strong> and a <strong>passphrase</strong>, you can pull a real shop's nightly backup out of Backblaze B2 and rebuild it here — on a machine that never touched the original. <em>Skip this section if you don't have a key yet — the shop above still works.</em></p>
+    <div class="safety">🛟 <b>Safe:</b> the backup is decrypted and loaded only into your <b>local</b> database. Nothing is uploaded, nothing is changed in B2 (the key is read-only). Your <code>.env</code> is never shared.</div>
+    <ol class="steps" data-sec="restore">
+      <li><div class="step-body">Open <code>.env</code> and fill in the four B2 lines you were given:
+        <span class="cmd"><span class="c">B2_KEY_ID</span>=…      <span class="c">B2_APP_KEY</span>=…
+<span class="c">B2_BUCKET</span>=…      <span class="c">BACKUP_GPG_PASSPHRASE</span>=…</span>
+        <span class="exp">all four lines have your values (read-only key + bucket name + the backup passphrase).</span></div></li>
+      <li><div class="step-body">Pause the app, then restore the newest backup:
+        <span class="cmd">docker compose stop app
+./scripts/restore-from-b2.sh</span>
+        <span class="exp">it downloads a <code>.sql.gz.gpg</code>, decrypts it, reloads the database, and prints something like <code>products=5200</code> (the real count).</span></div></li>
+      <li><div class="step-body">Start the app again and reopen the till:
+        <span class="cmd">docker compose up -d app</span>
+        Then reopen <a href="http://localhost:8000/pos" target="_blank">http://localhost:8000/pos</a>.
+        <span class="exp">the shop now has the <strong>real products</strong> from the backup — not the handful of demo items. You rebuilt a shop from nothing but a key.</span></div></li>
+    </ol>
+    <label class="cm">notes</label><textarea data-cm="restore" placeholder="Did the restore print a real product count? Did the real products show up in the till?"></textarea>
+  </section>
+
+  <!-- 7 -->
+  <section>
+    <h2>7 · Turn it off / start over <span class="tag you">you</span></h2>
+    <p class="why">How to stop it, and how to wipe it clean.</p>
+    <ol class="steps" data-sec="off">
+      <li><div class="step-body">Stop it but keep your data:
+        <span class="cmd">docker compose down</span>
+        <span class="exp">the four containers stop. Next <code>up</code> picks up where you left off.</span></div></li>
+      <li><div class="step-body">…or wipe EVERYTHING and reclaim the disk:
+        <span class="cmd">docker compose down -v</span>
+        <span class="exp">containers stop and all data volumes are deleted — a totally clean slate.</span></div></li>
+    </ol>
+    <label class="cm">notes</label><textarea data-cm="off" placeholder="Stop / wipe behaved as expected?"></textarea>
+  </section>
+
+  <!-- VERDICT -->
+  <section>
+    <h2>★ The verdict</h2>
+    <ol class="steps" data-sec="verdict">
+      <li><div class="step-body"><strong>A stranger could do this from these steps alone</strong> — no help, no coding. Tick if you got a working shop start to finish.</div></li>
+      <li><div class="step-body"><strong>You'd hand this to Felix's IT person and trust them to bring the shop back</strong> — the whole point of owning it.</div></li>
+      <li><div class="step-body"><strong>Anything confusing, missing, or scary in the wording?</strong> — mark ⚠ ISSUE and tell me where you hesitated (that's gold for the next version).</div></li>
+    </ol>
+    <label class="cm">the big notes — where did you pause, what would you word differently, is "own your Banco" proven?</label>
+    <textarea data-cm="verdict" placeholder="Your call, Wolf." style="min-height:90px"></textarea>
+  </section>
+
+  <footer>
+    <div style="border-top:2px solid #157F52;max-width:920px;margin:0 auto;padding-top:10px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;font-size:11px">
+      <span><strong style="color:#157F52">🐺 La Piazza · Banco</strong> · Own Your Banco — clone, run &amp; restore · registered artifact</span>
+      <span style="font-variant-numeric:tabular-nums">№ LP-UAT-20260720-OWN-YOUR-BANCO · rev.1 · 2026-07-20</span>
+    </div>
+    <div style="margin-top:6px">One sheet — screen or print. Repo: github.com/akenel/banco-starter · You own it. 🐺</div>
+  </footer>
+</main>
+
+<script>
+  const KEY='banco_e2e_runbook';
+  const STEPS=[];
+  const VDEFS=[['pass','OK','✓'],['fail','FAIL','✗'],['issue','ISSUE','⚠']];
+  const VMARK={pass:'[OK]',fail:'[FAIL]',issue:'[ISSUE]','':'[ -- ]'};
+  function vMark(v){ return v==='pass'?'<span class="ok">✓ OK</span>' : v==='fail'?'<span style="color:#C0392B;font-weight:700">✗ FAIL</span>' : v==='issue'?'<span style="color:#b45309;font-weight:700">⚠ ISSUE</span>' : '<span class="no">○ —</span>'; }
+
+  function verdictControl(i){
+    const box=document.createElement('div'); box.className='verdict';
+    VDEFS.forEach(([v,lbl,ic])=>{ const b=document.createElement('button'); b.type='button';
+      b.className='vbtn v-'+v; b.innerHTML=ic+' '+lbl; b.title=lbl;
+      b.addEventListener('click', ()=>setVerdict(i, STEPS[i].verdict===v ? '' : v));
+      box.appendChild(b); STEPS[i]._btns[v]=b; });
+    return box;
+  }
+  function paintVerdict(i){ const s=STEPS[i]; VDEFS.forEach(([v])=>{ const b=s._btns[v]; if(b) b.classList.toggle('on', s.verdict===v); }); }
+  function setVerdict(i,v){ STEPS[i].verdict=v; paintVerdict(i); save(); progress(); }
+
+  function buildSteps(){
+    document.querySelectorAll('ol.steps li').forEach((li,i)=>{
+      const cb = li.querySelector('input[type=checkbox]'); if(cb) cb.remove();
+      const bodyEl = li.querySelector('.step-body');
+      const label = (bodyEl?.textContent||'').trim().replace(/\s+/g,' ');
+      STEPS[i]={ li, label, verdict:'', ta:null, thumbs:null, shots:[], _btns:{} };
+      li.insertBefore(verdictControl(i), li.firstChild);
+      const wrap = document.createElement('div'); wrap.className='step-extra';
+      const row = document.createElement('div'); row.className='cm-row';
+      const ta = document.createElement('textarea'); ta.className='step-cm'; ta.rows=1; ta.placeholder='note… (type or 🎤 speak)';
+      ta.addEventListener('input', save);
+      const mic = document.createElement('button'); mic.className='mic-btn'; mic.type='button'; mic.textContent='🎤'; mic.title='Dictate this note';
+      mic.addEventListener('click', ()=>micToggle(mic, ta));
+      row.appendChild(ta); row.appendChild(mic); wrap.appendChild(row);
+      const zone = document.createElement('div'); zone.className='shot-zone'; zone.tabIndex=0;
+      zone.textContent='📋 click here & paste a screenshot (Ctrl+V) · drop an image · or 📷 pick a file';
+      const fin = document.createElement('input'); fin.type='file'; fin.accept='image/*'; fin.capture='environment'; fin.className='hidden';
+      zone.addEventListener('click', ()=>{ activeIdx=i; fin.click(); });
+      zone.addEventListener('focus', ()=>{ activeIdx=i; });
+      zone.addEventListener('dragover', e=>{ e.preventDefault(); zone.classList.add('drag'); });
+      zone.addEventListener('dragleave', ()=>zone.classList.remove('drag'));
+      zone.addEventListener('drop', e=>{ e.preventDefault(); zone.classList.remove('drag'); activeIdx=i;
+        [...(e.dataTransfer.files||[])].forEach(f=>{ if(f.type.startsWith('image/')) addShot(i,f); }); });
+      fin.addEventListener('change', e=>{ [...(e.target.files||[])].forEach(f=>addShot(i,f)); e.target.value=''; });
+      const thumbs = document.createElement('div'); thumbs.className='thumbs';
+      wrap.appendChild(zone); wrap.appendChild(fin); wrap.appendChild(thumbs);
+      bodyEl.appendChild(wrap);
+      STEPS[i].ta=ta; STEPS[i].thumbs=thumbs;
+    });
+  }
+
+  let activeIdx=null;
+  document.addEventListener('paste', e=>{ if(activeIdx==null) return; const items=(e.clipboardData||{}).items||[];
+    for(const it of items){ if(it.type && it.type.startsWith('image/')){ const f=it.getAsFile(); if(f){ addShot(activeIdx,f); e.preventDefault(); } } } });
+  function downscale(file, cb){ const url=URL.createObjectURL(file); const img=new Image();
+    img.onload=()=>{ const max=1000; let w=img.width,h=img.height; if(w>max){ h=Math.round(h*max/w); w=max; }
+      const c=document.createElement('canvas'); c.width=w; c.height=h; c.getContext('2d').drawImage(img,0,0,w,h);
+      URL.revokeObjectURL(url); try{ cb(c.toDataURL('image/jpeg',0.6)); }catch(e){ cb(null); } };
+    img.onerror=()=>{ URL.revokeObjectURL(url); cb(null); }; img.src=url; }
+  function addShot(i,file){ downscale(file, data=>{ if(!data) return; STEPS[i].shots.push({name:file.name||'screenshot.png', data}); renderThumbs(i); save(); }); }
+  function renderThumbs(i){ const t=STEPS[i].thumbs; t.innerHTML='';
+    STEPS[i].shots.forEach((sh,si)=>{ const d=document.createElement('div'); d.className='sh';
+      const im=document.createElement('img'); im.src=sh.data; im.title=sh.name; im.onclick=()=>{ const w=window.open(); if(w) w.document.write('<img src="'+sh.data+'" style="max-width:100%">'); };
+      const rm=document.createElement('button'); rm.className='rm'; rm.textContent='✕'; rm.title='remove'; rm.onclick=()=>{ STEPS[i].shots.splice(si,1); renderThumbs(i); save(); };
+      d.appendChild(im); d.appendChild(rm); t.appendChild(d); }); }
+
+  function save(){ const d={verdict:[],note:[],shots:[],cm:{},seconds};
+    STEPS.forEach((s,i)=>{ d.verdict[i]=s.verdict||''; d.note[i]=s.ta.value; d.shots[i]=s.shots; });
+    document.querySelectorAll('textarea[data-cm]').forEach(t=>d.cm[t.dataset.cm]=t.value);
+    try{ localStorage.setItem(KEY,JSON.stringify(d)); }catch(e){ console.warn('storage full', e); } }
+  function restore(){ try{ const d=JSON.parse(localStorage.getItem(KEY)||'{}');
+    STEPS.forEach((s,i)=>{ if(d.verdict&&d.verdict[i]){ s.verdict=d.verdict[i]; paintVerdict(i); } if(d.note&&d.note[i]!=null) s.ta.value=d.note[i];
+      if(d.shots&&Array.isArray(d.shots[i])){ s.shots=d.shots[i]; renderThumbs(i); } });
+    if(d.cm) document.querySelectorAll('textarea[data-cm]').forEach(t=>{ if(d.cm[t.dataset.cm]!=null) t.value=d.cm[t.dataset.cm]; });
+    if(typeof d.seconds==='number'){ seconds=d.seconds; paintClock(); } }catch(e){} }
+  function progress(){ let p=0,f=0,iss=0,dec=0;
+    STEPS.forEach(s=>{ if(s.verdict){ dec++; if(s.verdict==='pass')p++; else if(s.verdict==='fail')f++; else iss++; } });
+    document.getElementById('prog').textContent=dec+'/'+STEPS.length;
+    const tly=document.getElementById('tally'); if(tly) tly.textContent='✓'+p+' ✗'+f+' ⚠'+iss; }
+
+  let seconds=0, timer=null;
+  function paintClock(){ const m=String(Math.floor(seconds/60)).padStart(2,'0'), s=String(seconds%60).padStart(2,'0'); document.getElementById('clock').textContent=m+':'+s; }
+  function toggleTimer(){ const b=document.getElementById('startBtn');
+    if(timer){ clearInterval(timer); timer=null; b.textContent='▶ Resume'; }
+    else { timer=setInterval(()=>{ seconds++; paintClock(); if(seconds%10===0) save(); },1000); b.textContent='⏸ Pause'; } }
+  function resetTimer(){ if(timer){ clearInterval(timer); timer=null; } seconds=0; paintClock(); document.getElementById('startBtn').textContent='▶ Start'; save(); }
+
+  let rec=null;
+  function micToggle(btn, ta){
+    if(rec){ rec.stop(); return; }
+    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    if(!SR){ alert('Voice notes need Chrome.'); return; }
+    rec=new SR(); rec.lang='en-US'; rec.continuous=true; rec.interimResults=true;
+    let base=ta.value?ta.value.trim()+' ':'';
+    btn.classList.add('on');
+    rec.onresult=e=>{ let fin='',int=''; for(let k=e.resultIndex;k<e.results.length;k++){ const t=e.results[k][0].transcript; if(e.results[k].isFinal) fin+=t; else int+=t; }
+      if(fin) base+=fin+' '; ta.value=(base+int).replace(/\s+/g,' ').trimStart(); save(); };
+    rec.onerror=()=>{}; rec.onend=()=>{ btn.classList.remove('on'); rec=null; };
+    try{ rec.start(); }catch(e){ btn.classList.remove('on'); rec=null; }
+  }
+
+  function copyReport(){ let out='OWN YOUR BANCO — E2E REPORT (№ LP-UAT-20260720-OWN-YOUR-BANCO)\n'+document.getElementById('prog').textContent+' done · '+document.getElementById('tally').textContent+' · '+document.getElementById('clock').textContent+' elapsed\n\n';
+    document.querySelectorAll('section').forEach(sec=>{ const h=sec.querySelector('h2'); if(!h) return; out+='## '+h.textContent.trim()+'\n';
+      sec.querySelectorAll('ol.steps li').forEach(li=>{ const idx=STEPS.findIndex(s=>s.li===li); const s=STEPS[idx]||{};
+        out+=(VMARK[s.verdict||'']||'[ -- ]')+' '+(s.label||'')+'\n';
+        if(s.ta&&s.ta.value.trim()) out+='     note: '+s.ta.value.trim()+'\n';
+        if(s.shots&&s.shots.length) out+='     📷 '+s.shots.length+' screenshot(s) (see exported report)\n'; });
+      const t=sec.querySelector('textarea[data-cm]'); if(t&&t.value.trim()) out+='   section notes: '+t.value.trim()+'\n'; out+='\n'; });
+    navigator.clipboard.writeText(out).then(()=>alert('Text report copied. (Use Export for screenshots.)')).catch(()=>prompt('Copy this:',out)); }
+
+  function exportReport(){ const esc=s=>(s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+    let h='<!doctype html><meta charset=utf-8><title>Own Your Banco — report</title>'+
+      '<style>body{font-family:system-ui,Arial;max-width:820px;margin:24px auto;padding:0 16px;color:#1f2937}h2{border-bottom:2px solid #157F52;padding-bottom:4px;margin-top:28px}li{margin:10px 0;list-style:none}.ok{color:#059669;font-weight:700}.no{color:#9ca3af}.n{color:#374151;font-size:14px;margin:4px 0 0 24px}img{max-width:320px;display:block;margin:6px 0 0 24px;border:1px solid #ddd;border-radius:6px}.h{color:#6b7280;font-size:13px}</style>';
+    h+='<h1>🐺 Own Your Banco — E2E report</h1><p class=h>№ LP-UAT-20260720-OWN-YOUR-BANCO · '+document.getElementById('prog').textContent+' done · '+document.getElementById('tally').textContent+' · '+document.getElementById('clock').textContent+' elapsed · '+new Date().toLocaleString()+'</p>';
+    document.querySelectorAll('section').forEach(sec=>{ const ttl=sec.querySelector('h2'); if(!ttl) return; h+='<h2>'+esc(ttl.textContent.trim())+'</h2><ul>';
+      sec.querySelectorAll('ol.steps li').forEach(li=>{ const s=STEPS[STEPS.findIndex(x=>x.li===li)]||{};
+        h+='<li>'+vMark(s.verdict)+' '+esc(s.label||'');
+        if(s.ta&&s.ta.value.trim()) h+='<div class=n>📝 '+esc(s.ta.value.trim())+'</div>';
+        (s.shots||[]).forEach(sh=>{ h+='<img src="'+sh.data+'" alt="'+esc(sh.name)+'">'; }); h+='</li>'; });
+      const t=sec.querySelector('textarea[data-cm]'); if(t&&t.value.trim()) h+='<li class=n>📝 '+esc(t.value.trim())+'</li>'; h+='</ul>'; });
+    const blob=new Blob([h],{type:'text/html'}); const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob); a.download='own-your-banco-report.html'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),2000); }
+
+  buildSteps(); restore(); progress(); paintClock();
+</script>
+</body>
+</html>

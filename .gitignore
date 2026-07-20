@@ -2,6 +2,10 @@
 .env
 *.env.local
 
+# Personalized onboarding copies that may hold real passwords/keys — keep out of git
+*.local.md
+*.filled.md
+
 # Python
 __pycache__/
 *.py[cod]

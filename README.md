@@ -34,6 +34,14 @@ Then open **http://localhost:8000/pos** and log in as `pam` / `pam`.
 
 Full walkthrough, demo logins, and the B2 restore path: **[QUICKSTART.md](QUICKSTART.md)**.
 
+## Setting up a real shop?
+
+The **[onboarding/](onboarding/)** kit takes you from this demo to *your* shop — currency, VAT, staff logins,
+passwords, catalog, and your own backups — with an [implementation roadmap](onboarding/IMPLEMENTATION-ROADMAP.md),
+a [go-live checklist](onboarding/GO-LIVE-CHECKLIST.md), and a click-through
+[test runbook](onboarding/testsheets/OWN-YOUR-BANCO-E2E-TESTSHEET.html). Start at
+**[onboarding/README.md](onboarding/README.md)**.
+
 ## What's in the box
 
 | Path | What |
@@ -43,7 +51,9 @@ Full walkthrough, demo logins, and the B2 restore path: **[QUICKSTART.md](QUICKS
 | `.env.example` | Every setting, with safe local defaults |
 | `keycloak/import/` | The POS realm (clients, roles, demo users) — auto-imported |
 | `scripts/standup.sh` | Post-boot: install the audit log |
+| `scripts/backup-to-b2.sh` | Own-your-data: make an encrypted backup → Backblaze B2 |
 | `scripts/restore-from-b2.sh` | Own-your-data: restore a backup from Backblaze B2 |
+| `onboarding/` | The new-shop implementation kit (roadmap, checklist, guides, testsheet) |
 | `scripts/db/audit_log_setup.sql` | The universal change-log machine |
 | `src/` | The application |
 
