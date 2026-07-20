@@ -40,6 +40,23 @@ is pre-bundled.)
 ## Step B · Install the missing tools
 
 ### 🐧 Debian / Ubuntu
+
+> ⚠️ **Debian gotcha:** on a fresh Debian install, your user is often **not a sudoer** (`sudo` says "user is not
+> in the sudoers file"). Ubuntu adds you automatically; Debian doesn't. If `sudo` fails, become root first with
+> `su -` (enter the **root** password you set at install), run the commands below **without** `sudo`, and add
+> yourself to the groups — then it's fixed for good:
+> ```bash
+> su -                                  # enter root password; prompt becomes #
+> apt update
+> apt install -y sudo git curl docker.io docker-compose-v2
+> systemctl enable --now docker
+> usermod -aG sudo <your-username>      # so sudo works from now on
+> usermod -aG docker <your-username>    # so docker runs without sudo
+> exit                                  # back to your normal user
+> ```
+> Then **log out and back in** and skip to the test below.
+
+If your user already has `sudo` (Ubuntu, or after the fix above):
 ```bash
 sudo apt update
 sudo apt install -y git curl docker.io docker-compose-v2
