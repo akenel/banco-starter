@@ -16,6 +16,7 @@ focused weekend gets you a basic working shop, a careful real cutover is 2–4 w
 | Phase | What | Effort | Who |
 |-------|------|--------|-----|
 | 0 · Discovery | Decide currency, VAT, roles, product list, hardware | ½–1 day | Owner |
+| 0.5 · Prerequisites | Check the machine + install tools (git, docker…) — [guide 0](00-prerequisites.md) | 1 hr – ½ day | Owner / IT |
 | 1 · Install | `docker compose up` — a running demo | 1–2 hrs | Owner / IT |
 | 2 · Configure | Shop profile, currency, VAT, users + passwords | ½–1 day | Owner |
 | 3 · Load catalog | Get real products + prices in | 1 day – 1 wk | Owner |
@@ -36,7 +37,14 @@ Answer these on paper first; the rest goes faster.
 - **Age-restricted items?** Tobacco, alcohol, 18+ — Banco can flag these at checkout.
 - **Hardware?** Barcode scanner, receipt printer, card/TWINT terminal — nice to have, not required to start.
 
-## Phase 1 · Install — get it running (1–2 hrs)
+## Phase 0.5 · Prerequisites — the tools (1 hr – ½ day)
+
+**The step everyone forgets.** A fresh machine usually doesn't have Docker, git, or curl. Do
+[guide 0](00-prerequisites.md) first: check the machine can handle it, then install the tools. A real field test
+on a clean Debian laptop found `docker`, `git`, `curl` all missing (and had to install them) — that's normal,
+and it's why "just run docker compose up" isn't step one on a new box.
+
+## Phase 1 · Install — get it running (1–2 hrs, once the tools are in)
 
 Follow the root [QUICKSTART.md](../QUICKSTART.md): `cp .env.example .env` → `docker compose up --build -d` →
 `./scripts/standup.sh`. Log in at `http://localhost:8000/pos` as `pam`/`pam`. **You now have a working demo

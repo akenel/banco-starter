@@ -12,6 +12,7 @@ them off, or just keep them open while you set up.
 | # | File | What you do |
 |---|------|-------------|
 | — | [IMPLEMENTATION-ROADMAP.md](IMPLEMENTATION-ROADMAP.md) | **Read first.** The whole plan + a realistic schedule (about 2–4 weeks part-time). |
+| 0 | [00-prerequisites.md](00-prerequisites.md) | **Do this before cloning.** Check the machine + install the tools (git, docker…). |
 | 1 | [01-shop-profile.md](01-shop-profile.md) | Write down who you are: shop name, address, VAT number, hours. |
 | 2 | [02-settings-currency-vat.md](02-settings-currency-vat.md) | Set your currency + VAT rates (Switzerland / Italy / Germany examples). |
 | 3 | [03-users-and-roles.md](03-users-and-roles.md) | Decide who logs in, give them a role, set real passwords. |
