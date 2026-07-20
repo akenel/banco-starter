@@ -289,7 +289,7 @@ window.POS_STRINGS = {
       "log_out": "Log Out",
       "stuck_hint": "Stuck on \"already logged in\"? Hit <b>Log Out</b>, then Login again.",
       "use_credentials": "Use your Artemis Store credentials",
-      "demo_credentials": "Demo: pam / helix_pass (Cashier)<br>felix / helix_pass (Admin)",
+      "demo_credentials": "Demo: pam / pam (Cashier)<br>felix / felix (Admin)",
       "login_failed": "Login failed: "
     },
     "vat": {
@@ -2123,7 +2123,7 @@ window.POS_STRINGS = {
       "log_out": "Déconnexion",
       "stuck_hint": "Bloqué sur \"déjà connecté\" ? Cliquez sur <b>Déconnexion</b>, puis reconnectez‑vous.",
       "use_credentials": "Utilisez vos identifiants Artemis Store",
-      "demo_credentials": "Démo : pam / helix_pass (Caissier)<br>felix / helix_pass (Administrateur)",
+      "demo_credentials": "Démo : pam / pam (Caissier)<br>felix / felix (Administrateur)",
       "login_failed": "Échec de la connexion : "
     },
     "vat": {
@@ -3961,7 +3961,7 @@ window.POS_STRINGS = {
       "log_out": "Esci",
       "stuck_hint": "Bloccato su \"già connesso\"? Premi <b>Esci</b>, poi accedi di nuovo.",
       "use_credentials": "Usa le tue credenziali Artemis Store",
-      "demo_credentials": "Demo: pam / helix_pass (Cassiere)<br>felix / helix_pass (Admin)",
+      "demo_credentials": "Demo: pam / pam (Cassiere)<br>felix / felix (Admin)",
       "login_failed": "Accesso fallito: "
     },
     "vat": {
@@ -5792,7 +5792,7 @@ window.POS_STRINGS = {
       "log_out": "Abmelden",
       "stuck_hint": "Hängst du bei \"bereits angemeldet\"? Klicke <b>Abmelden</b>, dann erneut anmelden.",
       "use_credentials": "Verwende deine Artemis-Store-Zugangsdaten",
-      "demo_credentials": "Demo: pam / helix_pass (Kassierer)<br>felix / helix_pass (Admin)",
+      "demo_credentials": "Demo: pam / pam (Kassierer)<br>felix / felix (Admin)",
       "login_failed": "Anmeldung fehlgeschlagen: "
     },
     "vat": {

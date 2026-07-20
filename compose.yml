@@ -84,6 +84,12 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      # Build stamp passed through from the host git (set by scripts/rebuild.sh).
+      # Unset (raw `docker compose up --build`) → honest "dev".
+      args:
+        GIT_SHA: ${GIT_SHA:-dev}
+        GIT_DATE: ${GIT_DATE:-}
+        GIT_COUNT: ${GIT_COUNT:-}
     image: banco-pos:latest
     container_name: banco-app
     restart: unless-stopped

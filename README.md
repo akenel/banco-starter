@@ -26,7 +26,7 @@ You can't clone SAP. You can clone this.
 
 ```bash
 python3 scripts/init-banco.py     # setup wizard — writes .env for you (or: cp .env.example .env)
-docker compose up --build -d
+./scripts/rebuild.sh              # build + start, stamped with the real commit (raw `docker compose up --build -d` also works)
 ./scripts/standup.sh              # audit log + a "✅ safe to test → go here" verdict
 ```
 

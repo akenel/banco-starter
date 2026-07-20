@@ -26,3 +26,6 @@ venv/
 *.swp
 .idea/
 .vscode/
+
+# Build stamp — generated at build time from git (see scripts/rebuild.sh + Dockerfile)
+src/static/build-sha.txt

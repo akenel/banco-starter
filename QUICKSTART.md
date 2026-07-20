@@ -41,8 +41,12 @@ The localhost demo runs over plain HTTP on purpose; that is **not** safe for a p
 ## 2. Start
 
 ```bash
-docker compose up --build -d
+./scripts/rebuild.sh
 ```
+
+This builds + starts everything, stamping the image with the real git commit so the
+login screen's build number matches what you're running (proves a `git pull` took).
+A bare `docker compose up --build -d` also works — it just stamps the build as `dev`.
 
 First run builds the app image and pulls Postgres, Keycloak, and MinIO (a few
 minutes). Keycloak auto-imports the POS realm from `keycloak/import/` on first boot.
