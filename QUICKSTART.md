@@ -15,12 +15,23 @@ Everything runs in Docker. You need:
 
 ## 1. Configure
 
+**Easiest — the setup wizard.** It asks a few questions (shop name, currency, VAT, admin password, and
+optionally your LLM and Backblaze B2 keys), keeps secrets hidden as you type, and writes `.env` for you:
+
+```bash
+python3 scripts/init-banco.py
+```
+
+Press Enter to accept each default; skip the optional sections. Re-run it any time to change settings.
+
+**Or by hand** (no Python needed — the app itself runs entirely in Docker):
+
 ```bash
 cp .env.example .env
 ```
 
-> ⚠️ **Do this FIRST — before `docker compose up`.** There is no `.env` until you copy it, and the app won't
-> start without one. It's the #1 skipped step.
+> ⚠️ **Either way, do this FIRST — before `docker compose up`.** There is no `.env` until you create it, and
+> the app won't start without one. It's the #1 skipped step.
 
 The defaults in `.env.example` stand up a working local stack as-is. For a laptop
 demo you can leave them. **Before exposing anything to a network** (a real shop on the internet), you must change

@@ -25,9 +25,9 @@ You can't clone SAP. You can clone this.
 ## Quickstart
 
 ```bash
-cp .env.example .env
+python3 scripts/init-banco.py     # setup wizard — writes .env for you (or: cp .env.example .env)
 docker compose up --build -d
-./scripts/standup.sh
+./scripts/standup.sh              # audit log + a "✅ safe to test → go here" verdict
 ```
 
 Then open **http://localhost:8000/pos** and log in as `pam` / `pam`.
@@ -50,7 +50,9 @@ a [go-live checklist](onboarding/GO-LIVE-CHECKLIST.md), and a click-through
 | `Dockerfile` / `entrypoint.sh` | The app image (FastAPI, Python 3.11) |
 | `.env.example` | Every setting, with safe local defaults |
 | `keycloak/import/` | The POS realm (clients, roles, demo users) — auto-imported |
-| `scripts/standup.sh` | Post-boot: install the audit log |
+| `scripts/init-banco.py` | Setup wizard — asks a few questions, writes your `.env` (secrets stay hidden) |
+| `scripts/standup.sh` | Post-boot: install the audit log, then run the smoke test |
+| `scripts/postboot-check.py` | Smoke test — "is it up & safe to test?" pokes the live stack, prints one verdict |
 | `scripts/banco-doctor.py` | "What's left to set up?" — reads your live config, flags every default (✅/⚠️/❌) |
 | `scripts/backup-to-b2.sh` | Own-your-data: make an encrypted backup → Backblaze B2 |
 | `scripts/restore-from-b2.sh` | Own-your-data: restore a backup from Backblaze B2 |
