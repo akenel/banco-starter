@@ -43,6 +43,10 @@ window.POS_STRINGS = {
     },
     "settings": {
       "title": "⚙️ Store Settings",
+      "role_label": "Role:",
+      "role_admin": "Admin",
+      "role_cashier": "Cashier",
+      "role_manager": "Manager",
       "subtitle": "Your shop's profile — shows on every receipt",
       "language": "🌐 Language",
       "save": "💾 Save",
@@ -169,6 +173,9 @@ window.POS_STRINGS = {
     },
     "shift": {
       "my_drawer": "💰 My Drawer",
+      "foreign_taken": "Foreign cash in the drawer — count these separately",
+      "foreign_taken_row": "cash taken — count separately",
+      "of_value": "of value",
       "cashier_prefix": "Cashier: {name}",
       "dashboard": "🏪 Dashboard",
       "loading_drawer": "Loading your drawer…",
@@ -250,6 +257,7 @@ window.POS_STRINGS = {
       "vat_total": "VAT total"
     },
     "receipt": {
+      "paid_foreign": "Paid in cash:",
       "back_to_report": "← Back to report",
       "title": "Receipt",
       "refunded": "REFUNDED",
@@ -360,6 +368,11 @@ window.POS_STRINGS = {
     },
     "checkout": {
       "title": "Checkout",
+      "welcome_discount": "First-order discount",
+      "vat_net": "Net goods (ex-VAT)",
+      "vat_only": "VAT",
+      "vat_total": "Total paid",
+      "vat_note": "Prices include VAT — the tax is contained in the total, not added on top.",
       "remove_member": "remove",
       "no_member": "No member on this sale.",
       "add_member": "Add a member",
@@ -436,6 +449,7 @@ window.POS_STRINGS = {
     },
     "cash": {
       "cash": "Cash",
+      "received_word": "Amount received",
       "debit": "Debit",
       "cash_received": "Cash Received",
       "exact": "EXACT",
@@ -892,6 +906,8 @@ window.POS_STRINGS = {
       "visits": "Visits"
     },
     "dashboard": {
+      "audit": "Audit Log",
+      "audit_desc": "Who changed what, when — every edit, sale & closeout",
       "store_subtitle": "Artemis Store",
       "logout": "🔓 Logout",
       "welcome_user": "Welcome, {n}! 👋",
@@ -1788,6 +1804,10 @@ window.POS_STRINGS = {
     },
     "settings": {
       "title": "⚙️ Paramètres du magasin",
+      "role_label": "Rôle :",
+      "role_admin": "Admin",
+      "role_cashier": "Caissier",
+      "role_manager": "Gérant",
       "subtitle": "Profil de votre boutique — apparaît sur chaque reçu",
       "language": "🌐 Langue",
       "save": "💾 Enregistrer",
@@ -1917,6 +1937,9 @@ window.POS_STRINGS = {
     },
     "shift": {
       "my_drawer": "💰 Mon tiroir",
+      "foreign_taken": "Espèces étrangères dans la caisse — à compter séparément",
+      "foreign_taken_row": "espèces prises — à compter séparément",
+      "of_value": "de valeur",
       "cashier_prefix": "Caissier : {name}",
       "dashboard": "🏪 Tableau de bord",
       "loading_drawer": "Chargement du tiroir…",
@@ -1998,6 +2021,7 @@ window.POS_STRINGS = {
       "vat_total": "Total TVA"
     },
     "receipt": {
+      "paid_foreign": "Payé en espèces :",
       "back_to_report": "← Retour au rapport",
       "title": "Ticket",
       "refunded": "REMBOURSÉ",
@@ -2108,6 +2132,11 @@ window.POS_STRINGS = {
     },
     "checkout": {
       "title": "Paiement",
+      "welcome_discount": "Remise 1re commande",
+      "vat_net": "Marchandises HT",
+      "vat_only": "TVA",
+      "vat_total": "Total payé",
+      "vat_note": "Les prix incluent la TVA — la taxe est comprise dans le total, pas ajoutée.",
       "remove_member": "supprimer",
       "no_member": "Aucun client sur cette vente.",
       "add_member": "Ajouter un client",
@@ -2185,6 +2214,7 @@ window.POS_STRINGS = {
     },
     "cash": {
       "cash": "Espèces",
+      "received_word": "Montant reçu",
       "debit": "Débit",
       "cash_received": "Espèces reçues",
       "exact": "Exact",
@@ -2647,6 +2677,8 @@ window.POS_STRINGS = {
       "visits": "Visites"
     },
     "dashboard": {
+      "audit": "Journal d'audit",
+      "audit_desc": "Qui a changé quoi et quand — chaque modification, vente et clôture",
       "store_subtitle": "Magasin Artemis",
       "logout": "🔓 Déconnexion",
       "welcome_user": "Bienvenue, {n} ! 👋",
@@ -3543,6 +3575,10 @@ window.POS_STRINGS = {
     },
     "settings": {
       "title": "⚙️ Impostazioni negozio",
+      "role_label": "Ruolo:",
+      "role_admin": "Admin",
+      "role_cashier": "Cassiere",
+      "role_manager": "Responsabile",
       "subtitle": "Il profilo del tuo negozio — appare su ogni scontrino",
       "language": "🌐 Lingua",
       "save": "💾 Salva",
@@ -3669,6 +3705,9 @@ window.POS_STRINGS = {
     },
     "shift": {
       "my_drawer": "💰 Il mio cassetto",
+      "foreign_taken": "Contanti esteri nel cassetto — contali separatamente",
+      "foreign_taken_row": "contanti presi — conta separatamente",
+      "of_value": "di valore",
       "cashier_prefix": "Cassiere: {name}",
       "dashboard": "🏪 Cruscotto",
       "loading_drawer": "Caricamento del cassetto…",
@@ -3750,6 +3789,7 @@ window.POS_STRINGS = {
       "vat_total": "IVA totale"
     },
     "receipt": {
+      "paid_foreign": "Pagato in contanti:",
       "back_to_report": "← Torna al report",
       "title": "Scontrino",
       "refunded": "RIMBORSATO",
@@ -3860,6 +3900,11 @@ window.POS_STRINGS = {
     },
     "checkout": {
       "title": "Cassa",
+      "welcome_discount": "Sconto primo ordine",
+      "vat_net": "Merce netta (IVA escl.)",
+      "vat_only": "IVA",
+      "vat_total": "Totale pagato",
+      "vat_note": "I prezzi includono l'IVA — l'imposta è compresa nel totale, non aggiunta.",
       "remove_member": "rimuovi",
       "no_member": "Nessun membro su questa vendita.",
       "add_member": "Aggiungi un membro",
@@ -3936,6 +3981,7 @@ window.POS_STRINGS = {
     },
     "cash": {
       "cash": "Contanti",
+      "received_word": "Importo ricevuto",
       "debit": "Debito",
       "cash_received": "Contanti ricevuti",
       "exact": "ESATTO",
@@ -4392,6 +4438,8 @@ window.POS_STRINGS = {
       "visits": "Visite"
     },
     "dashboard": {
+      "audit": "Registro di controllo",
+      "audit_desc": "Chi ha cambiato cosa e quando — ogni modifica, vendita e chiusura",
       "store_subtitle": "Negozio Artemis",
       "logout": "🔓 Esci",
       "welcome_user": "Benvenuto, {n}! 👋",
@@ -5288,6 +5336,10 @@ window.POS_STRINGS = {
     },
     "settings": {
       "title": "⚙️ Ladeneinstellungen",
+      "role_label": "Rolle:",
+      "role_admin": "Admin",
+      "role_cashier": "Kassierer",
+      "role_manager": "Manager",
       "subtitle": "Das Profil deines Ladens — erscheint auf jedem Beleg",
       "language": "🌐 Sprache",
       "save": "💾 Speichern",
@@ -5414,6 +5466,9 @@ window.POS_STRINGS = {
     },
     "shift": {
       "my_drawer": "💰 Meine Kasse",
+      "foreign_taken": "Fremdwährung in der Kasse — separat zählen",
+      "foreign_taken_row": "Bargeld entnommen — separat zählen",
+      "of_value": "an Wert",
       "cashier_prefix": "Kassierer: {name}",
       "dashboard": "🏪 Übersicht",
       "loading_drawer": "Kasse wird geladen…",
@@ -5495,6 +5550,7 @@ window.POS_STRINGS = {
       "vat_total": "MWST gesamt"
     },
     "receipt": {
+      "paid_foreign": "Bar bezahlt:",
       "back_to_report": "← Zurück zum Bericht",
       "title": "Beleg",
       "refunded": "ERSTATTET",
@@ -5605,6 +5661,11 @@ window.POS_STRINGS = {
     },
     "checkout": {
       "title": "Kasse",
+      "welcome_discount": "Erstbestellungsrabatt",
+      "vat_net": "Nettoware (exkl. MwSt.)",
+      "vat_only": "MwSt.",
+      "vat_total": "Bezahlter Betrag",
+      "vat_note": "Preise inkl. MwSt. — die Steuer ist im Total enthalten, nicht aufgeschlagen.",
       "remove_member": "entfernen",
       "no_member": "Kein Mitglied bei diesem Verkauf.",
       "add_member": "Mitglied hinzufügen",
@@ -5681,6 +5742,7 @@ window.POS_STRINGS = {
     },
     "cash": {
       "cash": "Bargeld",
+      "received_word": "Erhaltener Betrag",
       "debit": "Debit",
       "cash_received": "Erhaltenes Bargeld",
       "exact": "PASSEND",
@@ -6137,6 +6199,8 @@ window.POS_STRINGS = {
       "visits": "Besuche"
     },
     "dashboard": {
+      "audit": "Audit-Protokoll",
+      "audit_desc": "Wer hat was wann geändert — jede Änderung, jeder Verkauf und Abschluss",
       "store_subtitle": "Artemis Laden",
       "logout": "🔓 Abmelden",
       "welcome_user": "Willkommen, {n}! 👋",
