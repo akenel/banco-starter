@@ -9,6 +9,7 @@ Includes retry logic for startup race conditions (Keycloak may not be ready).
 import aiohttp
 import asyncio
 import logging
+import os
 from typing import Optional
 from fastapi import HTTPException
 from pydantic import SecretStr
@@ -65,12 +66,18 @@ class KeycloakProxyService:
         if not await self._wait_for_keycloak():
             raise KeycloakRegistrationFailed("Keycloak not available after retries")
 
-        # Use fallback admin login with retry
+        # Master-admin login. Creds come from the SAME env vars compose feeds Keycloak
+        # (KEYCLOAK_ADMIN=${HX_SUPER_NAME}, KEYCLOAK_ADMIN_PASSWORD=${HX_SUPER_PASSWORD}),
+        # so the app authenticates as the realm's actual admin. (Was hardcoded to the old
+        # helix_user/helix_pass, which no longer exist → 401 invalid_grant on a fresh box.
+        # settings is None at several call sites, so read the process env directly.)
+        admin_user = os.environ.get("HX_SUPER_NAME", "admin")
+        admin_pass = os.environ.get("HX_SUPER_PASSWORD", "")
         data = {
             "grant_type": "password",
             "client_id": "admin-cli",
-            "username": "helix_user",
-            "password": "helix_pass",
+            "username": admin_user,
+            "password": admin_pass,
         }
 
         last_error = None
