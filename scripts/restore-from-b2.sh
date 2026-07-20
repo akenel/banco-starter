@@ -54,8 +54,13 @@ b2 account authorize "$B2_KEY_ID" "$B2_APP_KEY" >/dev/null
 NAME="${1:-}"
 if [ -z "$NAME" ]; then
   echo "🔎 Finding newest *.sql.gz.gpg in b2://${B2_BUCKET} ..."
-  # newest by name (timestamps sort lexically): take the last matching key
-  NAME="$(b2 ls --recursive "b2://${B2_BUCKET}" | grep -E '\.sql\.gz\.gpg$' | sort | tail -1)"
+  # Newest by the YYYYMMDD_HHMM stamp IN THE FILENAME — a plain path sort would be
+  # skewed by folder prefixes (e.g. banco/ vs sandbox/ vs staging/) and pick the
+  # wrong stream. If your bucket mixes streams, pass an explicit filename instead.
+  NAME="$(b2 ls --recursive "b2://${B2_BUCKET}" \
+    | grep -E '\.sql\.gz\.gpg$' \
+    | sed -E 's/.*_([0-9]{8}_[0-9]{4})\.sql\.gz\.gpg$/\1\t&/' \
+    | sort | tail -1 | cut -f2-)"
   [ -n "$NAME" ] || { echo "❌ No .sql.gz.gpg found in bucket."; exit 1; }
 fi
 echo "📦 Restoring from: ${NAME}"
