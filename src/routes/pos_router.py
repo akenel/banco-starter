@@ -6089,6 +6089,35 @@ async def update_store_settings(
 
 
 # ================================================================
+# BACKUP COCKPIT -> Settings "Backup" tab (admin only, "own your data")
+# ================================================================
+# Read-only status of the shop's encrypted B2 backups. NEVER returns a secret:
+# config() masks the key id + reports the app-key/passphrase as booleans, and the
+# live check talks to Backblaze over HTTPS (no CLI) to PROVE the backups exist and
+# how fresh they are. Making/restoring backups stays as the host scripts (they need
+# pg_dump + gpg + docker), which the container deliberately can't run.
+
+@router.get("/backup/status")
+async def backup_status(
+    current_user: dict = Depends(require_admin()),
+):
+    """Instant, no-network view: is the backup wired? (masked config, no secrets)."""
+    from src.services import backup_status as _bk
+    return _bk.config()
+
+
+@router.post("/backup/check")
+async def backup_check(
+    current_user: dict = Depends(require_admin()),
+):
+    """Live probe of the shop's own B2 bucket: proves the key works and lists the
+    recent encrypted backups (names/sizes/ages). Never raises — returns
+    {ok: False, error} on any failure. No secret is ever returned."""
+    from src.services import backup_status as _bk
+    return await _bk.check()
+
+
+# ================================================================
 # SYSTEM PULSE -> the live shop card behind the 📊 in the status bar
 # ================================================================
 # Replaces a dead /health/dashboard link. One auth'd call returns a snapshot a
