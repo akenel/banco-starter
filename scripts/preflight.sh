@@ -52,7 +52,15 @@ echo ""
 echo "Needed for backups / tools"
 command -v gpg >/dev/null 2>&1 && ok "gpg: $(gpg --version 2>/dev/null | head -1)" || warn "gpg: MISSING — needed to encrypt backups"
 command -v python3 >/dev/null 2>&1 && ok "python3: $(python3 --version 2>/dev/null)" || warn "python3: MISSING — needed for banco-doctor + scripts"
-command -v b2 >/dev/null 2>&1 && ok "b2: $(b2 version 2>/dev/null | head -1)" || warn "b2: MISSING — needed only for B2 backups (install when you reach guide 6)"
+if command -v b2 >/dev/null 2>&1; then
+  ok "b2: $(b2 version 2>/dev/null | head -1)"
+elif [ -f .env ] && grep -qE '^B2_KEY_ID=.+' .env 2>/dev/null; then
+  # creds ARE configured — so the tool is now genuinely needed (backups + the deploy's
+  # backup-first step), not a "later" nicety. Point at the install, not at guide 6.
+  warn "b2 CLI: MISSING — but your B2 keys ARE set in .env. Install it now: sudo apt install -y pipx && pipx install b2 && pipx ensurepath"
+else
+  warn "b2: MISSING — needed only for B2 backups (install when you set them up: guide 6)"
+fi
 command -v curl >/dev/null 2>&1 && ok "curl: present" || warn "curl: MISSING — handy for downloads/health checks"
 
 # ---- verdict ----
