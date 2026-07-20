@@ -10,8 +10,9 @@ venv/
 .pytest_cache/
 .mypy_cache/
 
-# Backups / data pulled locally
-*.sql
+# Backups / data pulled locally (restore-from-b2.sh works in a /tmp mktemp dir,
+# so no loose .sql lands here; do NOT blanket-ignore *.sql — it hides the source
+# SQL under scripts/db/ that the stand-up needs).
 *.sql.gz
 *.sql.gz.gpg
 *.dump
