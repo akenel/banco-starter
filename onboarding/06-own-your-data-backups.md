@@ -50,6 +50,16 @@ b2 version
 > On Debian 12+/Ubuntu 24+ you **must** use `pipx`, not `pip install b2` — the system Python is locked (PEP-668),
 > so a plain `pip install` is refused. On macOS: `brew install b2-tools`.
 
+### Rotating a key later (leaked, expired, or just housekeeping)
+If you ever need to swap a key — you pasted it somewhere by accident, it expired, or you're doing routine
+rotation — use the guided rotator instead of hand-editing `.env`:
+```bash
+python3 scripts/rotate-secret.py b2      # or: llm-key, gpg-passphrase, app-secret, admin-password, db-password
+```
+It shows the old key masked, takes the new one hidden, **tests it against the live service before writing**, and
+backs up your `.env` first. If the new key doesn't verify, nothing changes and your old key keeps working. After a
+B2 rotation, **delete the old key in Backblaze** — creating a new key does not disable the old one.
+
 ## Step 3 · Make your first backup
 
 ```bash
