@@ -70,11 +70,19 @@ Log into Backblaze and confirm the file is there.
 
 ## Step 4 · Make it automatic (nightly)
 
-Schedule the backup so you never have to remember. On Linux/Mac, add a cron line (`crontab -e`):
-```cron
-0 3 * * *  cd /path/to/banco-starter && ./scripts/backup-to-b2.sh >> backup.log 2>&1
+Schedule the backup so you never have to remember — one command, idempotent:
+```bash
+./scripts/install-backup-cron.sh        # 03:00 every night (or pass an hour: … 4)
 ```
-That runs it every night at 03:00. (On a server you keep on; a laptop that sleeps won't run it.)
+It installs the cron job with the right absolute paths, replaces its own line if you run it
+again (never duplicates), and leaves your other cron jobs alone. Check it with `crontab -l`.
+(Runs on a server you keep on; a laptop that sleeps won't fire it.)
+
+**Arm the dead-man's switch.** A cron job fails silently — you won't notice until you need a
+backup that isn't there. So point it at a monitor: create a check at **healthchecks.io** (one
+per shop/box), put its **ping URL** in `.env` as `HEALTHCHECK_PING_URL=https://hc-ping.com/<id>`,
+and set the check's schedule to daily. `backup-to-b2.sh` pings it on every success — miss a night
+and healthchecks emails you. Make sure the check has a notification set, or it's watching in silence.
 
 ## Step 5 · PRACTICE a restore — the part everyone skips
 
