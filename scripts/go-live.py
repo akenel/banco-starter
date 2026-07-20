@@ -20,9 +20,20 @@
 # gate after). Zero dependencies — plain Python 3 stdlib.
 # ============================================================================
 import os
+import re
 import shutil
 import sys
 from getpass import getpass
+
+# A valid DNS hostname: dot-separated labels, letters/digits/hyphens only, no spaces.
+# Guards against voice/typo junk (e.g. "banco-auth.g. wolfhold.app") reaching Keycloak,
+# which 500s on a hostname it can't parse into a URL.
+_HOST_RE = re.compile(
+    r"^(?=.{1,253}$)[a-z0-9](-?[a-z0-9])*(\.[a-z0-9](-?[a-z0-9])*)+$")
+
+
+def valid_host(h):
+    return bool(_HOST_RE.match((h or "").strip().lower()))
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ENV = os.path.join(ROOT, ".env")
@@ -90,6 +101,21 @@ def ask_secret(prompt, default=""):
         return default
 
 
+def ask_host(prompt, default=""):
+    """Like ask(), but only accepts a syntactically valid hostname (no spaces / junk)."""
+    if default and not valid_host(default):
+        default = ""   # never re-offer a polluted value
+    while True:
+        v = ask(prompt, default).strip().lower().rstrip(".").replace(" ", "")
+        if not v:
+            return ""
+        if valid_host(v):
+            return v
+        print(f"  {C['yel']}✗ '{v}' isn't a valid hostname — letters, digits, dots and hyphens "
+              f"only (e.g. banco.wolfhold.app). Try again.{C['x']}")
+        default = ""
+
+
 def header(t):
     print(f"\n{C['b']}{C['cyan']}── {t} ──{C['x']}")
 
@@ -121,13 +147,16 @@ def main():
     prev = cur.get("APP_PUBLIC_HOST", "")
     if prev and "." in prev:
         base_default = prev.split(".", 1)[1]
-    base = ask("Base domain (e.g. wolfhold.app)", base_default)
+    base = ask_host("Base domain (e.g. wolfhold.app)", base_default)
     if not base:
-        print(f"  {C['yel']}A domain is required to go live. Register one at porkbun.com first, then re-run.{C['x']}")
+        print(f"  {C['yel']}A valid domain is required to go live. Register one at porkbun.com first, then re-run.{C['x']}")
         return 0
 
-    app_host = ask("Shop address", f"{prefix}.{base}")
-    kc_host = ask("Keycloak (login) address", f"{prefix}-auth.{base}")
+    app_host = ask_host("Shop address", f"{prefix}.{base}")
+    kc_host = ask_host("Keycloak (login) address", f"{prefix}-auth.{base}")
+    if not (app_host and kc_host):
+        print(f"  {C['yel']}Both addresses are required. Re-run when you're ready.{C['x']}")
+        return 0
 
     # --- server + contact ---------------------------------------------------
     header("Your server (from Hetzner)")
