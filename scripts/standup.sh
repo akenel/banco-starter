@@ -34,5 +34,9 @@ docker compose exec -T postgres \
   < scripts/db/audit_log_setup.sql
 
 echo "✅ Audit log installed. Change-log cockpit: http://localhost:${APP_HOST_PORT}/pos/audit"
-echo "🛒 POS:   http://localhost:${APP_HOST_PORT}/pos"
-echo "🔐 Login: http://localhost:${APP_HOST_PORT}/pos  (e.g. pam / pam)"
+
+# Final gate: the post-boot smoke test pokes the LIVE stack (containers, app health,
+# Keycloak realm, seeded catalog) and prints one plain verdict — "✅ SAFE TO TEST →
+# open <url>, log in pam/pam" or "❌ NOT READY → fix this". Non-fatal (|| true) so the
+# verdict always shows even when a check is red; re-run any time: python3 scripts/postboot-check.py
+python3 scripts/postboot-check.py || true
