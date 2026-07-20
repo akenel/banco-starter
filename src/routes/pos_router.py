@@ -7907,8 +7907,11 @@ async def pos_oauth_callback(request: Request, code: str = None, error: str = No
     # request.base_url gives internal URL, but browser used external https URL
     # So we need to reconstruct it from the request headers
 
-    # Get the original host from X-Forwarded headers (set by Traefik)
-    forwarded_proto = request.headers.get("x-forwarded-proto", "https")
+    # Get the original host/scheme. Behind a proxy (prod) the X-Forwarded-* headers win;
+    # on a direct local stand-up (no proxy, plain http) fall back to the REQUEST's real
+    # scheme — NOT a hardcoded "https", or the redirect_uri won't match what the browser
+    # sent to Keycloak and the code exchange fails ("token_exchange_failed").
+    forwarded_proto = request.headers.get("x-forwarded-proto") or request.url.scheme
     forwarded_host = request.headers.get("x-forwarded-host") or request.headers.get("host", "helix.local")
 
     # Build the exact redirect_uri that the browser sent to Keycloak

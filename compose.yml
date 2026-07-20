@@ -56,13 +56,10 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    healthcheck:
-      # KC 24 exposes /health/ready on the mgmt port 9000
-      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && cat <&3 | grep -q 'UP'"]
-      interval: 15s
-      timeout: 10s
-      retries: 15
-      start_period: 40s
+    # No healthcheck: the Keycloak image ships no curl/wget and its shell lacks bash's
+    # /dev/tcp, so an in-container HTTP probe reports a false "unhealthy" even when KC is
+    # serving fine. Nothing depends on KC's health condition, and a working login is the
+    # real readiness signal — a lying healthcheck is worse than none.
 
   minio:
     image: minio/minio:latest
