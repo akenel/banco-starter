@@ -36,6 +36,7 @@ you're not live yet. The order matters — safety net first.
 - [ ] **Cash drawer / float** — the opening cash amount is entered.
 
 ## ✅ Final proof
+- [ ] **`python3 scripts/banco-doctor.py` shows 0 blockers** (❌) — the automated version of this whole list.
 - [ ] Run the [**Own Your Banco testsheet**](testsheets/OWN-YOUR-BANCO-E2E-TESTSHEET.html) end-to-end — all green.
 - [ ] Do **one full real sale** with a real product, real price, real payment — and refund it.
 - [ ] Note **who to call** if something breaks on day one (yourself? your IT person? a support tier?).

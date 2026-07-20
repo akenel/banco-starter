@@ -51,6 +51,7 @@ a [go-live checklist](onboarding/GO-LIVE-CHECKLIST.md), and a click-through
 | `.env.example` | Every setting, with safe local defaults |
 | `keycloak/import/` | The POS realm (clients, roles, demo users) — auto-imported |
 | `scripts/standup.sh` | Post-boot: install the audit log |
+| `scripts/banco-doctor.py` | "What's left to set up?" — reads your live config, flags every default (✅/⚠️/❌) |
 | `scripts/backup-to-b2.sh` | Own-your-data: make an encrypted backup → Backblaze B2 |
 | `scripts/restore-from-b2.sh` | Own-your-data: restore a backup from Backblaze B2 |
 | `onboarding/` | The new-shop implementation kit (roadmap, checklist, guides, testsheet) |

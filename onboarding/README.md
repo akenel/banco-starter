@@ -18,6 +18,8 @@ them off, or just keep them open while you set up.
 | 4 | [04-master-passwords.worksheet.md](04-master-passwords.worksheet.md) | A **secure worksheet** for all your passwords + keys (store it in a password manager, never here). |
 | 5 | [05-catalog-loading.md](05-catalog-loading.md) | Get your products in — by hand, by spreadsheet, by supplier feed, or by photo. |
 | 6 | [06-own-your-data-backups.md](06-own-your-data-backups.md) | Set up **your own** encrypted backups (your Backblaze B2), and practice a restore. |
+| 🩺 | **`python3 scripts/banco-doctor.py`** | Reads your live setup and tells you what's still unset (✅/⚠️/❌ + a readiness %). Run it often. |
+| 🧠 | [ai-coach/](ai-coach/) | Let the AI you already have (Claude/ChatGPT/Ollama) coach you through what the doctor found — free help for rookies. |
 | ✔ | [GO-LIVE-CHECKLIST.md](GO-LIVE-CHECKLIST.md) | The cutover tick-list — don't open the doors until every box is green. |
 | 🧪 | [testsheets/OWN-YOUR-BANCO-E2E-TESTSHEET.html](testsheets/OWN-YOUR-BANCO-E2E-TESTSHEET.html) | Open in a browser: a click-through test that proves the whole thing works (records pass/fail, exports a report). |
 
