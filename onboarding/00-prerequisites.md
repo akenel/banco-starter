@@ -48,18 +48,18 @@ is pre-bundled.)
 > ```bash
 > su -                                  # enter root password; prompt becomes #
 > apt update
-> apt install -y sudo git curl docker.io docker-compose-v2
+> apt install -y sudo git curl docker.io   # NOTE: no docker-compose-v2 — Debian 13 dropped it; you add the compose plugin in the next box
 > systemctl enable --now docker
 > usermod -aG sudo <your-username>      # so sudo works from now on
 > usermod -aG docker <your-username>    # so docker runs without sudo
 > exit                                  # back to your normal user
 > ```
-> Then **log out and back in** and skip to the test below.
+> Then **log out and back in**, and do the **Docker plugin** step in the next box (Debian 13 needs it).
 
 If your user already has `sudo` (Ubuntu, or after the fix above):
 ```bash
 sudo apt update
-sudo apt install -y git curl docker.io docker-compose-v2
+sudo apt install -y git curl docker.io   # no docker-compose-v2 — Debian 13 dropped it (compose plugin comes next)
 sudo systemctl enable --now docker
 sudo usermod -aG docker $USER
 ```

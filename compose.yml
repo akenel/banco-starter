@@ -74,12 +74,11 @@ services:
     ports:
       - "${MINIO_HOST_PORT:-9000}:9000"
       - "${MINIO_CONSOLE_HOST_PORT:-9001}:9001"
-    healthcheck:
-      test: ["CMD-SHELL", "mc ready local || exit 0"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
+    # No healthcheck: the old `mc ready local || exit 0` could NEVER fail (the `|| exit 0`
+    # swallowed every error, and `mc`/the `local` alias aren't even set up in the server
+    # image) — a permanent fake "healthy". Nothing depends on MinIO's health condition and
+    # MinIO isn't on the boot-critical path (snap-fill images only), so no probe beats a
+    # lying one. (Same call as Keycloak above — a green that can't turn red is a lie.)
 
   app:
     build:
