@@ -476,6 +476,13 @@ class StoreSettingsBase(BaseModel):
     # address or VAT number; it's an explicit stored value.
     currency: str = Field(default="CHF", max_length=8, description="ISO currency code (CHF/EUR)")
 
+    # Payments seam: which electronic terminal drives this shop's till. 'manual' (default) = the
+    # cashier takes cash/card/TWINT by hand; 'worldline_sim' drives the simulated TIM terminal
+    # overlay at checkout (sandbox until Felix's real Worldline creds land). ADMIN-ONLY to change
+    # (fiscal weight — see the update endpoint). Exposed here so the Settings UI can show the
+    # current provider; the write validator restricts the accepted values.
+    payment_provider: Optional[str] = Field(default="manual", max_length=16, description="manual | worldline_sim")
+
     # Contact Information
     phone: Optional[str] = Field(None, max_length=50)
     email: Optional[str] = Field(None, max_length=255)

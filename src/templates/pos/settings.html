@@ -184,6 +184,32 @@
                     </div>
                 </div>
 
+                <!-- PAYMENTS — which electronic terminal captures money at checkout. Admin-only
+                     (fiscal weight), same 🔒 pattern as Currency. The backend restricts the value
+                     to {manual, worldline_sim}; worldline_sim drives the simulated TIM terminal
+                     overlay until Felix's real Worldline creds land. -->
+                <div x-show="tab==='payments'" class="space-y-5">
+                    <div>
+                        <label class="lbl" data-i18n="settings.payment_provider">💳 Payment terminal 🔒</label>
+                        <select x-model="form.payment_provider" :disabled="!isAdmin" class="input-field max-w-md">
+                            <option value="manual" data-i18n="settings.payment_manual">Manual — cashier takes cash / card / TWINT by hand</option>
+                            <option value="worldline_sim" data-i18n="settings.payment_worldline_sim">Worldline terminal (simulation)</option>
+                        </select>
+                        <p class="text-xs text-gray-500 mt-1" x-show="!isAdmin" data-i18n="settings.payment_admin_only">🔒 Admin only. Which terminal captures money at checkout.</p>
+                    </div>
+
+                    <!-- What "Manual" means -->
+                    <div x-show="form.payment_provider==='manual'" class="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm text-gray-700">
+                        <p data-i18n="settings.payment_manual_note">✋ No terminal integration. Checkout works exactly as today — the cashier rings the sale and takes cash, card, or TWINT on their own device. This is the safe default for every shop.</p>
+                    </div>
+
+                    <!-- What "Worldline sim" means -->
+                    <div x-show="form.payment_provider==='worldline_sim'" class="bg-amber-50 border border-amber-300 rounded-lg p-4 text-sm text-amber-800">
+                        <p class="font-semibold mb-1" data-i18n="settings.payment_sim_title">🧪 Simulation mode</p>
+                        <p data-i18n="settings.payment_sim_note">Checkout shows the Worldline terminal overlay (Karte auflegen → tap → approve/decline) so you can rehearse the flow — but <b>no real terminal is contacted and no real money moves</b>. This is a sandbox rehearsal until the live Worldline credentials are wired. Leave it on <b>Manual</b> for a real shop.</p>
+                    </div>
+                </div>
+
                 <!-- RECEIPT & GRAPHICS -->
                 <div x-show="tab==='graphics'" class="space-y-4">
                     <div><label class="lbl" data-i18n="settings.receipt_header">Receipt header line</label><input type="text" x-model="form.receipt_header" class="input-field" placeholder="Thank you for shopping at Artemis!"></div>
@@ -411,6 +437,7 @@
                 { id:'contact',  label:t('settings.tab_contact') },
                 { id:'hours',    label:t('settings.tab_hours') },
                 { id:'tax',      label:t('settings.tab_tax') },
+                { id:'payments', label:t('settings.tab_payments') },
                 { id:'graphics', label:t('settings.tab_graphics') },
                 { id:'discounts',label:t('settings.tab_discounts') },
                 { id:'staff',    label:t('settings.tab_staff') },
@@ -647,6 +674,7 @@
                     address_line1: F.address_line1, address_line2: F.address_line2,
                     city: F.city, postal_code: F.postal_code, country: F.country, founded_year: F.founded_year,
                     currency: F.currency,   // admin-only; server strips it for non-admins
+                    payment_provider: F.payment_provider,  // admin-only; server strips it for non-admins
                     fx_rates: fxPayload,    // admin-only; server strips it for non-admins
                     phone: F.phone, email: F.email, website: F.website,
                     facebook_url: F.facebook_url, instagram_url: F.instagram_url, opening_hours: F.opening_hours,
