@@ -18,6 +18,11 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+# pipx installs the b2 CLI to ~/.local/bin, which is NOT on PATH in a fresh shell (before
+# `pipx ensurepath` takes effect) or in cron (minimal PATH). Add it so `b2` is found whether
+# this runs by hand, from deploy-prod.sh, or from the nightly cron. The #1 "b2 not found" trap.
+export PATH="$HOME/.local/bin:$PATH"
+
 # Read specific keys from .env safely (never `source` — values may contain specials)
 _env() { [ -f .env ] && grep -E "^$1=" .env | tail -1 | cut -d= -f2- || true; }
 B2_KEY_ID="$(_env B2_KEY_ID)"

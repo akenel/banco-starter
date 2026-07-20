@@ -29,6 +29,10 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+# pipx installs the b2 CLI to ~/.local/bin, which isn't on PATH in a fresh shell or cron.
+# Add it so `b2` is found however this is invoked (the #1 "b2 not found" trap).
+export PATH="$HOME/.local/bin:$PATH"
+
 # Read specific keys from .env safely — the GPG passphrase & keys may contain shell
 # metacharacters, so we NEVER `source` .env (a space or `$` would break or execute).
 _env() { [ -f .env ] && grep -E "^$1=" .env | tail -1 | cut -d= -f2- || true; }
