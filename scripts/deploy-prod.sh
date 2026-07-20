@@ -55,6 +55,11 @@ echo "🔑 2b/4 — Teach Keycloak your production URL (or login gets 'Invalid r
   exit 1
 }
 
+if [ -n "$(_env SMTP_PASSWORD)" ]; then
+  echo "📧 2c/4 — Wire Keycloak email through Resend"
+  ./scripts/kc-set-smtp.py || echo "⚠️  Email wiring failed — password resets won't send until fixed (./scripts/kc-set-smtp.py). Continuing."
+fi
+
 echo "🔍 3/4 — Gate: is the app really up (health + build stamp)?"
 if ! ./scripts/postboot-check.py; then
   echo "❌ app-gate failed — the new code is NOT serving. Check: docker compose logs app" >&2
