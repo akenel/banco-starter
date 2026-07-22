@@ -25,10 +25,10 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # Where a scanned card sends the prospect. Card 3 ("scann und schau") → the live demo.
-# Overridable per deployment via env so the same code serves sandbox/prod without a rebuild.
-SCAN_REDIRECT_URL = os.environ.get(
-    "POSTCARD_REDIRECT_URL", "https://sandbox-banco.lapiazza.app/pos"
-)
+# Default is the app's OWN /pos (a relative redirect → self-hosts to whatever host serves
+# this, no config needed). Override with an absolute URL to point scans at a specific demo
+# surface (e.g. the guest kiosk /pos/kiosk). Same code serves any deployment, no rebuild.
+SCAN_REDIRECT_URL = os.environ.get("POSTCARD_REDIRECT_URL", "/pos")
 # Durable append-only scan log (JSONL). One line per scan; grep-able; survives restarts.
 SCAN_LOG_PATH = Path(os.environ.get("POSTCARD_SCAN_LOG", "/app/data/postcard_scans.jsonl"))
 
