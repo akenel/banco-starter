@@ -8,13 +8,13 @@
 
 ## 🎯 On deck (next actionable, in order)
 
-1. **DR drill — restore a B2 backup on a clean box.** *(Roadmap Phase A · the ownership proof)*
-   - First move: on a clean stack (fresh box, or local with DB volume wiped), bring up infra only — `docker compose up -d postgres keycloak minio` — then run `./scripts/restore-from-b2.sh` with a **read-only** B2 key. Confirm the row-check prints a real product count, then `docker compose up -d app && ./scripts/standup.sh`.
-   - Done = data came back from zero, timed, with every manual snag logged and fixed. This green-ticks the checklist's "practiced a restore" box.
-
-2. **Harden go-live — DNS preflight + default-secret gate.** *(Roadmap Phase A)*
+1. **Harden go-live — DNS preflight + default-secret gate.** *(Roadmap Phase A)*
    - First move: add a preflight to `scripts/deploy-prod.sh` (or `go-live.py`) that resolves `APP_PUBLIC_HOST` + `KC_PUBLIC_HOST` and checks they point at the server IP **before** cert issuance, and refuses/loudly-warns if a starter-default secret is still in place (reuse `banco-doctor.py`'s default detection).
    - Done = a misconfigured DNS record or an unchanged default secret is caught *before* the box is exposed, not after.
+
+2. **DR restore (Move B) — ⛔ BLOCKED on B2 read creds.** *(Roadmap Phase A · the ownership proof)*
+   - Move A (seed gate) is ✅ **proven at runtime** (2026-07-22) — see Done below. Move B (the real restore) needs a read-only B2 key + bucket + passphrase (Angel deferred this session).
+   - When creds are ready: infra up (`docker compose up -d postgres keycloak minio`) → `restore-from-b2.sh` with creds as **env vars** (never written to `.env`) → row-check prints a real product count → app up → `standup.sh`. Green-ticks the checklist's "practiced a restore" box. See [[catalog-seed-vs-bootstrap]].
 
 ## 🔭 Backlog (not yet scheduled)
 
@@ -26,7 +26,8 @@
 
 ## ✅ Done (most recent first)
 
-- 2026-07-22 — Fixed the `HX_SEED_DEMO` leak: gated the 5 demo-shop domains (sourcing/HR/camper/ISOTTO×2) behind the flag so demo-off boots with a real shop's own data. QA/backlog/compute kept always-on (dev scaffolding, per Angel). Compiles; runtime boot-test still owed. See [[catalog-seed-vs-bootstrap]].
+- 2026-07-22 — **Verified the seed-gate fix on a clean throwaway** (isolated `banco-drill` project, live stack untouched): with `HX_SEED_DEMO=false`, drill DB had products=0, isotto_catalog_products=0, camper_vehicles=0 vs live (demo on) 6/10/4, while `store_settings=1` proved seeders still ran. Runtime proof of `fec8748`.
+- 2026-07-22 — Fixed the `HX_SEED_DEMO` leak: gated the 5 demo-shop domains (sourcing/HR/camper/ISOTTO×2) behind the flag so demo-off boots with a real shop's own data. QA/backlog/compute kept always-on (dev scaffolding, per Angel). See [[catalog-seed-vs-bootstrap]].
 - 2026-07-22 — Wrote `ROADMAP.md`; loaded the deck with the two Phase-A tasks (DR drill, harden go-live).
 - 2026-07-22 — Installed the Ground Control method (CLAUDE.md, memory system, standing rules).
 
