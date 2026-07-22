@@ -64,3 +64,14 @@ a [go-live checklist](onboarding/GO-LIVE-CHECKLIST.md), and a click-through
 
 FastAPI · SQLAlchemy (async, asyncpg) · Postgres 17 · Keycloak 24 (OIDC / RS256) ·
 MinIO (S3-compatible) · Jinja2 + Alpine.js (vendored — no node build).
+
+## License
+
+Apache License 2.0 — see [LICENSE](LICENSE). Run it, modify it, self-host it,
+redistribute it, freely. That's the whole point of "own it": no vendor can pull
+the rug out from under your shop.
+
+The **name** is the one thing reserved: "Banco" and "La Piazza" are trademarks of
+Angelo Kenel (Apache-2.0 §6, see [NOTICE](NOTICE)). Build on the code all you
+like — just don't ship your fork *as* "Banco" without asking. Bundled components
+(Postgres, Keycloak, FastAPI, MinIO, Caddy, …) keep their own licenses.

@@ -1,0 +1,18 @@
+Banco POS
+Copyright 2026 Angelo Kenel
+
+This product is licensed under the Apache License, Version 2.0 (see the
+LICENSE file). It bundles and builds upon third-party open-source software,
+each under its own license, including (non-exhaustive): PostgreSQL, Keycloak
+(Apache-2.0), FastAPI / Starlette (BSD), SQLAlchemy (MIT), MinIO, Caddy,
+Tailwind CSS (MIT), and Alpine.js (MIT). Those components remain under their
+respective licenses.
+
+TRADEMARKS
+"Banco", "Banco POS", and "La Piazza", together with associated names, logos,
+and branding, are trademarks of Angelo Kenel. Per Section 6 of the Apache
+License 2.0, this license grants rights to the SOFTWARE only — it does NOT
+grant permission to use these names, marks, or branding. You may run, modify,
+and redistribute the code freely under Apache-2.0, but a redistributed or
+derivative product may not be named or presented as "Banco" or "La Piazza"
+without separate written permission from Angelo Kenel.
