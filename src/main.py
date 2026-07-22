@@ -103,7 +103,7 @@ async def lifespan(app: FastAPI):
     # settings and login users still seed, so Pam can log in and VAT is correct.
     seed_demo = os.getenv("HX_SEED_DEMO", "true").strip().lower() not in ("false", "0", "no")
     if not seed_demo:
-        logger.warning("🌱 HX_SEED_DEMO=false — skipping catalogue + customer demo seeding (empty sandbox).")
+        logger.warning("🌱 HX_SEED_DEMO=false — skipping demo catalogue, customers, and demo-shop domains (sourcing/HR/camper/ISOTTO). Staff, store settings and login users still seed.")
 
     # --- DB Init ---
     try:
@@ -170,50 +170,55 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning(f"⚠️ Customer seeding encountered an issue: {e}", exc_info=True)
 
-    # --- Seed Sourcing System (Suppliers + Requests for Felix) ---
-    try:
-        logger.info("📦 Seeding sourcing system (suppliers + requests)...")
-        async with get_db_session_context() as db:
-            results = await seed_sourcing_system(db)
-        logger.info(f"✅ Sourcing seeding completed: {results}")
-    except Exception as e:
-        logger.warning(f"⚠️ Sourcing system seeding encountered an issue: {e}", exc_info=True)
+    # --- Demo-shop domains (fictional businesses) — gated behind HX_SEED_DEMO ---
+    # These are whole showcase shops (Felix's sourcing, Artemis HR, Sebastino's
+    # camper tours, ISOTTO Sport). A real shop wants NONE of them — its DB is its
+    # own data. Dev scaffolding (QA/backlog/compute) below stays always-on on purpose.
+    if seed_demo:
+        # --- Seed Sourcing System (Suppliers + Requests for Felix) ---
+        try:
+            logger.info("📦 Seeding sourcing system (suppliers + requests)...")
+            async with get_db_session_context() as db:
+                results = await seed_sourcing_system(db)
+            logger.info(f"✅ Sourcing seeding completed: {results}")
+        except Exception as e:
+            logger.warning(f"⚠️ Sourcing system seeding encountered an issue: {e}", exc_info=True)
 
-    # --- Seed HR Data (Employees + Time Entries) ---
-    try:
-        logger.info("👔 Seeding HR data (employees + time entries)...")
-        async with get_db_session_context() as db:
-            results = await seed_all_hr_data(db)
-        logger.info(f"✅ HR seeding completed: {results}")
-    except Exception as e:
-        logger.warning(f"⚠️ HR seeding encountered an issue: {e}", exc_info=True)
+        # --- Seed HR Data (Employees + Time Entries) ---
+        try:
+            logger.info("👔 Seeding HR data (employees + time entries)...")
+            async with get_db_session_context() as db:
+                results = await seed_all_hr_data(db)
+            logger.info(f"✅ HR seeding completed: {results}")
+        except Exception as e:
+            logger.warning(f"⚠️ HR seeding encountered an issue: {e}", exc_info=True)
 
-    # --- Seed Camper & Tour Data (Sebastino's Shop, Trapani) ---
-    try:
-        logger.info("Seeding Camper & Tour service data...")
-        async with get_db_session_context() as db:
-            await seed_camper_data(db)
-        logger.info("Camper & Tour seeding completed successfully.")
-    except Exception as e:
-        logger.warning(f"Camper & Tour seeding encountered an issue: {e}", exc_info=True)
+        # --- Seed Camper & Tour Data (Sebastino's Shop, Trapani) ---
+        try:
+            logger.info("Seeding Camper & Tour service data...")
+            async with get_db_session_context() as db:
+                await seed_camper_data(db)
+            logger.info("Camper & Tour seeding completed successfully.")
+        except Exception as e:
+            logger.warning(f"Camper & Tour seeding encountered an issue: {e}", exc_info=True)
 
-    # --- Seed ISOTTO Sport Data (Print Shop, Trapani - since 1968) ---
-    try:
-        logger.info("Seeding ISOTTO Sport print shop data...")
-        async with get_db_session_context() as db:
-            await seed_isotto_data(db)
-        logger.info("ISOTTO Sport seeding completed successfully.")
-    except Exception as e:
-        logger.warning(f"ISOTTO Sport seeding encountered an issue: {e}", exc_info=True)
+        # --- Seed ISOTTO Sport Data (Print Shop, Trapani - since 1968) ---
+        try:
+            logger.info("Seeding ISOTTO Sport print shop data...")
+            async with get_db_session_context() as db:
+                await seed_isotto_data(db)
+            logger.info("ISOTTO Sport seeding completed successfully.")
+        except Exception as e:
+            logger.warning(f"ISOTTO Sport seeding encountered an issue: {e}", exc_info=True)
 
-    # --- Seed ISOTTO Catalog Data (Suppliers, Products, Stock) ---
-    try:
-        logger.info("Seeding ISOTTO Sport catalog data...")
-        async with get_db_session_context() as db:
-            await seed_isotto_catalog_data(db)
-        logger.info("ISOTTO Sport catalog seeding completed successfully.")
-    except Exception as e:
-        logger.warning(f"ISOTTO Sport catalog seeding encountered an issue: {e}", exc_info=True)
+        # --- Seed ISOTTO Catalog Data (Suppliers, Products, Stock) ---
+        try:
+            logger.info("Seeding ISOTTO Sport catalog data...")
+            async with get_db_session_context() as db:
+                await seed_isotto_catalog_data(db)
+            logger.info("ISOTTO Sport catalog seeding completed successfully.")
+        except Exception as e:
+            logger.warning(f"ISOTTO Sport catalog seeding encountered an issue: {e}", exc_info=True)
 
     # --- Seed QA Testing Checklist (Anne's 46-item dashboard) ---
     try:

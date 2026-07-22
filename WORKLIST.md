@@ -18,7 +18,6 @@
 
 ## 🔭 Backlog (not yet scheduled)
 
-- **`HX_SEED_DEMO=false` leaks — a real shop's DB isn't actually theirs.** The flag gates only `seed_artemis_products` + `seed_customers` (main.py:145,164); sourcing/HR/camper/ISOTTO/QA/backlog/compute (173–243) seed regardless. Gate every demo-shop domain behind the flag (decide the demo-vs-core split first). *(Phase A/B — see [[catalog-seed-vs-bootstrap]])*
 - **Reframe the catalog workbook as THE bootstrap path.** `catalog_workbook.py` is the real "load your own catalog once" tool but guide 05 buries it under "Way 4 · ask for the import guide." Document it as the initialization step; make the import idempotent (upsert by barcode). *(Phase B)*
 - Verify the firewall actually closed the raw ports (5432/8080/8000) — turn the instruction into a check. *(Phase A)*
 - Assert Keycloak runs in production mode (`start`, not `start-dev`) in `compose.prod.yml`. *(Phase A)*
@@ -27,6 +26,7 @@
 
 ## ✅ Done (most recent first)
 
+- 2026-07-22 — Fixed the `HX_SEED_DEMO` leak: gated the 5 demo-shop domains (sourcing/HR/camper/ISOTTO×2) behind the flag so demo-off boots with a real shop's own data. QA/backlog/compute kept always-on (dev scaffolding, per Angel). Compiles; runtime boot-test still owed. See [[catalog-seed-vs-bootstrap]].
 - 2026-07-22 — Wrote `ROADMAP.md`; loaded the deck with the two Phase-A tasks (DR drill, harden go-live).
 - 2026-07-22 — Installed the Ground Control method (CLAUDE.md, memory system, standing rules).
 
