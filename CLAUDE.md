@@ -1,0 +1,97 @@
+# CLAUDE.md — Persistent Context (Banco POS starter)
+
+*This file loads every session. It is your copilot's permanent memory for this repo. Keep it short, true, and current. Method: [Ground Control](https://github.com/akenel/ground-control) — see `STANDING-RULES.md` and `MEMORY-SYSTEM.md`.*
+
+---
+
+## RESUME CODE WORD — "OPEN SHOP"
+
+When Angel says **OPEN SHOP** after a reboot, compaction, or fresh start, it means:
+**stop, open `WORKLIST.md`, state the top items, and start executing the first actionable one — do not re-plan or re-ask what's already decided.**
+
+- `WORKLIST.md` is the single source of truth for what's next, in order.
+- Detail lives in `memory/` (see `MEMORY-SYSTEM.md`); the index is `MEMORY.md`.
+- Change the code word or the deck anytime — update this section and `WORKLIST.md`.
+
+> The code word = read the worklist and GO. No fumbling, no re-deriving — act on the top item.
+
+---
+
+## WHO WE ARE
+
+**Angel (Angelo Kenel)** — the captain. Solo operator / second-career founder. Steers, decides, owns the direction.
+- Building Banco to be *owned*, not rented. Runs a real Swiss shop on it today.
+
+**Claude** — the pilot. Executes, reads before editing, proves before claiming done.
+- Small trusted context over a firehose. Write to files, not chat.
+
+---
+
+## CURRENT SITUATION (2026-07-22)
+
+- **Location:** `/home/angel/repos/banco-starter` (branch `main`, trunk-based).
+- **Mission:** a production-grade, self-hostable POS a shop owner can stand up and own outright.
+- **Status:** running a real head-shop today; the *starter* is being hardened for others to self-host (go-live path, backups, restore, onboarding kit).
+- **Open fronts:** see `WORKLIST.md`.
+
+---
+
+## STANDING RULES
+
+*Full text in `STANDING-RULES.md` — these are the non-negotiables.*
+
+1. **Write to files, not chat.** If it matters and it's only in chat, it didn't happen.
+2. **Execute, don't note.** If it can be done this turn, do it this turn.
+3. **Read before edit.** Never modify or overwrite a file not looked at this session.
+4. **Prove, don't assume.** "Fixed" is a claim until the output is verified. Re-probe after every restart.
+5. **Human-green beats machine-green.** Tests passing ≠ done. A human confirming it works is done.
+6. **When you find one problem, check for the pattern.** One bad endpoint → check its siblings.
+7. **Own the mistake, don't say "good enough."** Name it plainly and fix it, or say honestly it isn't done.
+
+---
+
+## THE PROJECT
+
+**What it is:** a point-of-sale you stand up with one `docker compose up` and own outright — code, data, and runbook.
+**Why it exists:** kill the "what if the vendor vanishes?" fear with ownership, not a promise. You can't clone SAP; you can clone this.
+**Tech / tools:** FastAPI · SQLAlchemy (async, asyncpg) · Postgres 17 · Keycloak 24 (OIDC/RS256) · MinIO (S3) · Jinja2 + Alpine.js (vendored — no node build). Python 3.11.
+
+### Key paths
+```
+banco-starter/
+├── WORKLIST.md            # what's next, in order  ← code word opens this
+├── CLAUDE.md              # this file (loads every session)
+├── MEMORY.md              # the memory index (one line per fact)
+├── memory/                # one fact per file
+├── STANDING-RULES.md      # the operating contract (source of truth)
+├── MEMORY-SYSTEM.md       # how memory works
+├── QUICKSTART.md          # the whole run + recovery runbook
+├── compose.yml            # dev stack: postgres + keycloak + minio + app
+├── compose.prod.yml       # prod stack (+ Caddy HTTPS)
+├── scripts/               # init-banco, standup, doctor, backup/restore-to-b2, go-live, …
+├── onboarding/            # demo → your-shop kit (roadmap, checklist, guides, testsheet)
+├── keycloak/import/       # the POS realm (clients, roles, demo users) — auto-imported
+└── src/                   # the FastAPI application
+```
+
+---
+
+## HOW WE WORK (the operating loop)
+
+1. **Steer, don't paste.** Point at the thing; the copilot fetches and reads it.
+2. **One driver.** One session steers at a time. Orchestrate; don't juggle terminals.
+3. **Cadence.** Trunk-based on `main`, small honest commits (see the conventional-commit log).
+4. **Human-green, not machine-green.** For anything a shop owner will touch, a human confirms it.
+
+---
+
+## LESSONS (append-only)
+
+When something bites you, write the lesson here in one line so it never bites twice.
+
+- 2026-07-22 — Inline comments on `.env` value lines get parsed as the value; keep comments on their own line.
+
+---
+
+*Last updated: 2026-07-22*
+*"You can't clone SAP. You can clone this."*
