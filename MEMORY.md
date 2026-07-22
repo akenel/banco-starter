@@ -6,3 +6,4 @@
 - [Banco is real production](memory/banco-is-real-production.md) — a live Swiss shop runs on this today; treat data and changes as production.
 - [The name is reserved](memory/name-is-trademark-reserved.md) — code is Apache-2.0, but "Banco"/"La Piazza" are trademarked; don't ship a fork under the name.
 - [Use the Ground Control method](memory/use-ground-control-method.md) — how to operate in this repo: files over chat, code word, memory loop.
+- [No pivot — prove & harden](memory/no-pivot-prove-and-harden.md) — strategic call: direction is settled; the work is proof + hardening. North star + phases in ROADMAP.md.
