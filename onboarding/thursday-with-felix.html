@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thursday with Felix — Shop-Day Card</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --mute:#555; --line:#c9c9c9;
+    --green:#1f8a4c; --greenbg:#e7f6ec;
+    --amber:#b5820f; --amberbg:#fdf3dc;
+    --blue:#1f6fb0; --bluebg:#e6f1fa;
+    --red:#c0392b; --redbg:#fbeaea;
+    --shade:#f4f6f8;
+  }
+  *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  html,body{margin:0}
+  body{font-family:"Helvetica Neue",Arial,sans-serif;color:var(--ink);
+    line-height:1.3;padding:14mm 12mm}
+  header{display:flex;justify-content:space-between;align-items:flex-end;
+    border-bottom:3px solid var(--ink);padding-bottom:7px;margin-bottom:12px}
+  h1{font-size:23pt;margin:0;letter-spacing:.3px}
+  .sub{font-size:11pt;color:var(--mute);margin-top:2px}
+  .badge{font-size:9pt;color:var(--mute);text-align:right;font-family:monospace;line-height:1.5}
+  .lead{font-size:13.5pt;font-weight:700;text-align:center;margin:4px 0 12px;
+    background:var(--shade);border:1px solid var(--line);border-radius:8px;padding:9px 11px}
+  .lead .n{color:var(--red)}
+  .lead .s{display:block;font-size:10.5pt;font-weight:600;color:var(--mute);margin-top:4px}
+  .piles{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;margin-bottom:12px}
+  .pile{border:2px solid;border-radius:10px;padding:11px 12px;display:flex;flex-direction:column}
+  .pile .tag{font-size:9.5pt;font-weight:700;letter-spacing:.05em;text-transform:uppercase}
+  .pile .cond{font-size:11pt;font-weight:700;margin:5px 0 7px;min-height:40px}
+  .pile .do{font-size:10pt;margin-top:auto;padding-top:7px;border-top:1px dashed var(--line)}
+  .pile .do b{font-size:11pt}
+  .p1{border-color:var(--green);background:var(--greenbg)} .p1 .tag{color:var(--green)}
+  .p2{border-color:var(--amber);background:var(--amberbg)} .p2 .tag{color:var(--amber)}
+  .p3{border-color:var(--blue);background:var(--bluebg)} .p3 .tag{color:var(--blue)}
+  .flow{display:flex;gap:6px;align-items:stretch;margin-bottom:12px}
+  .step{flex:1;border:1px solid var(--line);border-radius:8px;padding:8px 9px;background:#fff}
+  .step .k{font-size:8.5pt;font-weight:700;color:var(--mute);letter-spacing:.05em}
+  .step .v{font-size:10pt;font-weight:600;margin-top:2px}
+  .arrow{align-self:center;font-size:15pt;color:var(--mute);font-weight:700}
+  .hygiene{border:2px solid var(--red);background:var(--redbg);border-radius:10px;
+    padding:11px 13px;margin-bottom:12px}
+  .hygiene .h{font-size:12.5pt;font-weight:800;color:var(--red);letter-spacing:.03em}
+  .hygiene p{font-size:10.5pt;margin:5px 0 0}
+  .checks{display:flex;gap:16px;justify-content:center;margin:8px 0 2px;flex-wrap:wrap}
+  .checks span{font-size:11.5pt;font-weight:700}
+  .box{display:inline-block;width:15px;height:15px;border:2px solid var(--red);border-radius:3px;
+    vertical-align:-2px;margin-right:5px}
+  h2{font-size:12.5pt;margin:16px 0 7px;padding-bottom:3px;border-bottom:2px solid var(--ink)}
+  h2 .hint{font-weight:400;font-size:9.5pt;color:var(--mute);letter-spacing:0}
+  table{width:100%;border-collapse:collapse;margin-bottom:6px}
+  th{font-size:8.5pt;text-transform:uppercase;letter-spacing:.05em;color:var(--mute);
+    text-align:left;padding:4px 6px;border-bottom:1.5px solid var(--ink)}
+  td{border-bottom:1px solid var(--line);padding:0 6px;height:30px;font-size:10pt}
+  td.n{color:var(--mute);font-weight:700;width:22px;text-align:center}
+  td.c{text-align:center;width:60px}
+  .cbox{display:inline-block;width:13px;height:13px;border:1.5px solid var(--mute);border-radius:3px}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:2px 0 12px}
+  .card{border:1px solid var(--line);border-radius:8px;padding:9px 11px;background:#fff}
+  .card .t{font-size:11pt;font-weight:700}
+  .card p{font-size:9.5pt;margin:3px 0 0;color:#333}
+  footer{border-top:1.5px solid var(--line);padding-top:8px;font-size:10pt;color:var(--mute);margin-top:6px}
+  footer b{color:var(--ink)}
+  .footrow{display:flex;justify-content:space-between;align-items:center;margin-top:6px}
+  .mark{font-size:8.5pt;color:var(--mute)}
+  @page{size:A4 portrait;margin:0}
+  @media print{ body{padding:12mm 12mm} .pagebreak{page-break-before:always} }
+</style>
+</head>
+<body>
+
+  <header>
+    <div>
+      <h1>🐺 Thursday with Felix</h1>
+      <div class="sub">Not a demo — a shop day. Get him selling; the catalogue finishes itself.</div>
+    </div>
+    <div class="badge">ARTEMIS · customer&nbsp;zero<br>shop-day card · rev&nbsp;1<br>UAT b51 · banco.wolfhold.app</div>
+  </header>
+
+  <div class="lead">Don't demo. Put Felix on the till and get him <span class="n">SELLING</span>.
+    <span class="s">The fun lives in scan → his product → ring → done. The catalogue then fills itself from what actually sells.</span>
+  </div>
+
+  <div class="piles">
+    <div class="pile p1">
+      <div class="tag">👀 Move 1 · Watch, don't talk</div>
+      <div class="cond">Felix drives. You go quiet and watch 15 real sales.</div>
+      <div class="do">Your only job: spot the papercuts (log below). <b>Fix the top 3 before you leave.</b></div>
+    </div>
+    <div class="pile p2">
+      <div class="tag">🎉 Move 2 · Joy first</div>
+      <div class="cond">Start on <b>New Sale</b> — never open The Bench first.</div>
+      <div class="do">Let him feel the scan-and-ring on his own stock. The Bench is the <b>afternoon</b> chat.</div>
+    </div>
+    <div class="pile p3">
+      <div class="tag">🏆 Move 3 · One brag</div>
+      <div class="cond">His 10 top sellers scan first-time, every time.</div>
+      <div class="do">Print proper labels for them (list overleaf). That's the <b>“this just works”</b> he'll repeat to others.</div>
+    </div>
+  </div>
+
+  <div class="flow">
+    <div class="step"><div class="k">HE SELLS</div><div class="v">scan → ring → done</div></div>
+    <div class="arrow">→</div>
+    <div class="step"><div class="k">IT SURFACES</div><div class="v">“Sold &amp; unfinished”</div></div>
+    <div class="arrow">→</div>
+    <div class="step"><div class="k">FINISH WHAT MOVED</div><div class="v">cost · photo · desc</div></div>
+    <div class="arrow">→</div>
+    <div class="step"><div class="k">CATALOGUE FILLS</div><div class="v">ignore the long tail</div></div>
+  </div>
+
+  <div class="hygiene">
+    <div class="h">⚠ THE ONE THING THAT KILLS TRUST IN AN AFTERNOON</div>
+    <p>If the net blips <b>mid-sale</b> even once and he loses a transaction, he's done with it — no feature makes that back.
+       There's no offline outbox yet, so the day-one net is <b>discipline, not code.</b> Confirm all three before he leans on it:</p>
+    <div class="checks">
+      <span><span class="box"></span>UPS on the box</span>
+      <span><span class="box"></span>WIRED LAN (not wifi)</span>
+      <span><span class="box"></span>Paper pad on the counter</span>
+    </div>
+  </div>
+
+  <div class="pagebreak"></div>
+
+  <h2>📝 Papercut log <span class="hint">— the whole point of watching. One line per snag. Fix the 3 that sting most before you go.</span></h2>
+  <table>
+    <thead><tr><th>#</th><th>What he was doing</th><th>The friction (1 tap too many? didn't scan? wrong screen?)</th><th class="c">Fix now?</th></tr></thead>
+    <tbody>
+      <tr><td class="n">1</td><td></td><td></td><td class="c"><span class="cbox"></span></td></tr>
+      <tr><td class="n">2</td><td></td><td></td><td class="c"><span class="cbox"></span></td></tr>
+      <tr><td class="n">3</td><td></td><td></td><td class="c"><span class="cbox"></span></td></tr>
+      <tr><td class="n">4</td><td></td><td></td><td class="c"><span class="cbox"></span></td></tr>
+      <tr><td class="n">5</td><td></td><td></td><td class="c"><span class="cbox"></span></td></tr>
+      <tr><td class="n">6</td><td></td><td></td><td class="c"><span class="cbox"></span></td></tr>
+      <tr><td class="n">7</td><td></td><td></td><td class="c"><span class="cbox"></span></td></tr>
+      <tr><td class="n">8</td><td></td><td></td><td class="c"><span class="cbox"></span></td></tr>
+    </tbody>
+  </table>
+
+  <h2>🏆 Top-10 sellers → make them scan <span class="hint">— ask Felix “what do you sell most?”, print a real label for each, test the scan.</span></h2>
+  <table>
+    <thead><tr><th>#</th><th>Product</th><th>SKU / barcode</th><th class="c">Label printed</th><th class="c">Scans 1st try</th></tr></thead>
+    <tbody>
+      <tr><td class="n">1</td><td></td><td></td><td class="c"><span class="cbox"></span></td><td class="c"><span class="cbox"></span></td></tr>
+      <tr><td class="n">2</td><td></td><td></td><td class="c"><span class="cbox"></span></td><td class="c"><span class="cbox"></span></td></tr>
+      <tr><td class="n">3</td><td></td><td></td><td class="c"><span class="cbox"></span></td><td class="c"><span class="cbox"></span></td></tr>
+      <tr><td class="n">4</td><td></td><td></td><td class="c"><span class="cbox"></span></td><td class="c"><span class="cbox"></span></td></tr>
+      <tr><td class="n">5</td><td></td><td></td><td class="c"><span class="cbox"></span></td><td class="c"><span class="cbox"></span></td></tr>
+      <tr><td class="n">6</td><td></td><td></td><td class="c"><span class="cbox"></span></td><td class="c"><span class="cbox"></span></td></tr>
+      <tr><td class="n">7</td><td></td><td></td><td class="c"><span class="cbox"></span></td><td class="c"><span class="cbox"></span></td></tr>
+      <tr><td class="n">8</td><td></td><td></td><td class="c"><span class="cbox"></span></td><td class="c"><span class="cbox"></span></td></tr>
+      <tr><td class="n">9</td><td></td><td></td><td class="c"><span class="cbox"></span></td><td class="c"><span class="cbox"></span></td></tr>
+      <tr><td class="n">10</td><td></td><td></td><td class="c"><span class="cbox"></span></td><td class="c"><span class="cbox"></span></td></tr>
+    </tbody>
+  </table>
+
+  <div class="two">
+    <div class="card">
+      <div class="t">🗣️ What to actually say</div>
+      <p>“Ring your next few the way you normally would — I'm just going to watch. If anything's annoying, don't be polite, tell me.” Then <b>stop talking.</b> His annoyance is the gold.</p>
+    </div>
+    <div class="card">
+      <div class="t">🍵 The afternoon Bench chat</div>
+      <p>Only after he's felt the selling: “See these? They're the ones you sold today — fill the cost off the delivery slip and they're done. You never touch the other 5,000.”</p>
+    </div>
+  </div>
+
+  <footer>
+    <div><b>The bar isn't “Felix tried it.”</b> It's <b>“Felix reached for it again on Friday — without you in the room.”</b>
+      A reference customer isn't one who has your system; it's one who'd be annoyed if you took it away.</div>
+    <div class="footrow">
+      <span class="mark">One thing done well &gt; ten things shown. Fix the 3 papercuts, land the 10 labels, protect the net. That's the day.</span>
+      <span class="mark">🐺 customer zero → the reference</span>
+    </div>
+  </footer>
+
+</body>
+</html>
