@@ -268,8 +268,9 @@
             font-weight: 800; font-size: 10px; letter-spacing: .08em;
             padding: 1px 6px; border-radius: 5px; color: #fff; line-height: 1.5;
         }
-        .env-pill.env-prd { background: #047857; }   /* production — green */
+        .env-pill.env-prd { background: #047857; }   /* production — green (Artemis is in the green business) */
         .env-pill.env-stg { background: #b45309; }   /* staging — amber */
+        .env-pill.env-uat { background: #0e7490; }   /* UAT / pre-prod — teal */
         .env-pill.env-sbx { background: #a21caf; }   /* sandbox — purple */
         .env-pill.env-lcl { background: #475569; }   /* local — slate */
         .helix-status-bar .sb-build { color: #64748b; font-size: 11px; white-space: nowrap; }
@@ -1192,7 +1193,8 @@
             {% set _e = (app_env | default('')) | lower %}
             {% if 'prod' in _e %}{% set _ec = 'PRD' %}{% set _ecc = 'env-prd' %}
             {% elif 'staging' in _e %}{% set _ec = 'STG' %}{% set _ecc = 'env-stg' %}
-            {% elif 'sandbox' in _e or 'uat' in _e %}{% set _ec = 'SBX' %}{% set _ecc = 'env-sbx' %}
+            {% elif 'uat' in _e %}{% set _ec = 'UAT' %}{% set _ecc = 'env-uat' %}
+            {% elif 'sandbox' in _e %}{% set _ec = 'SBX' %}{% set _ecc = 'env-sbx' %}
             {% elif 'local' in _e or 'dev' in _e %}{% set _ec = 'LCL' %}{% set _ecc = 'env-lcl' %}
             {% else %}{% set _ec = '' %}{% set _ecc = '' %}{% endif %}
             {% if _ec %}<span class="env-pill {{ _ecc }}" title="environment: {{ app_env }}">{{ _ec }}</span>{% endif %}
