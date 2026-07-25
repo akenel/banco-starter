@@ -191,7 +191,7 @@
       <a class="go" href="https://banco.wolfhold.app/pos" target="_blank">🛒 Banco POS (UAT) <span class="arr">↗</span></a>
       <a class="go" href="https://banco.wolfhold.app/pos/audit" target="_blank">🕵️ Audit Cockpit <span class="arr">↗</span></a>
     </div>
-    <div class="creds">Log in as <code>felix</code> + your UAT password. Desktop browser. On login you\u2019ll see an \u201Cinsecure connection\u201D warning \u2014 known, click <b>Continue</b> (see the amber box).</div>
+    <div class="creds">Log in as <code>felix</code> + your UAT password. Desktop browser. </div>
 
     <!-- ===== Tap-to-copy chips (OPTIONAL — delete this whole box if not needed).
          Handy for barcodes/codes/IDs you want to paste instead of type. ===== -->
@@ -206,8 +206,6 @@
     <div class="howto" style="background:#fff6e5;border-color:#f0d9a8;border-left-color:#e0a800">
       <b>\u26a0\ufe0f Already known \u2014 don\u2019t log these as failures.</b>
       <ul style="margin:6px 0 0 18px;padding:0">
-        <li><b>\u201cInsecure connection\u201d warning on login</b> \u2014 the page IS https; it\u2019s a Keycloak hostname
-            config (being fixed). Click <b>Continue</b>.</li>
         <li><b>Most products have no cost</b> \u2014 expected: cost is shop-private, you fill it during capture (only 55 came over).</li>
         <li><b>All barcodes are internal (2000000\u2026)</b> \u2014 real EANs come during capture; the shop labels scan fine.</li>
         <li><b>No margin report yet</b> \u2014 small build after capture.</li>
@@ -263,7 +261,7 @@
   //      `do` = the action, `exp` = the observable result. HTML allowed (e.g. <b>,
   //      <code>, and <span class='chip' data-copy='X'>X</span> for a copyable value). ----
   var CHECKS = [
-    { do:"<b>Open Banco POS</b> and log in as <code>felix</code> + your UAT password. (Insecure-warning \u2192 Continue.)",
+    { do:"<b>Open Banco POS</b> and log in as <code>felix</code> + your UAT password.",
       exp:"Lands on the dashboard, no error." },
 
     { do:"<b>Check the environment badge</b> (top status bar).",
