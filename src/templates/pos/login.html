@@ -13,7 +13,9 @@
   {% set _bg = 'from-emerald-700 via-teal-800 to-slate-900' %}{% set _label = 'PRODUCTION' %}{% set _pill = 'bg-emerald-900 text-emerald-50' %}
 {% elif 'staging' in _env %}
   {% set _bg = 'from-amber-600 via-orange-700 to-rose-900' %}{% set _label = 'STAGING' %}{% set _pill = 'bg-amber-900 text-amber-50' %}
-{% elif 'sandbox' in _env or 'uat' in _env %}
+{% elif 'uat' in _env %}
+  {% set _bg = 'from-cyan-700 via-teal-800 to-slate-900' %}{% set _label = 'UAT' %}{% set _pill = 'bg-cyan-900 text-cyan-50' %}
+{% elif 'sandbox' in _env %}
   {% set _bg = 'from-fuchsia-600 via-purple-700 to-indigo-900' %}{% set _label = 'SANDBOX' %}{% set _pill = 'bg-purple-900 text-purple-50' %}
 {% elif 'local' in _env or 'dev' in _env %}
   {% set _bg = 'from-slate-700 via-gray-800 to-zinc-900' %}{% set _label = 'LOCAL' %}{% set _pill = 'bg-slate-900 text-slate-100' %}
@@ -70,10 +72,11 @@
 
             <div class="mt-6 text-center text-sm text-gray-600">
                 <p data-i18n="login.use_credentials">Use your Artemis Store credentials</p>
-                {# Demo logins are a convenience on the public sandbox/demo ONLY. NEVER on a real
-                   shop — staging + production carry live accounts, so printing working passwords
-                   on the public login page is a credential leak. Env-gate it. #}
-                {% if app_env not in ('staging', 'production') %}
+                {# Demo logins are a convenience on local/sandbox ONLY. NEVER on a real box —
+                   UAT/staging/production carry live accounts, so printing working passwords on
+                   the public login page is a credential leak. ALLOW-LIST (was a deny-list that
+                   missed UAT, leaking felix on the public pre-prod). #}
+                {% if 'local' in _env or 'dev' in _env or 'sandbox' in _env %}
                 <p class="mt-2 text-xs text-gray-500" data-i18n-html="login.demo_credentials">
                     Demo: pam / pam (Cashier)<br>
                     felix / felix (Admin)
