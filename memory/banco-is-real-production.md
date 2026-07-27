@@ -1,10 +1,10 @@
 ---
 name: banco-is-real-production
-description: A live Swiss shop runs on Banco today — treat data and changes as production.
+description: A real Swiss shop is in acceptance testing on Banco — treat its data as production.
 type: project
 ---
 
-Banco is not a toy or a pure demo: a real Swiss head-shop runs on it today (barcode checkout, catalog/inventory, VAT-correct receipts, daily close-out, audit log). This repo (`banco-starter`) is the *same* application, packaged so others can self-host and own it.
+Banco is not a toy or a pure demo: a real Swiss retail shop is in acceptance testing on it (barcode checkout, catalog/inventory, VAT-correct receipts, daily close-out, audit log), with card payments, label printing and the kiosk still to come. It is not live yet — do not describe it as running or in production. This repo (`banco-starter`) is the *same* application, packaged so others can self-host and own it.
 
 **Why:** Mistakes here can touch a running business's data. The whole selling point is ownership + recoverability, so anything that weakens backup/restore/audit is a bigger deal than a missing feature.
 

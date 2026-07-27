@@ -31,7 +31,7 @@ When Angel says **OPEN SHOP** after a reboot, compaction, or fresh start, it mea
 
 - **Location:** `/home/angel/repos/banco-starter` (branch `main`, trunk-based).
 - **Mission:** a production-grade, self-hostable POS a shop owner can stand up and own outright.
-- **Status:** running a real head-shop today; the *starter* is being hardened for others to self-host (go-live path, backups, restore, onboarding kit).
+- **Status:** in acceptance testing with its first Swiss retail shop — not live yet. Card payments (Worldline), label printing and the kiosk are still being wired up. Meanwhile the *starter* is being hardened for others to self-host (go-live path, backups, restore, onboarding kit).
 - **Open fronts:** see `WORKLIST.md`.
 
 ---
