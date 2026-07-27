@@ -3,11 +3,14 @@
 A production-grade point-of-sale you can **stand up yourself and own outright**.
 FastAPI + Postgres + Keycloak, one `docker compose up`.
 
-Banco runs a real Swiss head-shop today: barcode checkout, catalog + inventory,
-supplier sourcing, a guest kiosk, snap-a-photo product creation, VAT-correct
-receipts, daily close-out, and a full **who/when/what audit log** with one-click
-revert. This starter is the same application, packaged so you can run it on your
-own machine and restore your own data from your own backups.
+Banco is in **acceptance testing** with its first Swiss retail shop: barcode
+checkout, catalog + inventory, supplier sourcing, snap-a-photo product creation,
+VAT-correct receipts, daily close-out, and a full **who/when/what audit log** with
+one-click revert. Card payments, label printing and the guest kiosk are still being
+wired up. So: further along than a prototype, not yet a shop you can walk into.
+
+This starter is the same application, packaged so you can run it on your own machine
+and restore your own data from your own backups.
 
 ## Why "own it"?
 
