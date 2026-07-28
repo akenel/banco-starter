@@ -37,8 +37,15 @@
     body{ background:#fff; padding:0; }
     .bar{ display:none; }
     .label{ box-shadow:none; margin:0; }
-    /* the page IS the label — the roll/sticker size, never an A4 sheet */
-    @page{ size:{{ '62mm' if size=='m' else '38mm' }} auto; margin:0; }
+    /* The page IS the label — the roll/sticker size, never an A4 sheet.
+       BOTH lengths are required. `size: 62mm auto` looks reasonable and is
+       INVALID CSS — the spec allows `auto` OR one/two lengths, never a length
+       combined with auto. Browsers drop the whole declaration and silently
+       fall back to A4, so the label renders in the corner of a sheet and the
+       label printer throws the job away. Cost us an evening; keep it concrete.
+       Heights are generous — on continuous tape the surplus is a little wasted
+       roll, whereas too short clips the barcode. */
+    @page{ size:{{ '62mm 55mm' if size=='m' else '38mm 32mm' }}; margin:0; }
   }
 </style></head>
 <body>

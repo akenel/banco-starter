@@ -29,7 +29,11 @@
     body{ background:#fff; padding:0; }
     .bar{ display:none; }
     .lbl{ box-shadow:none; margin:0; break-after:page; page-break-after:always; }
-    @page{ size:{{ '62mm' if size=='m' else '38mm' }} auto; margin:0; }
+    <!-- BOTH lengths required: `size: 62mm auto` is INVALID CSS (the spec allows
+         `auto` OR one/two lengths, never a length plus auto). Browsers drop the
+         declaration and silently fall back to A4, so labels render in the corner
+         of a sheet and the label printer discards the job. Keep it concrete. -->
+    @page{ size:{{ '62mm 55mm' if size=='m' else '38mm 32mm' }}; margin:0; }
   }
 </style></head>
 <body>
