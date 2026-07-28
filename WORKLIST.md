@@ -16,21 +16,15 @@
    - Move A (seed gate) is ✅ **proven at runtime** (2026-07-22) — see Done below. Move B (the real restore) needs a read-only B2 key + bucket + passphrase (Angel deferred this session).
    - When creds are ready: infra up (`docker compose up -d postgres keycloak minio`) → `restore-from-b2.sh` with creds as **env vars** (never written to `.env`) → row-check prints a real product count → app up → `standup.sh`. Green-ticks the checklist's "practiced a restore" box. See [[catalog-seed-vs-bootstrap]].
 
-3. **⛔ Scanned barcode doesn't resolve to the product.** *(shop floor · blocks labelling stock)*
-   - Printing and scanning are **proven** (see Done) — a printed label read back `2000000217963` off the scanner. But Banco then doesn't find the product:
-     - **Catalog search**: the code lands in the box, yet all 24 products still show — the filter never applies. Showing *all* (not zero) suggests the query never reached the server, rather than matching nothing.
-     - **Sale screen**: scanning it didn't add the Curaprox to the cart.
-     - The product record *does* carry `Barcode 2000000217963`, and the repo's lookup looks correct (`_find_product_by_any_barcode` checks primary + alias; search does `barcode ILIKE '%'||:q||'%'`).
-   - Prime suspect: the **scanner's trailing character**. `_clean_barcode` (pos_router.py:272) exists precisely because "scanner guns append or embed invisible" characters — check whether the *catalog search* and *sale scan* paths both scrub, or only the bind path does.
-   - Seen on `banco.wolfhold.app` (remote, build b51) — confirm whether local is the same build before debugging.
-
-4. **Label printer — catalog feed + web page.** *(shop floor)*
+3. **Label printer — catalog feed + web page.** *(shop floor)*
    - **Feed labels from the catalog** — barcode + name + price by product ID, so a shelf label is one command and a re-price is a re-print.
    - **The web label page** (`/pos/products/<id>/label?size=m`). Untested against the roll: print CSS is `@page{ size:62mm auto }` and whether Chrome and CUPS agree on `auto` is unknown. A browser dialog defaulting to A4 is what threw "wrong roll type" mid-session. Then `--kiosk-printing` to lose the dialog.
    - Done = click Label on a product page, a scannable shelf label comes out, no dialog.
 
 ## 🔭 Backlog (not yet scheduled)
 
+- **Debounce the sale-screen product search.** `scan.html:85` fires `searchProducts()` on *every* keystroke with no debounce and no request sequencing, so a scanner burst (13 chars in milliseconds) launches ~13 overlapping searches and whichever lands last wins — including the `q=''` one, which the SQL short-circuits to "return everything" (`pos_router.py:2690`). That's why searching a full barcode in the **Search** tab showed all 24 products instead of one. Not urgent: the **Barcode** tab is the right field for a gun and works correctly. Fix is one attribute, matching the pattern already used at `scan.html:530`: `@input.debounce.300ms="searchProducts()"`. Also saves ~12 wasted API calls per typed word on a till. *(shop floor)*
+- **Two search boxes side by side invite the wrong one.** On the sale screen the 🔍 Search tab (names) and 📊 Barcode tab (scanner) look alike; a barcode typed into Search silently misbehaves. Worth making the gun-shaped one the obvious default, or having Search notice it was handed 13 digits. *(UX)*
 - **Put the label printer on the network.** It's a QL-820NW**B** — Ethernet/Wi-Fi on board. Not needed for Docker (containers already reach `ipp-usb` at `172.17.0.1:60000` — verified), but it removes the USB/`ipp-usb` layer entirely and lets any till on the shop LAN print. *(shop floor)*
 - **Reframe the catalog workbook as THE bootstrap path.** `catalog_workbook.py` is the real "load your own catalog once" tool but guide 05 buries it under "Way 4 · ask for the import guide." Document it as the initialization step; make the import idempotent (upsert by barcode). *(Phase B)*
 - Verify the firewall actually closed the raw ports (5432/8080/8000) — turn the instruction into a check. *(Phase A)*
