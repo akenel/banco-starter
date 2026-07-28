@@ -138,14 +138,59 @@ def run(cmd):
         return 1, str(e)
 
 
+def clear_queues(printer):
+    """Cancel every stuck job and re-enable every queue. The 'unstick me' button.
+
+    Jobs pile up invisibly when they're sent to a queue that can't reach the
+    printer -- classically the temporary `cups-browsed` one, which goes dead
+    with "No destination host name supplied". Nothing prints and nothing
+    obviously complains, so this clears the lot and turns the queues back on.
+    """
+    print(f"{C['b']}Jobs found{C['x']}")
+    pending = run(["lpstat", "-o"])[1]
+    print(pending or "  (none)")
+
+    run(["cancel", "-a", "-x"])
+    for q in ("BancoLabel", printer):
+        run(["cupsenable", q])
+
+    left = run(["lpstat", "-o"])[1]
+    if left:
+        print(f"\n{C['yel']}Still queued:{C['x']}\n{left}")
+        return 1
+    print(f"\n{C['grn']}✅ queues cleared and re-enabled{C['x']}")
+    print(run(["lpstat", "-p"])[1] or "")
+    return 0
+
+
 def show_status(printer):
     """Print what CUPS and the printer itself say — the first thing to check."""
     print(f"{C['b']}Queues{C['x']}")
     print(run(["lpstat", "-v"])[1] or "  (none)")
-    print(f"\n{C['b']}{printer}{C['x']}")
-    print(run(["lpstat", "-p", printer])[1] or "  (not found)")
+
+    print(f"\n{C['b']}All queue states{C['x']}")
+    states = run(["lpstat", "-p"])[1]
+    print(states or "  (none)")
+    if "disabled" in states:
+        print(f"  {C['yel']}^ a disabled queue swallows jobs silently — "
+              f"run with --clear{C['x']}")
+
     print(f"\n{C['b']}Pending jobs{C['x']}")
-    print(run(["lpstat", "-o"])[1] or "  (queue empty)")
+    jobs = run(["lpstat", "-o"])[1]
+    print(jobs or "  (queue empty)")
+    if jobs and printer not in jobs:
+        print(f"  {C['yel']}^ these are queued on a DIFFERENT printer than "
+              f"{printer} — that's why nothing came out{C['x']}")
+
+    # The single most useful fact: is the hardware actually talking to us?
+    print(f"\n{C['b']}Is the printer awake?{C['x']}")
+    rc, out = run(["ipptool", "-tv", "ipp://127.0.0.1:60000/ipp/print",
+                   "/usr/share/cups/ipptool/get-printer-attributes.test"])
+    if rc != 0 or "RECEIVED: 0 bytes" in out:
+        print(f"  {C['red']}✗ no — it is off or asleep.{C['x']}  "
+              "Press the power button; the LCD must be lit.")
+    else:
+        print(f"  {C['grn']}✅ yes — awake and answering{C['x']}")
     # 127.0.0.1, NOT localhost: `localhost` resolves to ::1 first here and
     # ipp-usb listens on IPv4 only, so a browser on `localhost` spins forever.
     print(f"\n{C['dim']}Printer's own web page: http://127.0.0.1:60000/{C['x']}")
@@ -161,6 +206,8 @@ def main():
     ap.add_argument("--out", help="where to write the PNG (default: a temp file)")
     ap.add_argument("--dry-run", action="store_true", help="render the PNG but do not print")
     ap.add_argument("--status", action="store_true", help="show printer status and exit")
+    ap.add_argument("--clear", action="store_true",
+                    help="cancel every stuck job and re-enable the queues, then exit")
     ap.add_argument("--list-media", action="store_true", help="list known label sizes and exit")
     args = ap.parse_args()
 
@@ -169,6 +216,9 @@ def main():
             note = "  <- DK-11201, in the box" if name == DEFAULT_MEDIA else ""
             print(f"  {name:<8} {w}mm x {h}mm{note}")
         return 0
+
+    if args.clear:
+        return clear_queues(args.printer)
 
     if args.status:
         show_status(args.printer)

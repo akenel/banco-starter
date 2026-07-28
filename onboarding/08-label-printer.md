@@ -95,6 +95,7 @@ chopped off. Other things it does:
 
 ```
 python3 scripts/print-label.py --status                      # is the printer OK?
+python3 scripts/print-label.py --clear                       # unstick a jammed queue
 python3 scripts/print-label.py --list-media                  # what label sizes exist
 python3 scripts/print-label.py --dry-run --out /tmp/x.png "Check me"   # render, don't print
 python3 scripts/print-label.py -n 20 "Sale"                  # 20 copies
@@ -148,6 +149,35 @@ printer on the shop network.
 ---
 
 ## Troubleshooting
+
+**Nothing prints and nothing complains. Where did my labels go?**
+
+```
+python3 scripts/print-label.py --status     # where are they stuck?
+python3 scripts/print-label.py --clear      # cancel everything, re-enable
+```
+
+The usual cause: the job went to **`Brother_QL_820NWB_USB`** (the temporary `cups-browsed` queue) instead of
+`BancoLabel`. That queue rots into this state —
+
+```
+printer Brother_QL_820NWB_USB disabled since ... -
+    No destination host name supplied by cups-browsed for printer ..., is cups-browsed running?
+```
+
+— and a **disabled queue accepts jobs and silently swallows them**. They pile up where you aren't looking. Print
+dialogs in GUI apps love picking it because it sounds like the real printer.
+
+**Kill the phantom queue for good.** Deleting it doesn't work — `cups-browsed` recreates it within seconds. You
+have to stop the daemon that makes it. You don't need it: it exists to auto-discover *shared network* printers,
+and `BancoLabel` is a permanent local queue.
+
+```
+sudo systemctl disable --now cups-browsed
+lpadmin -x Brother_QL_820NWB_USB
+```
+
+Then `lpstat -v` should show **only** `BancoLabel`.
 
 **Nothing comes out, job sits in the queue, then the queue goes `stopped`.**
 The printer is off or asleep. This is the #1 cause by a wide margin. Confirm the LCD is lit, then:
