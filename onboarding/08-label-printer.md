@@ -5,87 +5,98 @@ Debian ships everything required. This guide gets a label out of the machine and
 
 Written against the **QL-820NWBc** on Debian 12, wired up 2026-07-28.
 
-> ## ⚠️ STATUS: NOT SOLVED — read before following this guide
+> ## ✅ STATUS: working over the USB cable, verified unattended
 >
-> Neither USB path is shop-ready yet. Both were tried on real hardware on 2026-07-28:
+> Proven 2026-07-28: printer left idle **14 minutes** until `ipp-usb` went stale, then a print with **zero human
+> intervention** — the script spotted the dead session, restarted the daemon, and the label came out. Confirmed
+> by hand, LED green.
 >
-> | Path | Result |
+> **The one flaw, and its fix.** `ipp-usb`'s USB session dies after roughly **6–11 minutes** idle and never
+> re-opens. Jobs then hang forever at "now printing" while the printer sits there lit and `READY` — which looks
+> exactly like a sleeping printer and is not. `print-label.py` now checks before every job and restarts the
+> daemon when needed. Not elegant; it works, and it says what it is doing.
+>
+> **Dead ends — don't re-walk these:**
+>
+> | Tried | Result |
 > |---|---|
-> | **driverless** (`ipp-usb` + `everywhere`) | **Prints** — 5 labels confirmed by hand — but `ipp-usb`'s USB session goes stale after **~6–11 minutes** and every job then hangs until the daemon is restarted. |
-> | **`printer-driver-ptouch`** (direct `usb://`) | **Never printed a single label.** Every job returned *"Wrong roll type — check the print data"* on the printer, for all four `MediaType` × `PageSize` combinations, while the printer itself correctly reported `62mm` continuous. Driver is v1.6 (2021) and lists the QL-820NWB as *recommended*; it does not work on this machine. **Do not re-try without a newer ptouch-driver release.**
+> | `printer-driver-ptouch` 1.6 (direct `usb://`) | **Zero labels.** Every job → *"Wrong roll type — check the print data"*, across all four `MediaType` × `PageSize` combinations. Lists the QL-820NWB as *recommended*; does not drive it. |
+> | `brother_ql` 0.9.4 (raw raster via pyusb) | Same rejection. |
+> | `brother_ql_next` 0.12.0 (raw raster) | Same rejection. |
 >
-> **The fix is to put the printer on the network** (see [If you'd rather use the network](#if-youd-rather-use-the-network)). The
-> driverless printing that works stays exactly the same — CUPS just talks IPP straight to the printer, and
-> `ipp-usb`, the only broken part, leaves the chain. **Untested as of this writing.**
+> Every **raw-raster** path was rejected; only the printer's own **IPP** service accepts jobs. Why is not
+> understood. It is *not* the media settings — the printer's own status bytes over raw USB (`ESC i S`) report
+> `62mm`, type `0x0a` continuous, no error bits: exactly what every rejected job declared.
 >
-> Steps A/B below still describe the ptouch setup. Skip them; use the driverless queue in the network section.
-
-The intended shop setup is a **till cabled straight to the labeler** — no network in the path. That remains the
-goal; it just needs a USB path that stays up.
+> Also chased and found innocent: **Auto Power Off** (a blanked LCD is burn-in protection, not standby) and the
+> roll type.
 
 ---
 
 ## What's actually happening
 
 ```
-your script  ->  lp  ->  CUPS  ->  usb:// backend  ->  USB cable  ->  printer
-                              (printer-driver-ptouch)
+your script  ->  lp  ->  CUPS  ->  ipp-usb  ->  USB cable  ->  printer
+                          (everywhere driver)
 ```
 
-Four parts, all packaged by Debian. `printer-driver-ptouch` is an open-source CUPS driver that lists the
-QL-820NWB explicitly and marks it *recommended*.
-
-> **Why not the "driverless" path?** Debian also has `ipp-usb`, which re-presents a USB printer as a network
-> printer so CUPS can use its generic `everywhere` driver. It looks elegant and it *mostly* works — but its USB
-> session goes stale after a few minutes and never recovers, hanging every print job. We chased that for an
-> evening. See [The ipp-usb trap](#the-ipp-usb-trap). The ptouch driver has none of that, prints in ~4 s, and
-> gives better controls (print density, auto-cut, continuous-tape lengths).
+All standard parts, all packaged by Debian — nothing proprietary. `ipp-usb` re-presents the USB printer as a
+network printer on `localhost:60000`, and CUPS drives it with its built-in `everywhere` driver at 300 dpi.
 
 ---
 
 ## Setup
 
-### Step A · Install the driver and get `ipp-usb` out of the way
+### Step A · Install and make it self-healing
 
 ```bash
-sudo apt install -y printer-driver-ptouch
-
-# stop ipp-usb grabbing the printer, so CUPS's own usb:// backend can have it
-sudo cp scripts/ipp-usb-quirks/Brother.conf /usr/share/ipp-usb/quirks/
-sudo systemctl restart ipp-usb
-
-# stop cups-browsed inventing phantom queues (see troubleshooting)
+# stop cups-browsed inventing phantom queues (see troubleshooting — this one bites)
 sudo systemctl disable --now cups-browsed
+
+# let the till restart ipp-usb without a password, so it can heal itself mid-shift
+sudo cp scripts/sudoers/banco-label-printer /etc/sudoers.d/banco-label-printer
+sudo chmod 0440 /etc/sudoers.d/banco-label-printer
+sudo visudo -c          # must print "parsed OK"
 ```
 
-Check the printer is now visible to CUPS directly:
+The sudoers rule grants **exactly two commands** — `systemctl restart ipp-usb` and `systemctl kill ipp-usb` — no
+wildcards, no shell. Edit the username in it if the till user isn't `angel`.
+
+> Without this rule the script still prints; it just can't recover a stale `ipp-usb` on its own, and someone has
+> to type a root password at the counter. That's not a thing that can happen with a customer waiting.
+
+Check the printer is answering. Switch it on and wait for the **LCD to light**, then:
 
 ```
-lpinfo -v | grep -i usb
-#  -> direct usb://Brother/QL-820NWB?serial=000C6G972376
+ipptool -tv ipp://localhost:60000/ipp/print \
+  /usr/share/cups/ipptool/get-printer-attributes.test | grep -E "printer-state \(|make-and-model"
 ```
+
+| What you see | Meaning |
+|---|---|
+| `printer-state (enum) = idle` + a model name | ✅ relaying properly |
+| `RECEIVED: 0 bytes in response` | ❌ stale session — `sudo systemctl restart ipp-usb` |
 
 > ⚠️ `lsusb` shows this printer **even when it is switched off** — it keeps its USB chip alive on bus power. So
 > "it appears in `lsusb`" does *not* mean it's on. Confirm the **LCD is lit**.
 
 ### Step B · Create the queue
 
-Use *your* serial from the `lpinfo -v` line above.
+`cups-browsed` auto-creates a queue, but it's **temporary and vanishes**, and it rots into a disabled state that
+silently swallows jobs. Step A disabled that daemon. Make your own permanent queue:
 
 ```bash
-lpadmin -p BancoLabel -E \
-  -v "usb://Brother/QL-820NWB?serial=000C6G972376" \
-  -m "ptouch:0/ppd/ptouch-driver/Brother-QL-820NWB-ptouch-ql.ppd" \
-  -D "Banco label printer (QL-820NWBc, direct USB)"
+lpadmin -p BancoLabel -E -v "ipp://localhost:60000/ipp/print" -m everywhere \
+  -D "Banco label printer (QL-820NWBc)" -L "Shop counter"
 
-lpadmin -p BancoLabel -o PageSize=62mm -o MediaType=Tape -o AutoCut=True -o PrintQuality=High
+lpadmin -p BancoLabel -o CutMedia=EndOfPage
 lpadmin -d BancoLabel
 ```
 
 No `sudo` needed if you're in the `lpadmin` group (`id | grep lpadmin`). Verify:
 
 ```
-lpstat -v      # -> device for BancoLabel: usb://Brother/QL-820NWB?serial=...
+lpstat -v      # -> device for BancoLabel: ipp://localhost:60000/ipp/print
 ```
 
 The name `BancoLabel` is what the scripts use. Keep it.
@@ -137,7 +148,7 @@ No room for text and a barcode on 62x12mm.  Try a longer --length.
 Or bypass the script — any PNG or PDF works:
 
 ```
-lp -d BancoLabel -o PageSize=62mm -o MediaType=Tape yourlabel.png
+lp -d BancoLabel -o media=Custom.62x60mm -o CutMedia=EndOfPage yourlabel.png
 ```
 
 ---
@@ -163,7 +174,7 @@ price sticker.
 
 The printer auto-detects the roll type from a sensor on the spool — no menu setting when you swap.
 
-Everything prints at **300 dpi** (or `300x600dpi`), monochrome. Red/black (DK-22251) is not wired up.
+Everything prints at **300 dpi**, monochrome. Red/black (DK-22251) is not wired up.
 
 ---
 
@@ -234,8 +245,15 @@ looks exactly like standby and will send you down the wrong path for an hour.
 
 ### Timing
 
-On the ptouch/direct-USB path a label takes **~3–4 s**, consistently. If you're seeing 25–60 s, you're still on
-`ipp-usb` — that path re-calibrates on every wake.
+Measured on this machine:
+
+| | Time |
+|---|---|
+| First job after `ipp-usb` restarts, or after a long idle | ~25–55 s (roll calibration) |
+| Jobs after that | ~4 s |
+
+A slow first label is **not** a stuck queue. Give it a full minute before you believe it's wedged — we cancelled
+several perfectly good jobs at 10 seconds and went hunting for bugs that weren't there.
 
 ### Job stuck, queue goes `stopped`
 

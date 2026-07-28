@@ -16,10 +16,12 @@
    - Move A (seed gate) is ✅ **proven at runtime** (2026-07-22) — see Done below. Move B (the real restore) needs a read-only B2 key + bucket + passphrase (Angel deferred this session).
    - When creds are ready: infra up (`docker compose up -d postgres keycloak minio`) → `restore-from-b2.sh` with creds as **env vars** (never written to `.env`) → row-check prints a real product count → app up → `standup.sh`. Green-ticks the checklist's "practiced a restore" box. See [[catalog-seed-vs-bootstrap]].
 
-3. **Label printer — add barcodes.** *(shop floor)*
-   - The printer is online and proven (see Done); Auto Power Off is now **Off**. What's missing is the thing that makes a label a *shelf* label: **Code128/EAN barcodes** in `scripts/print-label.py`. Text-only isn't enough — a price label the scanner can't read is decoration.
-   - Feed it from the catalog (barcode + name + price) so a shelf label is one command per product, and a re-price is a re-print.
-   - Done = a printed label that Banco's own scanner reads back to the right product.
+3. **Label printer — scan-verify, then wire it to the catalog and the web page.** *(shop floor)*
+   - Printing and barcode rendering are done (see Done). Three things left, in order:
+     **(a) Scan a printed barcode with the shop's own scanner.** Rendering ≠ scanning. Until a label reads back as the right product, treat the barcodes as untested.
+     **(b) Feed it from the catalog** — barcode + name + price by product ID, so a shelf label is one command and a re-price is a re-print.
+     **(c) The web label page** (`/pos/products/<id>/label?size=m`). Untested against the roll: its print CSS is `@page{ size:62mm auto }`, and whether Chrome and CUPS agree on `auto` is unknown. A browser dialog defaulting to A4 is what threw "wrong roll type" mid-session. Then `--kiosk-printing` to lose the dialog.
+   - Done = click Label on a product page, a scannable shelf label comes out, no dialog.
 
 ## 🔭 Backlog (not yet scheduled)
 
@@ -32,7 +34,7 @@
 
 ## ✅ Done (most recent first)
 
-- 2026-07-28 — **Dropped `ipp-usb` for the real driver — printing is now fast and stable.** `printer-driver-ptouch` (Debian, open source, QL-820NWB listed *recommended*) + CUPS's own `usb://` backend, with `ipp-usb` blacklisted and `cups-browsed` disabled. **~3–4 s a label, consistently**, vs 25–60 s and constant hangs before. Also killed the phantom `Brother_QL_820NWB_USB` queue that had been silently swallowing jobs all evening. Running DK-44205 (62 mm continuous, removable). Matches the shop topology: till cabled straight to the labeler, no network in the path.
+- 2026-07-28 — **Label printer is shop-ready over the USB cable — proven unattended.** Soak test: printer left idle 14 min until `ipp-usb` went stale, then a print with **zero human intervention** — the script caught the dead session, restarted the daemon passwordlessly, label came out, LED green. That's the difference between a demo and something that can sit on a counter. Also: `cups-browsed` disabled (its phantom queue had been silently swallowing jobs all evening), DK-44205 62 mm continuous, and **barcodes** (EAN-13/Code128) now render on printed labels. Three dead ends documented so nobody re-walks them: `printer-driver-ptouch` and both `brother_ql` versions produced **zero** labels — every raw-raster path is rejected by this printer, only its own IPP service accepts jobs.
 - 2026-07-28 — **Brother QL-820NWBc label printer online — human-green.** Angel read three physical labels back off the roll ("label printer online", "Espresso Beans 250g / CHF 12.50", "SECOND TEST"). No Brother software needed: Debian's `ipp-usb` + CUPS `everywhere` driver drive it at 300 dpi over USB. Created the permanent `BancoLabel` queue (the auto-created `cups-browsed` one is temporary and *vanished* mid-session), set Auto Power Off = Off on the device, wrote `scripts/print-label.py` and `onboarding/08-label-printer.md`. Media confirmed by the device itself: DK-11201, 29×90 mm. Timing: first job after wake ~25–30 s, then ~4 s.
 - 2026-07-22 — **Verified the seed-gate fix on a clean throwaway** (isolated `banco-drill` project, live stack untouched): with `HX_SEED_DEMO=false`, drill DB had products=0, isotto_catalog_products=0, camper_vehicles=0 vs live (demo on) 6/10/4, while `store_settings=1` proved seeders still ran. Runtime proof of `fec8748`.
 - 2026-07-22 — Fixed the `HX_SEED_DEMO` leak: gated the 5 demo-shop domains (sourcing/HR/camper/ISOTTO×2) behind the flag so demo-off boots with a real shop's own data. QA/backlog/compute kept always-on (dev scaffolding, per Angel). See [[catalog-seed-vs-bootstrap]].
