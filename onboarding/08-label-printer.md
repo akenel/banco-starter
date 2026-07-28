@@ -3,8 +3,25 @@
 **You do not need anything from Brother's website.** No driver download, no CD, no `linux-brprinter-installer`.
 Debian ships everything required. This guide gets a label out of the machine and makes it survive a reboot.
 
-Written against the **QL-820NWBc** on Debian 12, wired up 2026-07-28. Setup used in the shop: **till cabled
-straight to the labeler over USB** — no network in the path.
+Written against the **QL-820NWBc** on Debian 12, wired up 2026-07-28.
+
+> ## ⚠️ STATUS: NOT SOLVED — read before following this guide
+>
+> Neither USB path is shop-ready yet. Both were tried on real hardware on 2026-07-28:
+>
+> | Path | Result |
+> |---|---|
+> | **driverless** (`ipp-usb` + `everywhere`) | **Prints** — 5 labels confirmed by hand — but `ipp-usb`'s USB session goes stale after **~6–11 minutes** and every job then hangs until the daemon is restarted. |
+> | **`printer-driver-ptouch`** (direct `usb://`) | **Never printed a single label.** Every job returned *"Wrong roll type — check the print data"* on the printer, for all four `MediaType` × `PageSize` combinations, while the printer itself correctly reported `62mm` continuous. Driver is v1.6 (2021) and lists the QL-820NWB as *recommended*; it does not work on this machine. **Do not re-try without a newer ptouch-driver release.**
+>
+> **The fix is to put the printer on the network** (see [If you'd rather use the network](#if-youd-rather-use-the-network)). The
+> driverless printing that works stays exactly the same — CUPS just talks IPP straight to the printer, and
+> `ipp-usb`, the only broken part, leaves the chain. **Untested as of this writing.**
+>
+> Steps A/B below still describe the ptouch setup. Skip them; use the driverless queue in the network section.
+
+The intended shop setup is a **till cabled straight to the labeler** — no network in the path. That remains the
+goal; it just needs a USB path that stays up.
 
 ---
 

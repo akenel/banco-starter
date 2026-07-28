@@ -35,18 +35,22 @@ DEFAULT_PRINTER = "BancoLabel"
 DPI = 300                      # the QL-820NWB's native resolution
 MARGIN_MM = 2.5                # keep ink off the die-cut edge
 
-# DK rolls, as the ptouch driver names them. `lpoptions -p BancoLabel -l`
-# prints this same list. A length of None means CONTINUOUS tape: you choose
-# how long each label is (--length), rather than the die deciding for you.
+# DK rolls. A length of None means CONTINUOUS tape: you choose how long each
+# label is (--length) rather than the die deciding. Die-cut names here match
+# the driverless PPD exactly — see `lpoptions -p BancoLabel -l`; continuous
+# widths are sent as Custom.WIDTHxLENGTHmm, which that PPD also accepts.
 MEDIA = {
-    # continuous tape — length is yours to pick
+    # continuous — length is yours to pick
     "12": (12, None), "29": (29, None), "38": (38, None),
     "50": (50, None), "54": (54, None),
-    "62": (62, None),           # DK-44205 / DK-22205 — the shop roll
+    "62": (62, None),           # DK-22205 / DK-44205 — the shop roll
     # die-cut — length fixed by the die
-    "17x54": (17, 54), "17x87": (17, 87), "23x23": (23, 23),
+    "12x12": (12, 12), "17x54": (17, 54), "17x87": (17, 87),
+    "23x23": (23, 23), "24x24": (24, 24), "29x42": (29, 42),
+    "29x52": (29, 52), "29x54": (29, 54), "29x62": (29, 62),
     "29x90": (29, 90),          # DK-11201 address label — ships in the box
-    "38x90": (38, 90), "62x29": (62, 29), "62x100": (62, 100),
+    "38x90": (38, 90), "39x48": (39, 48), "58x58": (58, 58),
+    "60x86": (60, 86), "62x100": (62, 100),
 }
 DEFAULT_MEDIA = "62"            # the 62mm continuous roll the shop runs
 DEFAULT_LENGTH_MM = 60          # label length on continuous tape
@@ -269,12 +273,30 @@ def main():
     if not shutil.which("lp"):
         sys.exit(f"{C['red']}`lp` not found — CUPS isn't installed.{C['x']}  apt install cups-client")
 
-    # PageSize/MediaType are the ptouch driver's names (printer-driver-ptouch,
-    # direct usb:// backend). The old driverless path used media=/CutMedia=;
-    # we left it behind because ipp-usb's session kept going stale.
-    rc, msg = run(["lp", "-d", args.printer, "-n", str(args.copies),
-                   "-o", f"PageSize={args.media}mm", "-o", "MediaType=Tape",
-                   "-o", "AutoCut=True", out])
+    # The option names differ per driver, so pick them from the queue's URI.
+    #
+    #   ipp://…        CUPS driverless ("everywhere") via ipp-usb  -> media=
+    #   usb://…        printer-driver-ptouch, direct USB           -> PageSize=
+    #
+    # We run the driverless path. printer-driver-ptouch 1.6 lists the
+    # QL-820NWB as "recommended" but never printed a single label on it —
+    # every job came back "Wrong roll type / check the print data" for all
+    # four MediaType x PageSize combinations, while the printer itself
+    # reported the roll correctly. Old driver, newer printer. Don't re-try it
+    # without a newer ptouch-driver release.
+    # Continuous rolls have no PPD name of their own — ask for a custom size
+    # of the roll's width by the length we chose.
+    continuous = MEDIA[args.media][1] is None
+    size = f"Custom.{w_mm}x{h_mm}mm" if continuous else f"{args.media}mm"
+
+    uri = run(["lpstat", "-v", args.printer])[1]
+    if "usb://" in uri:
+        opts = ["-o", f"PageSize={size}", "-o", "MediaType=Labels",
+                "-o", "AutoCut=True"]
+    else:
+        opts = ["-o", f"media={size}", "-o", "CutMedia=EndOfPage"]
+
+    rc, msg = run(["lp", "-d", args.printer, "-n", str(args.copies)] + opts + [out])
     if rc != 0:
         print(f"{C['red']}✗ could not queue the job{C['x']}\n{msg}", file=sys.stderr)
         print(f"\n{C['dim']}Try: python3 scripts/print-label.py --status{C['x']}", file=sys.stderr)
