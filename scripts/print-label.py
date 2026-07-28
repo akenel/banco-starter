@@ -35,17 +35,21 @@ DEFAULT_PRINTER = "BancoLabel"
 DPI = 300                      # the QL-820NWB's native resolution
 MARGIN_MM = 2.5                # keep ink off the die-cut edge
 
-# Die-cut DK rolls the QL-820NWB advertises, as width x length in mm.
-# `lpoptions -p BancoLabel -l` prints this same list from the printer itself.
+# DK rolls, as the ptouch driver names them. `lpoptions -p BancoLabel -l`
+# prints this same list. A length of None means CONTINUOUS tape: you choose
+# how long each label is (--length), rather than the die deciding for you.
 MEDIA = {
-    "12x12": (12, 12), "17x54": (17, 54), "17x87": (17, 87),
-    "23x23": (23, 23), "24x24": (24, 24), "29x42": (29, 42),
-    "29x52": (29, 52), "29x54": (29, 54), "29x62": (29, 62),
+    # continuous tape — length is yours to pick
+    "12": (12, None), "29": (29, None), "38": (38, None),
+    "50": (50, None), "54": (54, None),
+    "62": (62, None),           # DK-44205 / DK-22205 — the shop roll
+    # die-cut — length fixed by the die
+    "17x54": (17, 54), "17x87": (17, 87), "23x23": (23, 23),
     "29x90": (29, 90),          # DK-11201 address label — ships in the box
-    "38x90": (38, 90), "39x48": (39, 48), "58x58": (58, 58),
-    "60x86": (60, 86), "62x100": (62, 100),
+    "38x90": (38, 90), "62x29": (62, 29), "62x100": (62, 100),
 }
-DEFAULT_MEDIA = "29x90"
+DEFAULT_MEDIA = "62"            # the 62mm continuous roll the shop runs
+DEFAULT_LENGTH_MM = 60          # label length on continuous tape
 
 FONT_DIR = "/usr/share/fonts/truetype/dejavu"
 FONT_BOLD = os.path.join(FONT_DIR, "DejaVuSans-Bold.ttf")
@@ -182,18 +186,32 @@ def show_status(printer):
         print(f"  {C['yel']}^ these are queued on a DIFFERENT printer than "
               f"{printer} — that's why nothing came out{C['x']}")
 
-    # The single most useful fact: is the hardware actually talking to us?
-    print(f"\n{C['b']}Is the printer awake?{C['x']}")
-    rc, out = run(["ipptool", "-tv", "ipp://127.0.0.1:60000/ipp/print",
-                   "/usr/share/cups/ipptool/get-printer-attributes.test"])
-    if rc != 0 or "RECEIVED: 0 bytes" in out:
-        print(f"  {C['red']}✗ no — it is off or asleep.{C['x']}  "
-              "Press the power button; the LCD must be lit.")
+    # How we check the hardware depends on which path this queue takes.
+    uri = run(["lpstat", "-v", printer])[1]
+    print(f"\n{C['b']}Is the printer there?{C['x']}")
+
+    if "usb://" in uri:
+        # Direct USB (printer-driver-ptouch). CUPS lists the device only while
+        # the printer is attached and powered, so that listing IS the check.
+        if "usb://" in run(["lpinfo", "-v"])[1]:
+            print(f"  {C['grn']}✅ yes — on USB and visible to CUPS{C['x']}")
+        else:
+            print(f"  {C['red']}✗ not visible to CUPS.{C['x']}  "
+                  "Check the cable, and that the LCD is lit.")
+        print(f"\n{C['dim']}Direct USB path — no ipp-usb, so no web page "
+              f"at localhost:60000.{C['x']}")
     else:
-        print(f"  {C['grn']}✅ yes — awake and answering{C['x']}")
-    # 127.0.0.1, NOT localhost: `localhost` resolves to ::1 first here and
-    # ipp-usb listens on IPv4 only, so a browser on `localhost` spins forever.
-    print(f"\n{C['dim']}Printer's own web page: http://127.0.0.1:60000/{C['x']}")
+        # Legacy ipp-usb path. A dead answer here is almost always a stale
+        # daemon session, not a sleeping printer — say so, it saves hours.
+        rc, out = run(["ipptool", "-tv", "ipp://127.0.0.1:60000/ipp/print",
+                       "/usr/share/cups/ipptool/get-printer-attributes.test"])
+        if rc != 0 or "RECEIVED: 0 bytes" in out:
+            print(f"  {C['red']}✗ ipp-usb is not answering.{C['x']}  "
+                  "Usually a stale session, NOT a sleeping printer:\n"
+                  "    sudo systemctl restart ipp-usb")
+        else:
+            print(f"  {C['grn']}✅ yes — awake and answering{C['x']}")
+        print(f"\n{C['dim']}Printer's own web page: http://127.0.0.1:60000/{C['x']}")
 
 
 def main():
@@ -201,7 +219,9 @@ def main():
         description="Print a text label on a Brother QL series label printer.")
     ap.add_argument("lines", nargs="*", help="lines of text; the first is the headline")
     ap.add_argument("-p", "--printer", default=DEFAULT_PRINTER, help=f"CUPS queue (default: {DEFAULT_PRINTER})")
-    ap.add_argument("-m", "--media", default=DEFAULT_MEDIA, help=f"label size (default: {DEFAULT_MEDIA})")
+    ap.add_argument("-m", "--media", default=DEFAULT_MEDIA, help=f"roll size (default: {DEFAULT_MEDIA})")
+    ap.add_argument("-l", "--length", type=int, default=DEFAULT_LENGTH_MM,
+                    help=f"label length in mm on continuous tape (default: {DEFAULT_LENGTH_MM})")
     ap.add_argument("-n", "--copies", type=int, default=1, help="how many labels")
     ap.add_argument("--out", help="where to write the PNG (default: a temp file)")
     ap.add_argument("--dry-run", action="store_true", help="render the PNG but do not print")
@@ -213,8 +233,11 @@ def main():
 
     if args.list_media:
         for name, (w, h) in MEDIA.items():
-            note = "  <- DK-11201, in the box" if name == DEFAULT_MEDIA else ""
-            print(f"  {name:<8} {w}mm x {h}mm{note}")
+            if h is None:
+                note = "  <- the shop roll (DK-44205)" if name == DEFAULT_MEDIA else ""
+                print(f"  {name:<8} {w}mm continuous — length via --length{note}")
+            else:
+                print(f"  {name:<8} {w}mm x {h}mm die-cut")
         return 0
 
     if args.clear:
@@ -231,6 +254,8 @@ def main():
         sys.exit(f"{C['red']}Unknown media {args.media!r}.{C['x']}  "
                  f"Try: {', '.join(MEDIA)}")
     w_mm, h_mm = MEDIA[args.media]
+    if h_mm is None:                     # continuous tape — we pick the length
+        h_mm = args.length
 
     out = args.out or os.path.join(tempfile.mkdtemp(prefix="banco-label-"), "label.png")
     size = render(args.lines, w_mm, h_mm, out)
@@ -244,8 +269,12 @@ def main():
     if not shutil.which("lp"):
         sys.exit(f"{C['red']}`lp` not found — CUPS isn't installed.{C['x']}  apt install cups-client")
 
+    # PageSize/MediaType are the ptouch driver's names (printer-driver-ptouch,
+    # direct usb:// backend). The old driverless path used media=/CutMedia=;
+    # we left it behind because ipp-usb's session kept going stale.
     rc, msg = run(["lp", "-d", args.printer, "-n", str(args.copies),
-                   "-o", f"media={args.media}mm", "-o", "CutMedia=EndOfPage", out])
+                   "-o", f"PageSize={args.media}mm", "-o", "MediaType=Tape",
+                   "-o", "AutoCut=True", out])
     if rc != 0:
         print(f"{C['red']}✗ could not queue the job{C['x']}\n{msg}", file=sys.stderr)
         print(f"\n{C['dim']}Try: python3 scripts/print-label.py --status{C['x']}", file=sys.stderr)
