@@ -108,6 +108,32 @@ python3 scripts/print-label.py -l 40 "Short one"           # 40mm long on contin
 python3 scripts/print-label.py -m 29x90 "Die-cut"          # a different roll
 ```
 
+### Shelf labels with a barcode
+
+```bash
+python3 scripts/print-label.py -c 2000000217963 "Curaprox Zahnpasta CBD" "CHF 14.90" "TAM-21796"
+```
+
+`-c` / `--barcode` picks the symbology from the code itself:
+
+| Code | Symbology |
+|---|---|
+| 13 digits | **EAN-13** (check digit verified) |
+| 12 digits | **EAN-13** (check digit computed for you) |
+| anything else | **Code128** — internal SKUs like `TAM-21796` |
+
+The barcode gets reserved space *before* the text is laid out, so shrinking text can never encroach on it — an
+unscannable barcode defeats the point of the label. It's capped at half the label height, and the spec's quiet
+zone is preserved. If there genuinely isn't room, the script refuses rather than printing something that won't
+scan:
+
+```
+No room for text and a barcode on 62x12mm.  Try a longer --length.
+```
+
+> **62 mm matters here.** An EAN-13 needs roughly 31 mm at 80% magnification before scanners start to struggle.
+> On a 29 mm roll you cannot print a reliable EAN-13 across the width — which is why the shop roll is 62 mm.
+
 Or bypass the script — any PNG or PDF works:
 
 ```
@@ -239,8 +265,9 @@ lpadmin -p BancoLabel -E -v "ipp://192.168.x.240/ipp/print" -m everywhere
 
 ## Known gaps
 
-- **`scripts/print-label.py` prints text only.** Barcodes aren't in it yet. The *web* label page
-  (`/pos/products/<id>/label`) already renders a scannable EAN-13, so the gap is in the CLI tool.
+- **Barcodes are rendered but not yet scanner-verified.** `-c` produces EAN-13/Code128 via `python-barcode`,
+  and they look right — but nothing has been scanned back with the shop's own scanner. Until that happens,
+  treat them as untested.
 - **The web label page hasn't been proven against the roll.** Its print CSS is `@page{ size:62mm auto }`, which
   should match the DK-44205, but whether Chrome and CUPS agree on `auto` is untested.
 - **A remote Banco cannot print here.** `banco.wolfhold.app` runs on another machine, and no server on the

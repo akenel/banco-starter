@@ -67,6 +67,13 @@ Pillow
 #   This ALWAYS works (deterministic), unlike AI identification which only guesses.
 opencv-python-headless
 
+# --- Shelf labels (scripts/print-label.py, Brother QL-820NWBc) ---
+# python-barcode: EAN-13 / Code128 for the label printer. A hand-rolled encoder is
+#   ~200 lines of lookup tables you cannot eyeball for correctness — and a subtly
+#   wrong barcode LOOKS fine and simply won't scan at the till. Use the tested one.
+#   Renders straight to a PIL image via its ImageWriter, so no extra deps beyond Pillow.
+python-barcode
+
 # --- Migration workbench (BL-131): the XLSX worklist export ---
 # openpyxl: builds the multi-tab .xlsx an operator fills at the shelf (dropdowns bound to the
 #   canonical categories, per-row Google lookup links, live progress formulas). Formulas + data

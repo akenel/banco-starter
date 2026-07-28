@@ -79,6 +79,49 @@ def font(path, size):
         return ImageFont.load_default()
 
 
+def make_barcode(code, target_w_px, max_h_px):
+    """Render `code` as a barcode, at most target_w_px wide and max_h_px tall.
+
+    EAN-13 for 12/13 digits (the check digit is computed or verified for you),
+    Code128 for anything else — that covers internal SKUs like TAM-21796.
+
+    Kept deliberately wide: an EAN-13 needs roughly 31mm at 80% magnification
+    before scanners start struggling, so on a 62mm roll we spend the width we
+    have rather than shrinking it to look tidy.
+    """
+    try:
+        import barcode
+        from barcode.writer import ImageWriter
+    except ImportError:
+        sys.exit(f"{C['red']}python-barcode is missing.{C['x']}  "
+                 "pip install --user python-barcode")
+
+    digits = code.isdigit()
+    kind = "ean13" if digits and len(code) in (12, 13) else "code128"
+    if kind == "ean13" and len(code) == 13:
+        code = code[:12]          # the library recomputes the check digit
+
+    try:
+        bc = barcode.get(kind, code, writer=ImageWriter())
+        # text_distance must clear module_height or the digits print ON the
+        # bars and the scanner reads mush. quiet_zone is the blank margin the
+        # spec requires either side — don't trim it to make the label prettier.
+        img = bc.render({"module_height": 15.0, "font_size": 10,
+                         "text_distance": 5.0, "quiet_zone": 3.0})
+    except Exception as e:
+        sys.exit(f"{C['red']}Could not encode {code!r} as {kind}: {e}{C['x']}")
+
+    # Fit to width, but a short code (Code128 of a small SKU) is a narrow
+    # image — blow that up to full label width and it becomes absurdly tall
+    # and swallows the label. So cap the height and re-fit if we hit it.
+    w, h = img.size
+    new_w, new_h = target_w_px, max(1, round(h * target_w_px / w))
+    if new_h > max_h_px:
+        new_h = max_h_px
+        new_w = max(1, round(w * max_h_px / h))
+    return img.resize((new_w, new_h)).convert("L"), bc.get_fullcode()
+
+
 def fit_lines(draw, lines, box_w, box_h):
     """Choose the biggest font sizes that keep every line inside the label.
 
@@ -106,7 +149,7 @@ def fit_lines(draw, lines, box_w, box_h):
     return []
 
 
-def render(lines, w_mm, h_mm, out_path):
+def render(lines, w_mm, h_mm, out_path, code=None):
     """Paint the label and save it as a print-ready PNG at exact media size."""
     w_px, h_px = mm(w_mm), mm(h_mm)
     landscape = h_px > w_px            # normal for a roll: long axis feeds out
@@ -118,6 +161,18 @@ def render(lines, w_mm, h_mm, out_path):
 
     pad = mm(MARGIN_MM)
     box_w, box_h = cw - 2 * pad, ch - 2 * pad
+
+    # Reserve the barcode's space BEFORE fitting text, so shrinking text can
+    # never eat into it — an unscannable barcode defeats the whole label.
+    bc_img = full = None
+    if code:
+        # Give the barcode at most half the label, so text always has room.
+        bc_img, full = make_barcode(code, round(box_w * 0.92), round(box_h * 0.5))
+        box_h -= bc_img.height + mm(1.5)
+        if box_h < mm(4):
+            sys.exit(f"{C['red']}No room for text and a barcode on "
+                     f"{w_mm}x{h_mm}mm.{C['x']}  Try a longer --length.")
+
     chosen = fit_lines(d, lines, box_w, box_h)
     if not chosen:
         sys.exit(f"{C['red']}Text will not fit on a {w_mm}x{h_mm}mm label.{C['x']}  "
@@ -132,10 +187,14 @@ def render(lines, w_mm, h_mm, out_path):
         d.text((x, y - top), text, font=f, fill=0)
         y += h + int(f.size * 0.35)
 
+    if bc_img is not None:
+        canvas.paste(bc_img, (pad + (box_w - bc_img.width) // 2,
+                              ch - pad - bc_img.height))
+
     if landscape:
         canvas = canvas.rotate(90, expand=True)
     canvas.save(out_path, dpi=(DPI, DPI))
-    return canvas.size
+    return canvas.size, full
 
 
 def run(cmd):
@@ -265,6 +324,8 @@ def main():
     ap.add_argument("-m", "--media", default=DEFAULT_MEDIA, help=f"roll size (default: {DEFAULT_MEDIA})")
     ap.add_argument("-l", "--length", type=int, default=DEFAULT_LENGTH_MM,
                     help=f"label length in mm on continuous tape (default: {DEFAULT_LENGTH_MM})")
+    ap.add_argument("-c", "--barcode", metavar="CODE",
+                    help="print a scannable barcode: EAN-13 for 12/13 digits, else Code128")
     ap.add_argument("-n", "--copies", type=int, default=1, help="how many labels")
     ap.add_argument("--out", help="where to write the PNG (default: a temp file)")
     ap.add_argument("--dry-run", action="store_true", help="render the PNG but do not print")
@@ -303,9 +364,10 @@ def main():
         h_mm = args.length
 
     out = args.out or os.path.join(tempfile.mkdtemp(prefix="banco-label-"), "label.png")
-    size = render(args.lines, w_mm, h_mm, out)
+    size, full = render(args.lines, w_mm, h_mm, out, code=args.barcode)
+    bc_note = f"  barcode {full}" if full else ""
     print(f"{C['dim']}rendered {size[0]}x{size[1]}px "
-          f"({w_mm}x{h_mm}mm @ {DPI}dpi) -> {out}{C['x']}")
+          f"({w_mm}x{h_mm}mm @ {DPI}dpi){bc_note} -> {out}{C['x']}")
 
     if args.dry_run:
         print(f"{C['yel']}--dry-run: not printed.{C['x']}  Open it to check, then drop --dry-run.")
