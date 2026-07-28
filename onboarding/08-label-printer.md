@@ -145,6 +145,34 @@ No room for text and a barcode on 62x12mm.  Try a longer --length.
 > **62 mm matters here.** An EAN-13 needs roughly 31 mm at 80% magnification before scanners start to struggle.
 > On a 29 mm roll you cannot print a reliable EAN-13 across the width — which is why the shop roll is 62 mm.
 
+### Printing from Banco's web UI
+
+Open a product → **🏷️ Label** → **Print**, destination `BancoLabel`. Works from any browser on a machine that has
+the printer — including against a Banco served from another host, because browser printing is client-side.
+
+Two things had to be true before this worked, and both cost an evening:
+
+**1. `@page` must declare BOTH lengths.** This looks fine and is invalid CSS:
+
+```css
+@page{ size: 62mm auto; }     /* ✗ INVALID — silently falls back to A4 */
+@page{ size: 62mm 55mm; }     /* ✓ */
+```
+
+The spec allows `auto` OR one/two lengths — never a length combined with `auto`. Browsers drop the whole
+declaration and default to **A4**, so the label renders in the corner of a sheet and the QL discards the job:
+no error, clean CUPS drain, green LED, nothing printed. Chrome's own *Save as PDF* is what exposed it —
+`pdfinfo` showed `Page size: 594.96 x 841.92 pts (A4)`.
+
+> **When a browser print does nothing, save it as a PDF and run `pdfinfo` on it.** It shows you exactly what the
+> browser decided, instead of what you assumed it decided.
+
+**2. Hard-refresh after changing that CSS.** The styles are inline in the template, so a cached *page* carries the
+old rule with it. `Ctrl+Shift+R`, or test in a private window. We chased a fix that was already deployed because
+Chrome kept serving the old page.
+
+Once both hold, any of the ~20 sizes in the print dialog work.
+
 Or bypass the script — any PNG or PDF works:
 
 ```
