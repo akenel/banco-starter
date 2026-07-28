@@ -283,9 +283,10 @@ lpadmin -p BancoLabel -E -v "ipp://192.168.x.240/ipp/print" -m everywhere
 
 ## Known gaps
 
-- **Barcodes are rendered but not yet scanner-verified.** `-c` produces EAN-13/Code128 via `python-barcode`,
-  and they look right — but nothing has been scanned back with the shop's own scanner. Until that happens,
-  treat them as untested.
+- **Barcodes print and scan** — verified 2026-07-28 with the shop's own scanner: a printed 62 mm label read back
+  `2000000217963` cleanly. Note that Banco then failed to *resolve* that code to the product (catalog search
+  didn't filter, the sale screen didn't add it) — that's an app-side lookup bug, not a printing one. See
+  `WORKLIST.md`.
 - **The web label page hasn't been proven against the roll.** Its print CSS is `@page{ size:62mm auto }`, which
   should match the DK-44205, but whether Chrome and CUPS agree on `auto` is untested.
 - **A remote Banco cannot print here.** `banco.wolfhold.app` runs on another machine, and no server on the

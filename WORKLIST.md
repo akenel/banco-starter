@@ -16,11 +16,17 @@
    - Move A (seed gate) is ✅ **proven at runtime** (2026-07-22) — see Done below. Move B (the real restore) needs a read-only B2 key + bucket + passphrase (Angel deferred this session).
    - When creds are ready: infra up (`docker compose up -d postgres keycloak minio`) → `restore-from-b2.sh` with creds as **env vars** (never written to `.env`) → row-check prints a real product count → app up → `standup.sh`. Green-ticks the checklist's "practiced a restore" box. See [[catalog-seed-vs-bootstrap]].
 
-3. **Label printer — scan-verify, then wire it to the catalog and the web page.** *(shop floor)*
-   - Printing and barcode rendering are done (see Done). Three things left, in order:
-     **(a) Scan a printed barcode with the shop's own scanner.** Rendering ≠ scanning. Until a label reads back as the right product, treat the barcodes as untested.
-     **(b) Feed it from the catalog** — barcode + name + price by product ID, so a shelf label is one command and a re-price is a re-print.
-     **(c) The web label page** (`/pos/products/<id>/label?size=m`). Untested against the roll: its print CSS is `@page{ size:62mm auto }`, and whether Chrome and CUPS agree on `auto` is unknown. A browser dialog defaulting to A4 is what threw "wrong roll type" mid-session. Then `--kiosk-printing` to lose the dialog.
+3. **⛔ Scanned barcode doesn't resolve to the product.** *(shop floor · blocks labelling stock)*
+   - Printing and scanning are **proven** (see Done) — a printed label read back `2000000217963` off the scanner. But Banco then doesn't find the product:
+     - **Catalog search**: the code lands in the box, yet all 24 products still show — the filter never applies. Showing *all* (not zero) suggests the query never reached the server, rather than matching nothing.
+     - **Sale screen**: scanning it didn't add the Curaprox to the cart.
+     - The product record *does* carry `Barcode 2000000217963`, and the repo's lookup looks correct (`_find_product_by_any_barcode` checks primary + alias; search does `barcode ILIKE '%'||:q||'%'`).
+   - Prime suspect: the **scanner's trailing character**. `_clean_barcode` (pos_router.py:272) exists precisely because "scanner guns append or embed invisible" characters — check whether the *catalog search* and *sale scan* paths both scrub, or only the bind path does.
+   - Seen on `banco.wolfhold.app` (remote, build b51) — confirm whether local is the same build before debugging.
+
+4. **Label printer — catalog feed + web page.** *(shop floor)*
+   - **Feed labels from the catalog** — barcode + name + price by product ID, so a shelf label is one command and a re-price is a re-print.
+   - **The web label page** (`/pos/products/<id>/label?size=m`). Untested against the roll: print CSS is `@page{ size:62mm auto }` and whether Chrome and CUPS agree on `auto` is unknown. A browser dialog defaulting to A4 is what threw "wrong roll type" mid-session. Then `--kiosk-printing` to lose the dialog.
    - Done = click Label on a product page, a scannable shelf label comes out, no dialog.
 
 ## 🔭 Backlog (not yet scheduled)
@@ -34,6 +40,7 @@
 
 ## ✅ Done (most recent first)
 
+- 2026-07-28 — **First Banco shelf label printed AND scanned.** Curaprox Naturally CBD toothpaste (TAM-21796, `2000000217963` — a `2`-prefix store-internal code, fitting for a 500-tube Felix × Curaprox one-off sold only at Artemis). Printed on 62 mm tape, read back correctly by the shop's scanner. That closes the loop: rendered → printed → machine-readable. The barcodes are no longer "untested". Banco not *finding* the product from that scan is a separate bug — now item 3 on deck.
 - 2026-07-28 — **Label printer is shop-ready over the USB cable — proven unattended.** Soak test: printer left idle 14 min until `ipp-usb` went stale, then a print with **zero human intervention** — the script caught the dead session, restarted the daemon passwordlessly, label came out, LED green. That's the difference between a demo and something that can sit on a counter. Also: `cups-browsed` disabled (its phantom queue had been silently swallowing jobs all evening), DK-44205 62 mm continuous, and **barcodes** (EAN-13/Code128) now render on printed labels. Three dead ends documented so nobody re-walks them: `printer-driver-ptouch` and both `brother_ql` versions produced **zero** labels — every raw-raster path is rejected by this printer, only its own IPP service accepts jobs.
 - 2026-07-28 — **Brother QL-820NWBc label printer online — human-green.** Angel read three physical labels back off the roll ("label printer online", "Espresso Beans 250g / CHF 12.50", "SECOND TEST"). No Brother software needed: Debian's `ipp-usb` + CUPS `everywhere` driver drive it at 300 dpi over USB. Created the permanent `BancoLabel` queue (the auto-created `cups-browsed` one is temporary and *vanished* mid-session), set Auto Power Off = Off on the device, wrote `scripts/print-label.py` and `onboarding/08-label-printer.md`. Media confirmed by the device itself: DK-11201, 29×90 mm. Timing: first job after wake ~25–30 s, then ~4 s.
 - 2026-07-22 — **Verified the seed-gate fix on a clean throwaway** (isolated `banco-drill` project, live stack untouched): with `HX_SEED_DEMO=false`, drill DB had products=0, isotto_catalog_products=0, camper_vehicles=0 vs live (demo on) 6/10/4, while `store_settings=1` proved seeders still ran. Runtime proof of `fec8748`.
