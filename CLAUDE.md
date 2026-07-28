@@ -93,7 +93,8 @@ When something bites you, write the lesson here in one line so it never bites tw
 - 2026-07-28 — `lsusb` lists the Brother QL-820NWB **even when it's switched off** (USB chip runs on bus power). "Device is present" ≠ "device is on" — confirm the LCD is lit before debugging anything else.
 - 2026-07-28 — CUPS queues auto-made by `cups-browsed` (`implicitclass://…`) are **temporary and disappear**. For anything a shop depends on, create a permanent queue with `lpadmin` pointed straight at the real device URI.
 - 2026-07-28 — The QL-820NWB's **first job after waking takes ~25–30 s** (roll calibration); later jobs take ~4 s. A slow first label is not a stuck queue — don't cancel it early and go hunting for a bug that isn't there.
-- 2026-07-28 — `ipp-usb` listens on **IPv4 only**, but `localhost` resolves to `::1` first — so `http://localhost:60000/` spins forever in a browser. Use `http://127.0.0.1:60000/`. Check any "it just hangs" localhost service with `getent ahosts localhost`.
+- 2026-07-28 — **`ipp-usb` goes stale after minutes and never recovers**: `0 bytes` on every request, blank web page, print jobs hang — while the printer sits there lit and `READY`. `sudo systemctl restart ipp-usb` fixes it *without touching the printer*, and that's also the diagnostic. A blanked LCD + blinking LED reads exactly like standby and sent me chasing the printer's Auto Power Off for an hour. **Suspect the daemon before the hardware.**
+- 2026-07-28 — `ipp-usb` redirects every request to `http://localhost:60000/` regardless of the address you use, so "use 127.0.0.1 instead" does *not* dodge an IPv6-first `localhost`. This box's `/etc/hosts` was also missing the standard `127.0.0.1 localhost` / `::1 localhost` lines entirely — worth checking with `getent ahosts localhost` when a local service hangs.
 
 ---
 

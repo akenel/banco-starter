@@ -150,6 +150,40 @@ printer on the shop network.
 
 ## Troubleshooting
 
+**⚠️ Read this one first: `ipp-usb` goes stale after a few minutes.**
+
+This is the single biggest gotcha on the USB path, and it wasted an evening. Symptom:
+
+- The printer's LCD is lit and it says `READY` — it is **not** asleep
+- Every IPP request returns `RECEIVED: 0 bytes`
+- `http://localhost:60000/` is a **blank white page**
+- Print jobs queue, say "now printing", and hang forever
+
+The printer is fine. **`ipp-usb`'s USB session has died and it doesn't re-open it.** The fix takes one command
+and does *not* involve touching the printer:
+
+```
+sudo systemctl restart ipp-usb
+```
+
+**The diagnostic that proves it:** restart `ipp-usb` *without pressing anything on the printer*. If it springs
+back to life, the printer was awake the whole time and `ipp-usb` was the fault. Don't go hunting through the
+printer's power settings first — that's the wrong tree, and it looks convincing because the LCD blanks for
+burn-in and the LED blinks, which reads exactly like standby.
+
+> If `ipp-usb` hangs in `deactivating`: `sudo systemctl kill -s KILL ipp-usb && sudo systemctl restart ipp-usb`
+
+**Worth trying:** the quirk in `scripts/ipp-usb-quirks/Brother.conf` forces a fresh connection per request
+instead of reusing a stale one. Install it with:
+
+```
+sudo cp scripts/ipp-usb-quirks/Brother.conf /usr/share/ipp-usb/quirks/
+sudo systemctl restart ipp-usb
+```
+
+**The real fix is to stop using USB.** See "Put it on the network" below — that removes `ipp-usb` from the chain
+entirely, and with it this entire class of failure.
+
 **Nothing prints and nothing complains. Where did my labels go?**
 
 ```
@@ -211,10 +245,57 @@ python3 scripts/print-label.py --status
 
 ---
 
+## Put it on the network (the recommended setup)
+
+The QL-820NW**B** has Ethernet and Wi-Fi built in. Using them removes `ipp-usb` — the most fragile piece in the
+whole chain — and with it the stale-session hang above.
+
+```
+CUPS  ->  ipp://192.168.x.x/ipp/print      (no ipp-usb, no USB cable)
+```
+
+Why it's worth doing:
+
+- **No `ipp-usb`**, so no stale sessions, no daemon restarts, no blank pages
+- **Not tethered to one laptop** — any till on the shop LAN prints; close the lid and go home
+- The printer's web UI is reachable at its **own IP**, which is a far saner place to manage it
+
+Setup notes:
+
+- You only need the **SSID and password** to join a printer to Wi-Fi — no router admin access required. You can
+  configure Wi-Fi from the printer's web UI *over the USB cable* before you unplug it.
+- **Don't use a guest network or a phone hotspot.** Both usually have client isolation, which lets devices reach
+  the internet but not each other — printing silently fails.
+- **Set a static IP on the printer itself** (e.g. `192.168.x.240`, high in the range) rather than relying on a
+  DHCP reservation. Without it the address can change on a lease renewal and the queue breaks silently — and if
+  it isn't your router, you can't make a reservation anyway.
+
+Then re-point the queue:
+
+```
+lpadmin -p BancoLabel -E -v "ipp://192.168.x.240/ipp/print" -m everywhere
+```
+
+## Power settings
+
+Set these in the printer's web UI under **Power Settings** (the LCD menu does *not* reliably hold them):
+
+| Setting | Set to | Why |
+|---|---|---|
+| Auto Power Off (AC/DC) | **Off** | Default is 20 min. A till printer must never nap. |
+| Auto Power Off (Li-ion) | **Off** | Only matters with the battery pack, but set it anyway. |
+| Auto Power On | **Enable** | Comes back by itself after a power cut. |
+
+> These are worth setting, but note they were **not** the cause of the hangs we chased — that was `ipp-usb`.
+> A blanked LCD is just burn-in protection; the printer is still awake and `READY` behind it.
+
 ## Known gaps
 
 - **Barcodes are not implemented yet.** Text only. Real shelf labels need Code128/EAN — next job.
-- **Not reachable from inside Docker.** The app containers can't see `localhost:60000` on the host. The
-  QL-820NWBc has Ethernet/Wi-Fi (that's the `NW` in the name), so the fix is to put it on the network and point
-  the queue at its IP instead of `localhost` — then containers reach it too.
+- **Docker CAN reach it** — `ipp-usb` binds all IPv4 interfaces (`*:60000`), so a container reaches the printer
+  at the docker bridge gateway (`172.17.0.1:60000`) or the host's LAN IP. Verified from `banco-app`. What does
+  *not* work is `localhost:60000` from inside a container — that's the container's own loopback.
+- **A remote Banco cannot print here.** `banco.wolfhold.app` resolves to a different machine, and no server on
+  the internet can reach a USB printer on your laptop. Direct printing has to be driven by something on the
+  shop LAN — the local Banco instance, or the printer put on the network via its own Ethernet/Wi-Fi.
 - Red/black printing, and the printer's P-touch Template mode, are untouched.
