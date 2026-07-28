@@ -1,0 +1,20 @@
+# Let the till restart ipp-usb without a password — nothing else.
+#
+# Why: ipp-usb's USB session to the Brother QL goes stale after roughly 6-11
+# minutes idle and never re-opens it. Print jobs then hang forever while the
+# printer sits there lit and READY. Restarting the daemon fixes it instantly.
+# Without this rule someone has to type a root password mid-shift, which is
+# not a thing that can happen at a counter with a customer waiting.
+#
+# Scope: exactly two commands, no wildcards, no shell. This does NOT grant
+# general systemctl access — `systemctl restart anything-else` still prompts.
+#
+# Install (visudo -c validates before it can lock you out):
+#   sudo cp scripts/sudoers/banco-label-printer /etc/sudoers.d/banco-label-printer
+#   sudo chmod 0440 /etc/sudoers.d/banco-label-printer
+#   sudo visudo -c
+#
+# Replace `angel` with the till's user if it differs.
+
+angel ALL=(root) NOPASSWD: /usr/bin/systemctl restart ipp-usb
+angel ALL=(root) NOPASSWD: /usr/bin/systemctl kill -s KILL ipp-usb

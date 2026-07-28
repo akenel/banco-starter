@@ -1,0 +1,22 @@
+# Let a normal user talk to the Brother QL label printer directly.
+#
+# brother_ql speaks Brother's raster protocol straight to the device, so it
+# needs access that CUPS would normally mediate. Without this you get
+# "Access denied (insufficient permissions)" from the pyusb backend, or
+# permission denied on /dev/usb/lp0 from the linux_kernel backend.
+#
+# 04f9:209d is the QL-820NWB(c). `lsusb | grep -i brother` shows yours.
+#
+# Both rules below are scoped to this one printer — nothing else on the bus
+# is affected. plugdev is the group Debian already puts desktop users in.
+#
+# Install:
+#   sudo cp scripts/udev/99-brother-ql.rules /etc/udev/rules.d/
+#   sudo udevadm control --reload-rules && sudo udevadm trigger
+#   (then unplug/replug the printer, or power cycle it)
+
+# raw USB access — the pyusb backend
+SUBSYSTEM=="usb", ATTRS{idVendor}=="04f9", ATTRS{idProduct}=="209d", MODE="0664", GROUP="plugdev"
+
+# kernel printer device /dev/usb/lp* — the linux_kernel backend
+SUBSYSTEM=="usbmisc", ATTRS{idVendor}=="04f9", ATTRS{idProduct}=="209d", MODE="0664", GROUP="plugdev"

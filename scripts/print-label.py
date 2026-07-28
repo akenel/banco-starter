@@ -25,6 +25,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 
 try:
     from PIL import Image, ImageDraw, ImageFont
@@ -146,6 +147,44 @@ def run(cmd):
         return 1, str(e)
 
 
+def ipp_usb_alive(timeout=12):
+    """True if ipp-usb is actually relaying to the printer right now.
+
+    A dead session still accepts TCP and answers a bare redirect, so we ask
+    for real printer attributes — that is the part that goes silent.
+    """
+    rc, out = run(["ipptool", "-T", str(timeout), "-tv",
+                   "ipp://localhost:60000/ipp/print",
+                   "/usr/share/cups/ipptool/get-printer-attributes.test"])
+    return rc == 0 and "RECEIVED: 0 bytes" not in out and "printer-state" in out
+
+
+def heal_ipp_usb():
+    """Restart ipp-usb when its USB session has gone stale.
+
+    THE fault of the driverless path: after ~6-11 minutes idle the daemon
+    stops relaying and every job hangs at "now printing" while the printer
+    sits there lit and READY. Restarting it fixes it instantly and does not
+    involve touching the printer. Needs the sudoers rule in
+    scripts/sudoers/banco-label-printer, else this no-ops and we print anyway.
+    """
+    print(f"  {C['yel']}ipp-usb is not relaying — restarting it{C['x']}")
+    if run(["sudo", "-n", "systemctl", "restart", "ipp-usb"])[0] != 0:
+        run(["sudo", "-n", "systemctl", "kill", "-s", "KILL", "ipp-usb"])
+        if run(["sudo", "-n", "systemctl", "restart", "ipp-usb"])[0] != 0:
+            print(f"  {C['red']}could not restart it without a password.{C['x']}  "
+                  "Install scripts/sudoers/banco-label-printer, or run:\n"
+                  "    sudo systemctl restart ipp-usb")
+            return False
+    for _ in range(12):                  # it can take a while to come back
+        time.sleep(5)
+        if ipp_usb_alive():
+            print(f"  {C['grn']}back up{C['x']}")
+            return True
+    print(f"  {C['red']}still not relaying after 60s.{C['x']}  Check the printer is on.")
+    return False
+
+
 def clear_queues(printer):
     """Cancel every stuck job and re-enable every queue. The 'unstick me' button.
 
@@ -232,6 +271,8 @@ def main():
     ap.add_argument("--status", action="store_true", help="show printer status and exit")
     ap.add_argument("--clear", action="store_true",
                     help="cancel every stuck job and re-enable the queues, then exit")
+    ap.add_argument("--no-heal", action="store_true",
+                    help="don't auto-restart a stale ipp-usb before printing")
     ap.add_argument("--list-media", action="store_true", help="list known label sizes and exit")
     args = ap.parse_args()
 
@@ -290,6 +331,13 @@ def main():
     size = f"Custom.{w_mm}x{h_mm}mm" if continuous else f"{args.media}mm"
 
     uri = run(["lpstat", "-v", args.printer])[1]
+
+    # On the driverless path, make sure ipp-usb is actually relaying before we
+    # hand CUPS a job — otherwise it queues, says "now printing", and hangs.
+    if "usb://" not in uri and not args.no_heal:
+        if not ipp_usb_alive():
+            heal_ipp_usb()
+
     if "usb://" in uri:
         opts = ["-o", f"PageSize={size}", "-o", "MediaType=Labels",
                 "-o", "AutoCut=True"]
