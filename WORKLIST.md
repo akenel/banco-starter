@@ -2,24 +2,29 @@
 
 *The single source of truth for what's next, in order. Say the code word **"OPEN SHOP"** and the copilot opens this, states the top items, and starts the first actionable one. The bigger arc is in [`ROADMAP.md`](ROADMAP.md).*
 
-*Last updated: 2026-07-28*
+*Last updated: 2026-07-28 (22:35 — label printer day)*
 
 ---
 
 ## 🎯 On deck (next actionable, in order)
 
-1. **Harden go-live — DNS preflight + default-secret gate.** *(Roadmap Phase A)*
+1. **Keep `ipp-usb` fresh — the last thing between the labeler and daily use.** *(shop floor · small, do it first)*
+   - Everything prints: CLI, barcodes, scanning, and the browser UI at any size. But `ipp-usb`'s USB session dies after **6–13 minutes idle** and then jobs queue silently and nothing comes out. `print-label.py` heals itself; **Chrome cannot**, so the browser path dies every quarter hour.
+   - First move: a **systemd timer** (say every 5 min) that restarts `ipp-usb` *only when it has stopped relaying* — reuse the check in `print-label.py` (`ipp_usb_alive()`, an `ipptool` get-printer-attributes that returns `0 bytes` when stale). The passwordless sudoers rule is already installed at `/etc/sudoers.d/banco-label-printer`.
+   - Manual recovery meanwhile: `sudo systemctl restart ipp-usb` — takes ~5 s, then queued jobs flush immediately.
+   - Done = leave it an hour, print from the browser, a label comes out with nobody touching anything.
+   - Then the freebie: `google-chrome --kiosk-printing` to drop the print dialog. `BancoLabel` is already the only queue and the system default, so nothing else is needed.
+
+2. **Harden go-live — DNS preflight + default-secret gate.** *(Roadmap Phase A)*
    - First move: add a preflight to `scripts/deploy-prod.sh` (or `go-live.py`) that resolves `APP_PUBLIC_HOST` + `KC_PUBLIC_HOST` and checks they point at the server IP **before** cert issuance, and refuses/loudly-warns if a starter-default secret is still in place (reuse `banco-doctor.py`'s default detection).
    - Done = a misconfigured DNS record or an unchanged default secret is caught *before* the box is exposed, not after.
 
-2. **DR restore (Move B) — ⛔ BLOCKED on B2 read creds.** *(Roadmap Phase A · the ownership proof)*
+3. **DR restore (Move B) — ⛔ BLOCKED on B2 read creds.** *(Roadmap Phase A · the ownership proof)*
    - Move A (seed gate) is ✅ **proven at runtime** (2026-07-22) — see Done below. Move B (the real restore) needs a read-only B2 key + bucket + passphrase (Angel deferred this session).
    - When creds are ready: infra up (`docker compose up -d postgres keycloak minio`) → `restore-from-b2.sh` with creds as **env vars** (never written to `.env`) → row-check prints a real product count → app up → `standup.sh`. Green-ticks the checklist's "practiced a restore" box. See [[catalog-seed-vs-bootstrap]].
 
-3. **Label printer — the last two conveniences.** *(shop floor)*
-   - **`--kiosk-printing`** so the print dialog doesn't appear at all: `google-chrome --kiosk-printing`. Everything it needs is already true (`BancoLabel` is the only queue and the system default).
-   - **Keep `ipp-usb` fresh for the browser.** `print-label.py` heals itself; Chrome can't, so a stale daemon means a silent no-print. A systemd timer that restarts `ipp-usb` when it stops relaying closes the last gap. This is the only thing standing between "works" and "works unattended all day".
-   - **Feed labels from the catalog** — barcode + name + price by product ID, so a shelf label is one command and a re-price is a re-print.
+4. **Feed labels from the catalog.** *(shop floor)*
+   - Barcode + name + price by product ID, so a shelf label is one command and a re-price is a re-print. The pieces all exist now — `print-label.py -c <barcode> <name> <price>` and the web Label button.
 
 ## 🔭 Backlog (not yet scheduled)
 
@@ -36,7 +41,7 @@
 ## ✅ Done (most recent first)
 
 - 2026-07-28 — **Browser printing works — the full loop is closed.** Product page → 🏷️ Label → Print → a shelf label on the roll, at any of the ~20 sizes. The blocker was `@page{ size:62mm auto }`: **invalid CSS** (the spec allows `auto` OR one/two lengths, never both), so browsers silently fell back to A4 and the QL discarded every job — no error, clean drain, green LED, nothing printed. Chrome's own *Save as PDF* + `pdfinfo` exposed it in one command after three hours of theories. Fixed in `product_label.html` **and** `product_labels_batch.html` (same bug), deployed to `banco.wolfhold.app` (b65). Second gotcha: inline print CSS rides along with a cached page — hard-refresh or the fix looks like it didn't work.
-- 2026-07-28 — **First Banco shelf label printed AND scanned.** Curaprox Naturally CBD toothpaste (TAM-21796, `2000000217963` — a `2`-prefix store-internal code, fitting for a 500-tube Felix × Curaprox one-off sold only at Artemis). Printed on 62 mm tape, read back correctly by the shop's scanner. That closes the loop: rendered → printed → machine-readable. The barcodes are no longer "untested". Banco not *finding* the product from that scan is a separate bug — now item 3 on deck.
+- 2026-07-28 — **First Banco shelf label printed AND scanned.** Curaprox Naturally CBD toothpaste (TAM-21796, `2000000217963` — a `2`-prefix store-internal code, fitting for a 500-tube Felix × Curaprox one-off sold only at Artemis). Printed on 62 mm tape, read back correctly by the shop's scanner. That closes the loop: rendered → printed → machine-readable. The barcodes are no longer "untested". Banco not *finding* the product from that scan turned out to be no bug at all — the 📊 Barcode tab is the right field for a gun; the 🔍 Search tab is for names.
 - 2026-07-28 — **Label printer is shop-ready over the USB cable — proven unattended.** Soak test: printer left idle 14 min until `ipp-usb` went stale, then a print with **zero human intervention** — the script caught the dead session, restarted the daemon passwordlessly, label came out, LED green. That's the difference between a demo and something that can sit on a counter. Also: `cups-browsed` disabled (its phantom queue had been silently swallowing jobs all evening), DK-44205 62 mm continuous, and **barcodes** (EAN-13/Code128) now render on printed labels. Three dead ends documented so nobody re-walks them: `printer-driver-ptouch` and both `brother_ql` versions produced **zero** labels — every raw-raster path is rejected by this printer, only its own IPP service accepts jobs.
 - 2026-07-28 — **Brother QL-820NWBc label printer online — human-green.** Angel read three physical labels back off the roll ("label printer online", "Espresso Beans 250g / CHF 12.50", "SECOND TEST"). No Brother software needed: Debian's `ipp-usb` + CUPS `everywhere` driver drive it at 300 dpi over USB. Created the permanent `BancoLabel` queue (the auto-created `cups-browsed` one is temporary and *vanished* mid-session), set Auto Power Off = Off on the device, wrote `scripts/print-label.py` and `onboarding/08-label-printer.md`. Media confirmed by the device itself: DK-11201, 29×90 mm. Timing: first job after wake ~25–30 s, then ~4 s.
 - 2026-07-22 — **Verified the seed-gate fix on a clean throwaway** (isolated `banco-drill` project, live stack untouched): with `HX_SEED_DEMO=false`, drill DB had products=0, isotto_catalog_products=0, camper_vehicles=0 vs live (demo on) 6/10/4, while `store_settings=1` proved seeders still ran. Runtime proof of `fec8748`.
