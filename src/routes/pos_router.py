@@ -8489,19 +8489,44 @@ async def product_label(
 
 
 def _qr_logo_path(logo_url: str | None) -> str | None:
-    """Resolve a store's configured logo to a file on disk, or None.
+    """Resolve the image to drop in the middle of a QR, or None.
+
+    Prefers a `-mark` variant beside the configured logo:
+
+        /static/artemis-logo.png  ->  /static/artemis-mark.png  (if it exists)
+
+    WHY: a shop logo is nearly always a wide lockup — a symbol plus the shop's
+    name. In the centre of a 15mm QR that renders about 3mm across, where the
+    wordmark turns to grey mush and the whole thing reads as a smudge. The
+    symbol ALONE stays recognisable at that size.
+
+    So the convention is: put a square, text-free version next to your logo
+    named `*-mark.png` and the labels pick it up automatically. No settings
+    migration, nothing to configure, and shops that don't bother still get
+    their logo — just less legible.
 
     Only LOCAL /static/... paths. A remote URL is deliberately ignored: this
     runs while rendering a label, and no shelf label is worth a blocking HTTP
-    fetch that might hang the page. Path is confined to src/static so a crafted
-    settings value can't walk the filesystem.
+    fetch that might hang the page. Paths are confined to src/static so a
+    crafted settings value can't walk the filesystem.
     """
     if not logo_url or not logo_url.startswith("/static/"):
         return None
     import os
+    import re
     root = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static")
-    p = os.path.normpath(os.path.join(root, logo_url[len("/static/"):]))
-    return p if p.startswith(root + os.sep) and os.path.isfile(p) else None
+
+    def _under_static(rel: str) -> str | None:
+        p = os.path.normpath(os.path.join(root, rel))
+        return p if p.startswith(root + os.sep) and os.path.isfile(p) else None
+
+    rel = logo_url[len("/static/"):]
+    mark = re.sub(r"[-_]?logo(?=\.[^.]+$)", "-mark", rel) if "logo" in rel.lower() else None
+    if mark and mark != rel:
+        found = _under_static(mark)
+        if found:
+            return found
+    return _under_static(rel)
 
 
 def _qr_data_uri(payload: str, logo_url: str | None = None) -> str:
@@ -8546,9 +8571,11 @@ def _qr_data_uri(payload: str, logo_url: str | None = None) -> str:
         if logo_path:
             from PIL import Image
             w, h = img.size
-            # 22% of the width ≈ 5% of the AREA. Well inside H's 30% budget —
-            # covering more looks bolder and starts costing you reads.
-            box = int(w * 0.22)
+            # 30% of the width. Started at 22%, which was safe but too small to
+            # read at 15mm — the mark was there and nobody could tell what it
+            # was. 30% was scan-tested at 15 consecutive reads on both guns, so
+            # it is proven rather than merely inside H's budget on paper.
+            box = int(w * 0.30)
             logo = Image.open(logo_path).convert("RGBA")
             logo.thumbnail((box, box), Image.LANCZOS)
             # White pad behind it: the scanner needs a clean edge between the
