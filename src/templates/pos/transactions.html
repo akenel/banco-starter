@@ -302,8 +302,13 @@
                 other:         { label: 'Other',         cls: 'bg-gray-100 text-gray-800' }
             },
             loading: false,
-            filterFrom: new Date().toISOString().split('T')[0], // Today
-            filterTo: new Date().toISOString().split('T')[0],   // Today
+            // LOCAL date, not toISOString() (which is UTC and returns
+            // yesterday between midnight and +02:00 CEST). Same bug the
+            // product-sales report had.
+            filterFrom: (d => new Date(d.getTime() - d.getTimezoneOffset() * 60000)
+                                .toISOString().split('T')[0])(new Date()),
+            filterTo:   (d => new Date(d.getTime() - d.getTimezoneOffset() * 60000)
+                                .toISOString().split('T')[0])(new Date()),
             filterStatus: '',
             filterPayment: '',
             filterCashier: '',   // client-side facet

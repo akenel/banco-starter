@@ -3522,10 +3522,16 @@ async def list_transactions(
     elif date and is_manager:
         lo = hi = _parse(date)
     else:
-        lo = hi = datetime.now(timezone.utc).date()
+        lo = hi = datetime.now(SHOP_TZ).date()
 
-    start_of_day = datetime.combine(lo, datetime.min.time(), tzinfo=timezone.utc)
-    end_of_day = datetime.combine(hi, datetime.max.time(), tzinfo=timezone.utc)
+    # Day boundaries in the SHOP's timezone, not UTC — same basis the reports use
+    # (_parse_report_range). A UTC "today" runs 02:00–01:59 Zurich in summer, so
+    # this list and the product-sales report disagreed about which sales were
+    # today's: 9 transactions / CHF 533.69 here vs 3 / CHF 89.00 there, on the
+    # same data. For a shop that trades past midnight the till cannot be
+    # reconciled against a day that isn't the shop's day.
+    start_of_day = datetime.combine(lo, datetime.min.time(), tzinfo=SHOP_TZ)
+    end_of_day = datetime.combine(hi, datetime.max.time(), tzinfo=SHOP_TZ)
     query = query.where(TransactionModel.created_at >= start_of_day)
     query = query.where(TransactionModel.created_at <= end_of_day)
 
