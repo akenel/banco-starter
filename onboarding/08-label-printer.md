@@ -33,6 +33,101 @@ Written against the **QL-820NWBc** on Debian 12, wired up 2026-07-28.
 
 ---
 
+## Which machine does what (read this first)
+
+The single most confusing thing about printing here: **Banco runs on a server, but printing happens on the till.**
+
+```
+        SERVER  (Hetzner, banco.wolfhold.app)          TILL  (the counter machine)
+        ├── banco-app      ← builds the label page     ├── Brother QL  ← USB cable
+        ├── postgres                                   ├── ipp-usb     ← USB → IPP bridge
+        ├── keycloak            ...sends HTML...       ├── CUPS        ← the BancoLabel queue
+        └── caddy              ─────────────────►      └── browser     ← presses Print
+                                                            │
+                                                            ▼
+                                                        the label
+```
+
+When a cashier taps **🏷️ Label → Print**, the *page* came from the server, but every step after that happens on
+the till: browser → CUPS → `ipp-usb` → USB cable → printer. **The server never touches the printer** and has no
+idea one exists.
+
+So printer setup is **per-till machine setup**, not part of the app:
+
+| | Where it lives | Survives a deploy? |
+|---|---|---|
+| Banco app code | server | replaced every deploy |
+| CUPS queue `BancoLabel` | **till**, `/etc/cups` | ✅ |
+| `ipp-usb` + keepalive timer | **till**, `/etc/systemd/system` | ✅ |
+| sudoers rule | **till**, `/etc/sudoers.d` | ✅ |
+| `/opt/banco/label-printer-keepalive.sh` | **till**, `/opt` | ✅ |
+
+**You never re-run the printer setup after a deploy.** Once per till, then forget it.
+
+---
+
+## Setting up a new till (the back-office desktop, a second counter, anything)
+
+Do this on the machine **with the USB cable plugged into the printer**. Takes about ten minutes.
+
+1. **Plug in and switch on.** Wait for the LCD to light. Confirm Debian sees it:
+   ```
+   lsusb | grep -i brother      # → ID 04f9:209d ... QL-820NWB
+   ```
+2. **Add yourself to `lpadmin`** if you aren't already (`id | grep lpadmin`), then log out and back in.
+3. **Kill `cups-browsed`** — it invents a phantom queue that silently eats jobs:
+   ```
+   sudo systemctl disable --now cups-browsed
+   ```
+4. **Create the queue** (Step B below). Keep the name `BancoLabel` — the scripts and the print dialog expect it.
+5. **Install the keepalive** (Step A2 below):
+   ```
+   sudo ./scripts/install-label-keepalive.sh
+   ```
+6. **Prove it.** Print one from the browser, then leave it half an hour and print again *cold*. The second one is
+   the real test — that's what used to fail.
+
+That's the whole thing. Nothing to repeat, nothing tied to a release.
+
+---
+
+## Other ways to print (phones, the back office, several counters)
+
+**USB is right for one dedicated till.** It's what this guide sets up: simple, no network, nothing to configure
+on the printer. The cost is `ipp-usb` and the keepalive timer that babysits it.
+
+**For anything else, put the printer on the shop network.** The QL-820NW**B** has Ethernet, Wi-Fi *and* Bluetooth
+built in. On the LAN it becomes an ordinary network printer, and a lot of problems simply stop existing:
+
+- **No `ipp-usb`** — so **no keepalive needed either**. That entire class of failure is a USB-bridge problem; it
+  doesn't exist over the network.
+- **Any machine can print** — back office, second counter, laptop — each just adds a queue pointing at its IP.
+- **Phones work natively.** The printer speaks IPP, so iPhones print via **AirPrint** and Androids via the
+  built-in **Mopria/Default Print Service**, with no app and no Banco changes. Open the label page on a phone,
+  tap Print, done.
+
+Setting it up: join Wi-Fi (or plug in Ethernet) from the printer's own web UI — reachable over the USB cable at
+`http://localhost:60000/` before you unplug it. Then on each machine:
+
+```
+lpadmin -p BancoLabel -E -v "ipp://192.168.x.240/ipp/print" -m everywhere
+```
+
+Two cautions:
+- **Give the printer a static IP** (set on the printer itself, e.g. `.240`). Without it a DHCP lease change
+  silently breaks every queue — and on a router you don't control you can't make a reservation.
+- **Not a guest network or a phone hotspot.** Both usually isolate clients: devices get internet but can't see
+  each other, and printing fails with no useful error.
+
+**Bluetooth** is paired and works, but it's the weakest option for a till: it's a serial link with no CUPS
+backend on Linux, so Banco can't drive it — you'd be printing from Brother's own mobile app, not from Banco.
+Fine as a phone-in-your-hand fallback; not a counter solution.
+
+> **Recommendation:** USB for the one machine that lives at the till. Network the moment a second device needs to
+> print — it's less setup than doing USB twice, and it retires the keepalive entirely.
+
+---
+
 ## What's actually happening
 
 ```
