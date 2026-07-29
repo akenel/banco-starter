@@ -8571,11 +8571,18 @@ def _qr_data_uri(payload: str, logo_url: str | None = None) -> str:
         if logo_path:
             from PIL import Image
             w, h = img.size
-            # 30% of the width. Started at 22%, which was safe but too small to
-            # read at 15mm — the mark was there and nobody could tell what it
-            # was. 30% was scan-tested at 15 consecutive reads on both guns, so
-            # it is proven rather than merely inside H's budget on paper.
-            box = int(w * 0.30)
+            # 24% of the WIDTH, paired with a 20mm QR on the label.
+            #
+            # Percentage of width is not percentage of area, and the shape of
+            # the mark decides which matters. 30% was carried over from a test
+            # done with the Artemis logo (1.65x wider than tall), where it
+            # covered 30% x 18% = 5.4% of the code. The square leaf at the same
+            # 30% covers 9.0% — nearly double the damage from an identical
+            # looking number — and it did not scan.
+            #
+            # 24% on a 20mm QR gives a 4.8mm leaf, physically LARGER than the
+            # 4.5mm that failed, at 5.8% damage. Scan-verified on both guns.
+            box = int(w * 0.24)
             logo = Image.open(logo_path).convert("RGBA")
             logo.thumbnail((box, box), Image.LANCZOS)
             # White pad behind it: the scanner needs a clean edge between the

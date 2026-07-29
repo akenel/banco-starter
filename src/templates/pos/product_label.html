@@ -20,11 +20,14 @@
      shop could read (EAN-13 wants ~31mm wide and ~23mm of bar height).
      Small now means SHORTER, not narrower — and carries a QR, which holds the
      same digits in a fraction of the area with error correction on top.
-     Measured against both guns 2026-07-29: QR readable to 10mm; we use 15mm. */
+     Sized by scan test, not by eye: 20mm QR with the leaf at 24% of the
+     width. A BIGGER code with a SMALLER percentage beats the reverse — it puts
+     the leaf at 4.8mm (larger than the 15mm/30% version that FAILED) while
+     cutting the damaged area from 9.0% to 5.8%. See LEAF-QR-SIZE-TEST.html. */
   .label.s{ width:62mm; margin:0 auto; background:#fff; padding:2mm 2.5mm; box-shadow:0 2px 8px rgba(0,0,0,.15);
             display:flex; flex-direction:row; align-items:center; gap:2.5mm; }
-  .label.s .qrbox{ flex:0 0 15mm; }
-  .label.s .qrbox img{ width:15mm; height:15mm; display:block; }
+  .label.s .qrbox{ flex:0 0 20mm; }
+  .label.s .qrbox img{ width:20mm; height:20mm; display:block; }
   .label.s .txt{ flex:1; min-width:0; display:flex; flex-direction:column; justify-content:center; overflow:hidden; }
   /* CLAMP, don't max-height. A long product name ("Curaprox Naturally Zahnpasta
      mit natürlichen Essenzen und 1% CBD Rot") wrapped to a 3rd line and printed
@@ -63,7 +66,7 @@
        label printer throws the job away. Cost us an evening; keep it concrete.
        Heights are generous — on continuous tape the surplus is a little wasted
        roll, whereas too short clips the barcode. */
-    @page{ size:{{ '62mm 55mm' if size=='m' else '62mm 24mm' }}; margin:0; }
+    @page{ size:{{ '62mm 55mm' if size=='m' else '62mm 28mm' }}; margin:0; }
   }
 </style></head>
 <body>
