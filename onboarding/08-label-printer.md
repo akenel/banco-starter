@@ -128,6 +128,71 @@ Fine as a phone-in-your-hand fallback; not a counter solution.
 
 ---
 
+## Setting up a Windows till
+
+> ⚠️ **Untested as of 2026-07-29** — written from the Windows/Brother documentation, not yet run on a real
+> machine. Correct this section the first time you do it for real.
+
+Windows is **simpler than Linux here, and backwards in one way**: on Linux you need nothing from Brother, on
+Windows you need their driver. But none of the `ipp-usb` complexity exists — no `ipp-usb`, no `cups-browsed`, no
+keepalive timer. **Those are Linux daemons. Skip all of it.** Windows drives the printer directly through
+Brother's driver and its own spooler.
+
+### Step 1 · Install Brother's driver (before plugging in)
+
+Go to **support.brother.com** → search **QL-820NWB** → **Downloads** → pick your Windows version → install the
+**Printer Driver** (the "Full Software Package" also gives you P-touch Editor, which you don't need for Banco).
+
+Install the driver **first**, then plug in the USB cable. Windows otherwise grabs it with a generic driver you'll
+have to unpick.
+
+### Step 2 · Set the label size as the printer's default
+
+This is the step people miss, and it's the one that produces blank or clipped labels.
+
+**Settings → Bluetooth & devices → Printers & scanners → Brother QL-820NWB → Printing preferences**
+
+- **Paper Size:** the roll that's loaded — `62mm` for continuous DK-22205/DK-44205
+- **Quality:** 300 × 300 dpi
+- **Auto Cut:** on, cut after each label
+
+Set it here, not just in the browser — this is the default every app inherits.
+
+### Step 3 · Print from Banco
+
+Open a product → **🏷️ Label** → **Print** → destination **Brother QL-820NWB**. Same as Linux from here.
+
+The `@page` CSS fix that makes the label render at roll size instead of A4 is server-side and already deployed,
+so it applies to Windows automatically.
+
+### PowerShell, if you want it
+
+None of this is required — the GUI does everything. But for checking and unsticking, in an **admin** PowerShell:
+
+```powershell
+Get-Printer | Format-Table Name, DriverName, PortName    # is it installed?
+Get-PrintJob -PrinterName "Brother QL-820NWB"            # what's queued?
+Get-PrintJob -PrinterName "Brother QL-820NWB" | Remove-PrintJob   # clear a jam
+Restart-Service -Name Spooler -Force                     # the "have you tried" of Windows printing
+```
+
+`Restart-Service Spooler` is the Windows analogue of our `systemctl restart ipp-usb` — the thing to try when jobs
+queue and nothing comes out.
+
+### What does NOT apply on Windows
+
+- `install-label-keepalive.sh`, the systemd timer, the sudoers rule — **Linux only**
+- `cups-browsed`, `ipp-usb`, `lpadmin`, `lpstat` — **Linux only**
+- `scripts/print-label.py` — needs Python + CUPS; the browser path is the Windows route
+
+### If it's a shared back-office machine
+
+Rather than USB per machine, consider putting the printer on the shop LAN (see the section above). Windows adds a
+network printer in a couple of clicks, phones then print via AirPrint/Mopria, and you stop maintaining printer
+setup on every desktop.
+
+---
+
 ## What's actually happening
 
 ```
