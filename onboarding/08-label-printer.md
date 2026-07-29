@@ -435,6 +435,42 @@ lp -d BancoLabel -o media=Custom.62x60mm -o CutMedia=EndOfPage yourlabel.png
 
 ---
 
+
+### Waste and the cutter — the two things a shop owner will notice
+
+**Wasted tape.** On continuous roll the paper size's LENGTH is what feeds. If `@page` says 62×28mm but the print
+dialog is on `29x62mm` or `62x100mm`, the printer advances 62mm or 100mm for a 28mm label — two to four times
+the tape, every label. On a shop's stock that adds up fast, and it is the first thing an owner who wastes
+nothing will point at.
+
+Fix it once per till, on the queue, so nobody has to remember a dropdown:
+
+```bash
+lpadmin  -p BancoLabel -o media-default=Custom.62x28mm
+lpoptions -p BancoLabel -o media=Custom.62x28mm
+lpoptions -p BancoLabel | tr ' ' '\n' | grep -i media     # confirm it took
+```
+
+The driverless PPD accepts `Custom.WIDTHxHEIGHT`, so match the label exactly. Roll length per label then equals
+the label, not a preset.
+
+**Having to press the cutter button after every label** means auto-cut is not applying:
+
+```bash
+lpadmin  -p BancoLabel -o CutMedia=EndOfPage
+lpoptions -p BancoLabel -o CutMedia=EndOfPage
+lpoptions -p BancoLabel -l | grep -i cut                   # want *EndOfPage
+```
+
+| Setting | Cuts | Use when |
+|---|---|---|
+| `EndOfPage` | after every label | one at a time at the counter |
+| `EndOfJob` | once, at the end | printing a batch — leaves a strip to tear |
+| `None` | never | you cut by hand |
+
+> The small label prints a thin border. That is a **cut guide**: continuous tape has no die line, so without an
+> edge you are guessing with scissors.
+
 ## The other half: the scanner guns
 
 Printing a label is only half the loop — something has to read it back. Full setup, and one trap that will
