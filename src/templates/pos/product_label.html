@@ -25,10 +25,20 @@
             display:flex; flex-direction:row; align-items:center; gap:2.5mm; }
   .label.s .qrbox{ flex:0 0 15mm; }
   .label.s .qrbox img{ width:15mm; height:15mm; display:block; }
-  .label.s .txt{ flex:1; min-width:0; display:flex; flex-direction:column; justify-content:center; }
-  .label.s .pname{ font-size:2.8mm; font-weight:700; line-height:1.15; max-height:6.5mm; overflow:hidden; }
-  .label.s .price{ font-size:7mm; font-weight:800; color:#8B0000; line-height:1.1; margin:.5mm 0 .3mm; }
-  .label.s .human{ font-size:2.2mm; font-family:monospace; color:#333; letter-spacing:.04em; }
+  .label.s .txt{ flex:1; min-width:0; display:flex; flex-direction:column; justify-content:center; overflow:hidden; }
+  /* CLAMP, don't max-height. A long product name ("Curaprox Naturally Zahnpasta
+     mit natürlichen Essenzen und 1% CBD Rot") wrapped to a 3rd line and printed
+     straight through the price: max-height + overflow:hidden does not reliably
+     clip a flex child, and Chrome re-wraps text when it scales the page to fit
+     a paper size that doesn't match @page. -webkit-line-clamp hard-stops at two
+     lines however the text reflows, so the layout cannot collapse. */
+  .label.s .pname{ font-size:2.8mm; font-weight:700; line-height:1.15;
+                   display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+                   overflow:hidden; }
+  .label.s .price{ font-size:7mm; font-weight:800; color:#8B0000; line-height:1.1;
+                   margin:.5mm 0 .3mm; white-space:nowrap; }
+  .label.s .human{ font-size:2.2mm; font-family:monospace; color:#333; letter-spacing:.04em;
+                   white-space:nowrap; overflow:hidden; }
 
   /* ---- MEDIUM (shelf-talker) — 62mm ---- */
   .label.m{ width:62mm; margin:0 auto; background:#fff; padding:3mm 3mm 2mm; box-shadow:0 2px 8px rgba(0,0,0,.15);
