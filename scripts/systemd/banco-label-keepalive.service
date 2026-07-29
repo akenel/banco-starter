@@ -1,0 +1,15 @@
+[Unit]
+# Keeps the Brother QL label printer reachable so the till's Print button
+# always finds it awake. See scripts/label-printer-keepalive.sh for the why.
+Description=Banco — keep the label printer (ipp-usb) reachable
+Documentation=file:/root/banco-starter/onboarding/08-label-printer.md
+After=ipp-usb.service cups.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/banco/label-printer-keepalive.sh
+# Never let a wedged check pile up: the timer fires every minute.
+TimeoutStartSec=90
+# A failed poke is routine (printer off overnight) — don't spam the journal
+# with unit failures for something we retry a minute later.
+SuccessExitStatus=0 1

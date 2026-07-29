@@ -1,0 +1,18 @@
+[Unit]
+Description=Banco — poke the label printer every minute so it never goes stale
+Documentation=file:/root/banco-starter/onboarding/08-label-printer.md
+
+[Timer]
+# Every 60s. The ipp-usb session dies after ~6-13 minutes idle, so a poke a
+# minute means it should never get there — and if it somehow does, the worst
+# case wait before a heal is one minute, not "until someone notices nothing
+# printed".
+OnBootSec=1min
+OnUnitActiveSec=1min
+AccuracySec=10s
+# Don't fire all at once with everything else that ticks on the minute.
+RandomizedDelaySec=5s
+Persistent=false
+
+[Install]
+WantedBy=timers.target

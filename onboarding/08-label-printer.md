@@ -65,6 +65,37 @@ wildcards, no shell. Edit the username in it if the till user isn't `angel`.
 > Without this rule the script still prints; it just can't recover a stale `ipp-usb` on its own, and someone has
 > to type a root password at the counter. That's not a thing that can happen with a customer waiting.
 
+### Step A2 · Install the keepalive (do this, or the browser's Print button will randomly do nothing)
+
+```bash
+sudo ./scripts/install-label-keepalive.sh
+```
+
+`ipp-usb`'s USB session dies after **6–13 minutes idle** and never re-opens. Jobs then queue silently and nothing
+comes out. `print-label.py` heals itself before printing — **a browser can't**: `window.print()` has no way to
+restart a daemon, and an HTTPS page can't even reach `http://localhost`. So the till's Print button needs the
+printer already awake.
+
+The installed timer pokes it every 60 s with a status query. Since the failure is an *idle* timeout, that traffic
+should stop it going stale at all; a restart is the fallback, not the mechanism.
+
+> ### ⚠️ Run this on the TILL, not the server
+>
+> ```
+> server (Banco app)          till (this machine)
+> ├── banco-app               ├── Brother QL  ← USB cable
+> ├── postgres                ├── ipp-usb
+> └── caddy                   ├── CUPS / BancoLabel
+>      ↑                      └── browser
+>   serves the HTML                ↑
+>                          does the actual printing
+> ```
+>
+> Banco's pages come from the server, but printing happens **entirely on the till**. The server has no printer.
+>
+> **This is machine setup, not application code.** It installs into `/etc` and `/opt`, so it survives `git pull`,
+> redeploys, reboots and power cuts. Run it **once per till** — never again after a deploy.
+
 Check the printer is answering. Switch it on and wait for the **LCD to light**, then:
 
 ```
