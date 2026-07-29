@@ -1,0 +1,64 @@
+<?xml version="1.0"?>
+<!--
+  gLabels templates for the Brother QL-820NWB on a 62mm continuous roll
+  (DK-22205 permanent / DK-44205 removable).
+
+  Install:
+      mkdir -p ~/.config/libglabels/templates
+      cp brother-ql-62mm.template ~/.config/libglabels/templates/
+
+  Restart gLabels, then: File -> New -> search "Brother". All four appear.
+
+  WHY THESE SIZES: on continuous tape YOU choose the length, and the length is
+  what feeds — so a 30mm label uses 30mm of roll and a 100mm one wastes 70mm.
+  Pick the shortest that fits your content. A 30.48m roll gives roughly:
+
+      30mm label -> ~1000 labels        62mm label ->  ~490
+      40mm label ->  ~760 labels       100mm label ->  ~300
+
+  Round corners are cosmetic on continuous tape (the cutter cuts straight), but
+  they make the printed border look like a real label.
+-->
+<Glabels-templates>
+
+  <Template brand="Brother" part="QL-62x30-Banco" size="Other"
+            width="62mm" height="30mm"
+            description="Banco price sticker — 62mm roll, 30mm long">
+    <Meta category="label"/>
+    <Label-rectangle id="0" width="62mm" height="30mm" round="1.5mm">
+      <Markup-margin size="2mm"/>
+      <Layout nx="1" ny="1" x0="0mm" y0="0mm" dx="62mm" dy="30mm"/>
+    </Label-rectangle>
+  </Template>
+
+  <Template brand="Brother" part="QL-62x40-Banco" size="Other"
+            width="62mm" height="40mm"
+            description="Banco shelf label — 62mm roll, 40mm long">
+    <Meta category="label"/>
+    <Label-rectangle id="0" width="62mm" height="40mm" round="1.5mm">
+      <Markup-margin size="2mm"/>
+      <Layout nx="1" ny="1" x0="0mm" y0="0mm" dx="62mm" dy="40mm"/>
+    </Label-rectangle>
+  </Template>
+
+  <Template brand="Brother" part="QL-62x62-Banco" size="Other"
+            width="62mm" height="62mm"
+            description="Banco square label — 62mm roll, 62mm long">
+    <Meta category="label"/>
+    <Label-rectangle id="0" width="62mm" height="62mm" round="2mm">
+      <Markup-margin size="2mm"/>
+      <Layout nx="1" ny="1" x0="0mm" y0="0mm" dx="62mm" dy="62mm"/>
+    </Label-rectangle>
+  </Template>
+
+  <Template brand="Brother" part="QL-62x100-Banco" size="Other"
+            width="62mm" height="100mm"
+            description="Banco shelf-talker — 62mm roll, 100mm long">
+    <Meta category="label"/>
+    <Label-rectangle id="0" width="62mm" height="100mm" round="2mm">
+      <Markup-margin size="3mm"/>
+      <Layout nx="1" ny="1" x0="0mm" y0="0mm" dx="62mm" dy="100mm"/>
+    </Label-rectangle>
+  </Template>
+
+</Glabels-templates>

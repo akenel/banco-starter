@@ -471,6 +471,108 @@ lpoptions -p BancoLabel -l | grep -i cut                   # want *EndOfPage
 > The small label prints a thin border. That is a **cut guide**: continuous tape has no die line, so without an
 > edge you are guessing with scissors.
 
+
+---
+
+## gLabels — for everything Banco doesn't print
+
+Banco prints **catalogue** labels: a product's QR, name and price. Everything else a shop dreams up — shelf
+signage, promo tags, opening hours, a "back in 10 minutes" sign — wants a proper label designer.
+
+That's **gLabels**: open source, in Debian's repos, prints through CUPS so it sees `BancoLabel` immediately.
+It runs happily on the 8 GB till.
+
+> **Why keep them separate.** Banco stays a POS instead of slowly becoming a label design tool, and the shop
+> isn't blocked waiting on a developer for a one-off sticker. Felix designs his own; Banco keeps doing the
+> catalogue.
+
+### Install
+
+```bash
+sudo apt install glabels
+```
+
+> ⚠️ **The binary is `glabels-3`, not `glabels`.** Typing `glabels` gives "command not found" and looks like a
+> failed install. It's in the applications menu as *gLabels*.
+
+### Add the roll templates (do this first)
+
+gLabels ships templates for A4 sticker sheets, not continuous rolls — so out of the box there's nothing that
+fits a 62 mm Brother roll. Four ready-made ones are in this repo:
+
+```bash
+mkdir -p ~/.config/libglabels/templates
+cp onboarding/testsheets/glabels/brother-ql-62mm.template ~/.config/libglabels/templates/
+```
+
+Restart gLabels → **File → New** → search **Brother**:
+
+| Template | Length | Good for |
+|---|---|---|
+| `QL-62x30-Banco` | 30 mm | price stickers |
+| `QL-62x40-Banco` | 40 mm | shelf labels |
+| `QL-62x62-Banco` | 62 mm | square, promos |
+| `QL-62x100-Banco` | 100 mm | shelf-talkers |
+
+**Pick the shortest that fits.** On continuous tape the length is what feeds, so it's the difference between
+~1000 labels a roll and ~300:
+
+```
+30mm -> ~1000 labels        62mm -> ~490
+40mm ->  ~760 labels       100mm -> ~300
+```
+
+Per-till setup, like everything else here — install once, survives deploys.
+
+### Printing
+
+**File → Print → `BancoLabel`.** Then the same two rules as everywhere in this guide:
+
+- **Scale 100%**, never "fit to page" — scaling distorts barcodes and re-wraps text
+- **Paper size must match the template.** Mismatch it and the printer feeds the paper size's length, not the
+  label's — the classic tape-waster
+
+### Barcodes
+
+**Objects → Add Barcode**, then pick the style. Code128 for internal SKUs, EAN-13 for retail codes.
+
+Same physics as the rest of this guide: **an EAN-13 needs ~31 mm wide and ~23 mm of bar height to scan.** On a
+62 mm roll that's fine across the width. Don't shrink it to make room — a barcode nobody can scan is worse than
+no barcode. If it won't fit, use a QR instead.
+
+### The good bit: one label per row from a spreadsheet
+
+This is what makes gLabels worth installing rather than fiddling in LibreOffice.
+
+1. Export products to CSV with a header row — there's an example at
+   `onboarding/testsheets/glabels/products-example.csv`:
+
+   ```
+   name,price,sku,barcode
+   Curaprox Naturally Zahnpasta 1% CBD,14.90,TAM-21796,2000000217963
+   ```
+
+2. In gLabels: **Objects → Merge Properties** → format **Text: Comma Separated (CSV) with keys on line 1** →
+   choose the file.
+3. Design **one** label. Instead of typing text, use **Insert Field** and pick `name`, `price`, `barcode`.
+4. **File → Print** → tick **Print outlines / merge** — gLabels prints one label per row.
+
+Fifty products becomes one print job. That's the whole shelf relabelled in a single pass, and it's the reason to
+reach for gLabels over designing fifty labels by hand.
+
+> **Tip:** print to PDF first when merging. Fifty wrong labels is fifty labels of wasted tape; a PDF costs
+> nothing to check.
+
+### Tips worth knowing
+
+- **Design at the real size.** gLabels works in mm — trust the template, not how it looks on screen.
+- **Leave the margin alone.** The 2 mm markup margin is the printable edge; content outside it gets clipped.
+- **Keep a `.glabels` file per label type** in a shop folder. They're small, and re-opening beats redesigning.
+- **Greyscale only.** The QL is a thermal printer — colour on screen prints as grey. Use bold weight and size
+  for emphasis, not colour.
+- **No ink, ever.** Direct thermal: the roll *is* the consumable. If print looks faint, clean the print head
+  (cotton bud + isopropyl on the dark strip under the cover) before suspecting anything else.
+
 ## The other half: the scanner guns
 
 Printing a label is only half the loop — something has to read it back. Full setup, and one trap that will
