@@ -8569,28 +8569,35 @@ def _qr_data_uri(payload: str, logo_url: str | None = None) -> str:
         img = qr.make_image(fill_color="black", back_color="white").convert("RGB")
 
         if logo_path:
-            from PIL import Image
+            from PIL import Image, ImageFilter
             w, h = img.size
-            # 24% of the WIDTH, paired with a 20mm QR on the label.
+
+            # 22% of the width on a 20mm QR — a 4.4mm mark.
             #
-            # Percentage of width is not percentage of area, and the shape of
-            # the mark decides which matters. 30% was carried over from a test
-            # done with the Artemis logo (1.65x wider than tall), where it
-            # covered 30% x 18% = 5.4% of the code. The square leaf at the same
-            # 30% covers 9.0% — nearly double the damage from an identical
-            # looking number — and it did not scan.
-            #
-            # 24% on a 20mm QR gives a 4.8mm leaf, physically LARGER than the
-            # 4.5mm that failed, at 5.8% damage. Scan-verified on both guns.
-            box = int(w * 0.24)
+            # Percentage of width is not percentage of AREA, and the shape of
+            # the mark decides which one matters. Learned twice: 30% came from
+            # a test with the Artemis logo (1.65x wider than tall) where it
+            # covered 5.4% of the code; the SQUARE leaf at the same 30% covers
+            # 9.0%, and did not scan.
+            box = int(w * 0.22)
             logo = Image.open(logo_path).convert("RGBA")
+            logo = logo.crop(logo.getchannel("A").getbbox())   # drop dead border
             logo.thumbnail((box, box), Image.LANCZOS)
-            # White pad behind it: the scanner needs a clean edge between the
-            # logo and the surrounding modules, or it reads the logo as data.
-            pad = 6
-            plate = Image.new("RGB", (logo.width + pad * 2, logo.height + pad * 2), "white")
-            plate.paste(logo, (pad, pad), logo)
-            img.paste(plate, ((w - plate.width) // 2, (h - plate.height) // 2))
+
+            # The white backing FOLLOWS THE MARK instead of boxing it.
+            #
+            # A square plate destroys a square. The leaf fills only 31% of its
+            # own bounding box, so two thirds of that damage bought nothing but
+            # white space — which is exactly what Angel saw on the failing
+            # labels. Dilating the alpha gives a white outline hugging the
+            # silhouette: same clean edge the scanner needs to treat the mark
+            # as recoverable damage, at 37% less damaged area for an identical
+            # looking leaf (7.8% -> 4.9% measured; 4.3% at this 22%).
+            alpha = logo.getchannel("A")
+            halo = alpha.filter(ImageFilter.MaxFilter(15))
+            pos = ((w - logo.width) // 2, (h - logo.height) // 2)
+            img.paste(Image.new("RGB", logo.size, "white"), pos, halo)
+            img.paste(logo.convert("RGB"), pos, alpha)
 
         buf = io.BytesIO()
         img.save(buf, "PNG")
