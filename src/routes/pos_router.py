@@ -975,7 +975,81 @@ async def _find_product_by_any_barcode(db: AsyncSession, barcode: str) -> Option
         .join(ProductBarcodeModel, ProductBarcodeModel.product_id == ProductModel.id)
         .where(ProductBarcodeModel.barcode == barcode)
     )
-    return result.scalar_one_or_none()
+    product = result.scalar_one_or_none()
+    if product:
+        return product
+
+    # LAST RESORT: the gun may be set to the wrong keyboard layout.
+    # A scanner is just a keyboard — it presses the KEY that yields a character
+    # on ITS configured layout, and the OS reads that key through the layout
+    # the SESSION uses. Mismatch them and punctuation silently mutates: a gun
+    # on US typing "-" presses the key right of 0, which a Swiss German
+    # session reads as "'". So TAM-21796 arrives as TAM'21796 and nothing is
+    # found. Digits are identical across these layouts, which is why EAN-13
+    # scanning looks perfect while SKU labels fail — and why this hides for
+    # weeks. (Seen for real, both guns, 2026-07-29.)
+    #
+    # Deliberately a FALLBACK, never a rewrite: we only get here after the code
+    # as-scanned found nothing, so a legitimate apostrophe can't be corrupted.
+    for candidate in _layout_variants(barcode):
+        result = await db.execute(select(ProductModel).where(ProductModel.barcode == candidate))
+        product = result.scalar_one_or_none()
+        if product:
+            logger.warning("barcode %r matched only after keyboard-layout correction to %r — "
+                           "the scanner gun's layout does not match this session", barcode, candidate)
+            return product
+        result = await db.execute(
+            select(ProductModel)
+            .join(ProductBarcodeModel, ProductBarcodeModel.product_id == ProductModel.id)
+            .where(ProductBarcodeModel.barcode == candidate)
+        )
+        product = result.scalar_one_or_none()
+        if product:
+            logger.warning("alias barcode %r matched only after keyboard-layout correction to %r",
+                           barcode, candidate)
+            return product
+    return None
+
+
+# Characters that swap when a scanner's keyboard layout disagrees with the
+# session's. Only the pairs we can actually hit on a Swiss/German/UK/US till —
+# a longer table would mostly add ways to guess wrong.
+_LAYOUT_SWAPS = (
+    ("'", "-"),    # US "-" (right of 0) read as "'" on Swiss German  ← the one we hit
+    ("ß", "-"),    # German "ß" sits where US puts "-"
+    ("/", "-"),    # Swiss "-" (right of .) read as "/" on US/UK
+    ("+", "]"), ("ü", "["), ("ö", ";"), ("ä", "'"),
+)
+
+# QWERTZ vs QWERTY trades Y and Z. That is a genuine SWAP, so it needs
+# translate() — replacing Y->Z then Z->Y maps everything one way and loses the
+# original Zs. Cost an assertion to notice, which is the point of the test.
+_QWERTZ = str.maketrans("YZyz", "ZYzy")
+
+
+def _layout_variants(code: str) -> list[str]:
+    """Plausible re-readings of `code` under a different keyboard layout.
+
+    At most a handful, most-likely first, never including `code` itself.
+    Order matters only for the log line — any hit is a hit.
+    """
+    out: list[str] = []
+
+    def add(v: str) -> None:
+        if v != code and v not in out:
+            out.append(v)
+
+    # Both directions — we don't know which side is misconfigured, only that
+    # the code as-scanned matched nothing.
+    for a, b in _LAYOUT_SWAPS:
+        for src, dst in ((a, b), (b, a)):
+            if src in code:
+                add(code.replace(src, dst))
+
+    if any(c in code for c in "YZyz"):
+        add(code.translate(_QWERTZ))
+
+    return out[:8]
 
 
 @router.get("/products/barcode/{barcode}", response_model=ProductRead)
