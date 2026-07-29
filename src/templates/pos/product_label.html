@@ -25,7 +25,8 @@
      the leaf at 4.8mm (larger than the 15mm/30% version that FAILED) while
      cutting the damaged area from 9.0% to 5.8%. See LEAF-QR-SIZE-TEST.html. */
   .label.s{ width:62mm; margin:0 auto; background:#fff; padding:2mm 2.5mm; box-shadow:0 2px 8px rgba(0,0,0,.15);
-            display:flex; flex-direction:row; align-items:center; gap:2.5mm; }
+            display:flex; flex-direction:row; align-items:center; gap:2.5mm;
+            border:0.35mm solid #111; border-radius:1.5mm; }
   .label.s .qrbox{ flex:0 0 20mm; }
   .label.s .qrbox img{ width:20mm; height:20mm; display:block; }
   .label.s .txt{ flex:1; min-width:0; display:flex; flex-direction:column; justify-content:center; overflow:hidden; }
@@ -58,6 +59,10 @@
     body{ background:#fff; padding:0; }
     .bar{ display:none; }
     .label{ box-shadow:none; margin:0; }
+    /* The border is a CUT GUIDE, not decoration. On continuous tape the roll
+       does not tell you where the label ends, so without an edge you are
+       guessing with scissors — and a shop that wastes nothing will notice.
+       Kept thin: thermal heads spread ink, and a heavy rule bleeds. */
     /* The page IS the label — the roll/sticker size, never an A4 sheet.
        BOTH lengths are required. `size: 62mm auto` looks reasonable and is
        INVALID CSS — the spec allows `auto` OR one/two lengths, never a length
