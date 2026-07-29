@@ -8397,7 +8397,8 @@ async def product_label(
     product = await db.get(ProductModel, product_id)
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
-    store = _postcard_store_footer(await get_active_store_settings(db), "")
+    settings = await get_active_store_settings(db)
+    store = _postcard_store_footer(settings, "")
     return templates.TemplateResponse("pos/product_label.html", {
         "request": request,
         "size": "m" if (size or "s").lower().startswith("m") else "s",
@@ -8405,10 +8406,90 @@ async def product_label(
         "price": f"{float(product.price):.2f}" if product.price is not None else None,
         "currency": await _store_currency(db),
         "barcode": product.barcode or "",
+        "qr": _qr_data_uri(product.barcode or product.sku or "",
+                           getattr(settings, "receipt_logo_url", None)),
         "sku": product.sku or "",
         "store_name": (store or {}).get("name") or "",
         "pid": str(product.id),
     })
+
+
+def _qr_logo_path(logo_url: str | None) -> str | None:
+    """Resolve a store's configured logo to a file on disk, or None.
+
+    Only LOCAL /static/... paths. A remote URL is deliberately ignored: this
+    runs while rendering a label, and no shelf label is worth a blocking HTTP
+    fetch that might hang the page. Path is confined to src/static so a crafted
+    settings value can't walk the filesystem.
+    """
+    if not logo_url or not logo_url.startswith("/static/"):
+        return None
+    import os
+    root = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static")
+    p = os.path.normpath(os.path.join(root, logo_url[len("/static/"):]))
+    return p if p.startswith(root + os.sep) and os.path.isfile(p) else None
+
+
+def _qr_data_uri(payload: str, logo_url: str | None = None) -> str:
+    """Render `payload` as a QR PNG data URI, or "" if we can't.
+
+    WHY QR on the small label: a 13-digit EAN-13 needs ~31mm of width and ~23mm
+    of bar height to scan reliably. The small sticker has neither, so it printed
+    a barcode neither scanner gun in the shop could read. QR carries the same
+    digits in a fraction of the area AND has Reed-Solomon error correction, so
+    it survives being small, smudged, or stuck on a curved tin.
+
+    Measured 2026-07-29 against both of the shop's guns: readable down to 10mm.
+    We render generously and lay it out at 15mm, which leaves real margin for
+    shop lighting and an awkward angle.
+
+    Server-side on purpose — no QR library to vendor into static/, and the
+    <img> works even if JS is blocked. Returns "" rather than raising: a label
+    with no code still shows name and price, which beats a 500 at the counter.
+    """
+    if not payload:
+        return ""
+    try:
+        import base64
+        import io
+
+        import qrcode
+
+        logo_path = _qr_logo_path(logo_url)
+
+        # With a logo we punch a hole in the middle, so we need the redundancy
+        # to cover it: H recovers ~30%, M only ~15%. H costs more modules (a
+        # denser code), which is exactly why we only pay it when there IS a logo.
+        qr = qrcode.QRCode(
+            box_size=10, border=2,
+            error_correction=(qrcode.constants.ERROR_CORRECT_H if logo_path
+                              else qrcode.constants.ERROR_CORRECT_M),
+        )
+        qr.add_data(payload)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="black", back_color="white").convert("RGB")
+
+        if logo_path:
+            from PIL import Image
+            w, h = img.size
+            # 22% of the width ≈ 5% of the AREA. Well inside H's 30% budget —
+            # covering more looks bolder and starts costing you reads.
+            box = int(w * 0.22)
+            logo = Image.open(logo_path).convert("RGBA")
+            logo.thumbnail((box, box), Image.LANCZOS)
+            # White pad behind it: the scanner needs a clean edge between the
+            # logo and the surrounding modules, or it reads the logo as data.
+            pad = 6
+            plate = Image.new("RGB", (logo.width + pad * 2, logo.height + pad * 2), "white")
+            plate.paste(logo, (pad, pad), logo)
+            img.paste(plate, ((w - plate.width) // 2, (h - plate.height) // 2))
+
+        buf = io.BytesIO()
+        img.save(buf, "PNG")
+        return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+    except Exception:
+        logger.warning("QR render failed for %r — label will print without a code", payload[:32])
+        return ""
 
 
 # ================================================================

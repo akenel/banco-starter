@@ -14,13 +14,21 @@
   .bar .sizes a.on{ background:#1a4d2e; color:#fff; font-weight:700; }
   .bar .back{ color:#1a4d2e; text-decoration:none; font-size:14px; padding:9px 6px; }
 
-  /* ---- SMALL (price sticker) — ~38mm, the default ---- */
-  .label.s{ width:38mm; margin:0 auto; background:#fff; padding:1.5mm 2mm; box-shadow:0 2px 8px rgba(0,0,0,.15);
-            display:flex; flex-direction:column; align-items:center; }
-  .label.s .pname{ font-size:2.5mm; font-weight:700; line-height:1.1; max-height:5.5mm; overflow:hidden; text-align:center; }
-  .label.s .price{ font-size:5mm; font-weight:800; color:#8B0000; margin:.3mm 0 1mm; }
-  .label.s svg.code{ width:100%; height:9mm; }
-  .label.s .human{ font-size:2mm; font-family:monospace; color:#333; letter-spacing:.04em; }
+  /* ---- SMALL (price sticker) — 62mm wide, QR ----
+     It used to be 38mm wide with a 9mm-tall EAN-13, printed on a 62mm roll:
+     a third of the width thrown away, and a barcode NEITHER scanner gun in the
+     shop could read (EAN-13 wants ~31mm wide and ~23mm of bar height).
+     Small now means SHORTER, not narrower — and carries a QR, which holds the
+     same digits in a fraction of the area with error correction on top.
+     Measured against both guns 2026-07-29: QR readable to 10mm; we use 15mm. */
+  .label.s{ width:62mm; margin:0 auto; background:#fff; padding:2mm 2.5mm; box-shadow:0 2px 8px rgba(0,0,0,.15);
+            display:flex; flex-direction:row; align-items:center; gap:2.5mm; }
+  .label.s .qrbox{ flex:0 0 15mm; }
+  .label.s .qrbox img{ width:15mm; height:15mm; display:block; }
+  .label.s .txt{ flex:1; min-width:0; display:flex; flex-direction:column; justify-content:center; }
+  .label.s .pname{ font-size:2.8mm; font-weight:700; line-height:1.15; max-height:6.5mm; overflow:hidden; }
+  .label.s .price{ font-size:7mm; font-weight:800; color:#8B0000; line-height:1.1; margin:.5mm 0 .3mm; }
+  .label.s .human{ font-size:2.2mm; font-family:monospace; color:#333; letter-spacing:.04em; }
 
   /* ---- MEDIUM (shelf-talker) — 62mm ---- */
   .label.m{ width:62mm; margin:0 auto; background:#fff; padding:3mm 3mm 2mm; box-shadow:0 2px 8px rgba(0,0,0,.15);
@@ -45,7 +53,7 @@
        label printer throws the job away. Cost us an evening; keep it concrete.
        Heights are generous — on continuous tape the surplus is a little wasted
        roll, whereas too short clips the barcode. */
-    @page{ size:{{ '62mm 55mm' if size=='m' else '38mm 32mm' }}; margin:0; }
+    @page{ size:{{ '62mm 55mm' if size=='m' else '62mm 24mm' }}; margin:0; }
   }
 </style></head>
 <body>
@@ -58,19 +66,38 @@
     <a class="back" href="/pos/products/{{ pid }}/page">← Back</a>
   </div>
 
-  <div class="label {{ size }}">
-    {% if size=='m' and store_name %}<div class="store">{{ store_name }}</div>{% endif %}
+  {% if size=='s' %}
+  {# SMALL = QR beside the price. A linear barcode does not fit a sticker this
+     size at a scannable magnification; QR does, with error correction spare. #}
+  <div class="label s">
+    <div class="qrbox">
+      {% if qr %}<img src="{{ qr }}" alt="{{ barcode or sku }}">{% else %}<div class="nocode">—</div>{% endif %}
+    </div>
+    <div class="txt">
+      <div class="pname">{{ name }}</div>
+      {% if price %}<div class="price">{{ currency }} {{ price }}</div>{% endif %}
+      <div class="human">{{ sku }}</div>
+    </div>
+  </div>
+  {% else %}
+  {# MEDIUM = the shelf-talker. 62mm gives an EAN-13 room to scan properly, and
+     a human-readable barcode is what a shelf edge wants. #}
+  <div class="label m">
+    {% if store_name %}<div class="store">{{ store_name }}</div>{% endif %}
     <div class="pname">{{ name }}</div>
     {% if price %}<div class="price">{{ currency }} {{ price }}</div>{% endif %}
     {% if barcode %}<svg class="code" id="bc"></svg>{% else %}<div class="nocode">— no barcode —</div>{% endif %}
     <div class="human">{{ sku }}</div>
   </div>
+  {% endif %}
 
   <script>
     (function(){
+      // SMALL renders a server-side QR <img>; only MEDIUM uses JsBarcode.
+      var small = {{ 'true' if size=='s' else 'false' }};
+      if (small) return;
       var code = {{ barcode | tojson }};
       if (!code) return;
-      var small = {{ 'true' if size=='s' else 'false' }};
       var isEan13 = /^\d{13}$/.test(code);
       var opts = { format: isEan13 ? "EAN13" : "CODE128", displayValue: true,
                    fontSize: small ? 16 : 26, height: small ? 34 : 48, margin: 0, width: small ? 1.1 : 1.6 };

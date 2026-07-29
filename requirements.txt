@@ -73,6 +73,13 @@ opencv-python-headless
 #   wrong barcode LOOKS fine and simply won't scan at the till. Use the tested one.
 #   Renders straight to a PIL image via its ImageWriter, so no extra deps beyond Pillow.
 python-barcode
+# qrcode: the SMALL shelf label. A 13-digit EAN-13 needs ~31mm wide and ~23mm of
+#   bar height to scan; a price sticker has neither, and the one we printed was
+#   unreadable by both of the shop's scanner guns. QR holds the same digits in a
+#   fraction of the area with Reed-Solomon error correction on top — measured
+#   readable down to 10mm on both guns, so we lay it out at 15mm. Pure Python,
+#   renders via Pillow (already here), server-side so there is no JS to vendor.
+qrcode
 
 # --- Migration workbench (BL-131): the XLSX worklist export ---
 # openpyxl: builds the multi-tab .xlsx an operator fills at the shelf (dropdowns bound to the
