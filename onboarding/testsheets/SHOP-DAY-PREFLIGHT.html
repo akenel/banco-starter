@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shop Day Pre-flight — Banco kiosk + labeller</title>
+<style>
+  :root{ --red:#157F52; --dark:#0f5c3b; --ink:#1f2937; --mut:#6b7280; --line:#e5e7eb;
+         --ok:#059669; --iss:#d97706; --fail:#C0392B; --bg:#f6f8f7; --gold:#b0862f; }
+  *{ box-sizing:border-box; }
+  body{ font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; color:var(--ink);
+        background:var(--bg); margin:0; line-height:1.5; }
+  header{ position:sticky; top:0; z-index:10; background:#fff; border-bottom:2px solid var(--red);
+          padding:12px 20px; box-shadow:0 2px 8px rgba(0,0,0,.06); }
+  .htop{ display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+  h1{ font-size:18px; margin:0; }
+  h1 small{ color:var(--mut); font-weight:500; font-size:13px; display:block; margin-top:2px; }
+  .meters{ display:flex; align-items:center; gap:16px; }
+  .meter{ text-align:center; } .meter b{ font-size:20px; display:block; } .meter.ok b{ color:var(--ok); }
+  .meter.iss b{ color:var(--iss); } .meter.fail b{ color:var(--fail); }
+  .meter span{ font-size:11px; color:var(--mut); text-transform:uppercase; letter-spacing:.04em; }
+  .btn{ border:1px solid var(--line); background:#fff; border-radius:8px; padding:6px 12px;
+        font-size:13px; cursor:pointer; } .btn:hover{ background:#f0f0f0; }
+  main{ max-width:900px; margin:0 auto; padding:22px 20px 80px; }
+  .lead{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin-bottom:20px; }
+  .phase{ font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.06em;
+          color:var(--red); margin:26px 0 10px; padding-bottom:6px; border-bottom:2px solid var(--red); }
+  section{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin-bottom:14px; }
+  section h2{ font-size:15px; margin:0 0 4px; }
+  section .why{ color:var(--mut); font-size:13px; margin:0 0 12px; }
+  code{ font-family:ui-monospace,Menlo,monospace; font-size:12px; background:#f3f4f6;
+        border:1px solid var(--line); border-radius:5px; padding:1px 5px; }
+  .cmd{ display:block; font-family:ui-monospace,Menlo,monospace; font-size:12.5px; background:#0f172a;
+        color:#e2e8f0; border-radius:8px; padding:9px 12px; margin:6px 0; white-space:pre-wrap; word-break:break-word; }
+  ol.steps{ margin:0; padding-left:0; list-style:none; counter-reset:s; }
+  ol.steps li{ counter-increment:s; display:flex; gap:10px; padding:9px 0; border-top:1px solid var(--line); }
+  ol.steps li:first-child{ border-top:0; }
+  ol.steps li::before{ content:counter(s); flex:0 0 22px; height:22px; border-radius:50%;
+        background:var(--red); color:#fff; font-size:12px; font-weight:700; display:flex;
+        align-items:center; justify-content:center; margin-top:2px; }
+  .step-body{ flex:1; font-size:14px; }
+  .exp{ display:block; color:var(--ok); font-size:12.5px; margin-top:4px; }
+  .verdict{ display:flex; gap:6px; margin-top:7px; }
+  .v{ border:1px solid var(--line); background:#fff; border-radius:7px; padding:3px 10px;
+      font-size:12px; cursor:pointer; font-weight:600; color:var(--mut); }
+  .v.on[data-v=ok]{ background:var(--ok); color:#fff; border-color:var(--ok); }
+  .v.on[data-v=iss]{ background:var(--iss); color:#fff; border-color:var(--iss); }
+  .v.on[data-v=fail]{ background:var(--fail); color:#fff; border-color:var(--fail); }
+  .tag{ display:inline-block; background:#eef6f1; color:var(--dark); border:1px solid #cfe6da;
+        border-radius:999px; padding:2px 10px; font-size:12px; margin:2px 4px 2px 0; }
+  .tag.stop{ background:#fdecea; color:var(--fail); border-color:#f5c6c0; }
+  .safety{ border:1px solid var(--line); border-left:4px solid var(--gold); background:#fffdf5;
+           border-radius:8px; padding:10px 12px; margin:10px 0; font-size:13.5px; }
+  table{ border-collapse:collapse; width:100%; font-size:13px; margin:8px 0; }
+  th,td{ border:1px solid var(--line); padding:6px 9px; text-align:left; vertical-align:top; }
+  th{ background:#f6f8f7; }
+</style></head>
+<body>
+
+<header><div class="htop">
+  <h1>🏷️ Shop Day Pre-flight
+    <small>ProBook kiosk + QL-820NWBc labeller + scanner guns · Artemis Lucerne</small></h1>
+  <div class="meters">
+    <div class="meter ok"><b id="mOk">0</b><span>ok</span></div>
+    <div class="meter iss"><b id="mIss">0</b><span>issue</span></div>
+    <div class="meter fail"><b id="mFail">0</b><span>fail</span></div>
+    <button class="btn" onclick="if(confirm('Clear all marks?')){localStorage.removeItem(KEY);location.reload()}">reset</button>
+  </div>
+</div></header>
+
+<main>
+  <div class="lead">
+    <strong>What this is:</strong> the things to check <em>before</em> you're standing in the shop, and the things
+    to prove <em>while</em> you're there. One line each, with what "good" looks like.
+    <br><br>
+    <strong>Notes go in Banco, not here.</strong> Use the in-app feedback button — it captures the screenshot and
+    creates the BL. This sheet is only for tracking <em>what you tried</em>, so nothing gets forgotten in the rush.
+    <div class="safety">
+      <b>Triage as you go — mark the BL with one of these:</b>
+      <table>
+        <tr><th style="width:110px">Level</th><th>Means</th><th>Example</th></tr>
+        <tr><td><b style="color:var(--fail)">SHOWSTOPPER</b></td>
+            <td>A customer cannot be served, money cannot be taken, or data is lost.</td>
+            <td>Checkout won't complete · scanner doesn't find a real product · totals wrong</td></tr>
+        <tr><td><b style="color:var(--iss)">HYPERCARE</b></td>
+            <td>It works, but it's painful enough that staff will avoid it.</td>
+            <td>Add-product needs a user switch · label takes 30s · three taps too many</td></tr>
+        <tr><td><b>NOTE</b></td>
+            <td>Cosmetic or "would be nice". Real, but not this week.</td>
+            <td>Wrong icon · German label reads oddly · column too narrow</td></tr>
+      </table>
+      Only <b>SHOWSTOPPER</b> gets fixed tonight. Everything else goes on the deck.
+    </div>
+  </div>
+
+  <div class="phase">Part A — the night before (at home, on the ProBook)</div>
+
+  <section>
+    <h2>A1 · Machine sanity <span class="tag">10 min</span></h2>
+    <p class="why">This laptop is a <b>browser + printer + scanner</b>. It does <b>not</b> run the Banco stack —
+       8&nbsp;GB won't take Docker with Keycloak, and you'd spend the day debugging that instead of the shop.</p>
+    <ol class="steps">
+      <li><div class="step-body">Confirm it points at the server, not localhost.
+        <span class="exp">the kiosk URL is <code>https://banco.wolfhold.app/...</code> — no Docker running on this laptop.</span></div></li>
+      <li><div class="step-body">Check free memory with the browser open:
+        <span class="cmd">free -h</span>
+        <span class="exp">at least ~2 GB available. If not, close things — XFCE + Firefox should leave plenty on 8 GB.</span></div></li>
+      <li><div class="step-body">Confirm it survives a reboot onto the kiosk user without you typing anything.
+        <span class="exp">power on → auto-login as <code>kiosk</code> → kiosk route loads. No password prompt.</span></div></li>
+      <li><div class="step-body">Check the shop's wifi is saved and reconnects after the reboot.
+        <span class="exp">it comes back on its own — you won't want to be typing a wifi key at the counter.</span></div></li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>A2 · Label printer <span class="tag">15 min</span></h2>
+    <p class="why">Full detail in <code>onboarding/08-label-printer.md</code>. This is the short path.</p>
+    <ol class="steps">
+      <li><div class="step-body">Install CUPS + the USB bridge, and kill the phantom-queue daemon:
+        <span class="cmd">sudo apt install -y cups cups-ipp-utils ipp-usb
+sudo usermod -aG lpadmin $USER
+sudo systemctl disable --now cups-browsed</span>
+        <span class="exp">then <b>log out and back in</b> so the group takes.</span></div></li>
+      <li><div class="step-body">Plug the printer in, switch it on, <b>wait for the LCD to light</b>.
+        <span class="exp"><code>lsusb | grep -i brother</code> shows it — but note it shows even when OFF. Trust the LCD.</span></div></li>
+      <li><div class="step-body">Create the queue:
+        <span class="cmd">lpadmin -p BancoLabel -E -v "ipp://localhost:60000/ipp/print" -m everywhere -D "Banco label printer"
+lpadmin -p BancoLabel -o CutMedia=EndOfPage
+lpadmin -d BancoLabel</span>
+        <span class="exp"><code>lpstat -v</code> shows <b>only</b> BancoLabel.</span></div></li>
+      <li><div class="step-body">Install the keepalive — without it the browser's Print silently does nothing after ~10 min idle:
+        <span class="cmd">sudo ./scripts/install-label-keepalive.sh</span>
+        <span class="exp">"Installed and running", and the timer shows in the list.</span></div></li>
+      <li><div class="step-body">Print one from the browser. <b>Hard-refresh first</b> (<code>Ctrl+Shift+R</code>).
+        <span class="exp">a label on the roll, ~4s. The preview should look like a <em>label</em>, not a small thing on a big white sheet.</span></div></li>
+      <li><div class="step-body">The real test: leave it <b>30 minutes untouched</b>, then print again without touching anything.
+        <span class="exp">a label comes out on its own. This is the one that used to fail.</span></div></li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>A3 · Both scanner guns <span class="tag">10 min</span></h2>
+    <p class="why">A gun is just a keyboard that types fast and presses Enter. Test both — they may differ.</p>
+    <ol class="steps">
+      <li><div class="step-body">Open a text editor, scan a product with gun 1, then gun 2.
+        <span class="exp">the digits appear and the cursor jumps to a new line (that's the Enter). Both guns behave the same.</span></div></li>
+      <li><div class="step-body">In Banco, use the <b>📊 Barcode</b> tab — not 🔍 Search — and scan.
+        <span class="exp">the product is found and added. <br><b>Known trap:</b> a barcode typed into the <em>Search</em> tab shows all products instead of one. Use the Barcode tab.</span></div></li>
+      <li><div class="step-body">Scan a label <b>we printed</b> (not the manufacturer's).
+        <span class="exp">reads back the same code, e.g. <code>2000000217963</code> → the right product.</span></div></li>
+      <li><div class="step-body">Check the built-in camera as fallback (the 📷 button).
+        <span class="exp">camera opens and reads a code. Useful when a gun walks off.</span></div></li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>A4 · The add-a-product path <span class="tag">10 min</span> <span class="tag stop">decide tonight</span></h2>
+    <p class="why">The kiosk boots as <code>kiosk</code>, which can't add to the catalogue. Someone will need to
+       tomorrow. <b>Rehearse it now</b> — don't discover it at the counter.</p>
+    <ol class="steps">
+      <li><div class="step-body">From the kiosk, switch user → log in as Felix → add a product → switch back.
+        <span class="exp">it works, and you know how many seconds it takes. If it's horrible, that's a <b>HYPERCARE</b> BL, not a tomorrow fix.</span></div></li>
+      <li><div class="step-body">Time it. Write the number down.
+        <span class="exp">under ~30s is liveable. Over a minute and staff will simply stop adding products.</span></div></li>
+    </ol>
+    <div class="safety">Do <b>not</b> add a staff login to the kiosk tonight. New code the evening before a shop
+      test is how you arrive with a broken kiosk. A PIN unlock inside the kiosk is the right long-term answer —
+      next week.</div>
+  </section>
+
+  <section>
+    <h2>A5 · Mobile <span class="tag">5 min</span></h2>
+    <ol class="steps">
+      <li><div class="step-body">Open Banco on the phone, log in, scan with the phone camera, view a product.
+        <span class="exp">works on the shop wifi. Note anything that's unusable at phone width.</span></div></li>
+    </ol>
+  </section>
+
+  <div class="phase">Part B — at the shop (Thursday)</div>
+
+  <section>
+    <h2>B1 · Cold start <span class="tag stop">the real test</span></h2>
+    <p class="why">Everything off overnight, exactly as staff will find it. First impression is the whole product.</p>
+    <ol class="steps">
+      <li><div class="step-body">Power on the laptop and the printer. Touch nothing else.
+        <span class="exp">boots to the kiosk, catalogue loads, printer LED green.</span></div></li>
+      <li><div class="step-body">First action of the day: scan a product and print its label.
+        <span class="exp">both work first time, no warm-up, no restart. <b>If this fails it's a SHOWSTOPPER</b> — a shop can't start the day with a fix-it ritual.</span></div></li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>B2 · Scan the shelf — 50 to 200 products</h2>
+    <p class="why">Volume finds what one scan never will: the odd barcode, the missing product, the slow page.</p>
+    <ol class="steps">
+      <li><div class="step-body">Work through real stock. Every miss gets a BL with a photo of the item.
+        <span class="exp">most scan straight through. Count the misses — that number is the catalogue's real quality score.</span></div></li>
+      <li><div class="step-body">Watch for slow-down as the day's transactions build up.
+        <span class="exp">the catalogue stays quick. If it drags after 100 scans, BL it with the time of day.</span></div></li>
+      <li><div class="step-body">Deliberately scan something not in the catalogue.
+        <span class="exp">it fails <em>helpfully</em> — offers to add it, rather than a dead end or a raw error.</span></div></li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>B3 · A real day, faked</h2>
+    <p class="why">Mimic what they actually sold. Not a demo path — the messy one.</p>
+    <ol class="steps">
+      <li><div class="step-body">Ring up 10–20 baskets with the fake cash box. Mix cash, change, several items, an 18+ item.
+        <span class="exp">totals and VAT are right, age prompt fires, change is correct.</span></div></li>
+      <li><div class="step-body">Do the awkward ones: remove a line mid-sale, a discount, a refund, a held order.
+        <span class="exp">each recovers cleanly. These are where tills usually break.</span></div></li>
+      <li><div class="step-body">Have <b>Felix or Pam</b> do five sales while you stand back and say nothing.
+        <span class="exp">they get through without asking. <b>Every question they ask is a BL</b> — that's the most valuable data of the day.</span></div></li>
+      <li><div class="step-body">Print shelf labels for 10 products, stick them on, scan them back off the shelf.
+        <span class="exp">every one scans. This closes the loop: catalogue → label → shelf → till.</span></div></li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>B4 · End of day</h2>
+    <ol class="steps">
+      <li><div class="step-body">Run the closeout / cash count against the fake box.
+        <span class="exp">the number matches what's in the box. If it doesn't, that's a <b>SHOWSTOPPER</b>.</span></div></li>
+      <li><div class="step-body">Power everything off, wait a minute, power back on.
+        <span class="exp">comes straight back to a working kiosk. No manual steps.</span></div></li>
+      <li><div class="step-body">Before you leave: read your BLs back and mark each SHOWSTOPPER / HYPERCARE / NOTE.
+        <span class="exp">you leave with a sorted list, not a feeling. Triage in the shop while it's fresh — not on the train.</span></div></li>
+    </ol>
+  </section>
+
+  <div class="safety" style="margin-top:22px">
+    <b>If something breaks and you're stuck:</b> the label printer's usual fault is a stale <code>ipp-usb</code> —
+    <code>sudo systemctl restart ipp-usb</code> fixes it in ~5s and queued jobs then flush. Everything else:
+    write the BL, work around it, keep going. <b>A day of real use is worth more than a day of debugging</b> —
+    you can fix things at home, but you can't re-run Thursday.
+  </div>
+</main>
+
+<script>
+  const KEY='banco-shopday-preflight-v1';
+  let state=JSON.parse(localStorage.getItem(KEY)||'{}');
+  document.querySelectorAll('ol.steps li').forEach((li,i)=>{
+    const d=document.createElement('div'); d.className='verdict';
+    ['ok','iss','fail'].forEach(v=>{
+      const b=document.createElement('button'); b.className='v'; b.dataset.v=v;
+      b.textContent={ok:'✓ OK',iss:'⚠ ISSUE',fail:'✗ FAIL'}[v];
+      b.onclick=()=>{ state[i] = state[i]===v ? '' : v; save(); };
+      d.appendChild(b);
+    });
+    li.querySelector('.step-body').appendChild(d);
+  });
+  function save(){
+    localStorage.setItem(KEY, JSON.stringify(state));
+    let o=0,s=0,f=0;
+    document.querySelectorAll('ol.steps li').forEach((li,i)=>{
+      li.querySelectorAll('.v').forEach(b=>b.classList.toggle('on', state[i]===b.dataset.v));
+      if(state[i]==='ok')o++; else if(state[i]==='iss')s++; else if(state[i]==='fail')f++;
+    });
+    mOk.textContent=o; mIss.textContent=s; mFail.textContent=f;
+  }
+  save();
+</script>
+</body></html>
