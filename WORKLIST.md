@@ -8,22 +8,28 @@
 
 ## 🎯 On deck (next actionable, in order)
 
-1. **Keep `ipp-usb` fresh — the last thing between the labeler and daily use.** *(shop floor · small, do it first)*
+1. **⛔ Scanner guns type `-` as `'` — keyboard layout mismatch.** *(shop floor · do before scanning any SKU)*
+   - Found 2026-07-29 in the logo-QR scan test: the page shows `QR-LOGO-15`, the gun typed **`QR'LOGO'15`**. Confirmed across 48 scans on both guns — every hyphen became an apostrophe.
+   - **Why it hasn't hurt yet:** EAN-13 is pure digits, and digits map identically across layouts, so till scanning works today. **Every SKU has a hyphen** (`TAM-21796`, `TAM-5381`) — the moment a Code128 SKU label is scanned, the gun types `TAM'21796` and the product is not found.
+   - Fix is in the gun, not Banco: its manual has configuration barcodes for keyboard layout. Set **Swiss German** (or set the gun to US *and* match the machine's layout). Do **both guns**, then re-run `onboarding/testsheets/SCANNER-GUN-TEST.html` and confirm hyphens survive.
+   - Worth a defensive fix in Banco too: normalise likely layout substitutions on the scan path before lookup, so a mis-set gun degrades instead of failing. See `_clean_barcode` (pos_router.py:272), which already exists for scanner junk.
+
+2. **Keep `ipp-usb` fresh — the last thing between the labeler and daily use.** *(shop floor · small, do it first)*
    - Everything prints: CLI, barcodes, scanning, and the browser UI at any size. But `ipp-usb`'s USB session dies after **6–13 minutes idle** and then jobs queue silently and nothing comes out. `print-label.py` heals itself; **Chrome cannot**, so the browser path dies every quarter hour.
    - First move: a **systemd timer** (say every 5 min) that restarts `ipp-usb` *only when it has stopped relaying* — reuse the check in `print-label.py` (`ipp_usb_alive()`, an `ipptool` get-printer-attributes that returns `0 bytes` when stale). The passwordless sudoers rule is already installed at `/etc/sudoers.d/banco-label-printer`.
    - Manual recovery meanwhile: `sudo systemctl restart ipp-usb` — takes ~5 s, then queued jobs flush immediately.
    - Done = leave it an hour, print from the browser, a label comes out with nobody touching anything.
    - Then the freebie: `google-chrome --kiosk-printing` to drop the print dialog. `BancoLabel` is already the only queue and the system default, so nothing else is needed.
 
-2. **Harden go-live — DNS preflight + default-secret gate.** *(Roadmap Phase A)*
+3. **Harden go-live — DNS preflight + default-secret gate.** *(Roadmap Phase A)*
    - First move: add a preflight to `scripts/deploy-prod.sh` (or `go-live.py`) that resolves `APP_PUBLIC_HOST` + `KC_PUBLIC_HOST` and checks they point at the server IP **before** cert issuance, and refuses/loudly-warns if a starter-default secret is still in place (reuse `banco-doctor.py`'s default detection).
    - Done = a misconfigured DNS record or an unchanged default secret is caught *before* the box is exposed, not after.
 
-3. **DR restore (Move B) — ⛔ BLOCKED on B2 read creds.** *(Roadmap Phase A · the ownership proof)*
+4. **DR restore (Move B) — ⛔ BLOCKED on B2 read creds.** *(Roadmap Phase A · the ownership proof)*
    - Move A (seed gate) is ✅ **proven at runtime** (2026-07-22) — see Done below. Move B (the real restore) needs a read-only B2 key + bucket + passphrase (Angel deferred this session).
    - When creds are ready: infra up (`docker compose up -d postgres keycloak minio`) → `restore-from-b2.sh` with creds as **env vars** (never written to `.env`) → row-check prints a real product count → app up → `standup.sh`. Green-ticks the checklist's "practiced a restore" box. See [[catalog-seed-vs-bootstrap]].
 
-4. **Feed labels from the catalog.** *(shop floor)*
+5. **Feed labels from the catalog.** *(shop floor)*
    - Barcode + name + price by product ID, so a shelf label is one command and a re-price is a re-print. The pieces all exist now — `print-label.py -c <barcode> <name> <price>` and the web Label button.
 
 ## 🔭 Backlog (not yet scheduled)
