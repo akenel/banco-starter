@@ -33,6 +33,39 @@ Written against the **QL-820NWBc** on Debian 12, wired up 2026-07-28.
 
 ---
 
+## If you're picking this up cold
+
+Written down deliberately, because most of it cost hours to learn and none of it is guessable. If you're the
+next person — or Angel in six months — this is the part that saves you the day we spent.
+
+**Five faults, and what each one looked like.** Every single one *looked like* a broken printer. None was.
+
+| Symptom | Actual cause |
+|---|---|
+| Jobs queue, "now printing", nothing comes out, LED green | `ipp-usb`'s USB session went stale. Restart the daemon; don't touch the printer. |
+| Printed nothing, no error, clean CUPS drain | Browser rendered the label onto **A4** — `@page{ size: 62mm auto }` is invalid CSS and silently falls back. |
+| Some jobs vanish entirely | `cups-browsed`'s phantom queue accepts jobs then swallows them. Disable it. |
+| Label prints but won't scan | Barcode below the size a scanner can resolve. Small labels need a QR, not an EAN-13. |
+| Product not found when scanning a SKU | Scanner gun's keyboard layout ≠ session's. `-` arrives as `'`. |
+
+**The four habits that actually solved them:**
+
+1. **"The queue drained" ≠ "a label came out."** The printer accepts data in ~3 s and rejects it afterwards.
+   A clean `lpstat` proves nothing. Only a human holding the label proves it.
+2. **Read the device's own status before touching settings.** `ESC i S` over raw USB returns media width, type
+   and error bits. One read ended hours of guessing between roll types — and showed the settings had been
+   right the whole time.
+3. **When a browser print does nothing, save it as a PDF and run `pdfinfo`.** It shows what the browser
+   *actually* decided. `Page size: 594.96 x 841.92 pts (A4)` ended a three-hour hunt in one command.
+4. **Test with something that can reveal the fault.** The scanner keyboard bug only surfaced because the test
+   codes contained hyphens. Numeric test codes would have passed clean and shipped the bug to the shop.
+
+**And one that cost the most time:** the vendor-specific driver is not automatically the better bet. Three
+Brother-specific drivers printed **zero** labels; the generic CUPS/IPP path worked. Prefer the path with
+verified output over the one that looks more purpose-built.
+
+---
+
 ## Which machine does what (read this first)
 
 The single most confusing thing about printing here: **Banco runs on a server, but printing happens on the till.**
@@ -336,6 +369,36 @@ No room for text and a barcode on 62x12mm.  Try a longer --length.
 > **62 mm matters here.** An EAN-13 needs roughly 31 mm at 80% magnification before scanners start to struggle.
 > On a 29 mm roll you cannot print a reliable EAN-13 across the width — which is why the shop roll is 62 mm.
 
+### The two label sizes, and why Small is a QR
+
+From the web UI you pick **Small** or **Medium**. They are not the same label shrunk — they carry different
+codes, for a physical reason.
+
+| | Small | Medium |
+|---|---|---|
+| Page | 62 × 24 mm | 62 × 55 mm |
+| Code | **QR, 15 mm**, logo in the middle | **EAN-13**, 14 mm bars |
+| Layout | QR left, price right | stacked, shelf-talker |
+| For | price stickers on the item | shelf edges |
+
+**Why Small can't use a barcode.** EAN-13 needs ~31 mm of width *and* ~23 mm of bar height to scan reliably.
+A price sticker has neither. Our first attempt was 38 mm wide with 9 mm bars and **neither scanner gun in the
+shop could read it** — it looked perfect on screen and was useless on the tin.
+
+QR fixes it three ways: two-dimensional so the same 13 digits fit in a fraction of the area; Reed–Solomon
+error correction, which a linear barcode has none of, so it survives being small, smudged or stuck on a curve;
+and it reads from any angle.
+
+**Measured against both guns 2026-07-29:** readable down to **10 mm**. We print at 15 mm for margin.
+
+**The logo** comes from `receipt_logo_url` in store settings — per-shop, no hardcoding. When a logo is present
+the error correction steps up from **M (~15% recoverable) to H (~30%)**, because we're punching a hole in the
+middle of the code. The logo covers 22% of the width — about 5% of the area, well inside H's budget — on a
+white plate so the scanner sees a clean edge instead of reading the logo as data.
+
+> Tested at 12/15/20 mm and with an oversized 30% logo: **zero failures across 48 scans, both guns.**
+> Evidence in `onboarding/testsheets/LOGO-QR-SCAN-TEST.html`.
+
 ### Printing from Banco's web UI
 
 Open a product → **🏷️ Label** → **Print**, destination `BancoLabel`. Works from any browser on a machine that has
@@ -371,6 +434,28 @@ lp -d BancoLabel -o media=Custom.62x60mm -o CutMedia=EndOfPage yourlabel.png
 ```
 
 ---
+
+## The other half: the scanner guns
+
+Printing a label is only half the loop — something has to read it back. Full setup, and one trap that will
+cost you a day if you meet it cold, in **[`testsheets/Scanners/README.md`](testsheets/Scanners/README.md)**.
+
+The short version:
+
+- **A scanner gun is a keyboard.** It presses the *key* that yields a character on **its** layout; the OS
+  reads that key through **the session's** layout. Mismatch them and punctuation mutates.
+- Both our guns shipped set to **US**. On a Swiss German session that turns `-` into `'`, so `TAM-21796`
+  arrives as `TAM'21796` and the product isn't found.
+- **It hides for weeks**, because EAN-13 is pure digits and digits are layout-independent. Till scanning
+  looks perfect while every SKU silently fails.
+- Fix: set both guns to **German** (Swiss German usually isn't offered; German puts `-` on the same key).
+- Verify with **[`testsheets/SCANNER-GUN-TEST.html`](testsheets/SCANNER-GUN-TEST.html)** — every test code
+  names its own size, so you also learn the smallest code your gun can read.
+
+> Banco has a safety net for this: a scanned code that matches nothing is retried with layout corrections
+> applied (`_find_product_by_any_barcode`). It's a **fallback, never a rewrite** — only tried after the raw
+> code found nothing — and a hit logs a warning so a mis-set gun surfaces instead of hiding. Fix the gun
+> anyway; the net is for shops running hardware we didn't choose.
 
 ## Rolls
 

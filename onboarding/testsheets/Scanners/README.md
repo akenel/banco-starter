@@ -73,6 +73,40 @@ Every code on that page names its own size, so the log also tells you the smalle
 
 ---
 
+## Netum NS L8 (the CHF 55 one)
+
+Also a 2D imager, and the better scanner of the two — faster and more forgiving on awkward angles.
+
+**Its config codes live on the web, not in the box.** The booklet exists but is thin; the full set is at:
+
+**<https://doc1.netum.net/L8/en/keyboard>**
+
+Open that page and scan the layout you want **straight off the screen**. Same three-step pattern as any gun:
+enter setup → pick the setting → save.
+
+Set to **German** for the same reason as the Inateck — Swiss German isn't usually offered, and German puts `-`
+on the same physical key.
+
+> Bookmark that URL, or save the page. A gun whose config lives on a vendor website is one domain change away
+> from being unconfigurable — which is exactly the sort of thing that bites three years later when a shop
+> replaces a till.
+
+---
+
+## Both guns, as configured 2026-07-29
+
+| | Inateck BCST-35 | Netum NS L8 |
+|---|---|---|
+| Price | ~CHF 36 | ~CHF 55 |
+| 2D (QR) | ✅ | ✅ |
+| Config via | PDF in this folder, page 4 | <https://doc1.netum.net/L8/en/keyboard> |
+| Layout set to | German | German |
+| Verified | `-` comes through correctly, QR to 10 mm | `-` correct, QR reads |
+
+Both passed `../SCANNER-GUN-TEST.html` after the change: hyphens arrive as `-`, not `'`.
+
+---
+
 ## Other guns
 
 Config barcodes are **vendor and model specific** — never scan one gun's codes into another. Find the model
