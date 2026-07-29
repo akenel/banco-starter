@@ -8572,14 +8572,21 @@ def _qr_data_uri(payload: str, logo_url: str | None = None) -> str:
             from PIL import Image, ImageFilter
             w, h = img.size
 
-            # 22% of the width on a 20mm QR — a 4.4mm mark.
+            # 26% of the width on a 20mm QR — a 5.2mm mark.
+            #
+            # Chosen by Angel off the halo ladder (LEAF/HALO test sheets): all
+            # of 18-26% read, and 26% is the boldest that does. It sits at 5.7%
+            # damaged area against the 7.8% that actually failed on paper, so
+            # the margin is real rather than assumed. 24% would be the more
+            # conservative pick if a worn label ever misreads in the shop —
+            # change this one number.
             #
             # Percentage of width is not percentage of AREA, and the shape of
             # the mark decides which one matters. Learned twice: 30% came from
             # a test with the Artemis logo (1.65x wider than tall) where it
             # covered 5.4% of the code; the SQUARE leaf at the same 30% covers
             # 9.0%, and did not scan.
-            box = int(w * 0.22)
+            box = int(w * 0.26)
             logo = Image.open(logo_path).convert("RGBA")
             logo = logo.crop(logo.getchannel("A").getbbox())   # drop dead border
             logo.thumbnail((box, box), Image.LANCZOS)
