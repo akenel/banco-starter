@@ -149,9 +149,24 @@ the record, not to *write* one:
 
 Only when *all* of that fails does anyone photograph a packet and type a description.
 
-**Which is why the minted barcodes are the whole problem in one sentence:** every product in the
-shop has an EAN, every EAN is findable, and we replaced 5,105 of them with numbers that resolve
-to nothing.
+**Which is why the minted barcodes are the whole problem — stated precisely, because the loose
+version is wrong in two ways:**
+
+Nothing was *replaced*. The real EANs were never in Banco to begin with — Tamar does not publish
+them, so the import found a **blank** and, instead of leaving it blank, **invented a number**.
+
+That is worse than losing data. A blank says *"we don't know this product's code"*, which is true
+and fixable by the first scan. An invented code says *"we know it, and here it is"* — which is
+false, and indistinguishable from a real one without inspecting the prefix.
+
+And it is not true that every product has an EAN: **roughly 30% of the shop is handmade or
+unbranded and has none**, which is exactly the case rule 1's exception covers.
+
+So, accurately:
+
+> For the branded stock that **does** carry an EAN on the packet, we wrote **5,105 invented codes
+> into a field that should have stayed empty** — and every one of them guarantees a scan miss for
+> a product whose real code was findable all along.
 
 ---
 
