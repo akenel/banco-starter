@@ -2,7 +2,7 @@
 
 *The single source of truth for what's next, in order. Say the code word **"OPEN SHOP"** and the copilot opens this, states the top items, and starts the first actionable one. The bigger arc is in [`ROADMAP.md`](ROADMAP.md).*
 
-*Last updated: 2026-07-28 (22:35 — label printer day)*
+*Last updated: 2026-07-31 (after the Artemis shop day)*
 
 ---
 
