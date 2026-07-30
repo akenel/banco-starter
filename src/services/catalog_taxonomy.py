@@ -195,6 +195,30 @@ _FLAVOUR_PAPER = re.compile(r"paper|\bwrap|blunt|blättchen|\bcone|juicy\s*jay",
 # So: accept the CDB transposition, and treat a handful of pre-roll BRANDS as CBD in their
 # own right. A brand name is a far more reliable signal than a keyword the packaging may
 # never print. Age-gating must not hinge on spelling.
+# A CBD signal strong enough to trust from the DESCRIPTION rather than the title.
+#
+# WHY THE DESCRIPTION AT ALL. Angel: "You can't go just off the title. These names, they could
+# be funky gorilla names. You'd have no idea." Exactly — strain and brand names say nothing
+# about what a thing legally IS, and the titles are typed by hand at a counter (the live "CDB"
+# was a typo made while copying off a package).
+#
+# WHY NOT JUST GREP THE DESCRIPTION FOR "CBD". Because rolling papers say "perfect for your CBD
+# flower" and would start demanding ID — and over-gating trains staff to wave prompts away,
+# which is worse than the leak. So the description must carry something an ACCESSORY never
+# does: a CBD content figure, or an explicit pre-rolled form.
+#
+# The accessory guards can't help here either: a CBD joint ships "in a plastic tube", and
+# _TOBACCO_ACCESSORY matches \btube\b — so vetoing on the description would kill the very
+# product we need to gate.
+_CBD_STRONG = re.compile(
+    r"\d{1,2}\s*(?:[.,]\d+)?\s*%\s*(?:cbd|cdb)"            # "12% CBD"
+    r"|(?:cbd|cdb)[\s-]*(?:gehalt|content|anteil|value)"       # "CBD-Gehalt", "CBD content"
+    r"|vorgebaute?r?\s+(?:cbd\s+)?joint|pre[-\s]?rolled?\s+(?:cbd\s+)?joint", re.I)
+# NOT included, and this is the whole point of the pattern being narrow: a bare mention of
+# "CBD flower" / "CBD Blüten". Rolling papers say "ideal zum Drehen von CBD Blüten" and would
+# start demanding ID — verified, it over-gated Smoking and RAW on the first run. A real CBD
+# flower product states it in its TITLE, which the layer-3 title path already catches.
+
 _CBD_TOKEN = re.compile(
     r"\bcbd\b|\bcdb\b|cannabidiol"                 # incl. the common CDB transposition
     r"|\bblow\b.{0,24}\bjoint\b|\bjoint\b.{0,24}\bblow\b"   # BLOW pre-rolls
@@ -254,7 +278,8 @@ def _reftags(raw, ref_category) -> str:
     return html.unescape(" | ".join(p for p in parts if p)).lower()
 
 
-def classify(title: str | None, ref_category: str | None = None, raw=None) -> tuple[str, str, bool]:
+def classify(title: str | None, ref_category: str | None = None, raw=None,
+             description: str | None = None) -> tuple[str, str, bool]:
     """Map a reference item to (our_category, our_class, age_restricted). Pure + deterministic.
 
     CLASS is decided in three layers, most-certain first: (1) the TITLE says it outright (real
@@ -307,6 +332,11 @@ def classify(title: str | None, ref_category: str | None = None, raw=None) -> tu
     #     pre-rolls leaked (2026-07-29): created by hand, no tags, title never said "CBD".
     elif _CBD_TOKEN.search(t):
         cls = "cbd_open" if _CBD_OPEN.search(t) else "cbd_hemp"
+    #     …and when the TITLE is a meaningless strain/brand name, fall through to what the
+    #     product says about ITSELF. Only a strong signal counts (see _CBD_STRONG) — an
+    #     incidental "great with CBD flower" in a papers blurb must never gate papers.
+    elif description and _CBD_STRONG.search(description) and not _CBD_OPEN.search(t):
+        cls = "cbd_hemp"
 
     # CATEGORY: honour FourTwenty's clean buckets, else keyword-classify the dump.
     cat = _REF_CATEGORY_MAP.get(ref_category or "")
@@ -328,7 +358,8 @@ def classify(title: str | None, ref_category: str | None = None, raw=None) -> tu
 
 
 def resolve_class_on_create(name: str | None, product_class: str | None,
-                            is_age_restricted: bool | None) -> tuple[str, bool]:
+                            is_age_restricted: bool | None,
+                            description: str | None = None) -> tuple[str, bool]:
     """The on-the-fly / quick-create rule (compliance safety net).
 
     Honour the operator's explicit choice first (a picked class or the 18+ toggle, via
@@ -340,7 +371,7 @@ def resolve_class_on_create(name: str | None, product_class: str | None,
     can re-class precisely later in the cleanup cockpit. Returns (class, flag)."""
     cls, flag = reconcile_age(product_class, is_age_restricted)
     if cls == DEFAULT_CLASS:
-        _, suggested, _ = classify(name or "")
+        _, suggested, _ = classify(name or "", description=description)
         if suggested in ("tobacco_nicotine", "alcohol", "cbd_hemp"):
             return suggested, True
     return cls, flag

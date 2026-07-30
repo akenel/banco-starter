@@ -598,7 +598,7 @@ async def catalog_page_facts(
     title = facts.get("name") or ""
     if title:
         from src.services.catalog_taxonomy import classify
-        cat, cls, age = classify(title)
+        cat, cls, age = classify(title, description=facts.get("description"))
         facts["suggested_category"] = cat
         facts["suggested_class"] = cls
         facts["suggested_age_restricted"] = age
@@ -644,7 +644,12 @@ async def quick_create_product(
     # "Swisher Sweets" can't be rung without ID (field 2026-07-08). Gate-only — never un-gates.
     from src.services.catalog_taxonomy import resolve_class_on_create
     data["product_class"], data["is_age_restricted"] = resolve_class_on_create(
-        data.get("name"), data.get("product_class"), data.get("is_age_restricted"))
+        data.get("name"), data.get("product_class"), data.get("is_age_restricted"),
+        # The DESCRIPTION too: a strain or brand name says nothing about what a thing legally
+        # is ("Gorilla Glue #4"), but the blurb states "vorgebauter Joint mit 12% CBD". Angel,
+        # after capturing stock by hand: "You can't go just off the title. These names, they
+        # could be funky gorilla names. You'd have no idea."
+        description=data.get("description"))
     new_product = ProductModel(**data)
     db.add(new_product)
     try:

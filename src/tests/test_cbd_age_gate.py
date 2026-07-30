@@ -55,3 +55,36 @@ def test_grow_nutrient_brands_land_in_grow_supplies(title):
     title is a brand plus a product code, so the brand is the only reliable handle."""
     cat, _, _ = classify(title)
     assert cat == "Grow Supplies", f"{title!r} -> {cat!r}"
+
+
+# ── The title is not enough. Angel, after capturing stock by hand at the shop: ──
+# "You can't go just off the title. These names, they could be funky gorilla names.
+#  You'd have no idea. You have to go into the description to determine what it really is."
+
+@pytest.mark.parametrize("title,description", [
+    ("Gorilla Glue #4",    "Vorgebauter Joint mit 12% CBD, 1 Stück in der Tube."),
+    ("Purple Haze Single", "CBD-Gehalt 14%. Pre-rolled joint, 1 pc in plastic tube."),
+    ("Amnesia Single 1g",  "Pre-rolled CBD joint, 0.8g, in a plastic tube."),
+])
+def test_meaningless_strain_names_are_gated_from_the_description(title, description):
+    _, cls, age = classify(title, description=description)
+    assert cls == "cbd_hemp" and age is True
+
+
+@pytest.mark.parametrize("title,description", [
+    ("Smoking Blue King Size", "Perfect for your CBD flower and herbs. Thin papers."),
+    ("RAW Classic King Size",  "Ideal zum Drehen von CBD Blüten."),
+])
+def test_an_incidental_cbd_mention_never_gates_papers(title, description):
+    """The reason _CBD_STRONG is narrow. Papers advertise what you'd roll IN them, and if that
+    gated them the shop would be asking for ID to sell a booklet of papers. Over-gating trains
+    staff to wave prompts away — and then the real ones get waved through too."""
+    _, cls, age = classify(title, description=description)
+    assert cls != "cbd_hemp" and age is False
+
+
+def test_a_cbd_joint_in_a_tube_is_still_gated():
+    """_TOBACCO_ACCESSORY matches \\btube\\b, and these ship "one spliff in a plastic tube" —
+    so vetoing on the description would have killed exactly the product we must gate."""
+    _, cls, age = classify("Sour Diesel Single", description="Pre-rolled joint 12% CBD in tube")
+    assert cls == "cbd_hemp" and age is True
