@@ -8,7 +8,43 @@
 
 ## 🎯 On deck (next actionable, in order)
 
-1. **⛔ SCAN MISS MUST SEARCH THE CATALOGUE.** *(shop floor · the one thing that matters)*
+1. **⛔ SHELF SCAN → BATCH ENRICH.** *(shop floor · Angel's idea 2026-07-30, and it replaces item 1 below)*
+
+   **The inversion:** stop trying to repair a 5,178-product wholesale import. **Let the shelf define
+   the catalogue.** Start clean (the 6 seeded treats), walk the shop scanning every packet, then
+   enrich at a desk in batch.
+
+   **The gun already does the hard part.** Inateck BCST-35 §4.6 "Inventurmodus" (manual p.20, in
+   `onboarding/testsheets/Scanners/`): stores **3,000 codes offline**, uploads as keystrokes later,
+   *"weder an die Zeit noch an den Ort gebunden"*. The five inventory barcodes need **no** Enter
+   Setup / Save and Exit — scan the one you want on its own.
+
+   **Why this beats everything else we discussed:**
+   | Problem | How this dissolves it |
+   |---|---|
+   | 5,103 minted barcodes | never imported — nothing to un-fake |
+   | 5,178 rows vs ~800 stocked | the shelf **is** the stock list |
+   | 5 min/product hunting at the till | ~2 sec/product scanning; hunting moves to a desk |
+   | German/English name matching | irrelevant — the EAN is the key from the start |
+
+   Separates PHYSICAL work (20 min at the shelves, no thinking, no queue behind you) from DESK work
+   (enrichment, batched, two screens, coffee). Today both happened at once, at the counter, under
+   pressure — which is why it was 5 minutes a product.
+
+   **To build:**
+   - **Intake UI** — one big focused box, receives the keystroke dump, parses + dedupes into a code
+     list. Show the count so a half-upload can't masquerade as a finished shelf (scan *Anzahl der
+     gescannten Barcodes* first and compare).
+   - **Triage** — for each code: already known (bind/skip) · in the imported catalogue under a fake
+     barcode (bind the real EAN to it — reuses the cross-language match) · genuinely new (enrich).
+   - **Batch enrich** — per unknown code, the human does the 5–30 s "that's it" pick (see
+     `CATALOG-IDENTITY.md`: the machine must not choose), then `POST /catalog/page-facts` fills
+     title/description/image/price/GTIN from the chosen page.
+
+   **Done =** 20 minutes of shelf scanning produces a work list, and an evening at a desk turns it
+   into a catalogue where every product scans.
+
+2. **SCAN MISS MUST SEARCH THE CATALOGUE.** *(shop floor · the one thing that matters)*
 
    **→ Read [`CATALOG-IDENTITY.md`](CATALOG-IDENTITY.md) first** — the why behind this item, and the product thesis it comes from.
 
@@ -50,26 +86,26 @@
    **Done =** scan an unknown EAN on a product that exists → it is offered → one tap → it scans
    forever after. Verified at the shop, not in a report.
 
-2. **Retire the 2026-07-30 duplicate rows.** *(small, straight after item 1)*
+3. **Retire the 2026-07-30 duplicate rows.** *(small, straight after item 1)*
    - ~40 products were hand-created that already existed (e.g. `Blow Pre-built CBD Joint Pure "V1" 1 pc. black` = `Blow vorgebauter CBD Joint Pure "V1" 1 Stk. schwarz`, TAM-20350).
    - The **imported** row has the good data; the **hand-made** row has the real EAN. So move the barcode onto the imported row and drop the twin. Angel: *"you just delete them"*.
    - Dry-run-first script, same shape as `scripts/reclass-age-gate.py`.
 
-3. **Debounce the sale-screen product search.** *(shop floor · small, contributes to item 1)*
+4. **Debounce the sale-screen product search.** *(shop floor · small, contributes to item 1)*
    - `scan.html:85` fires `searchProducts()` per keystroke with no debounce and no request sequencing, so the last response wins — including an empty query that returns everything. This is how a search looks like it "found nothing useful". One attribute: `@input.debounce.300ms`, matching the pattern already at `scan.html:530`.
 
-4. **Keep `ipp-usb` fresh — the last thing between the labeler and daily use.** *(shop floor)*
+5. **Keep `ipp-usb` fresh — the last thing between the labeler and daily use.** *(shop floor)*
    - Everything prints: CLI, barcodes, scanning, and the browser UI at any size. But `ipp-usb`'s USB session dies after **6–13 minutes idle** and jobs then queue silently. `print-label.py` heals itself; **Chrome cannot**.
    - A systemd timer that restarts `ipp-usb` *only when it has stopped relaying* — reuse `ipp_usb_alive()` from `print-label.py`. Passwordless sudoers rule already installed.
    - Then the freebie: `google-chrome --kiosk-printing` to drop the print dialog.
 
-5. **Harden go-live — DNS preflight + default-secret gate.** *(Roadmap Phase A)*
+6. **Harden go-live — DNS preflight + default-secret gate.** *(Roadmap Phase A)*
    - Add a preflight to `scripts/deploy-prod.sh` that resolves `APP_PUBLIC_HOST` + `KC_PUBLIC_HOST` against the server IP **before** cert issuance, and refuses if a starter-default secret is still in place.
 
-6. **DR restore (Move B) — ⛔ BLOCKED on B2 read creds.** *(Roadmap Phase A · the ownership proof)*
+7. **DR restore (Move B) — ⛔ BLOCKED on B2 read creds.** *(Roadmap Phase A · the ownership proof)*
    - Needs a read-only B2 key + bucket + passphrase. Then: infra up → `restore-from-b2.sh` with creds as **env vars** → row-check prints a real product count → app up → `standup.sh`.
 
-7. **Feed labels from the catalog.** *(shop floor)*
+8. **Feed labels from the catalog.** *(shop floor)*
    - Barcode + name + price by product ID, so a shelf label is one command and a re-price is a re-print.
 
 ## 🔭 Backlog (not yet scheduled)

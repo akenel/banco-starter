@@ -105,6 +105,47 @@ on the same physical key.
 
 Both passed `../SCANNER-GUN-TEST.html` after the change: hyphens arrive as `-`, not `'`.
 
+
+---
+
+## Inventory mode — scan the whole shop, upload later
+
+**The BCST-35 stores up to 3,000 codes offline.** Manual §4.6 "Inventurmodus", page 20. This is the
+right way to build a catalog: walk the shelves scanning, then do the desk work later, batched.
+
+> ⚠️ **These five do NOT need Enter Setup / Save and Exit.** Scan the one you want, on its own.
+> (Manual: *"Das Scannen von 'Beginn der Einrichtung' oder 'Speichern und Beenden' ist für die
+> Verwendung der 5 folgenden Barcodes nicht erforderlich."*)
+
+| Barcode (page 20) | Does |
+|---|---|
+| **Inventurmodus** | gun STORES scans instead of transmitting |
+| **(*) Normalmodus** | back to live scanning — the factory default |
+| **Daten hochladen** | dumps the whole cache as keystrokes into whatever has focus |
+| **Daten im Cache löschen** | wipes the cache |
+| **Anzahl der gescannten Barcodes hochladen** | types how many are stored |
+
+### The workflow
+
+1. Scan **Inventurmodus**. The gun stops transmitting and starts collecting.
+2. Walk the shelves. Scan everything. ~20 minutes for a shop. Nothing to look at, no screen.
+3. Back at a laptop: click into the intake box (or any text field).
+4. Scan **Daten hochladen** — every code types itself out.
+5. Scan **Daten im Cache löschen**, then **Normalmodus** to return to till use.
+
+> **Check the count first.** Scan *Anzahl der gescannten Barcodes* before uploading, so you know
+> whether the dump was complete. A half-uploaded shelf silently looks like a finished one.
+
+### Why this beats scanning at the counter
+
+It separates the **physical** work from the **desk** work. Capturing at the till means hunting for
+each product's identity while standing in a shop with customers waiting — measured at ~5 minutes a
+product. Scanning the shelf is ~2 seconds a product, and the hunting happens afterwards, batched,
+with two screens and no queue behind you.
+
+It also makes the shelf define the catalog rather than the wholesaler's list — so you end up with
+what the shop actually stocks, each with the EAN that is genuinely on the packet.
+
 ---
 
 ## Other guns
