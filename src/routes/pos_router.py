@@ -589,6 +589,28 @@ async def catalog_page_facts(
     """
     facts = await _page_product_facts(req.url)
     facts.pop("_html", None)          # the raw body is an internal detail, never shipped to a UI
+
+    # NEVER take the source's own category. Angel, on 420's tree: "420 stuff is 70% wrong."
+    # Every shop slices its catalog for its own shelves, and importing that logic is how a
+    # clean 2-level tree regrows into a German-slug mess. Classify from the TITLE against
+    # OUR taxonomy instead — same funnel every other create path goes through — and hand it
+    # back as a SUGGESTION for the operator to accept or override.
+    title = facts.get("name") or ""
+    if title:
+        from src.services.catalog_taxonomy import classify
+        cat, cls, age = classify(title)
+        facts["suggested_category"] = cat
+        facts["suggested_class"] = cls
+        facts["suggested_age_restricted"] = age
+
+    # Which language did we just scrape? A manufacturer's own site usually states the proper
+    # international name; a wholesaler or a local headshop states it in German. Both are
+    # legitimate sources, but the operator should SEE which one they pasted before accepting
+    # a title — and `needs_translation` downstream depends on knowing.
+    if title or facts.get("description"):
+        from src.services.product_translations import _guess_base_lang
+        facts["lang_hint"] = _guess_base_lang(f"{title} {facts.get('description') or ''}")
+
     return {"found": bool(facts), "url": req.url, **facts}
 
 

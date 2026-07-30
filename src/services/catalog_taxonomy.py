@@ -184,6 +184,22 @@ _FLAVOUR_PAPER = re.compile(r"paper|\bwrap|blunt|blättchen|\bcone|juicy\s*jay",
 # CBD in a NON-smokable, non-recreational form (oil / tincture / drops / seeds / cosmetics) — NOT
 # age-gated (Angel: "the oils are not"). Everything else CBD (flower, hash, vape, edibles) stays 18+.
 # Conservative on purpose: only CLEAR open forms land here, because this is the one no-ID class.
+# CBD detection, deliberately wider than the literal word.
+#
+# FIELD FINDING 2026-07-29 (Artemis, Angel capturing stock): four BLOW pre-rolled CBD joints
+# were classed `standard` and sellable with NO 18+ gate, because the classifier keyed on the
+# literal "CBD" and the titles either omitted it ("BLOW Joint GREY Pure") or TRANSPOSED it
+# ("BLOW CDB PRE JOINT RED"). Meanwhile "Blow Pre-built CBD Joint Pure" gated correctly — so
+# whether a customer got asked for ID depended on a typo in a product title.
+#
+# So: accept the CDB transposition, and treat a handful of pre-roll BRANDS as CBD in their
+# own right. A brand name is a far more reliable signal than a keyword the packaging may
+# never print. Age-gating must not hinge on spelling.
+_CBD_TOKEN = re.compile(
+    r"\bcbd\b|\bcdb\b|cannabidiol"                 # incl. the common CDB transposition
+    r"|\bblow\b.{0,24}\bjoint\b|\bjoint\b.{0,24}\bblow\b"   # BLOW pre-rolls
+    r"|pre[- ]?roll|vorgebaut", re.I)
+
 _CBD_OPEN = re.compile(r"\böl\b|\boil\b|\boel\b|tinktur|tincture|\bdrops?\b|tropfen|\bseed\b|\bseeds\b|\bsamen\b|kosmetik|cosmetic|creme|cream|salbe|\bbalm\b|lotion|serum", re.I)
 
 # Ordered keyword -> category; first match wins. CBD checked before creams so "CBD oil" lands in CBD.
@@ -194,7 +210,14 @@ _CATEGORY_RULES = [
     (re.compile(r"vapo|vaporiz|crafty|mighty|\bpax\b|dynavap|volcano", re.I),     "Vaporizers"),
     (re.compile(r"e-?liquid|\bliquid\b|\bbase\b|aroma|shake.?&.?vape", re.I),     "E-Liquids"),
     (re.compile(r"paper|blättchen|king\s?size|\bfilter|\btips?\b|\bcone|roach|rolling|drehmaschine|rolls?\b", re.I), "Papers & Filters"),
-    (re.compile(r"cbd|cannabidiol|\bhanf|\bhemp", re.I),                          "CBD & Hemp"),
+    # Grow nutrients by BRAND. Angel entered these by hand 2026-07-30 and every one landed in
+    # "Unsorted" — the classifier knew Metrop but not the rest of the shelf. A fertiliser
+    # bottle's title is the brand plus a product code ("CANNA PK 13/14", "Plagron Pure Zym"),
+    # so brand is the only reliable handle.
+    (re.compile(r"\bcanna\b|\bbio ?canna\b|plagron|biobizz|bio-?bizz|guanokalong|guano kalong"
+                r"|\bmetrop\b|advanced nutrients|hesi|atami|\bterra ?(grow|bloom)\b"
+                r"|rhizotonic|cannazym|\bboost\b.{0,12}\bml\b", re.I),            "Grow Supplies"),
+    (re.compile(r"cbd|cdb|cannabidiol|\bhanf|\bhemp", re.I),                          "CBD & Hemp"),
     (re.compile(r"creme|cream|salbe|\bbalm|lotion|topical|massage", re.I),        "Creams & Topicals"),
     (re.compile(r"edible|gummi|schoko|chocolate|cookie|keks|\btee\b|\btea\b|honig|honey|lutsch|sirup", re.I), "Edibles"),
     (re.compile(r"\bgrow|dünger|substrat|\berde\b|\bseed|\bsamen|\bzelt|grow.?lamp|nährstoff", re.I), "Grow Supplies"),
@@ -245,7 +268,7 @@ def classify(title: str | None, ref_category: str | None = None, raw=None) -> tu
 
     # CLASS first (it drives the age flag).
     cls = DEFAULT_CLASS
-    is_cbd = bool(re.search(r"cbd|cannabidiol", t, re.I))
+    is_cbd = bool(_CBD_TOKEN.search(t))
     # (1) TITLE is decisive: named tobacco/cigarette, shisha molasses, or a nicotine e-cig — unless
     #     it's an accessory/herbal. Shisha brands + the mg-in-vape signal gate off the title alone,
     #     so they hold up even when the supplier category is a coarse dump ("Accessories"/"Vaporizers").
@@ -276,10 +299,13 @@ def classify(title: str | None, ref_category: str | None = None, raw=None) -> tu
             cls = "tobacco_nicotine"               # the tobacco/cigarette group, minus machines/filters
         elif "shisha" in tags and _SHISHA_TOBACCO.search(t) and tobacco_ok:
             cls = "tobacco_nicotine"               # shisha molasses tobacco only (not hoses/charcoal)
-        elif ref_category == "CBD" or re.search(r"cbd|cannabidiol", t, re.I):
+        elif ref_category == "CBD" or _CBD_TOKEN.search(t):
             cls = "cbd_open" if _CBD_OPEN.search(t) else "cbd_hemp"
-    # (3) TITLE-CBD fallback (no supplier tags).
-    elif re.search(r"cbd|cannabidiol", t, re.I):
+    # (3) TITLE-CBD fallback (no supplier tags) — the path EVERY hand-captured product takes,
+    #     and therefore the one that has to be widest. A cashier standing at the shelf has no
+    #     supplier tags to lean on; the title is all there is. This is exactly where the BLOW
+    #     pre-rolls leaked (2026-07-29): created by hand, no tags, title never said "CBD".
+    elif _CBD_TOKEN.search(t):
         cls = "cbd_open" if _CBD_OPEN.search(t) else "cbd_hemp"
 
     # CATEGORY: honour FourTwenty's clean buckets, else keyword-classify the dump.
