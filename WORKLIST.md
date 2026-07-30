@@ -63,6 +63,38 @@
    - `2000000192352` (barcode) — invented by Banco, on no packet. **Wipe it** (or at least set
      `barcode_is_internal`), so a known-unknown stops masquerading as a real code.
 
+   **MEASURED 2026-07-31 — what to actually expect.** Took the 59 products Angel captured by hand
+   (real EANs) and matched them back against the 07-07 import (minted barcodes), using the
+   cross-language folding:
+
+   | | |
+   |---|---|
+   | captured by hand | 59 |
+   | scored ≥0.5 against an imported row | 20 (34%) |
+   | of those, genuinely the SAME product on inspection | **~8–10** |
+
+   So expect **15–25% bound instantly**, not the 60% first guessed. Correcting that now so an
+   evening is not planned around a wrong number.
+
+   **The proposals must NEVER auto-apply.** Roughly half the 0.5–0.7 matches are wrong, and wrong in
+   ways a character-based score cannot see:
+   ```
+   0.50  Canna Coco A 1L               <-> Beamer Candles Cocanna Banana
+   0.50  Juicy Jays Raspberry Incense  <-> Juicy Jays Rolls Raspberry     (incense vs papers)
+   0.43  Aperol Spritz                 <-> Dosier Spritze 1ml
+   0.70  Blow pure                     <-> Local Weed vorgebauter ...     (wrong brand)
+   ```
+   `Canna` matching `Cocanna`; `Spritz` matching `Spritze`. This is exactly why Angel's
+   confirm-in-tens is required rather than merely nicer.
+
+   **Next improvement for the matcher: weight the BRAND.** Extracting the leading brand token and
+   requiring it to match would remove most of that noise — obvious to a human in a quarter second,
+   invisible to trigram similarity.
+
+   Also seen: several "matches" are SIBLINGS, not duplicates (`Gizeh ... + Tips` vs
+   `Gizeh ... mit Aktivkohle` are different products). That is the variant problem, and why
+   `POST /products/{id}/clone` exists.
+
    **Done =** 20 minutes of shelf scanning produces a work list; an evening at a desk turns it into a
    catalogue where every product on the shelf scans — *before* staff rely on it.
 
