@@ -64,7 +64,7 @@ another. The right answer is to stop having *one* name.
 
 ## The three rules
 
-### 1. Never mint an identifier that exists in the physical world
+### 1. Never mint an identifier that **already exists** in the physical world
 
 A blank barcode is **honest** — it says "unknown", and it invites the first scan to fill it.
 A fabricated one is a **trap**: it claims to be known, silently guarantees a miss, and there is
@@ -72,6 +72,19 @@ no way to tell it from a real code without inspecting the prefix.
 
 If the source has no EAN, leave it null. `products.barcode_is_internal` already exists to mark
 the difference.
+
+**The exception — and it is the whole point of the label printer.** Roughly **30%** of the shop
+is handmade or unbranded stock that carries no barcode at all: it never had one and never will.
+For those, minting a code is **correct**, because we then *print it and stick it on the packet*.
+The code stops being a fiction the moment it exists physically.
+
+```
+product HAS an EAN  →  minting is a LIE      (the real code is on the packet; yours guarantees a miss)
+product has NONE    →  minting is the FIX    (print the label, and now it scans forever)
+```
+
+Same operation, opposite meaning. The test is not "does the row have a barcode" — it is
+**"does this thing carry a code in the real world?"**
 
 ### 2. Names are labels, plural, and none of them wins
 
@@ -84,6 +97,61 @@ question "what is this product really called?" has no answer and asking it waste
 It carries both the EAN and the true international name. So capture should be *photograph the
 packet*, not *type what you think it is called*. Everything else — description, category,
 translations — can be filled in later, or by someone else, or never.
+
+---
+
+## The capture decision tree
+
+Angel's rules, from a full day doing it by hand. Read top to bottom; **stop at the first match.**
+
+```
+Scan the packet
+│
+├─ it scans ──────────────► in the catalog?  ── yes ─► done. nothing to do.
+│                                            └─ no ──► look it up BY EAN (§ below)
+│
+├─ it has a barcode but WON'T READ ─► TYPE the digits in. Get a magnifying glass.
+│                                     Then print a label with that EAN and stick it on,
+│                                     so it is never unreadable again.
+│
+└─ no barcode at all ─────► create it by hand, mint a code, PRINT the label.
+                            (~30% of the shop. This is rule 1's exception.)
+```
+
+### Never fall back to a name search while an EAN exists
+
+This is the rule that saves the most time, and it is easy to break under pressure.
+
+> *"If it has a barcode, it's better to put the barcode number in and get the magnifying glass and
+> type it in — before going and searching the wrong way with the name."* — Angel
+
+A name is ambiguous, translated, and typed by a tired human. **The EAN is none of those things.**
+The moment you abandon it for a name search you have thrown away the only unambiguous key you had,
+and you are now guessing between `Gizeh King Size Slim + Tips` and `Gizeh King Size Slim mit
+Aktivkohlefilter` — which are different products.
+
+Seen for real: a Biobizz Cal-Mag whose barcode would not read. Typing the digits found it. Hunting
+by name would not have.
+
+### An EAN means the product is already described somewhere
+
+> *"If it has an EAN number, there's no point in making the product out. There's gonna be a nice
+> picture or description somewhere on the internet, guaranteed."* — Angel
+
+A product with an EAN has been photographed, described and listed by somebody — the manufacturer,
+a retailer, a marketplace. **Authoring it from scratch is redundant work.** The job is to *find*
+the record, not to *write* one:
+
+1. Look the EAN up in our own catalog first — including under a minted barcode, by name.
+2. Then search the web for the EAN. It resolves ~9 times in 10.
+3. The human picks the right result in 5–30 seconds (the machine must not choose — see below).
+4. `POST /catalog/page-facts` reads title, description, image, price and GTIN off that page.
+
+Only when *all* of that fails does anyone photograph a packet and type a description.
+
+**Which is why the minted barcodes are the whole problem in one sentence:** every product in the
+shop has an EAN, every EAN is findable, and we replaced 5,105 of them with numbers that resolve
+to nothing.
 
 ---
 
