@@ -101,7 +101,10 @@ When something bites you, write the lesson here in one line so it never bites tw
 - 2026-07-28 — Three Brother-specific drivers (`printer-driver-ptouch` 1.6, `brother_ql` 0.9.4, `brother_ql_next` 0.12.0) printed **zero** labels on the QL-820NWBc — every raw-raster job rejected as "wrong roll type" — while the generic CUPS `everywhere`/IPP path worked. **The vendor-specific driver is not automatically the better bet.** Prefer the path with verified output over the one that looks more purpose-built.
 - 2026-07-28 — `ipp-usb` redirects every request to `http://localhost:60000/` regardless of the address you use, so "use 127.0.0.1 instead" does *not* dodge an IPv6-first `localhost`. This box's `/etc/hosts` was also missing the standard `127.0.0.1 localhost` / `::1 localhost` lines entirely — worth checking with `getent ahosts localhost` when a local service hangs.
 
+- 2026-07-30 — **A catalogue full of MINTED barcodes is a catalogue you cannot scan.** The July import created 5,111 products; Tamar publishes no EAN, so Banco fabricated `2xxx` codes for 5,103 of them. Every field was excellent (99% prices/images/categories) and the one fabricated column made the whole thing unusable at a till. **Never invent an identifier that exists in the physical world** — leave it blank and let the first scan bind it.
+- 2026-07-30 — **"The data is good" and "the data is usable" are different claims.** Spent hours proving search worked while Angel kept saying it didn't. Both true: search ranked his product #1, but he wasn't searching — he was *scanning*, and a scan can't fall back to a name. Answer the job the person is doing, not the one you can measure.
+
 ---
 
-*Last updated: 2026-07-28*
+*Last updated: 2026-07-30*
 *"You can't clone SAP. You can clone this."*

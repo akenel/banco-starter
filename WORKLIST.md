@@ -8,29 +8,67 @@
 
 ## 🎯 On deck (next actionable, in order)
 
-1. **⛔ Scanner guns type `-` as `'` — keyboard layout mismatch.** *(shop floor · do before scanning any SKU)*
-   - Found 2026-07-29 in the logo-QR scan test: the page shows `QR-LOGO-15`, the gun typed **`QR'LOGO'15`**. Confirmed across 48 scans on both guns — every hyphen became an apostrophe.
-   - **Why it hasn't hurt yet:** EAN-13 is pure digits, and digits map identically across layouts, so till scanning works today. **Every SKU has a hyphen** (`TAM-21796`, `TAM-5381`) — the moment a Code128 SKU label is scanned, the gun types `TAM'21796` and the product is not found.
-   - Fix is in the gun, not Banco: its manual has configuration barcodes for keyboard layout. Set **Swiss German** (or set the gun to US *and* match the machine's layout). Do **both guns**, then re-run `onboarding/testsheets/SCANNER-GUN-TEST.html` and confirm hyphens survive.
-   - Worth a defensive fix in Banco too: normalise likely layout substitutions on the scan path before lookup, so a mis-set gun degrades instead of failing. See `_clean_barcode` (pos_router.py:272), which already exists for scanner junk.
+1. **⛔ SCAN MISS MUST SEARCH THE CATALOGUE.** *(shop floor · the one thing that matters)*
 
-2. **Keep `ipp-usb` fresh — the last thing between the labeler and daily use.** *(shop floor · small, do it first)*
-   - Everything prints: CLI, barcodes, scanning, and the browser UI at any size. But `ipp-usb`'s USB session dies after **6–13 minutes idle** and then jobs queue silently and nothing comes out. `print-label.py` heals itself; **Chrome cannot**, so the browser path dies every quarter hour.
-   - First move: a **systemd timer** (say every 5 min) that restarts `ipp-usb` *only when it has stopped relaying* — reuse the check in `print-label.py` (`ipp_usb_alive()`, an `ipptool` get-printer-attributes that returns `0 bytes` when stale). The passwordless sudoers rule is already installed at `/etc/sudoers.d/banco-label-printer`.
-   - Manual recovery meanwhile: `sudo systemctl restart ipp-usb` — takes ~5 s, then queued jobs flush immediately.
-   - Done = leave it an hour, print from the browser, a label comes out with nobody touching anything.
-   - Then the freebie: `google-chrome --kiosk-printing` to drop the print dialog. `BancoLabel` is already the only queue and the system default, so nothing else is needed.
+   **The problem, from a full day at Artemis 2026-07-30:** ~50% of scans find nothing, so the
+   operator rebuilds a product that was already there. 40 products ≈ 3.3 hours. Angel:
+   *"Everything is in the catalog already. It's there... either look in our catalogue properly
+   or look on the internet properly."*
 
-3. **Harden go-live — DNS preflight + default-secret gate.** *(Roadmap Phase A)*
-   - First move: add a preflight to `scripts/deploy-prod.sh` (or `go-live.py`) that resolves `APP_PUBLIC_HOST` + `KC_PUBLIC_HOST` and checks they point at the server IP **before** cert issuance, and refuses/loudly-warns if a starter-default secret is still in place (reuse `banco-doctor.py`'s default detection).
-   - Done = a misconfigured DNS record or an unchanged default secret is caught *before* the box is exposed, not after.
+   **Root cause (measured, not guessed):**
+   - The 2026-07-07 import created 5,111 products. Tamar publishes **no EAN**, so Banco minted
+     internal `2xxxxxxxxxxxx` codes for **5,103** of them. Those appear on **no packet anywhere**.
+   - So a real scan can never match. Confirmed: 5,103 minted vs 63 real EANs.
+   - **There is no bulk fix.** Verified 2026-07-30: Tamar's API has no EAN field; Felix's own
+     site (artemisluzern.ch) serves 83 KB pages with **zero** structured data / no GTIN; free
+     barcode DBs run barcode→product, the wrong direction. The EANs exist only on the packets.
 
-4. **DR restore (Move B) — ⛔ BLOCKED on B2 read creds.** *(Roadmap Phase A · the ownership proof)*
-   - Move A (seed gate) is ✅ **proven at runtime** (2026-07-22) — see Done below. Move B (the real restore) needs a read-only B2 key + bucket + passphrase (Angel deferred this session).
-   - When creds are ready: infra up (`docker compose up -d postgres keycloak minio`) → `restore-from-b2.sh` with creds as **env vars** (never written to `.env`) → row-check prints a real product count → app up → `standup.sh`. Green-ticks the checklist's "practiced a restore" box. See [[catalog-seed-vs-bootstrap]].
+   **Therefore the fix is not to acquire EANs in bulk — it is to make binding one take 30 seconds:**
+   ```
+   today:   scan miss → hunt → CREATE a new product   ~5 min   × 40 = 3.3 h
+   wanted:  scan miss → "is it this one?" → tap        ~30 sec × 40 = 20 min
+   ```
+   The product already has description, image, category and price. Only the barcode is missing.
 
-5. **Feed labels from the catalog.** *(shop floor)*
-   - Barcode + name + price by product ID, so a shelf label is one command and a re-price is a re-print. The pieces all exist now — `print-label.py -c <barcode> <name> <price>` and the web Label button.
+   **Everything needed is already built and tested — it just runs on the wrong screen:**
+   | Piece | Where | State |
+   |---|---|---|
+   | Cross-language name match (schwarz↔black, Stk.↔pc) | `pos_router._norm_name_for_match` / `_sql_norm_name` | ✅ built, 6 tests |
+   | Alias binding ("scan once, known forever") | `POST /products/{id}/barcodes`, table `product_barcodes` | ✅ exists |
+   | Search ranking | `/products/search` | ✅ verified: "smoking blue king size" → correct product at **rank 1** |
+
+   **The gap:** the cross-language match only runs in the **create** guard (`POST /products`,
+   ~line 380) — i.e. *after* the operator has typed everything. It must fire at **scan miss**,
+   before any typing.
+
+   **Plan:** on a barcode miss, call the search with the scanned code's context, show top ~5
+   candidates with picture + price, one tap → bind the scanned EAN as an alias → done. "Create
+   new" becomes the last resort, not the first.
+
+   **Done =** scan an unknown EAN on a product that exists → it is offered → one tap → it scans
+   forever after. Verified at the shop, not in a report.
+
+2. **Retire the 2026-07-30 duplicate rows.** *(small, straight after item 1)*
+   - ~40 products were hand-created that already existed (e.g. `Blow Pre-built CBD Joint Pure "V1" 1 pc. black` = `Blow vorgebauter CBD Joint Pure "V1" 1 Stk. schwarz`, TAM-20350).
+   - The **imported** row has the good data; the **hand-made** row has the real EAN. So move the barcode onto the imported row and drop the twin. Angel: *"you just delete them"*.
+   - Dry-run-first script, same shape as `scripts/reclass-age-gate.py`.
+
+3. **Debounce the sale-screen product search.** *(shop floor · small, contributes to item 1)*
+   - `scan.html:85` fires `searchProducts()` per keystroke with no debounce and no request sequencing, so the last response wins — including an empty query that returns everything. This is how a search looks like it "found nothing useful". One attribute: `@input.debounce.300ms`, matching the pattern already at `scan.html:530`.
+
+4. **Keep `ipp-usb` fresh — the last thing between the labeler and daily use.** *(shop floor)*
+   - Everything prints: CLI, barcodes, scanning, and the browser UI at any size. But `ipp-usb`'s USB session dies after **6–13 minutes idle** and jobs then queue silently. `print-label.py` heals itself; **Chrome cannot**.
+   - A systemd timer that restarts `ipp-usb` *only when it has stopped relaying* — reuse `ipp_usb_alive()` from `print-label.py`. Passwordless sudoers rule already installed.
+   - Then the freebie: `google-chrome --kiosk-printing` to drop the print dialog.
+
+5. **Harden go-live — DNS preflight + default-secret gate.** *(Roadmap Phase A)*
+   - Add a preflight to `scripts/deploy-prod.sh` that resolves `APP_PUBLIC_HOST` + `KC_PUBLIC_HOST` against the server IP **before** cert issuance, and refuses if a starter-default secret is still in place.
+
+6. **DR restore (Move B) — ⛔ BLOCKED on B2 read creds.** *(Roadmap Phase A · the ownership proof)*
+   - Needs a read-only B2 key + bucket + passphrase. Then: infra up → `restore-from-b2.sh` with creds as **env vars** → row-check prints a real product count → app up → `standup.sh`.
+
+7. **Feed labels from the catalog.** *(shop floor)*
+   - Barcode + name + price by product ID, so a shelf label is one command and a re-price is a re-print.
 
 ## 🔭 Backlog (not yet scheduled)
 
@@ -53,6 +91,10 @@
 - Sharpen the AI setup coach for a non-technical owner. *(Phase B)*
 
 ## ✅ Done (most recent first)
+
+- 2026-07-30 — **Age-gate compliance fix, applied to UAT.** Four CBD products were sellable with **no 18+ check** because the classifier keyed on the literal word "CBD" and titles either omitted it or transposed it to "CDB" (Angel's own typo, copying off a packet). Now reads brand context and the **description** — a strain name says nothing about what a thing legally is. `scripts/reclass-age-gate.py` (dry-run default, tighten-only) applied 4 fixes; accessories left alone. The dry run first proposed **16** changes of which **12 were wrong** — storage tins, filters, empty cones — and caught my over-reach before a row was written. 27 tests, both directions.
+- 2026-07-30 — **Cross-language duplicate detection.** `Blow Pre-built ... "V1" 1 pc. black` vs `Blow vorgebauter ... "V1" 1 Stk. schwarz` scored **0.417** — under the 0.5 guard, so no warning, so a duplicate. Folding both sides through a DE↔EN dictionary takes it to **0.857** (folded strings identical). Cost measured before shipping: ~300 ms per create.
+- 2026-07-29 — **Both scanner guns fixed.** They shipped set to a US keyboard while the sessions run Swiss German, so `-` arrived as `'` and every SKU lookup would have failed. Inateck BCST-35 set via the manual's config barcodes (no Swiss option — German works, same hyphen key); Netum NS L8 via doc1.netum.net/L8/en/keyboard. Verified returning `-`. Banco also retries layout-corrected candidates on a miss, for shops running guns we didn't choose.
 
 - 2026-07-29 — **QR shelf labels live on prod (b77), and both scanner guns fixed.** Small label went 38mm-wide-on-a-62mm-roll with an unreadable 9mm EAN-13 → **62×24mm with a 15mm QR carrying the shop's logo**, pulled from `receipt_logo_url` so it's per-shop. Verified rendering on prod with the Artemis leaf in the middle. Scan-tested first: **48 scans, zero failures**, at 12/15/20mm and with an oversized 30% logo, on both guns. Separately found and fixed the guns typing `-` as `'` (shipped set to US, sessions are Swiss German) — both now on German and returning `-`; Banco also retries layout-corrected candidates on a scan miss as a safety net for shops running guns we didn't choose. Full write-up in the guide, including the five faults that all *looked* like a broken printer and weren't.
 - 2026-07-28 — **Browser printing works — the full loop is closed.** Product page → 🏷️ Label → Print → a shelf label on the roll, at any of the ~20 sizes. The blocker was `@page{ size:62mm auto }`: **invalid CSS** (the spec allows `auto` OR one/two lengths, never both), so browsers silently fell back to A4 and the QL discarded every job — no error, clean drain, green LED, nothing printed. Chrome's own *Save as PDF* + `pdfinfo` exposed it in one command after three hours of theories. Fixed in `product_label.html` **and** `product_labels_batch.html` (same bug), deployed to `banco.wolfhold.app` (b65). Second gotcha: inline print CSS rides along with a cached page — hard-refresh or the fix looks like it didn't work.
