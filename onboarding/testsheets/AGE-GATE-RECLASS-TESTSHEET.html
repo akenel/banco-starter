@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Age-gate reclass — UAT testsheet</title>
+<style>
+  :root{ --red:#157F52; --dark:#0f5c3b; --ink:#1f2937; --mut:#6b7280; --line:#e5e7eb;
+         --ok:#059669; --iss:#d97706; --fail:#C0392B; --bg:#f6f8f7; --gold:#b0862f; }
+  *{ box-sizing:border-box; }
+  body{ font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; color:var(--ink);
+        background:var(--bg); margin:0; line-height:1.5; }
+  header{ position:sticky; top:0; z-index:10; background:#fff; border-bottom:2px solid var(--red);
+          padding:12px 20px; box-shadow:0 2px 8px rgba(0,0,0,.06); }
+  .htop{ display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+  h1{ font-size:18px; margin:0; }
+  h1 small{ color:var(--mut); font-weight:500; font-size:13px; display:block; margin-top:2px; }
+  .meters{ display:flex; gap:16px; align-items:center; }
+  .meter{ text-align:center; } .meter b{ font-size:20px; display:block; }
+  .meter.ok b{ color:var(--ok); } .meter.iss b{ color:var(--iss); } .meter.fail b{ color:var(--fail); }
+  .meter span{ font-size:11px; color:var(--mut); text-transform:uppercase; letter-spacing:.04em; }
+  .btn{ border:1px solid var(--line); background:#fff; border-radius:8px; padding:6px 12px;
+        font-size:13px; cursor:pointer; } .btn:hover{ background:#f0f0f0; }
+  main{ max-width:900px; margin:0 auto; padding:22px 20px 80px; }
+  .lead{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin-bottom:20px; }
+  .phase{ font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.06em;
+          color:var(--red); margin:26px 0 10px; padding-bottom:6px; border-bottom:2px solid var(--red); }
+  section{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin-bottom:14px; }
+  section h2{ font-size:15px; margin:0 0 4px; }
+  section .why{ color:var(--mut); font-size:13px; margin:0 0 12px; }
+  code{ font-family:ui-monospace,Menlo,monospace; font-size:12px; background:#f3f4f6;
+        border:1px solid var(--line); border-radius:5px; padding:1px 5px; }
+  .cmd{ display:block; font-family:ui-monospace,Menlo,monospace; font-size:12.5px; background:#0f172a;
+        color:#e2e8f0; border-radius:8px; padding:9px 12px; margin:6px 0; white-space:pre-wrap; word-break:break-word; }
+  ol.steps{ margin:0; padding-left:0; list-style:none; counter-reset:s; }
+  ol.steps li{ counter-increment:s; display:flex; gap:10px; padding:9px 0; border-top:1px solid var(--line); }
+  ol.steps li:first-child{ border-top:0; }
+  ol.steps li::before{ content:counter(s); flex:0 0 22px; height:22px; border-radius:50%;
+        background:var(--red); color:#fff; font-size:12px; font-weight:700; display:flex;
+        align-items:center; justify-content:center; margin-top:2px; }
+  .step-body{ flex:1; font-size:14px; }
+  .exp{ display:block; color:var(--ok); font-size:12.5px; margin-top:4px; }
+  .verdict{ display:flex; gap:6px; margin-top:7px; }
+  .v{ border:1px solid var(--line); background:#fff; border-radius:7px; padding:3px 10px;
+      font-size:12px; cursor:pointer; font-weight:600; color:var(--mut); }
+  .v.on[data-v=ok]{ background:var(--ok); color:#fff; border-color:var(--ok); }
+  .v.on[data-v=iss]{ background:var(--iss); color:#fff; border-color:var(--iss); }
+  .v.on[data-v=fail]{ background:var(--fail); color:#fff; border-color:var(--fail); }
+  .safety{ border:1px solid var(--line); border-left:4px solid var(--gold); background:#fffdf5;
+           border-radius:8px; padding:10px 12px; margin:10px 0; font-size:13.5px; }
+  .danger{ border-left-color:var(--fail); background:#fdf2f0; }
+  table{ border-collapse:collapse; width:100%; font-size:13px; margin:8px 0; }
+  th,td{ border:1px solid var(--line); padding:6px 9px; text-align:left; vertical-align:top; }
+  th{ background:#f6f8f7; }
+</style></head>
+<body>
+
+<header><div class="htop">
+  <h1>🔞 Age-gate reclass — UAT
+    <small>Fix the products that can be sold with no ID check · banco.wolfhold.app</small></h1>
+  <div class="meters">
+    <div class="meter ok"><b id="mOk">0</b><span>ok</span></div>
+    <div class="meter iss"><b id="mIss">0</b><span>issue</span></div>
+    <div class="meter fail"><b id="mFail">0</b><span>fail</span></div>
+    <button class="btn" onclick="if(confirm('Clear all marks?')){localStorage.removeItem(KEY);location.reload()}">reset</button>
+  </div>
+</div></header>
+
+<main>
+  <div class="lead">
+    <strong>What this is.</strong> Four CBD products in the UAT catalog are classed
+    <code>standard</code> and can be rung up with <strong>no 18+ check</strong>. The classifier now
+    catches them, but a classifier fix doesn't touch rows already in the table — this sheet walks
+    the data fix and proves it worked <em>at the till</em>, not just in a report.
+
+    <div class="safety danger">
+      <b>Why this matters more than a normal bug.</b> Whether a customer was asked for ID depended
+      on how someone typed a product title — the live <code>CDB</code> was a transposition made while
+      copying off a package at the counter. A CBD product sold un-gated is a compliance failure, not
+      a UX annoyance.
+    </div>
+
+    <div class="safety">
+      <b>The one rule: it only ever TIGHTENS.</b> A row changes only when the classifier says
+      age-restricted <em>and</em> the stored row says it isn't. It never un-gates a product and never
+      relaxes a class a manager set deliberately.
+      <br><br>
+      <b>Worst case of a bad run</b> is a product that asks for ID when it needn't — annoying, fixable
+      in the cleanup cockpit. The opposite is what we're fixing.
+    </div>
+
+    <div class="safety">
+      <b>Dry run already caught one bad change.</b> The first version proposed <b>16</b> updates and
+      <b>12 were wrong</b> — storage tins, filters and empty cones. Nothing was written, because dry
+      run is the default. That is the point of Part A: <b>read the list before you apply it.</b>
+    </div>
+  </div>
+
+  <div class="phase">Part A — see what it wants to change (writes nothing)</div>
+
+  <section>
+    <h2>A1 · Run the dry run</h2>
+    <p class="why">Read-only. Safe to run any time, on any environment.</p>
+    <ol class="steps">
+      <li><div class="step-body">On the UAT box:
+        <span class="cmd">cd /root/banco-starter && git pull
+python3 scripts/reclass-age-gate.py</span>
+        <span class="exp">it scans ~5,166 active products and prints a list. Nothing is written.</span></div></li>
+      <li><div class="step-body">Check the count is <b>4</b>, and that the list is exactly these:
+        <table>
+          <tr><th>Product</th><th>becomes</th></tr>
+          <tr><td>CBD Gummy</td><td>cbd_hemp · 18+</td></tr>
+          <tr><td>BLOW CDB PRE JOINT RED</td><td>cbd_hemp · 18+</td></tr>
+          <tr><td>BLOW CDB PRE JOINT GREEN Pure</td><td>cbd_hemp · 18+</td></tr>
+          <tr><td>BLOW Joint GREY Pure</td><td>cbd_hemp · 18+</td></tr>
+        </table>
+        <span class="exp">all four are genuinely CBD products that should ask for ID.</span></div></li>
+      <li><div class="step-body"><b>Read every line before going further.</b> If anything appears that
+        is a <em>container, filter, paper or cone</em> — a Joint-Pack, a Smellproof Tube, a CTIP
+        filter, a G-Rollz cone — <b>stop and mark this FAIL</b>.
+        <span class="exp">the list contains only things a customer consumes, never things that hold
+        or make them.</span></div></li>
+    </ol>
+  </section>
+
+  <div class="phase">Part B — apply it</div>
+
+  <section>
+    <h2>B1 · Write the changes</h2>
+    <ol class="steps">
+      <li><div class="step-body">Same command with <code>--apply</code>. It shows the list again and asks first:
+        <span class="cmd">python3 scripts/reclass-age-gate.py --apply</span>
+        <span class="exp">prompts <code>Apply these 4 change(s)? [y/N]</code> — answer <b>y</b>. Then
+        "✅ tightened 4 product(s)."</span></div></li>
+      <li><div class="step-body">Run the plain dry run again.
+        <span class="cmd">python3 scripts/reclass-age-gate.py</span>
+        <span class="exp">"✅ nothing to tighten" — proves it's idempotent and the writes landed.</span></div></li>
+    </ol>
+  </section>
+
+  <div class="phase">Part C — prove it at the till (the part that counts)</div>
+
+  <section>
+    <h2>C1 · The gate actually fires</h2>
+    <p class="why">A report saying <code>is_age_restricted = true</code> is not proof. A cashier being
+       stopped is proof.</p>
+    <ol class="steps">
+      <li><div class="step-body">New Sale → add <b>BLOW Joint GREY Pure</b> to the cart.
+        <span class="exp">the 18+ / ID prompt appears before checkout completes.</span></div></li>
+      <li><div class="step-body">Same for <b>BLOW CDB PRE JOINT RED</b> — the one whose title has the
+        <code>CDB</code> typo.
+        <span class="exp">gated. This is the exact product that leaked, and the typo no longer
+        matters.</span></div></li>
+      <li><div class="step-body">Check the product page shows the 🔞 badge and class <code>cbd_hemp</code>.
+        <span class="exp">badge visible in the catalog list and on the detail card.</span></div></li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>C2 · It does NOT fire where it shouldn't <span class="safety" style="display:inline;padding:2px 8px">just as important</span></h2>
+    <p class="why">Over-gating is its own failure. Staff learn to wave away a prompt that fires
+       wrongly — and then the real ones get waved through too.</p>
+    <ol class="steps">
+      <li><div class="step-body">Sell a <b>Joint-Pack</b> (any) — a storage case.
+        <span class="exp"><b>no</b> ID prompt. It holds joints; it isn't one.</span></div></li>
+      <li><div class="step-body">Sell <b>G-Rollz Prerolled</b> (any flavour) — empty cones.
+        <span class="exp"><b>no</b> ID prompt. Pre-rolled here means the paper is pre-formed.</span></div></li>
+      <li><div class="step-body">Sell <b>Cone+ CTIP Filter</b> and any <b>Smoking / RAW papers</b>.
+        <span class="exp"><b>no</b> ID prompt on either.</span></div></li>
+      <li><div class="step-body">Sell a <b>CBD oil or CBD seeds</b> if the catalog has one.
+        <span class="exp"><b>no</b> ID prompt — oils and seeds are <code>cbd_open</code>, deliberately
+        not gated.</span></div></li>
+    </ol>
+  </section>
+
+  <div class="phase">Part D — after any capture session</div>
+
+  <section>
+    <h2>D1 · Make it a habit</h2>
+    <ol class="steps">
+      <li><div class="step-body">Whenever a batch of products has been added by hand, re-run the dry run.
+        <span class="cmd">python3 scripts/reclass-age-gate.py</span>
+        <span class="exp">catches anything typed in under time pressure that the classifier now
+        understands. Idempotent, read-only, ten seconds.</span></div></li>
+      <li><div class="step-body">If it proposes something that looks like an accessory, <b>don't apply
+        it</b> — that's a classifier bug, and it's worth a BL.
+        <span class="exp">the list stays boring. A surprising entry is information.</span></div></li>
+    </ol>
+    <div class="safety">
+      <b>Known limit.</b> A title too thin to classify — the live example is <code>Blow pure</code> —
+      can't be caught automatically without over-gating half the shelf. Products like that need a
+      human to set the class in the cleanup cockpit. <b>The script is a safety net, not a substitute
+      for knowing your own stock.</b>
+    </div>
+  </section>
+</main>
+
+<script>
+  const KEY='banco-agegate-reclass-v1';
+  let state=JSON.parse(localStorage.getItem(KEY)||'{}');
+  document.querySelectorAll('ol.steps li').forEach((li,i)=>{
+    const d=document.createElement('div'); d.className='verdict';
+    ['ok','iss','fail'].forEach(v=>{
+      const b=document.createElement('button'); b.className='v'; b.dataset.v=v;
+      b.textContent={ok:'✓ OK',iss:'⚠ ISSUE',fail:'✗ FAIL'}[v];
+      b.onclick=()=>{ state[i] = state[i]===v ? '' : v; save(); };
+      d.appendChild(b);
+    });
+    li.querySelector('.step-body').appendChild(d);
+  });
+  function save(){
+    localStorage.setItem(KEY, JSON.stringify(state));
+    let o=0,s=0,f=0;
+    document.querySelectorAll('ol.steps li').forEach((li,i)=>{
+      li.querySelectorAll('.v').forEach(b=>b.classList.toggle('on', state[i]===b.dataset.v));
+      if(state[i]==='ok')o++; else if(state[i]==='iss')s++; else if(state[i]==='fail')f++;
+    });
+    mOk.textContent=o; mIss.textContent=s; mFail.textContent=f;
+  }
+  save();
+</script>
+</body></html>
