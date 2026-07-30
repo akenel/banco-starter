@@ -269,6 +269,55 @@ async def get_pos_config(db: AsyncSession = Depends(get_db_session)):
 # PRODUCT ENDPOINTS
 # ================================================================
 
+
+# DE<->EN normalisation for duplicate detection.
+#
+# THE FAILURE THIS FIXES, measured on the live UAT catalog 2026-07-30:
+#
+#   typed at the counter   "Blow Pre-built CBD Joint Pure \"V1\" 1 pc. black"
+#   already in the catalog "Blow vorgebauter CBD Joint Pure \"V1\" 1 Stk. schwarz"
+#   trigram similarity     0.417  -> under the 0.5 guard, so NO warning shown
+#   after normalising      0.857  -> caught outright
+#
+# The same product, twice, because schwarz != black and Stk. != pc. Angel spent two hours
+# re-creating BLOW joints that were already there: the packets carry ENGLISH international
+# names while the wholesale import (Tamar, 420) is GERMAN. The barcode couldn't bridge it
+# either — the imported rows hold minted 2xxxx codes, not the EAN on the packet.
+#
+# Colours and unit words are nearly the whole variance for this shop's stock, so a small
+# dictionary buys most of the benefit. Applied to BOTH sides before comparing; it never
+# changes what gets STORED.
+_NAME_NORM = (
+    (r"vorgebaute[rn]?|pre[-\s]?built|pre[-\s]?rolled?", "preroll"),
+    (r"\bstk\.?\b|\bst[üu]ck\b|\bpcs?\.?\b|\bpiece[s]?\b", "pc"),
+    (r"schwarz", "black"), (r"wei[sß]{1,2}\b", "white"), (r"gr[üu]n", "green"),
+    (r"\brot\b", "red"), (r"blau", "blue"), (r"grau", "grey"),
+    (r"gelb", "yellow"), (r"braun", "brown"), (r"violett?", "purple"),
+    (r"silber", "silver"), (r"gold(en)?", "gold"),
+)
+
+
+def _norm_name_for_match(name: str | None) -> str:
+    """Fold a product name to a language-neutral form for DUPLICATE COMPARISON only."""
+    t = (name or "").lower()
+    for pat, repl in _NAME_NORM:
+        t = re.sub(pat, repl, t)
+    return re.sub(r"[^a-z0-9 ]+", " ", t)
+
+
+def _sql_norm_name(col: str) -> str:
+    """The SAME folding as _norm_name_for_match(), as a SQL expression.
+
+    Generated from _NAME_NORM rather than hand-written, because BOTH sides of the comparison
+    must fold identically — normalising only the typed name would leave "schwarz" in the
+    database facing "black" from the counter, which is the exact bug this is here to fix.
+    """
+    expr = f"lower({col})"
+    for pat, repl in _NAME_NORM:
+        expr = f"regexp_replace({expr}, '{pat}', '{repl}', 'g')"
+    return f"regexp_replace({expr}, '[^a-z0-9 ]+', ' ', 'g')"
+
+
 def _clean_barcode(raw) -> str:
     """Scrub a scanned/typed barcode down to its bare code. Scanner guns append or embed invisible
     characters (a trailing CR/LF/TAB "submit" signal, stray control chars) and a field that didn't
@@ -377,11 +426,22 @@ async def create_product(
             from sqlalchemy import text as _text
             _want = _product_size(_name)
             try:
+                # Compare NORMALISED names (schwarz==black, Stk.==pc), and take the better of
+                # similarity / word_similarity — a hand-typed English title is often a SHORTER
+                # phrase sitting inside the longer German one, which plain trigram similarity
+                # punishes for the length difference. Threshold stays 0.5; the normalisation is
+                # what moves the real duplicates above it (0.417 -> 0.857 on the live case).
+                _nn = _norm_name_for_match(_name)
                 _cands = (await db.execute(_text(
                     "SELECT id, name, price, image_url, sku, barcode, category, "
-                    "       similarity(lower(name), lower(:n)) AS sim "
-                    "FROM products WHERE is_active AND similarity(lower(name), lower(:n)) > 0.5 "
-                    "ORDER BY sim DESC LIMIT 8"), {"n": _name})).fetchall()
+                    "       GREATEST(similarity(norm_name, :nn), "
+                    "                word_similarity(:nn, norm_name)) AS sim "
+                    "FROM (SELECT id, name, price, image_url, sku, barcode, category, "
+                    f"             {_sql_norm_name('name')} AS norm_name "
+                    "      FROM products WHERE is_active) p "
+                    "WHERE GREATEST(similarity(norm_name, :nn), "
+                    "               word_similarity(:nn, norm_name)) > 0.5 "
+                    "ORDER BY sim DESC LIMIT 8"), {"nn": _nn})).fetchall()
             except Exception:
                 # pg_trgm absent (e.g. the SQLite test DB) or any query error → FAIL OPEN.
                 # A dedup check that can't run must never block a legitimate create.
