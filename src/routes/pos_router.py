@@ -62,7 +62,7 @@ from src.core.constants import HelixApplication
 from src.services.cash_shift_service import (
     expected_cash, close_result, denoms_total, money, denoms_for,
 )
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from src.schemas.pos_schema import (
     ProductCreate,
     ProductUpdate,
@@ -442,6 +442,120 @@ async def create_product(
     logger.info(f"Product created: {new_product.sku} by user {current_user['username']}")
     return new_product
 
+
+
+class ProductCloneRequest(BaseModel):
+    """What actually differs between two variants of the same product."""
+    name: str = Field(..., min_length=1, max_length=200)
+    barcode: Optional[str] = Field(None, max_length=100)
+    price: Optional[Decimal] = None
+    supplier_sku: Optional[str] = Field(None, max_length=100)
+    image_url: Optional[str] = Field(None, max_length=500)
+    copy_image: bool = True
+
+
+@router.post("/products/{product_id}/clone", response_model=ProductRead,
+             status_code=status.HTTP_201_CREATED)
+async def clone_product(
+    product_id: str,
+    req: ProductCloneRequest,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(require_any_pos_role()),
+):
+    """Create the NEXT VARIANT of a product — same everything, different size/colour/flavour.
+
+    THE PROBLEM THIS SOLVES. Headshop stock is sized like clothing. One BLOW line is
+    orange/red/blue/white/silver (gold next month); one nutrient is 250ml/1L/5L; RAW papers
+    run to a dozen formats. Each variant is a separate EAN and therefore a separate row, but
+    it shares brand, category, 18+ status, supplier, description and usually price with its
+    siblings. Building 36 near-identical rows by hand is ~3 hours of retyping the same
+    category and age flag — and next season the brand adds a colour and you do it again.
+
+    Cloning collapses that: capture the first one properly, then each sibling is a name, a
+    barcode and (sometimes) a price.
+
+    WHAT IS DEPRECATED ON PURPOSE — a clone is a NEW product, not a copy of a history:
+      * stock starts at 0 (nobody counted the new one yet)
+      * enrichment_*, *_checked_at, last_sync_at cleared — this record has not been verified
+      * lapiazza_* and source_id dropped — those identify the ORIGINAL listing
+      * supplier_sku only carried if the caller passes one (it differs per variant)
+
+    `copy_image=false` for colour variants — a violet BLOW packet is not a grey one, and a
+    wrong photo is worse than none because it looks finished. Size variants usually share art,
+    so it defaults to true.
+
+    Deliberately skips the name-dedup guard that `POST /products` applies: variants ARE
+    near-identical by name ("Blow Joint GREY Pure" vs "... WHITE Pure" score well over the 0.5
+    threshold), and here the near-duplicate is the whole intent. Barcode uniqueness still
+    applies — that is what actually keeps the catalog honest.
+    """
+    src = await db.get(ProductModel, product_id)
+    if not src:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    code = _clean_barcode(req.barcode) if req.barcode else None
+    if code:
+        clash = await _find_product_by_any_barcode(db, code)
+        if clash:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Barcode {code} already belongs to '{clash.name}' — "
+                       "scan the variant's own code, or leave it blank and bind it later.")
+
+    # Everything a sibling legitimately inherits. Explicit list, not a loop over columns:
+    # a new column should have to be *considered* rather than silently cloned.
+    inherited = dict(
+        description=src.description,
+        price=req.price if req.price is not None else src.price,
+        cost=src.cost,
+        category=src.category,
+        product_group=src.product_group,
+        tags=src.tags,
+        is_age_restricted=src.is_age_restricted,
+        product_class=src.product_class,
+        age_reason=src.age_reason,
+        vending_compatible=src.vending_compatible,
+        supplier_name=src.supplier_name,
+        supplier_price=src.supplier_price,
+        price_tiers=src.price_tiers,
+        tier_mode=src.tier_mode,
+        stock_alert_threshold=src.stock_alert_threshold,
+        min_stock=src.min_stock,
+        max_stock=src.max_stock,
+        lead_time_days=src.lead_time_days,
+        source_system=src.source_system,
+        source_url=src.source_url,
+        source_lang=src.source_lang,
+        artemis_path=src.artemis_path,
+        attributes=src.attributes,
+        raw_facets=src.raw_facets,
+    )
+
+    image = req.image_url if req.image_url else (src.image_url if req.copy_image else None)
+
+    new_product = ProductModel(
+        name=req.name.strip(),
+        barcode=code,
+        barcode_is_internal=False if code else True,
+        sku=f"VAR-{uuid4().hex[:10]}",
+        supplier_sku=req.supplier_sku,
+        image_url=image,
+        stock_quantity=0,
+        is_active=True,
+        **inherited,
+    )
+    db.add(new_product)
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(status_code=409,
+                            detail="That barcode or SKU is already taken — try again.")
+    await db.refresh(new_product)
+
+    logger.info("Product cloned: %s -> %s (%s) by %s",
+                src.sku, new_product.sku, new_product.name, current_user["username"])
+    return new_product
 
 @router.post("/products/quick", response_model=ProductRead, status_code=status.HTTP_201_CREATED)
 async def quick_create_product(
