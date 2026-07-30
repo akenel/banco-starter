@@ -557,6 +557,41 @@ async def clone_product(
                 src.sku, new_product.sku, new_product.name, current_user["username"])
     return new_product
 
+
+class PageFactsRequest(BaseModel):
+    """A product-page URL the operator found and judged to be the right one."""
+    url: str = Field(..., min_length=8, max_length=1000)
+
+
+@router.post("/catalog/page-facts")
+async def catalog_page_facts(
+    req: PageFactsRequest,
+    current_user: dict = Depends(require_any_pos_role()),
+):
+    """Paste a product page URL -> everything that page states about the product.
+
+    THE DIVISION OF LABOUR THIS ASSUMES. Angel, after a day capturing stock in the shop:
+    "U can not pick the correct list from google - 8x out of 10 I can with a 5-30 sec look."
+    That is exactly right, and it decides the design. A model choosing which search result is
+    the correct Gizeh variant will be confidently wrong and quietly poison the catalog; a
+    human glancing at the page is reliable. So the human picks, and the machine does
+    everything after the pick. Nothing here guesses — it reads the shop's OWN structured
+    record (schema.org/Product JSON-LD, published so Google can list it) and falls back to
+    OpenGraph.
+
+    Returns {found, name, description, price, currency, image, barcode, brand, supplier_sku}
+    with keys present only when the page actually stated them. The caller PROOFS it before
+    saving: a page is evidence, not truth, and the person holding the packet outranks it.
+
+    The barcode matters most. When a packet's code will not scan — 2 times in 10, and no
+    amount of retrying fixes a dead read — the page still carries the EAN as gtin13/gtin8.
+    One paste beats typing 13 digits off a shiny box, especially on a tablet at a counter.
+    """
+    facts = await _page_product_facts(req.url)
+    facts.pop("_html", None)          # the raw body is an internal detail, never shipped to a UI
+    return {"found": bool(facts), "url": req.url, **facts}
+
+
 @router.post("/products/quick", response_model=ProductRead, status_code=status.HTTP_201_CREATED)
 async def quick_create_product(
     product: ProductCreate,
@@ -2262,7 +2297,8 @@ async def _page_product_facts(page_url: str) -> dict:
     DESCRIPTION (the specs — the field that actually proves what the thing is), the PRICE, and the
     IMAGE. Deterministic: this is the shop STATING its own facts, not a model guessing them.
 
-    Returns {name, description, price, currency, image} — keys present only when found. NEVER raises;
+    Returns {name, description, price, currency, image, barcode, brand, supplier_sku} — keys present
+    only when found. NEVER raises;
     never invents. An unreadable page yields {} and the row simply keeps its blanks.
     """
     out: dict = {}
@@ -2306,6 +2342,25 @@ async def _page_product_facts(page_url: str) -> dict:
                     continue
                 if node.get("name") and "name" not in out:
                     out["name"] = str(node["name"]).strip()[:200]
+                # THE GTIN — the whole reason a page is worth pasting. When the packet's
+                # barcode won't scan (8 times in 10 it does, and the other 2 are just dead
+                # to the reader), the shop's own page still states the EAN in its structured
+                # record. That turns "type 13 digits off a shiny box" into one paste, and it
+                # is the shop ASSERTING the code rather than anything guessing it.
+                for _k in ("gtin13", "gtin8", "gtin12", "gtin14", "gtin"):
+                    _g = node.get(_k)
+                    if _g and "barcode" not in out:
+                        _g = re.sub(r"\D", "", str(_g))
+                        if len(_g) in (8, 12, 13, 14):
+                            out["barcode"] = _g
+                        break
+                _brand = node.get("brand")
+                if isinstance(_brand, dict):
+                    _brand = _brand.get("name")
+                if _brand and "brand" not in out:
+                    out["brand"] = str(_brand).strip()[:100]
+                if node.get("sku") and "supplier_sku" not in out:
+                    out["supplier_sku"] = str(node["sku"]).strip()[:100]
                 if node.get("description") and "description" not in out:
                     out["description"] = re.sub(r"\s+", " ", str(node["description"])).strip()[:4000]
                 img = node.get("image")
