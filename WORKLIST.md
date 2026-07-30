@@ -41,8 +41,30 @@
      `CATALOG-IDENTITY.md`: the machine must not choose), then `POST /catalog/page-facts` fills
      title/description/image/price/GTIN from the chosen page.
 
-   **Done =** 20 minutes of shelf scanning produces a work list, and an evening at a desk turns it
-   into a catalogue where every product scans.
+   **THE CONSTRAINT THAT DECIDES THE DESIGN — the catalogue must be ready BEFORE go-live.**
+   Leandra, Roger and Nathan are serving customers now. A till that misses half its scans does not
+   degrade gracefully: the failure lands on whoever is holding the product with someone waiting.
+   "Scan-as-you-sell will fill it in over a few weeks" is fine for a slow tail and **not acceptable
+   as the primary mechanism**. Angel: *"a person has the product in their hand, they scanned it —
+   it needs to be already in the system, previous to them starting and go live. For 90% of the stuff
+   or more."*
+
+   **Validate in BATCHES OF TEN, not one at a time.** Angel: *"You scan ten of them. This is what we
+   think it is. That's correct. That's not. Now we have to go into the deep dive."* The machine
+   proposes, the human judges in 5–30 s (see `CATALOG-IDENTITY.md` — the machine must never choose).
+   Ten at a time keeps context; one at a time means re-orienting on every product, which is where
+   most of the 5 minutes went.
+
+   **Wipe the minted BARCODES, keep the TAM SKUs.** Two different things wear that name and only one
+   is the lie:
+   - `TAM-19238` (sku) — Tamar's real article number, and the join key back to `source_url`
+     (`artemisluzern.ch/.../19238`). **Keep it** — it is what makes batch enrichment possible at all,
+     because every row can re-find its own source page.
+   - `2000000192352` (barcode) — invented by Banco, on no packet. **Wipe it** (or at least set
+     `barcode_is_internal`), so a known-unknown stops masquerading as a real code.
+
+   **Done =** 20 minutes of shelf scanning produces a work list; an evening at a desk turns it into a
+   catalogue where every product on the shelf scans — *before* staff rely on it.
 
 2. **SCAN MISS MUST SEARCH THE CATALOGUE.** *(shop floor · the one thing that matters)*
 
