@@ -10,6 +10,8 @@
 
 1. **⛔ SCAN MISS MUST SEARCH THE CATALOGUE.** *(shop floor · the one thing that matters)*
 
+   **→ Read [`CATALOG-IDENTITY.md`](CATALOG-IDENTITY.md) first** — the why behind this item, and the product thesis it comes from.
+
    **The problem, from a full day at Artemis 2026-07-30:** ~50% of scans find nothing, so the
    operator rebuilds a product that was already there. 40 products ≈ 3.3 hours. Angel:
    *"Everything is in the catalog already. It's there... either look in our catalogue properly

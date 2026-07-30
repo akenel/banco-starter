@@ -60,6 +60,7 @@ When Angel says **OPEN SHOP** after a reboot, compaction, or fresh start, it mea
 ```
 banco-starter/
 ├── WORKLIST.md            # what's next, in order  ← code word opens this
+├── CATALOG-IDENTITY.md    # what actually names a product (EAN = identity, names = labels)
 ├── CLAUDE.md              # this file (loads every session)
 ├── MEMORY.md              # the memory index (one line per fact)
 ├── memory/                # one fact per file
