@@ -442,6 +442,13 @@ async def create_product(
                     "WHERE GREATEST(similarity(norm_name, :nn), "
                     "               word_similarity(:nn, norm_name)) > 0.5 "
                     "ORDER BY sim DESC LIMIT 8"), {"nn": _nn})).fetchall()
+                # Drop candidates whose BRAND cannot match. Trigram similarity has no idea what
+                # a brand is, so it offered `Canna Coco A 1L` <-> `Beamer Candles Cocanna Banana`
+                # and `Aperol Spritz` <-> `Dosier Spritze 1ml` — obvious to a human in a quarter
+                # second, invisible to a character score. Measured on the live catalog: roughly
+                # half the 0.5-0.7 proposals were wrong this way.
+                from src.services.catalog_brands import brands_conflict
+                _cands = [r for r in _cands if not brands_conflict(_name, r.name)]
             except Exception:
                 # pg_trgm absent (e.g. the SQLite test DB) or any query error → FAIL OPEN.
                 # A dedup check that can't run must never block a legitimate create.
