@@ -178,7 +178,12 @@ _ECIG_FORM = re.compile(r"\bdisposable\b|prefilled\s*pod", re.I)
 _TOBACCO_ACCESSORY = re.compile(r"filling|filter|stopf|maschine|machine|hülse|\btube\b|papier|\bpaper|\btips?\b|\bkulu\b", re.I)
 # Looks like tobacco/alcohol but is an ACCESSORY (a bag / holder / case), not the 18+ substance —
 # so it never gets the age gate. (Kavatza Tabaktasche, Zigarettenhalter, Tabakbefeuchter…)
-_SUBSTANCE_ACCESSORY = re.compile(r"tasche|portemonnaie|portmonnaie|halter|befeuchter|\betui\b|humidor|aufbewahr|löffel|\bspoon\b", re.I)
+_SUBSTANCE_ACCESSORY = re.compile(
+    r"tasche|portemonnaie|portmonnaie|halter|befeuchter|\betui\b|humidor|aufbewahr|löffel|\bspoon\b"
+    # Storage that HOLDS the substance is not the substance. UAT dry run 2026-07-30 wanted to
+    # age-gate "Joint-Pack für 4 Joints" and "Joint-Pack Smellproof Metal Tube" — a case and a
+    # tube. Gating a container teaches staff the prompt is noise.
+    r"|smell[- ]?proof|joint[- ]?pack|\bcase\b|geruchsdicht", re.I)
 # Rum / whisky etc. as a FLAVOUR on papers/wraps/blunts — not alcohol. (Juicy Jay's Rum papers…)
 _FLAVOUR_PAPER = re.compile(r"paper|\bwrap|blunt|blättchen|\bcone|juicy\s*jay", re.I)
 # CBD in a NON-smokable, non-recreational form (oil / tincture / drops / seeds / cosmetics) — NOT
@@ -222,7 +227,10 @@ _CBD_STRONG = re.compile(
 _CBD_TOKEN = re.compile(
     r"\bcbd\b|\bcdb\b|cannabidiol"                 # incl. the common CDB transposition
     r"|\bblow\b.{0,24}\bjoint\b|\bjoint\b.{0,24}\bblow\b"   # BLOW pre-rolls
-    r"|pre[- ]?roll|vorgebaut", re.I)
+    r"|vorgebaute?r?\s+joint", re.I)
+# NOT a bare "pre-roll": G-Rollz Prerolled cones are EMPTY flavoured papers, and gating them
+# would ask a customer for ID to buy a booklet of cones. Pre-roll only counts in _CBD_STRONG,
+# where it must be followed by "joint".
 
 _CBD_OPEN = re.compile(r"\böl\b|\boil\b|\boel\b|tinktur|tincture|\bdrops?\b|tropfen|\bseed\b|\bseeds\b|\bsamen\b|kosmetik|cosmetic|creme|cream|salbe|\bbalm\b|lotion|serum", re.I)
 
@@ -335,7 +343,12 @@ def classify(title: str | None, ref_category: str | None = None, raw=None,
     #     …and when the TITLE is a meaningless strain/brand name, fall through to what the
     #     product says about ITSELF. Only a strong signal counts (see _CBD_STRONG) — an
     #     incidental "great with CBD flower" in a papers blurb must never gate papers.
-    elif description and _CBD_STRONG.search(description) and not _CBD_OPEN.search(t):
+    #     …and the accessory guards apply here too. An accessory's blurb DESCRIBES the thing it
+    #     is for ("holds 4 pre-rolled joints", "for your CBD flower"), so without this veto the
+    #     description path gates filters, cones and storage tubes. Caught by the UAT dry run
+    #     before it touched a row — 12 of its 16 proposed changes were accessories.
+    elif (description and _CBD_STRONG.search(description) and not _CBD_OPEN.search(t)
+          and not _TOBACCO_ACCESSORY.search(t) and not _SUBSTANCE_ACCESSORY.search(t)):
         cls = "cbd_hemp"
 
     # CATEGORY: honour FourTwenty's clean buckets, else keyword-classify the dump.

@@ -88,3 +88,23 @@ def test_a_cbd_joint_in_a_tube_is_still_gated():
     so vetoing on the description would have killed exactly the product we must gate."""
     _, cls, age = classify("Sour Diesel Single", description="Pre-rolled joint 12% CBD in tube")
     assert cls == "cbd_hemp" and age is True
+
+
+# ── Accessories are not the substance. Every one of these was proposed for age-gating by the
+#    UAT dry run on 2026-07-30 — 12 of its 16 suggestions were accessories. The dry run caught
+#    it before a single row changed, which is the entire argument for dry-run-by-default.
+
+@pytest.mark.parametrize("title,description", [
+    ("Joint-Pack für 4 Joints",                    "Hält 4 vorgebaute Joints."),
+    ("Joint-Pack Smellproof Metal Tube BIG",       "Für vorgebaute Joints, geruchsdicht."),
+    ("Cone+ Natural Brown CTIP Filter 109mm",      "For pre-rolled joints."),
+    ("G-Rollz Prerolled Blueberry Kookies 2 Stk.", "Prerolled cones, 2 pcs."),
+])
+def test_things_that_HOLD_or_MAKE_joints_are_not_joints(title, description):
+    """A case, a tube, a filter and an empty cone. Their blurbs necessarily describe the thing
+    they are FOR, so the description path gates them without an accessory veto. Asking for ID
+    to sell a storage tin teaches staff the prompt is noise — and then it gets ignored when it
+    matters."""
+    _, cls, age = classify(title, description=description)
+    assert cls != "cbd_hemp", f"{title!r} would be age-gated"
+    assert age is False
