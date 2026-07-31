@@ -203,7 +203,10 @@
               <div x-show="row.status === 'created'" style="display:none"
                    class="bg-emerald-50 border border-emerald-300 rounded-lg p-3 text-sm text-emerald-800
                           flex justify-between items-center gap-3 flex-wrap">
-                <span>✨ Created <span class="font-semibold" x-text="row.boundTo"></span>.</span>
+                <span>
+                  <span x-text="row.wasRedo ? '💾 Saved' : '✨ Created'"></span>
+                  <span class="font-semibold" x-text="row.boundTo"></span>.
+                </span>
                 <!-- Finding the RIGHT page is the hard part, and you often find it second.
                      Angel: "I put in the wrong one, so we ended up getting the Hungarian
                      description... I looked a little bit harder and now I wanna go back and fix
@@ -336,6 +339,11 @@
                        class="text-xs text-gray-400 mb-2">
                       page said: <span class="italic" x-text="row.facts.name"></span>
                     </p>
+                    <p x-show="row.facts && row.facts.lang_hint" style="display:none"
+                       class="text-xs text-gray-500 mb-2">
+                      Text language: <span class="font-semibold uppercase" x-text="row.facts.lang_hint"></span>
+                      — stored with the product, so a German description never gets served as English.
+                    </p>
                   </div>
 
                   <div x-show="row.facts && row.facts.name" style="display:none"
@@ -371,9 +379,11 @@
                           class="text-sm"
                           :class="[(row.candidates && row.candidates.length) ? 'btn-secondary' : 'btn-primary',
                                    (!(row.facts && row.facts.name) || !(row.price > 0)) ? 'opacity-50 cursor-not-allowed' : '']"
-                          x-text="(row.candidates && row.candidates.length)
-                                    ? '✨ None of these — create it new'
-                                    : '✅ That\'s it — add it to the catalogue'">
+                          x-text="row.redoId
+                                    ? '✅ Accept — save this product'
+                                    : ((row.candidates && row.candidates.length)
+                                        ? '✨ None of these — create it new'
+                                        : '✅ That\'s it — add it to the catalogue')">
                   </button>
                   <span x-show="!(row.facts && row.facts.name)" style="display:none" class="text-xs text-gray-400 ml-2">
                     Read a product page first, so the new row starts with a name, price and picture.
@@ -598,6 +608,9 @@ function shelfIntake() {
           category: f.suggested_category || null,
           product_class: f.suggested_class || 'standard',
           is_age_restricted: !!f.suggested_age_restricted,
+          // What language the page was actually written in. Unset lands NULL, which reads
+          // as English downstream — German text labelled English is a real bug, not cosmetic.
+          source_lang: f.lang_hint || null,
         };
         let p;
         if (row.redoId) {
@@ -610,6 +623,8 @@ function shelfIntake() {
         }
         row.status = 'created';
         row.productId = p.id || row.redoId;
+        row.wasRedo = !!row.redoId;
+        row.redoId = '';
         row.boundTo = p.name;
       } catch (e) {
         row.error = (e && e.message) || 'Could not create that product.';

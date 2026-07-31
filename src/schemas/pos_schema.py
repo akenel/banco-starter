@@ -119,6 +119,11 @@ class ProductBase(BaseModel):
 
 class ProductCreate(ProductBase):
     """Schema for creating a new product"""
+    # Which language the name/description were actually written in. Left unset it lands NULL,
+    # which downstream reads as English — and German text stamped "English" is the exact disease
+    # _guess_base_lang exists to fight (it self-heals later, but only once someone asks for a
+    # translation). The capture screens know the answer at the moment of capture; say it then.
+    source_lang: Optional[str] = Field(None, max_length=8, description="Language of the base text (de/en/fr/it)")
     # Receiving "supplier mode" (stripped before the ORM sees them; ignored by other callers):
     # when mint_identity is set, the server mints a clean PREFIX-#### SKU (the supplier's own
     # prefix, else the shop's house prefix) and a scannable internal EAN-13 if the item has no
@@ -154,6 +159,7 @@ class ProductUpdate(BaseModel):
     min_stock: Optional[int] = Field(None, ge=0)
     max_stock: Optional[int] = Field(None, ge=0)
     lead_time_days: Optional[int] = Field(None, ge=0)
+    source_lang: Optional[str] = Field(None, max_length=8, description="Language of the base text (de/en/fr/it)")
 
 
 class ProductRead(ProductBase):
