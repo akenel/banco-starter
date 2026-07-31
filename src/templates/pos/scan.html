@@ -82,7 +82,7 @@
                         <input
                             type="text"
                             x-model="searchInput"
-                            @input="searchProducts()"
+                            @input.debounce.300ms="searchProducts()"
                             placeholder="Type product name..."
                             data-i18n-placeholder="scan.ph_product_search"
                             class="input-field">
@@ -558,6 +558,12 @@
                                         <span x-show="posProductSize(p.name)" x-text="posProductSize(p.name)"
                                               class="flex-none text-xs font-extrabold text-blue-800 bg-blue-100 rounded px-1.5 py-0.5"></span>
                                         <span x-text="p.name" class="min-w-0 text-sm font-medium text-gray-900 truncate"></span>
+                                        <!-- Why is a row with a DIFFERENT name being offered? Say so.
+                                             A "schwarz" row answering a "black" search looks like a bug
+                                             unless the screen explains itself. -->
+                                        <span x-show="p._crossLang" style="display:none" :title="t('scan.cross_lang_help')"
+                                              class="flex-none text-xs font-bold text-purple-700 bg-purple-100 rounded px-1.5 py-0.5"
+                                              data-i18n="scan.cross_lang">DE/EN</span>
                                     </span>
                                     <span x-show="p.category" x-text="p.category" class="block text-xs text-gray-400 truncate"></span>
                                 </span>
@@ -821,6 +827,7 @@
             lazyLinkQuery: '',
             lazyLinkResults: [],
             lazyLinkSearching: false,
+            _lazySearchSeq: 0,     // request sequencing — the LAST keystroke's answer must win
             // BL-102 (matching doctrine): a scanned code that misses = "not in the catalog
             // yet", which is NORMAL (suppliers store minted codes, not the real EAN). Don't
             // drop Pam into a German name box she has to guess — lead with the CAMERA. True
@@ -847,6 +854,7 @@
             searchSkip: 0,
             searchPageSize: 20,
             searchLoading: false,
+            _searchSeq: 0,         // request sequencing — the LAST keystroke's answer must win
             categories: [],
             detailProduct: null,
 
@@ -1279,18 +1287,48 @@
                 if (this.lazyLinkQuery.length > 1) this.searchExisting();
             },
 
+            // TWO searches, merged — because they miss different things.
+            //
+            // /search is the till's ranked search: fast, synonym-aware, and right most of the
+            // time. What it cannot do is cross a language. The packet in Pam's hand says
+            // "Blow Pre-built CBD Joint Pure 'V1' 1 pc. black"; the imported row says
+            // "Blow vorgebauter CBD Joint Pure 'V1' 1 Stk. schwarz". Trigram similarity scores
+            // those 0.417 — and Angel spent two hours re-creating products that were already
+            // there because of it.
+            //
+            // /catalog/match-candidates folds BOTH sides through a DE<->EN dictionary before
+            // comparing (0.417 -> 0.857) and drops brand conflicts. It ran only in the CREATE
+            // guard until now, i.e. after the operator had finished typing a whole product —
+            // exactly too late. This is that matcher, moved to the moment of the miss.
+            //
+            // Ranked results lead; cross-language extras follow, flagged so it is obvious WHY
+            // a differently-named row is being offered. A failure in either half is logged and
+            // ignored: a broken second opinion must never blank a working search at a till.
             async searchExisting() {
                 const q = this.lazyLinkQuery.trim();
                 if (q.length < 2) { this.lazyLinkResults = []; this.lazyLinkSearching = false; return; }
                 this.lazyLinkSearching = true;
+                const seq = ++this._lazySearchSeq;   // a fast typist must not have an old reply win
                 try {
-                    const res = await API.get(`/api/v1/pos/search?q=${encodeURIComponent(q)}&limit=8`);
-                    this.lazyLinkResults = (res.items || []).slice(0, 8);
-                } catch (err) {
-                    console.warn('Existing-product search failed:', err);
-                    this.lazyLinkResults = [];
+                    const [ranked, folded] = await Promise.all([
+                        API.get(`/api/v1/pos/search?q=${encodeURIComponent(q)}&limit=8`)
+                            .catch(err => { console.warn('Existing-product search failed:', err); return null; }),
+                        API.post('/api/v1/pos/catalog/match-candidates',
+                                 { name: q, barcode: (this.lazyBarcode || '').trim() || null })
+                            .catch(err => { console.warn('Cross-language match failed:', err); return null; }),
+                    ]);
+                    if (seq !== this._lazySearchSeq) return;   // a newer keystroke already answered
+                    const out = (ranked && ranked.items ? ranked.items : []).slice(0, 8);
+                    const seen = new Set(out.map(p => String(p.id)));
+                    for (const c of (folded && folded.candidates ? folded.candidates : [])) {
+                        if (seen.has(String(c.id))) continue;
+                        out.push({ ...c, _crossLang: true });
+                        seen.add(String(c.id));
+                        if (out.length >= 10) break;
+                    }
+                    this.lazyLinkResults = out;
                 } finally {
-                    this.lazyLinkSearching = false;
+                    if (seq === this._lazySearchSeq) this.lazyLinkSearching = false;
                 }
             },
 
@@ -1510,17 +1548,25 @@
                     return;
                 }
                 this.searchLoading = true; this.searchSkip = 0;
+                // Sequence the requests. The debounce on the input stops most of the burst, but
+                // a slow reply to an EARLY keystroke could still land after a fast reply to a
+                // late one and overwrite it — including the empty-query reply, which the SQL
+                // short-circuits to "return everything". That is how searching a full barcode
+                // showed all 24 products instead of one.
+                const seq = ++this._searchSeq;
                 try {
                     // Fuzzy, relevance-ranked, PAGINATED search across the whole catalog
                     // (trigram + GIN index). Envelope: {items, total, skip, limit}.
                     const data = await API.get(this._searchUrl(0));
+                    if (seq !== this._searchSeq) return;      // a newer keystroke already answered
                     this.searchResults = data.items || [];
                     this.searchTotal = data.total || 0;
                 } catch (error) {
                     console.error('Search error:', error);
+                    if (seq !== this._searchSeq) return;
                     this.searchResults = []; this.searchTotal = 0;
                 } finally {
-                    this.searchLoading = false;
+                    if (seq === this._searchSeq) this.searchLoading = false;
                 }
             },
 

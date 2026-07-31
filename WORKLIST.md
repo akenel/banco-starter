@@ -114,7 +114,25 @@
    **Done =** 20 minutes of shelf scanning produces a work list; an evening at a desk turns it into a
    catalogue where every product on the shelf scans — *before* staff rely on it.
 
-2. **SCAN MISS MUST SEARCH THE CATALOGUE.** *(shop floor · the one thing that matters)*
+2. **🟡 SCAN MISS SEARCHES THE CATALOGUE — BUILT, NEEDS A TILL TEST.** *(shop floor · the one thing that matters)*
+
+   **Built 2026-07-31.** The scan-miss modal already let you type a name and tap to bind; what it
+   could not do was cross a language, because it called plain `/search`. It now calls **both** —
+   ranked search *and* `POST /catalog/match-candidates` (the folding + brand filter that until now
+   only ran in the create guard) — merges them, and flags the cross-language rows `DE/EN` so a
+   `schwarz` row answering a `black` search explains itself. Request-sequenced, and a failure in
+   either half is logged and ignored rather than blanking a working search at a till.
+
+   **Found while proving it — a bug that had been live since the folding shipped:** `_product_size`
+   knew `pcs` but not the singular `pc.`, so the English packet name yielded *no* size token while
+   the German yielded `1stk`; the same-size rule then discarded the match the folding had just
+   scored 0.857. **The create guard was dead for this exact pair the whole time.** Fixed in the size
+   table (server + client mirror + query boost), 5 regression tests. Verified live: candidates now
+   returns the German row at 0.857, and `POST /products` 409s with it offered.
+
+   **⛔ Still not human-green:** nobody has scanned an unknown EAN at a real till and bound it.
+
+   *(original write-up below)*
 
    **→ Read [`CATALOG-IDENTITY.md`](CATALOG-IDENTITY.md) first** — the why behind this item, and the product thesis it comes from.
 
@@ -161,8 +179,11 @@
    - The **imported** row has the good data; the **hand-made** row has the real EAN. So move the barcode onto the imported row and drop the twin. Angel: *"you just delete them"*.
    - Dry-run-first script, same shape as `scripts/reclass-age-gate.py`.
 
-4. **Debounce the sale-screen product search.** *(shop floor · small, contributes to item 1)*
-   - `scan.html:85` fires `searchProducts()` per keystroke with no debounce and no request sequencing, so the last response wins — including an empty query that returns everything. This is how a search looks like it "found nothing useful". One attribute: `@input.debounce.300ms`, matching the pattern already at `scan.html:530`.
+4. **✅ Debounce the sale-screen product search — DONE 2026-07-31.**
+   - `@input.debounce.300ms` on the search box, plus real request sequencing in `searchProducts()`
+     (and in the scan-miss `searchExisting()`), so a slow reply to an early keystroke can no longer
+     overwrite a fast reply to a late one — including the empty-query reply the SQL short-circuits
+     to "return everything", which is how a full barcode typed into Search showed all 24 products.
 
 5. **Keep `ipp-usb` fresh — the last thing between the labeler and daily use.** *(shop floor)*
    - Everything prints: CLI, barcodes, scanning, and the browser UI at any size. But `ipp-usb`'s USB session dies after **6–13 minutes idle** and jobs then queue silently. `print-label.py` heals itself; **Chrome cannot**.

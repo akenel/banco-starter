@@ -791,18 +791,23 @@ async def catalog_shelf_intake_triage(
 
 
 class ShelfMatchRequest(BaseModel):
-    """A name (from a looked-up page, or typed) to test against the existing catalogue."""
+    """A name (from a looked-up page, or typed at a till) to test against the catalogue."""
     name: str = Field(..., min_length=2, max_length=300)
     barcode: Optional[str] = Field(None, max_length=64)
 
 
-@router.post("/catalog/shelf-intake/candidates")
-async def catalog_shelf_intake_candidates(
+@router.post("/catalog/match-candidates")
+async def catalog_match_candidates(
     req: ShelfMatchRequest,
     db: AsyncSession = Depends(get_db_session),
     current_user: dict = Depends(require_any_pos_role()),
 ):
     """"Is it one of these?" — catalogue rows that might already BE this product.
+
+    Called from BOTH the shelf-intake screen and a scan miss at the till, which is why it is
+    not named after either. The two screens ask the same question at different moments, and
+    answering it differently in each is how the create guard and the till drifted apart in the
+    first place.
 
     Returns proposals, never a decision. Roughly half of the 0.5–0.7 band is wrong on the live
     catalogue, and wrong in ways no character score can see (`Canna` vs `Cocanna`, `Spritz` vs
@@ -3037,11 +3042,21 @@ async def receive_stock(
 # whose NAME carries that exact size to the top (2g above 10g) instead of tying them. The mirror of
 # posProductSize() on the client; here it yields a Postgres regex, digit-boundary safe ('2g' must
 # never match '12g'/'20g'/'2mg'). None when the query has no size token → ordering is untouched.
-_SIZE_Q_RE = re.compile(r'(\d+(?:[.,]\d+)?)\s?(gr|kg|mg|g|ml|cl|stk|stück|pcs|blatt|er|x)\b', re.I)
+#
+# THE COUNT UNITS ARE LANGUAGE-SPECIFIC, and forgetting that cost real money. A packet says
+# "1 pc." and the wholesale row says "1 Stk." — the same quantity in two languages. Until
+# 2026-07-31 this table knew `pcs` but not the singular `pc`, so the English name yielded NO
+# size token at all while the German yielded `1stk`; the dedup guard's same-size rule then
+# threw away the one true match, AFTER the DE<->EN folding had correctly scored it 0.857.
+# A filter that runs after a fix can quietly undo it — check the whole chain, not the fix.
+_PIECE = r'stk|stück|stueck|pcs|pc|pieces|piece'
+_SIZE_Q_RE = re.compile(
+    rf'(\d+(?:[.,]\d+)?)\s?({_PIECE}|gr|kg|mg|g|ml|cl|blatt|er|x)\.?\b', re.I)
+_PIECE_FAMILY = f"({_PIECE})"
 _SIZE_UNIT_FAMILY = {
     "g": "gr?", "gr": "gr?", "kg": "kg", "mg": "mg", "ml": "ml", "cl": "cl",
-    "stk": "(stk|stück|pcs)", "stück": "(stk|stück|pcs)", "pcs": "(stk|stück|pcs)",
     "blatt": "blatt", "er": "er", "x": "x",
+    **{u: _PIECE_FAMILY for u in _PIECE.split("|")},
 }
 
 
@@ -3065,7 +3080,9 @@ def _product_size(name: str) -> str:
     u = m.group(2).lower()
     if u == "gr":
         u = "g"
-    elif u in ("stück", "pcs", "stk"):
+    elif u in _PIECE.split("|"):
+        # Every way of saying "a piece", in either language, collapses to one token — so
+        # "1 pc." and "1 Stk." compare equal and the guard stops calling them different sizes.
         u = "stk"
     return num + u
 
@@ -9989,7 +10006,8 @@ async def pos_shelf_intake(request: Request):
     The workflow that replaces capturing at the counter: walk the shop in inventory mode
     (~2 s a product), dump the cache here, triage into known/unknown, then work the unknowns
     in batches of ten at a desk. See CATALOG-IDENTITY.md for why, and the API endpoints
-    (/catalog/shelf-intake/*) for what it calls — they enforce the role; this serves the shell."""
+    (/catalog/shelf-intake/triage,
+    /catalog/match-candidates) for what it calls — they enforce the role; this serves the shell."""
     return templates.TemplateResponse("pos/shelf_intake.html", {"request": request})
 
 

@@ -43,3 +43,52 @@ def test_no_size_no_boost():
 def test_decimal_dot_escaped():
     # 0.5g → the decimal dot is escaped so the PG regex is literal, not any-char
     assert _query_size_regex("hash 0.5g") == r"\y0\.5\s?gr?\y"
+
+
+# ─────────────────────────────────────────────────────────────────────────────────────────
+# 2026-07-31 — the count unit is LANGUAGE-SPECIFIC, and forgetting that undid a fix.
+#
+# The packet says "1 pc.", the wholesale row says "1 Stk." — one quantity, two languages.
+# The table knew `pcs` but not the singular `pc`, so the English name produced NO size token
+# while the German produced `1stk`. The dedup guard's same-size rule then discarded the pair
+# AFTER the DE<->EN folding had correctly scored it 0.857.
+#
+# Found by running the live endpoint against the exact pair it exists to catch and getting
+# an empty list back. A filter downstream of a fix can quietly undo it.
+# ─────────────────────────────────────────────────────────────────────────────────────────
+
+def test_pc_and_stk_are_the_same_size():
+    """The pair that cost Angel two hours of re-creating products that already existed."""
+    en = _product_size('Blow Pre-built CBD Joint Pure "V1" 1 pc. black')
+    de = _product_size('Blow vorgebauter CBD Joint Pure "V1" 1 Stk. schwarz')
+    assert en == de == "1stk"
+
+
+def test_every_way_of_saying_a_piece_collapses_to_one_token():
+    for text in ("3 pc", "3 pc.", "3 pcs", "3 pcs.", "3 Stk", "3 Stk.",
+                 "3 Stück", "3 Stueck", "3 pieces", "3 piece"):
+        assert _product_size(f"Some Product {text} black") == "3stk", text
+
+
+def test_the_trailing_dot_does_not_hide_a_size():
+    """'1 Stk.' and '1 pc.' both end in a period — a regex anchored on \\b alone reads the dot
+    as the boundary only by luck, so it is pinned here."""
+    assert _product_size("Papers 50 Blatt.") == "50blatt"
+    assert _product_size("Tips 100 pcs.") == "100stk"
+
+
+def test_piece_units_still_do_not_collide_with_other_units():
+    """`pc` must not start matching inside unrelated words or swallow real units."""
+    assert _product_size("Grinder 4pc") == "4stk"
+    assert _product_size("CBD Oil 10ml") == "10ml"
+    assert _product_size("Lemon Haze 2g") == "2g"
+    assert _product_size("Preroll pcs") == ""          # a unit with no number is not a size
+
+
+def test_the_query_boost_regex_treats_pc_and_stk_as_one_family():
+    """The same fix must reach till SEARCH ranking, not only the dedup guard — a customer
+    typing '100 pc' should float the '100 Stk.' row exactly as '100 pcs' already did."""
+    rx = _query_size_regex("tips 100 pc")
+    assert rx is not None
+    for unit in ("stk", "stück", "pcs", "pc"):
+        assert unit in rx

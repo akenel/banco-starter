@@ -403,7 +403,7 @@ function shelfIntake() {
       if (!row.query.trim()) return;
       row.busy = true; row.error = '';
       try {
-        const r = await API.post('/api/v1/pos/catalog/shelf-intake/candidates',
+        const r = await API.post('/api/v1/pos/catalog/match-candidates',
                                  { name: row.query.trim(), barcode: row.barcode });
         row.candidates = r.candidates || [];
         row.siblings = r.siblings || [];

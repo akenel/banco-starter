@@ -233,14 +233,19 @@
 // show it as a badge (2g vs 10g at a glance — variants are the till's #1 dupe trap).
 // Pure name parse, no schema. Returns '' if no size-like token.
 // ---------------------------------------------------------------------------
+// The count unit is LANGUAGE-SPECIFIC: a packet says "1 pc." where the wholesale row says
+// "1 Stk.". Both must yield the same token, or the badge disagrees with the server's dedup
+// guard — which is exactly the bug that let a duplicate through on 2026-07-31.
+// Keep this list in step with _PIECE in pos_router.py.
 window.posProductSize = function (name) {
   if (!name) return '';
-  var m = String(name).match(/(\d+(?:[.,]\d+)?)\s?(gr|kg|mg|g|ml|cl|stk|stück|pcs|blatt|er|x)\b/i);
+  var m = String(name).match(
+    /(\d+(?:[.,]\d+)?)\s?(stk|stück|stueck|pcs|pc|pieces|piece|gr|kg|mg|g|ml|cl|blatt|er|x)\.?\b/i);
   if (!m) return '';
   var num = m[1].replace(',', '.');
   var u = m[2].toLowerCase();
   if (u === 'gr') u = 'g';
-  if (u === 'stück' || u === 'pcs' || u === 'stk') u = 'Stk';
+  if (['stk', 'stück', 'stueck', 'pcs', 'pc', 'pieces', 'piece'].indexOf(u) !== -1) u = 'Stk';
   if (u === 'blatt') u = 'Blatt';
   return (u === 'Stk' || u === 'Blatt') ? (num + ' ' + u) : (num + u);
 };
