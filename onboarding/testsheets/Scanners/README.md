@@ -33,6 +33,43 @@ German and Swiss German agree on `-`. That matters below.
 > another on the same machine — nasty when the kiosk auto-logs-in as one user and staff switch to another.
 > Check both: `localectl status; gsettings get org.gnome.desktop.input-sources sources`
 
+> ⚠️ **And it is per-MACHINE, which is the part that bites when a shop adds a till.** Both guns were set to
+> **German** on 2026-07-29 to match Swiss German *Linux* sessions. Move a gun to a **Windows** till whose
+> layout is US English and the mismatch is simply reversed — same silent corruption, opposite direction.
+> The gun's setting is not "right" or "wrong" on its own; it is only right **relative to the machine it is
+> plugged into**. On Windows: *Settings → Time & Language → Language & region*. Re-run the test sheet on
+> every new till, and never assume a gun that worked yesterday is correct on today's hardware.
+
+---
+
+## Connecting a gun — use the dongle, not Bluetooth
+
+Three ways, and the manufacturer's default is also the right one for a till (BCST-35 manual §4.1, page 3):
+
+| Mode | Default | What it takes | Verdict |
+|---|---|---|---|
+| **Wireless adapter (2.4 GHz dongle)** | **★ yes** | Plug the dongle in. LED flashes = paired. | **Use this.** |
+| Wired (USB cable) | no | Cable into the gun's USB-B socket | Fine. Tethers the gun. |
+| Bluetooth (HID) | no | Scan `Bluetooth Pairing` (page 3), then pair in the OS | Last resort. |
+
+**Why the dongle wins, and it isn't just convenience.** It presents as a plain USB keyboard: no driver,
+no pairing dialog, no OS Bluetooth stack, and **nothing to re-pair when it drops mid-sale**. Bluetooth HID
+on a till has one failure mode the dongle simply doesn't have — the gun silently unpairs, and the next scan
+goes nowhere while a customer waits. The dongle either is plugged in or it isn't.
+
+The gun is 2.402–2.480 GHz with a 2600 mAh battery, charged over the same USB cable.
+
+> **If the wireless link starts dropping characters**, the manual's own repair is to re-bind the gun to its
+> adapter: scan `Enter Setup` → `Wireless Adapter Mode` → `Exit and Save`. Try that before suspecting the gun.
+
+> **One USB port on the device?** That's the real constraint on a tablet, not the connection mode. Check
+> whether that port is also how the tablet charges — if it is, you want a small **powered** USB hub, so the
+> till can charge and scan at once. A gun that works only while the tablet is unplugged is a shop-floor
+> problem you'll discover at the worst moment.
+
+**System setting:** the BCST-35 ships in `Windows/Android` mode (manual §4.3), which is already correct for a
+Windows till or an Android tablet. Only Mac/iOS needs changing.
+
 ---
 
 ## Inateck BCST-35 (the CHF 36 one)
@@ -62,7 +99,8 @@ while in setup mode. A `(*)` next to a barcode means factory default.
 
 ### Then verify — do not assume
 
-Open `../SCANNER-GUN-TEST.html`, click the capture box, scan a few codes:
+Open **`<your Banco address>/static/scanner-gun-test.html`** — **on the machine the gun is plugged into**,
+because that is whose keyboard layout decides the answer. Click the capture box, scan a few codes:
 
 ```
 QR-LOGO-15   ✅ gun and session agree
@@ -103,7 +141,7 @@ on the same physical key.
 | Layout set to | German | German |
 | Verified | `-` comes through correctly, QR to 10 mm | `-` correct, QR reads |
 
-Both passed `../SCANNER-GUN-TEST.html` after the change: hyphens arrive as `-`, not `'`.
+Both passed `/static/scanner-gun-test.html` after the change: hyphens arrive as `-`, not `'`.
 
 
 ---

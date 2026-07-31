@@ -587,7 +587,7 @@ The short version:
 - **It hides for weeks**, because EAN-13 is pure digits and digits are layout-independent. Till scanning
   looks perfect while every SKU silently fails.
 - Fix: set both guns to **German** (Swiss German usually isn't offered; German puts `-` on the same key).
-- Verify with **[`testsheets/SCANNER-GUN-TEST.html`](testsheets/SCANNER-GUN-TEST.html)** — every test code
+- Verify with **`<your Banco address>/static/scanner-gun-test.html`** (open it on the till itself) — every test code
   names its own size, so you also learn the smallest code your gun can read.
 
 > Banco has a safety net for this: a scanned code that matches nothing is retried with layout corrections

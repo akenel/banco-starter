@@ -13,7 +13,13 @@ import barcode
 import qrcode
 from barcode.writer import ImageWriter
 
-OUT = "/home/angel/repos/banco-starter/onboarding/testsheets/SCANNER-GUN-TEST.html"
+import os
+
+# Repo-relative, and inside src/static so the APP serves it — the device you need to test
+# a scanner gun on is a till or a tablet, which never has this repo on it. An absolute
+# /home/angel/... path also made this script a no-op for anyone else who cloned Banco.
+OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                   "src", "static", "scanner-gun-test.html")
 
 
 def data_uri(img):
