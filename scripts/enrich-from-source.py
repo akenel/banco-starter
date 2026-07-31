@@ -102,8 +102,39 @@ def read_env(path):
 
 
 def psql(env, sql, container):
-    user = env.get("POSTGRES_USER") or "helix_user"
-    db = env.get("POSTGRES_DB") or "helix_db"
+    """Run SQL, whichever side of the container wall we happen to be on.
+
+    This script needs BOTH httpx (to fetch pages) and a route to Postgres. On the host there
+    is docker but no httpx; inside the app container there is httpx but no docker. Trying to
+    live on the host meant it could not run at all — so: talk to Postgres DIRECTLY when a
+    driver is available (inside the container), and shell out to `docker exec psql` only as
+    the fallback (on a laptop). Same script, either place, no flags to remember.
+    """
+    user = env.get("POSTGRES_USER") or os.environ.get("POSTGRES_USER") or "helix_user"
+    db = env.get("POSTGRES_DB") or os.environ.get("POSTGRES_DB") or "helix_db"
+
+    try:
+        import psycopg
+    except ImportError:
+        psycopg = None
+
+    if psycopg is not None:
+        host = os.environ.get("POSTGRES_HOST") or env.get("POSTGRES_HOST") or "postgres"
+        pwd = os.environ.get("POSTGRES_PASSWORD") or env.get("POSTGRES_PASSWORD") or ""
+        port = os.environ.get("POSTGRES_PORT") or env.get("POSTGRES_PORT") or "5432"
+        try:
+            with psycopg.connect(host=host, port=port, user=user, password=pwd,
+                                 dbname=db, connect_timeout=10, autocommit=True) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(sql)
+                    if cur.description is None:
+                        return ""
+                    return "\n".join("\x1f".join("" if v is None else str(v) for v in row)
+                                     for row in cur.fetchall())
+        except Exception as e:
+            print(f"{C['red']}postgres: {type(e).__name__}: {str(e)[:90]}{C['x']}", file=sys.stderr)
+            return None
+
     try:
         p = subprocess.run(["docker", "exec", "-i", container, "psql", "-U", user, "-d", db,
                             "-tA", "-F", "\x1f", "-v", "ON_ERROR_STOP=1"],
