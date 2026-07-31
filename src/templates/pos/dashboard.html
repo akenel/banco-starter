@@ -3,6 +3,21 @@
 {% block title %}Dashboard - HelixPOS{% endblock %}
 
 {% block content %}
+<style>
+  /* Compact list mode for the dashboard tools. Targets the shared card shape
+     (.card > .text-center) so no card markup changes and nothing can drift. */
+  .dash-dense           { gap: .5rem !important; }
+  .dash-dense .card     { padding: .55rem .85rem; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+  .dash-dense .card > .text-center {
+      display: flex; align-items: center; gap: .8rem;
+      text-align: left; padding: 0 !important; }
+  .dash-dense .card span.text-6xl {
+      font-size: 1.6rem !important; line-height: 1; margin: 0 !important;
+      display: inline !important; flex: none; }
+  .dash-dense .card h3  { font-size: 1rem !important; margin: 0 !important; flex: none; }
+  .dash-dense .card p   { font-size: .75rem !important; margin: 0 !important; color: #6b7280;
+                          overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+</style>
 <div class="min-h-screen bg-gray-50" x-data="dashboardData()">
     <!-- Top Navigation -->
     <nav class="bg-white shadow-lg sticky top-0 z-10">
@@ -102,8 +117,20 @@
             </div>
         </div>
 
+        <!-- Card vs list. Angel, on the tablet: "there are like a lot of cards and I have to
+             always scroll down to find it — with a list view it would help to speed things up."
+             24 cards at ~180px each is four screens on a 10-inch tablet, so finding a tool costs
+             a scroll and a hunt every single time. Dense mode is CSS only — the cards keep their
+             markup, badges and links, they just stop shouting. Remembered per device, because
+             the till wants the list and a desktop may not. -->
+        <div class="flex justify-end mb-3">
+          <button @click="setDense(!dense)" class="btn-secondary text-sm"
+                  :title="dense ? 'Switch to big cards' : 'Switch to a compact list'"
+                  x-text="dense ? '▦ Cards' : '☰ List'"></button>
+        </div>
+
         <!-- Action Buttons Grid -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="gap-6" :class="dense ? 'dash-dense grid grid-cols-1 md:grid-cols-2' : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3'">
 
             <!-- CASHIER ACTIONS -->
             <template x-if="user.isCashier">
@@ -362,7 +389,17 @@
             newMembers: [],      // members who self-signed-up at the kiosk TODAY
             heldCount: 0,        // kiosk guest carts waiting at the counter (badge)
 
+            dense: false,      // compact list vs big cards — per device, see setDense()
+
+            setDense(v) {
+                this.dense = !!v;
+                try { localStorage.setItem('banco_dash_dense', this.dense ? '1' : '0'); } catch (e) {}
+            },
+
             init() {
+                // Per DEVICE, not per user: the tablet on the counter wants the list, the
+                // back-office laptop may not, and the same person uses both.
+                try { this.dense = localStorage.getItem('banco_dash_dense') === '1'; } catch (e) {}
                 // Check for tokens in URL fragment (from OAuth callback):
                 // #token=<access>&refresh=<refresh>&expires_in=<secs>
                 const hash = window.location.hash;
