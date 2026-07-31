@@ -8,6 +8,40 @@
 
 ## 🎯 On deck (next actionable, in order)
 
+0. **🟢 SHELF INTAKE IS HUMAN-GREEN — 2026-07-31.** Angel bound ~10 real products on the tablet at
+   UAT and sold them. Receipt TXN-20260731-0003: six lines, CHF 76.90, and
+   `Gizeh King Size Slim 12 × CHF 1.30 = CHF 15.60` — a quantity break that did not exist that
+   morning, scraped from the shop's own page, firing at the till on its own.
+
+   **What is NOT yet tested — do this first:** the gun's **inventory-mode dump**. Everything so far
+   was one code at a time. Scan `Inventurmodus`, walk a shelf, `Anzahl der gescannten Barcodes`,
+   type that number into the count box, `Daten hochladen`. The open question is whether the
+   BCST-35's burst lands intact in a browser textarea. That is the 10× path and it is unproven.
+
+   **Then, in order:**
+   - `scripts/enrich-from-source.py --apply` for the rest — 5,111 products carry a `source_url`
+     and their own pages publish the retail tier ladder + a spec table. ~90 min at 1s apart,
+     dry-run first. Six done so far.
+   - **Write the English packet name as an alias at capture.** Search across `product_translations`
+     now works (2026-07-31) but *nothing writes to it* — so the feature is still half a loop.
+   - **45 rolling papers are classed `cbd_hemp` / 18+** (Greengo, Filterpapier, Old School…). The
+     07-07 import trusted Artemis's `CBD · Diverses · Papers & CO` breadcrumb. Not a money bug
+     (`cbd_hemp` VAT = standard) but the `🌿 CBD` badge is plainly false. **Do not bulk-unfix** —
+     loosening an age gate is the one direction where a wrong script is a compliance failure.
+   - **Spec parser loses fields on the /en/ pages** — Quöllfrisch went 16 facets → 1. The block
+     boundary keys off German headings. Tiers are money and are correct; specs are informational.
+   - `TAM-19233` still has `barcode_is_internal = true` with two real codes (Blow pack levels).
+     Cosmetic, not a scan problem.
+
+   **Eight silent-failure bugs found today, every one by Angel using it, none by a test:**
+   HTML entities (0.429 vs 1.000) · `pc.` vs `Stk.` · absent-size discarding every variant ·
+   `KingSize` at exactly 0.500 · an unbroken score tie hiding the exact match · a live 3× tier
+   overcharge · a service worker that could never deliver a JS fix · a 400 KB fetch cap that made
+   a page with perfect JSON-LD look empty. **They all failed the same way: the right data was
+   there and something quietly threw it away.**
+
+
+
 1. **🟡 SHELF SCAN → BATCH ENRICH — BUILT, NEEDS A SHOP TEST.** *(shop floor · Angel's idea 2026-07-30)*
 
    **Built 2026-07-31 and proven on the API; NOT yet human-green.** What exists:
