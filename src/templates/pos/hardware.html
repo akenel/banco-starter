@@ -128,10 +128,19 @@
                 x-text="browser"></td></tr>
         <tr><td class="text-gray-500 py-1">Screen</td><td class="text-right" x-text="screen"></td></tr>
         <tr><td class="text-gray-500 py-1">Touch</td><td class="text-right" x-text="touch"></td></tr>
+        <tr><td class="text-gray-500 py-1">Camera (photo capture &amp; snap-to-fill)</td>
+            <td class="text-right" :class="cameraOk ? 'text-emerald-700' : 'text-gray-500'"
+                x-text="camera"></td></tr>
         <tr><td class="text-gray-500 py-1">Saved logins / offline work</td>
             <td class="text-right" :class="storeOk ? 'text-emerald-700' : 'text-rose-700'"
                 x-text="storeOk ? 'working' : 'BLOCKED — sessions will be lost'"></td></tr>
       </table>
+      <p x-show="!cameraOk" style="display:none" class="text-sm text-gray-600 mt-3 bg-gray-50 rounded-lg p-3">
+        No usable camera here, so <b>📷 snap-and-fill will do nothing on this device</b> — it will look
+        broken rather than say so. That is not a fault: it just means this machine is a
+        <b>scanner-gun</b> device, and photo capture belongs on a phone. Seen for real 2026-07-31 —
+        the same photo flow that works on a phone did nothing on the tablet.
+      </p>
       <p x-show="!browserOk" style="display:none" class="text-sm text-rose-700 mt-3">
         This browser is below Banco's floor (Chrome 84 / Safari 14). Screens can arrive <b>blank</b> rather
         than merely ugly. Update it, or use a different device for the till.
@@ -167,6 +176,7 @@ function hardwareCheck() {
   return {
     typed: '', lastRaw: '', verdict: '', suspect: [], digitsOnly: false,
     browser: '', browserOk: true, screen: '', touch: '', storeOk: true,
+    camera: '', cameraOk: false,
 
     // Characters a mis-set gun produces where a hyphen was printed. Same table as the server-side
     // fallback in _find_product_by_any_barcode — a US gun's "-" key reads as "'" on Swiss German,
@@ -198,6 +208,25 @@ function hardwareCheck() {
       else { this.browser = 'not recognised'; }
       this.screen = window.innerWidth + ' × ' + window.innerHeight;
       this.touch = (navigator.maxTouchPoints || 0) > 0 ? 'yes (' + navigator.maxTouchPoints + ' points)' : 'no';
+
+      // Does this device actually have a camera? enumerateDevices() lists inputs WITHOUT asking
+      // for permission, so nothing pops up — we only learn a camera EXISTS, not that it is any
+      // good. Worth knowing anyway: it decides whether this machine is a "photograph the packet"
+      // device or a "point the gun at it" device, which is the whole hardware-role question.
+      this.camera = 'checking…';
+      if (!window.isSecureContext) {
+        this.camera = 'blocked (needs https)'; this.cameraOk = false; return;
+      }
+      if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+        this.camera = 'not supported by this browser'; this.cameraOk = false; return;
+      }
+      navigator.mediaDevices.enumerateDevices().then(function (list) {
+        var cams = list.filter(function (d) { return d.kind === 'videoinput'; });
+        this.cameraOk = cams.length > 0;
+        this.camera = cams.length ? cams.length + ' found' : 'none — use the gun on this device';
+      }.bind(this)).catch(function () {
+        this.camera = 'could not tell'; this.cameraOk = false;
+      }.bind(this));
       try {
         localStorage.setItem('__hw__', '1');
         this.storeOk = localStorage.getItem('__hw__') === '1';

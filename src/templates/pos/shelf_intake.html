@@ -242,7 +242,12 @@
                     <div class="min-w-0">
                       <p class="font-semibold text-gray-900" x-text="row.facts && row.facts.name"></p>
                       <p class="text-xs text-gray-600">
-                        <span x-show="row.facts && row.facts.price">CHF <span x-text="row.facts && row.facts.price"></span> · </span>
+                        <!-- Show the page's OWN currency, never assume ours. Angel found French
+                             filters priced in EUR; labelling that "CHF" would have been a silent lie. -->
+                        <span x-show="row.facts && row.facts.price">
+                          <span x-text="(row.facts && row.facts.currency) || '?'"></span>
+                          <span x-text="row.facts && row.facts.price"></span> ·
+                        </span>
                         <span x-show="row.facts && row.facts.suggested_category" x-text="row.facts && row.facts.suggested_category"></span>
                         <span x-show="row.facts && row.facts.suggested_age_restricted" class="text-rose-600 font-semibold"> · 18+</span>
                       </p>
@@ -287,13 +292,46 @@
                     <span class="block mt-1">If yours is a variant of one of those, cloning it from the catalog screen copies the shared fields.</span>
                   </div>
 
-                  <button @click="createNew(row)" :disabled="row.busy || !(row.facts && row.facts.name)"
+                  <!-- YOUR price, not the page's.
+                       Two different things go wrong if the scraped number is used as-is, and one
+                       of them is invisible: (a) it may be in another currency — Angel's Buzz
+                       filters are French and priced in EUR; (b) even in the right currency it is
+                       some other shop's retail price in some other country, which is evidence of
+                       what a thing costs, not what THIS shop sells it for. So the page's number
+                       is shown as a reference and the sale price is always typed by a human. -->
+                  <div x-show="row.facts && row.facts.name" style="display:none"
+                       class="flex items-end gap-3 flex-wrap mb-2">
+                    <label class="text-sm">
+                      <span class="block text-xs text-gray-500 mb-1">
+                        Your sale price (<span x-text="shopCurrency"></span>)
+                      </span>
+                      <input type="number" step="0.05" min="0" x-model.number="row.price"
+                             class="border rounded-lg px-3 py-2 w-32 text-sm">
+                    </label>
+                    <p x-show="row.facts && row.facts.price" style="display:none" class="text-xs mb-2"
+                       :class="priceIsForeign(row) ? 'text-amber-700 font-semibold' : 'text-gray-400'">
+                      <template x-if="!priceIsForeign(row)">
+                        <span>that page said <span x-text="row.facts.price"></span> — check it's what you charge</span>
+                      </template>
+                      <template x-if="priceIsForeign(row)">
+                        <span>⚠️ that page is in <span x-text="row.facts.currency"></span>, not
+                          <span x-text="shopCurrency"></span> — type your own price, don't copy it</span>
+                      </template>
+                    </p>
+                  </div>
+
+                  <button @click="createNew(row)"
+                          :disabled="row.busy || !(row.facts && row.facts.name) || !(row.price > 0)"
                           class="btn-secondary text-sm"
-                          :class="!(row.facts && row.facts.name) && 'opacity-50 cursor-not-allowed'">
+                          :class="(!(row.facts && row.facts.name) || !(row.price > 0)) && 'opacity-50 cursor-not-allowed'">
                     ✨ None of these — create it new
                   </button>
                   <span x-show="!(row.facts && row.facts.name)" style="display:none" class="text-xs text-gray-400 ml-2">
                     Read a product page first, so the new row starts with a name, price and picture.
+                  </span>
+                  <span x-show="row.facts && row.facts.name && !(row.price > 0)" style="display:none"
+                        class="text-xs text-gray-400 ml-2">
+                    Set your sale price first — a product that rings up at 0.00 is worse than one that's missing.
                   </span>
                 </div>
               </div>
@@ -335,6 +373,8 @@ function shelfIntake() {
   return {
     raw: '', expected: null, busy: false, error: '',
     result: null, pending: [], batchStart: 0, showKnown: false, restored: false,
+    // The shop's own currency, from /config — never hardcode CHF, Banco runs EUR and USD shops.
+    shopCurrency: (window.POSConfig && POSConfig.currency) || 'CHF',
 
     // ── persistence ───────────────────────────────────────────────────────────────────
     // An evening of work living in one browser tab is one accidental Ctrl-W from gone.
@@ -389,7 +429,7 @@ function shelfIntake() {
                                  { raw: this.raw, expected: this.expected || null });
         this.result = r;
         this.pending = (r.unknown || []).map(u => ({
-          ...u, status: 'todo', query: '', url: '', facts: null,
+          ...u, status: 'todo', query: '', url: '', facts: null, price: null,
           candidates: null, siblings: null, checked: false, busy: false, error: '', boundTo: '',
         }));
         this.batchStart = 0;
@@ -427,6 +467,10 @@ function shelfIntake() {
         if (!f || !f.name) { row.error = "That page didn't state a product name — try the manufacturer's own page."; return; }
         row.facts = f;
         row.query = f.name;
+        // Prefill the price ONLY when the page states OUR currency. A foreign figure left in an
+        // editable box gets accepted by a tired human at 11pm — leaving it blank forces the
+        // decision that has to be made anyway.
+        if (f.price != null && !this.priceIsForeign({ facts: f })) row.price = f.price;
         await this.lookupName(row);
       } catch (e) {
         row.error = (e && e.message) || 'Could not read that page.';
@@ -447,6 +491,14 @@ function shelfIntake() {
       } finally { row.busy = false; this.save(); }
     },
 
+    // "Foreign" means the page named a currency and it is not ours. A page that states NO
+    // currency is treated as ours — it is almost always the shop's own site or wholesaler —
+    // but the operator still has to eyeball the number before the button unlocks.
+    priceIsForeign(row) {
+      var c = row && row.facts && row.facts.currency;
+      return !!c && String(c).toUpperCase() !== String(this.shopCurrency).toUpperCase();
+    },
+
     async bind(row, cand) {
       row.busy = true; row.error = '';
       try {
@@ -461,6 +513,7 @@ function shelfIntake() {
     async createNew(row) {
       const f = row.facts || {};
       if (!f.name) return;
+      if (!(row.price > 0)) { row.error = 'Set your sale price first.'; return; }
       row.busy = true; row.error = '';
       try {
         // allow_duplicate: the operator has just LOOKED at the candidates and said no. Blocking
@@ -472,7 +525,7 @@ function shelfIntake() {
           barcode: row.barcode,
           name: f.name,
           description: f.description || null,
-          price: f.price != null ? f.price : 0,
+          price: row.price,          // the operator's number, never the scraped one
           image_url: f.image || null,
           category: f.suggested_category || null,
           product_class: f.suggested_class || 'standard',
