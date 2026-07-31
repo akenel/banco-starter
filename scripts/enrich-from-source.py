@@ -47,9 +47,19 @@ if not sys.stdout.isatty():
 UA = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
                     "(KHTML, like Gecko) Chrome/126 Safari/537.36"}
 
-# "CHF 1.30 ab 10 Stück" — the shop's own retail ladder. The digits arrive split across
-# markup ("1.", "30"), hence the tolerant middle.
-_TIER = re.compile(r"(\d+)\.\s*(\d+)\s*ab\s*(\d+)\s*St", re.I)
+# The shop's own retail ladder. Two things make this fiddly and both are real:
+#
+#  1. THE DIGITS ARRIVE SPLIT ACROSS MARKUP — "CHF 1. 30" — because the franc and the
+#     centimes are separate elements for styling. Hence the tolerant middle.
+#  2. IT IS WRITTEN IN WHATEVER LANGUAGE THE URL ASKED FOR. products.source_url points at
+#     the /en/ pages, which say "from 10 pieces"; the /de/ pages say "ab 10 Stück". The
+#     first version of this only knew German and silently found ZERO ladders on every
+#     single product — a clean run, a confident "0 tier ladders found", and nothing wrong
+#     on the surface. Caught only because Angel asked for a shortlist he already knew the
+#     answer to, instead of a big sample nobody could check.
+_TIER = re.compile(
+    r"(\d+)\.\s*(\d+)\s*(?:ab|from|à partir de|a partire da)\s*(\d+)\s*"
+    r"(?:St\w*|pieces?|pcs?|pi[eè]ces?|pezzi)", re.I)
 
 
 def _text_of(html: str) -> list[str]:
@@ -74,11 +84,15 @@ def parse_page(html: str) -> dict:
                for i in range(len(tiers) - 1)):
             out["tiers"] = tiers
 
+    # The spec heading is "Details" in DE/EN/FR/IT alike on this shop, but the block that
+    # FOLLOWS it ends at a localized heading, so stop on any of them.
     if "Details" in lines:
         i = lines.index("Details")
         rest = lines[i + 1:]
         stop = next((j for j, l in enumerate(rest)
-                     if l.startswith(("Diese Artikel", "Automaten", "Warenkorb"))), len(rest))
+                     if l.startswith(("Diese Artikel", "You might also", "These items",
+                                      "Ces articles", "Questi articoli",
+                                      "Automaten", "Warenkorb", "Vending", "Cart"))), len(rest))
         pairs, block = {}, rest[:stop]
         for k, v in zip(block[0::2], block[1::2]):
             if k and v and len(k) <= 60 and len(v) <= 200:
