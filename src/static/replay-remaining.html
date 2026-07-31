@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Still to do — pocket cheat sheet</title>
+<!--
+  POCKET CHEAT SHEET — regenerated 2026-07-31 23:4x from the live catalogue.
+  ONLY what is still outstanding. Angel: "a cheat sheet in my pocket."
+  Every trap that has already caught him tonight is written on the card, in words,
+  because the failures were never random — they were the same brand-collision three times.
+-->
+<style>
+ body{font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;margin:0;padding:12px;
+      background:#111;color:#f4f4f5}
+ h1{font-size:19px;margin:0 0 2px} .sub{color:#a1a1aa;font-size:13px;margin:0 0 12px}
+ #q{width:100%;padding:12px;font:17px ui-monospace,Menlo,monospace;border:2px solid #6366f1;
+    border-radius:10px;background:#18181b;color:#fff;margin-bottom:12px}
+ .c{background:#18181b;border:1px solid #27272a;border-radius:11px;padding:12px 14px;margin-bottom:10px}
+ .c.done{opacity:.35}
+ .code{font:17px ui-monospace,Menlo,monospace;font-weight:700;color:#a5b4fc;letter-spacing:.5px}
+ .nm{font-size:16px;font-weight:600;margin:3px 0}
+ .pr{font:20px ui-monospace,Menlo,monospace;font-weight:700;color:#4ade80;float:right}
+ .tw{font-size:13px;color:#6ee7b7;margin-top:5px}
+ .nw{font-size:13px;color:#fdba74;margin-top:5px}
+ .hint{font-size:13.5px;color:#fde047;background:#292524;border-left:3px solid #eab308;
+       border-radius:0 7px 7px 0;padding:7px 10px;margin-top:7px}
+ .t{font-size:12px;color:#71717a;margin-top:4px}
+ button{font:inherit;font-size:13px;padding:5px 11px;border-radius:7px;border:1px solid #3f3f46;
+        background:#27272a;color:#e4e4e7;cursor:pointer;margin-top:8px}
+ button.on{background:#16a34a;border-color:#16a34a;color:#fff}
+ #bar{position:sticky;top:0;background:#4338ca;border-radius:10px;padding:10px 13px;margin-bottom:11px;
+      font-weight:700;font-size:15px;z-index:9}
+</style></head><body>
+
+<h1>Still to do</h1>
+<p class="sub">Only what is left. Scan a barcode into the box to jump to it.</p>
+<div id="bar">—</div>
+<input id="q" placeholder="scan or type…" autofocus>
+<div id="L"></div>
+
+<script>
+var R=[{"code": "8717662940293", "name": "BIO CANNA RHIZOTONIC", "price": "20.00", "cat": "Unsorted", "tsku": "", "tname": "", "score": "", "hint": "BIO Canna Rhizotonic — the BIO line, not plain Rhizotonic."}, {"code": "2040475072612", "name": "BioBizz Top Max Blütenbooster 1L", "price": "20.00", "cat": "Unsorted", "tsku": "", "tname": "", "score": "", "hint": "A minted 2… code. It was never on a packet, so a web search will find NOTHING. Build it by hand or bind it to a Tamar row."}, {"code": "7640244720529", "name": "BLOW Joint GREY Pure", "price": "9.90", "cat": "Unsorted", "tsku": "TAM-23311", "tname": "Local Weed vorgebauter CBD Joint Pure \"Blue Gelato\" 1 Stk.", "score": "0.62", "hint": ""}, {"code": "8717524956561", "name": "Canna Coco B 1 ltr.", "price": "18.00", "cat": "Unsorted", "tsku": "", "tname": "", "score": "", "hint": "Coco B — there is also a Coco A. Check which bottle you are holding."}, {"code": "8717662940354", "name": "Cannaboost 250ml Accelerator", "price": "35.00", "cat": "Unsorted", "tsku": "", "tname": "", "score": "", "hint": "This is CANNABOOST Accelerator — NOT Cannazym. They are the same brand, same bottle, adjacent barcodes. It has caught you three times."}, {"code": "8718104122536", "name": "Plagron Power Roots, 1l, Organic Root Stimulant, Improve Roots Healthy Plants", "price": "50.00", "cat": "Unsorted", "tsku": "", "tname": "", "score": "", "hint": "CHF 50 for the 1 L. A German grow-shop listing showed CHF 10 — that is a smaller bottle."}, {"code": "50717071", "name": "Rips Green Slim 1 1/4 Cigarette Rolling Paper Over 16 Feet Long Roll", "price": "4.00", "cat": "Unsorted", "tsku": "", "tname": "", "score": "", "hint": ""}], K='banco_remaining_v1', S={};
+try{S=JSON.parse(localStorage.getItem(K)||'{}')}catch(e){S={}}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function tog(c){S[c]=!S[c];try{localStorage.setItem(K,JSON.stringify(S))}catch(e){};draw(document.getElementById('q').value)}
+function draw(f){
+  f=(f||'').toLowerCase().trim(); var h='',n=0;
+  R.forEach(function(r){
+    if(S[r.code])n++;
+    if(f&&(r.code+' '+r.name+' '+r.tname).toLowerCase().indexOf(f)<0)return;
+    h+='<div class="c'+(S[r.code]?' done':'')+'">'
+      +'<span class="pr">'+esc(r.price)+'</span>'
+      +'<div class="code">'+esc(r.code)+'</div>'
+      +'<div class="nm">'+esc(r.name)+'</div>'
+      +(r.tsku?'<div class="tw">→ type <b>'+esc(r.tname.split(/\s+/).slice(0,3).join(' ').toLowerCase())
+        +'</b> · expect <b>'+esc(r.tname)+'</b> ('+esc(r.tsku)+')</div>'
+        :'<div class="nw">no catalogue twin — 🎯 420 / Werner\'s, then set your price</div>')
+      +(r.hint?'<div class="hint">⚠ '+esc(r.hint)+'</div>':'')
+      +'<div class="t">was '+esc(r.cat)+'</div>'
+      +'<button class="'+(S[r.code]?'on':'')+'" onclick="tog(\''+r.code+'\')">'
+      +(S[r.code]?'✓ done':'mark done')+'</button></div>';
+  });
+  document.getElementById('L').innerHTML=h;
+  document.getElementById('bar').textContent=n+' of '+R.length+' done · '+(R.length-n)+' to go';
+}
+document.getElementById('q').addEventListener('input',function(){draw(this.value)});
+draw('');
+</script></body></html>
