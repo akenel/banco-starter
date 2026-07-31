@@ -318,6 +318,66 @@ def _sql_norm_name(col: str) -> str:
     return f"regexp_replace({expr}, '[^a-z0-9 ]+', ' ', 'g')"
 
 
+async def _name_match_candidates(
+    db: AsyncSession, name: str, *, threshold: float = 0.5,
+    same_size_only: bool = True, limit: int = 8,
+) -> list[dict]:
+    """Products whose name plausibly means the same thing as `name`, best first.
+
+    ONE implementation, two callers, on purpose. This started life inline in the create guard —
+    i.e. it only ever fired AFTER the operator had finished typing a whole product, which is
+    exactly too late (`CATALOG-IDENTITY.md`, "what follows"). Shelf intake needs the same answer
+    BEFORE any typing, so the logic moved out here rather than being written twice and drifting.
+
+    Three filters, each earning its place against the live catalogue:
+      • normalised names (schwarz==black, Stk.==pc) — the real duplicates sat at 0.417, under
+        the guard, until both sides were folded; folded, the live case scores 0.857.
+      • GREATEST(similarity, word_similarity) — a hand-typed English title is often a shorter
+        phrase inside the longer German one, which plain trigram similarity punishes.
+      • brand conflict — `Canna Coco A 1L` vs `Beamer Candles Cocanna Banana` scored 0.50.
+
+    FAILS OPEN, always: if pg_trgm is missing or the query errors, return nothing rather than
+    raise. A matcher that can't run must never block a create or stall an intake session.
+    """
+    name = (name or "").strip()
+    if not name:
+        return []
+    from sqlalchemy import text as _text
+    try:
+        nn = _norm_name_for_match(name)
+        rows = (await db.execute(_text(
+            "SELECT id, name, price, image_url, sku, barcode, category, "
+            "       GREATEST(similarity(norm_name, :nn), "
+            "                word_similarity(:nn, norm_name)) AS sim "
+            "FROM (SELECT id, name, price, image_url, sku, barcode, category, "
+            f"             {_sql_norm_name('name')} AS norm_name "
+            "      FROM products WHERE is_active) p "
+            "WHERE GREATEST(similarity(norm_name, :nn), "
+            "               word_similarity(:nn, norm_name)) > :th "
+            "ORDER BY sim DESC LIMIT :lim"),
+            {"nn": nn, "th": threshold, "lim": limit})).fetchall()
+    except Exception:
+        await db.rollback()
+        return []
+
+    from src.services.catalog_brands import brands_conflict
+    want = _product_size(name)
+    out = []
+    for r in rows:
+        if brands_conflict(name, r.name):
+            continue
+        # A variant is only a duplicate of the SAME size — 2g is never a dupe of 10g.
+        if same_size_only and _product_size(r.name) != want:
+            continue
+        out.append({
+            "id": str(r.id), "name": r.name,
+            "price": float(r.price) if r.price is not None else None,
+            "image_url": r.image_url, "sku": r.sku, "barcode": r.barcode,
+            "category": r.category, "sim": round(float(r.sim), 3),
+        })
+    return out
+
+
 def _clean_barcode(raw) -> str:
     """Scrub a scanned/typed barcode down to its bare code. Scanner guns append or embed invisible
     characters (a trailing CR/LF/TAB "submit" signal, stray control chars) and a field that didn't
@@ -423,49 +483,15 @@ async def create_product(
     if not allow_duplicate:
         _name = (data.get("name") or "").strip()
         if _name:
-            from sqlalchemy import text as _text
-            _want = _product_size(_name)
-            try:
-                # Compare NORMALISED names (schwarz==black, Stk.==pc), and take the better of
-                # similarity / word_similarity — a hand-typed English title is often a SHORTER
-                # phrase sitting inside the longer German one, which plain trigram similarity
-                # punishes for the length difference. Threshold stays 0.5; the normalisation is
-                # what moves the real duplicates above it (0.417 -> 0.857 on the live case).
-                _nn = _norm_name_for_match(_name)
-                _cands = (await db.execute(_text(
-                    "SELECT id, name, price, image_url, sku, barcode, category, "
-                    "       GREATEST(similarity(norm_name, :nn), "
-                    "                word_similarity(:nn, norm_name)) AS sim "
-                    "FROM (SELECT id, name, price, image_url, sku, barcode, category, "
-                    f"             {_sql_norm_name('name')} AS norm_name "
-                    "      FROM products WHERE is_active) p "
-                    "WHERE GREATEST(similarity(norm_name, :nn), "
-                    "               word_similarity(:nn, norm_name)) > 0.5 "
-                    "ORDER BY sim DESC LIMIT 8"), {"nn": _nn})).fetchall()
-                # Drop candidates whose BRAND cannot match. Trigram similarity has no idea what
-                # a brand is, so it offered `Canna Coco A 1L` <-> `Beamer Candles Cocanna Banana`
-                # and `Aperol Spritz` <-> `Dosier Spritze 1ml` — obvious to a human in a quarter
-                # second, invisible to a character score. Measured on the live catalog: roughly
-                # half the 0.5-0.7 proposals were wrong this way.
-                from src.services.catalog_brands import brands_conflict
-                _cands = [r for r in _cands if not brands_conflict(_name, r.name)]
-            except Exception:
-                # pg_trgm absent (e.g. the SQLite test DB) or any query error → FAIL OPEN.
-                # A dedup check that can't run must never block a legitimate create.
-                await db.rollback()
-                _cands = []
-            # only a match of the SAME size counts — the whole point is 2g must not block on the 10g row.
-            _dupes = [r for r in _cands if _product_size(r.name) == _want]
-            if _dupes and _dupes[0].sim >= 0.65:
+            # Same matcher the shelf-intake screen uses — see _name_match_candidates for why
+            # each filter is there. 0.65 to BLOCK a create (a false 409 costs a click and is
+            # infuriating); the screen that only OFFERS candidates uses the looser 0.5.
+            _dupes = await _name_match_candidates(db, _name)
+            if _dupes and _dupes[0]["sim"] >= 0.65:
                 raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={
                     "message": "A very similar item already exists — is it one of these?",
                     "conflict": "name",
-                    "matches": [{
-                        "id": str(r.id), "name": r.name,
-                        "price": float(r.price) if r.price is not None else None,
-                        "image_url": r.image_url, "sku": r.sku, "barcode": r.barcode,
-                        "category": r.category,
-                    } for r in _dupes[:5]],
+                    "matches": [{k: v for k, v in r.items() if k != "sim"} for r in _dupes[:5]],
                 })
 
     new_product = ProductModel(**data)
@@ -679,6 +705,125 @@ async def catalog_page_facts(
         facts["lang_hint"] = _guess_base_lang(f"{title} {facts.get('description') or ''}")
 
     return {"found": bool(facts), "url": req.url, **facts}
+
+
+# ─────────────────────────────────────────────────────────────────────────────────────────
+# SHELF INTAKE — the gun's offline cache becomes a work list
+#
+# The inversion (Angel, 2026-07-30): stop repairing a 5,178-row wholesale import and let the
+# SHELF define the catalogue. Walk the shop in inventory mode at ~2 s a product, dump the cache
+# at a desk, and do the thinking afterwards — batched, two screens, nobody waiting.
+#
+# What separates this from the counter workflow it replaces is only that the physical work and
+# the desk work stop happening at the same time. That is the whole 5-minutes-to-30-seconds.
+#
+# See CATALOG-IDENTITY.md for the thesis, onboarding/testsheets/Scanners/README.md for the five
+# inventory barcodes, and src/services/shelf_intake.py for the dump parser.
+# ─────────────────────────────────────────────────────────────────────────────────────────
+
+class ShelfIntakeRequest(BaseModel):
+    """A raw keystroke dump from a scanner gun's offline cache."""
+    raw: str = Field("", max_length=200_000)          # 3,000 codes × ~14 chars, with headroom
+    expected: Optional[int] = Field(None, ge=0, le=100_000)   # the gun's own reported count
+
+
+@router.post("/catalog/shelf-intake/triage")
+async def catalog_shelf_intake_triage(
+    req: ShelfIntakeRequest,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(require_any_pos_role()),
+):
+    """Split a shelf dump into ALREADY KNOWN and STILL UNKNOWN. Nothing is written.
+
+    This endpoint answers exactly one question per code — *does this resolve to a product
+    today?* — and deliberately stops there. It is tempting to also propose catalogue matches
+    for the unknowns, but a bare EAN carries no name, so there is nothing to match ON. The
+    match needs a title, and a title only exists once the operator has looked the code up
+    (`POST /catalog/page-facts`) — which is what the next step does.
+
+    Saying so plainly here because the alternative is a screen that LOOKS like it triaged the
+    unknowns and actually guessed.
+
+    Expect roughly 15–25% of a shelf to bind to existing rows — measured 2026-07-31 against
+    the 59 codes captured by hand, not estimated. The rest is real work.
+    """
+    from src.services.shelf_intake import parse_dump, dump_warnings
+
+    parsed = parse_dump(req.raw)
+    known, unknown = [], []
+    for entry in parsed.codes:
+        product = await _find_product_by_any_barcode(db, entry.code)
+        row = {
+            "barcode": entry.code,
+            "count": entry.count,
+            "is_internal": entry.is_internal,
+            "checksum_ok": entry.checksum_ok,
+        }
+        if product is None:
+            unknown.append(row)
+            continue
+        known.append({
+            **row,
+            "product_id": str(product.id),
+            "name": product.name,
+            "sku": product.sku,
+            "price": float(product.price) if product.price is not None else None,
+            "image_url": product.image_url,
+            "category": product.category,
+            "is_active": bool(product.is_active),
+            # A code that resolves to a row whose PRIMARY barcode was minted is only "known"
+            # by luck — someone scanned our own printed label. Worth surfacing: it means the
+            # packet's real EAN is still missing from that row.
+            "matched_internal_row": bool(getattr(product, "barcode_is_internal", False)),
+        })
+
+    return {
+        "total_scanned": parsed.total_tokens,
+        "unique": parsed.unique,
+        "repeats": parsed.repeats,
+        "junk": parsed.junk[:20],
+        "warnings": dump_warnings(parsed, req.expected),
+        "known_count": len(known),
+        "unknown_count": len(unknown),
+        "known": known,
+        "unknown": unknown,
+    }
+
+
+class ShelfMatchRequest(BaseModel):
+    """A name (from a looked-up page, or typed) to test against the existing catalogue."""
+    name: str = Field(..., min_length=2, max_length=300)
+    barcode: Optional[str] = Field(None, max_length=64)
+
+
+@router.post("/catalog/shelf-intake/candidates")
+async def catalog_shelf_intake_candidates(
+    req: ShelfMatchRequest,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(require_any_pos_role()),
+):
+    """"Is it one of these?" — catalogue rows that might already BE this product.
+
+    Returns proposals, never a decision. Roughly half of the 0.5–0.7 band is wrong on the live
+    catalogue, and wrong in ways no character score can see (`Canna` vs `Cocanna`, `Spritz` vs
+    `Spritze`, papers vs incense). So the machine proposes and the human judges — which they do
+    in 5–30 seconds, and a model does not (CATALOG-IDENTITY.md).
+
+    Binding is a separate, explicit call: POST /products/{id}/barcodes.
+    """
+    # 0.5, not the create guard's 0.65: here a wrong proposal costs a glance, and a MISSING
+    # proposal costs five minutes of rebuilding a product that was already there.
+    cands = await _name_match_candidates(db, req.name, threshold=0.5, limit=6)
+
+    # Same size only is right for blocking a create; here it would hide the sibling the
+    # operator most needs to see (Gizeh + Tips vs Gizeh mit Aktivkohle) — different products,
+    # and knowing the sibling exists is how they spot they should CLONE rather than create.
+    siblings = [c for c in await _name_match_candidates(
+        db, req.name, threshold=0.5, same_size_only=False, limit=8)
+        if not any(c["id"] == k["id"] for k in cands)]
+
+    return {"name": req.name, "barcode": req.barcode,
+            "candidates": cands, "siblings": siblings[:4]}
 
 
 @router.post("/products/quick", response_model=ProductRead, status_code=status.HTTP_201_CREATED)
@@ -9835,6 +9980,17 @@ async def pos_catalog_health(request: Request):
     how many products still need a photo / real cost / category / description, each a tap into the
     bench queue filtered to that gap. The API (/catalog/health) enforces the role; this serves the shell."""
     return templates.TemplateResponse("pos/catalog_health.html", {"request": request})
+
+
+@html_router.get("/pos/shelf-intake", response_class=HTMLResponse, name="pos_shelf_intake")
+async def pos_shelf_intake(request: Request):
+    """🛒 Shelf Intake — dump a scanner gun's offline cache and turn it into a catalogue.
+
+    The workflow that replaces capturing at the counter: walk the shop in inventory mode
+    (~2 s a product), dump the cache here, triage into known/unknown, then work the unknowns
+    in batches of ten at a desk. See CATALOG-IDENTITY.md for why, and the API endpoints
+    (/catalog/shelf-intake/*) for what it calls — they enforce the role; this serves the shell."""
+    return templates.TemplateResponse("pos/shelf_intake.html", {"request": request})
 
 
 @html_router.get("/pos/cleanup", response_class=HTMLResponse, name="pos_cleanup")

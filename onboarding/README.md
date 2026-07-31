@@ -7,7 +7,7 @@ and your backups — ready to sell.
 Work through it in order. Each guide is short, plain, and tells you exactly what to fill in. Print them, tick
 them off, or just keep them open while you set up.
 
-## The path (6 steps + a plan)
+## The path (7 steps, 2 optional extras, and a plan)
 
 | # | File | What you do |
 |---|------|-------------|
@@ -20,6 +20,8 @@ them off, or just keep them open while you set up.
 | 5 | [05-catalog-loading.md](05-catalog-loading.md) | Get your products in — by hand, by spreadsheet, by supplier feed, or by photo. |
 | 6 | [06-own-your-data-backups.md](06-own-your-data-backups.md) | Set up **your own** encrypted backups (your Backblaze B2), and practice a restore. |
 | 7 | [07-going-to-production.md](07-going-to-production.md) | **Beyond the laptop:** a real domain, HTTPS/Let's Encrypt, and locking Keycloak down for a public shop. |
+| 8 | [08-label-printer.md](08-label-printer.md) | *Optional.* A label printer on the counter: shelf labels, QR + barcode, and the five faults that all look like broken hardware. |
+| 9 | [09-shelf-intake.md](09-shelf-intake.md) | *Optional, and the fast way.* Walk the shop with a scanner gun, then build the catalogue at a desk in batches — with the barcode that is really on the packet. |
 | 🩺 | **`python3 scripts/banco-doctor.py`** | Reads your live setup and tells you what's still unset (✅/⚠️/❌ + a readiness %). Run it often. |
 | 🧠 | [ai-coach/](ai-coach/) | Let the AI you already have (Claude/ChatGPT/Ollama) coach you through what the doctor found — free help for rookies. |
 | ✔ | [GO-LIVE-CHECKLIST.md](GO-LIVE-CHECKLIST.md) | The cutover tick-list — don't open the doors until every box is green. |

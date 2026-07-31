@@ -1,0 +1,458 @@
+{% extends "pos/base.html" %}
+
+{% block title %}Shelf Intake - Banco POS{% endblock %}
+
+{#
+  SHELF INTAKE — the gun's offline cache becomes a catalogue.
+
+  Angel's inversion (2026-07-30): stop repairing a 5,178-row wholesale import and let the SHELF
+  define the catalogue. Walk the shop in inventory mode at ~2 s a product, dump the cache here,
+  and do the thinking afterwards — batched, at a desk, with nobody waiting.
+
+  Two things this screen must never do, both learned the hard way:
+    1. Never auto-apply a proposed match. Half the 0.5-0.7 band is wrong on the live catalogue,
+       and wrong in ways a character score cannot see. The machine proposes, the human judges.
+    2. Never silently drop a code. A shelf that looks finished and is not is the exact failure
+       this whole workflow exists to prevent.
+
+  Progress is written to localStorage after every action, because an evening of work living in
+  one browser tab is one accidental Ctrl-W from gone.
+#}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50" x-data="shelfIntake()" x-init="restore()">
+  <div class="max-w-5xl mx-auto px-4 py-8">
+
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
+      <div class="flex items-center gap-3">
+        <button @click="window.location.href='/pos'" class="btn-secondary flex-none" title="Dashboard" aria-label="Dashboard">🏠</button>
+        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">🛒 Shelf Intake</h1>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <a href="/pos/catalog-health" class="btn-secondary">📊 Health</a>
+        <a href="/pos/catalog" class="btn-secondary">📦 Catalog</a>
+        <button x-show="result" @click="reset()" class="btn-secondary" style="display:none">🗑️ Start over</button>
+      </div>
+    </div>
+
+    <p class="text-sm text-gray-500 mb-6">
+      Walk the shop with the gun in <span class="font-semibold">inventory mode</span>, then dump the cache here.
+      The shelf becomes the catalogue — every product that exists in the shop, carrying the barcode that is
+      actually on the packet.
+    </p>
+
+    <!-- ══════════════ STAGE 1 · the dump ══════════════ -->
+    <div x-show="!result" class="bg-white rounded-2xl shadow p-6">
+      <h2 class="font-bold text-gray-900 mb-1">1 · Dump the gun</h2>
+      <ol class="text-sm text-gray-600 list-decimal ml-5 mb-4 space-y-1">
+        <li>Scan <span class="font-mono font-semibold">Anzahl der gescannten Barcodes</span> and type the number below —
+            that is how a half-upload gets caught.</li>
+        <li>Click into the big box.</li>
+        <li>Scan <span class="font-mono font-semibold">Daten hochladen</span>. The gun types its whole cache out.</li>
+        <li>Only once this screen agrees on the count: scan <span class="font-mono font-semibold">Daten im Cache löschen</span>,
+            then <span class="font-mono font-semibold">Normalmodus</span>.</li>
+      </ol>
+
+      <div class="flex items-end gap-3 mb-3 flex-wrap">
+        <label class="text-sm">
+          <span class="block text-gray-600 mb-1">Codes the gun says it has</span>
+          <input type="number" min="0" x-model.number="expected" placeholder="e.g. 412"
+                 class="border rounded-lg px-3 py-2 w-40">
+        </label>
+        <p class="text-xs text-gray-400 mb-2">Optional, and worth the four seconds.</p>
+      </div>
+
+      <textarea x-model="raw" x-ref="dumpbox" rows="10" autofocus
+                placeholder="Click here, then scan 'Daten hochladen' on the gun…"
+                class="w-full border-2 border-indigo-200 focus:border-indigo-500 rounded-xl px-4 py-3 font-mono text-sm"></textarea>
+
+      <div class="flex items-center justify-between mt-3 flex-wrap gap-2">
+        <p class="text-sm text-gray-500">
+          <span class="font-bold text-gray-800" x-text="roughCount()"></span> codes in the box
+          <span x-show="expected && roughCount() !== expected" class="text-amber-600 font-semibold">
+            — the gun said <span x-text="expected"></span></span>
+        </p>
+        <button @click="triage()" :disabled="busy || !raw.trim()"
+                class="btn-primary" :class="(busy || !raw.trim()) && 'opacity-50 cursor-not-allowed'">
+          <span x-show="!busy">Triage the shelf →</span>
+          <span x-show="busy" style="display:none">Checking…</span>
+        </button>
+      </div>
+      <p x-show="error" style="display:none" class="mt-3 text-sm text-rose-600" x-text="error"></p>
+    </div>
+
+    <!-- ══════════════ STAGE 2 · the summary ══════════════ -->
+    <template x-if="result">
+      <div>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+          <div class="bg-white rounded-xl shadow p-4">
+            <p class="text-xs text-gray-500">Scanned</p>
+            <p class="text-2xl font-black text-gray-900" x-text="result.total_scanned"></p>
+            <p class="text-xs text-gray-400"><span x-text="result.repeats"></span> repeats</p>
+          </div>
+          <div class="bg-white rounded-xl shadow p-4">
+            <p class="text-xs text-gray-500">Distinct products</p>
+            <p class="text-2xl font-black text-gray-900" x-text="result.unique"></p>
+          </div>
+          <div class="bg-white rounded-xl shadow p-4">
+            <p class="text-xs text-gray-500">Already scannable</p>
+            <p class="text-2xl font-black text-emerald-600" x-text="result.known_count"></p>
+            <p class="text-xs text-gray-400">nothing to do</p>
+          </div>
+          <div class="bg-white rounded-xl shadow p-4">
+            <p class="text-xs text-gray-500">Still unknown</p>
+            <p class="text-2xl font-black text-rose-500" x-text="remaining()"></p>
+            <p class="text-xs text-gray-400">of <span x-text="result.unknown_count"></span></p>
+          </div>
+        </div>
+
+        <!-- Warnings about the dump itself, before any catalogue work -->
+        <template x-for="w in (result.warnings || [])" :key="w">
+          <div class="bg-amber-50 border-2 border-amber-300 rounded-xl p-4 mb-3 text-sm text-amber-900" x-text="w"></div>
+        </template>
+
+        <!-- Known — collapsed by default, because it is the part that needs no attention -->
+        <div class="bg-white rounded-2xl shadow mb-4">
+          <button @click="showKnown = !showKnown" class="w-full text-left px-6 py-4 flex justify-between items-center">
+            <span class="font-bold text-gray-900">✅ <span x-text="result.known_count"></span> already scan correctly</span>
+            <span class="text-gray-400" x-text="showKnown ? '▾' : '▸'"></span>
+          </button>
+          <div x-show="showKnown" style="display:none" class="px-6 pb-4">
+            <p x-show="internalHits().length" style="display:none"
+               class="text-sm bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3 text-blue-900">
+              <span class="font-bold" x-text="internalHits().length"></span> of these matched a row whose barcode
+              was <span class="font-semibold">minted by Banco</span>, not printed by a manufacturer — so the gun read
+              one of our own labels. Fine at the till; it just means the packet's real EAN is still missing.
+            </p>
+            <template x-for="k in result.known" :key="k.barcode">
+              <div class="flex items-center gap-3 py-2 border-b last:border-0">
+                <img :src="k.image_url || '/static/pos/img/placeholder.png'" class="w-10 h-10 object-contain rounded flex-none bg-gray-50">
+                <div class="min-w-0 flex-1">
+                  <p class="text-sm font-medium text-gray-900 truncate" x-text="k.name"></p>
+                  <p class="text-xs text-gray-400 font-mono" x-text="k.barcode + ' · ' + (k.sku || '')"></p>
+                </div>
+                <span x-show="k.count > 1" class="text-xs text-gray-400 flex-none">×<span x-text="k.count"></span></span>
+                <span x-show="k.matched_internal_row" style="display:none"
+                      class="text-xs bg-blue-100 text-blue-700 rounded px-2 py-0.5 flex-none">minted</span>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <!-- ══════════════ STAGE 3 · work the unknowns, ten at a time ══════════════ -->
+        <div x-show="remaining() > 0" style="display:none">
+          <div class="flex items-end justify-between mb-3 flex-wrap gap-2">
+            <div>
+              <h2 class="font-bold text-gray-900">🔎 The work list — batch of ten</h2>
+              <p class="text-sm text-gray-500">
+                Ten at a time, on purpose: it keeps context. One at a time means re-orienting on
+                every product, which is where the five minutes each went.
+              </p>
+            </div>
+            <p class="text-sm text-gray-600">
+              <span class="font-bold text-gray-900" x-text="doneCount()"></span> of
+              <span x-text="result.unknown_count"></span> resolved
+            </p>
+          </div>
+
+          <div class="w-full h-2 bg-gray-200 rounded-full overflow-hidden mb-4">
+            <div class="h-full bg-emerald-500 transition-all duration-300"
+                 :style="`width:${result.unknown_count ? (doneCount()*100/result.unknown_count) : 0}%`"></div>
+          </div>
+
+          <template x-for="row in batch()" :key="row.barcode">
+            <div class="bg-white rounded-2xl shadow p-5 mb-3"
+                 :class="row.status !== 'todo' && 'opacity-60'">
+
+              <!-- code + where to look -->
+              <div class="flex items-start justify-between gap-3 flex-wrap mb-3">
+                <div>
+                  <p class="font-mono font-bold text-lg text-gray-900" x-text="row.barcode"></p>
+                  <p class="text-xs text-gray-400">
+                    <span x-show="row.count > 1">seen ×<span x-text="row.count"></span> · </span>
+                    <span x-show="row.checksum_ok === false" class="text-rose-500 font-semibold">bad check digit — probably a misread · </span>
+                    <span x-show="row.is_internal" class="text-blue-600">someone's in-store code</span>
+                  </p>
+                </div>
+                <div class="flex gap-2 flex-wrap">
+                  <a :href="'https://www.google.com/search?q=' + encodeURIComponent(row.barcode)"
+                     target="_blank" rel="noopener" class="btn-secondary text-sm">🌐 Search this EAN</a>
+                  <button @click="skip(row)" x-show="row.status === 'todo'" class="btn-secondary text-sm">Skip</button>
+                </div>
+              </div>
+
+              <!-- resolved states -->
+              <div x-show="row.status === 'bound'" style="display:none"
+                   class="bg-emerald-50 border border-emerald-300 rounded-lg p-3 text-sm text-emerald-800">
+                ✅ Bound to <span class="font-semibold" x-text="row.boundTo"></span> — it scans forever now.
+              </div>
+              <div x-show="row.status === 'created'" style="display:none"
+                   class="bg-emerald-50 border border-emerald-300 rounded-lg p-3 text-sm text-emerald-800">
+                ✨ Created <span class="font-semibold" x-text="row.boundTo"></span>.
+              </div>
+              <div x-show="row.status === 'skipped'" style="display:none"
+                   class="bg-gray-100 rounded-lg p-3 text-sm text-gray-600 flex justify-between items-center">
+                <span>Skipped — still unknown.</span>
+                <button @click="row.status='todo'; save()" class="text-indigo-600 font-semibold">Undo</button>
+              </div>
+
+              <!-- the work -->
+              <div x-show="row.status === 'todo'">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                  <div>
+                    <label class="block text-xs text-gray-500 mb-1">Paste the product page you found</label>
+                    <div class="flex gap-2">
+                      <input x-model="row.url" @keydown.enter="readPage(row)" placeholder="https://…"
+                             class="border rounded-lg px-3 py-2 text-sm flex-1 min-w-0">
+                      <button @click="readPage(row)" :disabled="row.busy" class="btn-secondary text-sm flex-none">Read</button>
+                    </div>
+                  </div>
+                  <div>
+                    <label class="block text-xs text-gray-500 mb-1">…or type what it is</label>
+                    <div class="flex gap-2">
+                      <input x-model="row.query" @keydown.enter="lookupName(row)" placeholder="Gizeh King Size Slim"
+                             class="border rounded-lg px-3 py-2 text-sm flex-1 min-w-0">
+                      <button @click="lookupName(row)" :disabled="row.busy" class="btn-secondary text-sm flex-none">Check</button>
+                    </div>
+                  </div>
+                </div>
+
+                <p x-show="row.error" style="display:none" class="text-sm text-rose-600 mb-2" x-text="row.error"></p>
+                <p x-show="row.busy" style="display:none" class="text-sm text-gray-400 mb-2">Working…</p>
+
+                <!-- what the page said -->
+                <div x-show="row.facts" style="display:none" class="bg-indigo-50 rounded-lg p-3 mb-3 text-sm">
+                  <div class="flex gap-3">
+                    <img x-show="row.facts && row.facts.image" :src="row.facts && row.facts.image"
+                         class="w-16 h-16 object-contain rounded bg-white flex-none">
+                    <div class="min-w-0">
+                      <p class="font-semibold text-gray-900" x-text="row.facts && row.facts.name"></p>
+                      <p class="text-xs text-gray-600">
+                        <span x-show="row.facts && row.facts.price">CHF <span x-text="row.facts && row.facts.price"></span> · </span>
+                        <span x-show="row.facts && row.facts.suggested_category" x-text="row.facts && row.facts.suggested_category"></span>
+                        <span x-show="row.facts && row.facts.suggested_age_restricted" class="text-rose-600 font-semibold"> · 18+</span>
+                      </p>
+                      <p x-show="row.facts && row.facts.barcode && row.facts.barcode !== row.barcode"
+                         style="display:none" class="text-xs text-amber-700 mt-1">
+                        ⚠️ That page states EAN <span class="font-mono" x-text="row.facts && row.facts.barcode"></span>,
+                        which is not the code you scanned. Check you have the right variant.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- proposals — never auto-applied -->
+                <div x-show="row.checked" style="display:none">
+                  <template x-if="row.candidates && row.candidates.length">
+                    <div>
+                      <p class="text-xs font-semibold text-gray-500 uppercase mb-2">Is it one of these?</p>
+                      <template x-for="c in row.candidates" :key="c.id">
+                        <div class="flex items-center gap-3 border rounded-lg p-2 mb-2 hover:border-indigo-400">
+                          <img :src="c.image_url || '/static/pos/img/placeholder.png'" class="w-12 h-12 object-contain rounded bg-gray-50 flex-none">
+                          <div class="min-w-0 flex-1">
+                            <p class="text-sm font-medium text-gray-900 truncate" x-text="c.name"></p>
+                            <p class="text-xs text-gray-400">
+                              <span x-show="c.price !== null">CHF <span x-text="c.price"></span> · </span>
+                              <span class="font-mono" x-text="c.sku"></span> · match <span x-text="Math.round(c.sim*100)"></span>%
+                            </p>
+                          </div>
+                          <button @click="bind(row, c)" :disabled="row.busy" class="btn-primary text-sm flex-none">That's it</button>
+                        </div>
+                      </template>
+                    </div>
+                  </template>
+                  <p x-show="row.candidates && !row.candidates.length" style="display:none" class="text-sm text-gray-500 mb-2">
+                    Nothing in the catalogue looks like that.
+                  </p>
+
+                  <!-- siblings: different products, worth seeing before creating -->
+                  <div x-show="row.siblings && row.siblings.length" style="display:none"
+                       class="bg-gray-50 rounded-lg p-3 mb-2 text-xs text-gray-600">
+                    <span class="font-semibold">Related but a different size/variant:</span>
+                    <span x-text="(row.siblings || []).map(s => s.name).join(' · ')"></span>
+                    <span class="block mt-1">If yours is a variant of one of those, cloning it from the catalog screen copies the shared fields.</span>
+                  </div>
+
+                  <button @click="createNew(row)" :disabled="row.busy || !(row.facts && row.facts.name)"
+                          class="btn-secondary text-sm"
+                          :class="!(row.facts && row.facts.name) && 'opacity-50 cursor-not-allowed'">
+                    ✨ None of these — create it new
+                  </button>
+                  <span x-show="!(row.facts && row.facts.name)" style="display:none" class="text-xs text-gray-400 ml-2">
+                    Read a product page first, so the new row starts with a name, price and picture.
+                  </span>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <div class="flex justify-between items-center mt-4 flex-wrap gap-2">
+            <button @click="prevBatch()" :disabled="batchStart === 0" class="btn-secondary"
+                    :class="batchStart === 0 && 'opacity-40 cursor-not-allowed'">← Previous ten</button>
+            <p class="text-sm text-gray-500">
+              <span x-text="batchLabel()"></span>
+            </p>
+            <button @click="nextBatch()" class="btn-primary">Next ten →</button>
+          </div>
+        </div>
+
+        <div x-show="result.unknown_count > 0 && remaining() === 0" style="display:none"
+             class="bg-emerald-50 border-2 border-emerald-300 rounded-2xl p-6 text-center">
+          <p class="text-2xl font-black text-emerald-700 mb-1">🎉 The shelf is in the catalogue.</p>
+          <p class="text-sm text-emerald-800">
+            Every code you scanned now resolves to a product. Take the gun back to the shelf and
+            spot-check ten of them at the till — human-green beats machine-green.
+          </p>
+        </div>
+
+        <div x-show="result.unknown_count === 0" style="display:none"
+             class="bg-emerald-50 border-2 border-emerald-300 rounded-2xl p-6 text-center">
+          <p class="text-xl font-bold text-emerald-700">Every code on that shelf already scans. Nothing to do.</p>
+        </div>
+      </div>
+    </template>
+
+  </div>
+</div>
+
+<script>
+function shelfIntake() {
+  const STORE_KEY = 'banco_shelf_intake_v1';
+  return {
+    raw: '', expected: null, busy: false, error: '',
+    result: null, pending: [], batchStart: 0, showKnown: false,
+
+    // ── persistence ───────────────────────────────────────────────────────────────────
+    // An evening of work living in one browser tab is one accidental Ctrl-W from gone.
+    save() {
+      try {
+        localStorage.setItem(STORE_KEY, JSON.stringify({
+          result: this.result, pending: this.pending, batchStart: this.batchStart,
+        }));
+      } catch (e) { /* quota/private mode — the work still exists on screen */ }
+    },
+    restore() {
+      try {
+        const s = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
+        if (s && s.result) { this.result = s.result; this.pending = s.pending || []; this.batchStart = s.batchStart || 0; }
+      } catch (e) {}
+    },
+    reset() {
+      if (this.remaining() > 0 && !confirm(
+          this.remaining() + ' code(s) are still unresolved. Throw this session away?')) return;
+      try { localStorage.removeItem(STORE_KEY); } catch (e) {}
+      this.result = null; this.pending = []; this.batchStart = 0; this.raw = ''; this.expected = null;
+    },
+
+    // ── stage 1 ───────────────────────────────────────────────────────────────────────
+    roughCount() { return (this.raw.trim().match(/\S+/g) || []).length; },
+
+    async triage() {
+      this.busy = true; this.error = '';
+      try {
+        const r = await API.post('/api/v1/pos/catalog/shelf-intake/triage',
+                                 { raw: this.raw, expected: this.expected || null });
+        this.result = r;
+        this.pending = (r.unknown || []).map(u => ({
+          ...u, status: 'todo', query: '', url: '', facts: null,
+          candidates: null, siblings: null, checked: false, busy: false, error: '', boundTo: '',
+        }));
+        this.batchStart = 0;
+        this.save();
+      } catch (e) {
+        this.error = (e && e.message) || 'Triage failed.';
+      } finally { this.busy = false; }
+    },
+
+    // ── the work list ─────────────────────────────────────────────────────────────────
+    internalHits() { return ((this.result && this.result.known) || []).filter(k => k.matched_internal_row); },
+    doneCount() { return this.pending.filter(r => r.status !== 'todo').length; },
+    remaining() { return this.pending.filter(r => r.status === 'todo').length; },
+    batch() { return this.pending.slice(this.batchStart, this.batchStart + 10); },
+    batchLabel() {
+      const a = this.batchStart + 1, b = Math.min(this.batchStart + 10, this.pending.length);
+      return this.pending.length ? `showing ${a}–${b} of ${this.pending.length}` : '';
+    },
+    nextBatch() {
+      // Jump to the next window that still has work — a finished batch should not need
+      // clicking past, and the operator should not have to hunt for what is left.
+      let i = this.batchStart + 10;
+      while (i < this.pending.length && this.pending.slice(i, i + 10).every(r => r.status !== 'todo')) i += 10;
+      this.batchStart = i < this.pending.length ? i : 0;
+      this.save();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+    prevBatch() { this.batchStart = Math.max(0, this.batchStart - 10); this.save(); },
+
+    async readPage(row) {
+      if (!row.url.trim()) return;
+      row.busy = true; row.error = '';
+      try {
+        const f = await API.post('/api/v1/pos/catalog/page-facts', { url: row.url.trim() });
+        if (!f || !f.name) { row.error = "That page didn't state a product name — try the manufacturer's own page."; return; }
+        row.facts = f;
+        row.query = f.name;
+        await this.lookupName(row);
+      } catch (e) {
+        row.error = (e && e.message) || 'Could not read that page.';
+      } finally { row.busy = false; this.save(); }
+    },
+
+    async lookupName(row) {
+      if (!row.query.trim()) return;
+      row.busy = true; row.error = '';
+      try {
+        const r = await API.post('/api/v1/pos/catalog/shelf-intake/candidates',
+                                 { name: row.query.trim(), barcode: row.barcode });
+        row.candidates = r.candidates || [];
+        row.siblings = r.siblings || [];
+        row.checked = true;
+      } catch (e) {
+        row.error = (e && e.message) || 'Lookup failed.';
+      } finally { row.busy = false; this.save(); }
+    },
+
+    async bind(row, cand) {
+      row.busy = true; row.error = '';
+      try {
+        await API.post(`/api/v1/pos/products/${cand.id}/barcodes`, { barcode: row.barcode });
+        row.status = 'bound';
+        row.boundTo = cand.name;
+      } catch (e) {
+        row.error = (e && e.message) || 'Could not bind that barcode.';
+      } finally { row.busy = false; this.save(); }
+    },
+
+    async createNew(row) {
+      const f = row.facts || {};
+      if (!f.name) return;
+      row.busy = true; row.error = '';
+      try {
+        // allow_duplicate: the operator has just LOOKED at the candidates and said no. Blocking
+        // them again with the same 409 would be the machine overruling the human.
+        // sku '' + mint_identity: the server names it (identity is immutable — mint it once,
+        // server-side). It will NOT mint a barcode, because we are handing it a real one.
+        const p = await API.post('/api/v1/pos/products?allow_duplicate=true', {
+          sku: '', mint_identity: true,
+          barcode: row.barcode,
+          name: f.name,
+          description: f.description || null,
+          price: f.price != null ? f.price : 0,
+          image_url: f.image || null,
+          category: f.suggested_category || null,
+          product_class: f.suggested_class || 'standard',
+          is_age_restricted: !!f.suggested_age_restricted,
+        });
+        row.status = 'created';
+        row.boundTo = p.name;
+      } catch (e) {
+        row.error = (e && e.message) || 'Could not create that product.';
+      } finally { row.busy = false; this.save(); }
+    },
+
+    skip(row) { row.status = 'skipped'; this.save(); },
+  };
+}
+</script>
+{% endblock %}

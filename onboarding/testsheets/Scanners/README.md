@@ -127,11 +127,17 @@ right way to build a catalog: walk the shelves scanning, then do the desk work l
 
 ### The workflow
 
+**The screen that receives the dump is `/pos/shelf-intake`** — it parses the keystrokes, splits
+the shelf into already-known and still-unknown, and walks you through the unknowns in batches of
+ten. Full guide: [`../../09-shelf-intake.md`](../../09-shelf-intake.md).
+
 1. Scan **Inventurmodus**. The gun stops transmitting and starts collecting.
 2. Walk the shelves. Scan everything. ~20 minutes for a shop. Nothing to look at, no screen.
-3. Back at a laptop: click into the intake box (or any text field).
-4. Scan **Daten hochladen** — every code types itself out.
-5. Scan **Daten im Cache löschen**, then **Normalmodus** to return to till use.
+3. Scan **Anzahl der gescannten Barcodes** into any text field and write the number down.
+4. Back at a laptop: open `/pos/shelf-intake`, type that number in, click into the big box.
+5. Scan **Daten hochladen** — every code types itself out.
+6. Only once the screen agrees on the count: scan **Daten im Cache löschen**, then
+   **Normalmodus** to return to till use.
 
 > **Check the count first.** Scan *Anzahl der gescannten Barcodes* before uploading, so you know
 > whether the dump was complete. A half-uploaded shelf silently looks like a finished one.

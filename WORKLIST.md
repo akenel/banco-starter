@@ -8,7 +8,24 @@
 
 ## 🎯 On deck (next actionable, in order)
 
-1. **⛔ SHELF SCAN → BATCH ENRICH.** *(shop floor · Angel's idea 2026-07-30, and it replaces item 1 below)*
+1. **🟡 SHELF SCAN → BATCH ENRICH — BUILT, NEEDS A SHOP TEST.** *(shop floor · Angel's idea 2026-07-30)*
+
+   **Built 2026-07-31 and proven on the API; NOT yet human-green.** What exists:
+   - `/pos/shelf-intake` (manager, linked from the dashboard) — dump box → triage → batches of ten.
+   - `POST /catalog/shelf-intake/triage` — parses the keystroke dump, splits known/unknown, warns on
+     a short upload / junk / bad check digits. `POST /catalog/shelf-intake/candidates` — "is it one
+     of these?", brand-filtered, proposals only.
+   - `src/services/shelf_intake.py` + 23 tests (every gun terminator, repeats, junk, GTIN checks).
+   - Guide: [`onboarding/09-shelf-intake.md`](onboarding/09-shelf-intake.md).
+
+   **Verified locally, end to end:** triage a 5-token dump → 3 unique, 1 repeat, junk reported →
+   candidates proposed a real match at 0.536 → bound the EAN via `POST /products/{id}/barcodes` →
+   re-triaged the same dump and the code came back **known**. Then the test binding was undone.
+
+   **⛔ What is NOT done — the only thing that counts (standing rule 5):** nobody has walked a shelf
+   with the gun in inventory mode, dumped it into this screen, and worked a real batch of ten. Until
+   Angel does that at Artemis, this is machine-green. Specifically unproven: whether the BCST-35's
+   dump arrives in one keystroke burst a browser textarea can hold, and whether 15–25% really bind.
 
    **The inversion:** stop trying to repair a 5,178-product wholesale import. **Let the shelf define
    the catalogue.** Start clean (the 6 seeded treats), walk the shop scanning every packet, then
@@ -87,9 +104,8 @@
    `Canna` matching `Cocanna`; `Spritz` matching `Spritze`. This is exactly why Angel's
    confirm-in-tens is required rather than merely nicer.
 
-   **Next improvement for the matcher: weight the BRAND.** Extracting the leading brand token and
-   requiring it to match would remove most of that noise — obvious to a human in a quarter second,
-   invisible to trigram similarity.
+   **Brand weighting: DONE** (`src/services/catalog_brands.py`, 2026-07-31) and wired into both the
+   create guard and the intake screen through one shared matcher, `_name_match_candidates`.
 
    Also seen: several "matches" are SIBLINGS, not duplicates (`Gizeh ... + Tips` vs
    `Gizeh ... mit Aktivkohle` are different products). That is the variant problem, and why
