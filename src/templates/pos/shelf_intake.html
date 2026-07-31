@@ -296,15 +296,29 @@
                 <div x-show="row.checked" style="display:none">
                   <template x-if="row.candidates && row.candidates.length">
                     <div>
-                      <p class="text-xs font-semibold text-gray-500 uppercase mb-2">Is it one of these?</p>
+                      <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Is it one of these?</p>
+                      <!-- WHEN EVERYTHING SCORES 1.000, THE SCORE IS USELESS.
+                           "gizeh king size" matches TEN rows perfectly — Slim, Slim mit Filter,
+                           Super Fine, Cones, Pink Edition. The operator cannot pick from a score;
+                           they pick by looking at the packet in their hand and finding the words
+                           that DIFFER. So: big pictures you can actually see, tap to enlarge, and
+                           the distinguishing words highlighted instead of buried in a truncated
+                           line. Angel: "the pictures are small... I don't find it on the list."
+                           He was not failing to search. He was failing to CHOOSE. -->
+                      <p class="text-xs text-gray-500 mb-2">
+                        They all match your words equally — so pick by the <b>highlighted</b> part and the
+                        picture. Tap a picture to enlarge it.
+                      </p>
                       <template x-for="c in row.candidates" :key="c.id">
                         <div class="flex items-center gap-3 border rounded-lg p-2 mb-2 hover:border-indigo-400">
-                          <img :src="c.image_url || '/static/pos/img/placeholder.png'" class="w-12 h-12 object-contain rounded bg-gray-50 flex-none">
+                          <img :src="c.image_url || '/static/pos/img/placeholder.png'"
+                               @click.stop="preview = c.image_url || ''"
+                               class="w-20 h-20 object-contain rounded bg-gray-50 flex-none cursor-zoom-in">
                           <div class="min-w-0 flex-1">
-                            <p class="text-sm font-medium text-gray-900 truncate" x-text="c.name"></p>
-                            <p class="text-xs text-gray-400">
+                            <p class="text-sm text-gray-900 leading-snug" x-html="highlight(c.name, row.query)"></p>
+                            <p class="text-xs text-gray-400 mt-1">
                               <span x-show="c.price !== null">CHF <span x-text="c.price"></span> · </span>
-                              <span class="font-mono" x-text="c.sku"></span> · match <span x-text="Math.round(c.sim*100)"></span>%
+                              <span x-text="c.category"></span>
                             </p>
                           </div>
                           <button @click="bind(row, c)" :disabled="row.busy" class="btn-primary text-sm flex-none">That's it</button>
@@ -440,6 +454,13 @@
       </div>
     </template>
 
+    <!-- Full-size picture. On a 10-inch tablet a 48px thumbnail cannot separate
+         "Slim" from "Slim mit Filter"; the photo on the packet can. -->
+    <div x-show="preview" style="display:none" @click="preview = ''"
+         class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-6 cursor-zoom-out">
+      <img :src="preview" class="max-h-full max-w-full object-contain rounded-lg bg-white">
+    </div>
+
   </div>
 </div>
 
@@ -451,6 +472,7 @@ function shelfIntake() {
     result: null, pending: [], batchStart: 0, showKnown: false, restored: false,
     // The shop's own currency, from /config — never hardcode CHF, Banco runs EUR and USD shops.
     shopCurrency: (window.POSConfig && POSConfig.currency) || 'CHF',
+    preview: '',            // full-size candidate picture
 
     // ── persistence ───────────────────────────────────────────────────────────────────
     // An evening of work living in one browser tab is one accidental Ctrl-W from gone.
@@ -580,6 +602,24 @@ function shelfIntake() {
     langWarning(facts) {
       var t = ((facts && facts.name) || '') + ' ' + ((facts && facts.description) || '');
       return /[őűąćęłńśźżřěščžığşİĞŞ\u0400-\u04FF\u0370-\u03FF]/.test(t);
+    },
+
+    // Grey out the words the operator already typed and BOLD everything else — the leftover
+    // is precisely what distinguishes ten identical-scoring rows from each other.
+    highlight(name, query) {
+      var esc = function (t) {
+        return String(t).replace(/[&<>"']/g, function (c) {
+          return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+        });
+      };
+      var typed = String(query || '').toLowerCase().split(/\s+/).filter(Boolean);
+      return String(name || '').split(/(\s+)/).map(function (w) {
+        if (!w.trim()) return w;
+        var plain = w.toLowerCase().replace(/[^a-z0-9]/g, '');
+        var known = typed.some(function (t) { return plain === t.replace(/[^a-z0-9]/g, ''); });
+        return known ? '<span class="text-gray-400">' + esc(w) + '</span>'
+                     : '<b class="text-gray-900">' + esc(w) + '</b>';
+      }).join('');
     },
 
     priceIsForeign(row) {
