@@ -3515,6 +3515,14 @@ async def search_products_fast(
           AND (
             :q = '' OR name ILIKE '%' || :q || '%' OR sku ILIKE '%' || :q || '%'
             OR barcode ILIKE '%' || :q || '%' OR similarity(name, :q) > 0.1
+            -- ALIAS barcodes too. A product may be known by several codes — the packet's EAN,
+            -- the box-of-50 code, a store label — and product_barcodes holds them all. Until
+            -- 2026-07-31 this searched only products.barcode, so a code bound by shelf intake
+            -- became INVISIBLE here while still blocking a re-create on the UNIQUE index.
+            -- Angel hit exactly that: "I can't find it, I can't delete it, and I can't create it
+            -- again either." It was never lost — the search simply could not see it.
+            OR EXISTS (SELECT 1 FROM product_barcodes pb
+                        WHERE pb.product_id = products.id AND pb.barcode ILIKE '%' || :q || '%')
             -- also match the SUPPLIER (find "Mama Cynthia" by her name) + the description text
             OR supplier_name ILIKE '%' || :q || '%'
             OR description ILIKE '%' || :q || '%'
