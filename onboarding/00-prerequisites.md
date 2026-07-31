@@ -18,6 +18,28 @@ wasted afternoon.
 > make sure you have swap. It works — it just won't be snappy. A real field test on a fresh 8 GB Debian 13 laptop
 > ran fine (4.9 GB free + 7.9 GB swap).
 
+## Minimum browser — for every till, tablet and phone that touches the POS
+
+This is separate from the machine above, and it catches people out because shops run the till on whatever
+tablet they already own.
+
+| | Minimum |
+|---|---|
+| Chrome / Edge / Android WebView | **84** (July 2020) |
+| Safari / iPadOS | **14** (September 2020) |
+| Firefox | **79** |
+
+**Below that floor the failure is not graceful.** Banco's screens use optional chaining (`?.`), which an older
+browser treats as a *syntax* error — it refuses to parse the whole script block, so the page arrives blank or
+half-dead with nothing on screen explaining why. Flexbox `gap` is the other floor (Chrome 84); below it the
+layout survives but every gap collapses.
+
+> **Don't guess the version — measure it.** Open
+> [`testsheets/TABLET-CHECK.html`](testsheets/TABLET-CHECK.html) **on the device itself**. It reports the
+> browser, checks each capability the till needs, and gives a plain verdict plus a copyable report. It also
+> answers the "why are there no scroll bars on my tablet" question, which is normal touch behaviour rather
+> than a fault.
+
 ## Step A · Check the machine (no tools needed yet)
 
 You don't have this repo yet, so run this **paste-in** check in a terminal. It reads only — installs nothing:

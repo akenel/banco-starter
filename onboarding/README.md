@@ -25,6 +25,7 @@ them off, or just keep them open while you set up.
 | 🩺 | **`python3 scripts/banco-doctor.py`** | Reads your live setup and tells you what's still unset (✅/⚠️/❌ + a readiness %). Run it often. |
 | 🧠 | [ai-coach/](ai-coach/) | Let the AI you already have (Claude/ChatGPT/Ollama) coach you through what the doctor found — free help for rookies. |
 | ✔ | [GO-LIVE-CHECKLIST.md](GO-LIVE-CHECKLIST.md) | The cutover tick-list — don't open the doors until every box is green. |
+| 📱 | [testsheets/TABLET-CHECK.html](testsheets/TABLET-CHECK.html) | Open it **on each till / tablet / phone**: does that device's browser meet Banco's floor (Chrome 84+)? Measured, with a copyable report. |
 | 🧪 | [testsheets/OWN-YOUR-BANCO-E2E-TESTSHEET.html](testsheets/OWN-YOUR-BANCO-E2E-TESTSHEET.html) | Open in a browser: a click-through test that proves the whole thing works (records pass/fail, exports a report). |
 
 ## How to think about it

@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Banco — will this device run the till?</title>
+<!--
+  TABLET / TILL CAPABILITY CHECK
+  ==============================
+  Open this file on the device in question. It answers, with measurements rather than
+  assumptions: what browser is this, is it new enough to run Banco, and why are there no
+  scroll bars.
+
+  WHY IT EXISTS. A shop stands the POS up on whatever hardware it already owns — an old
+  Android tablet, a hand-me-down laptop, a phone. Banco's screens quietly require Chrome 84
+  or newer, and nobody had written that down. Below that floor the failure is NOT graceful:
+  optional chaining (`?.`) is a SYNTAX error, so an entire <script> block refuses to parse
+  and the page arrives blank or half-dead, with nothing in the UI to say why.
+
+  Repo lesson, 2026-07-28: "when a device's behaviour makes no sense, read its own status
+  registers before touching settings." This is that, for a browser.
+
+  DELIBERATELY ES5. No arrow functions, no const/let, no template literals, no optional
+  chaining anywhere in this file — if this page used the features it is testing for, it
+  would fail to parse on exactly the devices it exists to diagnose, and report nothing.
+-->
+<style>
+  body{font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;margin:0;padding:16px;
+       background:#f7f7f9;color:#111}
+  h1{font-size:20px;margin:0 0 4px}
+  .sub{color:#666;font-size:13px;margin:0 0 16px}
+  .card{background:#fff;border-radius:12px;padding:14px 16px;margin-bottom:12px;
+        box-shadow:0 1px 3px rgba(0,0,0,.1)}
+  .verdict{font-size:19px;font-weight:700;border-radius:12px;padding:16px;margin-bottom:12px;color:#fff}
+  .ok{background:#059669}.warn{background:#d97706}.bad{background:#dc2626}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  td{padding:6px 4px;border-bottom:1px solid #eee;vertical-align:top}
+  td.k{color:#555;width:52%}
+  td.v{text-align:right;font-weight:600}
+  .pass{color:#059669}.fail{color:#dc2626}.info{color:#2563eb}
+  .ua{font:12px/1.4 ui-monospace,Menlo,Consolas,monospace;word-break:break-all;color:#444;
+      background:#f3f4f6;border-radius:8px;padding:8px}
+  h2{font-size:15px;margin:0 0 8px}
+  .note{font-size:13px;color:#555;margin-top:10px}
+  #scrollprobe{height:60px;overflow:scroll}
+  .demo{height:110px;overflow-y:auto;border:1px solid #ddd;border-radius:8px;padding:8px;font-size:14px}
+  button{font:inherit;padding:10px 14px;border-radius:8px;border:1px solid #ccc;background:#fff}
+</style>
+</head>
+<body>
+
+<h1>Banco — will this device run the till?</h1>
+<p class="sub">Open this page ON the device you want to use. Everything below is measured, not guessed.</p>
+
+<div id="verdict" class="verdict warn">Checking…</div>
+
+<div class="card">
+  <h2>What this device is</h2>
+  <table id="about"></table>
+  <p class="note">Browser version is the number that matters. Everything else is context.</p>
+  <div class="ua" id="ua"></div>
+</div>
+
+<div class="card">
+  <h2>What Banco needs</h2>
+  <table id="feat"></table>
+  <p class="note">
+    A <b>syntax</b> failure (the first two) is the bad kind: the browser refuses to parse the whole
+    script block, so a screen arrives blank rather than degraded. The rest just look wrong.
+  </p>
+</div>
+
+<div class="card">
+  <h2>Scroll bars</h2>
+  <table id="scroll"></table>
+  <div id="scrollprobe"><div style="height:200px"></div></div>
+  <p class="note" id="scrollnote"></p>
+  <div class="demo">
+    <b>Try scrolling this box with your finger.</b><br>
+    If a thin bar only appears WHILE you drag and then fades, that is overlay scrolling — normal on
+    touch devices, and the reason lists in Banco can look like they end when they do not.<br><br>
+    line 4<br>line 5<br>line 6<br>line 7<br>line 8<br>line 9<br>line 10<br>
+    <b>← you reached the bottom.</b> Could you tell there was more from looking?
+  </div>
+</div>
+
+<div class="card">
+  <h2>Storage — can a shelf-intake session survive?</h2>
+  <table id="store"></table>
+  <p class="note">
+    Shelf intake keeps your progress in localStorage. If that is blocked (private browsing, or a
+    browser set to clear on exit) an interrupted session really would be lost.
+  </p>
+</div>
+
+<div class="card">
+  <h2>Copy this result</h2>
+  <p class="note">Tap, then paste it into a message — it is everything needed to diagnose from afar.</p>
+  <button onclick="copyAll()">📋 Copy the whole report</button>
+  <div class="ua" id="report" style="margin-top:10px;white-space:pre-wrap"></div>
+</div>
+
+<script>
+/* ES5 ONLY — see the comment at the top of this file. */
+(function () {
+  var rows = { about: [], feat: [], scroll: [], store: [] };
+
+  function add(where, key, value, cls) {
+    rows[where].push([key, String(value), cls || '']);
+  }
+  function paint(id) {
+    var html = '', list = rows[id], i;
+    for (i = 0; i < list.length; i++) {
+      html += '<tr><td class="k">' + list[i][0] + '</td><td class="v ' + list[i][2] + '">'
+            + list[i][1] + '</td></tr>';
+    }
+    document.getElementById(id).innerHTML = html;
+  }
+
+  /* --- syntax-level checks must go through new Function(), or THIS page dies too --- */
+  function syntaxOk(src) {
+    try { new Function(src); return true; } catch (e) { return false; }
+  }
+  function cssOk(prop, value) {
+    try { return window.CSS && CSS.supports && CSS.supports(prop, value); } catch (e) { return false; }
+  }
+
+  /* ---------------- what this device is ---------------- */
+  var ua = navigator.userAgent;
+  document.getElementById('ua').textContent = ua;
+
+  var m = ua.match(/(?:Chrome|CriOS)\/(\d+)/);
+  var chromeVer = m ? parseInt(m[1], 10) : 0;
+  var isSafari = !m && /Safari/.test(ua) && /Version\/(\d+)/.test(ua);
+  var safariVer = isSafari ? parseInt(ua.match(/Version\/(\d+)/)[1], 10) : 0;
+  var isWebView = /; wv\)/.test(ua);
+  var android = ua.match(/Android (\d+(?:\.\d+)?)/);
+
+  add('about', 'Browser',
+      chromeVer ? ('Chrome ' + chromeVer + (isWebView ? ' (Android WebView)' : ''))
+                : (safariVer ? 'Safari ' + safariVer : 'not recognised'),
+      chromeVer >= 84 || safariVer >= 14 ? 'pass' : (chromeVer || safariVer ? 'fail' : 'info'));
+  add('about', 'Operating system', android ? 'Android ' + android[1] : (navigator.platform || 'unknown'));
+  add('about', 'Screen (CSS pixels)', window.innerWidth + ' × ' + window.innerHeight);
+  add('about', 'Device pixel ratio', window.devicePixelRatio || 1);
+  add('about', 'Touch points', navigator.maxTouchPoints || 0);
+  add('about', 'Memory (GB, if reported)', navigator.deviceMemory || 'not reported');
+  add('about', 'Secure context (https)', window.isSecureContext ? 'yes' : 'no',
+      window.isSecureContext ? 'pass' : 'info');
+  paint('about');
+
+  /* ---------------- what Banco needs ---------------- */
+  var checks = [
+    ['Optional chaining  a?.b', syntaxOk('var o={};return o?.x;'), 'Chrome 80', true],
+    ['Nullish coalescing  a ?? b', syntaxOk('return null ?? 1;'), 'Chrome 80', true],
+    ['Object spread  {...a}', syntaxOk('var a={};return {...a};'), 'Chrome 60', true],
+    ['Flexbox gap', cssOk('gap', '1px') && cssOk('display', 'flex'), 'Chrome 84', false],
+    ['CSS position:sticky', cssOk('position', 'sticky'), 'Chrome 56', false],
+    ['Proxy (Alpine.js needs it)', typeof window.Proxy === 'function', 'Chrome 49', true],
+    ['fetch()', typeof window.fetch === 'function', 'Chrome 42', true],
+    ['Promise', typeof window.Promise === 'function', 'Chrome 32', true],
+    ['IntersectionObserver', typeof window.IntersectionObserver === 'function', 'Chrome 51', false],
+    ['Clipboard API', !!(navigator.clipboard && navigator.clipboard.writeText), 'https only', false]
+  ];
+  var hardFail = 0, softFail = 0, i;
+  for (i = 0; i < checks.length; i++) {
+    var c = checks[i];
+    if (!c[1]) { if (c[3]) hardFail++; else softFail++; }
+    add('feat', c[0] + '<br><span style="font-weight:400;color:#888;font-size:12px">' + c[2] + '</span>',
+        c[1] ? '✅' : (c[3] ? '❌ breaks it' : '⚠️ looks wrong'), c[1] ? 'pass' : (c[3] ? 'fail' : 'info'));
+  }
+  paint('feat');
+
+  /* ---------------- scroll bars, measured ---------------- */
+  var probe = document.getElementById('scrollprobe');
+  var gutter = probe.offsetWidth - probe.clientWidth;   /* 0 == overlay scrollbars */
+  add('scroll', 'Scrollbar gutter width', gutter + ' px', gutter > 0 ? 'pass' : 'info');
+  add('scroll', 'Style', gutter > 0 ? 'classic (always visible)' : 'overlay (fades in while scrolling)');
+  add('scroll', 'Can CSS restyle it?', cssOk('scrollbar-width', 'thin') ? 'yes (scrollbar-width)' :
+      (('WebkitAppearance' in document.documentElement.style) ? 'maybe (-webkit-scrollbar)' : 'no'));
+  paint('scroll');
+  document.getElementById('scrollnote').innerHTML = gutter > 0
+    ? 'This device draws normal scroll bars, so a long list shows its bar. Nothing to fix here.'
+    : '<b>This is why you see no scroll bars.</b> The browser only paints one while your finger is '
+      + 'moving. It is not a Banco setting — nothing in the POS hides them. It does mean a list that '
+      + 'continues below the fold looks like a list that ends, which matters most in the '
+      + '"is it one of these?" match lists.';
+
+  /* ---------------- storage ---------------- */
+  function storageOk(kind) {
+    try {
+      var s = window[kind], k = '__banco_probe__';
+      s.setItem(k, '1'); var got = s.getItem(k) === '1'; s.removeItem(k); return got;
+    } catch (e) { return false; }
+  }
+  var ls = storageOk('localStorage'), ss = storageOk('sessionStorage');
+  add('store', 'localStorage (intake progress)', ls ? '✅ works' : '❌ blocked', ls ? 'pass' : 'fail');
+  add('store', 'sessionStorage (your login)', ss ? '✅ works' : '❌ blocked', ss ? 'pass' : 'fail');
+  add('store', 'Cookies enabled', navigator.cookieEnabled ? '✅' : '❌',
+      navigator.cookieEnabled ? 'pass' : 'fail');
+  paint('store');
+  if (!ls) hardFail++;
+  if (!ss) hardFail++;
+
+  /* ---------------- the verdict ---------------- */
+  var v = document.getElementById('verdict');
+  if (hardFail > 0) {
+    v.className = 'verdict bad';
+    v.innerHTML = '❌ This device cannot run Banco properly.<br>'
+      + '<span style="font-weight:400;font-size:14px">' + hardFail
+      + ' required capability(ies) missing — screens will arrive blank, not merely ugly. '
+      + 'Update the browser if you can; otherwise use a different device for the till.</span>';
+  } else if (softFail > 0) {
+    v.className = 'verdict warn';
+    v.innerHTML = '⚠️ Usable, with rough edges.<br>'
+      + '<span style="font-weight:400;font-size:14px">' + softFail
+      + ' cosmetic capability(ies) missing — spacing and layout will look wrong in places, '
+      + 'but nothing will break.</span>';
+  } else {
+    v.className = 'verdict ok';
+    v.innerHTML = '✅ This device runs Banco.<br>'
+      + '<span style="font-weight:400;font-size:14px">Every capability the till needs is present.</span>';
+  }
+
+  /* ---------------- the copyable report ---------------- */
+  var report = 'BANCO DEVICE CHECK\n' + new Date().toString() + '\n\n' + ua + '\n';
+  var groups = ['about', 'feat', 'scroll', 'store'], g, j;
+  for (g = 0; g < groups.length; g++) {
+    report += '\n[' + groups[g].toUpperCase() + ']\n';
+    for (j = 0; j < rows[groups[g]].length; j++) {
+      report += '  ' + rows[groups[g]][j][0].replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ')
+             + ': ' + rows[groups[g]][j][1] + '\n';
+    }
+  }
+  report += '\nVERDICT: ' + (hardFail ? hardFail + ' BLOCKING' : (softFail ? softFail + ' cosmetic' : 'all good')) + '\n';
+  document.getElementById('report').textContent = report;
+
+  window.copyAll = function () {
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(report).then(function () { alert('Copied.'); },
+                                                 function () { window.prompt('Copy this:', report); });
+    } else {
+      window.prompt('Copy this:', report);   /* plain http has no clipboard API */
+    }
+  };
+})();
+</script>
+</body>
+</html>
