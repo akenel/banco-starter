@@ -2811,7 +2811,17 @@ async def _page_product_facts(page_url: str) -> dict:
             return {"image": str(resp.url)}
         if "html" not in ctype:
             return out
-        html = resp.text[:400_000]
+        # 400 KB was too small for a real shop page and it failed SILENTLY — the page loads,
+        # nothing is found, and it looks like a site that publishes no data.
+        #
+        # Measured 2026-07-31 on wernersheadshop.ch: the page is 1,395 KB and its JSON-LD
+        # "gtin8":"85966789" sits at byte 1,243,106 — three times past the old cap. Banco
+        # reported found=false for a page carrying textbook structured data, and Angel would
+        # reasonably have concluded the site was useless.
+        #
+        # The cap still exists to bound memory on a pathological response; it is now large
+        # enough for the bloated-but-ordinary pages this actually meets.
+        html = resp.text[:2_000_000]
         base = str(resp.url)
         out["_html"] = html          # kept so a caller can READ the body (the specs live in the prose,
                                      # not the tags) without fetching the page a second time
@@ -10413,6 +10423,11 @@ async def pos_hardware(request: Request):
 EAN_LOOKUP_SITES = [
     {"label": "420", "domain": "fourtwenty.ch",
      "why": "publishes EAN + a full spec table on every article (~10,000 items, DE + EN)"},
+    # Added 2026-07-31 after Angel resolved a code here that 420 did not carry. Verified: its
+    # product pages publish schema.org JSON-LD with gtin8/gtin13, robots.txt allows product
+    # pages, and page-facts reads name, price, brand and barcode from it cleanly.
+    {"label": "Werner's", "domain": "wernersheadshop.ch",
+     "why": "Swiss headshop since 1983 — publishes gtin in JSON-LD; often ranks first for a bare EAN"},
 ]
 
 
