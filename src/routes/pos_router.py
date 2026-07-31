@@ -982,8 +982,22 @@ async def catalog_merge_products(
     new_primary = next((c for c in moving if not _is_minted(c)), None) or keep.barcode
     demoted = [c for c in ([keep.barcode] + moving) if c and c != new_primary]
 
-    fills = {f: getattr(retire, f) for f in ("image_url", "description", "cost")
-             if not getattr(keep, f, None) and getattr(retire, f, None)}
+    # Fill BLANKS on the survivor from the twin. The wholesale row wins on content, but a blank
+    # is not content — and the hand-made row is often where the richer master data landed.
+    #
+    # Live example, Angel's own pair 2026-07-31:
+    #   TAM-21669  real description, the shop's price      no facets, no EAN
+    #   ITEM-0003  the real EAN and 16 SPEC FIELDS         no description
+    # Without raw_facets and attributes in this list, a merge would have thrown away the
+    # dimensions, weight, count, material and certificates — the exact master data the whole
+    # exercise was about. A blank field is a blank field, whatever its type.
+    _FILLABLE = ("image_url", "description", "cost", "raw_facets", "attributes", "source_lang")
+
+    def _blank(v):
+        return v is None or v == "" or v == {} or (isinstance(v, str) and not v.strip())
+
+    fills = {f: getattr(retire, f) for f in _FILLABLE
+             if _blank(getattr(keep, f, None)) and not _blank(getattr(retire, f, None))}
 
     plan = {
         "keep": {"id": str(keep.id), "sku": keep.sku, "name": keep.name, "barcode": keep.barcode},

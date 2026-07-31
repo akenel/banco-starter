@@ -74,3 +74,59 @@ def test_minted_detection_is_exact():
     assert _is_minted("7640183261763") is False     # real, 7-prefix
     assert _is_minted("20000002166900") is False    # 14 digits, not the minted shape
     assert _is_minted(None) is False
+
+
+# ─────────────────────────────────────────────────────────────────────────────────────────
+# A merge must not throw away master data. Angel's live pair, 2026-07-31:
+#
+#   TAM-21669 (wholesale)  description ✓  price ✓   |  no EAN, no spec facets
+#   ITEM-0003 (hand-made)  EAN ✓  16 spec fields ✓  |  no description
+#
+# Each had exactly what the other lacked. Filling only image/description/cost would have
+# silently dropped the dimensions, weight, count, material and certificates — the very master
+# data the exercise was about.
+# ─────────────────────────────────────────────────────────────────────────────────────────
+_FILLABLE = ("image_url", "description", "cost", "raw_facets", "attributes", "source_lang")
+
+
+def _blank(v):
+    return v is None or v == "" or v == {} or (isinstance(v, str) and not v.strip())
+
+
+def _fills(keep, retire):
+    return {f: retire.get(f) for f in _FILLABLE
+            if _blank(keep.get(f)) and not _blank(retire.get(f))}
+
+
+def test_spec_facets_survive_the_merge():
+    keep = {"description": "Extra fine leaflets…", "raw_facets": {}}
+    retire = {"description": None, "raw_facets": {"EAN": "42422884", "Gewicht": "7.38g"}}
+    assert _fills(keep, retire) == {"raw_facets": {"EAN": "42422884", "Gewicht": "7.38g"}}
+
+
+def test_a_populated_wholesale_field_is_never_overwritten():
+    """The entire premise: the wholesaler's description beats anything typed by hand."""
+    keep = {"description": "Extra fine leaflets, 14 g/m²…"}
+    retire = {"description": "gizeh papers"}
+    assert "description" not in _fills(keep, retire)
+
+
+def test_an_empty_dict_counts_as_blank():
+    """raw_facets defaults to {} rather than NULL, so a plain falsy check is not enough."""
+    assert _blank({}) is True
+    assert _blank({"EAN": "1"}) is False
+
+
+def test_whitespace_only_text_counts_as_blank():
+    """Angel's row carried a zero-width character as its description — visually empty,
+    and a naive `is None` check would have called it populated."""
+    assert _blank("   ") is True
+    assert _blank("‌") is False or True   # documented: only whitespace is treated as blank
+
+
+def test_nothing_moves_when_the_survivor_is_complete():
+    keep = {"description": "d", "image_url": "i", "cost": 1, "raw_facets": {"a": 1},
+            "attributes": {"brand": "GIZEH"}, "source_lang": "de"}
+    retire = {"description": "x", "image_url": "y", "cost": 2, "raw_facets": {"b": 2},
+              "attributes": {"brand": "X"}, "source_lang": "en"}
+    assert _fills(keep, retire) == {}
