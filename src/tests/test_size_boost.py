@@ -92,3 +92,41 @@ def test_the_query_boost_regex_treats_pc_and_stk_as_one_family():
     assert rx is not None
     for unit in ("stk", "stück", "pcs", "pc"):
         assert unit in rx
+
+
+# ─────────────────────────────────────────────────────────────────────────────────────────
+# German counts a pack two ways, and an English packet a third. "200er Hülsen", "200 Stk."
+# and "200 pcs" are the same 200 things — but the matcher compared the tokens literally and
+# discarded the right row. Found 2026-07-31 while wiring alias search: the catalogue's
+# "Zigaretten-Hülsen 200er Gizeh Air Plus" was invisible to "Gizeh Air Plus Cigarette Tubes
+# 200 pcs", its own recorded English name.
+#
+# Narrow on purpose: only within the COUNT family. 2g must never equal 2ml.
+# ─────────────────────────────────────────────────────────────────────────────────────────
+from src.routes.pos_router import _same_size
+
+
+def test_er_and_stk_are_the_same_count():
+    assert _same_size("200er", "200stk") is True
+    assert _same_size("34stk", "34er") is True
+
+
+def test_the_same_token_is_obviously_the_same():
+    assert _same_size("2g", "2g") is True
+
+
+def test_different_numbers_are_never_the_same():
+    assert _same_size("200er", "100stk") is False
+    assert _same_size("34stk", "50stk") is False
+
+
+def test_it_never_crosses_unit_families():
+    """The whole reason the size rule exists: 2g is not 2ml and never becomes it."""
+    assert _same_size("2g", "2ml") is False
+    assert _same_size("250er", "250g") is False
+    assert _same_size("10ml", "10stk") is False
+
+
+def test_an_unknown_side_is_not_a_match():
+    assert _same_size("200er", "") is False
+    assert _same_size("", "200er") is False

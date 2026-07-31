@@ -345,15 +345,28 @@ async def _name_match_candidates(
     from sqlalchemy import text as _text
     try:
         nn = _norm_name_for_match(name)
+        # SEARCH THE ALIASES TOO. product_translations has always modelled "one product, many
+        # names" — and until 2026-07-31 no query touched it, so every alias anyone recorded was
+        # WRITE-ONLY. That is the whole point of the table: the packet says "GIZEH BLACK King
+        # Size Slim", the wholesaler's row says "Gizeh King Size Slim", and neither is wrong.
+        # Each candidate is scored on its BEST name — its own or any alias — so recording an
+        # English name once makes that product findable in English forever, for every shop.
         rows = (await db.execute(_text(
-            "SELECT id, name, price, image_url, sku, barcode, category, "
-            "       GREATEST(similarity(norm_name, :nn), "
-            "                word_similarity(:nn, norm_name)) AS sim "
-            "FROM (SELECT id, name, price, image_url, sku, barcode, category, "
-            f"             {_sql_norm_name('name')} AS norm_name "
-            "      FROM products WHERE is_active) p "
-            "WHERE GREATEST(similarity(norm_name, :nn), "
-            "               word_similarity(:nn, norm_name)) > :th "
+            "SELECT id, name, price, image_url, sku, barcode, category, MAX(sim) AS sim FROM ("
+            "  SELECT id, name, price, image_url, sku, barcode, category, "
+            "         GREATEST(similarity(norm_name, :nn), "
+            "                  word_similarity(:nn, norm_name)) AS sim "
+            "  FROM (SELECT id, name, price, image_url, sku, barcode, category, "
+            f"               {_sql_norm_name('name')} AS norm_name "
+            "        FROM products WHERE is_active "
+            "        UNION ALL "
+            "        SELECT p.id, p.name, p.price, p.image_url, p.sku, p.barcode, p.category, "
+            f"               {_sql_norm_name('t.name')} AS norm_name "
+            "        FROM products p JOIN product_translations t ON t.product_id = p.id "
+            "        WHERE p.is_active AND t.name IS NOT NULL AND t.name <> '') q"
+            ") scored "
+            "WHERE sim > :th "
+            "GROUP BY id, name, price, image_url, sku, barcode, category "
             "ORDER BY sim DESC LIMIT :lim"),
             {"nn": nn, "th": threshold, "lim": limit})).fetchall()
     except Exception:
@@ -367,7 +380,17 @@ async def _name_match_candidates(
         if brands_conflict(name, r.name):
             continue
         # A variant is only a duplicate of the SAME size — 2g is never a dupe of 10g.
-        if same_size_only and _product_size(r.name) != want:
+        #
+        # BUT an ABSENT size on the query side means "not stated", NOT "sizeless". Typing three
+        # words off a packet — "gizeh king", "gizeh air plus" — carries no size token, and
+        # comparing "" against "200er" then discarded every sized variant in the catalogue. That
+        # is the common case, not the edge case: the whole 15-second path is built on typing a
+        # few words. Measured 2026-07-31 — "Gizeh Air Plus cigarette tubes 200" returned NOTHING
+        # while "Zigaretten-Hülsen 200er Gizeh Air Plus" scored 1.000 on the same row.
+        #
+        # So filter only when we actually know both sizes. Same lesson as pc./Stk. earlier today:
+        # a filter that treats "unknown" as a value throws away the right answer.
+        if same_size_only and want and not _same_size(want, _product_size(r.name)):
             continue
         out.append({
             "id": str(r.id), "name": r.name,
@@ -376,6 +399,27 @@ async def _name_match_candidates(
             "category": r.category, "sim": round(float(r.sim), 3),
         })
     return out
+
+
+# German counts a pack two ways and both are ordinary: "200er Hülsen" and "200 Stk." mean the
+# same 200 things, and an English packet says "200 pcs". `er` and `stk` are both COUNT units, so
+# when both sides are counts, only the NUMBER decides. Deliberately narrow — it never merges 2g
+# with 2ml, and never guesses across unit families.
+_COUNT_UNITS = {"stk", "er"}
+
+
+def _same_size(a: str, b: str) -> bool:
+    """Do two normalised size tokens ('200er', '200stk', '2g') mean the same pack?"""
+    if a == b:
+        return True
+    if not a or not b:
+        return False
+    import re as _re
+    ma, mb = _re.match(r"([\d.]+)(\D+)$", a), _re.match(r"([\d.]+)(\D+)$", b)
+    if not ma or not mb:
+        return False
+    return (ma.group(1) == mb.group(1)
+            and ma.group(2) in _COUNT_UNITS and mb.group(2) in _COUNT_UNITS)
 
 
 def _clean_barcode(raw) -> str:
