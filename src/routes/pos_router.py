@@ -365,10 +365,12 @@ async def _name_match_candidates(
         # Each candidate is scored on its BEST name — its own or any alias — so recording an
         # English name once makes that product findable in English forever, for every shop.
         rows = (await db.execute(_text(
-            "SELECT id, name, price, image_url, sku, barcode, category, MAX(sim) AS sim FROM ("
+            "SELECT id, name, price, image_url, sku, barcode, category, "
+            "       MAX(sim) AS sim, MAX(tight) AS tight FROM ("
             "  SELECT id, name, price, image_url, sku, barcode, category, "
             "         GREATEST(similarity(norm_name, :nn), "
-            "                  word_similarity(:nn, norm_name)) AS sim "
+            "                  word_similarity(:nn, norm_name)) AS sim, "
+            "         similarity(norm_name, :nn) AS tight "
             "  FROM (SELECT id, name, price, image_url, sku, barcode, category, "
             f"               {_sql_norm_name('name')} AS norm_name "
             "        FROM products WHERE is_active "
@@ -380,7 +382,17 @@ async def _name_match_candidates(
             ") scored "
             "WHERE sim > :th "
             "GROUP BY id, name, price, image_url, sku, barcode, category "
-            "ORDER BY sim DESC LIMIT :lim"),
+            # TIE-BREAK ON CLOSENESS. word_similarity asks "are your words IN this name?", so
+            # every Gizeh King Size variant answers 1.000 to "gizeh king size" — the exact row
+            # and "…Slim Beats Goa mit Aktivkohle Filter" score identically, the order among
+            # them is arbitrary, and the LIMIT then cut the exact match out of the list
+            # entirely. Angel typed the product's exact name and did not see it: "so not an
+            # exact science."
+            #
+            # Plain similarity separates them cleanly, because it penalises the extra words:
+            #   exact 1.000 · +slim 0.789 · +slim pink edition 0.469 · +beats goa… 0.300
+            # So: rank by the best-of score, then by how CLOSE the whole name is.
+            "ORDER BY sim DESC, tight DESC, length(name) ASC LIMIT :lim"),
             {"nn": nn, "th": threshold, "lim": limit})).fetchall()
     except Exception:
         await db.rollback()
@@ -899,7 +911,10 @@ async def catalog_match_candidates(
     """
     # 0.5, not the create guard's 0.65: here a wrong proposal costs a glance, and a MISSING
     # proposal costs five minutes of rebuilding a product that was already there.
-    cands = await _name_match_candidates(db, req.name, threshold=0.5, limit=6)
+    # 8, not 6: this catalogue holds ten Gizeh King Size variants and a short query matches
+    # them all. With the exact match now ranked first the list is useful, but a couple of
+    # extra rows costs nothing and a truncated family is what hid the right answer before.
+    cands = await _name_match_candidates(db, req.name, threshold=0.5, limit=8)
 
     # Same size only is right for blocking a create; here it would hide the sibling the
     # operator most needs to see (Gizeh + Tips vs Gizeh mit Aktivkohle) — different products,
