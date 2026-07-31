@@ -17,6 +17,15 @@
   optional chaining (`?.`) is a SYNTAX error, so an entire <script> block refuses to parse
   and the page arrives blank or half-dead, with nothing in the UI to say why.
 
+  WHY IT LIVES IN /static AND NOT IN onboarding/. Because the device that needs checking is
+  never the machine holding the repo. A tablet has no access to a file on your laptop, and
+  "email yourself the HTML" is a workaround, not a tool. Served by the app, it is one URL
+  away from anything that can reach the till at all:
+
+        <your Banco address>/static/tablet-check.html
+
+  No login needed — it reads only the browser's own capabilities and stores nothing.
+
   Repo lesson, 2026-07-28: "when a device's behaviour makes no sense, read its own status
   registers before touching settings." This is that, for a browser.
 

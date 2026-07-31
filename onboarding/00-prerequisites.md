@@ -34,11 +34,21 @@ browser treats as a *syntax* error — it refuses to parse the whole script bloc
 half-dead with nothing on screen explaining why. Flexbox `gap` is the other floor (Chrome 84); below it the
 layout survives but every gap collapses.
 
-> **Don't guess the version — measure it.** Open
-> [`testsheets/TABLET-CHECK.html`](testsheets/TABLET-CHECK.html) **on the device itself**. It reports the
-> browser, checks each capability the till needs, and gives a plain verdict plus a copyable report. It also
-> answers the "why are there no scroll bars on my tablet" question, which is normal touch behaviour rather
-> than a fault.
+> **Don't guess the version — measure it.** On the device itself, open:
+>
+> ```
+> <your Banco address>/static/tablet-check.html
+> ```
+>
+> e.g. `https://shop.example.com/static/tablet-check.html`, or `http://192.168.1.42:3000/static/tablet-check.html`
+> if you're pointing a tablet at a laptop on the same wifi. **No login needed** — it reads only the browser's
+> own capabilities and stores nothing.
+>
+> It reports the browser, checks each capability the till needs, tests whether a shelf-intake session could
+> survive, and gives a plain verdict plus a copyable report. It also answers the "why are there no scroll bars
+> on my tablet" question by *measuring* the scrollbar gutter — normal touch behaviour, not a fault.
+>
+> It is served by the app on purpose: the device you need to check is never the machine holding this repo.
 
 ## Step A · Check the machine (no tools needed yet)
 
