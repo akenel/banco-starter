@@ -290,7 +290,20 @@ async def get_pos_config(db: AsyncSession = Depends(get_db_session)):
 _NAME_NORM = (
     (r"vorgebaute[rn]?|pre[-\s]?built|pre[-\s]?rolled?", "preroll"),
     (r"\bstk\.?\b|\bst[üu]ck\b|\bpcs?\.?\b|\bpiece[s]?\b", "pc"),
-    (r"schwarz", "black"), (r"wei[sß]{1,2}\b", "white"), (r"gr[üu]n", "green"),
+    # SPACING IS NOT MEANING. A packet says "KingSize", the catalogue says "King Size", and
+    # trigram similarity scores that pair 0.500 — which loses to a `> 0.5` threshold by nothing
+    # at all, and Banco then declares a product "genuinely new" while its row sits right there.
+    # Measured 2026-07-31 on the live catalogue: 85 rows say "King Size", 2 say "KingSize", 1
+    # says "KSS". Splitting the compound takes the same pair to 0.682.
+    #
+    # Only well-evidenced forms from this catalogue — a general "split any compound" rule would
+    # start inventing word boundaries inside brand names.
+    # KSS before KS so the longer abbreviation wins. Checked every occurrence in the live
+    # catalogue before adding KS — all 12 mean King Size ("Eurocones KS 800stk", "Raw KS slim
+    # Classic brown", "G-Rollz ... Pink KS Papers"), none is a brand or a size code.
+    (r"\bking[\s-]?size\b", "king size"), (r"\bkss\b", "king size slim"),
+    (r"\bks\b", "king size"),
+    (r"\bschwarz", "black"), (r"wei[sß]{1,2}\b", "white"), (r"gr[üu]n", "green"),
     (r"\brot\b", "red"), (r"blau", "blue"), (r"grau", "grey"),
     (r"gelb", "yellow"), (r"braun", "brown"), (r"violett?", "purple"),
     (r"silber", "silver"), (r"gold(en)?", "gold"),
