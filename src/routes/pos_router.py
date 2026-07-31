@@ -10284,6 +10284,22 @@ async def pos_hardware(request: Request):
     return templates.TemplateResponse("pos/hardware.html", {"request": request, "codes": codes})
 
 
+# Shops whose product pages PUBLISH the EAN, so a scoped web search on a bare barcode lands on a
+# real record instead of a marketplace guess. Angel, after finding it himself: "I see EAN numbers
+# on every 420 article — we're supposed to simply search `42425700 site:fourtwenty.ch`."
+#
+# Their own site search does NOT index EANs (verified 2026-07-31 — /catalogsearch returns a
+# no-results page for a code that is printed on the product page). Google does index them, so the
+# scoped query is the working route, and it is one click rather than a crawl.
+#
+# SWISS-SPECIFIC, and it should become a store setting — a shop in Italy needs its own list.
+# Kept here, named and commented, rather than buried in a template.
+EAN_LOOKUP_SITES = [
+    {"label": "420", "domain": "fourtwenty.ch",
+     "why": "publishes EAN + a full spec table on every article (~10,000 items, DE + EN)"},
+]
+
+
 @html_router.get("/pos/shelf-intake", response_class=HTMLResponse, name="pos_shelf_intake")
 async def pos_shelf_intake(request: Request):
     """🛒 Shelf Intake — dump a scanner gun's offline cache and turn it into a catalogue.
@@ -10293,7 +10309,8 @@ async def pos_shelf_intake(request: Request):
     in batches of ten at a desk. See CATALOG-IDENTITY.md for why, and the API endpoints
     (/catalog/shelf-intake/triage,
     /catalog/match-candidates) for what it calls — they enforce the role; this serves the shell."""
-    return templates.TemplateResponse("pos/shelf_intake.html", {"request": request})
+    return templates.TemplateResponse("pos/shelf_intake.html",
+                                      {"request": request, "ean_sites": EAN_LOOKUP_SITES})
 
 
 @html_router.get("/pos/cleanup", response_class=HTMLResponse, name="pos_cleanup")

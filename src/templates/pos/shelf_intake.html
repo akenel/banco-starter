@@ -189,8 +189,16 @@
                   </p>
                 </div>
                 <div class="flex gap-2 flex-wrap">
+                  <!-- Scoped first, open web second. A bare 8-digit code on the open web is a
+                       lottery; the same code scoped to a shop that PUBLISHES EANs lands on a real
+                       record with a spec table behind it. -->
+                  {% for site in ean_sites %}
+                  <a :href="'https://www.google.com/search?q=' + encodeURIComponent(row.barcode + ' site:{{ site.domain }}')"
+                     target="_blank" rel="noopener" class="btn-primary text-sm"
+                     title="{{ site.why }}">🎯 {{ site.label }}</a>
+                  {% endfor %}
                   <a :href="'https://www.google.com/search?q=' + encodeURIComponent(row.barcode)"
-                     target="_blank" rel="noopener" class="btn-secondary text-sm">🌐 Search this EAN</a>
+                     target="_blank" rel="noopener" class="btn-secondary text-sm">🌐 Web</a>
                   <button @click="skip(row)" x-show="row.status === 'todo'" class="btn-secondary text-sm">Skip</button>
                 </div>
               </div>

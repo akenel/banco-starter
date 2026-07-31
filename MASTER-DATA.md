@@ -81,6 +81,47 @@ The English name is not a replacement for the German one. It is another way in.
 
 ---
 
+## Where the master data actually comes from
+
+Found 2026-07-31, by Angel, after a day of being told there was no source: **fourtwenty.ch
+publishes an EAN and a full spec table on every article.** Roughly 10,000 items, German and
+English, with its own taxonomy.
+
+```
+EAN 42422884 · Länge 107mm · Breite 44mm · Gewicht 7.38g · Füllmenge 34 papers
+Farbe weiss · Material Papier · Genaue Materialbezeichnung: Gummi arabicum, Hanffaser, Flachs
+Papierdicke extra dünn · Vegan Ja · Certificates Recycling
+```
+
+That is the SAP-style basic data this note is about, and it was there the whole time. Two things
+hid it, both now fixed:
+
+- **the EAN is in body text, not JSON-LD** — so a shop that genuinely publishes EANs looked to
+  Banco like one that doesn't. Now extracted, but only when the digits are LABELLED *and* pass the
+  GTIN check digit.
+- **the spec table renders as `<td data-th="Label">Value</td>`** — now lifted whole into
+  `products.raw_facets`, verbatim.
+
+### How to reach it: a scoped search, not a crawl
+
+Their own site search does **not** index EANs (verified: `/catalogsearch/result/?q=…` returns a
+no-results page for a code printed on the product page). Google does. So the working route is the
+one Angel named:
+
+```
+42425700 site:fourtwenty.ch
+```
+
+One click from an unknown code — `EAN_LOOKUP_SITES` in `pos_router.py`, shown as a button on every
+unresolved row. **This is deliberately not a bulk crawler.** Their `robots.txt` allows crawling but
+sets `Crawl-delay: 25`, which is ~35 hours for 5,000 products; and it is another shop's catalogue,
+so harvesting it wholesale is a decision for the shop owner, not a default. One lookup, driven by a
+human holding the product, is ordinary use of a public page.
+
+**Swiss-specific.** A shop elsewhere needs its own list — this should become a store setting.
+
+---
+
 ## What is worth doing next, in order
 
 1. **Search `product_translations`.** The table exists, holds real rows, and no query touches it.
