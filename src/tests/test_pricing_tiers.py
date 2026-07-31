@@ -125,13 +125,89 @@ def test_bundle_line_totals(qty, line, brk):
 
 
 def test_bundle_vs_per_unit_differ_on_same_data():
-    # Same rows, different meaning. per_unit "3 → 4.00" = 4.00 EACH = 12.00 for 3 (a price hike);
-    # bundle "3 for 4.00" = 4.00 total. This is exactly the bug Felix hit.
-    assert tier_line_total(BUNDLE, Decimal("1.40"), 3, mode="per_unit") == Decimal("12.00")
+    # Same rows, different meaning: bundle "3 for 4.00" = 4.00 total.
+    #
+    # UPDATED 2026-07-31. This test used to assert that per_unit on the SAME data charged
+    # 12.00 — "a price hike… exactly the bug Felix hit" — i.e. it documented the hazard as
+    # expected behaviour instead of preventing it. Then TAM-21669 turned up live with exactly
+    # that data and tier_mode NULL, one sale away from charging CHF 12.00 for three packs of
+    # papers that cost CHF 4.20 flat.
+    #
+    # A quantity break can never cost more than buying singles, so mis-flagged data is now
+    # re-read as a pack total rather than rung up. Setting tier_mode is still the correct fix;
+    # this is the net beneath it.
     assert tier_line_total(BUNDLE, Decimal("1.40"), 3, mode="bundle") == Decimal("4.00")
+    assert tier_line_total(BUNDLE, Decimal("1.40"), 3, mode="per_unit") == Decimal("4.00")
+    # …and never worse than the flat price, whichever way it is read.
+    assert tier_line_total(BUNDLE, Decimal("1.40"), 3, mode="per_unit") <= Decimal("4.20")
 
 
 def test_per_unit_default_unchanged():
     # No mode arg → per_unit (back-compat): GIZEH ladder still per-unit each.
     assert tier_line_total(GIZEH, Decimal("4.90"), 10) == Decimal("45.00")   # 10 × 4.50
     assert tier_unit_price(GIZEH, Decimal("4.90"), 10)[0] == Decimal("4.50")
+
+
+# ═════════════════════════════════════════════════════════════════════════════════════════
+# A QUANTITY BREAK CAN NEVER COST MORE THAN BUYING ONE.
+#
+# Found live 2026-07-31 on TAM-21669 "Gizeh King Size" — a product Angel was about to sell:
+#
+#     base CHF 1.40 · tiers [{3: 4.00}, {10: 12.00}] · tier_mode NULL
+#
+# The till falls back to per_unit when tier_mode is unset, so three packs would have rung up
+# at 3 × 4.00 = CHF 12.00 against a flat price of CHF 4.20, and ten at CHF 120.00 against
+# 14.00. A 3x overcharge on a live product in a live shop.
+#
+# The data is plainly bundle-shaped and simply never had its mode recorded. Rather than guess
+# intent, enforce the invariant every quantity break in the world obeys: buying more must not
+# raise the unit price. Both recovery branches move money toward the CUSTOMER, which is the
+# only safe direction for a guess about price.
+# ═════════════════════════════════════════════════════════════════════════════════════════
+from decimal import Decimal
+from src.services.pricing import tier_unit_price, tier_line_total
+
+_GIZEH = [{"min_qty": 1, "unit_price": "1.40"},
+          {"min_qty": 3, "unit_price": "4.00"},
+          {"min_qty": 10, "unit_price": "12.00"}]
+
+
+def test_the_live_overcharge_is_gone():
+    """Three packs must not cost CHF 12.00 when one costs CHF 1.40."""
+    assert tier_line_total(_GIZEH, "1.40", 3, "per_unit") == Decimal("4.00")
+    assert tier_line_total(_GIZEH, "1.40", 10, "per_unit") == Decimal("12.00")
+
+
+def test_it_never_charges_more_than_the_flat_price():
+    """The invariant, stated directly: no quantity is worse off than buying singles."""
+    for qty in range(1, 15):
+        line = tier_line_total(_GIZEH, "1.40", qty, "per_unit")
+        assert line <= Decimal("1.40") * qty, f"qty {qty} charged {line}"
+
+
+def test_an_explicit_bundle_still_behaves_exactly_as_before():
+    assert tier_line_total(_GIZEH, "1.40", 3, "bundle") == Decimal("4.00")
+    assert tier_line_total(_GIZEH, "1.40", 10, "bundle") == Decimal("12.00")
+
+
+def test_a_genuine_per_unit_discount_is_untouched():
+    """The guard must not disturb correct data: descending per-unit tiers are the normal case."""
+    tiers = [{"min_qty": 1, "unit_price": "3.90"},
+             {"min_qty": 10, "unit_price": "3.70"},
+             {"min_qty": 50, "unit_price": "3.50"}]
+    assert tier_unit_price(tiers, "3.90", 10, "per_unit")[0] == Decimal("3.70")
+    assert tier_unit_price(tiers, "3.90", 50, "per_unit")[0] == Decimal("3.50")
+    assert tier_line_total(tiers, "3.90", 50, "per_unit") == Decimal("175.00")
+
+
+def test_nonsense_in_either_reading_falls_back_to_the_flat_price():
+    """A tier that is worse than base however you read it is bad data, not a price."""
+    tiers = [{"min_qty": 2, "unit_price": "99.00"}]
+    unit, brk = tier_unit_price(tiers, "1.40", 2, "per_unit")
+    assert unit == Decimal("1.40") and brk is False
+    assert tier_line_total(tiers, "1.40", 2, "per_unit") == Decimal("2.80")
+
+
+def test_below_the_first_break_nothing_changes():
+    assert tier_line_total(_GIZEH, "1.40", 1, "per_unit") == Decimal("1.40")
+    assert tier_line_total(_GIZEH, "1.40", 2, "per_unit") == Decimal("2.80")

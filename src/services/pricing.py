@@ -11,6 +11,7 @@ flag so the checkout can exclude the line from the discount base.
 unit_price is stored as a STRING in JSON (e.g. "4.90") to keep money exact through the
 JSON round-trip; everything quantizes to cents on read.
 """
+import logging
 from decimal import Decimal, ROUND_HALF_UP
 
 _CENT = Decimal("0.01")
@@ -19,6 +20,9 @@ _CENT = Decimal("0.01")
 def _q(v) -> Decimal:
     """Quantize any numeric-ish value to cents (money-safe compare/serialize)."""
     return Decimal(str(v)).quantize(_CENT, rounding=ROUND_HALF_UP)
+
+
+logger = logging.getLogger(__name__)
 
 
 def tier_unit_price(price_tiers, base_price, qty, mode="per_unit"):
@@ -55,6 +59,36 @@ def tier_unit_price(price_tiers, base_price, qty, mode="per_unit"):
         eff = Decimal(str(best_up)) / Decimal(best_qty)   # pack total / pack size, full precision
     else:
         eff = _q(best_up)
+
+    # ── A QUANTITY BREAK CAN NEVER COST MORE THAN BUYING ONE ──────────────────────────────
+    #
+    # Found live 2026-07-31 on TAM-21669 "Gizeh King Size": base CHF 1.40, tiers
+    # [{3: 4.00}, {10: 12.00}], and tier_mode NULL — so the till fell back to per_unit and
+    # would have charged 3 × 4.00 = CHF 12.00 for three packs that cost CHF 4.20 flat, and
+    # CHF 120.00 for ten. A 3x overcharge, on a live product, in a live shop.
+    #
+    # The data is plainly BUNDLE-shaped ("3 for 4.00", "10 for 12.00" — both a real discount
+    # against 4.20 and 14.00), it just never had its mode recorded. Rather than guess the
+    # operator's intent, enforce the one thing that is true of every quantity break in
+    # existence: BUYING MORE MUST NEVER RAISE THE UNIT PRICE. A "per unit" tier above the base
+    # price is a contradiction, not a price.
+    #
+    # So: re-read such a tier as the pack TOTAL, which is what it always was — and if even that
+    # exceeds base, ignore the tier entirely and charge the flat price. Both branches can only
+    # ever move money toward the customer, which is the only safe direction for a guess.
+    if eff > base:
+        as_bundle = Decimal(str(best_up)) / Decimal(best_qty)
+        if as_bundle <= base:
+            logger.warning(
+                "tier price %s for min_qty %s is ABOVE the base price %s — reading it as a pack "
+                "total (%s/unit). Set tier_mode='bundle' on this product to make it explicit.",
+                best_up, best_qty, base, as_bundle)
+            return as_bundle, best_qty >= 2
+        logger.warning(
+            "tier price %s for min_qty %s exceeds the base price %s any way it is read — "
+            "ignoring the tier and charging the flat price.", best_up, best_qty, base)
+        return base, False
+
     return eff, best_qty >= 2
 
 
