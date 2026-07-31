@@ -133,6 +133,37 @@ Aktivkohlefilter` — which are different products.
 Seen for real: a Biobizz Cal-Mag whose barcode would not read. Typing the digits found it. Hunting
 by name would not have.
 
+### The wholesaler's row is the BETTER record — you are only adding the EAN
+
+Angel, 2026-07-31, after working it by hand:
+
+> *"Now that we have all that information, backtrack and look in the catalogue and say — hey, I
+> found the same thing on Tamar, it just didn't have the EAN. Now that you have it, that's the one
+> to enrich, because Tamar has the better descriptions generally, has the tier pricing, has a
+> standard layout, more specs."*
+
+This closes the loop, and it changes what a web lookup is FOR. The page you find on the internet
+is not the destination. It is how you learn the product's proper name — and with that name, the
+catalogue you already own usually turns out to have it.
+
+So the order is:
+
+```
+scan  →  type what you see  →  found?  →  bind. done.
+                             └ no →  web lookup  →  now you know the real name
+                                                 →  SEARCH THE CATALOGUE AGAIN
+                                                 →  found?  →  bind to THAT row
+                                                 └ no →  only now, create new
+```
+
+**Never keep a hand-made row when the wholesaler has the same product.** Theirs has the fuller
+description, the quantity breaks, the supplier link and the shape every other row in the shop has.
+Yours has one thing theirs lacks — the EAN off the packet — and that is a field, not a product.
+
+It also settles the "which language should the title be?" argument by not having it: the surviving
+row keeps the German wholesale title, which is what the counter already says out loud in a Swiss
+shop. The English name from the packet becomes an alias to search by, not a replacement.
+
 ### An EAN means the product is already described somewhere
 
 > *"If it has an EAN number, there's no point in making the product out. There's gonna be a nice

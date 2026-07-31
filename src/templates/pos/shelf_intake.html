@@ -296,6 +296,17 @@
                 <div x-show="row.checked" style="display:none">
                   <template x-if="row.candidates && row.candidates.length">
                     <div>
+                      <div x-show="row.foundAfterWeb" style="display:none"
+                           class="bg-amber-50 border-2 border-amber-300 rounded-lg p-3 mb-3 text-sm text-amber-900">
+                        <p class="font-bold mb-1">The catalogue does have this after all.</p>
+                        <p>
+                          Your words didn't find it, but the proper name from that page did. <b>Bind to the
+                          catalogue row rather than creating a new one</b> — the wholesaler's record is the
+                          better one: fuller description, quantity-break pricing, supplier data, and the same
+                          layout as everything else in the shop. All it was ever missing is the EAN, which
+                          you are holding.
+                        </p>
+                      </div>
                       <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Is it one of these?</p>
                       <!-- WHEN EVERYTHING SCORES 1.000, THE SCORE IS USELESS.
                            "gizeh king size" matches TEN rows perfectly — Slim, Slim mit Filter,
@@ -528,7 +539,7 @@ function shelfIntake() {
         this.result = r;
         this.pending = (r.unknown || []).map(u => ({
           ...u, status: 'todo', query: '', url: '', facts: null, price: null, title: '',
-          productId: '', redoId: '',
+          productId: '', redoId: '', foundAfterWeb: false,
           candidates: null, siblings: null, checked: false, busy: false, error: '', boundTo: '',
         }));
         this.batchStart = 0;
@@ -583,8 +594,14 @@ function shelfIntake() {
       try {
         const r = await API.post('/api/v1/pos/catalog/match-candidates',
                                  { name: row.query.trim(), barcode: row.barcode });
+        var hadNone = row.checked && row.candidates && !row.candidates.length;
         row.candidates = r.candidates || [];
         row.siblings = r.siblings || [];
+        // Angel's loop, closed: you couldn't find it by the words on the packet, so you went to
+        // the web and learned its PROPER name — and with that name the catalogue does have it
+        // after all. Worth shouting, because at this moment the operator is one click from
+        // creating a duplicate of a row that is better than anything they are about to type.
+        row.foundAfterWeb = hadNone && row.candidates.length > 0;
         row.checked = true;
       } catch (e) {
         row.error = (e && e.message) || 'Lookup failed.';
