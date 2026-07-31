@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shelf Intake — replay test</title>
+<!--
+  SHELF INTAKE REPLAY TEST — 2026-07-31
+
+  Six products Angel created BY HAND at the shop on 2026-07-30, each of which already
+  existed as a Tamar row. The point is not "does the software run" — it is: does the
+  30-second path beat the 5-minute one, on real products, with the packets to hand?
+
+  Every target row below was enriched from the shop's own page the same evening, so each
+  now carries its true retail quantity breaks. If a bind works, those breaks come with it —
+  that is the whole argument for binding rather than re-creating.
+
+  Self-contained, records pass/fail, exports a report. Served from /static so it opens on
+  the till or the tablet: the device doing the work never has the repo on it.
+-->
+<style>
+  body{font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;margin:0;
+       padding:16px;background:#f6f7f9;color:#111}
+  h1{font-size:21px;margin:0 0 4px}
+  .sub{color:#666;font-size:13px;margin:0 0 14px}
+  .card{background:#fff;border-radius:12px;padding:14px 16px;margin-bottom:12px;
+        box-shadow:0 1px 3px rgba(0,0,0,.09)}
+  .card.pass{border-left:5px solid #059669}.card.fail{border-left:5px solid #dc2626}
+  h2{font-size:15px;margin:0 0 6px}
+  code{font:12.5px ui-monospace,Menlo,Consolas,monospace;background:#f1f3f5;
+       border:1px solid #e3e6ea;border-radius:5px;padding:1px 5px}
+  .big{font:16px ui-monospace,Menlo,monospace;font-weight:700;letter-spacing:.5px}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;margin:8px 0}
+  td{padding:5px 4px;border-bottom:1px solid #eee;vertical-align:top}
+  td.k{color:#555;width:38%}
+  .tiers{font:12.5px ui-monospace,Menlo,monospace;color:#065f46;background:#ecfdf5;
+         border-radius:6px;padding:6px 8px;display:inline-block}
+  button{font:inherit;padding:7px 13px;border-radius:8px;border:1px solid #ccc;
+         background:#fff;cursor:pointer;margin-right:6px}
+  button.p{border-color:#059669;color:#059669}button.p.on{background:#059669;color:#fff}
+  button.f{border-color:#dc2626;color:#dc2626}button.f.on{background:#dc2626;color:#fff}
+  input.note{width:100%;padding:7px 9px;border:1px solid #ddd;border-radius:7px;
+             font:inherit;margin-top:7px}
+  .steps{margin:8px 0 0;padding-left:20px}.steps li{margin:3px 0}
+  #summary{position:sticky;top:0;z-index:5;background:#111;color:#fff;border-radius:12px;
+           padding:12px 16px;margin-bottom:14px;font-weight:600}
+  .why{background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:9px 11px;
+       font-size:13px;color:#78350f;margin:8px 0}
+  pre{white-space:pre-wrap;font:12px ui-monospace,Menlo,monospace;background:#f1f3f5;
+      border-radius:8px;padding:10px}
+</style>
+</head>
+<body>
+
+<h1>Shelf Intake — replay test</h1>
+<p class="sub">Six products you built by hand on 30 July that already existed. Same products, the new
+way. <b>Time each one.</b></p>
+
+<div id="summary">— not started —</div>
+
+<div class="card">
+  <h2>Before you start</h2>
+  <ol class="steps">
+    <li>Open <code>/pos/shelf-intake</code> on the tablet and press <b>🗑️ Start over</b>.</li>
+    <li>Have the six packets in front of you. <b>The packet decides</b>, not the screen.</li>
+    <li>For each row below: delete your hand-made product first (Catalog → search the barcode →
+        Edit → delete), then scan or type the code into shelf intake.</li>
+  </ol>
+  <div class="why">
+    <b>What is being tested.</b> Not "does it run". Whether <b>type two words → tap → bound</b> beats
+    hunting the web — and whether the bind brings the wholesale row's quantity breaks with it. Those
+    six ladders were pulled from the shop's own pages tonight; none of them existed this morning.
+  </div>
+</div>
+
+<div id="cases"></div>
+
+<div class="card">
+  <h2>Report</h2>
+  <button onclick="copyReport()">📋 Copy the report</button>
+  <button onclick="localStorage.removeItem(KEY);location.reload()">↺ Reset</button>
+  <pre id="report"></pre>
+</div>
+
+<script>
+/* ES5-ish on purpose — this has to open on any till in the shop. */
+var KEY = 'banco_shelf_intake_test_v1';
+
+var CASES = [
+  { code:'85966789',      mine:'Greengo slim Rolls',
+    target:'Greengo Rolls Slim', sku:'TAM-7056', price:'2.50',
+    type:'greengo rolls',
+    tiers:'10+ → 2.40 · 24+ → 1.90 · 72+ → 1.80' },
+  { code:'84157065',      mine:'Smoking Red King Size',
+    target:'Smoking King Size red thinnest', sku:'TAM-2827', price:'1.20',
+    type:'smoking king size red',
+    tiers:'10+ → 1.00 · 50+ → 0.70 · 150+ → 0.65 · 500+ → 0.60' },
+  { code:'84190369',      mine:'Smoking Green King Size',
+    target:'Smoking King Size green', sku:'TAM-2826', price:'1.20',
+    type:'smoking king size green',
+    tiers:'10+ → 1.00 · 50+ → 0.70 · 150+ → 0.65 · 500+ → 0.60' },
+  { code:'84157072',      mine:'smoking blue kingsize',
+    target:'Smoking King Size blue', sku:'TAM-2824', price:'1.00',
+    type:'smoking king size blue',
+    tiers:'10+ → 1.00 · 50+ → 0.70 · 150+ → 0.65 · 500+ → 0.60',
+    note:'Two candidates here — plain, and “mit Filter”. Check the packet.' },
+  { code:'716165174905',  mine:'Raw Organic Rolls',
+    target:'Raw Rolls Organic Hemp', sku:'TAM-6847', price:'3.20',
+    type:'raw rolls organic',
+    tiers:'10+ → 2.00 · 24+ → 1.80 · 72+ → 1.70' },
+  { code:'7611889110310', mine:'Quöllfrisch Hell',
+    target:'Bier Quöllfrisch Hell 5dl', sku:'TAM-20067', price:'3.00',
+    type:'quöllfrisch',
+    tiers:'6+ → 2.60 · 12+ → 2.30 · 24+ → 2.10' }
+];
+
+var state = {};
+try { state = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) { state = {}; }
+
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){} }
+
+function mark(code, v){
+  state[code] = state[code] || {};
+  state[code].result = (state[code].result === v) ? '' : v;
+  save(); render();
+}
+function note(code, v){ state[code] = state[code] || {}; state[code].note = v; save(); summary(); }
+
+function summary(){
+  var p=0,f=0;
+  CASES.forEach(function(c){ var r=(state[c.code]||{}).result; if(r==='pass')p++; if(r==='fail')f++; });
+  var el=document.getElementById('summary');
+  el.textContent = p+' passed · '+f+' failed · '+(CASES.length-p-f)+' not done';
+  el.style.background = f ? '#991b1b' : (p===CASES.length ? '#065f46' : '#111');
+  report();
+}
+
+function report(){
+  var out='BANCO — SHELF INTAKE REPLAY TEST\n'+new Date().toString()+'\n\n';
+  CASES.forEach(function(c){
+    var s=state[c.code]||{};
+    out += (s.result==='pass'?'[PASS] ':s.result==='fail'?'[FAIL] ':'[    ] ')
+        + c.code+'  '+c.mine+'  ->  '+c.target+' ('+c.sku+')\n';
+    if(s.note) out += '        note: '+s.note+'\n';
+  });
+  document.getElementById('report').textContent = out;
+  return out;
+}
+
+function copyReport(){
+  var t=report();
+  if(navigator.clipboard && window.isSecureContext){
+    navigator.clipboard.writeText(t).then(function(){alert('Copied.');},
+      function(){window.prompt('Copy this:',t);});
+  } else { window.prompt('Copy this:', t); }
+}
+
+function render(){
+  var html='';
+  CASES.forEach(function(c,i){
+    var s=state[c.code]||{};
+    html += '<div class="card '+(s.result||'')+'">'
+      + '<h2>'+(i+1)+' · <span class="big">'+c.code+'</span></h2>'
+      + '<table>'
+      + '<tr><td class="k">Your hand-made row (delete it)</td><td>'+c.mine+'</td></tr>'
+      + '<tr><td class="k">Type this in ①</td><td><code>'+c.type+'</code></td></tr>'
+      + '<tr><td class="k">Expect to bind to</td><td><b>'+c.target+'</b> · '+c.sku+' · CHF '+c.price+'</td></tr>'
+      + '<tr><td class="k">And it should bring</td><td><span class="tiers">'+c.tiers+'</span></td></tr>'
+      + '</table>'
+      + (c.note ? '<div class="why">'+c.note+'</div>' : '')
+      + '<ol class="steps">'
+      + '<li>Delete your <code>LZ-</code> row for this barcode.</li>'
+      + '<li>Shelf intake → enter <code>'+c.code+'</code> → Triage.</li>'
+      + '<li>Type <code>'+c.type+'</code> → <b>Check catalogue</b>.</li>'
+      + '<li>Tap <b>That\'s it</b> on <b>'+c.target+'</b>.</li>'
+      + '<li>Sell one at <code>/pos/scan</code>: it must ring up CHF '+c.price
+      + ' and show the quantity breaks.</li>'
+      + '</ol>'
+      + '<button class="p'+(s.result==='pass'?' on':'')+'" onclick="mark(\''+c.code+'\',\'pass\')">✓ Pass</button>'
+      + '<button class="f'+(s.result==='fail'?' on':'')+'" onclick="mark(\''+c.code+'\',\'fail\')">✗ Fail</button>'
+      + '<input class="note" placeholder="how long did it take? what went wrong?" value="'
+      + (s.note||'').replace(/"/g,'&quot;')+'" oninput="note(\''+c.code+'\',this.value)">'
+      + '</div>';
+  });
+  document.getElementById('cases').innerHTML = html;
+  summary();
+}
+render();
+</script>
+</body>
+</html>
