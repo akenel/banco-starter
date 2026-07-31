@@ -1014,12 +1014,34 @@ async def catalog_merge_products(
     fills = {f: getattr(retire, f) for f in _FILLABLE
              if _blank(getattr(keep, f, None)) and not _blank(getattr(retire, f, None))}
 
+    # QUANTITY BREAKS MOVE AS A PAIR, OR NOT AT ALL.
+    #
+    # price_tiers and tier_mode are one fact in two columns: tiers without their mode is exactly
+    # the state that would have charged CHF 12.00 for three packs of papers this afternoon. So
+    # they are filled together and never independently.
+    #
+    # Angel's live pair, 2026-07-31: TAM-16301 held his real EAN and the right name; TAM-21669
+    # held the quantity breaks — "3 for 4.00, 10 for 12.00", which he called critical. Without
+    # this, merging would have kept the name and silently deleted the pricing.
+    if _blank(getattr(keep, "price_tiers", None)) and not _blank(getattr(retire, "price_tiers", None)):
+        fills["price_tiers"] = retire.price_tiers
+        fills["tier_mode"] = retire.tier_mode or "per_unit"
+
+    # Stock is NOT merged — it is two counts of the same shelf and only a human knows the real
+    # number. Reported so it can't vanish unnoticed.
+    stock_note = None
+    if (retire.stock_quantity or 0) > 0:
+        stock_note = (f"{retire.retired_stock if False else retire.stock_quantity} unit(s) of stock "
+                      f"were recorded on the retired row; {keep.stock_quantity or 0} on the survivor. "
+                      f"Stock is not added up automatically — check the shelf and set the real count.")
+
     plan = {
         "keep": {"id": str(keep.id), "sku": keep.sku, "name": keep.name, "barcode": keep.barcode},
         "retire": {"id": str(retire.id), "sku": retire.sku, "name": retire.name, "barcode": retire.barcode},
         "new_primary_barcode": new_primary,
         "kept_as_aliases": demoted,
         "fields_filled_from_retired": sorted(fills.keys()),
+        "stock_note": stock_note,
         "dry_run": req.dry_run,
     }
     if req.dry_run:

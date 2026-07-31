@@ -130,3 +130,51 @@ def test_nothing_moves_when_the_survivor_is_complete():
     retire = {"description": "x", "image_url": "y", "cost": 2, "raw_facets": {"b": 2},
               "attributes": {"brand": "X"}, "source_lang": "en"}
     assert _fills(keep, retire) == {}
+
+
+# ─────────────────────────────────────────────────────────────────────────────────────────
+# QUANTITY BREAKS MOVE AS A PAIR, OR NOT AT ALL.
+#
+# price_tiers and tier_mode are one fact in two columns. Tiers without their mode is precisely
+# the state that would have charged CHF 12.00 for three packs of papers earlier the same day.
+#
+# Angel's live pair: TAM-16301 held his real EAN and the correct name; TAM-21669 held the
+# quantity breaks he called critical ("3 for 4.00, 10 for 12.00"). Merging on the fields list
+# alone would have kept the name and silently deleted the pricing.
+# ─────────────────────────────────────────────────────────────────────────────────────────
+_TIERS = [{"min_qty": 1, "unit_price": "1.40"},
+          {"min_qty": 3, "unit_price": "4.00"},
+          {"min_qty": 10, "unit_price": "12.00"}]
+
+
+def _tier_fills(keep, retire):
+    out = {}
+    if _blank(keep.get("price_tiers")) and not _blank(retire.get("price_tiers")):
+        out["price_tiers"] = retire["price_tiers"]
+        out["tier_mode"] = retire.get("tier_mode") or "per_unit"
+    return out
+
+
+def test_tiers_and_mode_travel_together():
+    got = _tier_fills({"price_tiers": None, "tier_mode": None},
+                      {"price_tiers": _TIERS, "tier_mode": "bundle"})
+    assert got["price_tiers"] == _TIERS
+    assert got["tier_mode"] == "bundle"
+
+
+def test_tiers_never_arrive_without_a_mode():
+    """A twin with tiers but no mode must not hand over half the fact."""
+    got = _tier_fills({"price_tiers": None}, {"price_tiers": _TIERS, "tier_mode": None})
+    assert got["tier_mode"] == "per_unit"
+    assert "price_tiers" in got
+
+
+def test_a_survivor_with_its_own_tiers_keeps_them():
+    own = [{"min_qty": 1, "unit_price": "3.90"}, {"min_qty": 10, "unit_price": "3.70"}]
+    assert _tier_fills({"price_tiers": own, "tier_mode": "per_unit"},
+                       {"price_tiers": _TIERS, "tier_mode": "bundle"}) == {}
+
+
+def test_no_tiers_anywhere_changes_nothing():
+    assert _tier_fills({"price_tiers": None}, {"price_tiers": None}) == {}
+    assert _tier_fills({"price_tiers": []}, {"price_tiers": []}) == {}
