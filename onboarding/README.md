@@ -22,6 +22,7 @@ them off, or just keep them open while you set up.
 | 7 | [07-going-to-production.md](07-going-to-production.md) | **Beyond the laptop:** a real domain, HTTPS/Let's Encrypt, and locking Keycloak down for a public shop. |
 | 8 | [08-label-printer.md](08-label-printer.md) | *Optional.* A label printer on the counter: shelf labels, QR + barcode, and the five faults that all look like broken hardware. |
 | 9 | [09-shelf-intake.md](09-shelf-intake.md) | *Optional, and the fast way.* Walk the shop with a scanner gun, then build the catalogue at a desk in batches — with the barcode that is really on the packet. |
+| 10 | [10-devices-and-roles.md](10-devices-and-roles.md) | *Optional.* Which device does what — till vs back office vs phone — and why **setup is not selling**. Written from a real kit test. |
 | 🩺 | **`python3 scripts/banco-doctor.py`** | Reads your live setup and tells you what's still unset (✅/⚠️/❌ + a readiness %). Run it often. |
 | 🧠 | [ai-coach/](ai-coach/) | Let the AI you already have (Claude/ChatGPT/Ollama) coach you through what the doctor found — free help for rookies. |
 | ✔ | [GO-LIVE-CHECKLIST.md](GO-LIVE-CHECKLIST.md) | The cutover tick-list — don't open the doors until every box is green. |
