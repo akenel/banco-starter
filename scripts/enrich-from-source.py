@@ -264,19 +264,32 @@ def main():
         print("Stopped. Nothing changed.")
         return 1
 
+    def _lit(obj) -> str:
+        """A JSON value as a SQL string literal.
+
+        json.dumps quotes with DOUBLE quotes, which are already safe inside a single-quoted
+        SQL literal. The only thing needing an escape is a literal apostrophe, and spec values
+        genuinely have them ("Rastaman's Weisheiten"). Doubling is the SQL way.
+
+        The first version did repr(json.dumps(x)).replace with a chain of quote swaps and
+        produced `'[{'min_qty': ...` — a literal terminated by its own contents. Every apply
+        failed the whole transaction, which is the only reason it was harmless: it rolled back
+        and changed nothing. ensure_ascii=False keeps "Papierstarke" and "gr/m2" readable in
+        the database instead of \\uXXXX escapes.
+        """
+        return "'" + json.dumps(obj, ensure_ascii=False).replace("'", "''") + "'::jsonb"
+
     stmts = ["BEGIN;"]
     for u in updates:
         sets = []
         if "tiers" in u:
             # per_unit: the ladder on the shop's own page is a price EACH at that quantity.
-            sets.append("price_tiers = " + repr(json.dumps(u["tiers"])).replace('"', "'")
-                        .replace("'''", "'") + "::jsonb")
+            sets.append("price_tiers = " + _lit(u["tiers"]))
             sets.append("tier_mode = 'per_unit'")
         if "facets" in u:
-            sets.append("raw_facets = " + repr(json.dumps(u["facets"])).replace('"', "'")
-                        .replace("'''", "'") + "::jsonb")
+            sets.append("raw_facets = " + _lit(u["facets"]))
         sets.append("updated_at = now()")
-        stmts.append(f"UPDATE products SET {', '.join(sets)} WHERE id = '{u['id']}';")
+        stmts.append("UPDATE products SET " + ", ".join(sets) + " WHERE id = '" + u["id"] + "';")
     stmts.append("COMMIT;")
     if psql(env, "\n".join(stmts), args.container) is None:
         print(f"{C['red']}✗ failed — rolled back, nothing changed.{C['x']}", file=sys.stderr)
