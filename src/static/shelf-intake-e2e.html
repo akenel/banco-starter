@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shelf Intake — end-to-end replay</title>
+<!--
+  SHELF INTAKE — END-TO-END REPLAY, generated 2026-07-31 from the live UAT catalogue.
+
+  Every product Angel built BY HAND at Artemis on 30 July (~3.3 hours for about 40 of them).
+  The point is to do the SAME products the new way and find out what it actually costs.
+
+  This sheet is also the BACKUP. Each card carries the barcode, the name, the price and the
+  category, so deleting a row is safe: everything needed to recreate it is on this page. That
+  is the only reason it is responsible to tell someone to delete 60 products.
+
+  Self-contained. Per-product timer, running total, pass/fail, copyable report.
+-->
+<style>
+ body{font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;margin:0;padding:14px;
+      background:#f6f7f9;color:#111}
+ h1{font-size:20px;margin:0 0 3px} .sub{color:#666;font-size:13px;margin:0 0 12px}
+ .card{background:#fff;border-radius:11px;padding:11px 13px;margin-bottom:9px;
+       box-shadow:0 1px 3px rgba(0,0,0,.09)}
+ .card.pass{border-left:5px solid #059669}.card.fail{border-left:5px solid #dc2626}
+ .card.skip{border-left:5px solid #9ca3af;opacity:.65}
+ code{font:12.5px ui-monospace,Menlo,Consolas,monospace;background:#f1f3f5;border:1px solid #e3e6ea;
+      border-radius:5px;padding:1px 5px}
+ .big{font:15px ui-monospace,Menlo,monospace;font-weight:700}
+ .twin{background:#ecfdf5;border:1px solid #a7f3d0;border-radius:7px;padding:6px 9px;
+       font-size:13px;color:#065f46;margin:6px 0}
+ .none{background:#fff7ed;border:1px solid #fed7aa;border-radius:7px;padding:6px 9px;
+       font-size:13px;color:#7c2d12;margin:6px 0}
+ .meta{color:#6b7280;font-size:12.5px;margin-top:3px}
+ button{font:inherit;padding:6px 11px;border-radius:7px;border:1px solid #ccc;background:#fff;
+        cursor:pointer;margin:4px 5px 0 0}
+ button.p{border-color:#059669;color:#059669}button.p.on{background:#059669;color:#fff}
+ button.f{border-color:#dc2626;color:#dc2626}button.f.on{background:#dc2626;color:#fff}
+ button.s{border-color:#6b7280;color:#6b7280}button.s.on{background:#6b7280;color:#fff}
+ button.t{border-color:#4f46e5;color:#4f46e5;font-weight:700}button.t.on{background:#4f46e5;color:#fff}
+ #bar{position:sticky;top:0;z-index:9;background:#111;color:#fff;border-radius:11px;padding:11px 14px;
+      margin-bottom:12px;font-weight:600;font-size:14px}
+ pre{white-space:pre-wrap;font:12px ui-monospace,Menlo,monospace;background:#f1f3f5;border-radius:8px;
+     padding:10px;max-height:340px;overflow:auto}
+ textarea{width:100%;height:120px;font:12px ui-monospace,Menlo,monospace;border:1px solid #ddd;
+          border-radius:8px;padding:8px}
+ .why{background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:9px 11px;font-size:13px;
+      color:#78350f;margin:8px 0}
+ .t{display:inline-block;min-width:52px;font:13px ui-monospace,Menlo,monospace;color:#4f46e5}
+</style></head><body>
+
+<h1>Shelf Intake — end-to-end replay</h1>
+<p class="sub">61 products you built by hand on 30 July · 17 have a catalogue twin ·
+the rest are genuinely new. <b>Time every one.</b></p>
+
+<div id="bar">— not started —</div>
+
+<div class="card">
+  <h2 style="margin:0 0 6px;font-size:15px">Read this first</h2>
+  <div class="why"><b>This page is your backup.</b> Every card carries the barcode, name, price and
+  category, so deleting a row loses nothing — it is all here. Do not close the tab until you are done.</div>
+  <ol style="margin:6px 0;padding-left:20px">
+    <li>Delete the hand-made rows you want to replay (Catalog → search the barcode → Edit → delete).</li>
+    <li>Open <code>/pos/shelf-intake</code> → <b>🗑️ Start over</b>.</li>
+    <li>Paste the whole barcode block below into the big box → <b>Triage the shelf</b>.
+        That also tests the batch path, which the gun's <code>Daten hochladen</code> uses.</li>
+    <li>Work them ten at a time. Hit <b>▶ Start</b> on a card before you begin it, and
+        <b>✓ Pass</b> when it is bound — the timer records what it really took.</li>
+  </ol>
+  <p style="margin:8px 0 4px;font-size:13px"><b>All 61 barcodes</b> — paste into the intake box:</p>
+  <textarea id="codes" readonly>7611889110310
+716165174905
+84190369
+84157072
+7640244720550
+42012115
+84196590
+7640114940187
+7640244720529
+716165177371
+42296393
+7640244720574
+42456919
+42456902
+8717524956530
+8717524956288
+716165152026
+9120089670015
+8002230340507
+3665006000415
+8718403232516
+8718403231250
+8718403231540
+8718403231137
+8718403231199
+8718403233377
+8718403231311
+8718403232479
+2040475072612
+8717662940293
+7640244720796
+8717662940354
+8717524956387
+8717524956417
+8717524956561
+8717524956318
+8717524956363
+7649990831060
+3760172781820
+0602728160167
+8718868947567
+7610057010827
+8719274270485
+8719274270393
+8719274270027
+8719274270874
+624493911423
+8720188050223
+8718104121614
+8720188273431
+8718104122536
+8718104123045
+8720188050278
+716165200543
+716165280293
+716165280286
+50717088
+50717071
+50717064
+5027978771232
+032110120019</textarea>
+  <button onclick="var t=document.getElementById('codes');t.select();document.execCommand('copy');alert('Copied.')">📋 Copy all barcodes</button>
+</div>
+
+<div id="cases"></div>
+
+<div class="card">
+  <h2 style="margin:0 0 6px;font-size:15px">Result</h2>
+  <button onclick="copyReport()">📋 Copy the report</button>
+  <button onclick="if(confirm('Clear all timings and results?')){localStorage.removeItem(KEY);location.reload()}">↺ Reset</button>
+  <pre id="report"></pre>
+</div>
+
+<script>
+var KEY='banco_e2e_replay_v1';
+var ROWS=[{"code": "7611889110310", "sku": "LZ-7611889110310", "name": "Quöllfrisch Hell", "price": "3.00", "cat": "Unsorted", "tsku": "TAM-20067", "tname": "Bier Quöllfrisch Hell 5dl", "score": "1.00"}, {"code": "716165174905", "sku": "LZ-716165174905", "name": "Raw Organic Rolls", "price": "4.00", "cat": "Unsorted", "tsku": "TAM-6847", "tname": "Raw Rolls Organic Hemp", "score": "1.00"}, {"code": "84190369", "sku": "LZ-84190369", "name": "Smoking Green King Size", "price": "2.00", "cat": "Unsorted", "tsku": "TAM-2826", "tname": "Smoking King Size green", "score": "1.00"}, {"code": "84157072", "sku": "ITEM-0003", "name": "Smoking Blue Kingsize", "price": "2.00", "cat": "Rolling Papers", "tsku": "TAM-2824", "tname": "Smoking King Size blue", "score": "0.86"}, {"code": "7640244720550", "sku": "LZ-7640244720550", "name": "Blow Pre-built CBD Joint Pure \"V1\" 1 pc. black", "price": "9.90", "cat": "Unsorted", "tsku": "TAM-20350", "tname": "Blow vorgebauter CBD Joint Pure \"V1\" 1 Stk. schwarz", "score": "0.84"}, {"code": "42012115", "sku": "SKU-1785419838355", "name": "GIZEH ALL Pink King Size Slim + Tips", "price": "6.90", "cat": "Rolling Papers", "tsku": "TAM-17319", "tname": "Gizeh King Size Slim Pink Edition", "score": "0.73"}, {"code": "84196590", "sku": "SKU-1785426044949", "name": "Smoking Master", "price": "2.00", "cat": "Unsorted", "tsku": "TAM-6332", "tname": "Smoking Rolls Master silber", "score": "0.71"}, {"code": "7640114940187", "sku": "LZ-7640114940187", "name": "Caice Cannabis Ice Tea", "price": "3.00", "cat": "Unsorted", "tsku": "TAM-20598", "tname": "Zippo Original \"Black Ice Cannabis\"", "score": "0.68"}, {"code": "7640244720529", "sku": "LZ-7640244720529", "name": "BLOW Joint GREY Pure", "price": "9.90", "cat": "Unsorted", "tsku": "TAM-23311", "tname": "Local Weed vorgebauter CBD Joint Pure \"Blue Gelato\" 1 Stk.", "score": "0.62"}, {"code": "716165177371", "sku": "LZ-716165177371", "name": "Raw Rolls King Size Classic Reeds Pack Of 5, 5 X 3 M", "price": "3.00", "cat": "Unsorted", "tsku": "TAM-7335", "tname": "Raw Rolls Classic King Size", "score": "0.56"}, {"code": "42296393", "sku": "LZ-42296393", "name": "Gizeh Extra fine king size slim with tips", "price": "4.50", "cat": "Unsorted", "tsku": "TAM-22385", "tname": "Gizeh King Size Slim Super Fine", "score": "0.53"}, {"code": "7640244720574", "sku": "LZ-7640244720574", "name": "BLOW CDB PRE JOINT GREEN Pure", "price": "10.90", "cat": "Unsorted", "tsku": "TAM-19239", "tname": "Blow vorgebauter CBD Joint Pure \"Harlequin\" 1 Stk. grün", "score": "0.53"}, {"code": "42456919", "sku": "LZ-42456919", "name": "Gizeh King size slim extra fine with active filter", "price": "6.90", "cat": "Unsorted", "tsku": "TAM-22386", "tname": "Gizeh King Size Slim Super fine mit Filter", "score": "0.53"}, {"code": "42456902", "sku": "LZ-42456902", "name": "GIZEH All PINK Papers KSS + Aktivkohle Filter", "price": "6.90", "cat": "Unsorted", "tsku": "TAM-21870", "tname": "Gizeh King Size Slim Pink mit Aktivkohle Filter", "score": "0.52"}, {"code": "8717524956530", "sku": "LZ-8717524956530", "name": "Canna Coco A 1L", "price": "18.00", "cat": "Unsorted", "tsku": "TAM-22446", "tname": "Beamer Candles Co Cocanna Banana", "score": "0.50"}, {"code": "8717524956288", "sku": "LZ-8717524956288", "name": "CANNA PK 13/14", "price": "18.00", "cat": "Unsorted", "tsku": "TAM-8300", "tname": "Kunstharz-Dose Canna Potter", "score": "0.50"}, {"code": "716165152026", "sku": "LZ-716165152026", "name": "Juicy Jays Raspberry Incense Sticks", "price": "6.00", "cat": "Unsorted", "tsku": "TAM-4241", "tname": "Juicy Jays Rolls Raspberry", "score": "0.50"}, {"code": "9120089670015", "sku": "LZ-9120089670015", "name": "Alfa Boost 250ml", "price": "18.00", "cat": "Unsorted", "tsku": "", "tname": "", "score": ""}, {"code": "8002230340507", "sku": "LZ-8002230340507", "name": "Aperol Spritz", "price": "3.50", "cat": "Unsorted", "tsku": "", "tname": "", "score": ""}, {"code": "3665006000415", "sku": "ITEM-0002", "name": "Bio Beuz Kartonfilter", "price": "1.50", "cat": "Filters & Tips", "tsku": "", "tname": "", "score": ""}, {"code": "8718403232516", "sku": "LZ-8718403232516", "name": "Biobizz Acti-vera Botanic Activator 500ml", "price": "16.00", "cat": "Unsorted", "tsku": "", "tname": "", "score": ""}, {"code": "8718403231250", "sku": "LZ-8718403231250", "name": "Biobizz Alg A Mic Hydroponic Organic Seaweed Vitality Booster 5ooml", "price": "13.00", "cat": "Unsorted", "tsku": "", "tname": "", "score": ""}, {"code": "8718403231540", "sku": "LZ-8718403231540", "name": "BioBizz BBBH500ML 500ml BioBizz Bio-Heaven Plant Energy Booster", "price": "45.00", "cat": "Unsorted", "tsku": "", "tname": "", "score": ""}, {"code": "8718403231137", "sku": "LZ-8718403231137", "name": "Biobizz Bio Bloom Hydroponic Organic Liquid Flowering Base Fertiliser 500ml", "price": "8.00", "cat": "Unsorted", "tsku": "", "tname": "", "score": ""}, {"code": "8718403231199", "sku": "SKU-1785409872744", "name": " BioBizz Bio Grow Dünger für Wachstum 500ml", "price": "9.00", "cat": "Grow Supplies", "tsku": "", "tname": "", "score": ""}, {"code": "8718403233377", "sku": "LZ-8718403233377", "name": "Biobizz® – Calmag 1L", "price": "11.00", "cat": "Unsorted", "tsku": "", "tname": "", "score": ""}, {"code": "8718403231311", "sku": "LZ-8718403231311", "name": "Biobizz Fish Mix 500ml - Organic Plant Nutrients", "price": "9.00", "cat": "Unsorted", "tsku": "", "tname": "", "score": ""}, {"code": "8718403232479", "sku": "LZ-8718403232479", "name": "Biobizz Root Juice 500ml - Organic Root Stim Plant Nutrient Biobizz Reseller", "price": "25.00", "cat": "Unsorted", "tsku": "", "tname": "", "score": ""}, {"code": "2040475072612", "sku": "OTF-1785411191277-485", "name": "BioBizz Top Max Blütenbooster 1L", "price": "20.00", "cat": "Unsorted", "tsku": "", "tname": "", "score": ""}, {"code": "8717662940293", "sku": "LZ-8717662940293", "name": "BIO CANNA RHIZOTONIC", "price": "20.00", "cat": "Unsorted", "tsku": "", "tname": "", "score": ""}, {"code": "7640244720796", "sku": "LZ-7640244720796", "name": "BLOW CDB PRE JOINT RED", "price": "7.60", "cat": "Unsorted", "tsku": "", "tname": "", "score": ""}, {"code": "8717662940354", "sku": "LZ-8717662940354", "name": "Cannaboost 250ml Accelerator", "price": "35.00", "cat": "Unsorted", "tsku": "", "tname": "", "score": ""}, {"code": "8717524956387", "sku": "LZ-8717524956387", "name": "Canna Cannazym 1L", "price": "21.00", "cat": "Unsorted", "tsku": "", "tname": "", "score": ""}, {"code": "8717524956417", "sku": "LZ-8717524956417", "name": "Canna Cannazym 250ml Canna | 8717524956417", "price": "12.00", "cat": "Unsorted", "tsku": "", "tname": "", "score": ""}, {"code": "8717524956561", "sku": "LZ-8717524956561", "name": "Canna Coco B 1 ltr.", "price": "18.00", "cat": "Unsorted", "tsku": "", "tname": "", "score": ""}, {"code": "8717524956318", "sku": "LZ-8717524956318", "name": "CANNA PK 13/14 250 ml", "price": "10.00", "cat": "Unsorted", "tsku": "", "tname": "", "score": ""}, {"code": "8717524956363", "sku": "LZ-8717524956363", "name": "Canna Rhizotonic Wurzelstimulator 250ml", "price": "21.00", "cat": "Unsorted", "tsku": "", "tname": "", "score": ""}, {"code": "7649990831060", "sku": "ITEM-0004", "name": "CBD OIL Ointment", "price": "49.90", "cat": "CBD Flower", "tsku": "", "tname": "", "score": ""}, {"code": "3760172781820", "sku": "LZ-3760172781820", "name": "Ghe Florakleen 1l Salt Clearing Solution Drip Irrigation Systems Growing Media", "price": "15.00", "cat": "Unsorted", "tsku": "", "tname": "", "score": ""}, {"code": "0602728160167", "sku": "ITEM-0005", "name": "G-Rollz Terpene Infused Blunt Dutch Blend 2pcs", "price": "5.00", "cat": "Other", "tsku": "", "tname": "", "score": ""}, {"code": "8718868947567", "sku": "OTF-1785422865959-446", "name": "GuanoKalong GK-Organics Florizon 1L", "price": "39.00", "cat": "Unsorted", "tsku": "", "tname": "", "score": ""}, {"code": "7610057010827", "sku": "LZ-7610057010827", "name": "jus de pomme 25cl", "price": "1.50", "cat": "Unsorted", "tsku": "", "tname": "", "score": ""}, {"code": "8719274270485", "sku": "SKU-1785423779053", "name": "Metrop Enzymes 250ml", "price": "20.00", "cat": "Grow Supplies", "tsku": "", "tname": "", "score": ""}, {"code": "8719274270393", "sku": "SKU-1785424457175", "name": "Metrop MAM8 250ml", "price": "32.00", "cat": "Grow Supplies", "tsku": "", "tname": "", "score": ""}, {"code": "8719274270027", "sku": "SKU-1785424320088", "name": "Metrop MR1 250ml", "price": "27.00", "cat": "Grow Supplies", "tsku": "", "tname": "", "score": ""}, {"code": "8719274270874", "sku": "SKU-1785424036643", "name": "Metrop MR2 Bloom", "price": "27.00", "cat": "Grow Supplies", "tsku": "", "tname": "", "score": ""}, {"code": "624493911423", "sku": "LZ-624493911423", "name": "ona fresh linen 250ml", "price": "14.00", "cat": "Unsorted", "tsku": "", "tname": "", "score": ""}, {"code": "8720188050223", "sku": "LZ-8720188050223", "name": "Plagron Fertilizer Terra Bloom 1 Liter", "price": "13.00", "cat": "Unsorted", "tsku": "", "tname": "", "score": ""}, {"code": "8718104121614", "sku": "LZ-8718104121614", "name": "Plagron Green Sensation 250ml", "price": "40.00", "cat": "Unsorted", "tsku": "", "tname": "", "score": ""}, {"code": "8720188273431", "sku": "LZ-8720188273431", "name": "Plagron Power Buds 500ml", "price": "30.00", "cat": "Unsorted", "tsku": "", "tname": "", "score": ""}, {"code": "8718104122536", "sku": "LZ-8718104122536", "name": "Plagron Power Roots, 1l, Organic Root Stimulant, Improve Roots Healthy Plants", "price": "50.00", "cat": "Unsorted", "tsku": "", "tname": "", "score": ""}, {"code": "8718104123045", "sku": "SKU-1785412418257", "name": " Plagron Pure Zym 1L", "price": "30.00", "cat": "Unsorted", "tsku": "", "tname": "", "score": ""}, {"code": "8720188050278", "sku": "LZ-8720188050278", "name": "Plagron Terra Grow 1L", "price": "15.00", "cat": "Unsorted", "tsku": "", "tname": "", "score": ""}, {"code": "716165200543", "sku": "LZ-716165200543", "name": "Raw Classic Artesano King Size Slim 5 Pieces 5x32 + Tips & Tray", "price": "5.00", "cat": "Unsorted", "tsku": "", "tname": "", "score": ""}, {"code": "716165280293", "sku": "LZ-716165280293", "name": "Raw Classic Natural Unrefined Rolling Paper Rolls - 5 Meter Roll - King Size...", "price": "3.00", "cat": "Unsorted", "tsku": "", "tname": "", "score": ""}, {"code": "716165280286", "sku": "LZ-716165280286", "name": "Raw Classic Natural Unrefined Rolling Paper Rolls - 5 Meter Roll - Single...", "price": "4.00", "cat": "Unsorted", "tsku": "", "tname": "", "score": ""}, {"code": "50717088", "sku": "LZ-50717088", "name": "Rips Blue King Size Cigarette Rolling Paper Roll - Over 16 Feet Long", "price": "4.00", "cat": "Unsorted", "tsku": "", "tname": "", "score": ""}, {"code": "50717071", "sku": "LZ-50717071", "name": "Rips Green Slim 1 1/4 Cigarette Rolling Paper Over 16 Feet Long Roll", "price": "4.00", "cat": "Unsorted", "tsku": "", "tname": "", "score": ""}, {"code": "50717064", "sku": "LZ-50717064", "name": "Rips Red Single Wide Cigarette Rolling Paper Roll - Over 22 Feet Long", "price": "4.00", "cat": "Unsorted", "tsku": "", "tname": "", "score": ""}, {"code": "5027978771232", "sku": "LZ-5027978771232", "name": "Rips Slim Hemp Natural 1 1/4 Cigarette Rolling Paper On A Roll-16 Feet Long", "price": "4.00", "cat": "Unsorted", "tsku": "", "tname": "", "score": ""}, {"code": "032110120019", "sku": "LZ-032110120019", "name": "Shoyeido - Daily Incense Great Origin - 30 Stick(s)", "price": "7.50", "cat": "Unsorted", "tsku": "", "tname": "", "score": ""}];
+var st={}; try{st=JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){st={}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(st))}catch(e){}}
+function S(c){st[c]=st[c]||{};return st[c]}
+function fmt(ms){if(!ms)return '';var s=Math.round(ms/1000);return (s<60? s+'s' : Math.floor(s/60)+'m '+(s%60)+'s')}
+
+function start(c){var s=S(c); s.t0=Date.now(); s.ms=0; save(); render();}
+function mark(c,v){
+  var s=S(c);
+  if(s.t0 && !s.ms){ s.ms=Date.now()-s.t0; }
+  s.result=(s.result===v)?'':v; save(); render();
+}
+function note(c,v){S(c).note=v;save();bar();}
+
+function bar(){
+  var p=0,f=0,k=0,ms=0,timed=0;
+  ROWS.forEach(function(r){var s=st[r.code]||{};
+    if(s.result==='pass')p++; if(s.result==='fail')f++; if(s.result==='skip')k++;
+    if(s.ms){ms+=s.ms;timed++}});
+  var el=document.getElementById('bar');
+  el.innerHTML=p+' bound · '+f+' failed · '+k+' skipped · '+(ROWS.length-p-f-k)+' to go'
+    +(timed? '  —  '+fmt(ms)+' over '+timed+' products ('+fmt(ms/timed)+' each)' : '');
+  el.style.background = f? '#991b1b' : (p===ROWS.length? '#065f46' : '#111');
+  report();
+}
+function report(){
+  var out='BANCO — SHELF INTAKE END-TO-END REPLAY\n'+new Date().toString()+'\n\n';
+  var ms=0,n=0;
+  ROWS.forEach(function(r){var s=st[r.code]||{};
+    if(s.ms){ms+=s.ms;n++}
+    out+=(s.result==='pass'?'[BOUND] ':s.result==='fail'?'[FAIL ] ':s.result==='skip'?'[SKIP ] ':'[     ] ')
+      +(s.ms?('('+fmt(s.ms)+') '):'')+r.code+'  '+r.name
+      +(r.tsku?('  -> '+r.tname+' ('+r.tsku+')'):'  -> (no twin)')+'\n';
+    if(s.note) out+='         '+s.note+'\n';
+  });
+  if(n) out+='\nTOTAL '+fmt(ms)+' over '+n+' products — '+fmt(ms/n)+' each\n';
+  document.getElementById('report').textContent=out; return out;
+}
+function copyReport(){var t=report();
+  if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(t)
+    .then(function(){alert('Copied.')},function(){window.prompt('Copy:',t)});}
+  else window.prompt('Copy:',t);}
+
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+  .replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+
+function render(){
+  var h='';
+  ROWS.forEach(function(r,i){
+    var s=st[r.code]||{};
+    var words=r.tname? r.tname.split(/\s+/).slice(0,3).join(' ').toLowerCase()
+                     : r.name.split(/\s+/).slice(0,3).join(' ').toLowerCase();
+    h+='<div class="card '+(s.result||'')+'">'
+     +'<div><span class="big">'+esc(r.code)+'</span> &nbsp;<b>'+esc(r.name)+'</b></div>'
+     +'<div class="meta">was '+esc(r.sku)+' · CHF '+esc(r.price)+' · '+esc(r.cat)+'</div>'
+     +(r.tsku
+        ? '<div class="twin">① type <code>'+esc(words)+'</code> → expect <b>'+esc(r.tname)
+          +'</b> <span style="opacity:.7">('+esc(r.tsku)+', match '+esc(r.score)+')</span></div>'
+        : '<div class="none">No catalogue twin — this one is genuinely new. ② find it on the web '
+          +'(🎯 420 / Werner\'s), paste the page, set your price.</div>')
+     +'<button class="t'+(s.t0&&!s.ms?' on':'')+'" onclick="start(\''+r.code+'\')">▶ Start</button>'
+     +'<span class="t">'+fmt(s.ms)+'</span>'
+     +'<button class="p'+(s.result==='pass'?' on':'')+'" onclick="mark(\''+r.code+'\',\'pass\')">✓ Bound</button>'
+     +'<button class="f'+(s.result==='fail'?' on':'')+'" onclick="mark(\''+r.code+'\',\'fail\')">✗ Fail</button>'
+     +'<button class="s'+(s.result==='skip'?' on':'')+'" onclick="mark(\''+r.code+'\',\'skip\')">skip</button>'
+     +'<input style="width:100%;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font:inherit;margin-top:6px" '
+     +'placeholder="what happened?" value="'+esc(s.note)+'" oninput="note(\''+r.code+'\',this.value)">'
+     +'</div>';
+  });
+  document.getElementById('cases').innerHTML=h; bar();
+}
+render();
+</script></body></html>
