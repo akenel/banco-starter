@@ -197,17 +197,28 @@ def main():
     ap.add_argument("--apply", action="store_true", help="write (default is a dry run)")
     ap.add_argument("--yes", action="store_true")
     ap.add_argument("--limit", type=int, default=0, help="only the first N products")
+    ap.add_argument("--sku", default="", help="comma-separated SKUs — check a specific shortlist")
+    ap.add_argument("--name", default="", help="only products whose name matches (ILIKE)")
     ap.add_argument("--delay", type=float, default=1.0, help="seconds between requests (be polite)")
     ap.add_argument("--container", default="banco-postgres")
     args = ap.parse_args()
 
     env = read_env(os.path.join(ROOT, ".env"))
+    where = ["is_active", "source_url IS NOT NULL"]
+    if args.sku:
+        skus = ",".join("'" + re.sub(r"[^A-Za-z0-9_-]", "", x.strip()) + "'"
+                        for x in args.sku.split(",") if x.strip())
+        if skus:
+            where.append(f"sku IN ({skus})")
+    if args.name:
+        where.append("name ILIKE '%" + args.name.replace("'", "''").replace("%", "") + "%'")
+
     raw = psql(env,
                "SELECT id, sku, name, source_url, "
                "  (price_tiers IS NOT NULL AND price_tiers::text NOT IN ('[]','null')), "
                "  (raw_facets IS NOT NULL AND raw_facets::text <> '{}') "
-               "FROM products WHERE is_active AND source_url IS NOT NULL "
-               "ORDER BY sku" + (f" LIMIT {int(args.limit)}" if args.limit else "") + ";",
+               "FROM products WHERE " + " AND ".join(where) +
+               " ORDER BY sku" + (f" LIMIT {int(args.limit)}" if args.limit else "") + ";",
                args.container)
     if raw is None:
         return 2
