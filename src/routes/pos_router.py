@@ -494,6 +494,20 @@ async def create_product(
                     "matches": [{k: v for k, v in r.items() if k != "sim"} for r in _dupes[:5]],
                 })
 
+    # Record the BRAND alongside the supplier. Detected server-side from the name so EVERY
+    # create path gets it rather than each screen remembering to. Stored in the existing
+    # `attributes` JSONB (queryable as attributes->>'brand'), so no migration is needed
+    # against a live shop's database.
+    try:
+        from src.services.brand_registry import detect_brand as _detect_brand
+        _brand = _detect_brand(data.get("name") or "")
+        if _brand:
+            _attrs = dict(data.get("attributes") or {})
+            _attrs.setdefault("brand", _brand)
+            data["attributes"] = _attrs
+    except Exception:
+        pass          # a brand we can't detect must never block a create
+
     new_product = ProductModel(**data)
     db.add(new_product)
     try:
@@ -704,7 +718,17 @@ async def catalog_page_facts(
         from src.services.product_translations import _guess_base_lang
         facts["lang_hint"] = _guess_base_lang(f"{title} {facts.get('description') or ''}")
 
-    return {"found": bool(facts), "url": req.url, **facts}
+    # `found` has to mean "this page describes a PRODUCT", not "the fetch succeeded".
+    # artemisluzern.ch returns a 200 with the shop's generic boilerplate description and no
+    # name, price, image or GTIN — Angel pasted one in expecting it to work. Reporting
+    # found=True there invites the operator to save the shop's marketing blurb as a product
+    # description, which is worse than a clean failure because nothing looks wrong.
+    facts["found"] = bool((facts.get("name") or "").strip())
+    if not facts["found"]:
+        facts["why"] = ("That page didn't state a product name, price or picture in a form we can "
+                        "read. Some shop sites publish no structured data at all — try the "
+                        "manufacturer's own site instead.")
+    return {"url": req.url, **facts}
 
 
 # ─────────────────────────────────────────────────────────────────────────────────────────
@@ -827,8 +851,20 @@ async def catalog_match_candidates(
         db, req.name, threshold=0.5, same_size_only=False, limit=8)
         if not any(c["id"] == k["id"] for k in cands)]
 
+    # BRAND — the field this catalogue never had. We store a SUPPLIER (Tamar, the wholesaler)
+    # but nothing saying the packet is a Gizeh, and brand is what the customer says, what is
+    # printed largest on the box, and the strongest single token for finding the right page.
+    # brand_registry has known this since 2026-07-17 — 68 brands, 35 fetch-verified official
+    # sites — and nothing outside the workbook ever asked it. Angel's bottleneck all day has
+    # been "the key is to find the right website"; a site-scoped query answers exactly that.
+    from src.services.brand_registry import detect_brand, official_site, search_query
+    brand = detect_brand(req.name)
+
     return {"name": req.name, "barcode": req.barcode,
-            "candidates": cands, "siblings": siblings[:4]}
+            "candidates": cands, "siblings": siblings[:4],
+            "brand": brand,
+            "brand_site": official_site(brand),
+            "brand_query": search_query(req.name) if brand else None}
 
 
 @router.post("/products/quick", response_model=ProductRead, status_code=status.HTTP_201_CREATED)

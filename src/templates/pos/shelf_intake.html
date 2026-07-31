@@ -249,6 +249,17 @@
                   <label class="block text-xs text-gray-500 mb-1">
                     ② Nothing matched? Then find it on the web and paste the page
                   </label>
+                  <!-- A site-scoped query at the maker's OWN domain: that page states the product
+                       properly, carries the GTIN, and gives a real pack shot rather than a
+                       marketplace re-crop. The difference between one minute and ten. -->
+                  <div x-show="row.brandSite" style="display:none" class="mb-2 flex gap-2 flex-wrap">
+                    <a :href="'https://www.google.com/search?q=' + encodeURIComponent(row.brandQuery || row.query)"
+                       target="_blank" rel="noopener" class="btn-primary text-sm">
+                      🎯 Search <span x-text="row.brand"></span>'s own site
+                    </a>
+                    <a :href="'https://' + row.brandSite" target="_blank" rel="noopener"
+                       class="btn-secondary text-sm" x-text="row.brandSite"></a>
+                  </div>
                   <div class="flex gap-2">
                     <input x-model="row.url" @keydown.enter="readPage(row)" placeholder="https://… (the maker's own site is best)"
                            class="border rounded-lg px-3 py-2 text-sm flex-1 min-w-0">
@@ -540,6 +551,7 @@ function shelfIntake() {
         this.pending = (r.unknown || []).map(u => ({
           ...u, status: 'todo', query: '', url: '', facts: null, price: null, title: '',
           productId: '', redoId: '', foundAfterWeb: false,
+          brand: '', brandSite: '', brandQuery: '',
           candidates: null, siblings: null, checked: false, busy: false, error: '', boundTo: '',
         }));
         this.batchStart = 0;
@@ -574,7 +586,11 @@ function shelfIntake() {
       row.busy = true; row.error = '';
       try {
         const f = await API.post('/api/v1/pos/catalog/page-facts', { url: row.url.trim() });
-        if (!f || !f.name) { row.error = "That page didn't state a product name — try the manufacturer's own page."; return; }
+        if (!f || !f.found || !f.name) {
+          row.error = f && f.why ? f.why
+            : "That page didn't state a product name — try the manufacturer's own page.";
+          return;
+        }
         row.facts = f;
         row.query = f.name;
         // Prefill the price ONLY when the page states OUR currency. A foreign figure left in an
@@ -602,6 +618,9 @@ function shelfIntake() {
         // after all. Worth shouting, because at this moment the operator is one click from
         // creating a duplicate of a row that is better than anything they are about to type.
         row.foundAfterWeb = hadNone && row.candidates.length > 0;
+        row.brand = r.brand || '';
+        row.brandSite = r.brand_site || '';
+        row.brandQuery = r.brand_query || '';
         row.checked = true;
       } catch (e) {
         row.error = (e && e.message) || 'Lookup failed.';
