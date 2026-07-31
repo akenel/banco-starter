@@ -280,8 +280,9 @@
                       </template>
                     </div>
                   </template>
-                  <p x-show="row.candidates && !row.candidates.length" style="display:none" class="text-sm text-gray-500 mb-2">
-                    Nothing in the catalogue looks like that.
+                  <p x-show="row.candidates && !row.candidates.length" style="display:none" class="text-sm text-gray-600 mb-2">
+                    Nothing in the catalogue looks like that — so this one is genuinely new.
+                    Set your price and add it below.
                   </p>
 
                   <!-- siblings: different products, worth seeing before creating -->
@@ -320,11 +321,21 @@
                     </p>
                   </div>
 
+                  <!-- The label has to describe the ACTION, not a rejection. When the catalogue
+                       offered nothing there is no "these" to be none of, and reading "None of
+                       these" as the only button makes the obviously-right next step look wrong.
+                       Angel, first real run: "that's not the button I wanna press. I wanna say
+                       no, THIS IS IT, it's correct." Same call, opposite framing.
+                       It is also the PRIMARY button when nothing was proposed — because then it
+                       is the only sensible move, not a fallback. -->
                   <button @click="createNew(row)"
                           :disabled="row.busy || !(row.facts && row.facts.name) || !(row.price > 0)"
-                          class="btn-secondary text-sm"
-                          :class="(!(row.facts && row.facts.name) || !(row.price > 0)) && 'opacity-50 cursor-not-allowed'">
-                    ✨ None of these — create it new
+                          class="text-sm"
+                          :class="[(row.candidates && row.candidates.length) ? 'btn-secondary' : 'btn-primary',
+                                   (!(row.facts && row.facts.name) || !(row.price > 0)) ? 'opacity-50 cursor-not-allowed' : '']"
+                          x-text="(row.candidates && row.candidates.length)
+                                    ? '✨ None of these — create it new'
+                                    : '✅ That\'s it — add it to the catalogue'">
                   </button>
                   <span x-show="!(row.facts && row.facts.name)" style="display:none" class="text-xs text-gray-400 ml-2">
                     Read a product page first, so the new row starts with a name, price and picture.
@@ -338,14 +349,19 @@
             </div>
           </template>
 
-          <div class="flex justify-between items-center mt-4 flex-wrap gap-2">
+          <!-- Only shown when there IS another batch. With six codes the buttons sat there
+               doing nothing when pressed, which reads as a broken screen rather than as
+               "you have already seen everything". -->
+          <div x-show="pending.length > 10" style="display:none"
+               class="flex justify-between items-center mt-4 flex-wrap gap-2">
             <button @click="prevBatch()" :disabled="batchStart === 0" class="btn-secondary"
                     :class="batchStart === 0 && 'opacity-40 cursor-not-allowed'">← Previous ten</button>
-            <p class="text-sm text-gray-500">
-              <span x-text="batchLabel()"></span>
-            </p>
+            <p class="text-sm text-gray-500"><span x-text="batchLabel()"></span></p>
             <button @click="nextBatch()" class="btn-primary">Next ten →</button>
           </div>
+          <p x-show="pending.length <= 10" style="display:none" class="text-sm text-gray-400 mt-4 text-center">
+            That's the whole list — <span x-text="remaining()"></span> still to do.
+          </p>
         </div>
 
         <div x-show="result.unknown_count > 0 && remaining() === 0" style="display:none"
