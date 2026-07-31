@@ -2801,6 +2801,62 @@ async def _page_product_facts(page_url: str) -> dict:
             cur = meta("product:price:currency", "og:price:currency")
             if cur:
                 out["currency"] = cur.upper()[:3]
+
+        # LAST RESORT for the barcode: the page PRINTS it but publishes no structured data.
+        # fourtwenty.ch does exactly this — "EAN 42422884" sits in the body copy while its
+        # JSON-LD carries no gtin at all, so a shop that genuinely lists EANs looked to us like
+        # one that doesn't. Verified live 2026-07-31.
+        #
+        # Pulling a bare number out of body text is the sort of thing that goes wrong quietly,
+        # so it is fenced twice: the digits must be LABELLED (EAN / GTIN / Barcode / Artikelnr),
+        # and they must pass the GTIN check digit. A random SKU, phone number or dimension will
+        # fail the checksum, and a labelled number that fails it was misread anyway.
+        if "barcode" not in out:
+            from src.services.shelf_intake import gtin_check_digit_ok
+            # The gap may be markup or an entity: `EAN">4242…` (a data-th cell),
+            # `EAN&nbsp;4242…`, `EAN: 4242…`. Entities contain LETTERS and DIGITS, so a plain
+            # [^0-9A-Za-z] run stops dead at `&nbsp;` — allow entities explicitly.
+            _gap = r"(?:&[a-z]+;|&#\d+;|[^0-9A-Za-z]){0,20}"
+            for m in re.finditer(r"(?:EAN|GTIN|Barcode|Artikelnummer|Artikelnr\.?)"
+                                 + _gap + r"(\d{8,14})", html, re.I):
+                code = m.group(1)
+                if gtin_check_digit_ok(code):
+                    out["barcode"] = code
+                    out["barcode_source"] = "page text"
+                    break
+        # THE SPEC TABLE — the master data, sitting there in plain markup.
+        #
+        # Angel: "we are really having to make a proper master data — brand names, languages,
+        # unit of measure... this is what's really missing." fourtwenty.ch publishes exactly
+        # that under "Detaillierte Informationen", and Banco was reading past it:
+        #
+        #   EAN 42422884 · Länge 107mm · Gewicht 7.38g · Füllmenge 34 papers · Farbe weiss
+        #   Material Papier · Genaue Materialbezeichnung Gummi arabicum, Hanffaser, Flachs
+        #   Papierdicke extra dünn · Vegan Ja · Certificates Recycling
+        #
+        # Kept VERBATIM under `facets`, for products.raw_facets — a column that exists precisely
+        # to hold source specs losslessly and has been empty since it was added. Normalising on
+        # the way in is how facts get quietly dropped; normalise later, from a complete record.
+        # (Magento renders these as <td data-th="Label">Value</td>.)
+        try:
+            import html as _h
+            facets, seen_keys = {}, set()
+            for k, v in re.findall(r'data-th="([^"]{1,60})"[^>]*>(.*?)</t[dh]>', html, re.S | re.I):
+                key = re.sub(r"\s+", " ", _h.unescape(re.sub(r"<[^>]+>", " ", k))).strip()
+                val = re.sub(r"\s+", " ", _h.unescape(re.sub(r"<[^>]+>", " ", v))).strip()
+                if not key or not val or len(key) > 60 or len(val) > 300:
+                    continue
+                if key.lower() in seen_keys:
+                    continue
+                seen_keys.add(key.lower())
+                facets[key] = val
+                if len(facets) >= 40:      # a spec table, not a whole page of tables
+                    break
+            if facets:
+                out["facets"] = facets
+        except Exception:
+            logger.debug("spec-table scrape failed for %s", url[:70], exc_info=True)
+
     except Exception as e:
         logger.info(f"Page facts lookup failed ({url[:70]}): {str(e)[:60]}")
 
@@ -2824,6 +2880,8 @@ async def _page_product_facts(page_url: str) -> dict:
     for _k, _v in list(out.items()):
         if _k != "_html" and isinstance(_v, str):
             out[_k] = _html.unescape(_v)
+    # `facets` is a dict and was decoded as it was built — skipped by the isinstance check above,
+    # which is correct: unescaping twice would turn a literal "&amp;" in a spec value into "&".
     return out
 
 

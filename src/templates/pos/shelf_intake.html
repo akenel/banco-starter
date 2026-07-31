@@ -327,6 +327,12 @@
                         <span x-show="row.facts && row.facts.suggested_category" x-text="row.facts && row.facts.suggested_category"></span>
                         <span x-show="row.facts && row.facts.suggested_age_restricted" class="text-rose-600 font-semibold"> · 18+</span>
                       </p>
+                      <p x-show="row.facts && row.facts.facets" style="display:none"
+                         class="text-xs text-emerald-800 bg-emerald-50 rounded p-2 mt-2">
+                        📋 That page also publishes a spec table —
+                        <b><span x-text="row.facts.facets ? Object.keys(row.facts.facets).length : 0"></span>
+                        fields</b> (dimensions, weight, count, material…). They'll be saved with the product.
+                      </p>
                       <p x-show="row.facts && langWarning(row.facts)" style="display:none"
                          class="text-xs text-amber-800 bg-amber-50 rounded p-2 mt-2">
                         ⚠️ This page doesn't read as German, English, French or Italian. The
@@ -757,6 +763,11 @@ function shelfIntake() {
           // What language the page was actually written in. Unset lands NULL, which reads
           // as English downstream — German text labelled English is a real bug, not cosmetic.
           source_lang: f.lang_hint || null,
+          // The source's own spec table, verbatim. products.raw_facets exists precisely
+          // for this and has been empty since it was added — EAN, dimensions, weight,
+          // count, colour, material, vegan, certificates. Master data, free, from a page
+          // the operator was going to open anyway.
+          raw_facets: f.facets || null,
         };
         let p;
         if (row.redoId) {

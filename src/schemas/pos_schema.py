@@ -124,6 +124,10 @@ class ProductCreate(ProductBase):
     # _guess_base_lang exists to fight (it self-heals later, but only once someone asks for a
     # translation). The capture screens know the answer at the moment of capture; say it then.
     source_lang: Optional[str] = Field(None, max_length=8, description="Language of the base text (de/en/fr/it)")
+    # The source page's own spec table, VERBATIM — EAN, dimensions, weight, count, colour,
+    # material, certificates. Lossless on purpose: normalising on the way in is how facts get
+    # quietly dropped, and products.raw_facets exists for exactly this.
+    raw_facets: Optional[dict] = Field(None, description="Verbatim source spec facets")
     # Receiving "supplier mode" (stripped before the ORM sees them; ignored by other callers):
     # when mint_identity is set, the server mints a clean PREFIX-#### SKU (the supplier's own
     # prefix, else the shop's house prefix) and a scannable internal EAN-13 if the item has no
