@@ -855,17 +855,30 @@
         // BL-26: human-readable ladder rows for the product DETAIL card, so the cashier SEES the
         // deal (like the Artemis site) and can trust the till. Mode-aware, mirrors the editor labels.
         //   per_unit → "10+ · 4,50 each"      bundle → "Buy 3 for 8,00" (+ a "≈ 2,67 each" sub)
+        //
+        // MIRRORS THE SERVER GUARD (services/pricing.py). A tier priced ABOVE the product's own
+        // price cannot mean "each" — buying more never costs more. TAM-21669 shipped with
+        // tier_mode NULL and bundle-shaped rows, so this fell to the per_unit branch and read
+        // "3+ · CHF 4.00 each" beside a CHF 1.40 product. The till now CHARGES 4.00 for three;
+        // without the same rule here the screen would say 12.00 while the drawer took 4.00, and
+        // shown != charged is the one thing this ladder exists to prevent.
+        function _tierIsBundle(product, row) {
+            if (product && product.tier_mode === 'bundle') return true;
+            const base = parseFloat(product && product.price);
+            const price = parseFloat(row && row.unit_price);
+            return !!(base > 0 && price > base && (price / parseInt(row.min_qty, 10)) <= base);
+        }
         function tierRowLabel(product, row) {
             const mq = parseInt(row.min_qty, 10);
             const price = parseFloat(row.unit_price);
-            if (product && product.tier_mode === 'bundle') {
+            if (_tierIsBundle(product, row)) {
                 return t('catalog.tiers_buy') + ' ' + mq + ' ' + t('catalog.tiers_for') + ' ' + formatPrice(price);
             }
             return mq + '+ · ' + formatPrice(price) + ' ' + t('catalog.tiers_each');
         }
         // Only bundle rows carry a sub-line: the per-unit equivalent (informational).
         function tierRowSub(product, row) {
-            if (!product || product.tier_mode !== 'bundle') return '';
+            if (!_tierIsBundle(product, row)) return '';
             const mq = parseInt(row.min_qty, 10);
             const price = parseFloat(row.unit_price);
             if (!(mq >= 1)) return '';
