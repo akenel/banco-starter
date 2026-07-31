@@ -10456,9 +10456,47 @@ EAN_LOOKUP_SITES = [
      "why": "Swiss headshop since 1983 — publishes gtin in JSON-LD; often ranks first for a bare EAN"},
 ]
 
+# Domains that are NOT worth a scoped EAN search, even though they are perfectly good suppliers.
+# The shop's OWN site is the case in point: 5,111 products link to it, its pages are excellent for
+# price/spec/description — and it publishes no GTIN anywhere, verified twice. Offering a button
+# that can only ever return nothing wastes the operator's most expensive resource, which is their
+# willingness to try the tool.
+EAN_LOOKUP_SKIP_DOMAINS = {"artemisluzern.ch"}
+
+
+async def _ean_lookup_sites(db: AsyncSession) -> list[dict]:
+    """The scoped-search buttons: curated defaults PLUS any supplier that has a website.
+
+    Angel's idea, and the right shape: "we could add them to the supplier list... maybe a flag
+    that use their base url domain for searching. If we had some major Europe players, Swiss and
+    American, it might make it better — basically a one-time setup on the supplier list."
+
+    So a shop adds a supplier with a `source_url` and gets an EAN-search button for free, without
+    touching code. No migration for a flag: a supplier that publishes a website is exactly the
+    set worth searching, and the handful that demonstrably carry no GTIN are named above.
+
+    Never raises — a lookup-button list that fails must not take the intake screen down with it.
+    """
+    sites = list(EAN_LOOKUP_SITES)
+    seen = {s["domain"] for s in sites} | set(EAN_LOOKUP_SKIP_DOMAINS)
+    try:
+        rows = (await db.execute(
+            select(SupplierModel.name, SupplierModel.source_url)
+            .where(SupplierModel.is_active, SupplierModel.source_url.isnot(None)))).all()
+        for name, url in rows:
+            dom = re.sub(r"^https?://(www\.)?", "", (url or "").strip()).split("/")[0].lower()
+            if not dom or dom in seen:
+                continue
+            seen.add(dom)
+            sites.append({"label": (name or dom)[:18], "domain": dom,
+                          "why": f"supplier site — {name}"})
+    except Exception:
+        logger.debug("supplier lookup-site merge failed", exc_info=True)
+    return sites
+
 
 @html_router.get("/pos/shelf-intake", response_class=HTMLResponse, name="pos_shelf_intake")
-async def pos_shelf_intake(request: Request):
+async def pos_shelf_intake(request: Request, db: AsyncSession = Depends(get_db_session)):
     """🛒 Shelf Intake — dump a scanner gun's offline cache and turn it into a catalogue.
 
     The workflow that replaces capturing at the counter: walk the shop in inventory mode
@@ -10467,7 +10505,7 @@ async def pos_shelf_intake(request: Request):
     (/catalog/shelf-intake/triage,
     /catalog/match-candidates) for what it calls — they enforce the role; this serves the shell."""
     return templates.TemplateResponse("pos/shelf_intake.html",
-                                      {"request": request, "ean_sites": EAN_LOOKUP_SITES})
+                                      {"request": request, "ean_sites": await _ean_lookup_sites(db)})
 
 
 @html_router.get("/pos/cleanup", response_class=HTMLResponse, name="pos_cleanup")
