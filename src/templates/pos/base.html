@@ -434,26 +434,67 @@
                 return !expAt || Date.now() >= (expAt - skewMs);
             },
 
-            // Silent server-side refresh. Returns true on success, false if the
-            // refresh token is gone/rejected (caller then hard-logs-out).
+            // Silent server-side refresh.
+            //
+            //   true        → fresh access token stored
+            //   false       → the refresh token really is dead (caller hard-logs-out)
+            //   'transient' → we could not TELL. Network blip, 5xx, unusable body.
+            //
+            // The three-way answer is the point. Until 2026-07-31 any failure returned false, so
+            // ONE dropped request logged the operator straight out — and on shop wifi or a tablet
+            // hotspot a dropped request is routine, not evidence that a session ended. Angel lost
+            // a shelf-intake session that way after three EANs. A till must not sign you out
+            // because a packet went missing.
+            _refreshInflight: null,
+
             async refresh() {
+                // Single-flight. Concurrent callers (a poller and a click landing together, or
+                // two parallel searches) would otherwise each POST the SAME refresh token and
+                // race their setSession() calls — the later reply can overwrite a newer token
+                // with an older one, and the next request then 401s for no visible reason.
+                if (this._refreshInflight) return this._refreshInflight;
+                this._refreshInflight = this._doRefresh()
+                    .finally(() => { this._refreshInflight = null; });
+                return this._refreshInflight;
+            },
+
+            async _doRefresh() {
                 const refresh = this.getRefreshToken();
-                if (!refresh) return false;
-                try {
-                    const r = await fetch('/pos/refresh', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ refresh_token: refresh }),
-                    });
-                    if (!r.ok) return false;
-                    const t = await r.json();
-                    if (!t.access_token) return false;
-                    this.setSession({ access: t.access_token, refresh: t.refresh_token, expiresIn: t.expires_in });
-                    return true;
-                } catch (e) {
-                    console.warn('Token refresh failed:', e);
+                if (!refresh) return false;               // nothing to refresh WITH — genuinely out
+                const pause = ms => new Promise(s => setTimeout(s, ms));
+
+                for (let attempt = 0; attempt < 2; attempt++) {
+                    let r;
+                    try {
+                        r = await fetch('/pos/refresh', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ refresh_token: refresh }),
+                        });
+                    } catch (e) {
+                        console.warn('Token refresh: network failure', e);
+                        if (attempt === 0) { await pause(800); continue; }
+                        return 'transient';
+                    }
+                    if (r.ok) {
+                        const t = await r.json().catch(() => null);
+                        if (t && t.access_token) {
+                            this.setSession({ access: t.access_token, refresh: t.refresh_token, expiresIn: t.expires_in });
+                            return true;
+                        }
+                        console.warn('Token refresh: 200 with no access_token');
+                        return 'transient';   // don't destroy a session over an unreadable reply
+                    }
+                    // 5xx / timeout / rate-limit: the server, not the session. Worth one retry.
+                    if (r.status >= 500 || r.status === 408 || r.status === 429) {
+                        console.warn('Token refresh: server said', r.status);
+                        if (attempt === 0) { await pause(800); continue; }
+                        return 'transient';
+                    }
+                    // 400/401 — Keycloak rejected the refresh token itself. That is a real logout.
                     return false;
                 }
+                return 'transient';
             },
 
             clearToken() {
@@ -594,13 +635,25 @@
                     let response = await fetch(endpoint, this._buildConfig(options));
 
                     // Reactive: a 401 means the access token died. Try ONE silent refresh
-                    // and retry. Only hard-logout if the refresh token itself is gone/dead.
+                    // and retry. Hard-logout ONLY when the refresh token itself was rejected.
                     if (response.status === 401) {
                         const refreshed = await AuthHelper.refresh();
-                        if (refreshed) {
+                        if (refreshed === true) {      // strict: 'transient' is truthy but not a success
                             response = await fetch(endpoint, this._buildConfig(options));
                         }
                         if (response.status === 401) {
+                            if (refreshed === 'transient') {
+                                // We could not reach the server to renew — that is a NETWORK
+                                // problem, not an expired session. Signing out here would throw
+                                // away whatever the operator was in the middle of, for a blip.
+                                // Keep the session; let them retry when the wifi comes back.
+                                const err = new Error(
+                                    "Lost the connection while renewing your session. Nothing was lost — " +
+                                    "check the network and try that again.");
+                                err.status = 401;
+                                err.transient = true;
+                                throw err;
+                            }
                             AuthHelper.logout();
                             throw new Error('Session expired. Please login again.');
                         }

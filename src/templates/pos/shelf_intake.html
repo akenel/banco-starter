@@ -32,6 +32,7 @@
       <div class="flex flex-wrap gap-2">
         <a href="/pos/catalog-health" class="btn-secondary">📊 Health</a>
         <a href="/pos/catalog" class="btn-secondary">📦 Catalog</a>
+        <button x-show="result && remaining() > 0" @click="copyRemaining()" class="btn-secondary" style="display:none">📋 Copy remaining</button>
         <button x-show="result" @click="reset()" class="btn-secondary" style="display:none">🗑️ Start over</button>
       </div>
     </div>
@@ -105,6 +106,18 @@
             <p class="text-2xl font-black text-rose-500" x-text="remaining()"></p>
             <p class="text-xs text-gray-400">of <span x-text="result.unknown_count"></span></p>
           </div>
+        </div>
+
+        <!-- Restored session. Say so LOUDLY: Angel was logged out mid-session on 2026-07-31 and
+             had no way to know the work had survived. Silent recovery reads as lost work. -->
+        <div x-show="restored" style="display:none"
+             class="bg-emerald-50 border-2 border-emerald-300 rounded-xl p-4 mb-3 text-sm text-emerald-900 flex justify-between items-center gap-3 flex-wrap">
+          <span>
+            ↩️ <span class="font-semibold">Picked up where you left off.</span>
+            <span x-text="doneCount()"></span> of <span x-text="pending.length"></span> resolved —
+            saved in this browser, so a logout or a closed tab doesn't cost you the evening.
+          </span>
+          <button @click="restored = false" class="text-emerald-700 font-semibold flex-none">Got it</button>
         </div>
 
         <!-- Warnings about the dump itself, before any catalogue work -->
@@ -321,7 +334,7 @@ function shelfIntake() {
   const STORE_KEY = 'banco_shelf_intake_v1';
   return {
     raw: '', expected: null, busy: false, error: '',
-    result: null, pending: [], batchStart: 0, showKnown: false,
+    result: null, pending: [], batchStart: 0, showKnown: false, restored: false,
 
     // ── persistence ───────────────────────────────────────────────────────────────────
     // An evening of work living in one browser tab is one accidental Ctrl-W from gone.
@@ -335,8 +348,29 @@ function shelfIntake() {
     restore() {
       try {
         const s = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
-        if (s && s.result) { this.result = s.result; this.pending = s.pending || []; this.batchStart = s.batchStart || 0; }
+        if (s && s.result) {
+          this.result = s.result; this.pending = s.pending || []; this.batchStart = s.batchStart || 0;
+          this.restored = true;
+          // Land on the first batch that still has work, not wherever the tab happened to die.
+          let i = 0;
+          while (i < this.pending.length && this.pending.slice(i, i + 10).every(r => r.status !== 'todo')) i += 10;
+          if (i < this.pending.length) this.batchStart = i;
+        }
       } catch (e) {}
+    },
+
+    // Never be trapped. If anything about this screen goes wrong, the codes themselves are the
+    // irreplaceable part — twenty minutes of walking the shop — so they must always be one tap
+    // from being back in your hands, in a form you can paste anywhere.
+    copyRemaining() {
+      const codes = this.pending.filter(r => r.status === 'todo').map(r => r.barcode).join('\n');
+      const done = () => showToast(`${this.remaining()} unresolved codes copied`, 'success');
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(codes).then(done).catch(() => window.prompt('Copy these:', codes));
+      } else {
+        // Plain http (a shop laptop on the LAN) has no clipboard API — show them instead.
+        window.prompt('Copy these:', codes);
+      }
     },
     reset() {
       if (this.remaining() > 0 && !confirm(
