@@ -133,6 +133,29 @@ Aktivkohlefilter` — which are different products.
 Seen for real: a Biobizz Cal-Mag whose barcode would not read. Typing the digits found it. Hunting
 by name would not have.
 
+### One product, several EANs — that is the standard working, not a mistake
+
+Angel, holding a Gizeh booklet whose page listed a different code:
+
+> *"The one is for the box of fifty. It's the same product inside and the product has a slightly
+> different code."*
+
+Correct, and it matters because the obvious reading is the wrong one. **GS1 assigns a GTIN per
+PACKAGING LEVEL** — the single booklet, the box of 50, the outer case each carry their own code for
+the same goods. A page quoting a code that differs from the one you scanned is therefore *usually*
+the same product in a different pack, not a different product.
+
+So the rule is unchanged and simply confirms rule 2: **the EAN is the identity, and a product has
+as many of them as it has pack sizes.** `product_barcodes` holds every one; bind them all and any
+of them rings up.
+
+What must NOT happen is what the screen used to do — treat the difference as a warning that the
+match is suspect. That reads as "you got this wrong" at precisely the moment the operator is right,
+and it pushes them toward creating a duplicate.
+
+**The code on the packet in your hand is the one that belongs on your shelf.** The others are
+aliases you can add whenever they cross the counter.
+
 ### The wholesaler's row is the BETTER record — you are only adding the EAN
 
 Angel, 2026-07-31, after working it by hand:

@@ -348,10 +348,22 @@
                         description before you save</b>, and prefer the manufacturer's own site if
                         you can find it.
                       </p>
+                      <!-- A DIFFERENT EAN IS NORMAL, AND THE OLD WORDING SAID THE OPPOSITE.
+                           GS1 assigns a GTIN per PACKAGING LEVEL: the single booklet, the box of
+                           50 and the outer case each get their own code for the same product.
+                           Angel hit exactly this — his packet 42425700, the page 42422884, same
+                           CHF 2.00, same 34 leaves, same product beyond doubt — and the screen
+                           told him to doubt his own match. "Misleading and flat out wrong."
+                           It is a note, not a warning, and it says what to DO. -->
                       <p x-show="row.facts && row.facts.barcode && row.facts.barcode !== row.barcode"
-                         style="display:none" class="text-xs text-amber-700 mt-1">
-                        ⚠️ That page states EAN <span class="font-mono" x-text="row.facts && row.facts.barcode"></span>,
-                        which is not the code you scanned. Check you have the right variant.
+                         style="display:none" class="text-xs text-blue-800 bg-blue-50 rounded p-2 mt-2">
+                        ℹ️ That page lists EAN <span class="font-mono" x-text="row.facts && row.facts.barcode"></span>
+                        — a different code from the
+                        <span class="font-mono" x-text="row.barcode"></span> you scanned.
+                        <b>Usually that is the same product in a different pack</b> (single booklet vs
+                        box of 50); each pack size gets its own EAN. If the name, price and count match
+                        what you're holding, carry on — <b>your scanned code is the one that belongs on
+                        the shelf</b>. You can bind the other pack's code to the same product later.
                       </p>
                     </div>
                   </div>
