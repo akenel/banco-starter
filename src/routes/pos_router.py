@@ -8418,10 +8418,19 @@ async def pos_service_worker():
     """Serve the Banco POS service worker from /pos so its scope covers every /pos page.
     The `Service-Worker-Allowed: /pos` header lets a SW served at /pos/sw.js claim the
     broader /pos scope (including the /pos login). PWA Phase 0."""
-    from fastapi.responses import FileResponse
     sw_path = Path(__file__).parent.parent / "static" / "pos" / "sw.js"
-    return FileResponse(
-        sw_path,
+    body = sw_path.read_text(encoding="utf-8")
+
+    # Stamp the running build into CACHE_NAME. activate() deletes every cache that isn't the
+    # current name, so this — and ONLY this — is what evicts stale /static/ assets from a device
+    # that has been here before. Static files are served cache-first with no expiry, so with a
+    # hand-typed version (the old 'v185', bumped by hand, i.e. never) a deployed JS fix would
+    # verify green on the server and still never reach the till.
+    build = get_git_sha() or "dev"
+    body = body.replace("__BANCO_BUILD__", re.sub(r"[^A-Za-z0-9._-]", "", build)[:40])
+
+    return Response(
+        content=body,
         media_type="application/javascript",
         headers={"Service-Worker-Allowed": "/pos", "Cache-Control": "no-cache"},
     )

@@ -11,7 +11,16 @@
  * Phases 1–2 build on this: P1 adds an IndexedDB catalog read-cache; P2 adds the
  * offline sales OUTBOX + background sync. Bump CACHE_NAME on any shell change.
  */
-const CACHE_NAME = 'banco-pos-v185';
+// The build stamp is substituted in by the /pos/sw.js route at request time (look for
+// __BANCO_BUILD__). It MUST change on every deploy, because activate() deletes every cache
+// whose name isn't this one — that is the only thing that evicts stale /static/ assets.
+//
+// It used to be a hand-typed 'v185' with a comment saying "bump on any shell change", which is
+// a manual step nobody performs. Consequence, found 2026-07-31: /static/ is served CACHE-FIRST
+// with no expiry, so pos-i18n.js and pos-scanner.js NEVER updated on a device that had visited
+// before. A JS fix could be deployed, verified live with curl, and still not reach the till —
+// which is the worst possible failure mode: it looks shipped and isn't.
+const CACHE_NAME = 'banco-pos-__BANCO_BUILD__';
 
 // The shell we want available instantly / offline. Kept small + safe (GET, same-origin).
 const SHELL = [
