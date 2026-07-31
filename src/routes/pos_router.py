@@ -1750,10 +1750,36 @@ async def add_product_barcode(
             detail=f"Barcode '{barcode}' already belongs to another product ({existing.name}).",
         )
 
-    # If the product has no primary barcode yet, set it there; else add an alias.
+    # WHERE THE NEW CODE GOES — and a REAL code outranks a MINTED one.
+    #
+    # Angel, after binding a dozen at the shop: "we find them in the catalogue, for example,
+    # but they don't change the EAN number. I'm not sure what's going on there."
+    #
+    # What was going on: the bind only set the primary when the row had NO barcode. So a real
+    # EAN off a packet landed as an alias BEHIND a minted 2xxxxxxxxxxxx that exists nowhere in
+    # the physical world, and barcode_is_internal went on claiming `true` about a product that
+    # now had a genuine code. The catalogue screen, labels and exports all kept showing the
+    # fiction. The merge endpoint promotes; the bind did not. Same operation, two answers.
+    #
+    # Now: a real code takes the primary slot and the minted one is DEMOTED TO AN ALIAS, never
+    # discarded — a shelf label may already carry it and must keep scanning. (CATALOG-IDENTITY:
+    # minting is only honest when the code is printed and stuck on the packet.)
+    _minted = bool(re.match(r"^2\d{12}$", product.barcode or "")) or bool(
+        getattr(product, "barcode_is_internal", False))
+    _incoming_is_real = not re.match(r"^2\d{12}$", barcode)
+
     if not product.barcode:
         product.barcode = barcode
+        product.barcode_is_internal = not _incoming_is_real
         product.updated_at = datetime.now(timezone.utc)
+    elif _minted and _incoming_is_real:
+        demoted = product.barcode
+        product.barcode = barcode
+        product.barcode_is_internal = False
+        product.updated_at = datetime.now(timezone.utc)
+        db.add(ProductBarcodeModel(product_id=product.id, barcode=demoted))
+        logger.info("promoted real EAN %s to primary on %s; minted %s kept as an alias",
+                    barcode, product.sku, demoted)
     else:
         db.add(ProductBarcodeModel(product_id=product.id, barcode=barcode))
 
