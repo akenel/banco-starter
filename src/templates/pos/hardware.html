@@ -1,0 +1,210 @@
+{% extends "pos/base.html" %}
+
+{% block title %}Hardware Check - Banco POS{% endblock %}
+
+{#
+  HARDWARE CHECK — five seconds, on the machine in question.
+
+  A scanner gun is a keyboard. It presses the KEY that yields a character on ITS layout; the
+  machine reads that key through the layout the SESSION uses. Mismatch them and punctuation
+  silently mutates — and it hides for weeks, because EAN-13 is pure digits and looks perfect
+  while every SKU quietly fails.
+
+  So the codes below lead with HYPHENS, not digits. A digits-only test passes on a broken
+  setup, which makes it worse than no test at all.
+
+  Nothing here is logged in, loaded, or saved. This page has to work when the till is the
+  thing that is broken.
+#}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50" x-data="hardwareCheck()" x-init="detect()">
+  <div class="max-w-3xl mx-auto px-4 py-8">
+
+    <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
+      <div class="flex items-center gap-3">
+        <button @click="window.location.href='/pos'" class="btn-secondary flex-none" title="Dashboard" aria-label="Dashboard">🏠</button>
+        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">🔧 Hardware Check</h1>
+      </div>
+      <a href="/static/tablet-check.html" target="_blank" rel="noopener" class="btn-secondary">📱 Device details</a>
+    </div>
+
+    <p class="text-sm text-gray-500 mb-6">
+      Run this <span class="font-semibold">on the machine the gun is plugged into</span> — every till, every
+      tablet, every time you move a gun. A gun is never right or wrong on its own, only relative to the
+      machine it is talking to.
+    </p>
+
+    <!-- ── 1 · scan a code ────────────────────────────────────────────────── -->
+    <div class="bg-white rounded-2xl shadow p-6 mb-4">
+      <h2 class="font-bold text-gray-900 mb-1">1 · Scan a test code</h2>
+      <p class="text-sm text-gray-600 mb-4">
+        Tap the box, then scan a code below straight off the screen. Paper works too — anything with a
+        hyphen in it.
+      </p>
+
+      <input x-model="typed" x-ref="cap" @keydown.enter.prevent="check()"
+             placeholder="Tap here, then scan…" autofocus autocomplete="off" autocorrect="off"
+             spellcheck="false"
+             class="w-full border-2 border-indigo-300 focus:border-indigo-600 rounded-xl px-4 py-4 font-mono text-lg mb-3">
+
+      <div class="flex flex-wrap gap-4 items-start">
+        {% for c in codes %}
+        <figure class="m-0 text-center">
+          {% if c.img %}
+          <img src="{{ c.img }}" alt="{{ c.payload }}" style="width:230px;height:auto" class="bg-white rounded">
+          {% else %}
+          <div class="w-56 h-20 bg-gray-100 rounded flex items-center justify-center text-xs text-gray-500 p-2">
+            Couldn't render this barcode — use <a class="underline" href="/static/scanner-gun-test.html">the full test sheet</a>
+          </div>
+          {% endif %}
+          <figcaption class="text-xs text-gray-500 mt-1 max-w-[230px]">{{ c.help }}</figcaption>
+        </figure>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- ── 2 · the verdict ────────────────────────────────────────────────── -->
+    <div x-show="verdict" style="display:none" class="mb-4">
+      <div class="rounded-2xl shadow p-6"
+           :class="verdict === 'ok' ? 'bg-emerald-50 border-2 border-emerald-400'
+                                    : 'bg-rose-50 border-2 border-rose-400'">
+        <p class="text-xl font-black mb-2"
+           :class="verdict === 'ok' ? 'text-emerald-700' : 'text-rose-700'"
+           x-text="verdict === 'ok' ? '✅ The gun and this machine agree.' : '❌ Wrong keyboard layout.'"></p>
+
+        <table class="text-sm w-full mb-3">
+          <tr><td class="text-gray-500 py-1">What arrived</td>
+              <td class="font-mono font-bold text-right break-all" x-text="lastRaw"></td></tr>
+          <tr><td class="text-gray-500 py-1">Characters</td>
+              <td class="text-right" x-text="lastRaw.length"></td></tr>
+          <tr x-show="suspect.length"><td class="text-gray-500 py-1">Suspicious characters</td>
+              <td class="font-mono text-right text-rose-700" x-text="suspect.join(' ')"></td></tr>
+        </table>
+
+        <template x-if="verdict === 'bad'">
+          <div class="text-sm text-rose-900">
+            <p class="mb-2">
+              A <span class="font-mono font-bold" x-text="suspect[0]"></span> arrived where a
+              <span class="font-mono font-bold">-</span> was printed. That is the classic mismatch:
+              the gun pressed the key that makes <span class="font-mono">-</span> on <em>its</em> layout, and
+              this machine read that key as something else.
+            </p>
+            <p class="font-semibold mb-1">Fix the gun, not the codes:</p>
+            <ol class="list-decimal ml-5 space-y-1">
+              <li>Find out this machine's keyboard layout — Windows: <em>Settings → Time &amp; Language →
+                  Language &amp; region</em>. Linux: <code>localectl status</code>.</li>
+              <li>Set the gun to the layout that puts <span class="font-mono">-</span> on the same physical key.
+                  Swiss German and German agree; US and UK agree. Most guns have no Swiss option — use
+                  <b>German</b> on a Swiss machine.</li>
+              <li>Inateck BCST-35: scan <code>Enter Setup</code> → the layout → <code>Save and Exit</code>
+                  (manual page 4). Netum NS L8: the codes are at
+                  <a class="underline" href="https://doc1.netum.net/L8/en/keyboard" target="_blank" rel="noopener">doc1.netum.net/L8/en/keyboard</a>.</li>
+              <li>Come back and scan again.</li>
+            </ol>
+            <p class="mt-2 text-xs">
+              Banco does retry layout-corrected codes on a miss, so a mis-set gun mostly still works —
+              but that is a safety net, not a reason to leave it wrong.
+            </p>
+          </div>
+        </template>
+
+        <template x-if="verdict === 'ok'">
+          <p class="text-sm text-emerald-900">
+            Hyphens came through intact, so SKUs will scan — the part that silently fails when a layout is
+            wrong. <span x-show="digitsOnly" class="font-semibold">Note: that was a digits-only code, which
+            passes even on a mis-set gun. Scan one of the hyphenated ones to really prove it.</span>
+          </p>
+        </template>
+      </div>
+    </div>
+
+    <!-- ── 3 · this machine ───────────────────────────────────────────────── -->
+    <div class="bg-white rounded-2xl shadow p-6 mb-4">
+      <h2 class="font-bold text-gray-900 mb-3">2 · This machine</h2>
+      <table class="text-sm w-full">
+        <tr><td class="text-gray-500 py-1">Browser</td>
+            <td class="text-right font-semibold" :class="browserOk ? 'text-emerald-700' : 'text-rose-700'"
+                x-text="browser"></td></tr>
+        <tr><td class="text-gray-500 py-1">Screen</td><td class="text-right" x-text="screen"></td></tr>
+        <tr><td class="text-gray-500 py-1">Touch</td><td class="text-right" x-text="touch"></td></tr>
+        <tr><td class="text-gray-500 py-1">Saved logins / offline work</td>
+            <td class="text-right" :class="storeOk ? 'text-emerald-700' : 'text-rose-700'"
+                x-text="storeOk ? 'working' : 'BLOCKED — sessions will be lost'"></td></tr>
+      </table>
+      <p x-show="!browserOk" style="display:none" class="text-sm text-rose-700 mt-3">
+        This browser is below Banco's floor (Chrome 84 / Safari 14). Screens can arrive <b>blank</b> rather
+        than merely ugly. Update it, or use a different device for the till.
+      </p>
+      <p class="text-xs text-gray-500 mt-3">
+        Full report — every capability, copyable for support:
+        <a class="underline" href="/static/tablet-check.html" target="_blank" rel="noopener">/static/tablet-check.html</a>
+      </p>
+    </div>
+
+    <!-- ── more ───────────────────────────────────────────────────────────── -->
+    <div class="bg-white rounded-2xl shadow p-6">
+      <h2 class="font-bold text-gray-900 mb-3">More checks</h2>
+      <ul class="text-sm space-y-2">
+        <li>🔫 <a class="text-indigo-600 underline" href="/static/scanner-gun-test.html" target="_blank" rel="noopener">Full scanner test sheet</a>
+            — a ladder of QR codes from 30 mm down to 10 mm, so you also learn the smallest label this gun can read.</li>
+        <li>📱 <a class="text-indigo-600 underline" href="/static/tablet-check.html" target="_blank" rel="noopener">Device &amp; browser report</a>
+            — everything the till needs, measured, with a copy button.</li>
+        <li>🏷️ Label printer: the guide lives with the repo at <code>onboarding/08-label-printer.md</code>,
+            including the five faults that all look like broken hardware and aren't.</li>
+      </ul>
+      <p class="text-xs text-gray-500 mt-4">
+        Connecting a gun: use the <b>USB dongle</b>, not Bluetooth. It is the manufacturer's default, needs no
+        driver or pairing, and — the real reason — there is nothing to re-pair when it drops mid-sale.
+      </p>
+    </div>
+
+  </div>
+</div>
+
+<script>
+function hardwareCheck() {
+  return {
+    typed: '', lastRaw: '', verdict: '', suspect: [], digitsOnly: false,
+    browser: '', browserOk: true, screen: '', touch: '', storeOk: true,
+
+    // Characters a mis-set gun produces where a hyphen was printed. Same table as the server-side
+    // fallback in _find_product_by_any_barcode — a US gun's "-" key reads as "'" on Swiss German,
+    // as "ß" on German, and a Swiss "-" reads as "/" on US/UK.
+    check() {
+      // Strip the gun's invisible junk ONLY — the CR/LF "submit" signal and any stray
+      // control chars. Emphatically NOT punctuation: the hyphen is the whole thing under
+      // test here, and a class like [ -] would delete it and then report a pass every time.
+      // Escapes, not literal control bytes — a NUL in a source file breaks grep and diffs.
+      var raw = this.typed.replace(/[\x00-\x20\x7f]+/g, '');
+      if (!raw) return;
+      this.lastRaw = raw;
+      this.digitsOnly = /^[0-9]+$/.test(raw);
+      var bad = ["'", 'ß', '/', '+', 'ü', 'ö', 'ä'];
+      this.suspect = bad.filter(function (c) { return raw.indexOf(c) !== -1; });
+      // A hyphen present and no suspicious character => the layouts agree. Digits-only can't
+      // prove anything either way, so it passes but says so.
+      this.verdict = this.suspect.length ? 'bad' : 'ok';
+      this.typed = '';
+      this.$nextTick(function () { if (this.$refs.cap) this.$refs.cap.focus(); }.bind(this));
+    },
+
+    detect() {
+      var ua = navigator.userAgent;
+      var m = ua.match(/(?:Chrome|CriOS)\/(\d+)/);
+      var s = ua.match(/Version\/(\d+).*Safari/);
+      if (m) { this.browser = 'Chrome ' + m[1]; this.browserOk = parseInt(m[1], 10) >= 84; }
+      else if (s) { this.browser = 'Safari ' + s[1]; this.browserOk = parseInt(s[1], 10) >= 14; }
+      else { this.browser = 'not recognised'; }
+      this.screen = window.innerWidth + ' × ' + window.innerHeight;
+      this.touch = (navigator.maxTouchPoints || 0) > 0 ? 'yes (' + navigator.maxTouchPoints + ' points)' : 'no';
+      try {
+        localStorage.setItem('__hw__', '1');
+        this.storeOk = localStorage.getItem('__hw__') === '1';
+        localStorage.removeItem('__hw__');
+      } catch (e) { this.storeOk = false; }
+    },
+  };
+}
+</script>
+{% endblock %}

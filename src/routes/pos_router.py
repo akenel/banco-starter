@@ -9999,6 +9999,63 @@ async def pos_catalog_health(request: Request):
     return templates.TemplateResponse("pos/catalog_health.html", {"request": request})
 
 
+def _barcode_data_uri(payload: str, kind: str = "code128") -> str:
+    """Render `payload` as a barcode PNG data URI, or "" if we can't.
+
+    Server-side and inlined, for the same reason the QR label is: there is no JS to vendor,
+    and the page must work on a till with no internet — which is exactly the situation you are
+    in when you are trying to work out why the scanner is misbehaving.
+    """
+    try:
+        import barcode as _bc
+        from barcode.writer import ImageWriter
+        import base64 as _b64, io as _io
+        if kind == "ean13" and len(payload) == 13:
+            payload = payload[:12]          # the library recomputes the check digit
+        img = _bc.get(kind, payload, writer=ImageWriter()).render({
+            "module_height": 12.0, "font_size": 9, "text_distance": 3.0, "quiet_zone": 3.0,
+        })
+        buf = _io.BytesIO()
+        img.save(buf, format="PNG")
+        return "data:image/png;base64," + _b64.b64encode(buf.getvalue()).decode()
+    except Exception:
+        logger.warning("could not render the %s test barcode", kind, exc_info=True)
+        return ""
+
+
+# The hyphen is the whole point. EAN-13 is pure digits and looks perfect on a mis-set gun, so
+# the ONLY code that exposes a keyboard-layout mismatch is one carrying punctuation — which in
+# this catalogue means a SKU. (Scanners/README.md: the trap, and why it hides for weeks.)
+_HW_TEST_CODES = [
+    ("TAM-21796", "code128", "A real SKU — the hyphen is what catches a wrong keyboard layout"),
+    ("BANCO-TEST-01", "code128", "Two hyphens, so a single stray character can't pass by luck"),
+    ("7640183261763", "ean13", "A real EAN-13 — digits only, so this one passes even when the layout is wrong"),
+]
+
+
+@html_router.get("/pos/hardware", response_class=HTMLResponse, name="pos_hardware")
+async def pos_hardware(request: Request):
+    """🔧 Hardware check — is the scanner gun typing what it thinks it is, on THIS machine?
+
+    WHY THIS SCREEN EXISTS. A scanner gun is a keyboard: it presses the KEY that yields a
+    character on its OWN configured layout, and the machine reads that key through the layout
+    the SESSION uses. Mismatch them and punctuation silently mutates — a gun on US typing "-"
+    lands as "'" on a Swiss German session, so TAM-21796 arrives as TAM'21796 and finds nothing.
+
+    It hides for weeks because EAN-13 is pure digits, identical across layouts: till scanning
+    looks perfect right up until the first SKU label. Seen for real on both guns, 2026-07-29.
+
+    And it is per-MACHINE, which is why a screen beats a one-off fix. A gun is never correct on
+    its own — only relative to the device it is plugged into. Move it to a new till and the same
+    corruption can reappear reversed. So every till needs a five-second sanity check that a
+    manager can find without knowing any of the above.
+
+    Deliberately no login-gated data: this page reads nothing and writes nothing, so it still
+    works when the thing that is broken is the till itself."""
+    codes = [{"payload": p, "help": h, "img": _barcode_data_uri(p, k)} for p, k, h in _HW_TEST_CODES]
+    return templates.TemplateResponse("pos/hardware.html", {"request": request, "codes": codes})
+
+
 @html_router.get("/pos/shelf-intake", response_class=HTMLResponse, name="pos_shelf_intake")
 async def pos_shelf_intake(request: Request):
     """🛒 Shelf Intake — dump a scanner gun's offline cache and turn it into a catalogue.
