@@ -41,11 +41,46 @@ for the five barcodes and the keyboard-layout trap that bites every shop once.
 
 ---
 
-## Part 1 · The shop floor (~20 minutes)
+## ⚠️ Correction from the field, 2026-07-31 — work a SHELF SECTION at a time
+
+This guide originally said: scan the whole shop, then do the desk work later. **That is wrong for
+most stock**, and the reason is worth understanding before planning an evening around it.
+
+Angel, testing it for real: *"you could scan a few hundred but you will have no chance at the
+description part... really you have to finish in small batches while you have the products."*
+
+Searching is not the hard part — it is too easy. Typing `gizeh king size` returns **ten** catalogue
+rows, every one a perfect match:
+
+```
+Gizeh King Size Slim            Gizeh King Size Slim mit Filter
+Gizeh King Size Slim Super Fine Gizeh King Size Cones 3stk
+Gizeh King Size Slim Pink Edition   …
+```
+
+Only the packet in your hand says which. A barcode carries no clue, and a score cannot separate ten
+identical scores. **So the choosing step needs the physical product**, and a cache of 300 codes
+carried back to a desk has thrown that away. You would be guessing — and a wrong guess binds a real
+EAN to the wrong row, which is worse than no binding: it sends the wrong product to the till *and*
+hides the right one.
+
+**So: one shelf section at a time.** Scan 10–15 facings, resolve them standing there, move on. The
+gun's offline mode still earns its place — you scan without watching a screen — but the batch must
+be small enough that the products are still in front of you when you decide.
+
+The clean physical/desk split this guide promised holds only for products with **no variants**. For
+papers, filters and tips — most of a headshop — the two steps stay together.
+
+> Want the separation back? **Photograph each packet as you scan it**, and the photo *is* the packet
+> at the desk. Needs a camera on the capture device: the phone has one, the Windows tablet does not.
+
+---
+
+## Part 1 · The shop floor (one section at a time)
 
 1. **Scan `Inventurmodus`.** The gun stops transmitting and starts collecting. It needs no
    Enter Setup / Save and Exit — scan that one barcode on its own.
-2. **Walk the shop. Scan every facing.** Don't think, don't check anything, don't skip an item
+2. **Scan ONE shelf section** — 10–15 facings. Don't think, don't check anything, don't skip an item
    because you're not sure — a code you scan twice costs nothing and a code you skip costs a
    scan miss at the till later.
 3. **Scan `Anzahl der gescannten Barcodes`** into any text field and write the number down.
@@ -99,9 +134,13 @@ most of those five minutes each went.
 
 For each code, one of three things happens:
 
-**(a) It's already in the catalogue under the wrong barcode.** Type roughly what it is, or paste
-a product page. The screen offers candidates — tap **That's it** and the scanned EAN binds to
-that product. It scans forever after. *This is the 30-second path, and it is most of the value.*
+**(a) It's already in the catalogue under the wrong barcode — this is most of the shop.**
+5,105 of 5,180 products are already there; only the barcode is a fiction. **Type two or three words
+off the label** (`gizeh king size`) and hit *Check catalogue*. Pick the right variant by the **bold**
+words — the ones you typed are greyed out, so what's left is exactly what distinguishes the rows —
+and by the picture, which you can tap to enlarge. Then **That's it**. ~15 seconds, no web search.
+
+**Unsure which variant?** *Skip it* and come back with the packet. A wrong bind is worse than none.
 
 **(b) It's genuinely new.** Search the EAN (there's a button), find the manufacturer's or a
 retailer's page, paste the URL, click **Read**. Banco pulls the name, description, price, picture

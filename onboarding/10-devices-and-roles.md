@@ -99,14 +99,20 @@ noticed.
 1. `<your Banco address>/pos/hardware` — scan a hyphenated test code. Green = the gun and that
    machine agree. Do this **per machine**, every time a gun moves.
 
-**Setup session (evening, ProBook or tablet):**
+**Setup session — AT THE SHELF, tablet in hand, one section at a time.** (Corrected 2026-07-31:
+you cannot carry a few hundred codes back to a desk. Choosing between `Slim` and `Slim mit Filter`
+needs the packet, and by then you don't have it — see [09](09-shelf-intake.md).)
 
-2. Gun into `Inventurmodus`, walk the shelves, scan everything. ~2 s per product, no thinking.
-3. Scan `Anzahl der gescannten Barcodes`, write the number down.
+2. Gun into `Inventurmodus`, scan **one shelf section** (10–15 facings). ~2 s each, no thinking.
+3. Scan `Anzahl der gescannten Barcodes` and check the count.
 4. `/pos/shelf-intake` → type the count → scan `Daten hochladen` into the big box.
 5. Counts agree? Then `Daten im Cache löschen`, then `Normalmodus`.
-6. Work the unknowns **ten at a time**: search the EAN → open the page → Read → **type your price**
-   → bind to an existing product, or create.
+6. Work them **with the packets still in front of you**:
+   - **① Type two or three words off the label** — most of the shop is already in the catalogue and
+     only its barcode is a fiction. Pick by the **bold** words and the picture. ~15 seconds.
+   - **② Only if nothing matches**, find it on the web and paste the page. ~1 minute.
+   - **Unsure?** Skip it. A wrong bind is worse than none.
+7. Next section.
 
 **Proving it (the only step that counts):**
 
