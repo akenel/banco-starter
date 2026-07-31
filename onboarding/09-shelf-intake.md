@@ -4,24 +4,29 @@
 on each packet. Read [`CATALOG-IDENTITY.md`](../CATALOG-IDENTITY.md) first if you want the why —
 this guide is the how.*
 
-**Screen:** `/pos/shelf-intake` (manager) · **Time:** ~20 min in the shop + one evening at a desk
+**Screen:** `/pos/shelf-intake` (manager) · **Time:** ~15 min per shelf section, done at the shelf
 
 ---
 
 ## The idea in one line
 
-> Walk the shop scanning everything, then do the thinking afterwards — batched, at a desk,
-> with nobody waiting behind you.
+> Scan a shelf section, then resolve that section on the spot — batched, with nobody waiting
+> behind you, and the packets still in your hands.
 
-That is the whole trick, and it is worth stating plainly because the obvious alternative feels
-more natural and is roughly ten times slower.
+The trick is not doing it later. It is doing it in **batches, off the clock**, with the shelf in
+front of you instead of a customer.
 
 | | at the counter | shelf intake |
 |---|---|---|
-| per product | ~5 minutes | ~2 seconds scanning + ~30 s at a desk |
+| per product | ~5 minutes | ~2 s to scan + ~15 s to bind |
 | who is waiting | a customer | nobody |
-| what you are doing | scanning **and** identifying, at once | one, then the other |
+| what you are doing | hunting the internet mid-sale | matching against a catalogue you already own |
 | what defines the catalogue | a wholesaler's 5,000-row list | **the shelf** — what the shop actually stocks |
+
+**Why it is fast:** 5,105 of this shop's 5,180 products are *already in the catalogue*, with price,
+picture and description. Only the barcode is a fiction. So the job is not identifying products —
+it is **binding** a real EAN onto a row that already exists. Two or three typed words, a glance at
+a picture, one tap.
 
 Measured, not estimated: capturing at the counter took a full day at Artemis Lucerne on
 2026-07-30 and produced ~40 products in ~3.3 hours — **all of which already existed** in the
@@ -122,7 +127,7 @@ import. That number is measured against the live Artemis catalogue on 2026-07-31
 > than read off a packet — meaning the gun read one of our own printed labels. Fine at the till;
 > it just means that row's real EAN is still missing.
 
-### Step 3 — work the unknowns, ten at a time
+### Step 3 — work the unknowns, ten at a time, WITH THE PACKETS IN FRONT OF YOU
 
 Ten, not one, and not fifty. Angel's rule, from doing it by hand:
 
