@@ -300,6 +300,27 @@
                        some other shop's retail price in some other country, which is evidence of
                        what a thing costs, not what THIS shop sells it for. So the page's number
                        is shown as a reference and the sale price is always typed by a human. -->
+                  <!-- THE TITLE IS YOURS, NOT THE PAGE'S.
+                       Whatever page you happened to find decides the language, and that is
+                       arbitrary. Angel found his Gizeh King Size on a HUNGARIAN site — right
+                       product, right price, title in Hungarian. He spotted it in about a second;
+                       no language guesser we have would (ours only knows German-vs-unknown).
+                       So the scraped title is a STARTING POINT in an editable box, and what gets
+                       stored is what the shop actually calls it — because that is the string a
+                       cashier has to recognise at the counter.
+                       The EAN is the identity. This is just a label. (CATALOG-IDENTITY.md) -->
+                  <div x-show="row.facts && row.facts.name" style="display:none" class="mb-2">
+                    <label class="text-sm block mb-2">
+                      <span class="block text-xs text-gray-500 mb-1">Name at the counter — edit it to what the shop says</span>
+                      <input type="text" x-model="row.title" maxlength="255"
+                             class="border rounded-lg px-3 py-2 text-sm w-full">
+                    </label>
+                    <p x-show="row.facts && row.title !== row.facts.name" style="display:none"
+                       class="text-xs text-gray-400 mb-2">
+                      page said: <span class="italic" x-text="row.facts.name"></span>
+                    </p>
+                  </div>
+
                   <div x-show="row.facts && row.facts.name" style="display:none"
                        class="flex items-end gap-3 flex-wrap mb-2">
                     <label class="text-sm">
@@ -329,7 +350,7 @@
                        It is also the PRIMARY button when nothing was proposed — because then it
                        is the only sensible move, not a fallback. -->
                   <button @click="createNew(row)"
-                          :disabled="row.busy || !(row.facts && row.facts.name) || !(row.price > 0)"
+                          :disabled="row.busy || !(row.title || '').trim() || !(row.price > 0)"
                           class="text-sm"
                           :class="[(row.candidates && row.candidates.length) ? 'btn-secondary' : 'btn-primary',
                                    (!(row.facts && row.facts.name) || !(row.price > 0)) ? 'opacity-50 cursor-not-allowed' : '']"
@@ -445,7 +466,7 @@ function shelfIntake() {
                                  { raw: this.raw, expected: this.expected || null });
         this.result = r;
         this.pending = (r.unknown || []).map(u => ({
-          ...u, status: 'todo', query: '', url: '', facts: null, price: null,
+          ...u, status: 'todo', query: '', url: '', facts: null, price: null, title: '',
           candidates: null, siblings: null, checked: false, busy: false, error: '', boundTo: '',
         }));
         this.batchStart = 0;
@@ -487,6 +508,7 @@ function shelfIntake() {
         // editable box gets accepted by a tired human at 11pm — leaving it blank forces the
         // decision that has to be made anyway.
         if (f.price != null && !this.priceIsForeign({ facts: f })) row.price = f.price;
+        row.title = f.name;   // a starting point — the operator owns it from here
         await this.lookupName(row);
       } catch (e) {
         row.error = (e && e.message) || 'Could not read that page.';
@@ -530,6 +552,7 @@ function shelfIntake() {
       const f = row.facts || {};
       if (!f.name) return;
       if (!(row.price > 0)) { row.error = 'Set your sale price first.'; return; }
+      if (!(row.title || '').trim()) { row.error = 'Give it a name first.'; return; }
       row.busy = true; row.error = '';
       try {
         // allow_duplicate: the operator has just LOOKED at the candidates and said no. Blocking
@@ -539,7 +562,7 @@ function shelfIntake() {
         const p = await API.post('/api/v1/pos/products?allow_duplicate=true', {
           sku: '', mint_identity: true,
           barcode: row.barcode,
-          name: f.name,
+          name: (row.title || '').trim() || f.name,
           description: f.description || null,
           price: row.price,          // the operator's number, never the scraped one
           image_url: f.image || null,
