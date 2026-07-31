@@ -201,8 +201,18 @@
                 ✅ Bound to <span class="font-semibold" x-text="row.boundTo"></span> — it scans forever now.
               </div>
               <div x-show="row.status === 'created'" style="display:none"
-                   class="bg-emerald-50 border border-emerald-300 rounded-lg p-3 text-sm text-emerald-800">
-                ✨ Created <span class="font-semibold" x-text="row.boundTo"></span>.
+                   class="bg-emerald-50 border border-emerald-300 rounded-lg p-3 text-sm text-emerald-800
+                          flex justify-between items-center gap-3 flex-wrap">
+                <span>✨ Created <span class="font-semibold" x-text="row.boundTo"></span>.</span>
+                <!-- Finding the RIGHT page is the hard part, and you often find it second.
+                     Angel: "I put in the wrong one, so we ended up getting the Hungarian
+                     description... I looked a little bit harder and now I wanna go back and fix
+                     it." Deleting and starting over does NOT work — delete is a SOFT delete, the
+                     dead row keeps the barcode, and re-creating with the same EAN 409s against a
+                     product you cannot see. So we edit the one that exists. -->
+                <button @click="redo(row)" class="text-emerald-800 underline font-semibold flex-none">
+                  Redo from a better page
+                </button>
               </div>
               <div x-show="row.status === 'skipped'" style="display:none"
                    class="bg-gray-100 rounded-lg p-3 text-sm text-gray-600 flex justify-between items-center">
@@ -250,6 +260,13 @@
                         </span>
                         <span x-show="row.facts && row.facts.suggested_category" x-text="row.facts && row.facts.suggested_category"></span>
                         <span x-show="row.facts && row.facts.suggested_age_restricted" class="text-rose-600 font-semibold"> · 18+</span>
+                      </p>
+                      <p x-show="row.facts && langWarning(row.facts)" style="display:none"
+                         class="text-xs text-amber-800 bg-amber-50 rounded p-2 mt-2">
+                        ⚠️ This page doesn't read as German, English, French or Italian. The
+                        product may still be right — the EAN matched — but <b>check the title and
+                        description before you save</b>, and prefer the manufacturer's own site if
+                        you can find it.
                       </p>
                       <p x-show="row.facts && row.facts.barcode && row.facts.barcode !== row.barcode"
                          style="display:none" class="text-xs text-amber-700 mt-1">
@@ -467,6 +484,7 @@ function shelfIntake() {
         this.result = r;
         this.pending = (r.unknown || []).map(u => ({
           ...u, status: 'todo', query: '', url: '', facts: null, price: null, title: '',
+          productId: '', redoId: '',
           candidates: null, siblings: null, checked: false, busy: false, error: '', boundTo: '',
         }));
         this.batchStart = 0;
@@ -532,6 +550,16 @@ function shelfIntake() {
     // "Foreign" means the page named a currency and it is not ours. A page that states NO
     // currency is treated as ours — it is almost always the shop's own site or wholesaler —
     // but the operator still has to eyeball the number before the button unlocks.
+    // "Not a language we can eyeball." Deliberately NOT language identification — it only
+    // claims that letters appear which German/English/French/Italian do not use. Hungarian ő/ű,
+    // Polish ł/ż, Czech ř/ě, Turkish ı/ğ, or any Cyrillic/Greek. That is enough to say "look
+    // harder", and it is honest: it never claims to know WHICH language. Our real detector
+    // (_guess_base_lang) only knows German-vs-unknown and returned nothing for Hungarian.
+    langWarning(facts) {
+      var t = ((facts && facts.name) || '') + ' ' + ((facts && facts.description) || '');
+      return /[őűąćęłńśźżřěščžığşİĞŞ\u0400-\u04FF\u0370-\u03FF]/.test(t);
+    },
+
     priceIsForeign(row) {
       var c = row && row.facts && row.facts.currency;
       return !!c && String(c).toUpperCase() !== String(this.shopCurrency).toUpperCase();
@@ -542,6 +570,7 @@ function shelfIntake() {
       try {
         await API.post(`/api/v1/pos/products/${cand.id}/barcodes`, { barcode: row.barcode });
         row.status = 'bound';
+        row.productId = cand.id;
         row.boundTo = cand.name;
       } catch (e) {
         row.error = (e && e.message) || 'Could not bind that barcode.';
@@ -559,7 +588,7 @@ function shelfIntake() {
         // them again with the same 409 would be the machine overruling the human.
         // sku '' + mint_identity: the server names it (identity is immutable — mint it once,
         // server-side). It will NOT mint a barcode, because we are handing it a real one.
-        const p = await API.post('/api/v1/pos/products?allow_duplicate=true', {
+        const body = {
           sku: '', mint_identity: true,
           barcode: row.barcode,
           name: (row.title || '').trim() || f.name,
@@ -569,12 +598,46 @@ function shelfIntake() {
           category: f.suggested_category || null,
           product_class: f.suggested_class || 'standard',
           is_age_restricted: !!f.suggested_age_restricted,
-        });
+        };
+        let p;
+        if (row.redoId) {
+          // PUT, not a fresh create: the barcode already belongs to this row, and a soft-deleted
+          // twin would block a re-create anyway. sku/barcode stay put — identity is immutable.
+          delete body.sku; delete body.mint_identity; delete body.barcode;
+          p = await API.put(`/api/v1/pos/products/${row.redoId}`, body);
+        } else {
+          p = await API.post('/api/v1/pos/products?allow_duplicate=true', body);
+        }
         row.status = 'created';
+        row.productId = p.id || row.redoId;
         row.boundTo = p.name;
       } catch (e) {
         row.error = (e && e.message) || 'Could not create that product.';
       } finally { row.busy = false; this.save(); }
+    },
+
+    // Reopen a created row, remembering WHICH product to overwrite. Everything else resets so
+    // the second attempt is a clean read — including the price, because a different page states
+    // a different number and silently keeping the old one is how a wrong price survives a fix.
+    async redo(row) {
+      // Rows created before this button existed carry no product id — and a session that has
+      // been sitting in localStorage all afternoon is exactly when you want to redo something.
+      // The barcode is the identity, so ask the server which product owns it.
+      if (!row.productId) {
+        try {
+          const p = await API.get('/api/v1/pos/products/barcode/' + encodeURIComponent(row.barcode));
+          row.productId = p && p.id;
+        } catch (e) { /* fall through — handled below */ }
+      }
+      if (!row.productId) {
+        row.error = "Couldn't find that product to edit — open it from the Catalog instead.";
+        return;
+      }
+      row.redoId = row.productId;
+      row.status = 'todo';
+      row.url = ''; row.facts = null; row.title = ''; row.price = null;
+      row.candidates = null; row.siblings = null; row.checked = false; row.error = '';
+      this.save();
     },
 
     skip(row) { row.status = 'skipped'; this.save(); },
