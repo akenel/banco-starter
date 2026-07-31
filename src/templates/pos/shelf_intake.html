@@ -213,10 +213,50 @@
                      it." Deleting and starting over does NOT work — delete is a SOFT delete, the
                      dead row keeps the barcode, and re-creating with the same EAN 409s against a
                      product you cannot see. So we edit the one that exists. -->
-                <button @click="redo(row)" class="text-emerald-800 underline font-semibold flex-none">
-                  Redo from a better page
-                </button>
+                <span class="flex gap-3 flex-none">
+                  <button @click="redo(row)" class="text-emerald-800 underline font-semibold">
+                    Redo from a better page
+                  </button>
+                  <!-- The twin problem, and Angel proved it on his own shelf: he built
+                       "GIZEH BLACK King Size Slim" off a page that wasn't his packet, while
+                       TAM-21669 "Gizeh King Size" sat in the catalogue fully described and
+                       missing only the EAN. Merging keeps the wholesale row and moves the EAN
+                       onto it. -->
+                  <button @click="findMerge(row)" class="text-emerald-800 underline font-semibold">
+                    Merge into a catalogue row
+                  </button>
+                </span>
               </div>
+              <!-- merge picker -->
+              <div x-show="row.merging" style="display:none" class="mt-3 border-2 border-amber-300 rounded-lg p-3 bg-amber-50">
+                <p class="text-sm font-bold text-amber-900 mb-1">Which catalogue row should survive?</p>
+                <p class="text-xs text-amber-800 mb-3">
+                  The wholesale row keeps its description, tier pricing and layout. Your EAN moves onto it,
+                  and this row is retired — not deleted, so any sales history stays intact.
+                </p>
+                <input x-model="row.mergeQuery" @keydown.enter="findMerge(row)" placeholder="gizeh king size"
+                       class="border rounded-lg px-3 py-2 text-sm w-full mb-2">
+                <p x-show="row.mergeBusy" style="display:none" class="text-sm text-gray-500">Looking…</p>
+                <template x-for="c in (row.mergeCandidates || [])" :key="c.id">
+                  <div class="flex items-center gap-3 bg-white border rounded-lg p-2 mb-2">
+                    <img :src="c.image_url || '/static/pos/img/placeholder.png'"
+                         @click.stop="preview = c.image_url || ''"
+                         class="w-16 h-16 object-contain rounded bg-gray-50 flex-none cursor-zoom-in">
+                    <div class="min-w-0 flex-1">
+                      <p class="text-sm text-gray-900" x-html="highlight(c.name, row.mergeQuery)"></p>
+                      <p class="text-xs text-gray-400"><span class="font-mono" x-text="c.sku"></span>
+                        <span x-show="c.price !== null"> · CHF <span x-text="c.price"></span></span></p>
+                    </div>
+                    <button @click="doMerge(row, c)" :disabled="row.mergeBusy"
+                            class="btn-primary text-sm flex-none">Keep this one</button>
+                  </div>
+                </template>
+                <p x-show="row.mergeCandidates && !row.mergeCandidates.length && !row.mergeBusy"
+                   style="display:none" class="text-sm text-gray-600">Nothing matched — this really is a new product.</p>
+                <p x-show="row.mergeError" style="display:none" class="text-sm text-rose-600" x-text="row.mergeError"></p>
+                <button @click="row.merging = false" class="text-xs text-gray-500 underline mt-1">Cancel</button>
+              </div>
+
               <div x-show="row.status === 'skipped'" style="display:none"
                    class="bg-gray-100 rounded-lg p-3 text-sm text-gray-600 flex justify-between items-center">
                 <span>Skipped — still unknown.</span>
@@ -569,6 +609,7 @@ function shelfIntake() {
           ...u, status: 'todo', query: '', url: '', facts: null, price: null, title: '',
           productId: '', redoId: '', foundAfterWeb: false,
           brand: '', brandSite: '', brandQuery: '',
+          merging: false, mergeQuery: '', mergeCandidates: null, mergeBusy: false, mergeError: '',
           candidates: null, siblings: null, checked: false, busy: false, error: '', boundTo: '',
         }));
         this.batchStart = 0;
@@ -758,6 +799,39 @@ function shelfIntake() {
       row.url = ''; row.facts = null; row.title = ''; row.price = null;
       row.candidates = null; row.siblings = null; row.checked = false; row.error = '';
       this.save();
+    },
+
+    // Find the catalogue row that SHOULD have had this EAN all along.
+    async findMerge(row) {
+      row.merging = true; row.mergeError = '';
+      if (!row.mergeQuery) row.mergeQuery = row.boundTo || row.title || '';
+      if (!row.mergeQuery.trim()) return;
+      row.mergeBusy = true;
+      try {
+        const r = await API.post('/api/v1/pos/catalog/match-candidates',
+                                 { name: row.mergeQuery.trim(), barcode: row.barcode });
+        // Never offer the row itself as its own merge target.
+        row.mergeCandidates = (r.candidates || []).filter(c => String(c.id) !== String(row.productId));
+      } catch (e) {
+        row.mergeError = (e && e.message) || 'Lookup failed.';
+      } finally { row.mergeBusy = false; this.save(); }
+    },
+
+    async doMerge(row, cand) {
+      if (!confirm('Keep "' + cand.name + '" and retire "' + row.boundTo + '"?\n\n'
+                 + 'Barcode ' + row.barcode + ' moves onto the surviving row. This is not undone by a click.')) return;
+      row.mergeBusy = true; row.mergeError = '';
+      try {
+        const r = await API.post('/api/v1/pos/catalog/merge',
+                                 { keep_id: cand.id, retire_id: row.productId });
+        row.merging = false;
+        row.status = 'bound';
+        row.wasRedo = false;
+        row.productId = cand.id;
+        row.boundTo = cand.name + '  (merged — ' + (r.new_primary_barcode || row.barcode) + ')';
+      } catch (e) {
+        row.mergeError = (e && e.message) || 'Merge failed.';
+      } finally { row.mergeBusy = false; this.save(); }
     },
 
     skip(row) { row.status = 'skipped'; this.save(); },

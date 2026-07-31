@@ -867,6 +867,110 @@ async def catalog_match_candidates(
             "brand_query": search_query(req.name) if brand else None}
 
 
+class MergeRequest(BaseModel):
+    """Fold a duplicate into the row that should survive."""
+    keep_id: UUID = Field(..., description="The row that SURVIVES — normally the wholesaler's")
+    retire_id: UUID = Field(..., description="The duplicate to retire — normally the hand-made one")
+    dry_run: bool = Field(False, description="Report what would happen; change nothing")
+
+
+@router.post("/catalog/merge")
+async def catalog_merge_products(
+    req: MergeRequest,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(require_manager_or_admin()),
+):
+    """Fold a duplicate into the row that should survive, moving the identity across.
+
+    THE RULE, in Angel's words after doing it by hand: *"I found the same thing on Tamar, it just
+    didn't have the EAN. Now that you have it, THAT's the one to enrich — Tamar has the better
+    descriptions, the tier pricing, a standard layout, more specs."*
+
+    So this is deliberately NOT a symmetric "merge". The wholesale row wins on content; the
+    hand-made row contributes exactly one thing — **the EAN off the packet** — and that is a
+    field, not a product.
+
+    What moves:
+      • every barcode the retiring row owns (primary + aliases) becomes a barcode of the survivor.
+        The survivor's own minted code is NOT thrown away — it is demoted to an alias, because a
+        shelf label may already have been printed with it and must keep scanning.
+      • the real EAN becomes the survivor's PRIMARY barcode, so `barcode_is_internal` stops lying.
+      • blank fields on the survivor (image, description, cost) are filled from the retiring row —
+        blanks only. A populated wholesale field is never overwritten; that is the whole point.
+
+    What does NOT happen: the retiring row is DEACTIVATED, never hard-deleted. Its line items are
+    someone's sales history, and a merge that quietly rewrites what a receipt referred to is worse
+    than a duplicate.
+
+    Manager-only, and `dry_run` reports the plan without touching anything — this is not reversible
+    by clicking twice.
+    """
+    if req.keep_id == req.retire_id:
+        raise HTTPException(status_code=400, detail="Those are the same product.")
+
+    keep = (await db.execute(select(ProductModel).where(ProductModel.id == req.keep_id))).scalar_one_or_none()
+    retire = (await db.execute(select(ProductModel).where(ProductModel.id == req.retire_id))).scalar_one_or_none()
+    if keep is None or retire is None:
+        raise HTTPException(status_code=404, detail="One of those products no longer exists.")
+
+    # Everything the retiring row is known by — its primary plus any aliases.
+    alias_rows = (await db.execute(
+        select(ProductBarcodeModel).where(ProductBarcodeModel.product_id == retire.id))).scalars().all()
+    moving = [c for c in ([retire.barcode] + [a.barcode for a in alias_rows]) if c]
+
+    # The survivor's primary should end up REAL. Prefer a code that isn't a minted 2-prefix.
+    def _is_minted(code: str | None) -> bool:
+        return bool(code) and bool(re.match(r"^2\d{12}$", code))
+
+    new_primary = next((c for c in moving if not _is_minted(c)), None) or keep.barcode
+    demoted = [c for c in ([keep.barcode] + moving) if c and c != new_primary]
+
+    fills = {f: getattr(retire, f) for f in ("image_url", "description", "cost")
+             if not getattr(keep, f, None) and getattr(retire, f, None)}
+
+    plan = {
+        "keep": {"id": str(keep.id), "sku": keep.sku, "name": keep.name, "barcode": keep.barcode},
+        "retire": {"id": str(retire.id), "sku": retire.sku, "name": retire.name, "barcode": retire.barcode},
+        "new_primary_barcode": new_primary,
+        "kept_as_aliases": demoted,
+        "fields_filled_from_retired": sorted(fills.keys()),
+        "dry_run": req.dry_run,
+    }
+    if req.dry_run:
+        return {"applied": False, **plan}
+
+    # Free every code from the retiring row FIRST — barcode is UNIQUE, so the survivor cannot
+    # take a code while the duplicate still holds it.
+    retire.barcode = None
+    for a in alias_rows:
+        await db.delete(a)
+    await db.flush()
+
+    keep.barcode = new_primary
+    keep.barcode_is_internal = _is_minted(new_primary)
+    for code in demoted:
+        db.add(ProductBarcodeModel(product_id=keep.id, barcode=code))
+    for field, value in fills.items():
+        setattr(keep, field, value)
+
+    retire.is_active = False
+    now = datetime.now(timezone.utc)
+    keep.updated_at = now
+    retire.updated_at = now
+
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(status_code=409,
+                            detail="One of those barcodes already belongs to a third product.")
+
+    logger.info("Merged %s (%s) into %s (%s) by %s — primary now %s, aliases %s",
+                retire.sku, retire.name, keep.sku, keep.name,
+                current_user["username"], new_primary, demoted)
+    return {"applied": True, **plan}
+
+
 @router.post("/products/quick", response_model=ProductRead, status_code=status.HTTP_201_CREATED)
 async def quick_create_product(
     product: ProductCreate,

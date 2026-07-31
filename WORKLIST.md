@@ -174,7 +174,16 @@
    **Done =** scan an unknown EAN on a product that exists → it is offered → one tap → it scans
    forever after. Verified at the shop, not in a report.
 
-3. **Retire the 2026-07-30 duplicate rows.** *(small, straight after item 1)*
+3. **✅ MERGE BUTTON — DONE 2026-07-31.** `POST /catalog/merge` (manager) + a *Merge into a
+   catalogue row* action on any row you created in shelf intake. Keeps the wholesale row, moves
+   the real EAN onto it as PRIMARY, demotes the minted code to an alias (a printed shelf label
+   must keep scanning), fills only BLANK fields on the survivor, and DEACTIVATES the twin rather
+   than deleting it — its line items are someone's sales history. `dry_run` reports the plan.
+   Proven end to end on a live DB: both barcodes resolve to the survivor afterwards. 7 tests.
+   *Still to do: the ~40 duplicates from 2026-07-30 have not been merged yet — that is now a
+   matter of working the list, not building anything.*
+
+4. **Retire the 2026-07-30 duplicate rows.** *(now just usage of the merge button, above)*
    - ~40 products were hand-created that already existed (e.g. `Blow Pre-built CBD Joint Pure "V1" 1 pc. black` = `Blow vorgebauter CBD Joint Pure "V1" 1 Stk. schwarz`, TAM-20350).
    - The **imported** row has the good data; the **hand-made** row has the real EAN. So move the barcode onto the imported row and drop the twin. Angel: *"you just delete them"*.
    - Dry-run-first script, same shape as `scripts/reclass-age-gate.py`.
