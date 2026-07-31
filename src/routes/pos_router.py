@@ -2663,6 +2663,27 @@ async def _page_product_facts(page_url: str) -> dict:
                 out["currency"] = cur.upper()[:3]
     except Exception as e:
         logger.info(f"Page facts lookup failed ({url[:70]}): {str(e)[:60]}")
+
+    # DECODE HTML ENTITIES — the last thing, so every extraction path above is covered.
+    #
+    # Everything here is scraped out of raw HTML with regexes, so values arrive still encoded:
+    # a page whose title is `GIZEH Papers KingSize` serves it as `GIZEH&#x20;Papers&#x20;KingSize`.
+    # That text went straight into the catalogue, and the damage was not cosmetic — it broke
+    # MATCHING. Measured on the live catalogue 2026-07-31:
+    #
+    #     'gizeh  x20 papers  x20 kingsize'  vs  'gizeh king size slim'   ->  0.429   MISSED
+    #     'gizeh king size slim'             vs  'gizeh king size slim'   ->  1.000   caught
+    #
+    # The 0.5 threshold is what decides, so the encoded title lost by a hair and Banco reported
+    # "nothing in the catalogue looks like that" about a product sitting right there as TAM-16301.
+    #
+    # `&quot;` matters just as much: this shop's own titles carry quotes (Blow ... "V1" ...), and
+    # `&amp;` inside an og:image query string silently breaks the picture URL. So unescape every
+    # string we hand back, URLs included — for a URL, `&amp;` -> `&` is the correct form.
+    import html as _html
+    for _k, _v in list(out.items()):
+        if _k != "_html" and isinstance(_v, str):
+            out[_k] = _html.unescape(_v)
     return out
 
 
