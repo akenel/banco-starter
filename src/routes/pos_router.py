@@ -7569,10 +7569,26 @@ async def audit_feed(
                -- catalogue screens use thumbnails. A DELETED product has no row to join, so
                -- fall back to whatever image_url the change record itself captured — that is
                -- precisely when you most want to see what you removed.
-               COALESCE(pr.image_url,
-                        a.changes->>'image_url',
-                        a.changes->'image_url'->>'old',
-                        a.changes->'image_url'->>'new') AS image_url
+               -- Resolve the picture the SAME way every other screen does (see
+               -- _product_display_image): the cover if it is set, otherwise the first uploaded
+               -- gallery photo. A cover can point at a host that has since started refusing
+               -- requests — Metrop MR2's agrowstore.hu cover 403s to everyone — while a
+               -- perfectly good uploaded photo sits behind it. The catalogue falls back and
+               -- looks fine; the audit did not, and showed a broken icon for a product whose
+               -- image was never actually missing.
+               COALESCE(
+                 NULLIF(pr.image_url, ''),
+                 (SELECT '/api/v1/pos/products/' || pr.id || '/images/' || gi.id
+                    FROM product_images gi WHERE gi.product_id = pr.id
+                   ORDER BY gi.sort_order ASC NULLS LAST, gi.created_at ASC LIMIT 1),
+                 -- last resort, for a DELETED product: whatever the change record captured.
+                 -- ->'image_url'->>'old' first, because ->>'image_url' on a {old,new} object
+                 -- returns the stringified OBJECT, which renders as a broken image.
+                 a.changes->'image_url'->>'old',
+                 a.changes->'image_url'->>'new',
+                 CASE WHEN jsonb_typeof(a.changes->'image_url') = 'string'
+                      THEN a.changes->>'image_url' END
+               ) AS image_url
         FROM audit_log a
         LEFT JOIN products  pr ON a.entity_type='products'  AND pr.id::text = a.entity_id
         LEFT JOIN suppliers su ON a.entity_type='suppliers' AND su.id::text = a.entity_id
