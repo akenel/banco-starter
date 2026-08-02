@@ -5909,7 +5909,18 @@ async def get_category_sales_detail(
 # cleanup queue; 18+ and photo are surfaced for review but don't gate (a manager confirms them
 # while they're in there). This is the safety net that makes the lean quick-add safe — nothing a
 # cashier rings in a rush falls through permanently.
-_HALFBAKED_CATEGORIES = ("On the fly", "On The Fly", "on the fly")
+# A category that does not actually categorise anything. Angel: "uncat is actually the same as
+# unsorted and those are bad boys."
+#
+# Right, and the screen was hiding it: the gap test only knew "On the fly", so Catalog Health
+# reported 0 uncategorised while 78 products sat in Unsorted (12) and Other (66). "Other" is the
+# same dumping ground wearing a politer word — and the taxonomy says so itself, filing
+# Unsorted, Other and "Accessories (general)" under one product group, "Unsorted / System".
+#
+# Taken FROM the taxonomy rather than hand-listed, so the two definitions cannot drift: if a
+# category is not usable for grouping a shelf or reading a report, it is a gap.
+_HALFBAKED_CATEGORIES = ("On the fly", "On The Fly", "on the fly",
+                         "Unsorted", "Other", "Accessories (general)")
 
 # BL-98 — the ENRICHMENT (bench) gaps. The cockpit has two MODES over the same shape:
 #
