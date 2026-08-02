@@ -129,12 +129,18 @@
                  product by its picture is why every other catalogue screen uses a thumbnail.
                  Tapping it opens the full size WITHOUT expanding the row, so you can check a
                  pack without losing your place in the list. -->
-            <template x-if="it.image_url">
-              <img :src="it.image_url" loading="lazy" alt=""
-                   @click.stop="preview = it.image_url"
+            <!-- Cover first, uploaded gallery photo on error — the same swap the catalogue
+                 does. A cover can be a valid URL that simply will not load (Metrop MR2 points
+                 at a host that 403s everyone), and only the browser can discover that. -->
+            <template x-if="it.image_url || it.fallback_image_url">
+              <img :src="(it._useFallback && it.fallback_image_url) ? it.fallback_image_url : (it.image_url || it.fallback_image_url)"
+                   loading="lazy" alt=""
+                   @error="if (it.fallback_image_url && !it._useFallback && it.image_url !== it.fallback_image_url) { it._useFallback = true } else { it._imgerr = true }"
+                   x-show="!it._imgerr"
+                   @click.stop="preview = (it._useFallback && it.fallback_image_url) ? it.fallback_image_url : it.image_url"
                    class="w-10 h-10 flex-none rounded object-contain bg-gray-50 border cursor-zoom-in mt-0.5">
             </template>
-            <template x-if="!it.image_url">
+            <template x-if="!(it.image_url || it.fallback_image_url)">
               <div class="text-2xl leading-none mt-0.5 w-10 text-center flex-none"
                    x-text="entityEmoji(it.entity_type)"></div>
             </template>

@@ -7589,26 +7589,29 @@ async def audit_feed(
                -- catalogue screens use thumbnails. A DELETED product has no row to join, so
                -- fall back to whatever image_url the change record itself captured — that is
                -- precisely when you most want to see what you removed.
-               -- Resolve the picture the SAME way every other screen does (see
-               -- _product_display_image): the cover if it is set, otherwise the first uploaded
-               -- gallery photo. A cover can point at a host that has since started refusing
-               -- requests — Metrop MR2's agrowstore.hu cover 403s to everyone — while a
-               -- perfectly good uploaded photo sits behind it. The catalogue falls back and
-               -- looks fine; the audit did not, and showed a broken icon for a product whose
-               -- image was never actually missing.
+               -- The cover, plus the uploaded gallery photo as a SEPARATE fallback field.
+               --
+               -- A cover URL can be perfectly well-formed and still not render — Metrop MR2's
+               -- points at agrowstore.hu, which 403s to everyone — and SQL cannot know that.
+               -- Only the browser finds out. So do what the catalogue already does: hand over
+               -- both, show the cover, and swap on the img error event. My first attempt
+               -- resolved this in SQL with a COALESCE, which could never work: image_url was
+               -- not NULL, it was merely dead.
+               --
+               -- For a DELETED product there is no row left, so fall back to whatever the
+               -- change record captured. ->'image_url'->>'old' first: ->>'image_url' on a
+               -- {old,new} object returns the stringified OBJECT, which itself renders broken.
                COALESCE(
                  NULLIF(pr.image_url, ''),
-                 (SELECT '/api/v1/pos/products/' || pr.id || '/images/' || gi.id
-                    FROM product_images gi WHERE gi.product_id = pr.id
-                   ORDER BY gi.sort_order ASC NULLS LAST, gi.created_at ASC LIMIT 1),
-                 -- last resort, for a DELETED product: whatever the change record captured.
-                 -- ->'image_url'->>'old' first, because ->>'image_url' on a {old,new} object
-                 -- returns the stringified OBJECT, which renders as a broken image.
                  a.changes->'image_url'->>'old',
                  a.changes->'image_url'->>'new',
                  CASE WHEN jsonb_typeof(a.changes->'image_url') = 'string'
                       THEN a.changes->>'image_url' END
-               ) AS image_url
+               ) AS image_url,
+               (SELECT '/api/v1/pos/products/' || pr.id || '/images/' || gi.id
+                  FROM product_images gi WHERE gi.product_id = pr.id
+                 ORDER BY gi.sort_order ASC NULLS LAST, gi.created_at ASC LIMIT 1
+               ) AS fallback_image_url
         FROM audit_log a
         LEFT JOIN products  pr ON a.entity_type='products'  AND pr.id::text = a.entity_id
         LEFT JOIN suppliers su ON a.entity_type='suppliers' AND su.id::text = a.entity_id
@@ -7636,7 +7639,8 @@ async def audit_feed(
         "at": r["changed_at"].isoformat() if r["changed_at"] else None,
         "who": r["changed_by"], "action": r["action"],
         "entity_type": r["entity_type"], "entity_id": r["entity_id"],
-        "label": r["label"], "image_url": r["image_url"], "changes": _chg(r["changes"]),
+        "label": r["label"], "image_url": r["image_url"],
+        "fallback_image_url": r["fallback_image_url"], "changes": _chg(r["changes"]),
     } for r in rows]
 
     matched = (await db.execute(text("""
