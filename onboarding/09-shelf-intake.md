@@ -153,6 +153,38 @@ and GTIN off that page's own structured data and suggests a category. Then **cre
 
 **(c) You can't resolve it right now.** Skip it. It stays in the list and you can undo later.
 
+### When a code returns nothing at all
+
+Roughly one in ten. Two things it usually means, and both are worth checking before you spend
+two minutes searching:
+
+**It's an OUTER pack.** GS1 gives each packaging level its own code, and the multipack's code is
+often registered nowhere public while the single unit's is everywhere. Angel, 2026-08-02: a
+3-pack of OCB Premium Slim returned nothing on `3057067785033` — and the singles inside carried
+`30058569`, which resolved instantly. **Open the pack and scan what's inside.**
+
+**It isn't shop stock.** A code that resolves nowhere is often telling you the truth: it's a
+packet of batteries that wandered in from somewhere else. Skip it and move on — that is the
+button working, not failing.
+
+**The country prefix is free information**, printed in the code itself: `761…` is a Swiss
+company, `30…`–`37…` French, `40…`–`44…` German, `50…` UK. It won't name the product, but it
+tells you which corner of the internet to search.
+
+### Batch size is set by the FAILURES, not the scanning
+
+Scanning is two seconds either way. What decides the batch is how many failures you can bear to
+walk back to — **because a failed lookup gives you a number and nothing else.** No name, no
+photo, no shelf position. You cannot even tell which product it was.
+
+```
+30 scanned  →  ~3 fail   →  you are still standing in that aisle
+300 scanned →  ~30 fail  →  a second trip, and you don't know which 30
+```
+
+So: **one shelf section, 20–30 facings, resolve every one of them, then move on.** Angel found
+his two failures in under a minute — because he had not walked away yet.
+
 **The machine never chooses.** It proposes, you judge. About half the borderline proposals are
 wrong on a real catalogue, and wrong in ways no text score can catch — `Canna` vs `Cocanna`,
 `Spritz` vs `Spritze`, incense papers vs rolling papers. A human spots those in a quarter of a
