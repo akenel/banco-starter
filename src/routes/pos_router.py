@@ -5995,6 +5995,29 @@ async def catalog_health(
         ProductModel.barcode_is_internal == True,
     ))
     complete = max(0, total - on_bench)
+
+    # TWO HONEST SCORES, because one number was telling a lie.
+    #
+    # "Complete" required all four gaps closed, and COST is one of them — so a catalogue that is
+    # 99% priced, 99% categorised, 99% pictured and 96% described reported **1% complete**,
+    # purely because a wholesale cost is missing on 5,099 rows. Angel read that screen tonight.
+    # A number that says 1% about a catalogue in that condition does not motivate anyone; it
+    # reads as "this is hopeless", which is the opposite of true and the opposite of useful.
+    #
+    # Cost is a BACK-OFFICE field. Not knowing your margin on a CHF 1.40 paper does not stop a
+    # customer being served correctly, and for much of a headshop's stock the figure may never
+    # exist. So it is reported separately instead of dragging the headline to zero.
+    #
+    #   sellable    can a customer be served correctly?   photo · description · category
+    #   scannable   will their EAN find it at the till?   a real (non-minted) barcode
+    #   costed      do we know our margin?                cost
+    sellable_gaps = or_(_bench_gap_expr("photo"),
+                        _bench_gap_expr("description"),
+                        _bench_gap_expr("category"))
+    not_sellable = await _count(sellable_gaps)
+    sellable = max(0, total - not_sellable)
+    scannable = max(0, total - no_barcode)
+
     return {
         "total": total,
         "complete": complete,
@@ -6002,6 +6025,13 @@ async def catalog_health(
         "pct_complete": round(100 * complete / total) if total else 100,
         "gaps": gaps,          # {photo, description, category, cost}
         "no_barcode": no_barcode,
+        # the honest headline + the two things it deliberately leaves out
+        "sellable": sellable,
+        "pct_sellable": round(100 * sellable / total) if total else 100,
+        "scannable": scannable,
+        "pct_scannable": round(100 * scannable / total) if total else 100,
+        "costed": max(0, total - gaps.get("cost", 0)),
+        "pct_costed": round(100 * (total - gaps.get("cost", 0)) / total) if total else 100,
     }
 
 
