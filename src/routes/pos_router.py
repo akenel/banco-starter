@@ -615,6 +615,26 @@ async def create_product(
                    "each hold up to 100 characters) and save again.")
     await db.refresh(new_product)
 
+    # OWN THE PICTURE, don't hotlink it. Angel: "we should grab that image at the time we bind
+    # the EAN — and download it too."
+    #
+    # He is right, and it is not only link rot. A cover pointing at someone else's server means
+    # the shop does not own its own catalogue — which is the entire premise of this project —
+    # and it fails in ways nobody notices for months: Metrop MR2's agrowstore.hu cover now 403s
+    # to EVERYONE, so that picture is gone from labels, postcards and the product page, while a
+    # good copy of the same image was never taken. It also pings a third party every time a till
+    # renders a row.
+    #
+    # _copy_external_image_to_storage was built for exactly this ("so we own the bytes instead
+    # of hotlinking a URL that may rot") and the capture screens simply never called it.
+    #
+    # Best-effort by construction: it never raises, and on failure the external URL is kept, so
+    # a picture that cannot be fetched can never fail a product create.
+    if (new_product.image_url or "").startswith(("http://", "https://")):
+        stored = await _copy_external_image_to_storage(db, new_product, new_product.image_url)
+        if stored:
+            logger.info("adopted the picture for %s into our own storage", new_product.sku)
+
     logger.info(f"Product created: {new_product.sku} by user {current_user['username']}")
     return new_product
 
