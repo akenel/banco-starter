@@ -195,13 +195,30 @@ second; a model does not, and is confidently wrong.
 
 ---
 
-## When you're done
+## When you're done — the VERIFY PASS, and it is not optional
 
-Take the gun back to the shelf and **scan ten products at the till**. Not ten you just worked on —
-ten at random.
+Take the gun back to **that same section** and scan the products you just bound. Not ten at
+random — **the ones you just did**, with the packets in your hands again.
 
-That is the only proof that counts. Tests passing is not done; a human holding a packet and
-watching the right product come up is done.
+Angel's method, 2026-08-02, and it is the step that makes the rest trustworthy:
+
+> *"Even after scanning 20 or 30 and binding, go back to that shelf, pick the same products all
+> over again, test the scan and double-check the item in hand is correct."*
+
+**Why it cannot be skipped: a WRONG bind looks exactly like a right one.** In the database both
+are a barcode pointing at a product. Nothing is missing, nothing errors, no report flags it. The
+only thing that can tell them apart is a person holding the packet and reading what came up.
+
+It caught a real one the same evening. `8717524956417` — Canna **Cannazym** — had been bound to
+Canna **Boost**: same brand, same bottle, adjacent barcodes, CHF 12 versus CHF 35. Nothing in
+Banco could have found that. The re-scan did.
+
+**And it finds things you were not looking for.** Verifying by name in the catalogue is how the
+duplicate Tamar rows surfaced — eleven pairs, one of them the same grinder at two different
+prices. That was not a bug hunt; it was a side effect of checking work properly.
+
+So the loop is: **scan a section → bind them all → walk back and re-scan the same section.**
+Three steps, and the third is the one that turns "probably fine" into "checked".
 
 ---
 
