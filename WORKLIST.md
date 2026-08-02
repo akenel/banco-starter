@@ -8,6 +8,45 @@
 
 ## 🎯 On deck (next actionable, in order)
 
+0. **🟢 SHELF INTAKE IS PROVEN — 2026-08-02.** ~1 min/product sustained, 5× the counter, and the
+   output is four times better. Last section: 18 scanned, 16 already known, 2 skipped — and both
+   skips were CORRECT (a Landi battery pack; an OCB 3-pack Felix doesn't stock, whose singles
+   `30058569` resolved instantly). **On real shop stock the hit rate was 100%.**
+
+   **DO THIS FIRST — the verify pass is now step 3 of the workflow.** Scan a section → bind them
+   all → **walk back and re-scan the SAME products with the packets in hand.** A wrong bind looks
+   exactly like a right one in the database; only a person holding the packet can tell. It caught
+   Cannazym bound to Cannaboost (CHF 12 vs CHF 35) and surfaced 11 duplicate Tamar rows.
+
+   **Still untested:** the gun's **inventory-mode dump**. Everything so far was typed/scanned one
+   code at a time. `Inventurmodus` → 20–30 facings → `Anzahl der gescannten Barcodes` → type the
+   count → `Daten hochladen`. Whether the burst survives a browser textarea is the last unknown.
+
+   **Then, in order:**
+   - `scripts/enrich-from-source.py --apply` — 5,111 products carry a `source_url`; their own
+     pages publish the retail tier ladder + spec table. ~90 min unattended. **This is also what
+     makes `Breite 4.4 cm` vs `5.2 cm` visible in Banco** instead of needing two web fetches to
+     settle whether two rows are duplicates.
+   - `scripts/adopt-images.py --apply` — 5,150 covers hotlinked across **18 different servers**.
+     ~137 min. Capture already adopts new ones; this is the back-catalogue.
+   - **Write the English packet name as an alias.** Search across `product_translations` works
+     (07-31); nothing writes to it, so the loop is still half-built.
+   - **151 uncategorised** — Accessories (general) 73 · Other 66 · Unsorted 12.
+   - **45 rolling papers classed `cbd_hemp` / 18+** from the 07-07 import trusting Artemis's
+     `CBD · Diverses` breadcrumb. **Do not bulk-unfix** — loosening an age gate is the one
+     direction where a wrong script is a compliance failure.
+   - **Dedupe script** — same-description AND same-name found 11 real pairs out of 572 groups
+     (562 were legitimate families). Worth running after every import. Angel asked for it.
+   - Spec parser loses fields on `/en/` pages (Quöllfrisch 16 → 1); `TAM-19233`
+     `barcode_is_internal` anomaly; the `file:///api/…` link in the audit diff; `deploy-prod.sh`
+     false ❌ NOT READY.
+
+   **Tell Felix:** the 11 duplicate pairs are duplicated on artemisluzern.ch too, so the next
+   import brings them back. And `TAM-21669`'s description says "King Size Slim format" on a
+   **5.2 cm** paper — wrong on his own site.
+
+
+
 0. **🟢 SHELF INTAKE IS HUMAN-GREEN — 2026-07-31.** Angel bound ~10 real products on the tablet at
    UAT and sold them. Receipt TXN-20260731-0003: six lines, CHF 76.90, and
    `Gizeh King Size Slim 12 × CHF 1.30 = CHF 15.60` — a quantity break that did not exist that
