@@ -7561,7 +7561,18 @@ async def audit_feed(
     rows = (await db.execute(text("""
         SELECT a.id, a.changed_at, a.changed_by, a.action, a.entity_type, a.entity_id, a.changes,
                COALESCE(pr.name, su.name,
-                        a.changes->>'name', a.changes->'name'->>'new', a.changes->'name'->>'old') AS label
+                        a.changes->>'name', a.changes->'name'->>'new', a.changes->'name'->>'old') AS label,
+               -- The PICTURE. Angel, using the audit trail to track a shelf-intake session:
+               -- "the audit does not show any images — can we fix that, would be nice." Right:
+               -- a wall of identical 📦 emoji is unreadable when twenty rows are all Canna
+               -- bottles, and recognising a product by its pack shot is the whole reason the
+               -- catalogue screens use thumbnails. A DELETED product has no row to join, so
+               -- fall back to whatever image_url the change record itself captured — that is
+               -- precisely when you most want to see what you removed.
+               COALESCE(pr.image_url,
+                        a.changes->>'image_url',
+                        a.changes->'image_url'->>'old',
+                        a.changes->'image_url'->>'new') AS image_url
         FROM audit_log a
         LEFT JOIN products  pr ON a.entity_type='products'  AND pr.id::text = a.entity_id
         LEFT JOIN suppliers su ON a.entity_type='suppliers' AND su.id::text = a.entity_id
@@ -7589,7 +7600,7 @@ async def audit_feed(
         "at": r["changed_at"].isoformat() if r["changed_at"] else None,
         "who": r["changed_by"], "action": r["action"],
         "entity_type": r["entity_type"], "entity_id": r["entity_id"],
-        "label": r["label"], "changes": _chg(r["changes"]),
+        "label": r["label"], "image_url": r["image_url"], "changes": _chg(r["changes"]),
     } for r in rows]
 
     matched = (await db.execute(text("""

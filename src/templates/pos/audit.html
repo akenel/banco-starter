@@ -124,7 +124,20 @@
         <div class="card !p-0 overflow-hidden border-l-4" :class="stripe(it.action)">
           <!-- row (click to drill down) -->
           <div class="flex items-start gap-3 p-3 cursor-pointer hover:bg-gray-50" @click="it._open = !it._open">
-            <div class="text-2xl leading-none mt-0.5" x-text="entityEmoji(it.entity_type)"></div>
+            <!-- The product's PACK SHOT, falling back to the type emoji. Twenty audit rows of
+                 identical 📦 are unreadable when they are all Canna bottles, and recognising a
+                 product by its picture is why every other catalogue screen uses a thumbnail.
+                 Tapping it opens the full size WITHOUT expanding the row, so you can check a
+                 pack without losing your place in the list. -->
+            <template x-if="it.image_url">
+              <img :src="it.image_url" loading="lazy" alt=""
+                   @click.stop="preview = it.image_url"
+                   class="w-10 h-10 flex-none rounded object-contain bg-gray-50 border cursor-zoom-in mt-0.5">
+            </template>
+            <template x-if="!it.image_url">
+              <div class="text-2xl leading-none mt-0.5 w-10 text-center flex-none"
+                   x-text="entityEmoji(it.entity_type)"></div>
+            </template>
             <div class="min-w-0 flex-1">
               <div class="flex items-center gap-2 flex-wrap">
                 <span class="text-[11px] font-bold px-2 py-0.5 rounded-full border" :class="badge(it.action)" x-text="actionEmoji(it.action)+' '+actionWord(it.action)"></span>
@@ -194,6 +207,13 @@
     <div class="text-center mt-4" x-show="!loading && items.length && items.length < total && !hasFilter()">
       <button @click="more()" class="btn-secondary" x-text="loadingMore ? 'Loading…' : '↓ Load more'"></button>
     </div>
+  </div>
+
+  <!-- Full-size pack shot. Deliberately its own layer: checking a picture must not scroll
+       the feed or collapse the row you were reading. -->
+  <div x-show="preview" style="display:none" @click="preview = ''"
+       class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-6 cursor-zoom-out">
+    <img :src="preview" class="max-h-full max-w-full object-contain rounded-lg bg-white">
   </div>
 </div>
 
@@ -322,6 +342,7 @@ function auditData() {
     onlyThis(it) { this.f = { entity_types: [], actors: [], actions: [], entity_id: it.entity_id, q: '', since: '', until: '' }; this.load(); window.scrollTo({top:0,behavior:'smooth'}); },
     hasFilter() { return !!(this.f.entity_types.length || this.f.actors.length || this.f.actions.length || this.f.entity_id || this.f.q || this.f.since || this.f.until); },
     reset() { this.f = { entity_types: [], actors: [], actions: [], entity_id: '', q: '', since: '', until: '' }; this.load(); },
+    preview: '',        // full-size pack shot, opened from a row thumbnail
     entityEmoji(t) { return ({products:'📦',transactions:'💰',cash_shifts:'🧾',suppliers:'🏭',store_settings:'⚙️'})[t] || '🗂️'; },
     entityLabel(t) { return ({products:'Product',transactions:'Sale',cash_shifts:'Closeout',suppliers:'Supplier',store_settings:'Settings'})[t] || t; },
     actionEmoji(a) { return ({INSERT:'➕',UPDATE:'✏️',DELETE:'🗑️'})[a] || '•'; },
