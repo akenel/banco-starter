@@ -648,14 +648,25 @@
                     <div class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2" data-i18n="catalog.snap_in_catalog">Already in your catalog</div>
                     <template x-for="m in (snap ? snap.product_matches : [])" :key="m.id">
                         <button @click="snapPickCatalog(m)" class="w-full flex items-center gap-3 p-2.5 mb-2 rounded-lg border border-gray-200 hover:border-indigo-400 hover:bg-indigo-50 text-left">
-                            <div class="w-12 h-12 flex-none bg-gray-50 rounded border flex items-center justify-center overflow-hidden">
+                            <!-- BIG THUMB, TAP TO ENLARGE, AND NEVER TRUNCATE THE NAME.
+                                 Angel, hunting the BLACK one among five Blow joints: "all the
+                                 names look the same and no way to preview — either select or
+                                 guess." He was right, and it is the same failure fixed in shelf
+                                 intake: the differentiator (Diesel / Cheese / Harlequin / V1 /
+                                 Black) sits at the END of the name, which is exactly what
+                                 `truncate` cuts off. Five rows then read identically at 63%.
+                                 So: 48px -> 64px, tap the picture to see the pack full size
+                                 WITHOUT choosing it, and let the name wrap. -->
+                            <div class="w-16 h-16 flex-none bg-gray-50 rounded border flex items-center justify-center overflow-hidden"
+                                 @click.stop="m.image_url && openLightbox(m.image_url, m.name)"
+                                 :class="m.image_url ? 'cursor-zoom-in' : ''">
                                 <img x-show="m.image_url" :src="m.image_url" class="w-full h-full object-contain" alt="" @error="$el.style.display='none'">
                                 <span x-show="!m.image_url" class="text-2xl">📦</span>
                             </div>
                             <div class="flex-1 min-w-0">
-                                <div class="flex items-center gap-1.5">
-                                    <span x-show="posProductSize(m.name)" class="badge-size" style="font-size:12px;padding:1px 7px;"><span x-text="posProductSize(m.name)"></span></span>
-                                    <div class="font-medium text-gray-900 truncate" x-text="m.name"></div>
+                                <div class="flex items-start gap-1.5">
+                                    <span x-show="posProductSize(m.name)" class="badge-size flex-none" style="font-size:12px;padding:1px 7px;"><span x-text="posProductSize(m.name)"></span></span>
+                                    <div class="font-medium text-gray-900 leading-snug" x-text="m.name"></div>
                                 </div>
                                 <div class="text-xs text-gray-500 truncate"><span x-text="m.sku"></span> · <span x-text="formatPrice(m.price)"></span></div>
                                 <!-- BL-33: an inactive product still EXISTS + owns its barcode → surface it so the
@@ -676,12 +687,15 @@
                     <div class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2" data-i18n="catalog.snap_from_supplier">From FourTwenty (supplier)</div>
                     <template x-for="m in (snap ? snap.reference_matches : [])" :key="m.id">
                         <button @click="snapPickReference(m)" class="w-full flex items-center gap-3 p-2.5 mb-2 rounded-lg border border-gray-200 hover:border-blue-400 hover:bg-blue-50 text-left">
-                            <div class="w-12 h-12 flex-none bg-gray-50 rounded border flex items-center justify-center overflow-hidden">
+                            <!-- same treatment for the supplier list: the variant word is at the end -->
+                            <div class="w-16 h-16 flex-none bg-gray-50 rounded border flex items-center justify-center overflow-hidden"
+                                 @click.stop="m.image_url && openLightbox(m.image_url, m.title)"
+                                 :class="m.image_url ? 'cursor-zoom-in' : ''">
                                 <img x-show="m.image_url" :src="m.image_url" class="w-full h-full object-contain" alt="" @error="$el.style.display='none'">
                                 <span x-show="!m.image_url" class="text-2xl">📦</span>
                             </div>
                             <div class="flex-1 min-w-0">
-                                <div class="font-medium text-gray-900 truncate" x-text="m.title"></div>
+                                <div class="font-medium text-gray-900 leading-snug" x-text="m.title"></div>
                                 <div class="text-xs text-gray-500 truncate">
                                     <template x-if="m.supplier"><span class="font-semibold text-blue-600" x-text="m.supplier"></span></template>
                                     <template x-if="m.supplier && m.suggested_price != null"><span> · </span></template>
