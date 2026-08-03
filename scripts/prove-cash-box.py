@@ -60,10 +60,20 @@ def main():
     pam = login(os.environ.get("BANCO_USER2", "pam"), os.environ.get("BANCO_PASS2", "pam"))
     print(f"target: {ROOT}\n")
 
-    # --- 0 · put the box in a KNOWN state --------------------------------------------------
+    # --- 0 · put the box in a KNOWN state, AND REMEMBER THE REAL ONE -----------------------
     # This box has a history (the slope is real), so seed a known starting point rather than
     # asserting against whatever the last run happened to leave. Nothing below is meaningful
     # if the chain starts from an unknown number.
+    #
+    # BUT THE SLOPE IS LOAD-BEARING: whatever this script leaves as the last reconcile becomes
+    # TOMORROW MORNING'S EXPECTED. Left alone, a run would hand the next person to open the
+    # shop a variance of a few hundred francs to explain -- caused entirely by a test. So
+    # capture the real figure now and put it back at the end.
+    _prev = felix.get(f"{BASE}/shift/last").json()
+    ORIGINAL_SLOPE = (_prev or {}).get("counted_cash") if (_prev or {}).get("ok") else None
+    _st0 = felix.get(f"{BASE}/settings/1").json()
+    ORIGINAL_BASELINE = _st0.get("cash_box_float")
+    print(f"(will restore: slope -> {ORIGINAL_SLOPE}, baseline -> {ORIGINAL_BASELINE})\n")
     if (felix.get(f"{BASE}/shift/current").json() or {}).get("open"):
         cur = felix.get(f"{BASE}/shift/current").json()
         felix.post(f"{BASE}/shift/close", json={"counted_cash": cur["expected_cash"],
@@ -223,6 +233,24 @@ def main():
     for tid in (t_felix, t_pam):
         felix.post(f"{BASE}/transactions/{tid}/refund",
                    json={"reason": "prove-cash-box.py self-cleanup"})
+
+    # Put the CHAIN back. Without this the next person to open the shop is told to explain a
+    # variance this script invented -- the single most disruptive thing a test can leave behind
+    # on a trading shop, precisely because the slope is designed to carry forward.
+    if ORIGINAL_SLOPE is not None:
+        felix.post(f"{BASE}/shift/open", json={
+            "opening_float": ORIGINAL_SLOPE, "confirm_off_baseline": True,
+            "note": "prove-cash-box.py: restoring the slope this test moved"})
+        felix.post(f"{BASE}/shift/close", json={
+            "counted_cash": ORIGINAL_SLOPE,
+            "note": "prove-cash-box.py: slope restored — NOT a physical count"})
+        now_slope = (felix.get(f"{BASE}/shift/last").json() or {}).get("counted_cash")
+        check("the slope is back where the run found it", D(now_slope), D(ORIGINAL_SLOPE))
+    # And the baseline, so a shop's own setting is not left as the test's 600.
+    felix.put(f"{BASE}/settings/1", json={**_st0, "cash_box_float": ORIGINAL_BASELINE,
+                                          "cash_box_float_note": _st0.get("cash_box_float_note")})
+    check("the baseline setting is back to the shop's own",
+          felix.get(f"{BASE}/settings/1").json().get("cash_box_float"), ORIGINAL_BASELINE)
     check("the box is left closed", (felix.get(f"{BASE}/shift/current").json() or {}).get("open"), False)
 
     print()

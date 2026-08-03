@@ -8867,10 +8867,17 @@ async def open_cash_shift(
                        exc_info=True)
     prev = await _last_reconciled_till(db)
     expected = None
+    # Was the figure we are about to quote ever actually OBSERVED? A forced close sets
+    # counted = expected, so the slope can carry a number nobody ever counted (§5). Quoting it
+    # as fact would be the same lie one link further down the chain, so it is carried here and
+    # said out loud in the reveal.
+    expected_verified = True
     if prev is not None and prev.counted_cash is not None:
         expected = money(prev.counted_cash)              # the slope
+        expected_verified = bool(prev.counted_verified)
     elif getattr(store, "cash_box_float", None) is not None:
         expected = money(store.cash_box_float)           # day one: the baseline seeds it
+        expected_verified = False                        # a setting, not a count
     tolerance = money(getattr(store, "cash_tolerance", None) or "0.20")
 
     # --- 2. the coarse guard (§6): ask, never refuse ---------------------------------------
@@ -8896,9 +8903,14 @@ async def open_cash_shift(
             "code": "opening_variance",
             "message": (f"Counted {currency} {reveal['counted']}, but last night's reconcile "
                         f"said {currency} {reveal['expected']} "
-                        f"({reveal['variance']:+}). Add a note to open."),
+                        f"({reveal['variance']:+}). Add a note to open."
+                        + ("" if expected_verified else
+                           f"  ⚠ That {currency} {reveal['expected']} was NEVER PHYSICALLY "
+                           f"COUNTED — the box was closed administratively, so the difference "
+                           f"may be in that figure rather than in the box.")),
             "counted": str(reveal["counted"]), "expected": str(reveal["expected"]),
             "variance": str(reveal["variance"]),
+            "expected_verified": expected_verified,
         })
 
     shift = CashShiftModel(
@@ -8922,6 +8934,10 @@ async def open_cash_shift(
             "expected": (str(reveal["expected"]) if reveal["expected"] is not None else None),
             "variance": (str(reveal["variance"]) if reveal["variance"] is not None else None),
             "within_tolerance": reveal["within_tolerance"],
+            # False = the figure we compared against was never observed by anybody (a forced
+            # close, or day one's configured baseline). The comparison still happens; what
+            # changes is that it is not presented as fact.
+            "expected_verified": expected_verified,
             "previous_shift_id": (str(prev.id) if prev is not None else None),
             "first_ever_open": expected is None}
 

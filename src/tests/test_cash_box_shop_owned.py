@@ -240,3 +240,33 @@ def test_the_open_screen_never_shows_the_expected_figure_before_the_count():
     panel = screen[screen.index('id="open-drawer"'):screen.index("ACTIVE SHIFT (open)")]
     for leak in ("shift.expected_cash", "openReveal.expected", "last_expected"):
         assert leak not in panel, f"the open panel leaks the expected figure via {leak}"
+
+
+def test_an_unverified_figure_must_not_be_quoted_as_fact():
+    """§5, one link further down the chain. A forced close sets counted = expected, so the
+    SLOPE can carry a number nobody ever counted. The next morning the reveal would say "last
+    night's reconcile said CHF 168.00" as though somebody had looked — and the cashier would
+    hunt for a discrepancy that may well be in that figure, not in the box.
+
+    Found on prod, 2026-08-03: pam's box was force-closed at 168.00, making it the slope.
+
+    The comparison still happens. What changes is that it is not presented as fact."""
+    import io
+    router = io.open("src/routes/pos_router.py", encoding="utf-8").read()
+    start = router.index("async def open_cash_shift(")
+    end = router.index("async def shift_paid_in_out(")
+    endpoint = router[start:end]
+    assert "expected_verified" in endpoint
+    assert "prev.counted_verified" in endpoint, "the slope must inherit the previous verification"
+    assert "NEVER PHYSICALLY" in endpoint, "an unverified expectation must say so to the cashier"
+
+
+def test_day_one_baseline_is_also_not_a_count():
+    """The configured baseline is a setting somebody typed, not a drawer anybody counted, so
+    the very first open must not present it as an observation either."""
+    import io
+    router = io.open("src/routes/pos_router.py", encoding="utf-8").read()
+    start = router.index("async def open_cash_shift(")
+    seg = router[start:router.index("async def shift_paid_in_out(")]
+    baseline_branch = seg[seg.index("day one: the baseline seeds it"):]
+    assert "expected_verified = False" in baseline_branch[:200]
