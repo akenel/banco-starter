@@ -2,106 +2,71 @@
 
 *The single source of truth for what's next, in order. Say the code word **"OPEN SHOP"** and the copilot opens this, states the top items, and starts the first actionable one. The bigger arc is in [`ROADMAP.md`](ROADMAP.md).*
 
-*Last updated: 2026-08-03 (cashier role-play day — see ▶️ START HERE)*
+*Last updated: 2026-08-03 — rounding + cash box shipped to prod and human-tested; next up is item 3.*
 
 ---
 
-## ▶️ START HERE — the next three, in this order
+## ▶️ START HERE — item 3, the two bulk catalogue scripts
 
-*Written 2026-08-03 at the end of a long session. Everything below this block is context and
-history; these three are the work. **Do them in this order — the reason is in item 1.***
+*Set 2026-08-03 at the end of a long day. **Items 1 and 2 are DONE and on prod** — the 5-rappen
+cash rounding and the shop-owned cash box, both human-tested by Angel. Their history is in
+[`onboarding/12-the-cash-box.md`](onboarding/12-the-cash-box.md) and in `Done` below. This is the
+work now.*
 
-**1 · ~~Wire the rounding engine into checkout.~~ ✅ DONE + ON PROD + PROVEN 2026-08-03 — NOT
-   yet human-green.** Built, tested (17 new + the 29 arithmetic ones) and **proven live end
-   to end** by `scripts/prove-cash-rounding.py` against the dev stack: a cash sale rounds to
-   0.05 and records the move, the identical cart on TWINT charges the exact cent, an ordinary
-   total passes through untouched, the receipt's Discount line stays honest, and the Banana
-   lines still sum to the drawer.
-   - `transactions.rounding_adjustment` — an additive `ADD COLUMN IF NOT EXISTS … NOT NULL
-     DEFAULT 0` in `src/db/database.py`, verified applied on a live DB. **Every existing row is
-     genuinely 0** (nothing was ever rounded), so there is no backfill.
-   - `_apply_cash_rounding()` in `pos_router.py`, called from **both** sale paths before the
-     tender comparison. `total` stays "what was actually charged", so the drawer expectation,
-     VAT, change and the CRM points are all correct without knowing it ran.
-   - `Rounding (5 Rp.)` on the receipt + `Rounding / TO PAY` at the till, in all four languages,
-     shown **only when non-zero**.
-   - Banana: the takings split into `Cash (at ticket price)` + `Rundungsdifferenz`, **only on a
-     day it fired** — a naive extra line would have double-counted (cash_total is already the
-     rounded money). A day with no rounding exports byte-identically to before.
+**▶️ 3 · Run the two bulk catalogue scripts ON THE PROD BOX.**
+   Local dev has **6 products**; the **5,173** live on prod, so these were never runnable here.
+   Testsheet ready and unticked:
+   [`onboarding/testsheets/ENRICHER-TESTSHEET.html`](onboarding/testsheets/ENRICHER-TESTSHEET.html)
+   — 20 real pages through the real parser: 20/20 DE and EN agree, 6 ladders found, 0 footer junk.
+   **Angel ticks the 6 ladder rows before `--apply` runs.**
 
-   **✅ DEPLOYED TO PROD 2026-08-03** (`126e1e7`, 29 commits — this shipped the `/pos/cash-count`
-   retirement, the blank-contact 500 fix, the merge alias and the tier-ladder guard too).
-   Pre-deploy backup in B2: `banco_helix_db_20260803_131339.sql.gz.gpg`. Verified on the box:
-   HTTPS 200 on `/health/healthz` and `/pos`, the column exists (`NOT NULL DEFAULT 0`, all 25
-   existing rows are 0), and `rounding_adjustment` is in the code the container is *running*.
-   `deploy-prod.sh` printed its usual **false** ❌ — its gate probes `localhost:8000` and prod
-   sits behind Caddy (already a backlog item).
+   **How to run things on prod — learned the hard way 2026-08-03:**
+   ```
+   ssh root@159.69.198.85          # /root/banco-starter, branch main
+   git pull --ff-only origin main && ./scripts/deploy-prod.sh   # backs up to B2 FIRST
+   ```
+   - `deploy-prod.sh` always prints a **false ❌ NOT READY** — its gate probes `localhost:8000`
+     and prod sits behind Caddy. Verify with `curl https://banco.wolfhold.app/health/healthz`.
+   - **`httpx` is NOT installed on the prod host** — run Python that needs it *inside* the app
+     container: `docker compose -f compose.yml -f compose.prod.yml exec -T app python3 - < script.py`
+   - Passwords are Angel's to type; scripts take `BANCO_USER` / `BANCO_PASS` from the env, and
+     `-e VAR` (no `=value`) passes them through without landing in shell history.
 
-   **✅ PROVEN ON PROD 2026-08-03 14:03** — Angel ran `scripts/prove-cash-rounding.py` on the
-   box. All 12 checks green: TWINT charged the exact 0.47, cash charged 0.45 with the −0.02
-   recorded, an ordinary total untouched, the receipt's Discount line still showed the real
-   0.03, and the export lines summed to the drawer. **Books left as found** — verified after:
-   today's COMPLETED sales carry `rounding 0.00` and the three test sales sit REFUNDED. The
-   only permanent trace is those three refunded rows, exactly as the script says it will leave.
+   **Then, in order:**
+   1. `scripts/enrich-from-source.py --apply` — ~90 min unattended. 5,111 products carry a
+      `source_url`; their own pages publish the retail tier ladder + spec table. **The CHF 1,190
+      overcharge guard is in** (refuses a ladder whose first tier costs more than one unit);
+      `--report /tmp/suspects.json` lists every refusal. Also what makes `Breite 4.4 cm` vs
+      `5.2 cm` visible in Banco instead of needing two web fetches to settle a duplicate.
+   2. `scripts/adopt-images.py --apply` — ~137 min. 5,150 covers hotlinked across 18 servers.
+      Capture already adopts new ones; this is the back-catalogue.
+   3. **Dedupe** — same-description AND same-name found 11 real pairs out of 572 groups. Worth
+      running after every import. *(Tell Felix: those 11 are duplicated on artemisluzern.ch too,
+      so the next import brings them back.)*
 
-   *Also learned: the day's 7 real completed sales needed **no** rounding at all. That is the
-   predicted behaviour, not a dud — every shelf price is already a 0.05 multiple, so this is a
-   safety net for percentage discounts, not a daily event.*
+   **Also open, smaller:** 151 uncategorised (Accessories 73 · Other 66 · Unsorted 12) · 45
+   rolling papers wrongly classed `cbd_hemp`/18+ — **do not bulk-unfix, loosening an age gate is
+   the one direction where a wrong script is a compliance failure** · tell Felix about
+   `TAM-11884` (his page says CHF 3 for one, CHF 11.90 for 100).
 
-   **⛔ WHAT IS LEFT:**
-   - **Human-green it (standing rule 5):** ring a discounted cash sale at the till and confirm
-     with your own eyes that the screen shows `TO PAY`, the printed receipt shows `Rounding`,
-     and the change in your hand matches. *Nothing here has been seen by a person yet — the
-     Chrome extension is not connected, so I could not look at either screen.*
-   - Ask Felix whether he wants the Banana takings split, or the rounding as reference only.
+---
 
-   **🔴 FOUND WHILE DEPLOYING — prod authenticates against the DEMO realm.** `kc-pos-realm-dev`,
-   imported from `keycloak/import/realm-export.json`, with the demo users (felix, pam, ralph,
-   michael, pos-developer, pos-auditor) — **and that file is in a public GitHub repo**. So
-   anyone can read the shop's login credentials. This is item 6's "default-secret gate" already
-   being true in production. Not caused by this deploy; found by it. **Change the passwords, or
-   stand up a real realm, before the shop trades on it.**
+### 🔻 Carried over from 2026-08-03 — small, and two are Angel's hands only
 
-**2 · ~~Rebuild the cash box as SHOP-owned.~~ ✅ BUILT · ON PROD · HUMAN-TESTED 2026-08-03.**
-   Deployed through `096f0a5`. 35 unit tests + `scripts/prove-cash-box.py` (30 live checks, two
-   real logins, self-restoring). **Angel ran the testsheet on the tablet for 62 minutes with two
-   browsers** — [`CASH-BOX-SHOP-OWNED-TESTSHEET.html`](onboarding/testsheets/CASH-BOX-SHOP-OWNED-TESTSHEET.html).
-
-   **✅ Proven by a human:** the blind count · the reveal · the unverified-figure warning · the
-   note gate · the slope (223.70 → a 223.20 count) · **one box, two cashiers** · Pam ringing cash
-   on a box Felix opened (impossible yesterday) · per-person sales reporting intact.
-
-   **🔴 SEVEN defects the run found that 35 tests and a full API proof did not.** Every one was a
-   screen, and every one is fixed and deployed:
-   1. the till screen would have **blocked the shop from opening** (new 400/409 were dead ends)
-   2. a green **"✅ Balanced within tolerance" over a box nobody counted** — the exact §5 lie, in
-      the largest element on the page
-   3. `cash_box_float` existed in model, migration and API — **and on no screen**, so the guard
-      was unconfigurable
-   4. the forced-close note was a 450-char audit essay with a developer's name in it
-   5. a normal flow step logged as a red `API call failed`
-   6. **a CHF 500 skim silently vanished** — blank free-text reason → 400 → banner at the top of
-      a scrolled-past page. A named code is now reason enough
-   7. the itemised log showed **one cashier under a summary counting two** — `shift_transactions`
-      still carried the twin of the filter removed from `_shift_sales`. **Standing rule 6, failed
-      by me:** one problem found, the pattern not checked
-
-   *Not a bug: the "10 rappen reduction" (C4). Watched live on prod — typed price = stored price
-   for both users. The earlier rows were typed at 9.90/39.90.*
-
-   **⛔ LEFT:** E4 (read the German screens as a shopkeeper) · H1–H6 in the sheet (tolerance to
-   ±0.05? baseline value? which paid-out reasons?) · **the five OTF test products are deactivated,
-   not deleted** — two were sold.
-
-**3 · The two bulk catalogue scripts** — `enrich-from-source.py --apply` then
-   `adopt-images.py --apply`, on the **prod box** (local dev has only 6 products).
-   Testsheet ready and unticked: `onboarding/testsheets/ENRICHER-TESTSHEET.html`. The guard for
-   the CHF 1,190 overcharge is in; `--report /tmp/suspects.json` lists any refused ladders.
-   *Correction to item 1 below: the gun roles are REVERSED — the Netum has the multi-scan store
-   mode, the Inateck does single scans. Re-test before planning the 10× path around it.*
-
-**Also open, smaller:** tell Felix about `TAM-11884` (his page says CHF 3 for one, CHF 11.90 for
-100) and the 11 duplicate pairs that the next import will bring back.
+- **F3 · Reconcile the cash box on prod.** It may still be open with test sales in it, and
+  **whatever it is reconciled to becomes the next morning's expected**. `/pos/shift` → count out.
+- **H1 · Set the tolerance to ±0.05?** Now reachable (Settings → Discounts → 💰 The cash box).
+  One coin — as tight as physical cash allows. It was blocked until the rounding shipped.
+- **E4 · Read the German cash-box screens as a shopkeeper**, not a developer. `Kasse` /
+  `Kassensturz` are confirmed; the rest of the wording has never been read by a native speaker.
+- **H2–H6** in the testsheet: baseline value · who may force-close · does the X-report need a
+  better home · which paid-out reasons Artemis actually uses · who reads the morning note.
+- 🔴 **Prod authenticates against the DEMO realm** (`kc-pos-realm-dev`, users felix/pam/ralph/…)
+  imported from `keycloak/import/realm-export.json` — **which is in a public GitHub repo**.
+  Change the passwords or stand up a real realm before the shop trades on it.
+- The five OTF test products are **deactivated, not deleted** (two were sold). Nothing to do.
+- Re-test the **gun roles** — the Netum has the multi-scan store mode, the Inateck does single
+  scans. The deck used to say the reverse; anything planning the 10× inventory path must re-check.
 
 ---
 
@@ -532,6 +497,20 @@ history; these three are the work. **Do them in this order — the reason is in 
 - Sharpen the AI setup coach for a non-technical owner. *(Phase B)*
 
 ## ✅ Done (most recent first)
+
+- 2026-08-03 — **The cash box belongs to the SHOP, and it is human-tested.** `_shift_sales`
+  carried `cashier_id == user_id`: Felix opened with 200, Pam sold 150 into the same box, and
+  Felix's close expected only his own takings. Now: one box · shop-wide open guard *and* checkout
+  gate (Pam could not take cash at all before) · blind count → reveal → note filed against
+  yesterday · the slope · §6 baseline + guard (asks, never refuses) · X-report · `to_safe` reason
+  code · force-close with `counted_verified` in its own column. 35 tests +
+  `scripts/prove-cash-box.py`. **Angel's 62-minute tablet run with two browsers found SEVEN
+  defects that none of that caught — every one a screen.** See the lessons in `CLAUDE.md`.
+- 2026-08-03 — **Cash totals round to 5 rappen at checkout, and nothing else does.** CHF 62.99
+  cannot be handed over; on real prices five of six discounted totals were unpayable. `total` is
+  now what was actually charged, `rounding_adjustment` records the move, and the Banana export
+  splits `Cash (at ticket price)` + `Rundungsdifferenz` only on days it fired. Cash only — cards
+  settle the exact cent. Proven on prod by Angel: 12/12 checks, books left as found.
 
 - 2026-07-30 — **Age-gate compliance fix, applied to UAT.** Four CBD products were sellable with **no 18+ check** because the classifier keyed on the literal word "CBD" and titles either omitted it or transposed it to "CDB" (Angel's own typo, copying off a packet). Now reads brand context and the **description** — a strain name says nothing about what a thing legally is. `scripts/reclass-age-gate.py` (dry-run default, tighten-only) applied 4 fixes; accessories left alone. The dry run first proposed **16** changes of which **12 were wrong** — storage tins, filters, empty cones — and caught my over-reach before a row was written. 27 tests, both directions.
 - 2026-07-30 — **Cross-language duplicate detection.** `Blow Pre-built ... "V1" 1 pc. black` vs `Blow vorgebauter ... "V1" 1 Stk. schwarz` scored **0.417** — under the 0.5 guard, so no warning, so a duplicate. Folding both sides through a DE↔EN dictionary takes it to **0.857** (folded strings identical). Cost measured before shipping: ~300 ms per create.
