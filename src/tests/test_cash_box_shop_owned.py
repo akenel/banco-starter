@@ -14,6 +14,7 @@ These pin the DECISIONS, which is where the risk is — the arithmetic was alway
   * a forced close can never masquerade as a real count
   * a skim to the safe is not an expense
 """
+import re
 from decimal import Decimal
 
 import pytest
@@ -191,3 +192,51 @@ def test_a_drop_still_reduces_the_expected_cash():
     """It is still money that left the drawer — the box must not expect it at reconcile.
     Only the ACCOUNTING treatment differs, not the arithmetic."""
     assert expected_cash("600.00", "400.00", 0, "1000.00", 0) == Decimal("0.00")
+
+
+# ── the till screen must handle what the API can return ──────────────────────────────────
+
+def test_the_open_screen_handles_every_rejection_the_api_can_return():
+    """THE ONE THAT NEARLY SHIPPED A SHOP-STOPPER.
+
+    Opening the box used to be a plain 200-or-error call. It now has two rejections that are
+    STEPS IN THE FLOW, not failures: the §6 guard (409 off_baseline) and the morning reveal
+    (400 opening_variance). The screen only set `this.error = <string>` — so a morning that
+    differed from last night by more than the tolerance would have shown a red line with no
+    note field and NO WAY FORWARD. The shop could not have opened its till.
+
+    Caught by reading the template before deploying, not by any test. So: every structured
+    code the endpoint can raise must be named in the screen that calls it."""
+    import io
+    router = io.open("src/routes/pos_router.py", encoding="utf-8").read()
+    screen = io.open("src/templates/pos/shift.html", encoding="utf-8").read()
+
+    start = router.index("async def open_cash_shift(")
+    end = router.index("async def shift_paid_in_out(")
+    open_endpoint = router[start:end]
+
+    codes = set(re.findall(r'"code":\s*"([a-z_]+)"', open_endpoint))
+    assert codes, "no structured codes found — did the endpoint change shape?"
+    for code in codes:
+        assert code in screen, (
+            f"POST /shift/open can return code '{code}' and shift.html never mentions it — "
+            f"the cashier would get a dead end")
+
+
+def test_the_open_screen_can_actually_satisfy_both_rejections():
+    """Naming the code is not enough: the retry has to send what the server asked for."""
+    import io
+    screen = io.open("src/templates/pos/shift.html", encoding="utf-8").read()
+    assert "confirm_off_baseline" in screen, "no way to answer the guard"
+    assert "openNote" in screen, "no way to supply the morning note"
+
+
+def test_the_open_screen_never_shows_the_expected_figure_before_the_count():
+    """The blind count is the control, and a helpful UI is exactly how it gets lost. The open
+    panel must not render an expected/last-night figure anywhere — the reveal comes back in
+    the RESPONSE, after a count exists."""
+    import io
+    screen = io.open("src/templates/pos/shift.html", encoding="utf-8").read()
+    panel = screen[screen.index('id="open-drawer"'):screen.index("ACTIVE SHIFT (open)")]
+    for leak in ("shift.expected_cash", "openReveal.expected", "last_expected"):
+        assert leak not in panel, f"the open panel leaks the expected figure via {leak}"

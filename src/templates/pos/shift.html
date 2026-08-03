@@ -30,9 +30,12 @@
 
         <!-- ============ OPEN DRAWER (no open shift) ============ -->
         <div x-show="!loading && mode === 'open'" class="card" id="open-drawer">
-            <h2 class="text-xl font-bold text-gray-900 mb-1" data-i18n="shift.open_your_drawer">Open your drawer</h2>
-            <p class="text-sm text-gray-600 mb-5" data-i18n="shift.open_intro">Count the cash you're starting with. This is your float —
-                only you are responsible for this drawer.</p>
+            <h2 class="text-xl font-bold text-gray-900 mb-1" data-i18n="shift.open_the_cash_box">Open the cash box</h2>
+            <!-- BLIND COUNT. Deliberately no expected figure anywhere on this screen: seeing
+                 "555" first makes a tired person count until they find 555. Banco reveals what
+                 last night said only AFTER the count is submitted. -->
+            <p class="text-sm text-gray-600 mb-5" data-i18n="shift.open_intro_blind">Count what is actually in the box, note by note.
+                Don't look anything up first — Banco will tell you what last night's reconcile said once you've counted.</p>
 
             <div class="border rounded-lg overflow-hidden mb-4">
                 <table class="w-full text-sm data-table">
@@ -64,8 +67,38 @@
                 </table>
             </div>
 
-            <button @click="openDrawer()" :disabled="processing || openTotal() <= 0" class="btn-primary w-full">
-                <span x-show="!processing"><span data-i18n="shift.open_drawer_with">🔓 Open Drawer with</span> <span x-text="formatPrice(openTotal())"></span></span>
+            <!-- §6 GUARD — the count is wildly unlike what the box should hold. It ASKS; it
+                 never refuses. A hard block would fail the shop on the one morning the box
+                 really HAS been emptied, which is exactly the morning you want it opened and
+                 the discrepancy written down. -->
+            <div x-show="openGuard" style="display:none"
+                 class="mb-4 rounded-lg border-2 border-amber-400 bg-amber-50 p-4">
+                <p class="font-semibold text-amber-900 mb-1">⚠️ <span data-i18n="shift.guard_title">Is that right?</span></p>
+                <p class="text-sm text-amber-800" x-text="openGuard && openGuard.message"></p>
+                <div class="flex gap-2 mt-3">
+                    <button @click="openDrawer(true)" :disabled="processing"
+                            class="btn-primary flex-1" data-i18n="shift.guard_yes">Yes, that's what's in it</button>
+                    <button @click="openGuard = null; openConfirmed = false" :disabled="processing"
+                            class="btn-secondary flex-1" data-i18n="shift.guard_recount">Let me recount</button>
+                </div>
+            </div>
+
+            <!-- THE REVEAL, and only now. The difference is filed against YESTERDAY's
+                 reconcile — it is not today's trading that went wrong, and today still starts
+                 from what is really in the box. -->
+            <div x-show="openReveal" style="display:none"
+                 class="mb-4 rounded-lg border-2 border-indigo-400 bg-indigo-50 p-4">
+                <p class="font-semibold text-indigo-900 mb-2" data-i18n="shift.reveal_title">Last night's reconcile</p>
+                <p class="text-sm text-indigo-800 mb-3" x-text="openReveal && openReveal.message"></p>
+                <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="shift.reveal_note_label">What happened? (filed against yesterday)</label>
+                <input type="text" x-model="openNote" class="w-full border rounded py-2 px-3"
+                       :placeholder="t('shift.reveal_note_ph')">
+                <button @click="openDrawer(false)" :disabled="processing || !openNote.trim()"
+                        class="btn-primary w-full mt-3" data-i18n="shift.reveal_open_anyway">Open the shop with this count</button>
+            </div>
+
+            <button x-show="!openReveal" @click="openDrawer(false)" :disabled="processing || openTotal() <= 0" class="btn-primary w-full">
+                <span x-show="!processing"><span data-i18n="shift.open_box_with">🔓 Open the cash box with</span> <span x-text="formatPrice(openTotal())"></span></span>
                 <span x-show="processing" data-i18n="shift.opening">Opening…</span>
             </button>
         </div>
@@ -311,6 +344,13 @@ function shiftData() {
         // guarantees that. Populated in init() once POSConfig has loaded.
         DENOMS: [],
         openCounts: {},
+        openGuard: null,       // §6: the "is that right?" prompt (a guard, never a lock)
+        openReveal: null,      // the morning reveal — shown ONLY after a count is submitted
+        openNote: '',          // explanation of the morning difference, filed vs yesterday
+        openedWith: null,      // the open response, so the reveal stays visible all day
+        openConfirmed: false,  // the §6 guard was answered "yes" — must STICK across the
+                               // retry that follows, or answering the guard and then adding a
+                               // note would re-trigger the guard and loop for ever
         closeCounts: {},
 
         async init() {
@@ -346,14 +386,40 @@ function shiftData() {
         closeVariance() { return Math.round((this.closeTotal() - this.num(this.shift && this.shift.expected_cash)) * 100) / 100; },
         withinTol() { return Math.abs(this.closeVariance()) <= this.num(this.shift && this.shift.tolerance); },
 
-        async openDrawer() {
+        // Open the SHOP's cash box by counting it. Two rejections are not errors but steps in
+        // the flow, and they MUST be handled here — before this, any of them left the screen
+        // showing a red string with no way forward, which would have stopped the shop opening
+        // its till in the morning.
+        //
+        //   409 off_baseline      -> the guard asks; confirming retries and succeeds
+        //   400 opening_variance  -> the reveal + a note field; the note retries and succeeds
+        async openDrawer(confirmOffBaseline) {
             if (this.openTotal() <= 0) return;
+            if (confirmOffBaseline) this.openConfirmed = true;
             this.processing = true; this.error = '';
             try {
-                await API.post('/api/v1/pos/shift/open', { opening_denoms: this.cleanDenoms(this.openCounts) });
+                const res = await API.post('/api/v1/pos/shift/open', {
+                    opening_denoms: this.cleanDenoms(this.openCounts),
+                    confirm_off_baseline: this.openConfirmed,
+                    note: this.openNote.trim(),
+                });
+                this.openGuard = null; this.openReveal = null; this.openNote = '';
+                this.openConfirmed = false;
                 this.DENOMS.forEach(d => this.closeCounts[d.k] = 0);
+                // Carry the reveal into the active screen so the morning's difference stays
+                // visible all day rather than flashing past on one button press.
+                this.openedWith = res;
                 await this.refresh();
-            } catch (e) { this.error = e.message || t('shift.err_open'); }
+            } catch (e) {
+                const d = e && e.detail;
+                if (d && d.code === 'off_baseline') {
+                    this.openGuard = d; this.openReveal = null;
+                } else if (d && d.code === 'opening_variance') {
+                    this.openReveal = d; this.openGuard = null;
+                } else {
+                    this.error = e.message || t('shift.err_open');
+                }
+            }
             this.processing = false;
         },
 
@@ -394,6 +460,8 @@ function shiftData() {
         startNew() {
             this.DENOMS.forEach(d => { this.openCounts[d.k] = 0; this.closeCounts[d.k] = 0; });
             this.report = null; this.log = null; this.mode = 'open';
+            this.openGuard = null; this.openReveal = null; this.openNote = '';
+            this.openedWith = null; this.openConfirmed = false;
         },
 
         goDashboard() { window.location.href = '/pos/dashboard'; },
