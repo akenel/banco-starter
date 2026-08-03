@@ -19,19 +19,31 @@ THE RULE — Angel, 2026-08-03, twice and deliberately:
      the doubt and move on. It's just easier for the human to reason out and understand, and
      it all tallies up."
 
-So: **always down, every total, every payment method.** Not a setting, not a mode, not a
-per-currency policy. He was offered the setting and turned it down: *"you could have this
-option in the settings, but that's, again, not simple."*
+So: **always down, one direction, no modes and no setting.** He was offered the setting and
+turned it down: *"you could have this option in the settings, but that's, again, not simple."*
 
-WHY "ALL CASES" IS THE RIGHT SIMPLIFICATION, not a lazy one. The obvious "correct" design
-rounds only CASH, because card and TWINT settle the exact cent. But then the same basket is
-62.99 on card and 62.95 in cash, and **the total on screen changes when the cashier picks a
-payment method** — a genuinely confusing thing to put in front of someone with a queue. The
-cost of avoiding it is up to four rappen on a card sale. Angel: *"they give the guy a two penny
-break every once in a while. What's the difference?"*
+**CASH ONLY.** Settled 2026-08-03 after going round once. The first cut rounded every payment
+method, to keep one number on screen that never moved. Angel pulled it back, and he is right:
 
-One number. It never moves. It is always in the customer's favour, so it can never cause an
-argument at a counter. That is worth more than four rappen.
+  - The constraint is **physical and applies only to coins.** TWINT, debit and card settle the
+    exact cent perfectly well. Rounding them solves nothing.
+  - **Felix has margins and costs to the rappen.** Giving away up to four rappen on every
+    discounted card sale is pure loss for no benefit — small, but indefensible when someone
+    asks why.
+
+The worry that drove the first version — *the total changes when the cashier picks a payment
+method* — is real, but the fix is to stop it being SILENT, not to round everything. Show it:
+
+    Total     CHF 62.99
+    Rounding  −CHF 0.04
+    TO PAY    CHF 62.95
+
+That is explanatory, not confusing, and it appears only on a cash sale that actually rounded.
+A card checkout looks exactly as it does today.
+
+There is deliberately **no config flag for which methods round.** Cash is the only payment
+method with a coin constraint; that is a fact, not a preference, so there is nothing to
+configure and nothing to get wrong.
 
 WHY ONLY DOWN, never nearest. Nearest (.01/.02 down, .03/.04 up) is the Swiss retail
 convention and is cost-neutral — but it can charge 1-2 rappen MORE than the shelf label, and
@@ -50,6 +62,13 @@ would be the thing behaving strangely.
 THE ADJUSTMENT IS RETURNED, NEVER ABSORBED. Callers store it, so the books can show
 `total 62.99 · rounding −0.04 · to pay 62.95` rather than an unexplained rappen. A rounding
 difference that vanishes into a total is exactly what makes a tax inspection unpleasant.
+
+VAT, when this is wired up. Compute VAT on the amount ACTUALLY PAID — Banco already derives
+the "incl. VAT" figure from the total, so this is no change of approach and the receipt stays
+internally consistent. The effect is a fraction of a rappen. **But carry the adjustment as its
+own line into the Banana export**: as a `Rundungsdifferenz` it is a thing every Swiss
+bookkeeper recognises, whereas dissolved into the VAT figure it is an unexplained few rappen a
+day. Explainable beats invisible.
 """
 from __future__ import annotations
 

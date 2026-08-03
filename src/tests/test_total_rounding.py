@@ -8,9 +8,13 @@ cannot be paid: 8.91, 42.66, 62.99, 16.92, 6.21.
 The cashier takes 63.00, Banco expects 62.99, the box is a rappen over. Every such sale, for
 ever — and a tight cash-box tolerance on top would drift with nothing to explain it.
 
-Angel chose the rule and declined the setting: always down, all payment methods, so the number
-on screen never moves. These pin that, and the property at the bottom is the one the books
-depend on — the adjustment is recorded, never absorbed.
+Angel chose the rule and declined the setting: always down, one direction, no modes. And CASH
+ONLY — the constraint is physical and only coins have it, so rounding a card sale would give
+away margin for nothing. The screen worry ("the total changes when you pick a method") is
+solved by showing a Rounding line, not by rounding everything.
+
+These pin the arithmetic. The property at the bottom is the one the books depend on: the
+adjustment is recorded, never absorbed.
 """
 from decimal import Decimal
 
