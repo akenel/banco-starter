@@ -556,6 +556,15 @@ class StoreSettingsBase(BaseModel):
     instagram_url: Optional[str] = Field(None, max_length=255)
     founded_year: Optional[str] = Field(None, max_length=10)
 
+    # --- The cash box (onboarding/12-the-cash-box.md, 2026-08-03) ---------------------
+    # cash_box_float: what the box is INTENDED to carry (a policy), as opposed to what is in
+    # it right now (a measurement). It is NEVER an input to any expected figure -- expected
+    # comes from last night's counted. It seeds day one and sets the open-guard threshold.
+    # cash_tolerance: how big a variance may pass without a note. Changes no number.
+    cash_box_float: Optional[Decimal] = Field(None, ge=0)
+    cash_box_float_note: Optional[str] = None
+    cash_tolerance: Optional[Decimal] = Field(None, ge=0)
+
     # Discount Settings
     cashier_max_discount: Decimal = Field(default=Decimal("10.0"), ge=0, le=100)
     default_markup_pct: Decimal = Field(default=Decimal("50.0"), ge=0, lt=100)  # BL-047b cost eyeball
@@ -604,6 +613,11 @@ class StoreSettingsUpdate(BaseModel):
     facebook_url: Optional[str] = Field(None, max_length=255)
     instagram_url: Optional[str] = Field(None, max_length=255)
     founded_year: Optional[str] = Field(None, max_length=10)
+    # The cash box baseline + tolerance. Admin-only in practice (the settings screen is
+    # admin-gated); the COUNT always stays with the cashier -- see answer 1 in the design note.
+    cash_box_float: Optional[Decimal] = Field(None, ge=0)
+    cash_box_float_note: Optional[str] = None
+    cash_tolerance: Optional[Decimal] = Field(None, ge=0)
     cashier_max_discount: Optional[Decimal] = Field(None, ge=0, le=100)
     default_markup_pct: Optional[Decimal] = Field(None, ge=0, lt=100)  # BL-047b
     manager_max_discount: Optional[Decimal] = Field(None, ge=0, le=100)

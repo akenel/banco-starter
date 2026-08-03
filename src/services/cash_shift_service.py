@@ -102,6 +102,74 @@ def close_result(expected, counted, tolerance=Decimal("0.20")) -> dict:
     }
 
 
+# How far off the baseline a count has to be before the open guard speaks up. Proportional,
+# not absolute: the point is to catch 0.05-where-600-was-expected, not to nag about 580.
+BASELINE_GUARD_FRACTION = Decimal("0.5")
+
+
+def open_reveal(counted, expected, tolerance=Decimal("0.20")) -> dict:
+    """The morning reveal: what was counted vs what last night's reconcile said.
+
+    Called only AFTER the count is submitted -- §2 of the design note makes the blind count
+    mandatory, because showing the expected figure first anchors it ("a tired person who sees
+    555 will keep counting until they find 555").
+
+    `expected` may be None: on the very first open there is no previous reconcile and no
+    baseline, so there is nothing to compare against. Then no claim is made -- variance is
+    None, not zero. A zero would assert a match that was never established.
+
+    The difference belongs to YESTERDAY, not to today's trading. Today starts from what is
+    really in the box.
+    """
+    cnt = money(counted)
+    if expected is None:
+        return {"counted": cnt, "expected": None, "variance": None,
+                "within_tolerance": True, "short": False, "needs_note": False,
+                "tolerance": money(tolerance)}
+    exp = money(expected)
+    variance = money(cnt - exp)
+    within = abs(variance) <= money(tolerance)
+    return {"counted": cnt, "expected": exp, "variance": variance,
+            "within_tolerance": within, "short": variance < 0,
+            "needs_note": not within, "tolerance": money(tolerance)}
+
+
+def baseline_check(counted, baseline, expected=None, fraction=BASELINE_GUARD_FRACTION) -> dict:
+    """§6 -- is this count wildly unlike what the box should hold? Ask if so.
+
+    A GUARD, NOT A LOCK. It returns whether to ASK; the caller must never refuse on the
+    strength of it. A hard block would fail the shop on the one morning the box really has
+    been emptied -- which is precisely the morning you most want it opened and the
+    discrepancy written down.
+
+    THE REFERENCE IS THE SLOPE WHEN THERE IS ONE, the baseline only otherwise. Found by the
+    live proof, 2026-08-03: after a CHF 500 skim to the safe the box legitimately holds ~100
+    overnight, and measuring that against a CHF 600 baseline questioned a perfectly normal
+    morning -- every morning, for as long as the box stayed light. Last night's counted total
+    already knows about the skim; the baseline does not. So the baseline's real job is
+    narrower than it first looked: seed day one, and catch an absurd count when there is
+    nothing better to compare against.
+
+    Returns off_baseline=False when there is neither: an unconfigured shop on its first day
+    gets silence, never a guessed threshold.
+
+    This is COARSE on purpose -- "did you fat-finger it?" -- and is a different question from
+    the tolerance, which asks "explain this difference". A morning can pass this and still
+    need a note.
+    """
+    cnt = money(counted)
+    ref = expected if expected is not None else baseline
+    if ref is None or money(ref) <= 0:
+        return {"off_baseline": False, "reference": None, "reference_is": None, "counted": cnt}
+    ref = money(ref)
+    allowed = money(ref * money(fraction))
+    return {"off_baseline": abs(cnt - ref) > allowed,
+            "reference": ref,
+            "reference_is": ("last night's reconcile" if expected is not None
+                             else "the configured baseline"),
+            "counted": cnt, "allowed_gap": allowed}
+
+
 def denoms_total(denoms, currency="CHF") -> Decimal:
     """Sum a {denomination: count} map into a total in the given currency.
 

@@ -233,8 +233,22 @@ It catches the fat finger, gates nobody, and the answer is recorded either way �
 morning the box really has been emptied**, which is precisely the morning you most want it opened
 and the discrepancy written down.
 
-*(Threshold: proportional, not absolute — something like ±50% of baseline. The point is to catch
-0.05-for-600, not to nag about 580.)*
+*(Threshold: proportional, not absolute — ±50%. The point is to catch 0.05-for-600, not to nag
+about 580.)*
+
+> **⚠️ Corrected by the live proof, 2026-08-03 — the reference is the SLOPE, not the baseline.**
+> The first build compared the count against `cash_box_float`, and it questioned a perfectly
+> normal morning: after a CHF 500 skim to the safe the box legitimately held ~100 overnight, so
+> a CHF 600 baseline made every count "wildly off" for as long as the box stayed light. **Last
+> night's counted total already knows about the skim; the baseline does not.**
+>
+> So the guard measures against last night's reconcile whenever there is one, and falls back to
+> the baseline only when there isn't. That narrows the baseline's job to what it was always
+> really for: **seed day one, and catch an absurd count when there is nothing better.**
+>
+> Note this is a *different question* from the tolerance, and both still apply — the guard is
+> coarse ("did you fat-finger it?"), the tolerance is fine ("explain this difference"). A
+> morning can pass the guard and still owe a note.
 
 **Sequencing: this is part of item 2, not its own job.** The shop-owned rebuild rewrites the open
 flow anyway, and the guard has to hang off count-blind-then-reveal to make sense. Building it
@@ -278,6 +292,79 @@ current reason is one field; the history comes free from the audit log.
 > pam's original open logged as `pam` (the app sets `app.actor`). So "this was not done through
 > the till" is recorded **independently of my prose** — which is exactly the property §5 asks for,
 > already working. The force-close should lean on it rather than reinvent it.
+
+### 7 · Is this how the industry does it? — mostly yes, and that matters
+
+*Angel, 2026-08-03, before a line was written: **"are we doing this in a normal way the way the
+POS experts do or are we re-inventing the wheel here?"** The right question, asked at the right
+moment.*
+
+**Answer: nearly every piece of this has an established name.** That is the reassuring part — the
+design was driven by the same constraints everybody else hits, so it landed in the same place.
+
+| This document | The industry's name | |
+|---|---|---|
+| cash box | till · drawer · **Kasse** | standard |
+| opening float | float · starting bank · **Wechselgeld** | standard |
+| count blind, then reveal | **blind close / blind count** | a *named control* — see below |
+| variance + required note | **over/short** · **Kassendifferenz** | standard |
+| paid in / paid out | **PI/PO** — on registers since the mechanical era | standard |
+| money to the safe | **cash drop · safe drop · skim** | standard idea, see §7.3 |
+| Z-report | **Z-report** (resetting, fiscal) | already built |
+| — | **X-report** (mid-shift, non-resetting) | **was missing** — see §7.2 |
+| reconcile | till reconciliation · cash-up · **Kassensturz** | standard |
+
+**Felix's habit is a recognised control.** Counting before looking at the expected figure is
+**blind close**, and it exists precisely to defeat the anchoring effect §2 describes. Most POS
+ship it as a *configurable option*, and plenty of shops switch it off because staff find it
+irritating. Felix arrived at it on his own and does it every morning. Making it **mandatory** is
+stricter than the industry default, and it is the right call.
+
+**Not attributing variance to a person on a shared drawer is also the standard position**, not
+Banco going soft. Per-person accountability requires a per-person till. One box → §1 is correct.
+
+#### 7.1 · Where we diverge on purpose: the slope vs the imprest float
+
+The accounting-standard pattern is the **imprest system** — at close you count, remove the
+takings, and leave a **constant** float. Every morning's expected is then the *same number*, and
+an error cannot compound.
+
+Banco's slope carries the whole balance forward, so tomorrow's expected is itself an unverified
+figure and a bad count on Tuesday silently becomes Wednesday's baseline.
+
+**We keep the slope anyway, because it is what the shop actually does** — *"they never really take
+all the money out of the cash box"*. And the divergence is smaller than it looks: the §6 baseline
+plus the skim-to-safe gives the imprest behaviour in practice, just triggered by weight rather
+than by the clock. Worth knowing we are on the less-travelled branch deliberately, not by accident.
+
+#### 7.2 · A real gap: no X-report
+
+A **non-resetting** mid-shift read of the drawer — standard on registers for fifty years, and
+missing here. It is exactly the *"it is getting heavy, let us move some to the safe"* moment: you
+need the position **without** closing anything. Cheap to add, and it belongs with this rebuild.
+
+#### 7.3 · A drop is not petty cash
+
+Standard systems treat a **drop** as its own thing rather than a flavour of paid-out, and the
+reason is the one Angel already spotted: a drop must never land in petty-cash expenses in the
+Banana export, alongside milk and window cleaner. Mechanically a drop *is* money leaving the
+drawer, so `kind = paid_out` stays right — what is missing is the **category**.
+
+*Implementation note:* the shape chosen is a `reason_code` column on `cash_movements`
+(`to_safe`, `petty_cash`, `float_top_up`, …) rather than a new value on the `cash_movement_kind`
+Postgres enum. `ALTER TYPE … ADD VALUE` is the one migration in this batch that is awkward to make
+idempotent and reversible on a live shop, and a structured code buys the same thing — an export
+that is correct by construction instead of by matching on free text.
+
+#### 7.4 · The simplifying news
+
+**The standard model is smaller than what is here now.** This rebuild mostly *deletes*: the
+per-cashier drawer, the per-user open guard, `/pos/cash-count`'s bonus-pool scoring. We are
+removing a model that never fitted this shop, not bolting a new one on top.
+
+*Swiss footnote:* the **Kassenbuch** must be complete and chronological, with no gaps. That is the
+regulation behind §5 — a shift may not simply sit open for ever, so a forced close has to exist
+**and** has to leave a record that cannot be mistaken for a count.
 
 ---
 

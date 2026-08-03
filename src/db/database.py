@@ -269,6 +269,40 @@ _ADDITIVE_COLUMNS: list[str] = [
     # rather than leaving an unexplained rappen in the drawer. Postgres 11+ adds a defaulted
     # NOT NULL column without rewriting the table, so this is fast on a live shop.
     "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS rounding_adjustment NUMERIC(10,2) NOT NULL DEFAULT 0",
+    # THE CASH BOX IS THE SHOP'S (2026-08-03) — onboarding/12-the-cash-box.md.
+    # One physical box, one open shift, everybody sells into it. user_id/username keep their
+    # column names but now mean "opened by" rather than "owner", so NO data migration is
+    # needed: only the meaning changed, and the schema never enforced the old one.
+    "ALTER TABLE cash_shifts ADD COLUMN IF NOT EXISTS reconciled_by VARCHAR(100)",
+    # The blind count + the reveal. All nullable — every shift closed before this simply has
+    # no morning-reveal story, which is the truth, not a gap to backfill.
+    "ALTER TABLE cash_shifts ADD COLUMN IF NOT EXISTS opening_expected NUMERIC(10,2)",
+    "ALTER TABLE cash_shifts ADD COLUMN IF NOT EXISTS opening_variance NUMERIC(10,2)",
+    "ALTER TABLE cash_shifts ADD COLUMN IF NOT EXISTS opening_note TEXT",
+    "ALTER TABLE cash_shifts ADD COLUMN IF NOT EXISTS previous_shift_id UUID",
+    # The forced close (§5). counted_verified DEFAULT TRUE is TRUE for history: every shift
+    # closed before this existed was closed by a person with the box in front of them. The one
+    # exception on prod (pam's administrative close) is corrected explicitly below.
+    "ALTER TABLE cash_shifts ADD COLUMN IF NOT EXISTS counted_verified BOOLEAN NOT NULL DEFAULT TRUE",
+    "ALTER TABLE cash_shifts ADD COLUMN IF NOT EXISTS forced_close BOOLEAN NOT NULL DEFAULT FALSE",
+    # Retro-flag the ONE row that was closed without anybody counting it (prod, 2026-08-03
+    # 14:12). §5 says the fact belongs in a column, not in prose — so put it there rather than
+    # leaving the note as the only record. Matches on the note text so it can never hit a real
+    # count, and is a no-op on every other environment.
+    "UPDATE cash_shifts SET counted_verified = FALSE, forced_close = TRUE "
+    "WHERE variance_note LIKE 'ADMINISTRATIVE CLOSE - THE DRAWER WAS NEVER PHYSICALLY COUNTED.%' "
+    "AND counted_verified IS TRUE",
+    # A drop is not petty cash (§7.3): money leaves the drawer but not the business, so it must
+    # never be booked as an expense. A code, not free text — correct by construction.
+    "ALTER TABLE cash_movements ADD COLUMN IF NOT EXISTS reason_code VARCHAR(20)",
+    # The baseline (§6): what the box is INTENDED to carry, as opposed to what is in it now.
+    # Nullable — an unconfigured shop gets no guard rather than a guessed one.
+    "ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS cash_box_float NUMERIC(10,2)",
+    "ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS cash_box_float_note TEXT",
+    # Shop-configurable variance tolerance. NULL = the 0.20 legacy default, so nothing changes
+    # for an existing shop until somebody sets it. ±0.05 (one coin) only became achievable once
+    # cash totals started rounding to 0.05 at checkout.
+    "ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS cash_tolerance NUMERIC(10,2)",
     # Artemis enriched-catalog foundation (2026-06-30, migration 010): store the enriched
     # record losslessly on products + a per-language translations table (the latter is a
     # NEW table, created by create_all() — only the column adds need ALTERs here).

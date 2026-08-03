@@ -43,6 +43,7 @@ from .shift_session_model import ShiftSessionModel, SessionStatus
 # Cash Shift -- per-cashier drawer accountability (the lockbox model)
 from .cash_shift_model import (
     CashShiftModel, CashShiftStatus, CashMovementModel, CashMovementKind,
+    REASON_CODES, NON_EXPENSE_REASON_CODES,
 )
 
 # E2E Track & Trace Models (THE SPINE)
@@ -164,6 +165,8 @@ __all__ = [
     "CashShiftStatus",
     "CashMovementModel",
     "CashMovementKind",
+    "REASON_CODES",
+    "NON_EXPENSE_REASON_CODES",
     # E2E Track & Trace Models (THE SPINE)
     "FarmModel",
     "FarmType",

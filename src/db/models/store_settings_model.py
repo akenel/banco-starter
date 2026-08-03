@@ -251,6 +251,45 @@ class StoreSettingsModel(Base):
         comment="Maximum discount percentage managers can apply (100 = unlimited)"
     )
 
+    # --- The cash box baseline (§6 of onboarding/12-the-cash-box.md, 2026-08-03) ----------
+    # What the shop INTENDS the box to carry (~CHF 600), as opposed to what is in it right
+    # now. Two different things, and Banco used to have one typed number doing both jobs --
+    # which is how a shift got opened on a CHF 0.05 float on production and nothing objected,
+    # because nothing had ever been told what normal looks like.
+    #
+    # It does exactly two jobs and is NEVER an input to any expected figure (expected comes
+    # from last night's counted -- the slope). It seeds day one, and it sets the threshold for
+    # the open-count guard. So changing it moves no number anywhere in the books.
+    #
+    # NULL = not configured; the guard stays silent rather than guessing. Admin-only to edit,
+    # like the VAT rate -- but the COUNT always belongs to the cashier (answer 1).
+    cash_box_float: Mapped[Decimal | None] = mapped_column(
+        Numeric(10, 2),
+        nullable=True,
+        comment="What the cash box normally carries (CHF). Seeds day one + backs the count guard."
+    )
+    cash_box_float_note: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment="Optional reason for the CURRENT baseline; the dated history is in audit_log"
+    )
+    # How big a difference may pass without somebody having to explain it. This changes NO
+    # number -- the record is always exact to the rappen -- it only decides whether a note is
+    # required. NULL falls back to 0.20 (the pre-2026-08 behaviour).
+    #
+    # The natural floor is 0.05: Switzerland has no coin below 5 rappen, so a pure cash
+    # variance cannot be finer than that and any tighter tolerance is meaningless. ±0.05 only
+    # became achievable once cash totals started rounding to 0.05 at checkout -- before that
+    # the drawer drifted a rappen on every discounted sale with nothing to explain it.
+    #
+    # An auditor wants a complete, reasoned record, NOT a drawer that is always perfect. A box
+    # balancing to 0.00 every day for a year is a red flag, not a gold star.
+    cash_tolerance: Mapped[Decimal | None] = mapped_column(
+        Numeric(10, 2),
+        nullable=True,
+        comment="Variance allowed before a note is required (CHF). NULL = 0.20 legacy default."
+    )
+
     # Customer Loyalty Settings
     loyalty_tier1_threshold: Mapped[Decimal] = mapped_column(
         Numeric(10, 2),

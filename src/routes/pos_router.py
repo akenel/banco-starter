@@ -51,6 +51,7 @@ from src.db.models import (
     CashShiftStatus,
     CashMovementModel,
     CashMovementKind,
+    REASON_CODES,
     CustomerModel,
     CreditTransactionModel,
     CreditTransactionType,
@@ -62,6 +63,7 @@ from src.db.models import (
 from src.core.constants import HelixApplication
 from src.services.cash_shift_service import (
     expected_cash, close_result, denoms_total, money, denoms_for,
+    open_reveal, baseline_check,
 )
 from pydantic import BaseModel, Field
 from src.schemas.pos_schema import (
@@ -5020,10 +5022,13 @@ async def checkout_transaction(
         # close (the bug Angel hit: cash taken before the drawer was opened). Card /
         # TWINT / debit never touch the drawer, so they're not gated. 409 = the till
         # prompts the cashier to open + initialise their drawer first.
-        if not await _open_shift_for(db, await _resolve_cashier_uid(db, current_user)):
+        # The gate is on THE BOX, not on the person (2026-08-03). Anyone may sell into an open
+        # box — under the old per-user check Pam could not take a cash sale at all unless she
+        # had personally opened a drawer, on a box Felix had already opened.
+        if not await _open_till(db):
             raise HTTPException(
                 status_code=409,
-                detail="Open your cash drawer before taking a cash sale.")
+                detail="The cash box is closed. Count it open before taking cash.")
         if not checkout.amount_tendered:
             raise HTTPException(status_code=400, detail="Cash payment requires amount_tendered")
         # 5-rappen rounding, BEFORE the tender comparison — so the gate, the change and the
@@ -5314,8 +5319,11 @@ async def create_sale(
     # --- Cash drawer gate + cent-precision tender (identical rules to legacy checkout). ---
     home_tendered = sale.amount_tendered
     if sale.payment_method == PaymentMethod.CASH:
-        if not await _open_shift_for(db, cashier_uid):
-            raise HTTPException(status_code=409, detail="Open your cash drawer before taking a cash sale.")
+        # Shop-wide box gate (seal lesson — BOTH sale paths, or the offline outbox drains into
+        # a box nobody has opened).
+        if not await _open_till(db):
+            raise HTTPException(status_code=409,
+                                detail="The cash box is closed. Count it open before taking cash.")
         if not sale.amount_tendered:
             raise HTTPException(status_code=400, detail="Cash payment requires amount_tendered")
         # 5-rappen rounding (seal lesson — BOTH sale paths, or the offline outbox rings a total
@@ -8690,11 +8698,34 @@ async def get_my_discount_cap(
     return {"max_discount_pct": float(cap)}
 
 
-async def _open_shift_for(db: AsyncSession, user_id: str) -> Optional[CashShiftModel]:
+async def _open_till(db: AsyncSession, store_number: int = 1) -> Optional[CashShiftModel]:
+    """THE open cash box for this shop — there is at most one, and it belongs to nobody.
+
+    This replaced `_open_shift_for(db, user_id)` on 2026-08-03. That per-user lookup was the
+    whole bug: Artemis has ONE physical box, so scoping "is the till open?" to the caller let
+    two people hold open drawers on the same box at once (observed on production), and made a
+    cash sale impossible for anyone who had not personally opened a drawer.
+
+    `.limit(1)` rather than scalar_one_or_none: if a pre-rebuild database still holds more
+    than one open row, this must return the box rather than throw at a till with a customer
+    waiting. Oldest first, so the answer is stable and the stragglers surface at reconcile.
+    """
     return (await db.execute(select(CashShiftModel).where(
-        CashShiftModel.user_id == user_id,
+        CashShiftModel.store_number == store_number,
         CashShiftModel.status == CashShiftStatus.OPEN,
-    ))).scalar_one_or_none()
+    ).order_by(CashShiftModel.opened_at.asc()).limit(1))).scalars().first()
+
+
+async def _last_reconciled_till(db: AsyncSession, store_number: int = 1) -> Optional[CashShiftModel]:
+    """The most recently closed box — its `counted_cash` is this morning's expected.
+
+    That chain, last night's counted -> this morning's expected, IS the slope. Angel: "they
+    never really take all the money out of the cash box. The cash box is a slope."
+    """
+    return (await db.execute(select(CashShiftModel).where(
+        CashShiftModel.store_number == store_number,
+        CashShiftModel.status == CashShiftStatus.CLOSED,
+    ).order_by(CashShiftModel.closed_at.desc()).limit(1))).scalars().first()
 
 
 async def _tenant_currency(db: AsyncSession) -> str:
@@ -8712,11 +8743,21 @@ async def _tenant_currency(db: AsyncSession) -> str:
         return "CHF"
 
 
-async def _shift_sales(db: AsyncSession, user_id: str, start: datetime, end: datetime) -> dict:
-    """Sum THIS cashier's takings in the shift window. Only CASH touches the drawer;
-    card/twint/debit are reported but never counted. Refunds reduce the expected cash."""
+async def _shift_sales(db: AsyncSession, start: datetime, end: datetime) -> dict:
+    """Sum EVERYBODY's takings in the box's window. Only CASH touches the drawer;
+    card/twint/debit are reported but never counted. Refunds reduce the expected cash.
+
+    THE ONE-LINE FIX, 2026-08-03. This used to carry `TransactionModel.cashier_id == user_id`
+    and that single filter was the bug: Felix opened with 200, Pam sold 150 cash into the same
+    physical box, and Felix's close expected only his own takings — variance +150, and a note
+    explaining money that was never missing.
+
+    Per-cashier SALES reporting is untouched: every transaction still carries `cashier_id`, so
+    "who sold what" works exactly as before. What is gone is per-cashier BLAME, and that is
+    honesty rather than a downgrade — with one shared box nobody can truthfully say whose
+    twenty francs went astray.
+    """
     rows = (await db.execute(select(TransactionModel).where(
-        TransactionModel.cashier_id == user_id,
         TransactionModel.completed_at >= start,
         TransactionModel.completed_at <= end,
     ))).scalars().all()
@@ -8750,12 +8791,21 @@ class OpenShiftReq(BaseModel):
     opening_float: Optional[str] = None     # explicit total, OR
     opening_denoms: Optional[dict] = None   # a {face: count} grid (preferred)
     register_id: Optional[str] = None
+    # The morning difference, filed against YESTERDAY's reconcile. Required when the count is
+    # outside tolerance — but only discoverable AFTER submitting, because the count is blind.
+    note: str = ""
+    # §6 — the cashier saw "the box normally holds ~600, you counted 0.05" and confirmed it
+    # anyway. A guard, not a lock: this unblocks, it never blocks on its own.
+    confirm_off_baseline: bool = False
 
 
 class PaidReq(BaseModel):
     kind: str           # paid_in | paid_out
     amount: str
     reason: str = ""
+    # §7.3 — WHAT the movement was, as a code. `to_safe` (a skim) is money leaving the drawer
+    # but not the business, so it must never be booked as an expense.
+    reason_code: Optional[str] = None
 
 
 class CloseShiftReq(BaseModel):
@@ -8764,29 +8814,116 @@ class CloseShiftReq(BaseModel):
     note: str = ""
 
 
+class ForceCloseReq(BaseModel):
+    """§5 — close a box that can no longer be counted. Manager-only, reason required."""
+    reason: str = ""
+
+
 @router.post("/shift/open")
 async def open_cash_shift(
     req: OpenShiftReq,
     db: AsyncSession = Depends(get_db_session),
     current_user: dict = Depends(require_any_pos_role()),
 ):
-    """Start your drawer: count the float in. One open shift per cashier."""
+    """Open the SHOP's cash box by COUNTING it — blind, then the reveal.
+
+    The order is the whole point and it is enforced here, not merely offered: the client sends
+    a count and gets the expected figure back in the RESPONSE. There is no endpoint that hands
+    out the expected total before a count exists, because seeing "555" first makes a tired
+    person count until they find 555. Felix does this by instinct — "a little test I play with
+    myself" — and it is a named control (blind close, §7).
+
+    Three things then happen, in this order:
+      1. §6 GUARD — a count wildly unlike what the box normally holds asks for confirmation.
+         It ASKS. It never refuses, because the one morning the box really has been emptied is
+         exactly the morning you most want it opened and the discrepancy written down.
+      2. REVEAL — expected comes from the last reconcile's counted total (the slope), or on a
+         virgin shop from the configured baseline. A difference needs a note, and that note is
+         filed against YESTERDAY: it is not today's trading that went wrong.
+      3. THE COUNTED AMOUNT BECOMES TODAY'S FLOAT. Not the expected amount — the real one.
+         Felix: "I'm just gonna work with the five hundred I got and go from there."
+    """
     user_id, username = await _resolve_cashier_uid(db, current_user), _uname(current_user)
-    if await _open_shift_for(db, user_id):
-        raise HTTPException(status_code=400,
-            detail="You already have an open cash shift. Close it first.")
+    # Shop-wide, not per-user: one physical box, one open shift. The old per-user guard let
+    # two people hold drawers on the same box at once (seen on prod 2026-08-03).
+    existing = await _open_till(db)
+    if existing:
+        raise HTTPException(
+            status_code=409,
+            detail=(f"The cash box is already open — {existing.username} counted it in at "
+                    f"{existing.opened_at.astimezone(SHOP_TZ).strftime('%H:%M')}. "
+                    f"Reconcile it before opening again."))
+
     currency = await _tenant_currency(db)
-    opening = denoms_total(req.opening_denoms, currency) if req.opening_denoms else money(req.opening_float or 0)
+    counted = (denoms_total(req.opening_denoms, currency) if req.opening_denoms
+               else money(req.opening_float or 0))
+
+    # --- 1. what SHOULD be here: the slope, or on day one the baseline ---------------------
+    store = None
+    try:
+        store = await get_active_store_settings(db)
+    except Exception:
+        logger.warning("cash box: store read failed; opening without the baseline guard",
+                       exc_info=True)
+    prev = await _last_reconciled_till(db)
+    expected = None
+    if prev is not None and prev.counted_cash is not None:
+        expected = money(prev.counted_cash)              # the slope
+    elif getattr(store, "cash_box_float", None) is not None:
+        expected = money(store.cash_box_float)           # day one: the baseline seeds it
+    tolerance = money(getattr(store, "cash_tolerance", None) or "0.20")
+
+    # --- 2. the coarse guard (§6): ask, never refuse ---------------------------------------
+    # Measured against the SLOPE when there is one — last night's counted total already knows
+    # about yesterday's skim to the safe, and the baseline does not. Comparing a legitimately
+    # light box against a 600 baseline questioned a perfectly normal morning, every morning.
+    guard = baseline_check(counted, getattr(store, "cash_box_float", None), expected)
+    if guard["off_baseline"] and not req.confirm_off_baseline:
+        raise HTTPException(status_code=409, detail={
+            "code": "off_baseline",
+            "message": (f"The box should hold around {currency} {guard['reference']} "
+                        f"({guard['reference_is']}). You counted {currency} "
+                        f"{guard['counted']}. Is that right?"),
+            "reference": str(guard["reference"]), "reference_is": guard["reference_is"],
+            "counted": str(guard["counted"]),
+        })
+
+    # --- 3. the reveal, computed only now that a count exists ------------------------------
+    reveal = open_reveal(counted, expected, tolerance)
+    note = (req.note or "").strip()
+    if reveal["needs_note"] and not note:
+        raise HTTPException(status_code=400, detail={
+            "code": "opening_variance",
+            "message": (f"Counted {currency} {reveal['counted']}, but last night's reconcile "
+                        f"said {currency} {reveal['expected']} "
+                        f"({reveal['variance']:+}). Add a note to open."),
+            "counted": str(reveal["counted"]), "expected": str(reveal["expected"]),
+            "variance": str(reveal["variance"]),
+        })
+
     shift = CashShiftModel(
         user_id=user_id, username=username, store_number=1,
-        register_id=req.register_id, opening_float=opening,
-        opening_denoms=json.dumps(req.opening_denoms) if req.opening_denoms else None)
+        register_id=req.register_id,
+        opening_float=counted,                 # 4. today starts from what is really there
+        opening_denoms=json.dumps(req.opening_denoms) if req.opening_denoms else None,
+        opening_expected=reveal["expected"], opening_variance=reveal["variance"],
+        opening_note=note or None,
+        previous_shift_id=(prev.id if prev is not None else None),
+        tolerance=tolerance)
     db.add(shift)
     await db.commit()
     await db.refresh(shift)
-    logger.info(f"Cash shift OPEN: {username} float={opening}")
-    return {"ok": True, "shift_id": str(shift.id), "opening_float": str(opening),
-            "opened_at": shift.opened_at.isoformat()}
+    logger.info("Cash box OPEN: counted=%s expected=%s variance=%s by %s",
+                counted, reveal["expected"], reveal["variance"], username)
+    return {"ok": True, "shift_id": str(shift.id),
+            "opening_float": str(counted), "opened_by": username,
+            "opened_at": shift.opened_at.isoformat(),
+            # THE REVEAL — the client shows this only now, never before the count.
+            "expected": (str(reveal["expected"]) if reveal["expected"] is not None else None),
+            "variance": (str(reveal["variance"]) if reveal["variance"] is not None else None),
+            "within_tolerance": reveal["within_tolerance"],
+            "previous_shift_id": (str(prev.id) if prev is not None else None),
+            "first_ever_open": expected is None}
 
 
 @router.post("/shift/paid")
@@ -8795,12 +8932,17 @@ async def shift_paid_in_out(
     db: AsyncSession = Depends(get_db_session),
     current_user: dict = Depends(require_any_pos_role()),
 ):
-    """Record non-sale cash moving in/out of the drawer (with a reason) so the
-    drawer can still balance at close."""
-    user_id, username = await _resolve_cashier_uid(db, current_user), _uname(current_user)
-    shift = await _open_shift_for(db, user_id)
+    """Record non-sale cash moving in/out of the box (with a reason + a code) so it can
+    still balance at reconcile.
+
+    Any cashier, on the shop's box — no manager gate (answer 1). `reason_code` separates a
+    skim to the safe from real petty cash: both take money out of the drawer, only one is an
+    expense (§7.3).
+    """
+    username = _uname(current_user)
+    shift = await _open_till(db)
     if not shift:
-        raise HTTPException(status_code=404, detail="No open cash shift to adjust.")
+        raise HTTPException(status_code=404, detail="The cash box is closed — nothing to adjust.")
     kind = (req.kind or "").lower()
     if kind not in ("paid_in", "paid_out"):
         raise HTTPException(status_code=400, detail="kind must be paid_in or paid_out")
@@ -8810,10 +8952,17 @@ async def shift_paid_in_out(
     reason = (req.reason or "").strip()
     if len(reason) < 2:
         raise HTTPException(status_code=400, detail="Give a short reason for the cash movement.")
+    code = (req.reason_code or "").strip().lower() or None
+    if code is not None and code not in REASON_CODES:
+        raise HTTPException(status_code=400,
+                            detail=f"reason_code must be one of: {', '.join(REASON_CODES)}")
+    # A skim only makes sense outbound — nobody tops the float up FROM the safe as a "to_safe".
+    if code == "to_safe" and kind != "paid_out":
+        raise HTTPException(status_code=400, detail="'to safe' is money leaving the box (paid_out).")
     mv = CashMovementModel(
         shift_id=shift.id,
         kind=CashMovementKind.PAID_IN if kind == "paid_in" else CashMovementKind.PAID_OUT,
-        amount=amount, reason=reason[:300], actor=username)
+        amount=amount, reason=reason[:300], actor=username, reason_code=code)
     db.add(mv)
     if kind == "paid_in":
         shift.paid_in_total = money(Decimal(str(shift.paid_in_total or 0)) + amount)
@@ -8830,18 +8979,22 @@ async def current_cash_shift(
     db: AsyncSession = Depends(get_db_session),
     current_user: dict = Depends(require_any_pos_role()),
 ):
-    """The caller's open drawer with the live expected-cash-so-far (or open:false)."""
-    user_id = await _resolve_cashier_uid(db, current_user)
-    shift = await _open_shift_for(db, user_id)
+    """The SHOP's open cash box with the live expected-cash-so-far (or open:false).
+
+    Everyone sees the same box, whoever opened it — it is not "my drawer", and the expected
+    figure now includes EVERYBODY's takings.
+    """
+    shift = await _open_till(db)
     if not shift:
         return {"open": False}
     now = datetime.now(timezone.utc)
-    s = await _shift_sales(db, user_id, shift.opened_at, now)
+    s = await _shift_sales(db, shift.opened_at, now)
     exp = expected_cash(shift.opening_float, s["cash_sales"],
                         shift.paid_in_total, shift.paid_out_total, s["cash_refunds"])
     return {
         "open": True, "shift_id": str(shift.id),
         "opened_at": shift.opened_at.isoformat(),
+        "opened_by": shift.username,
         "opening_float": str(money(shift.opening_float)),
         "cash_sales": str(s["cash_sales"]), "card_sales": str(s["card_sales"]),
         "cash_refunds": str(s["cash_refunds"]),
@@ -8859,14 +9012,22 @@ async def close_cash_shift(
     db: AsyncSession = Depends(get_db_session),
     current_user: dict = Depends(require_any_pos_role()),
 ):
-    """Count the drawer out. Computes expected vs counted; a variance beyond the
-    tolerance needs a note. Open->close timestamps are the shift hours."""
-    user_id, username = await _resolve_cashier_uid(db, current_user), _uname(current_user)
-    shift = await _open_shift_for(db, user_id)
+    """RECONCILE the box: count it out. Any cashier may — the person holding the box is the
+    person who counts it (answer 1), and there is no manager gate.
+
+    Expected = float + EVERYONE's cash sales + paid-in - paid-out - refunds. A variance beyond
+    the tolerance needs a note; nothing is ever rounded away or absorbed.
+
+    **The counted total becomes tomorrow's expected.** That chain is the slope, and it is what
+    makes the morning reveal mean anything: nothing is "closed down" here, the money stays in
+    the box and goes to the safe overnight.
+    """
+    username = _uname(current_user)
+    shift = await _open_till(db)
     if not shift:
-        raise HTTPException(status_code=404, detail="No open cash shift to close.")
+        raise HTTPException(status_code=404, detail="The cash box is not open — nothing to reconcile.")
     now = datetime.now(timezone.utc)
-    s = await _shift_sales(db, user_id, shift.opened_at, now)
+    s = await _shift_sales(db, shift.opened_at, now)
     currency = await _tenant_currency(db)
     counted = denoms_total(req.closing_denoms, currency) if req.closing_denoms else money(req.counted_cash or 0)
     exp = expected_cash(shift.opening_float, s["cash_sales"],
@@ -8875,7 +9036,7 @@ async def close_cash_shift(
     note = (req.note or "").strip()
     if not res["within_tolerance"] and not note:
         raise HTTPException(status_code=400,
-            detail=f"Off by {currency} {res['variance']}. Add a note to close the shift.")
+            detail=f"Off by {currency} {res['variance']}. Add a note to reconcile the cash box.")
 
     shift.cash_sales = s["cash_sales"]; shift.card_sales = s["card_sales"]
     shift.cash_refunds = s["cash_refunds"]; shift.transaction_count = s["count"]
@@ -8884,13 +9045,126 @@ async def close_cash_shift(
     shift.expected_cash = res["expected"]; shift.variance = res["variance"]
     shift.within_tolerance = res["within_tolerance"]
     shift.variance_note = note or None
+    shift.reconciled_by = username          # may be a different person to whoever opened it
+    shift.counted_verified = True           # a human counted it — this is the real thing
     shift.status = CashShiftStatus.CLOSED; shift.closed_at = now
     await db.commit()
 
     hours = (now - shift.opened_at).total_seconds() / 3600.0
-    logger.info(f"Cash shift CLOSE: {username} expected={res['expected']} counted={counted} "
-                f"variance={res['variance']} within={res['within_tolerance']}")
+    logger.info("Cash box RECONCILED by %s (opened by %s): expected=%s counted=%s variance=%s "
+                "within=%s — becomes tomorrow's expected",
+                username, shift.username, res["expected"], counted, res["variance"],
+                res["within_tolerance"])
     return _shift_report(shift, hours, s["foreign"])
+
+
+@router.get("/shift/x-report")
+async def cash_box_x_report(
+    db: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(require_any_pos_role()),
+):
+    """X-REPORT — a mid-shift read of the box that changes NOTHING (§7.2).
+
+    Standard on registers for fifty years and missing here until now. This is the "it's
+    getting heavy, let's move some to the safe" moment: you need the position WITHOUT
+    reconciling, because reconciling ends the day.
+
+    The distinction that matters, and the reason it has its own endpoint rather than being a
+    flag on the reconcile: an X-report is **non-resetting**. It writes nothing, closes nothing,
+    and starts no new chain. A Z-report (the closeout) is the fiscal, resetting one.
+    """
+    shift = await _open_till(db)
+    if not shift:
+        return {"open": False}
+    now = datetime.now(timezone.utc)
+    s = await _shift_sales(db, shift.opened_at, now)
+    exp = expected_cash(shift.opening_float, s["cash_sales"],
+                        shift.paid_in_total, shift.paid_out_total, s["cash_refunds"])
+    movements = (await db.execute(select(CashMovementModel).where(
+        CashMovementModel.shift_id == shift.id
+    ).order_by(CashMovementModel.created_at))).scalars().all()
+    return {
+        "open": True, "report": "X", "resetting": False,
+        "shift_id": str(shift.id), "opened_by": shift.username,
+        "opened_at": shift.opened_at.isoformat(),
+        "as_of": now.isoformat(),
+        "hours_open": round((now - shift.opened_at).total_seconds() / 3600.0, 2),
+        "opening_float": str(money(shift.opening_float)),
+        "cash_sales": str(s["cash_sales"]), "card_sales": str(s["card_sales"]),
+        "cash_refunds": str(s["cash_refunds"]),
+        "paid_in_total": str(money(shift.paid_in_total)),
+        "paid_out_total": str(money(shift.paid_out_total)),
+        "expected_cash": str(exp), "transaction_count": s["count"],
+        "foreign": s["foreign"],
+        # The skim history, so "should we drop some to the safe?" is answerable on one screen.
+        "to_safe_total": str(money(sum(
+            (Decimal(str(m.amount)) for m in movements if m.reason_code == "to_safe"),
+            Decimal("0")))),
+        "movements": [{"kind": m.kind.value, "amount": str(money(m.amount)),
+                       "reason": m.reason, "reason_code": m.reason_code,
+                       "actor": m.actor, "at": m.created_at.isoformat()}
+                      for m in movements],
+    }
+
+
+@router.post("/shift/force-close")
+async def force_close_cash_box(
+    req: ForceCloseReq,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(require_manager_or_admin()),
+):
+    """§5 — close a box that can no longer be counted. MANAGER ONLY, reason required.
+
+    Why this has to exist: the Kassenbuch must be complete and chronological, so a shift
+    cannot simply sit open for ever because nobody was at the shop to count it. That happened
+    on production 2026-08-03 and had to be repaired by hand with a `psql` UPDATE.
+
+    Why it is dangerous, and how that is handled: closing at counted = expected produces a
+    variance of 0.00, and a zero variance is EXACTLY what a reader takes for "the drawer
+    balanced". It didn't — nobody looked. So the fact lives in its own column
+    (`counted_verified = FALSE`), not in prose somebody has to notice and read. Any
+    balanced-drawer statistic must filter on it.
+
+    This is the ONE manager-gated cash operation. It is not a correction a cashier might need
+    mid-shift; it is an admission that the normal process could not happen.
+    """
+    username = _uname(current_user)
+    reason = (req.reason or "").strip()
+    if len(reason) < 10:
+        raise HTTPException(
+            status_code=400,
+            detail="A forced close needs a real reason — say why the box could not be counted.")
+    shift = await _open_till(db)
+    if not shift:
+        raise HTTPException(status_code=404, detail="The cash box is not open.")
+    now = datetime.now(timezone.utc)
+    s = await _shift_sales(db, shift.opened_at, now)
+    exp = expected_cash(shift.opening_float, s["cash_sales"],
+                        shift.paid_in_total, shift.paid_out_total, s["cash_refunds"])
+
+    shift.cash_sales = s["cash_sales"]; shift.card_sales = s["card_sales"]
+    shift.cash_refunds = s["cash_refunds"]; shift.transaction_count = s["count"]
+    shift.expected_cash = exp
+    # counted := expected is the ONLY honest option — any other number would be invented.
+    shift.counted_cash = exp
+    shift.variance = Decimal("0.00")
+    shift.within_tolerance = True
+    shift.counted_verified = False          # <- the load-bearing line
+    shift.forced_close = True
+    shift.reconciled_by = username
+    shift.variance_note = (
+        f"FORCED CLOSE — THE BOX WAS NEVER PHYSICALLY COUNTED. counted_cash was set equal to "
+        f"expected ({exp}) to close the row, so the zero variance is arithmetic, NOT an "
+        f"observation. Forced by {username} on {now.astimezone(SHOP_TZ):%Y-%m-%d %H:%M}. "
+        f"Reason: {reason[:400]}")
+    shift.status = CashShiftStatus.CLOSED; shift.closed_at = now
+    await db.commit()
+    logger.warning("Cash box FORCE-CLOSED by %s: expected=%s never counted — %s",
+                   username, exp, reason[:200])
+    out = _shift_report(shift, (now - shift.opened_at).total_seconds() / 3600.0, s["foreign"])
+    out["counted_verified"] = False
+    out["forced_close"] = True
+    return out
 
 
 def _shift_report(shift: CashShiftModel, hours: float | None = None, foreign: dict | None = None) -> dict:
@@ -8899,7 +9173,20 @@ def _shift_report(shift: CashShiftModel, hours: float | None = None, foreign: di
         hours = (shift.closed_at - shift.opened_at).total_seconds() / 3600.0
     return {
         "ok": True, "shift_id": str(shift.id),
-        "username": shift.username,
+        "username": shift.username,          # kept for back-compat; means OPENED BY
+        "opened_by": shift.username,
+        "reconciled_by": shift.reconciled_by,
+        # §5 — a forced close is arithmetic, not an observation. Any balanced-drawer
+        # statistic must filter on counted_verified rather than on variance == 0.
+        "counted_verified": bool(shift.counted_verified),
+        "forced_close": bool(shift.forced_close),
+        # The morning reveal, so the report shows where the day STARTED as well as where it
+        # ended. A difference here belongs to the previous reconcile, not to this day's trading.
+        "opening_expected": (str(money(shift.opening_expected))
+                             if shift.opening_expected is not None else None),
+        "opening_variance": (str(money(shift.opening_variance))
+                             if shift.opening_variance is not None else None),
+        "opening_note": shift.opening_note,
         "foreign": foreign or {},   # Block 2: foreign cash taken this shift (per ccy: face + home)
         "opening_float": str(money(shift.opening_float)),
         "cash_sales": str(money(shift.cash_sales or 0)),
@@ -8926,17 +9213,18 @@ async def last_cash_shift(
     db: AsyncSession = Depends(get_db_session),
     current_user: dict = Depends(require_any_pos_role()),
 ):
-    """The caller's most recent CLOSED shift -- so the report screen survives a reload."""
-    shift = (await db.execute(select(CashShiftModel).where(
-        CashShiftModel.user_id == await _resolve_cashier_uid(db, current_user),
-        CashShiftModel.status == CashShiftStatus.CLOSED,
-    ).order_by(CashShiftModel.closed_at.desc()).limit(1))).scalar_one_or_none()
+    """The SHOP's most recent reconcile — so the report screen survives a reload.
+
+    Shop-scoped, not caller-scoped (2026-08-03): with one shared box, "my last shift" was never
+    a real thing. Whoever reconciled it, everyone sees the same last reconcile — which is also
+    what makes the morning's "what did last night say?" answerable by whoever opens up.
+    """
+    shift = await _last_reconciled_till(db)
     if not shift:
         return {"ok": False}
     # Recompute the foreign-cash breakdown from the shift's transactions so a revisited/closed report
     # still shows it (Block 2 — it isn't stored on the shift row). Cheap: same query as the close tally.
-    s = await _shift_sales(db, await _resolve_cashier_uid(db, current_user),
-                           shift.opened_at, shift.closed_at or shift.opened_at)
+    s = await _shift_sales(db, shift.opened_at, shift.closed_at or shift.opened_at)
     return _shift_report(shift, foreign=s.get("foreign"))
 
 
