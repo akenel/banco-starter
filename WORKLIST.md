@@ -11,8 +11,8 @@
 *Written 2026-08-03 at the end of a long session. Everything below this block is context and
 history; these three are the work. **Do them in this order — the reason is in item 1.***
 
-**1 · ~~Wire the rounding engine into checkout.~~ ✅ DONE 2026-08-03 — but NOT yet on prod, and
-   NOT yet human-green.** Built, tested (17 new + the 29 arithmetic ones) and **proven live end
+**1 · ~~Wire the rounding engine into checkout.~~ ✅ DONE + ON PROD + PROVEN 2026-08-03 — NOT
+   yet human-green.** Built, tested (17 new + the 29 arithmetic ones) and **proven live end
    to end** by `scripts/prove-cash-rounding.py` against the dev stack: a cash sale rounds to
    0.05 and records the move, the identical cart on TWINT charges the exact cent, an ordinary
    total passes through untouched, the receipt's Discount line stays honest, and the Banana
@@ -48,7 +48,7 @@ history; these three are the work. **Do them in this order — the reason is in 
    predicted behaviour, not a dud — every shelf price is already a 0.05 multiple, so this is a
    safety net for percentage discounts, not a daily event.*
 
-   **⛔ WHAT IS LEFT — do this before item 2:**
+   **⛔ WHAT IS LEFT:**
    - **Human-green it (standing rule 5):** ring a discounted cash sale at the till and confirm
      with your own eyes that the screen shows `TO PAY`, the printed receipt shows `Rounding`,
      and the change in your hand matches. *Nothing here has been seen by a person yet — the
@@ -62,34 +62,38 @@ history; these three are the work. **Do them in this order — the reason is in 
    being true in production. Not caused by this deploy; found by it. **Change the passwords, or
    stand up a real realm, before the shop trades on it.**
 
-**2 · Rebuild the cash box as SHOP-owned.** — **now with live evidence, and a drawer open on
-   prod right now.** Running the proof at 14:03 opened a SECOND drawer on the same physical box
-   while **pam's has been open since 09:59 unclosed**, and nothing objected. That is exactly the
-   per-user guard the design note predicts:
-   ```
-   pam    2026-08-03 09:59:18   (still open)   float 0.05
-   felix  2026-08-03 14:03:19 → 14:03:20       float 200.00
-   ```
-   Two drawers, one box, each blind to the other's sales. ✅ **Pam's shift closed** 14:12 —
-   administratively, at `counted = expected = 168.00`, because nobody was at the shop to count
-   it. **The zero variance is arithmetic, not an observation**, and the stored note says exactly
-   that so it can never read as a balanced drawer. Worked example + the force-close this really
-   needs are now **§5 of [`12-the-cash-box.md`](onboarding/12-the-cash-box.md)**.
-   The ±0.05 tolerance is now unblocked, because item 1 is live.
+**2 · ~~Rebuild the cash box as SHOP-owned.~~ ✅ BUILT + ON PROD 2026-08-03 — NOT yet human-green.**
+   Deployed (`bc19aa1`), all 11 columns verified on the live DB, HTTPS green. 25 unit tests +
+   `scripts/prove-cash-box.py` (30 live checks, two real logins, self-restoring).
+   **▶️ NEXT ACTION: run [`onboarding/testsheets/CASH-BOX-SHOP-OWNED-TESTSHEET.html`](onboarding/testsheets/CASH-BOX-SHOP-OWNED-TESTSHEET.html)**
+   on the tablet — 30 steps, ~30 min, needs **two logins in two browsers** (Part C cannot be done
+   with one person). **Part F3 is not optional**: finish by reconciling at the real amount, or the
+   slope hands tomorrow's opener your test.
+   *Two things caught by hand before deploy, neither by a test: the till screen would have BLOCKED
+   the shop from opening (the new 400/409 were dead ends), and the proof would have poisoned the
+   next morning's expected. Both fixed; contract tests added.*
 
-   **Scope grew by two, both from the same shift — see §5 and §6 of the design note:** a
-   **force-close** (manager-only, reason required, `counted_cash` flagged *unverified* in its own
-   column, never counted as a balanced drawer), and a shop **baseline** —
-   `store_settings.cash_box_float`, admin-only, asked once at stand-up. The baseline seeds the
-   slope on day one and backs a **guard, not a lock**: a count wildly off it *asks* ("the box
-   normally holds ~CHF 600, you counted CHF 0.05 — is that right?") and never refuses, because a
-   hard block would fail the shop on the one morning the box really has been emptied. Admin owns
-   the baseline; **the cashier always owns the count** (answer 1 stands). Design agreed and all four questions answered:
-   → **[`onboarding/12-the-cash-box.md`](onboarding/12-the-cash-box.md)**. The core is one line
-   — `pos_router.py:8632` sums `cashier_id == user_id` and must sum everyone. Then: shop-wide
-   open guard, count-blind-then-reveal, last night's counted = this morning's expected, rename
-   to "cash box", named "to safe" paid-out reason, foreign currency on paid-OUT only.
-   Tolerance **±0.05** once item 1 has shipped **to prod** (the code is in; the deploy is not).
+   **What shipped** (§1–§7 of the design note): `_shift_sales` sums everyone · shop-wide open
+   guard *and* checkout gate (Pam could not previously take cash at all on a box Felix opened) ·
+   blind open → reveal → note filed against yesterday · the slope (`previous_shift_id`) ·
+   §6 baseline + guard · §7.2 X-report · §7.3 `to_safe` reason code · §5 force-close with
+   `counted_verified` in its own column. Tolerance is now shop-configurable (`cash_tolerance`,
+   NULL = the 0.20 legacy default) — **±0.05 is reachable now that item 1 is live**.
+
+   **The live proof caught a design flaw I would have shipped:** the §6 guard measured against
+   the baseline, so after a CHF 500 skim — when the box legitimately holds ~100 — it questioned a
+   perfectly normal morning, and would have every morning the box stayed light. The reference is
+   now the **slope** when there is one. That narrowed the baseline to what it was always for:
+   seed day one, catch an absurd count when there is nothing better.
+
+   **Also fixed:** an unverified figure was being quoted as fact the next morning. Pam's box was
+   force-closed at 168.00, making it the slope — so the reveal would have said "last night's
+   reconcile said CHF 168.00" as though somebody had looked. `expected_verified` now rides the
+   chain (§5, one link further down).
+
+   ✅ Pam's 09:59 shift is **closed** (administratively, 14:12; the retro-flag in the migration
+   set `counted_verified=false, forced_close=true` on it — the fact is in a column now, not just
+   prose). Worked example: **§5** of [`12-the-cash-box.md`](onboarding/12-the-cash-box.md).
 
 **3 · The two bulk catalogue scripts** — `enrich-from-source.py --apply` then
    `adopt-images.py --apply`, on the **prod box** (local dev has only 6 products).
