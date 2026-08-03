@@ -305,6 +305,15 @@
                     <div class="flex gap-2 mt-4 flex-wrap">
                         <button x-show="user.isManager" @click="openEdit(detailProduct); detailProduct=null"
                                 class="btn-primary flex-1">✏️ <span data-i18n="catalog.edit_this_product">Edit this product</span></button>
+                        <!-- 🔗 THE MERGE, WHERE THE DUPLICATE IS ACTUALLY SEEN. POST /catalog/merge has
+                             worked since 2026-07-31 and was reachable from exactly one place — a
+                             shelf-intake card for an UNKNOWN code. Bind the EAN, which is the entire
+                             point of shelf intake, and the button vanished. Angel then stood in front
+                             of "Canna Cannazym 1L" at CHF 43.90 and CHF 21.00 with the purpose-built
+                             fix one HTTP call away and no way to press it. -->
+                        <button x-show="user.isManager" @click="openMerge(detailProduct)"
+                                class="flex-none inline-flex items-center gap-1 px-3 py-2 rounded-lg border-2 border-amber-200 text-amber-700 font-semibold hover:border-amber-400 hover:bg-amber-50"
+                                :title="t('catalog.merge_title')">🔗 <span data-i18n="catalog.merge_btn">Duplicate of…</span></button>
                         <!-- 🏷️ Print a label — Pam's one-tap: any staff, any item, on demand (Brother QL-820) -->
                         <a :href="'/pos/products/' + (detailProduct?.id) + '/label'" target="_blank" x-show="detailProduct?.id"
                            class="flex-none inline-flex items-center gap-1 px-3 py-2 rounded-lg border-2 border-emerald-200 text-emerald-700 font-semibold hover:border-emerald-400 hover:bg-emerald-50"
@@ -381,6 +390,124 @@
                             </div>
                         </div>
                     </template>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════ 🔗 MERGE A DUPLICATE ══════════
+         Two rows, one product. The merge is deliberately ASYMMETRIC — the survivor wins on
+         content, the retiring row donates its barcodes and fills the survivor's BLANKS only —
+         so the direction is a real decision and this screen makes you make it, out loud, with
+         both rows side by side. Nothing is written until the dry-run plan has been shown. -->
+    <div x-show="mergeOpen" x-transition class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
+         @click.self="closeMerge()" style="display:none;">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-start p-5 border-b">
+                <div>
+                    <h2 class="text-xl font-bold text-gray-900" data-i18n="catalog.merge_title">Fold a duplicate together</h2>
+                    <p class="text-sm text-gray-500 mt-0.5" data-i18n="catalog.merge_sub">One product, two rows. Pick the twin, choose which one survives.</p>
+                </div>
+                <button @click="closeMerge()" class="text-gray-400 hover:text-gray-700 text-3xl leading-none flex-none">&times;</button>
+            </div>
+
+            <div class="p-5 space-y-4">
+                <!-- STEP 1 — find the twin -->
+                <div x-show="!mergePick">
+                    <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="catalog.merge_find">Which row is the same product?</label>
+                    <div class="flex gap-2">
+                        <input type="text" x-model="mergeQuery" @keydown.enter="mergeSearch()"
+                               class="input-field flex-1" placeholder="name, SKU or barcode"
+                               data-i18n-placeholder="catalog.merge_ph">
+                        <button @click="mergeSearch()" :disabled="mergeBusy" class="btn-secondary flex-none">
+                            <span x-show="!mergeBusy" data-i18n="catalog.merge_search">Search</span>
+                            <span x-show="mergeBusy" style="display:none;">…</span>
+                        </button>
+                    </div>
+                    <p x-show="mergeSearched && !mergeCands.length && !mergeBusy" style="display:none;"
+                       class="text-sm text-gray-500 mt-3" data-i18n="catalog.merge_none">Nothing else matches. If the twin is discontinued it will not appear here — only active rows can be merged.</p>
+                    <div class="space-y-2 mt-3 max-h-64 overflow-y-auto">
+                        <template x-for="c in mergeCands" :key="c.id">
+                            <button @click="mergePickRow(c)"
+                                    class="w-full flex items-center gap-3 border-2 rounded-lg p-3 text-left hover:border-amber-400 transition">
+                                <img :src="c.image_url || '/static/pos/img/placeholder.png'" class="w-12 h-12 object-contain rounded flex-none bg-gray-50" alt="">
+                                <div class="min-w-0 flex-1">
+                                    <p class="font-semibold text-gray-900 truncate" x-text="c.name"></p>
+                                    <p class="text-xs text-gray-400 font-mono truncate" x-text="(c.sku || '') + (c.barcode ? ' · ' + c.barcode : ' · no barcode')"></p>
+                                </div>
+                                <span class="font-bold text-indigo-600 flex-none" x-text="formatPrice(c.price)"></span>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- STEP 2 — direction, then the plan -->
+                <div x-show="mergePick" style="display:none;" class="space-y-4">
+                    <div class="grid sm:grid-cols-2 gap-3">
+                        <template x-for="side in mergeSides()" :key="side.role">
+                            <div class="border-2 rounded-xl p-3"
+                                 :class="side.role === 'keep' ? 'border-emerald-400 bg-emerald-50' : 'border-gray-200 bg-gray-50'">
+                                <p class="text-xs font-bold uppercase tracking-wide mb-1"
+                                   :class="side.role === 'keep' ? 'text-emerald-700' : 'text-gray-500'"
+                                   x-text="side.role === 'keep' ? t('catalog.merge_survives') : t('catalog.merge_retires')"></p>
+                                <p class="font-semibold text-gray-900 break-words" x-text="side.row.name"></p>
+                                <p class="text-xs text-gray-400 font-mono" x-text="(side.row.sku || '') + (side.row.barcode ? ' · ' + side.row.barcode : ' · no barcode')"></p>
+                                <p class="text-lg font-bold text-indigo-600 mt-1" x-text="formatPrice(side.row.price)"></p>
+                                <p class="text-xs text-gray-500" x-text="side.row.category || '—'"></p>
+                            </div>
+                        </template>
+                    </div>
+
+                    <button @click="mergeKeepMine = !mergeKeepMine; mergePlan = null" class="btn-secondary w-full text-sm">
+                        ⇄ <span data-i18n="catalog.merge_swap">Swap — the other one should survive</span>
+                    </button>
+
+                    <!-- The two things a merge does NOT do. Both were learned the hard way and both
+                         are invisible unless said: price is never merged (deliberately — it is what
+                         the SHOP charges), and a twin with no barcode has nothing to donate. -->
+                    <div x-show="mergePriceGap()" style="display:none;"
+                         class="rounded-lg border-2 border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                        ⚠️ <span class="font-semibold" data-i18n="catalog.merge_price_warn">These two are priced differently, and merging will NOT change the price.</span>
+                        <span class="block mt-1" x-text="mergePriceGap()"></span>
+                        <span class="block mt-1" data-i18n="catalog.merge_price_hint">A big gap on two rows with the same name usually means they are two different products. Check the packets before you merge.</span>
+                    </div>
+                    <div x-show="mergeNothingToDonate()" style="display:none;"
+                         class="rounded-lg border border-gray-300 bg-gray-50 p-3 text-sm text-gray-700"
+                         data-i18n="catalog.merge_nothing">The retiring row has no barcode, so there is no code to move across. This will record its name as a searchable alias, fill any blanks, and switch it off — which is a tidy discontinue rather than a real merge.</div>
+
+                    <!-- STEP 3 — the plan. Nothing is written until this has been read. -->
+                    <div x-show="mergePlan" style="display:none;" class="rounded-xl border-2 border-indigo-200 bg-indigo-50 p-3 text-sm">
+                        <p class="font-bold text-indigo-900 mb-2" data-i18n="catalog.merge_plan">Here is exactly what will happen — nothing has changed yet</p>
+                        <ul class="space-y-1 text-indigo-900">
+                            <li>✅ <span data-i18n="catalog.merge_p_keep">Survivor keeps its name, price and everything already filled in.</span></li>
+                            <li x-show="mergePlan?.new_primary_barcode">🔖 <span data-i18n="catalog.merge_p_primary">Its main barcode becomes</span>
+                                <span class="font-mono font-bold" x-text="mergePlan?.new_primary_barcode"></span></li>
+                            <li x-show="mergePlan?.kept_as_aliases?.length">🏷️ <span data-i18n="catalog.merge_p_alias">Still scans under</span>
+                                <span class="font-mono" x-text="(mergePlan?.kept_as_aliases || []).join(', ')"></span>
+                                <span class="text-indigo-600" data-i18n="catalog.merge_p_alias_why">(a printed shelf label must keep working)</span></li>
+                            <li x-show="mergePlan?.fields_filled_from_retired?.length">📋 <span data-i18n="catalog.merge_p_fill">Blank fields filled from the twin:</span>
+                                <span class="font-semibold" x-text="(mergePlan?.fields_filled_from_retired || []).join(', ')"></span></li>
+                            <li x-show="mergePlan?.stock_note" x-text="'📦 ' + mergePlan?.stock_note"></li>
+                            <li>🚫 <span data-i18n="catalog.merge_p_retire">The twin is switched off, never deleted — its line items are somebody's receipt.</span></li>
+                        </ul>
+                    </div>
+
+                    <p x-show="mergeErr" style="display:none;" class="text-sm text-rose-600" x-text="mergeErr"></p>
+
+                    <div class="flex gap-2">
+                        <button @click="mergePick = null; mergePlan = null; mergeErr = ''" class="btn-secondary flex-none"
+                                data-i18n="catalog.merge_back">← Pick another</button>
+                        <button x-show="!mergePlan" @click="mergePreview()" :disabled="mergeBusy" class="btn-primary flex-1">
+                            <span x-show="!mergeBusy" data-i18n="catalog.merge_preview">Show me what would happen</span>
+                            <span x-show="mergeBusy" style="display:none;">…</span>
+                        </button>
+                        <button x-show="mergePlan" style="display:none;" @click="mergeApply()" :disabled="mergeApplying"
+                                class="btn-success flex-1">
+                            <span x-show="!mergeApplying" data-i18n="catalog.merge_do">Yes — merge them</span>
+                            <span x-show="mergeApplying" style="display:none;" data-i18n="catalog.merge_doing">Merging…</span>
+                        </button>
+                    </div>
+                    <p class="text-xs text-gray-400 text-center" data-i18n="catalog.merge_irreversible">Clicking twice does not undo this. The twin can be switched back on from Show discontinued.</p>
                 </div>
             </div>
         </div>
@@ -886,6 +1013,10 @@
             results: [],
             total: 0,
             ageTotal: 0,       // 18+ across the whole match — server-counted, never the page
+            // 🔗 merge-a-duplicate, from the screen where duplicates are actually seen
+            mergeOpen: false, mergeMine: null, mergeQuery: '', mergeCands: [], mergeSearched: false,
+            mergePick: null, mergeKeepMine: false, mergePlan: null,
+            mergeBusy: false, mergeApplying: false, mergeErr: '',
             skip: 0,
             sort: 'recent',        // default: newest first — the stuff you just catalogued is on top
             pageSize: 25,
@@ -1182,6 +1313,90 @@
                 } catch (e) {
                     showToast(e.message || t('catalog.ai_unavailable'), 'error');
                 } finally { this.snapBusy = false; }
+            },
+
+            // ── 🔗 merge a duplicate ─────────────────────────────────────────────────────────
+            openMerge(p) {
+                if (!p) return;
+                this.mergeMine = p;
+                this.detailProduct = null;
+                this.mergeQuery = p.name || '';
+                this.mergeCands = []; this.mergeSearched = false;
+                this.mergePick = null; this.mergePlan = null; this.mergeErr = '';
+                // Default: the OTHER row survives. The merge exists because a hand-made row
+                // usually holds the real EAN while the wholesale row holds the better content,
+                // and you are normally standing on the hand-made one when you notice the twin.
+                // It is only a default — the swap button is right there, and the plan is shown
+                // before anything is written.
+                this.mergeKeepMine = false;
+                this.mergeOpen = true;
+                this.mergeSearch();
+            },
+            closeMerge() {
+                this.mergeOpen = false; this.mergeMine = null; this.mergePick = null;
+                this.mergePlan = null; this.mergeCands = []; this.mergeErr = '';
+            },
+            async mergeSearch() {
+                const q = (this.mergeQuery || '').trim();
+                if (!q) return;
+                this.mergeBusy = true; this.mergeErr = '';
+                try {
+                    const d = await API.get(`/api/v1/pos/search?q=${encodeURIComponent(q)}&limit=8`);
+                    // Never offer a row as its own duplicate. /search returns active rows only,
+                    // which is right — merging INTO a discontinued row would resurrect it sideways.
+                    this.mergeCands = (d.items || []).filter(c => c.id !== (this.mergeMine || {}).id);
+                } catch (e) {
+                    this.mergeErr = e.message || 'Search failed';
+                    this.mergeCands = [];
+                } finally { this.mergeBusy = false; this.mergeSearched = true; }
+            },
+            mergePickRow(c) { this.mergePick = c; this.mergePlan = null; this.mergeErr = ''; },
+            mergeKeepRow()   { return this.mergeKeepMine ? this.mergeMine : this.mergePick; },
+            mergeRetireRow() { return this.mergeKeepMine ? this.mergePick : this.mergeMine; },
+            mergeSides() {
+                if (!this.mergePick || !this.mergeMine) return [];
+                return [{ role: 'keep', row: this.mergeKeepRow() },
+                        { role: 'retire', row: this.mergeRetireRow() }];
+            },
+            // A 2x gap on two rows with the same name is not a typo — it is the signature of two
+            // different products (CLAUDE.md, 2026-08-03). Merge never touches price, so without
+            // this the operator folds two things together and the gap simply disappears from view.
+            mergePriceGap() {
+                const a = Number((this.mergeKeepRow() || {}).price) || 0;
+                const b = Number((this.mergeRetireRow() || {}).price) || 0;
+                if (!a || !b || a === b) return '';
+                const hi = Math.max(a, b), lo = Math.min(a, b);
+                const times = (hi / lo).toFixed(1).replace(/\.0$/, '');
+                return `${formatPrice(lo)} vs ${formatPrice(hi)} — ${times}×. ` +
+                       `${t('catalog.merge_price_keeps') || 'The survivor keeps'} ${formatPrice(a)}.`;
+            },
+            mergeNothingToDonate() {
+                const r = this.mergeRetireRow();
+                return !!r && !String(r.barcode || '').trim();
+            },
+            async _mergeCall(dryRun) {
+                return API.post('/api/v1/pos/catalog/merge', {
+                    keep_id: this.mergeKeepRow().id,
+                    retire_id: this.mergeRetireRow().id,
+                    dry_run: dryRun,
+                });
+            },
+            async mergePreview() {
+                this.mergeBusy = true; this.mergeErr = '';
+                try { this.mergePlan = await this._mergeCall(true); }
+                catch (e) { this.mergeErr = e.message || t('catalog.merge_failed'); }
+                finally { this.mergeBusy = false; }
+            },
+            async mergeApply() {
+                this.mergeApplying = true; this.mergeErr = '';
+                try {
+                    await this._mergeCall(false);
+                    showToast(t('catalog.merge_done'), 'success');
+                    this.closeMerge();
+                    this.search();          // both rows changed; re-read rather than patch locally
+                } catch (e) {
+                    this.mergeErr = e.message || t('catalog.merge_failed');
+                } finally { this.mergeApplying = false; }
             },
 
             // Picker: it's ALREADY in the catalog → open the existing product (no duplicate).

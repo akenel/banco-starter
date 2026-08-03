@@ -115,7 +115,7 @@ wrong. Then the bind is the broken part and discontinuing is correct.)
 
 ---
 
-### 🟠 THE MERGE BUTTON DISAPPEARS THE MOMENT YOU NEED IT — found 2026-08-03
+### ✅ MERGE FROM THE CATALOG ROW — BUILT 2026-08-03, needs a human
 
 *Angel, holding two rows: `Canna Cannazym 1L` at **CHF 43.90** (`OTF-…`, no barcode, Grow
 Supplies) and `Canna Cannazym 1L` at **CHF 21.00** (`LZ-8717524956387`, real EAN, Unsorted).
@@ -135,10 +135,19 @@ Two smaller things the same case exposed:
   hand-made row had *no* barcode, so there was nothing to donate and the answer was simply
   *discontinue the twin*. A merge screen should recognise that case and say it.
 
-**Wanted:** a *"this is a duplicate of…"* action on a catalog row → pick the survivor → `dry_run`
-plan → confirm. Everything behind it already exists. **✅ Angel resolved this pair by hand on
-2026-08-03** (fixed the keeper, discontinued the twin), so this is not urgent — it is the
-~40-duplicate backlog below that makes it worth building.
+**BUILT.** Any product → *Tap for details* → **🔗 Duplicate of…** (manager only). Search the
+twin, see both rows side by side with their prices and categories, **⇄ Swap** to choose which
+survives, **Show me what would happen** runs `dry_run` and prints the plan, then confirm. Both
+things the case exposed are said out loud on the screen: a **price gap** warns that merging will
+not change the price and that a big gap usually means two different products; a twin with **no
+barcode** is called what it is — a tidy discontinue, not a merge.
+
+9 probe checks in `scripts/probe-rescan-cleanup.py` §5, modelling this exact Cannazym pair:
+dry_run leaves the database untouched · the EAN lands on the survivor · **its price and category
+are untouched** · the twin is switched off, never deleted · scanning the EAN finds the survivor.
+
+**⛔ Not human-green.** Nobody has merged a real pair from this screen. The ~40 duplicates from
+2026-07-30 are the reason it exists — that backlog is now workable.
 
 **The rule that came out of it, worth keeping:** *a 2× price gap on two rows with the same name
 is not a typo — it is the signature of two different products.* The OTF row carried no barcode,

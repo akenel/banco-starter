@@ -22,6 +22,7 @@ downstream, and this checks each of them is really gone:
     2 shelf intake reported the re-scan as "✅ already scans correctly" (it now says stub)
     3 "Finish it" reaches exactly one card, even with stale filters in the URL
     4 the catalog header's 18+ counter counts the CATALOGUE, not the 25 rows on screen
+    5 a duplicate can be merged from the catalog row, where duplicates are actually seen
 
 Check 3 is here because it CAUGHT a bug the tests missed: the first version of the pid filter
 reset the gap clause but left the shelf scope standing, so `?pid=<grinder>&category=Grinders`
@@ -45,7 +46,8 @@ from src.db.models.transaction_model import (                       # noqa: E402
     TransactionModel, TransactionStatus, PaymentMethod)
 from src.routes.pos_router import (                                 # noqa: E402
     get_cleanup_queue, catalog_shelf_intake_triage, ShelfIntakeRequest,
-    search_products_fast)
+    search_products_fast, catalog_merge_products, MergeRequest,
+    _find_product_by_any_barcode)
 
 USER = {"username": "probe", "roles": ["manager"]}
 # A real EAN, and a real lookup: three shops in three countries return "Champ High White Leaf
@@ -198,6 +200,53 @@ async def run():
               "narrowing to a category narrows the count with it",
               f"{narrowed['age_total']} of {narrowed['total']}")
 
+        # ── the merge, now reachable from the catalog row ─────────────────────────────
+        # Angel's real pair, 2026-08-03: "Canna Cannazym 1L" twice — an OTF row at CHF 43.90
+        # with a good category and NO barcode, and an LZ row at CHF 21.00 carrying the real
+        # EAN but filed under Unsorted. POST /catalog/merge has existed since 2026-07-31 and
+        # was reachable only from a shelf-intake card for an UNKNOWN code, so the moment the
+        # EAN got bound the tool for duplicates disappeared. It now lives on the catalog row.
+        print("\n5 · MERGE A DUPLICATE — survivor keeps its content, the twin donates its code")
+        ZYM = "8717524956387"
+        otf = await _product(db, name=f"{PREFIX} Canna Cannazym 1L", sku=f"{PREFIX}-OTF-ZYM",
+                             price=43.90, category="Grow Supplies", cost=None,
+                             description="Bodenverbesserer, erhoeht die Widerstandskraft.")
+        lz = await _product(db, name=f"{PREFIX} Canna Cannazym 1L", sku=f"{PREFIX}-LZ-ZYM",
+                            barcode=ZYM, price=21.00, category="Unsorted", cost=None)
+        await db.commit()
+        otf_id, lz_id = otf.id, lz.id
+
+        plan = await catalog_merge_products(
+            MergeRequest(keep_id=otf_id, retire_id=lz_id, dry_run=True),
+            db=db, current_user=USER)
+        check(plan["applied"] is False, "dry_run reports the plan and says it changed nothing")
+        check(plan["new_primary_barcode"] == ZYM,
+              "the plan moves the REAL EAN onto the survivor", plan["new_primary_barcode"])
+        untouched = (await db.execute(select(ProductModel).where(
+            ProductModel.id == otf_id))).scalar_one()
+        await db.refresh(untouched)
+        check(untouched.barcode is None,
+              "and the database really is untouched until you confirm")
+
+        res = await catalog_merge_products(
+            MergeRequest(keep_id=otf_id, retire_id=lz_id, dry_run=False),
+            db=db, current_user=USER)
+        check(res["applied"] is True, "applying reports applied=True")
+        keep = (await db.execute(select(ProductModel).where(ProductModel.id == otf_id))).scalar_one()
+        twin = (await db.execute(select(ProductModel).where(ProductModel.id == lz_id))).scalar_one()
+        await db.refresh(keep)
+        await db.refresh(twin)
+        check(keep.barcode == ZYM, "the survivor now carries the packet's EAN", keep.barcode)
+        check(float(keep.price) == 43.90,
+              "its PRICE is untouched — a merge never decides what a shop charges",
+              f"CHF {float(keep.price):.2f} (the twin's was 21.00)")
+        check(keep.category == "Grow Supplies", "its category is untouched too", keep.category)
+        check(twin.is_active is False and twin.barcode is None,
+              "the twin is switched OFF, never deleted — its line items are somebody's receipt")
+        found = await _find_product_by_any_barcode(db, ZYM)
+        check(found is not None and found.id == otf_id,
+              "and scanning that EAN now lands on the survivor")
+
     return 0
 
 
@@ -211,7 +260,7 @@ async def cleanup():
             ProductModel.sku.like(f"{PREFIX}%")))).scalars().all()
         txns = (await db.execute(select(TransactionModel).where(
             TransactionModel.transaction_number.like(f"{PREFIX}%")))).scalars().all()
-    print("\n5 · PUT IT BACK")
+    print("\n6 · PUT IT BACK")
     check(not prods, "no probe products left", f"{len(prods)} found")
     check(not txns, "no probe sales left in the books", f"{len(txns)} found")
 
