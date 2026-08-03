@@ -8,6 +8,57 @@
 
 ## 🎯 On deck (next actionable, in order)
 
+0. **🟢 CASHIER SHIFT ROLE-PLAY RUN — 2026-08-03, 64 minutes, UAT b170.** Angel played the day
+   open-to-close on the tablet. Sheet: [`onboarding/testsheets/CASHIER-SHIFT-E2E-TESTSHEET.html`](onboarding/testsheets/CASHIER-SHIFT-E2E-TESTSHEET.html).
+
+   **✅ Proven for the first time by a human:**
+   - **Foreign cash works end to end.** EUR 100 tendered at 0.9 → CHF 90.00, change CHF 15.90,
+     receipt shows `EUR 100.00 @ 0.900000`, and the drawer lists `EUR 120.00 ≈ CHF 108.00` to be
+     counted separately. This had never been tested by anyone.
+   - **Shift close balanced on real data** — expected CHF 283.09, counted CHF 283.00,
+     variance −0.09, inside tolerance, Z-report and 209-hour shift report rendered.
+   - **The 18+ gate refuses and cleanly removes the line.** Manager refund works.
+   - **G3 IS NOT A GAP — the guide was wrong.** *"if you try to make a cash sale with a closed
+     drawer it stops and warns."* Checkout already enforces an open drawer. Strike G3.
+   - **G1 has an answer, and it is good:** Angel built the unknown product **on the fly in ~10
+     seconds**, with category and description, and sold it (`OTF-1785752266675-826`, TXN-0005).
+     "Create it OTF" is the cashier move — it just needs writing on the till card.
+
+   **🔴 Fixed same day:** `PUT /api/v1/customers/{id}` **500** on saving a member with blank
+   contact boxes — `''` collides on the UNIQUE `email` / `instagram` index. Looked like the age
+   gate; wasn't. Reproduced, fixed, 20 tests. **The under-18 rule itself was correct all along.**
+
+   **🔴 STILL OPEN — the close-out is the real risk (G8), now with evidence:**
+   - **Three closing screens disagree on the numbers.** `/pos/shift` says 17 transactions /
+     CHF 540.79 cash; `/pos/closeout` says 7 transactions / CHF 316.75; `/pos/cash-count` says
+     expected **0**.
+   - **`/pos/cash-count` shows the WRONG CASHIER** — "Pam" while logged in as felix.
+   - **`/pos/cash-count` notes field renders `[object Object],[object Object],…`** — a real
+     rendering bug.
+   - **It let the drawer close with no note.** Because expected was 0 it declared *"Perfect
+     balance! Pam's bonus pool +1 point"* on an uncounted drawer. `/pos/shift` gets this right
+     (refuses to close outside ±0.20 without a note); `/pos/cash-count` does not.
+   - **Decision: `/pos/shift` is the real one** — it is the one Angel reached for, it has the
+     float, the foreign cash, the variance rule and the report. Take the other two out of the
+     cashier's navigation.
+
+   **🟡 New features the day asked for (not bugs):**
+   - **Split payment (G7) — confirmed needed.** *"basically really poor workaround … super messy."*
+   - **Hold queue (G5)** — a HOLD button; today it's cancel-and-restart. Not a showstopper.
+   - **Print button on the device-check page** — Angel scanned the screen and *"it kinda works"*.
+   - **G2 answer:** create a new product with the correct price. Receipt TXN-0006 shows the
+     problem plainly: *Canna Cannazym 1L at CHF 21.00 and CHF 43.90 on the same receipt.*
+
+   **🔵 Hardware / cutover, for the shop not the code:**
+   - **The gun roles are the reverse of what this deck says.** Angel: *"netum scan gun has store
+     mode for multi scans and the inatech only does single scans."* **Item 1 below assumes the
+     Inateck BCST-35 does the inventory dump — re-test before planning around it.**
+   - Netum was still in store mode at A2 — **its config barcodes need to be in the testsheets**.
+   - Charging stations for both guns, **within arm's reach behind the counter**, on a reserved plug.
+   - Connect the office printer to the tablet; labeller to the back-office desktop.
+   - Worldline still pending — terminal is simulation-only, so A5 can't be truly tested yet.
+
+
 0. **🟢 SHELF INTAKE IS PROVEN — 2026-08-02.** ~1 min/product sustained, 5× the counter, and the
    output is four times better. Last section: 18 scanned, 16 already known, 2 skipped — and both
    skips were CORRECT (a Landi battery pack; an OCB 3-pack Felix doesn't stock, whose singles
