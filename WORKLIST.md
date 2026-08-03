@@ -37,18 +37,18 @@ history; these three are the work. **Do them in this order — the reason is in 
    `deploy-prod.sh` printed its usual **false** ❌ — its gate probes `localhost:8000` and prod
    sits behind Caddy (already a backlog item).
 
+   **✅ PROVEN ON PROD 2026-08-03 14:03** — Angel ran `scripts/prove-cash-rounding.py` on the
+   box. All 12 checks green: TWINT charged the exact 0.47, cash charged 0.45 with the −0.02
+   recorded, an ordinary total untouched, the receipt's Discount line still showed the real
+   0.03, and the export lines summed to the drawer. **Books left as found** — verified after:
+   today's COMPLETED sales carry `rounding 0.00` and the three test sales sit REFUNDED. The
+   only permanent trace is those three refunded rows, exactly as the script says it will leave.
+
+   *Also learned: the day's 7 real completed sales needed **no** rounding at all. That is the
+   predicted behaviour, not a dud — every shelf price is already a 0.05 multiple, so this is a
+   safety net for percentage discounts, not a daily event.*
+
    **⛔ WHAT IS LEFT — do this before item 2:**
-   - **Run the proof on prod.** Everything is staged and verified except the password, which is
-     yours to type. One line, on the prod box:
-     ```
-     cd /root/banco-starter && docker compose -f compose.yml -f compose.prod.yml exec -T \
-       -e BANCO_URL=http://localhost:8000 -e BANCO_KC_URL=http://keycloak:8080 \
-       -e BANCO_REALM=kc-pos-realm-dev -e BANCO_USER=felix -e BANCO_PASS='<felix>' \
-       app python3 - < scripts/prove-cash-rounding.py
-     ```
-     Dry-run already done with a wrong password: it reaches Keycloak and fails **only** on auth,
-     so nothing else is untested. **It rings 3 real sales and refunds them** — refunded rows stay
-     in the books and show on today's Z-report.
    - **Human-green it (standing rule 5):** ring a discounted cash sale at the till and confirm
      with your own eyes that the screen shows `TO PAY`, the printed receipt shows `Rounding`,
      and the change in your hand matches. *Nothing here has been seen by a person yet — the
@@ -62,7 +62,16 @@ history; these three are the work. **Do them in this order — the reason is in 
    being true in production. Not caused by this deploy; found by it. **Change the passwords, or
    stand up a real realm, before the shop trades on it.**
 
-**2 · Rebuild the cash box as SHOP-owned.** Design agreed and all four questions answered:
+**2 · Rebuild the cash box as SHOP-owned.** — **now with live evidence, and a drawer open on
+   prod right now.** Running the proof at 14:03 opened a SECOND drawer on the same physical box
+   while **pam's has been open since 09:59 unclosed**, and nothing objected. That is exactly the
+   per-user guard the design note predicts:
+   ```
+   pam    2026-08-03 09:59:18   (still open)   float 0.05
+   felix  2026-08-03 14:03:19 → 14:03:20       float 200.00
+   ```
+   Two drawers, one box, each blind to the other's sales. **Close pam's shift on prod** — and
+   note the ±0.05 tolerance is now unblocked, because item 1 is live. Design agreed and all four questions answered:
    → **[`onboarding/12-the-cash-box.md`](onboarding/12-the-cash-box.md)**. The core is one line
    — `pos_router.py:8632` sums `cashier_id == user_id` and must sum everyone. Then: shop-wide
    open guard, count-blind-then-reveal, last night's counted = this morning's expected, rename
