@@ -1,4 +1,4 @@
-"""Every total must be payable in coins that exist. Always down, no exceptions.
+"""A cash total must be payable in coins that exist. Nearest step, no exceptions.
 
 Found 2026-08-03 while answering "how tight should the cash-box tolerance be?". Banco
 quantizes totals to 0.01 and Switzerland has no 1- or 2-rappen coin. Undiscounted prices land
@@ -8,10 +8,10 @@ cannot be paid: 8.91, 42.66, 62.99, 16.92, 6.21.
 The cashier takes 63.00, Banco expects 62.99, the box is a rappen over. Every such sale, for
 ever — and a tight cash-box tolerance on top would drift with nothing to explain it.
 
-Angel chose the rule and declined the setting: always down, one direction, no modes. And CASH
-ONLY — the constraint is physical and only coins have it, so rounding a card sale would give
-away margin for nothing. The screen worry ("the total changes when you pick a method") is
-solved by showing a Rounding line, not by rounding everything.
+NEAREST, cash only, no setting. Down was chosen first and then reversed, because Felix
+deliberately does NOT discount — he holds the selling price and gives a free treat instead
+(papers for CHF 3 plus a lollipop, not CHF 2.95). Rounding down would be a silent unrequested
+discount, quietly implementing the policy he rejected. Rounding is physics; treats are pricing.
 
 These pin the arithmetic. The property at the bottom is the one the books depend on: the
 adjustment is recorded, never absorbed.
@@ -48,34 +48,36 @@ def test_real_discounted_totals_become_payable(total, payable):
 def test_the_case_that_started_this():
     """15% off CHF 74.10 = 62.99. There is no 4-rappen coin, so nobody can hand that over."""
     out = _r("62.99")
-    assert out["rounded"] == Decimal("62.95")
-    assert out["adjustment"] == Decimal("-0.04")
+    assert out["rounded"] == Decimal("63.00")
+    assert out["adjustment"] == Decimal("0.01")
 
 
-def test_angels_own_example():
-    """His words: "if it comes out to nine eighty three, then we just say, okay. Fine. Nine
-    eighty." One rule, no branches, easy to hold in your head at a counter."""
-    assert _r("9.83")["rounded"] == Decimal("9.80")
+def test_angels_case_the_one_that_flipped_the_rule():
+    """"the 2.99 becoming 2.95 is not good" — because Felix holds the selling price and gives a
+    treat instead of a discount. Nearest gives him 3.00, and the lollipop stays his to choose."""
+    assert _r("2.99")["rounded"] == Decimal("3.00")
+    assert _r("2.91")["rounded"] == Decimal("2.90")     # and down where down is nearer
 
 
 # ── one rule, every ending ───────────────────────────────────────────────────────────────
 
 @pytest.mark.parametrize("cents,expected", [
-    ("0.00", "0.00"), ("0.01", "0.00"), ("0.02", "0.00"), ("0.03", "0.00"), ("0.04", "0.00"),
-    ("0.05", "0.05"), ("0.06", "0.05"), ("0.07", "0.05"), ("0.08", "0.05"), ("0.09", "0.05"),
+    ("0.00", "0.00"), ("0.01", "0.00"), ("0.02", "0.00"),
+    ("0.03", "0.05"), ("0.04", "0.05"), ("0.05", "0.05"),
+    ("0.06", "0.05"), ("0.07", "0.05"), ("0.08", "0.10"), ("0.09", "0.10"),
 ])
-def test_every_rappen_ending_goes_down(cents, expected):
+def test_every_rappen_ending_goes_to_the_nearest_coin(cents, expected):
     base = Decimal("10.00")
     assert _r(base + Decimal(cents))["rounded"] == base + Decimal(expected)
 
 
-def test_the_customer_is_never_charged_more_than_the_marked_price():
-    """The whole reason `down` beat the Swiss `nearest` convention: the adjustment is never
-    positive, so "the sticker said 9.90 and you charged me 9.92" cannot happen."""
-    t = Decimal("10.00")
-    while t < Decimal("10.30"):
-        assert _r(t)["adjustment"] <= 0
-        t += Decimal("0.01")
+def test_it_is_neutral_not_generous_and_not_grasping():
+    """Over a run of totals the adjustments cancel out. That is the point: the rounding must
+    not become a pricing lever in either direction — Felix's giving is the treat, deliberately,
+    where he can see and cost it."""
+    total = sum((round_total(Decimal("10.00") + Decimal(i) / Decimal("100"), STEP)["adjustment"]
+                 for i in range(100)), Decimal("0"))
+    assert abs(total) <= Decimal("0.05")
 
 
 def test_a_total_already_on_the_step_is_untouched():
@@ -123,13 +125,14 @@ def test_junk_never_raises():
 
 def test_zero_and_tiny_totals():
     assert _r("0.00")["rounded"] == Decimal("0.00")
-    assert _r("0.04")["rounded"] == Decimal("0.00")   # a 4-rappen basket becomes free
+    assert _r("0.04")["rounded"] == Decimal("0.05")   # nearest coin, not free
+    assert _r("0.01")["rounded"] == Decimal("0.00")
     assert _r("0.01")["rounded"] >= 0
 
 
 def test_float_input_does_not_reintroduce_dust():
     out = _r(62.99)
-    assert out["rounded"] == Decimal("62.95")
+    assert out["rounded"] == Decimal("63.00")
     assert out["rounded"].as_tuple().exponent >= -2
 
 
@@ -144,10 +147,11 @@ def test_the_adjustment_always_reconciles_exactly():
         out = round_total(base + (Decimal(i) / Decimal("100")), STEP)
         assert out["original"] + out["adjustment"] == out["rounded"]
         assert is_payable(out["rounded"], STEP), f"{out['rounded']} cannot be paid in coins"
-        assert Decimal("0") >= out["adjustment"] > -STEP   # never up, never a whole step
+        # nearest can go either way, but never by half a coin or more
+        assert abs(out["adjustment"]) <= STEP / 2
 
 
-def test_the_adjustment_is_always_smaller_than_one_coin():
-    """Giving away 5 rappen or more would be a bug, not a courtesy."""
-    for t in ("62.99", "9.83", "0.04", "1000.01"):
-        assert abs(_r(t)["adjustment"]) < STEP
+def test_the_adjustment_is_never_half_a_coin_or_more():
+    """Moving a total by 3 rappen or more would mean the rounding is wrong, not generous."""
+    for t in ("62.99", "9.83", "0.04", "1000.01", "2.99", "2.91"):
+        assert abs(_r(t)["adjustment"]) <= STEP / 2

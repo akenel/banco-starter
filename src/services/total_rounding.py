@@ -1,4 +1,4 @@
-"""Round every total DOWN to a payable amount. One rule, no settings, no exceptions.
+"""Round a CASH total to the nearest payable amount. One rule, no settings, no exceptions.
 
 WHY IT EXISTS. Switzerland withdrew the 1-rappen coin in 2007 and the 2-rappen in 1978, so
 the smallest coin is 5 rappen and **CHF 62.99 cannot be handed over.** Banco quantizes totals
@@ -13,17 +13,33 @@ discounted totals are unpayable:
 Left alone, the cashier takes 63.00, Banco expects 62.99, and the cash box is a rappen over on
 every such sale, for ever.
 
-THE RULE — Angel, 2026-08-03, twice and deliberately:
+THE RULE: round to the NEAREST step. 2.99 -> 3.00, 2.91 -> 2.90. No modes, no setting —
+Angel turned the setting down twice: *"you could have this option in the settings, but that's,
+again, not simple."*
 
-    "just round down to the nearest five cents in all cases. Give the customer the benefit of
-     the doubt and move on. It's just easier for the human to reason out and understand, and
-     it all tallies up."
+WHY NEAREST AND NOT DOWN — this went round twice and the second answer is the right one.
 
-So: **always down, one direction, no modes and no setting.** He was offered the setting and
-turned it down: *"you could have this option in the settings, but that's, again, not simple."*
+Down was chosen first, to give the customer the benefit of the doubt. Then Angel supplied the
+fact that changes it: **Felix deliberately does not discount.** He holds the line on the
+selling price and gives a free treat instead — papers for CHF 3 and a lollipop, rather than
+CHF 2.95. That mechanism is already built and already tracked (`line_item.is_treat`, and the
+Z-report prints "Treats given (free) - 4 - cost CHF 0.45").
 
-**CASH ONLY.** Settled 2026-08-03 after going round once. The first cut rounded every payment
-method, to keep one number on screen that never moved. Angel pulled it back, and he is right:
+So rounding DOWN would be a silent, unrequested discount on every odd total — quietly
+implementing the exact pricing policy the owner rejected, in a place nobody would ever look.
+Angel: *"the 2.99 becoming 2.95 is not good, but a pack of papers for 3 and a lollipop are
+fine — that's how he does it actually."*
+
+**Rounding is physics. Treats are pricing. They must not be the same lever.** A rule that is
+neutral leaves the giving to Felix, deliberately, where he can see and cost it.
+
+Not "always up" either: that systematically charges above the marked price to gain two rappen,
+and "the sticker said 9.90 and you paid 9.92" is the one conversation nobody at a till should
+have to have. Nearest is neutral over many sales, is the Swiss retail convention, and gives
+2.99 -> 3.00 — which was the case Angel actually cared about.
+
+**CASH ONLY.** Settled 2026-08-03. The first cut rounded every payment method, to keep one
+number on screen that never moved. Angel pulled it back, and he is right:
 
   - The constraint is **physical and applies only to coins.** TWINT, debit and card settle the
     exact cent perfectly well. Rounding them solves nothing.
@@ -45,19 +61,12 @@ There is deliberately **no config flag for which methods round.** Cash is the on
 method with a coin constraint; that is a fact, not a preference, so there is nothing to
 configure and nothing to get wrong.
 
-WHY ONLY DOWN, never nearest. Nearest (.01/.02 down, .03/.04 up) is the Swiss retail
-convention and is cost-neutral — but it can charge 1-2 rappen MORE than the shelf label, and
-"the sticker said 9.90 and you charged me 9.92" is a conversation nobody at a till should have
-to have. Down is never wrong for the customer, and a rule with no branches is one a human can
-hold in their head.
-
-AND IT IS ALREADY WHAT THE SHOP DOES. This is the argument that actually settles it. Artemis
-runs on paper today, and Angel: *"they don't have the pennies, so they're not gonna overcharge.
-The guy at the checkout is gonna go into the little cash box and find out what coins he's got.
-Half the time the guy just waives his hand anyway."* The cashier already rounds down, because
-the coins to do anything else do not exist. So this is not a policy Banco is introducing — it
-is the existing practice, written down and made consistent. A till that asked for CHF 62.99
-would be the thing behaving strangely.
+HOW OFTEN DOES THIS EVEN FIRE? Rarely, and that is worth knowing before anyone worries about
+the direction. Every Artemis shelf price is already a 0.05 multiple (4.90, 9.90, 40.00), so an
+unroundable total only appears when a PERCENTAGE discount produces one. Felix avoids those on
+principle. And the replacement he and Angel discussed — a TARGET SALE PRICE, "just give me 60
+and it's a deal" — is a number a human types, so it is payable by construction. The rounding
+is a safety net for an edge case, not a daily event.
 
 THE ADJUSTMENT IS RETURNED, NEVER ABSORBED. Callers store it, so the books can show
 `total 62.99 · rounding −0.04 · to pay 62.95` rather than an unexplained rappen. A rounding
@@ -72,7 +81,7 @@ day. Explainable beats invisible.
 """
 from __future__ import annotations
 
-from decimal import Decimal, ROUND_DOWN, ROUND_HALF_UP
+from decimal import Decimal, ROUND_HALF_UP
 
 CENTS = Decimal("0.01")
 
@@ -102,10 +111,11 @@ def rounding_step(regime: dict | None) -> Decimal:
 
 
 def round_total(total, step) -> dict:
-    """Round a total DOWN to something payable.
+    """Round a total to the NEAREST payable amount.
 
     Returns ``{original, rounded, adjustment}`` — Decimals quantized to cents, where
-    ``adjustment = rounded - original`` and is therefore never positive.
+    ``adjustment = rounded - original``. It may be negative or positive, and is always
+    smaller than one step.
 
     NEVER RAISES. A rounding helper that throws would block a checkout over a rappen, so an
     unusable step falls through to "no rounding" and the exact total stands.
@@ -121,9 +131,9 @@ def round_total(total, step) -> dict:
     #
     # Note the quantize-to-cents FIRST: 70.395 is intermediate discount arithmetic, not a price
     # anyone quotes. It becomes 70.40, which is already payable and must be left alone. Rounding
-    # the raw value straight down would take 4.5 rappen off a total that was already fine — and
-    # that is a mistake I actually made here first; the tests caught it.
-    units = (original / step).quantize(Decimal("1"), rounding=ROUND_DOWN)
+    # the raw value straight to a step would take 4.5 rappen off a total that was already fine —
+    # a mistake I actually made here first; the tests caught it.
+    units = (original / step).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
     rounded = (units * step).quantize(CENTS, rounding=ROUND_HALF_UP)
 
     return {"original": original, "rounded": rounded,

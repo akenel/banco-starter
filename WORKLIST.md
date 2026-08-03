@@ -390,6 +390,23 @@
 
 ## 🔭 Backlog (not yet scheduled)
 
+- **TARGET SALE PRICE — the cashier names the total, not the discount.** *(shop floor · Angel's
+  idea 2026-08-03)* Felix **deliberately does not discount** — he holds the selling price and
+  gives a **free treat** instead (papers for CHF 3 plus a lollipop, rather than CHF 2.95). That
+  mechanism already exists and works: `line_item.is_treat`, and the Z-report prints
+  *"Treats given (free) — 4 · cost CHF 0.45"*.
+  But a cashier still needs a way to close the deal in front of her: *"62.99? ok just give me
+  60 and it's a deal."* Today the only tool is a **percentage**, which is the wrong shape — she
+  is not thinking "15% off", she is thinking "sixty francs".
+  **Wanted:** type the TARGET TOTAL; Banco derives the discount and records it as one. Should
+  also accept a price **above** catalogue (Angel: *"if she enters a new higher price for a
+  catalog sale that would be possible too"*) — worth its own discussion, since that is a price
+  override and needs a permission story.
+  **Bonus: it dissolves the rounding edge case.** A target is a number a human types — 60, 55,
+  12.50 — so it is payable by construction. Percentage discounts are the *only* thing producing
+  unpayable totals like 62.99.
+
+
 - **⚠️ 7 Blow "Pure" products carry the "Mix" description — and it contradicts itself.** e.g. `Blow vorgebauter CBD Joint Pure "Diesel"` (TAM-19238, real EAN 7640183261763) reads *"JOINTS NEXT GENERATION (without tobacco) ... a wonderfully balanced **mix between tobacco and cannabis**"* — both claims in one paragraph. The Pure copy was cloned from the Mix and only the header changed. **17 products share that sentence.** This is not cosmetic: tobacco content is a legal fact in Switzerland, and Pure vs Mix is also a CHF 9.90 vs CHF 6.90 price difference, so a customer reading the description gets the wrong product. The error is UPSTREAM (Artemis's own site) — Banco imported it faithfully — so fixing it here means either correcting the source or overriding locally, and that is a decision for Felix. Also note this now interacts with classification, which reads descriptions since 2026-07-30. *(shop floor · data quality)*
 
 
