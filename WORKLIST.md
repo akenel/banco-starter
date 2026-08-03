@@ -29,14 +29,38 @@ history; these three are the work. **Do them in this order — the reason is in 
      day it fired** — a naive extra line would have double-counted (cash_total is already the
      rounded money). A day with no rounding exports byte-identically to before.
 
+   **✅ DEPLOYED TO PROD 2026-08-03** (`126e1e7`, 29 commits — this shipped the `/pos/cash-count`
+   retirement, the blank-contact 500 fix, the merge alias and the tier-ladder guard too).
+   Pre-deploy backup in B2: `banco_helix_db_20260803_131339.sql.gz.gpg`. Verified on the box:
+   HTTPS 200 on `/health/healthz` and `/pos`, the column exists (`NOT NULL DEFAULT 0`, all 25
+   existing rows are 0), and `rounding_adjustment` is in the code the container is *running*.
+   `deploy-prod.sh` printed its usual **false** ❌ — its gate probes `localhost:8000` and prod
+   sits behind Caddy (already a backlog item).
+
    **⛔ WHAT IS LEFT — do this before item 2:**
-   - **Deploy to prod/UAT**, then re-run `python3 scripts/prove-cash-rounding.py` against it
-     (edit `BASE`/`KC`). The ALTER runs at boot; **back up first** — it is a live shop.
+   - **Run the proof on prod.** Everything is staged and verified except the password, which is
+     yours to type. One line, on the prod box:
+     ```
+     cd /root/banco-starter && docker compose -f compose.yml -f compose.prod.yml exec -T \
+       -e BANCO_URL=http://localhost:8000 -e BANCO_KC_URL=http://keycloak:8080 \
+       -e BANCO_REALM=kc-pos-realm-dev -e BANCO_USER=felix -e BANCO_PASS='<felix>' \
+       app python3 - < scripts/prove-cash-rounding.py
+     ```
+     Dry-run already done with a wrong password: it reaches Keycloak and fails **only** on auth,
+     so nothing else is untested. **It rings 3 real sales and refunds them** — refunded rows stay
+     in the books and show on today's Z-report.
    - **Human-green it (standing rule 5):** ring a discounted cash sale at the till and confirm
      with your own eyes that the screen shows `TO PAY`, the printed receipt shows `Rounding`,
      and the change in your hand matches. *Nothing here has been seen by a person yet — the
      Chrome extension is not connected, so I could not look at either screen.*
    - Ask Felix whether he wants the Banana takings split, or the rounding as reference only.
+
+   **🔴 FOUND WHILE DEPLOYING — prod authenticates against the DEMO realm.** `kc-pos-realm-dev`,
+   imported from `keycloak/import/realm-export.json`, with the demo users (felix, pam, ralph,
+   michael, pos-developer, pos-auditor) — **and that file is in a public GitHub repo**. So
+   anyone can read the shop's login credentials. This is item 6's "default-secret gate" already
+   being true in production. Not caused by this deploy; found by it. **Change the passwords, or
+   stand up a real realm, before the shop trades on it.**
 
 **2 · Rebuild the cash box as SHOP-owned.** Design agreed and all four questions answered:
    → **[`onboarding/12-the-cash-box.md`](onboarding/12-the-cash-box.md)**. The core is one line
