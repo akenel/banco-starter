@@ -2928,6 +2928,55 @@ def _is_thumbnail_url(url: str) -> bool:
     return ("gstatic.com" in u and "/images" in u) or "tbn:and9gc" in u or "bing.net/th?" in u
 
 
+_TITLE_SEPARATORS = re.compile(r"\s+[-–—|·:]{1,2}\s+")
+
+
+def _clean_page_title(title: str, page_url: str = "") -> str:
+    """Strip a shop's own decoration off an og:title so it reads as a PRODUCT name.
+
+    Only ever applied to a page TITLE — never to a schema.org `name`, which is the shop
+    asserting what its product is called and is taken verbatim.
+
+    Born 2026-08-03. Angel filled his grinder from jelly-joker.de and Banco wrote
+    "Ø50mm - 4-teiliger Champ High White Leaf Grinder [40506209] - Jelly-Joker" onto the row —
+    another shop's name and their article number, in his catalogue, one click from a printed
+    shelf label. He had already typed a good name; the fill replaced it with a worse one.
+
+    Deliberately narrow, because a name is what a customer reads and over-trimming is worse
+    than under-trimming:
+      * a trailing segment is dropped ONLY when it matches the site's own domain name
+      * a bracketed run of 4+ digits is dropped (an article number, never a product name)
+      * if cleaning would empty the string, the original is kept
+    """
+    raw = re.sub(r"\s+", " ", (title or "")).strip()
+    if not raw:
+        return raw
+
+    # The seller's name, as the domain knows it: jelly-joker.de -> "jellyjoker"
+    host = ""
+    try:
+        from urllib.parse import urlparse
+        host = (urlparse(page_url).hostname or "").lower()
+    except Exception:
+        host = ""
+    host = re.sub(r"^www\.", "", host)
+    site = re.sub(r"[^a-z0-9]", "", host.split(".")[0]) if host else ""
+
+    parts = [p for p in _TITLE_SEPARATORS.split(raw) if p.strip()]
+    if site and len(parts) > 1:
+        # Only the ENDS — a shop name in the middle is part of the product name, not decoration.
+        while len(parts) > 1 and re.sub(r"[^a-z0-9]", "", parts[-1].lower()) == site:
+            parts.pop()
+        while len(parts) > 1 and re.sub(r"[^a-z0-9]", "", parts[0].lower()) == site:
+            parts.pop(0)
+    out = " - ".join(parts)
+
+    # Their article number. 4+ digits in brackets is a SKU; "(2 pcs)" and "[50mm]" survive.
+    out = re.sub(r"\s*[\[(]\s*\d{4,}\s*[\])]\s*", " ", out)
+    out = re.sub(r"\s+", " ", out).strip(" -–—|·:")
+    return out or raw
+
+
 async def _page_product_facts(page_url: str) -> dict:
     """A product PAGE url -> everything the page already states about the product.
 
@@ -2993,6 +3042,9 @@ async def _page_product_facts(page_url: str) -> dict:
                     continue
                 if node.get("name") and "name" not in out:
                     out["name"] = str(node["name"]).strip()[:200]
+                    # Provenance. This one is the shop ASSERTING its product's name in a
+                    # machine-readable record, so it is taken verbatim — never "cleaned".
+                    out["name_source"] = "structured"
                 # THE GTIN — the whole reason a page is worth pasting. When the packet's
                 # barcode won't scan (8 times in 10 it does, and the other 2 are just dead
                 # to the reader), the shop's own page still states the EAN in its structured
@@ -3052,7 +3104,14 @@ async def _page_product_facts(page_url: str) -> dict:
         if "name" not in out:
             n = meta("og:title", "twitter:title")
             if n:
-                out["name"] = n[:200]
+                # A PAGE TITLE, not a product name — and shops decorate their titles. Jelly-Joker
+                # returned "Ø50mm - 4-teiliger Champ High White Leaf Grinder [40506209] -
+                # Jelly-Joker", and Banco saved it whole onto Angel's grinder: a COMPETITOR'S NAME
+                # and their internal article number, in Felix's catalogue, ready to print on a
+                # shelf label. Strip the seller's own name and their article number; keep
+                # everything else, because the rest of a title is usually the real product.
+                out["name"] = _clean_page_title(n, base)[:200]
+                out["name_source"] = "page_title"
         if "description" not in out:
             d = meta("og:description", "twitter:description", "description")
             if d:

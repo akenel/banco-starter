@@ -1219,6 +1219,7 @@ window.POS_STRINGS = {
         "done": "Done"
       },
     "cleanup": {
+      "fill_title_warn": "⚠ That page published no product record, so this name came from its page title — read it before saving, it may still carry the shop's own wording.",
       "f_fill": "Fill it from the product's own page",
       "fill_find": "find the page →",
       "ph_factsurl": "paste the product page link…",
@@ -3139,6 +3140,7 @@ window.POS_STRINGS = {
         "done": "Terminé"
       },
     "cleanup": {
+      "fill_title_warn": "⚠ Cette page ne publie aucune fiche produit — ce nom vient du titre de la page. Relisez-le avant d'enregistrer, il peut encore contenir les mots du magasin.",
       "f_fill": "Remplir depuis la page du produit",
       "fill_find": "trouver la page →",
       "ph_factsurl": "collez le lien de la page produit…",
@@ -5049,6 +5051,7 @@ window.POS_STRINGS = {
         "done": "Fatto"
       },
     "cleanup": {
+      "fill_title_warn": "⚠ Quella pagina non pubblica una scheda prodotto — il nome viene dal titolo della pagina. Rileggilo prima di salvare, può contenere ancora parole del negozio.",
       "f_fill": "Compila dalla pagina del prodotto",
       "fill_find": "trova la pagina →",
       "ph_factsurl": "incolla il link della pagina prodotto…",
@@ -6960,6 +6963,7 @@ window.POS_STRINGS = {
         "done": "Fertig"
       },
     "cleanup": {
+      "fill_title_warn": "⚠ Diese Seite hat keine Produktdaten veröffentlicht — der Name stammt aus dem Seitentitel. Vor dem Speichern lesen, er kann noch Wörter des Shops enthalten.",
       "f_fill": "Von der Produktseite ausfüllen",
       "fill_find": "Seite finden →",
       "ph_factsurl": "Link zur Produktseite einfügen…",

@@ -84,7 +84,33 @@ def test_the_name_is_always_replaced():
     would do nothing useful on the one row that needed it most."""
     r = run_fill(GOOD, {"_name": "grinder"})
     assert r["_name"] == "Champ High White Leaf Grinder 4-part 50mm"
-    assert "name" in r["_filled"]
+
+
+@needs_node
+def test_a_rename_is_shown_in_full_before_and_after():
+    """Angel accepted "…Grinder [40506209] - Jelly-Joker" over a good name he had typed himself,
+    because the summary said only "name" — true, and useless. A name prints on a shelf label and
+    a receipt; it does not get to change behind one word in a list."""
+    r = run_fill(GOOD, {"_name": "grinder"})
+    assert r["_renamed"] == "grinder", "the old name must be kept for the before/after"
+
+
+@needs_node
+def test_no_before_and_after_when_the_name_did_not_change():
+    """Otherwise every fill shouts about a rename that never happened, and the warning stops
+    meaning anything."""
+    r = run_fill(GOOD, {"_name": GOOD["name"]})
+    assert r["_renamed"] == ""
+
+
+@needs_node
+def test_a_name_taken_from_a_page_title_is_flagged():
+    """Structured data is the shop naming its product; a page title is decoration we trimmed and
+    might not have trimmed perfectly. The operator should know which one they are reading."""
+    from_title = run_fill({**GOOD, "name_source": "page_title"}, {"_name": "grinder"})
+    structured = run_fill({**GOOD, "name_source": "structured"}, {"_name": "grinder"})
+    assert from_title["_nameFromTitle"] is True
+    assert structured["_nameFromTitle"] is False
 
 
 @needs_node
@@ -232,3 +258,72 @@ console.log(JSON.stringify(ROW));
     out = subprocess.run(["node", "-e", script], capture_output=True, text=True, timeout=30)
     assert out.returncode == 0, out.stderr
     assert json.loads(out.stdout)["_name"] == "grinder"
+
+
+# ── the page-title cleaner ───────────────────────────────────────────────────────────────
+#
+# Server side, so plain Python. This is the half that stops a competitor's name reaching the
+# catalogue in the first place; the before/after above is the half that catches what slips past.
+
+from src.routes.pos_router import _clean_page_title      # noqa: E402
+
+
+def test_the_exact_string_that_reached_angels_catalogue():
+    """Live, on prod, 2026-08-03: jelly-joker.de's og:title, saved whole onto his grinder —
+    another shop's name and their article number, one click from a printed shelf label."""
+    got = _clean_page_title(
+        "Ø50mm - 4-teiliger Champ High White Leaf Grinder [40506209] - Jelly-Joker",
+        "https://www.jelly-joker.de/grinder/champ-high-white-leaf")
+    assert got == "Ø50mm - 4-teiliger Champ High White Leaf Grinder"
+    assert "Jelly-Joker" not in got and "40506209" not in got
+
+
+def test_the_shop_name_goes_from_either_end():
+    for title, expected in [
+        ("Champ High Grinder | Jelly-Joker", "Champ High Grinder"),
+        ("Jelly-Joker – Champ High Grinder", "Champ High Grinder"),
+        ("Jelly-Joker | Champ High Grinder | Jelly-Joker", "Champ High Grinder"),
+    ]:
+        assert _clean_page_title(title, "https://jelly-joker.de/x") == expected
+
+
+def test_a_shop_name_in_the_MIDDLE_is_left_alone():
+    """Only decoration lives at the ends. In the middle it is part of what the thing is called,
+    and this cleaner must never edit the product itself."""
+    t = "Grinder - Jelly-Joker Edition - 50mm"
+    assert _clean_page_title(t, "https://jelly-joker.de/x") == t
+
+
+def test_only_the_sites_OWN_name_is_stripped():
+    """A trailing word is not automatically noise. "Champ High Grinder - Blue" must survive, and
+    so must a brand that happens to sit last."""
+    t = "Champ High Grinder - Blue"
+    assert _clean_page_title(t, "https://jelly-joker.de/x") == t
+    assert _clean_page_title("Grinder - Gizeh", "https://jelly-joker.de/x") == "Grinder - Gizeh"
+
+
+def test_article_numbers_go_but_real_bracketed_detail_stays():
+    """4+ digits in brackets is a SKU. Sizes and counts are product facts and must survive."""
+    assert _clean_page_title("Grinder [40506209]", "") == "Grinder"
+    assert _clean_page_title("Grinder (123456)", "") == "Grinder"
+    assert _clean_page_title("Papers (2 pcs)", "") == "Papers (2 pcs)"
+    assert _clean_page_title("Grinder [50mm]", "") == "Grinder [50mm]"
+    assert _clean_page_title("Rolls (100)", "") == "Rolls (100)"       # 3 digits — a count
+
+
+def test_it_never_returns_an_empty_name():
+    """A blank name is worse than a decorated one: it fails the save and loses the lookup."""
+    assert _clean_page_title("Jelly-Joker", "https://jelly-joker.de/x") == "Jelly-Joker"
+    assert _clean_page_title("[40506209]", "") == "[40506209]"
+    assert _clean_page_title("   ", "") == ""
+
+
+def test_it_survives_junk_input_without_raising():
+    """It runs on whatever a shop published, and page-facts must never 500."""
+    for title, url in [("", ""), ("x", "not-a-url"), ("a - b", None), ("Grinder", "http://[::1]")]:
+        _clean_page_title(title, url or "")
+
+
+def test_a_plain_title_with_no_decoration_is_untouched():
+    assert _clean_page_title("Champ High White Leaf Grinder 4-part 50mm",
+                             "https://jelly-joker.de/x") == "Champ High White Leaf Grinder 4-part 50mm"

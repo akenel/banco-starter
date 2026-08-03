@@ -418,6 +418,16 @@
                                     <span class="text-indigo-900">
                                         ✅ <span data-i18n="cleanup.fill_done">Filled from that page — check every box, then Save.</span>
                                         <span class="block text-indigo-700 mt-0.5" x-text="p._filled"></span>
+                                        <!-- The rename, spelled out. A name is what prints on a
+                                             shelf label and a receipt; it does not get to change
+                                             quietly behind the word "name" in a summary. -->
+                                        <span x-show="p._renamed" style="display:none;" class="block mt-1 text-indigo-900">
+                                            <span class="line-through opacity-60" x-text="p._renamed"></span>
+                                            <span class="font-semibold"> → <span x-text="p._name"></span></span>
+                                        </span>
+                                        <span x-show="p._nameFromTitle" style="display:none;" class="block mt-1 text-amber-800"
+                                              data-i18n="cleanup.fill_title_warn">⚠ That page published no product record, so this name came from its
+                                            page title — read it before saving, it may still carry the shop's own wording.</span>
                                     </span>
                                     <button type="button" @click="undoFill(p)" class="text-indigo-700 font-semibold flex-none underline"
                                             data-i18n="cleanup.fill_undo">↩️ Undo</button>
@@ -878,6 +888,7 @@
                         _costEyeballed: false,   // BL-047b: true once the eyeball fills the cost
                         _imgUrl: '',
                         _factsUrl: '', _filling: false, _fillErr: '', _filled: '', _preFill: null,
+                        _renamed: '', _nameFromTitle: false,
                         _description: (p.description || ''),
                         _workNote: (p.work_note || ''),   // rookie's parked-why / next-step note
                         _age: !!p.is_age_restricted,
@@ -939,7 +950,14 @@
                         _barcode: p._barcode, _price: p._price, _imgUrl: p._imgUrl, _age: p._age,
                     };
                     const did = [];
-                    p._name = f.name; did.push('name');
+                    // The name change is shown SEPARATELY and in full (see _renamed below), not
+                    // buried in a list of field names. Angel accepted
+                    // "…Grinder [40506209] - Jelly-Joker" over a good name he had typed himself,
+                    // because all the summary said was "name" — true, and useless. A replacement
+                    // you cannot see is a replacement you cannot refuse.
+                    p._renamed = (p._name && p._name !== f.name) ? p._name : '';
+                    p._nameFromTitle = (f.name_source === 'page_title');
+                    p._name = f.name;
 
                     if (!(p._description || '').trim() && (f.description || '').trim()) {
                         p._description = f.description; did.push('description');
@@ -977,6 +995,7 @@
                 if (!p._preFill) return;
                 Object.assign(p, p._preFill);
                 p._preFill = null; p._filled = ''; p._fillErr = '';
+                p._renamed = ''; p._nameFromTitle = false;
             },
 
             // BL-142: paste a link — a product page OR the image itself — and we fetch + store it.
