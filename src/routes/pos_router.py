@@ -365,23 +365,39 @@ async def _name_match_candidates(
         # Each candidate is scored on its BEST name — its own or any alias — so recording an
         # English name once makes that product findable in English forever, for every shop.
         rows = (await db.execute(_text(
-            "SELECT id, name, price, image_url, sku, barcode, category, "
-            "       MAX(sim) AS sim, MAX(tight) AS tight FROM ("
-            "  SELECT id, name, price, image_url, sku, barcode, category, "
+            # CARRY THE NAME THAT ACTUALLY MATCHED, not just the score.
+            #
+            # This used to GROUP BY the product and take MAX(sim), which threw away WHICH name
+            # won — and the brand/size filters below then judged the row by `products.name`.
+            # For an alias that is a close translation nobody noticed; for one that isn't, the
+            # filters killed exactly the rows the alias existed to rescue. Proven live on
+            # 2026-08-03: "Purize Xtra Slim Charcoal Filters" matched its alias at 1.000 and was
+            # then discarded, because the surviving row is called "Aktivkohlefilter 6mm 50er
+            # Beutel" and names no brand. The alias was structurally unable to help in the one
+            # case it was built for.
+            #
+            # DISTINCT ON keeps the best-scoring name per product, so the filters can ask about
+            # the string the operator actually matched.
+            "SELECT * FROM ("
+            "  SELECT DISTINCT ON (id) id, name, match_name, price, image_url, sku, barcode, "
+            "         category, sim, tight FROM ("
+            "  SELECT id, name, match_name, price, image_url, sku, barcode, category, "
             "         GREATEST(similarity(norm_name, :nn), "
             "                  word_similarity(:nn, norm_name)) AS sim, "
             "         similarity(norm_name, :nn) AS tight "
-            "  FROM (SELECT id, name, price, image_url, sku, barcode, category, "
+            "  FROM (SELECT id, name, name AS match_name, price, image_url, sku, barcode, "
+            "               category, "
             f"               {_sql_norm_name('name')} AS norm_name "
             "        FROM products WHERE is_active "
             "        UNION ALL "
-            "        SELECT p.id, p.name, p.price, p.image_url, p.sku, p.barcode, p.category, "
+            "        SELECT p.id, p.name, t.name AS match_name, p.price, p.image_url, p.sku, "
+            "               p.barcode, p.category, "
             f"               {_sql_norm_name('t.name')} AS norm_name "
             "        FROM products p JOIN product_translations t ON t.product_id = p.id "
             "        WHERE p.is_active AND t.name IS NOT NULL AND t.name <> '') q"
             ") scored "
             "WHERE sim > :th "
-            "GROUP BY id, name, price, image_url, sku, barcode, category "
+            "  ORDER BY id, sim DESC, tight DESC) best "
             # TIE-BREAK ON CLOSENESS. word_similarity asks "are your words IN this name?", so
             # every Gizeh King Size variant answers 1.000 to "gizeh king size" — the exact row
             # and "…Slim Beats Goa mit Aktivkohle Filter" score identically, the order among
@@ -402,7 +418,12 @@ async def _name_match_candidates(
     want = _product_size(name)
     out = []
     for r in rows:
-        if brands_conflict(name, r.name):
+        # JUDGE THE NAME THAT MATCHED. `r.name` is the product's headline name; `r.match_name`
+        # is the string that actually scored — its own name, or an alias somebody recorded off
+        # the packet. Filtering on the headline is what made aliases useless the moment they
+        # differed by more than a translation (see the SQL comment above).
+        matched = getattr(r, "match_name", None) or r.name
+        if brands_conflict(name, matched):
             continue
         # A variant is only a duplicate of the SAME size — 2g is never a dupe of 10g.
         #
@@ -415,14 +436,20 @@ async def _name_match_candidates(
         #
         # So filter only when we actually know both sizes. Same lesson as pc./Stk. earlier today:
         # a filter that treats "unknown" as a value throws away the right answer.
-        if same_size_only and want and not _same_size(want, _product_size(r.name)):
+        if same_size_only and want and not _same_size(want, _product_size(matched)):
             continue
-        out.append({
+        row = {
             "id": str(r.id), "name": r.name,
             "price": float(r.price) if r.price is not None else None,
             "image_url": r.image_url, "sku": r.sku, "barcode": r.barcode,
             "category": r.category, "sim": round(float(r.sim), 3),
-        })
+        }
+        # Say so when the row answered to a name other than the one being shown. A "Purize"
+        # search returning a row headed "Aktivkohlefilter" looks like a bug unless the screen
+        # can explain itself — same reason the cross-language rows are flagged DE/EN.
+        if matched != r.name:
+            row["matched_name"] = matched
+        out.append(row)
     return out
 
 
@@ -1055,12 +1082,26 @@ async def catalog_merge_products(
                       f"were recorded on the retired row; {keep.stock_quantity or 0} on the survivor. "
                       f"Stock is not added up automatically — check the shelf and set the real count.")
 
+    # THE RETIRING ROW'S NAME IS NOT RUBBISH — it is the packet name, and it was being binned.
+    #
+    # The hand-made row exists because somebody stood at a counter with the box in their hand
+    # and typed what it said, in the language it said it in ("Blow Pre-built CBD Joint Pure
+    # 'V1' 1 pc. black" against the wholesaler's "…vorgebauter… 1 Stk. schwarz"). Everything
+    # else it owns moves across; the name was dropped on the floor when the row deactivated.
+    #
+    # `_name_match_candidates` has searched product_translations.name since 2026-07-31, so the
+    # reader was already built and waiting for a writer. Now the merge is one: the next person
+    # to search that product in English finds it.
+    from src.services.product_translations import record_name_alias
+    alias_plan = await record_name_alias(db, keep, retire.name, dry_run=True)
+
     plan = {
         "keep": {"id": str(keep.id), "sku": keep.sku, "name": keep.name, "barcode": keep.barcode},
         "retire": {"id": str(retire.id), "sku": retire.sku, "name": retire.name, "barcode": retire.barcode},
         "new_primary_barcode": new_primary,
         "kept_as_aliases": demoted,
         "fields_filled_from_retired": sorted(fills.keys()),
+        "name_alias": alias_plan,
         "stock_note": stock_note,
         "dry_run": req.dry_run,
     }
@@ -1080,6 +1121,10 @@ async def catalog_merge_products(
         db.add(ProductBarcodeModel(product_id=keep.id, barcode=code))
     for field, value in fills.items():
         setattr(keep, field, value)
+
+    # Inside the merge's own transaction, on purpose: if the merge rolls back, the alias goes
+    # with it rather than leaving a name pointing at a product that never absorbed the twin.
+    plan["name_alias"] = await record_name_alias(db, keep, retire.name)
 
     retire.is_active = False
     now = datetime.now(timezone.utc)

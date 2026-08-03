@@ -137,6 +137,92 @@ async def invalidate_translations(db, product_id) -> int:
     return res.rowcount or 0
 
 
+_ALIAS_NOISE = re.compile(r"[^0-9a-z]+")
+
+
+def _alias_key(s: str | None) -> str:
+    """Loose identity for 'is this alias telling us anything new?' — case and punctuation only.
+
+    Deliberately NOT the cross-language folding used for matching. The question here is
+    "is this literally the same string we already have", not "is this the same product";
+    folding DE↔EN would throw away the exact alias this function exists to keep.
+    """
+    return _ALIAS_NOISE.sub("", (s or "").casefold())
+
+
+async def record_name_alias(db, product, name: str | None, lang: str | None = None,
+                            dry_run: bool = False) -> dict | None:
+    """Record a name a PERSON gave this product, so it stays findable by that name forever.
+
+    THE HALF THE LOOP WAS MISSING. Since 2026-07-31 `_name_match_candidates` searches
+    `product_translations.name` as well as `products.name` — the packet says "GIZEH BLACK
+    King Size Slim", the wholesaler's row says "Gizeh King Size Slim", and neither is wrong.
+    But NOTHING WROTE to that column, so the search was reading a table that only ever
+    filled itself with machine translations of descriptions. Recording an English name once
+    makes that product findable in English forever, for every shop.
+
+    The sharpest case is `POST /catalog/merge`. The retiring row is the hand-made one: it
+    carries the real EAN *and the English name somebody typed while holding the box*. The
+    merge moves the EAN across and then deactivates the row — throwing the name away. It is
+    the single most expensive string in the whole workflow (it cost 5 minutes at a counter
+    with a queue) and it was being discarded at the exact moment we finally knew which
+    product it belonged to.
+
+    RULES, all of them about not destroying better data than we bring:
+      • never overwrite a name that is already there — an existing skin outranks an alias.
+      • never touch `description` or an existing row's `provenance`; this writes ONE column.
+      • a name that only differs from the product's own by case or punctuation is not an
+        alias, it is noise — skipped.
+      • the language is a GUESS unless `_guess_base_lang` is confident, and a guess is
+        stamped `needs_review` rather than claimed as authoritative (same rule
+        `ensure_description` follows at line ~180).
+
+    DOES NOT COMMIT. Callers run inside a larger transaction — the merge in particular must
+    not half-apply — so flushing and committing is theirs. `dry_run=True` reports what would
+    happen and writes nothing, which is what feeds the merge's plan.
+
+    Returns a small dict describing the outcome, or None when there was nothing to record.
+    """
+    name = _clean(name, 255)
+    if not name:
+        return None
+
+    # Nothing to learn from a string we already answer to.
+    if _alias_key(name) == _alias_key(getattr(product, "name", None)):
+        return None
+
+    guessed = _guess_base_lang(name)
+    lang = _norm(lang) if lang else (guessed or "en")
+    # 'de' is the only language `_guess_base_lang` will commit to; everything else is an
+    # assumption, and an assumed language must not masquerade as a verified one.
+    assumed = lang != guessed
+
+    hit = (await db.execute(
+        select(ProductTranslationModel).where(
+            ProductTranslationModel.product_id == product.id,
+            ProductTranslationModel.lang == lang,
+        )
+    )).scalar_one_or_none()
+
+    if hit is not None and (hit.name or "").strip():
+        if _alias_key(hit.name) == _alias_key(name):
+            return {"recorded": False, "lang": lang, "name": name, "why": "already recorded"}
+        return {"recorded": False, "lang": lang, "name": name,
+                "why": f"{lang} already has a name ({hit.name!r}) — not overwritten"}
+
+    if dry_run:
+        return {"recorded": True, "lang": lang, "name": name, "assumed_lang": assumed,
+                "dry_run": True}
+
+    if hit is not None:
+        hit.name = name              # filling a blank; its description/provenance are not ours
+    else:
+        db.add(ProductTranslationModel(
+            product_id=product.id, lang=lang, name=name, description=None,
+            provenance="operator", needs_review=assumed))
+    return {"recorded": True, "lang": lang, "name": name, "assumed_lang": assumed}
+
+
 async def ensure_description(db, product, lang: str) -> dict:
     """Best description for `lang`, filling `product_translations` on demand.
 
