@@ -262,6 +262,13 @@ _ADDITIVE_COLUMNS: list[str] = [
     "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS tender_currency VARCHAR(8)",
     "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS tender_amount NUMERIC(12,2)",
     "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS tender_rate NUMERIC(12,6)",
+    # Swiss 5-rappen cash rounding (2026-08-03). NOT NULL DEFAULT 0 is TRUE for every existing
+    # row, not merely convenient: nothing was ever rounded before this shipped, so 0.00 is the
+    # honest value and no backfill is needed. `total` stays "what was actually charged" — this
+    # only records how far the cash rounding moved it, so a receipt can say `Rounding -0.04`
+    # rather than leaving an unexplained rappen in the drawer. Postgres 11+ adds a defaulted
+    # NOT NULL column without rewriting the table, so this is fast on a live shop.
+    "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS rounding_adjustment NUMERIC(10,2) NOT NULL DEFAULT 0",
     # Artemis enriched-catalog foundation (2026-06-30, migration 010): store the enriched
     # record losslessly on products + a per-language translations table (the latter is a
     # NEW table, created by create_all() — only the column adds need ALTERs here).

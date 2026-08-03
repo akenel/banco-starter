@@ -6,7 +6,7 @@ Similar to JobModel - tracks the entire sale from scan to payment.
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import String, DateTime, Numeric, ForeignKey, Enum, Text
+from sqlalchemy import String, DateTime, Numeric, ForeignKey, Enum, Text, text
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from src.core.constants import HelixEnum
 
@@ -123,6 +123,24 @@ class TransactionModel(Base):
         default=0.00,
         nullable=False,
         comment="Final amount charged to customer"
+    )
+
+    # Swiss 5-rappen cash rounding (2026-08-03). `total` is always what was ACTUALLY charged,
+    # so on a cash sale it has already been moved to the nearest payable amount and every
+    # existing consumer -- drawer expectation, VAT, change, daily summary, CRM points -- is
+    # correct without knowing this column exists. THIS column records how far it moved, so the
+    # receipt and the Banana export can show `Rundungsdifferenz -0.04` instead of an
+    # unexplained rappen. Always 0.00 on card/TWINT/debit (they settle the exact cent) and on
+    # every sale rung before this shipped.
+    #
+    # subtotal - discount_amount + rounding_adjustment == total. The adjustment is NEVER
+    # absorbed into the discount: rounding is physics, discounting is pricing.
+    rounding_adjustment: Mapped[float] = mapped_column(
+        Numeric(10, 2),
+        default=0.00,
+        nullable=False,
+        server_default=text("0"),
+        comment="Cash rounding moved the total by this much (0.00 unless a cash sale rounded)"
     )
 
     # Payment Processing

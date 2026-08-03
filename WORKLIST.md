@@ -11,24 +11,39 @@
 *Written 2026-08-03 at the end of a long session. Everything below this block is context and
 history; these three are the work. **Do them in this order — the reason is in item 1.***
 
-**1 · Wire the rounding engine into checkout.** `src/services/total_rounding.py` is built,
-proven and wired to nothing (29 tests). Three steps:
-   - a `rounding_adjustment` column on the transaction — **a migration on a live shop**, so do
-     it deliberately and back up first
-   - call it at checkout **only when `payment_method == CASH`**
-   - a `Rounding −0.04` line on the receipt and in the Banana export, **shown only when the
-     adjustment is non-zero** — 95% of receipts must look exactly as they do today
-   **VAT:** compute on the amount actually paid (Banco already derives incl-VAT from the total);
-   carry the adjustment as its own Banana line, a `Rundungsdifferenz`.
-   **⚠️ THIS MUST COME BEFORE ITEM 2.** A tight cash-box tolerance on totals that cannot be paid
-   in coins will drift a few rappen a day with nothing to explain it.
+**1 · ~~Wire the rounding engine into checkout.~~ ✅ DONE 2026-08-03 — but NOT yet on prod, and
+   NOT yet human-green.** Built, tested (17 new + the 29 arithmetic ones) and **proven live end
+   to end** by `scripts/prove-cash-rounding.py` against the dev stack: a cash sale rounds to
+   0.05 and records the move, the identical cart on TWINT charges the exact cent, an ordinary
+   total passes through untouched, the receipt's Discount line stays honest, and the Banana
+   lines still sum to the drawer.
+   - `transactions.rounding_adjustment` — an additive `ADD COLUMN IF NOT EXISTS … NOT NULL
+     DEFAULT 0` in `src/db/database.py`, verified applied on a live DB. **Every existing row is
+     genuinely 0** (nothing was ever rounded), so there is no backfill.
+   - `_apply_cash_rounding()` in `pos_router.py`, called from **both** sale paths before the
+     tender comparison. `total` stays "what was actually charged", so the drawer expectation,
+     VAT, change and the CRM points are all correct without knowing it ran.
+   - `Rounding (5 Rp.)` on the receipt + `Rounding / TO PAY` at the till, in all four languages,
+     shown **only when non-zero**.
+   - Banana: the takings split into `Cash (at ticket price)` + `Rundungsdifferenz`, **only on a
+     day it fired** — a naive extra line would have double-counted (cash_total is already the
+     rounded money). A day with no rounding exports byte-identically to before.
+
+   **⛔ WHAT IS LEFT — do this before item 2:**
+   - **Deploy to prod/UAT**, then re-run `python3 scripts/prove-cash-rounding.py` against it
+     (edit `BASE`/`KC`). The ALTER runs at boot; **back up first** — it is a live shop.
+   - **Human-green it (standing rule 5):** ring a discounted cash sale at the till and confirm
+     with your own eyes that the screen shows `TO PAY`, the printed receipt shows `Rounding`,
+     and the change in your hand matches. *Nothing here has been seen by a person yet — the
+     Chrome extension is not connected, so I could not look at either screen.*
+   - Ask Felix whether he wants the Banana takings split, or the rounding as reference only.
 
 **2 · Rebuild the cash box as SHOP-owned.** Design agreed and all four questions answered:
    → **[`onboarding/12-the-cash-box.md`](onboarding/12-the-cash-box.md)**. The core is one line
    — `pos_router.py:8632` sums `cashier_id == user_id` and must sum everyone. Then: shop-wide
    open guard, count-blind-then-reveal, last night's counted = this morning's expected, rename
    to "cash box", named "to safe" paid-out reason, foreign currency on paid-OUT only.
-   Tolerance **±0.05** once item 1 has shipped.
+   Tolerance **±0.05** once item 1 has shipped **to prod** (the code is in; the deploy is not).
 
 **3 · The two bulk catalogue scripts** — `enrich-from-source.py --apply` then
    `adopt-images.py --apply`, on the **prod box** (local dev has only 6 products).

@@ -233,6 +233,12 @@ achievable.** Set a tight tolerance before that and the drawer will drift a few 
 nobody will know why. Card and TWINT are unaffected — they take the exact cent, which is why this
 only ever shows up in the box.
 
+> **✅ BUILT 2026-08-03 — and not yet on prod.** `_apply_cash_rounding()` now runs on both sale
+> paths for cash only; `transactions.rounding_adjustment` records the move so the receipt prints
+> `Rounding (5 Rp.)` and Banana gets a `Rundungsdifferenz` rather than an unexplained rappen.
+> Proven end to end on dev by `scripts/prove-cash-rounding.py`. **The ±0.05 tolerance still waits
+> on the prod deploy**, not on the code — and on somebody watching a real receipt come out.
+
 ---
 
 *One box. Everyone sells into it. Whoever closes counts it, and whoever opens counts it again

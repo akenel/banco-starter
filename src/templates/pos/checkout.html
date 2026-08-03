@@ -201,6 +201,23 @@
                     <span data-i18n="checkout.total">TOTAL:</span>
                     <span class="text-indigo-600" x-text="formatPrice(cartData.totals.total)"></span>
                 </div>
+                <!-- 5-rappen cash rounding. Appears ONLY on a cash sale whose total can't be paid
+                     in coins — rare, since every shelf price is already a 0.05 multiple and only a
+                     percentage discount breaks it. A card checkout looks exactly as it did before.
+                     Shown rather than applied silently: the cashier must never watch the total move
+                     between the screen and the receipt without being told why. -->
+                <template x-if="Math.abs(roundingAdj()) >= 0.005">
+                    <div>
+                        <div class="flex justify-between text-sm text-gray-500">
+                            <span data-i18n="checkout.rounding">Rounding (5 Rp.):</span>
+                            <span x-text="(roundingAdj() < 0 ? '-' : '+') + formatPrice(Math.abs(roundingAdj()))"></span>
+                        </div>
+                        <div class="flex justify-between text-xl font-bold">
+                            <span data-i18n="checkout.to_pay">TO PAY:</span>
+                            <span class="text-indigo-600" x-text="formatPrice(payableTotal())"></span>
+                        </div>
+                    </div>
+                </template>
                 <div class="flex justify-between text-sm text-gray-500 cursor-pointer select-none" @click="showVatInfo = !showVatInfo" title="Tap for the VAT breakdown">
                     <span>
                         <span data-i18n="checkout.incl_vat">incl. VAT:</span>
@@ -212,11 +229,11 @@
                      the total, not added on top. Net = total − VAT. Reads the store's rate + currency. -->
                 <div x-show="showVatInfo" style="display:none" class="text-xs bg-blue-50 border border-blue-200 rounded-lg p-3 mt-1 space-y-1">
                     <div class="flex justify-between"><span data-i18n="checkout.vat_net">Net goods (ex-VAT)</span>
-                        <span x-text="formatPrice((cartData.totals.total || 0) - (cartData.totals.vat || 0))"></span></div>
+                        <span x-text="formatPrice(payableTotal() - (cartData.totals.vat || 0))"></span></div>
                     <div class="flex justify-between"><span><span data-i18n="checkout.vat_only">VAT</span> (<span x-text="_cfg('vat_rate')"></span>%)</span>
                         <span x-text="formatPrice(cartData.totals.vat)"></span></div>
                     <div class="flex justify-between font-semibold border-t border-blue-200 pt-1"><span data-i18n="checkout.vat_total">Total paid</span>
-                        <span x-text="formatPrice(cartData.totals.total)"></span></div>
+                        <span x-text="formatPrice(payableTotal())"></span></div>
                     <p class="text-blue-700 pt-1" data-i18n="checkout.vat_note">Prices include VAT — the tax is contained in the total, not added on top.</p>
                 </div>
                 <!-- Multi-currency tender (Block 0): what to collect if the customer pays in a foreign
@@ -331,7 +348,7 @@
                     </div>
                     <div class="flex justify-between text-lg">
                         <span data-i18n="cash.total_due">Total Due:</span>
-                        <span x-text="formatPrice(cartData.totals.total)"></span>
+                        <span x-text="formatPrice(payableTotal())"></span>
                     </div>
                     <div class="flex justify-between text-lg border-t pt-2 mt-2">
                         <span data-i18n="cash.change">Change:</span>
@@ -384,10 +401,10 @@
             <div class="bg-yellow-50 border-2 border-yellow-400 rounded-lg p-6 mb-6">
                 <h2 class="text-lg font-semibold text-yellow-800 mb-3">⚠️ <span data-i18n="checkout.dry_run_preview">Dry Run Preview</span></h2>
                 <div class="space-y-2 text-sm text-yellow-900">
-                    <p>• <span data-i18n="checkout.dry_cash_drawer">Cash drawer:</span> <span x-text="paymentMethod === 'cash' ? '+' + formatPrice(cartData.totals.total) : formatPrice(0) + ' (electronic)'"></span></p>
+                    <p>• <span data-i18n="checkout.dry_cash_drawer">Cash drawer:</span> <span x-text="paymentMethod === 'cash' ? '+' + formatPrice(payableTotal()) : formatPrice(0) + ' (electronic)'"></span></p>
                     <p>• <span data-i18n="checkout.dry_inventory">Inventory:</span> <span x-text="inventoryPreview()"></span></p>
                     <p>• <span data-i18n="checkout.dry_receipt">Receipt: Will print to POS printer</span></p>
-                    <p>• <span data-i18n="checkout.dry_daily_total">Daily total:</span> +<span x-text="formatPrice(cartData.totals.total)"></span></p>
+                    <p>• <span data-i18n="checkout.dry_daily_total">Daily total:</span> +<span x-text="formatPrice(payableTotal())"></span></p>
                 </div>
             </div>
 
@@ -633,6 +650,11 @@
                     this.changeGap = 0;
                     this.showChangeProducts = false;
                     this.quickRoundApplied = false;
+                } else {
+                    // Switching TO cash can change what is payable (5-rappen rounding), and
+                    // changeAmount is a stored value — recompute it or the panel would show
+                    // the change for the un-rounded total.
+                    this.calculateChange();
                 }
             },
 
@@ -655,23 +677,51 @@
                 this.calculateChange();
             },
 
+            // --- Swiss 5-rappen cash rounding -----------------------------------------------
+            // CLIENT MIRROR of src/services/total_rounding.py. The server is the authority; this
+            // exists so the cashier SEES the rounded figure before she submits. Without it the
+            // till would show "Total 62.99, change 0.01" and the receipt would say 63.00 / 0.00 —
+            // the total moving silently between screen and receipt is exactly the failure mode
+            // this feature exists to remove.
+            //
+            // Integer-cent arithmetic throughout: floats are what put a rappen of dust in a total
+            // in the first place. Totals are always whole cents, so a half-step tie (x.x25) can
+            // never arise and Math.round matches the server's ROUND_HALF_UP exactly.
+            cashRoundStep() {
+                const s = parseFloat(((POSConfig || {}).regime || {}).cash_rounding_step || 0);
+                return (isFinite(s) && s > 0) ? s : 0;   // 0 = no coin constraint here, exact totals
+            },
+            // What the customer actually pays. CASH ONLY — TWINT/debit/card settle the exact cent,
+            // so rounding them would give money away for no reason.
+            payableTotal() {
+                const total = Math.round((Number(this.cartData.totals.total) || 0) * 100);
+                const step = Math.round(this.cashRoundStep() * 100);
+                if (this.paymentMethod !== 'cash' || step <= 0) return total / 100;
+                return (Math.round(total / step) * step) / 100;
+            },
+            // How far the rounding moved it. Non-zero only on a cash sale with an odd total.
+            roundingAdj() {
+                return Math.round((this.payableTotal() * 100)
+                                  - Math.round((Number(this.cartData.totals.total) || 0) * 100)) / 100;
+            },
+
             // Cash is genuinely short only when it's below the total by a whole cent
             // (integer-cent compare avoids float dust failing an exactly-paid sale).
             cashShort() {
                 if (this.paymentMethod !== 'cash') return false;
                 // Compare the HOME-currency equivalent of what was handed over against the total.
                 const recvHome = (Number(this.cashReceived) || 0) * this.tenderRate();
-                return Math.round(recvHome * 100) < Math.round((this.cartData.totals.total || 0) * 100);
+                return Math.round(recvHome * 100) < Math.round(this.payableTotal() * 100);
             },
             // The exact amount to collect in the current tender currency (foreign: total ÷ rate).
             exactTender() {
-                const total = Number(this.cartData.totals.total) || 0;
+                const total = this.payableTotal();
                 const r = this.tenderRate();
                 return Math.round((r === 1 ? total : total / r) * 100) / 100;
             },
 
             calculateChange() {
-                const total = this.cartData.totals.total;
+                const total = this.payableTotal();
                 // cashReceived is in the tender currency; convert to the HOME currency for the change.
                 // Change is ALWAYS given in the home currency (the drawer's float). rate = home per 1 foreign.
                 const recvHome = (Number(this.cashReceived) || 0) * this.tenderRate();   // empty/NaN -> 0
@@ -854,7 +904,7 @@
                 const fx = _cfg('fx');
                 const home = this.homeCcy();
                 if (!fx || !fx.rates || (fx.base || '').toUpperCase() !== home) return [];
-                const total = Number(this.cartData.totals.total) || 0;
+                const total = this.payableTotal();
                 const out = [];
                 for (const ccy of Object.keys(fx.rates)) {
                     const rate = Number(fx.rates[ccy]);
@@ -1031,7 +1081,7 @@
 
                 // Never complete an UNDERPAID cash sale (integer-cent compare).
                 if (this.cashShort()) {
-                    const short = formatPrice(this.cartData.totals.total - this.cashReceived);
+                    const short = formatPrice(this.payableTotal() - this.cashReceived);
                     showToast(t('cash.toast_cash_short', {n: short}), 'warning');
                     return;
                 }
@@ -1061,7 +1111,7 @@
                 }
 
                 // For cash, show change in confirmation
-                let confirmMsg = t('checkout.confirm_complete_txn', {n: formatPrice(this.cartData.totals.total)});
+                let confirmMsg = t('checkout.confirm_complete_txn', {n: formatPrice(this.payableTotal())});
                 if (this.paymentMethod === 'cash' && this.changeAmount > 0) {
                     confirmMsg += `\n\n${t('cash.confirm_cash_received_label')} ${formatPrice(this.cashReceived)}\n${t('cash.confirm_change_label')} ${formatPrice(this.changeAmount)}`;
                 }

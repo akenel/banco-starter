@@ -180,6 +180,15 @@
                     <span data-i18n="receipt.discount">Discount:</span>
                     <span x-text="'-' + formatPrice(discountTotal())"></span>
                 </div>
+                <!-- 5-rappen cash rounding. Renders ONLY when it actually moved the total, which
+                     is rare (every shelf price is already a 0.05 multiple, so only a percentage
+                     discount produces an unpayable one). A named line is the whole point: as a
+                     `Rundungsdifferenz` every Swiss bookkeeper knows what it is, whereas a rappen
+                     dissolved into the total is the kind of gap that makes an audit unpleasant. -->
+                <div x-show="Math.abs(roundingAdj()) >= 0.005" class="flex justify-between text-lg text-gray-500">
+                    <span data-i18n="receipt.rounding">Rounding (5 Rp.):</span>
+                    <span x-text="(roundingAdj() < 0 ? '-' : '+') + formatPrice(Math.abs(roundingAdj()))"></span>
+                </div>
                 <div class="flex justify-between text-2xl font-bold border-t-2 border-gray-800 pt-2 mt-2">
                     <span data-i18n="receipt.total">TOTAL:</span>
                     <span x-text="formatPrice(transaction.total)"></span>
@@ -377,6 +386,7 @@
                 discount_amount: 0,
                 tax_amount: 0,
                 total: 0,
+                rounding_adjustment: 0,
                 amount_tendered: 0,
                 change_given: 0,
                 line_items: [],
@@ -458,8 +468,18 @@
                 return (this.transaction.line_items || []).reduce(
                     (s, i) => s + parseFloat(i.quantity || 0) * parseFloat(i.unit_price || 0), 0);
             },
+            // The discount must be measured against the total BEFORE cash rounding, or the
+            // rounding quietly hides inside it -- and a discount that silently absorbs a rappen
+            // is exactly the unexplained gap this whole feature exists to remove. Legacy sales
+            // carry adjustment 0, so this is byte-identical for every receipt printed so far.
             discountTotal() {
-                return this.grossSubtotal() - parseFloat(this.transaction.total || 0);
+                return this.grossSubtotal() - (parseFloat(this.transaction.total || 0)
+                                               - this.roundingAdj());
+            },
+            // How far the 5-rappen cash rounding moved the total. Negative = the customer paid
+            // less than the ticket; positive = a rappen or two more. Cash sales only.
+            roundingAdj() {
+                return parseFloat(this.transaction.rounding_adjustment || 0);
             },
 
             // --- Per-line VAT rate codes + split (INC4 receipt legend) -----------------

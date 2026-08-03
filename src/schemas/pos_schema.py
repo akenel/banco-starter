@@ -461,6 +461,12 @@ class DailySummary(BaseModel):
     # Promotional treats given free today: count + their cost (COGS, for tax).
     giveaway_count: int = 0
     giveaway_cost: Decimal = Decimal("0.00")
+    # Swiss 5-rappen cash rounding: the day's net Rundungsdifferenz across cash sales, and how
+    # many sales it touched. Nearly always 0.00 (every shelf price is already a 0.05 multiple,
+    # so only a percentage discount produces an unpayable total). Exported as its own Banana
+    # line rather than dissolved into the takings -- explainable beats invisible.
+    rounding_total: Decimal = Decimal("0.00")
+    rounding_count: int = 0
 
 
 # ================================================================

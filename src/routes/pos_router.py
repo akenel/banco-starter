@@ -28,6 +28,7 @@ from src.services.lp_publish import publish_product
 from src.services.square_bridge import SquareBridgeError
 from src.services.vat_resolver import line_vat, split_vat
 from src.services.pricing import tier_unit_price
+from src.services.total_rounding import rounding_step, round_total
 from src.db.models import (
     ProductModel,
     ProductBarcodeModel,
@@ -2764,6 +2765,42 @@ async def _apply_tender(db: AsyncSession, txn, amount_tendered, tender_currency)
     return Decimal(str(conv["base_amount"]))
 
 
+async def _apply_cash_rounding(db: AsyncSession, txn, payment_method) -> Decimal:
+    """Move a CASH total to the nearest amount that can be handed over in coins.
+
+    Switzerland has no 1- or 2-rappen coin, so CHF 62.99 cannot be paid. Left alone the cashier
+    takes 63.00, Banco expects 62.99, and the cash box is a rappen over on every such sale for
+    ever — which is why this has to ship BEFORE the cash box gets a tight tolerance.
+
+    CASH ONLY. TWINT/debit/card settle the exact cent perfectly well, so rounding them would give
+    away up to four rappen per discounted card sale for no benefit. Returns the adjustment.
+
+    WHERE THIS SITS IN THE ORDER, and why it matters: this runs on the completed total AFTER every
+    discount lane (manual, member tier, kiosk welcome) and BEFORE the tender comparison. So the
+    "insufficient payment" gate, the change, the VAT and the drawer expectation all read the amount
+    actually charged. `txn.total` IS that amount — every existing consumer stays correct without
+    knowing this ran. The move is recorded separately so it can be explained, never absorbed.
+
+    Never raises. A rounding helper that threw would block a sale over a rappen; a failed regime
+    read degrades to "no rounding" and the exact total stands, exactly as it did yesterday.
+    """
+    if payment_method != PaymentMethod.CASH:
+        return Decimal("0.00")
+    try:
+        store = await get_active_store_settings(db)
+    except Exception:
+        logger.warning("cash rounding: store read failed; no rounding applied", exc_info=True)
+        return Decimal("0.00")
+    step = rounding_step(resolve_regime(store))
+    out = round_total(txn.total, step)
+    txn.total = out["rounded"]
+    txn.rounding_adjustment = out["adjustment"]
+    if out["adjustment"]:
+        logger.info("cash rounding: %s %s → %s (%+.2f)", txn.transaction_number,
+                    out["original"], out["rounded"], out["adjustment"])
+    return out["adjustment"]
+
+
 async def _capture_terminal_sim(db: AsyncSession, txn, capture):
     """🌍-1 M2 SANDBOX "full mock capture" — drive the Worldline sim adapter for real.
 
@@ -4560,6 +4597,10 @@ async def get_transaction(
         "discount_amount": str(transaction.discount_amount),
         "tax_amount": str(transaction.tax_amount),
         "total": str(transaction.total),
+        # Cash rounding: how far `total` was moved to make it payable in coins. 0.00 on every
+        # card/TWINT sale and on everything rung before this shipped, so the receipt's Rounding
+        # line simply never renders for them.
+        "rounding_adjustment": str(transaction.rounding_adjustment or 0),
         "amount_tendered": str(transaction.amount_tendered) if transaction.amount_tendered else None,
         "change_given": str(transaction.change_given) if transaction.change_given else None,
         # Multi-currency tender (Block 1): the foreign cash detail for an honest receipt.
@@ -4985,6 +5026,9 @@ async def checkout_transaction(
                 detail="Open your cash drawer before taking a cash sale.")
         if not checkout.amount_tendered:
             raise HTTPException(status_code=400, detail="Cash payment requires amount_tendered")
+        # 5-rappen rounding, BEFORE the tender comparison — so the gate, the change and the
+        # drawer expectation all read the amount that can actually be handed over in coins.
+        await _apply_cash_rounding(db, transaction, checkout.payment_method)
         # Multi-currency (Block 1): if paid in FOREIGN cash, convert the face amount to the home
         # currency (stamps tender_currency/amount/rate on the sale). Then compare money at CENT
         # precision — a JSON 226.17 arrives as 226.16999…, so quantize both before comparing/change.
@@ -5274,6 +5318,9 @@ async def create_sale(
             raise HTTPException(status_code=409, detail="Open your cash drawer before taking a cash sale.")
         if not sale.amount_tendered:
             raise HTTPException(status_code=400, detail="Cash payment requires amount_tendered")
+        # 5-rappen rounding (seal lesson — BOTH sale paths, or the offline outbox rings a total
+        # the drawer can't hold). Before the tender comparison, same as the legacy path.
+        await _apply_cash_rounding(db, txn, sale.payment_method)
         # Multi-currency (Block 1): FOREIGN cash → home equivalent (stamps tender_currency/amount/rate).
         home_tendered = await _apply_tender(db, txn, sale.amount_tendered, sale.tender_currency)
         tendered = Decimal(str(home_tendered)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
@@ -5493,6 +5540,14 @@ async def get_daily_summary(
     crypto_total = sum(t.total for t in transactions if t.payment_method == PaymentMethod.CRYPTO)
     other_total = sum(t.total for t in transactions if t.payment_method == PaymentMethod.OTHER)
 
+    # Swiss 5-rappen rounding: the day's net Rundungsdifferenz. cash_total above is already the
+    # rounded (actually-taken) money, which is what the drawer must hold — this is the separate
+    # record of how much the rounding moved, so the books can name it instead of carrying an
+    # unexplained few rappen. Guarded with `or 0` for rows written before the column existed.
+    _adjs = [Decimal(str(t.rounding_adjustment or 0)) for t in transactions]
+    rounding_total = sum(_adjs, Decimal("0.00"))
+    rounding_count = sum(1 for a in _adjs if a != 0)
+
     # Promotional treats given free today: count + their cost (COGS, for Felix's tax).
     giveaway_count = 0
     giveaway_cost = Decimal("0.00")
@@ -5617,6 +5672,8 @@ async def get_daily_summary(
         other_total=Decimal(str(other_total)),
         giveaway_count=giveaway_count,
         giveaway_cost=giveaway_cost,
+        rounding_total=rounding_total,
+        rounding_count=rounding_count,
     )
 
 
@@ -5643,6 +5700,26 @@ async def get_daily_summary_csv(
         ("Crypto", summary.crypto_total),
         ("Other", summary.other_total),
     ]
+    # --- Swiss 5-rappen rounding (2026-08-03) -------------------------------------------------
+    # THE TRAP: cash_total is already the ROUNDED money — what physically went into the drawer.
+    # So an extra "Rundungsdifferenz" income line on top of it would DOUBLE-COUNT the rappen.
+    # The standard Swiss treatment splits it instead: book the takings at ticket value and the
+    # difference to its own account, and the two still sum to the drawer.
+    #
+    #   Cash (at ticket price)   62.99      <- cash_total - rounding_total
+    #   Rounding difference      +0.01      <- rounding_total
+    #                            ------
+    #                            63.00      = what Felix counted
+    #
+    # Only on days it actually fired, which is rare (every shelf price is a 0.05 multiple, so
+    # only a percentage discount makes an unpayable total). With rounding_total == 0 this whole
+    # block is skipped and the file is BYTE-IDENTICAL to the one Felix imports today.
+    _round = Decimal(str(summary.rounding_total or 0))
+    if _round != 0:
+        by_method = [(("Cash (at ticket price)" if label == "Cash" else label),
+                      (amount - _round if label == "Cash" else amount))
+                     for label, amount in by_method]
+
     buf = _io.StringIO()
     writer = _csv.writer(buf, quoting=_csv.QUOTE_ALL)
     # Two extra columns (Turnover, VAT) carry the VAT-summary NUMBERS in their own cells — the
@@ -5652,6 +5729,16 @@ async def get_daily_summary_csv(
     for label, amount in by_method:
         if amount and amount > 0:
             writer.writerow([summary.date, f"POS daily sales - {label}", f"{amount:.2f}", "", "", "", "", ""])
+    # Rundungsdifferenz — the 5-rappen rounding on cash sales, as its own bookable line. Positive
+    # = the shop took a rappen or two more than the tickets said (income); negative = less
+    # (expense). Named, because every Swiss bookkeeper recognises the word — dissolved into the
+    # takings it would just be an unexplained few rappen a day.
+    if _round != 0:
+        writer.writerow([summary.date,
+                         f"Rounding difference (5 Rp.) - Rundungsdifferenz x{summary.rounding_count}",
+                         f"{_round:.2f}" if _round > 0 else "",
+                         f"{abs(_round):.2f}" if _round < 0 else "", "", "", "", ""])
+
     # Promotional treats given free -- the cost is an expense (COGS) for tax.
     if summary.giveaway_cost and summary.giveaway_cost > 0:
         writer.writerow([summary.date,
