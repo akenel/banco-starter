@@ -70,8 +70,12 @@ proven and wired to nothing (29 tests). Three steps:
    Also resolves **G8**'s two-meanings-of-shift: session = who is logged in (per person), till =
    the money (one, shop-owned). Cashiers stop touching the drawer entirely — A4 leaves their day.
 
-   **Blocked on Felix answering four questions** at the end of the doc (who may reconcile; what if
-   a night is skipped; is ±0.20 still right for a shared box; foreign notes counted when).
+   **✅ NOT BLOCKED — all four answered by Angel, 2026-08-03** (in the doc): a **cashier may do
+   everything**; a skipped night gets a banner listing every cash movement since the last
+   reconcile so the total is *reconstructed*, not asserted; tolerance **±0.05** (one coin — but
+   only after the rounding wiring ships, see ▶️ START HERE); foreign notes counted at reconcile,
+   and paid-**IN** is home currency only while paid-**OUT** may be foreign, so the euros can leave
+   to the safe.
 
 
 0. **🟢 CASHIER SHIFT ROLE-PLAY RUN — 2026-08-03, 64 minutes, UAT b170.** Angel played the day
