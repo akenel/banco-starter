@@ -206,10 +206,24 @@ async def main_async(args, env, rows):
             if got.get("tiers") and base is not None:
                 first = float(got["tiers"][0]["unit_price"])
                 if first > base:
-                    suspect.append((sku, name, base, got["tiers"]))
+                    # WHICH KIND OF WRONG? Two very different problems wear the same symptom,
+                    # and Felix needs to be told them apart.
+                    #
+                    #  • read as a PACK TOTAL it makes sense  -> the page states a pack price in
+                    #    a per-unit field. The data is good, the LABEL is wrong. TAM-11884:
+                    #    "CHF 11.90 ab 100 Stück" against CHF 3.- each is 0.12/unit as a pack,
+                    #    which is a real discount. (`src/services/pricing.py` already re-reads
+                    #    such a tier this way at the till, so no customer was ever at risk.)
+                    #  • wrong any way you read it -> genuinely bad data, nothing to salvage.
+                    qty = int(got["tiers"][0]["min_qty"]) or 1
+                    as_pack = first / qty
+                    reading = ("pack price in a per-unit field — the numbers are fine, the "
+                               f"label is not ({as_pack:.3f}/unit)") if as_pack <= base else \
+                              "above the single price any way it is read — the data is wrong"
+                    suspect.append((sku, name, base, got["tiers"], reading))
                     got.pop("tiers")
                     print(f"  {C['yel']}⚠{C['x']} {sku:<12} {name[:34]:<34} "
-                          f"tier {first:.2f} > unit price {base:.2f} — LADDER REFUSED")
+                          f"tier {first:.2f} > unit {base:.2f} — REFUSED ({reading[:38]})")
             if got.get("tiers") and not has_tiers:
                 u["tiers"] = got["tiers"]; stats["tiers"] += 1
             if got.get("facets") and not has_facets:
@@ -286,15 +300,17 @@ def main():
         print(f"{C['dim']}  These are almost certainly bundle prices written as per-unit on the "
               f"source page.\n  Specs were still stored; only the pricing was skipped. Send the "
               f"list to Felix.{C['x']}")
-        for sku, name, base, tiers in suspect:
+        for sku, name, base, tiers, reading in suspect:
             lad = " ".join(f"{t['min_qty']}+->{t['unit_price']}" for t in tiers)
             print(f"    {sku:<12} {name[:34]:<34} unit {base:.2f}  vs  {lad}")
+            print(f"    {' ':<12} {C['dim']}{reading}{C['x']}")
     if args.report:
         # Hand the refused ladders to whoever builds the sheet. Printing them to a terminal
         # that scrolls away is how a money problem becomes a forgotten one.
         with open(args.report, "w", encoding="utf-8") as fh:
-            json.dump({"suspects": [{"sku": s_, "name": n_, "unit_price": b_, "tiers": t_}
-                                    for s_, n_, b_, t_ in suspect]}, fh,
+            json.dump({"suspects": [{"sku": s_, "name": n_, "unit_price": b_, "tiers": t_,
+                                     "reading": r_}
+                                    for s_, n_, b_, t_, r_ in suspect]}, fh,
                       ensure_ascii=False, indent=2)
         print(f"{C['dim']}  refused ladders written to {args.report}{C['x']}")
 
