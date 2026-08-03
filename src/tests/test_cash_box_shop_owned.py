@@ -326,3 +326,32 @@ def test_a_forced_close_never_shows_a_GREEN_BALANCED_VERDICT():
     assert "bg-green-100" in verdict and "bg-amber-100" in verdict
     # and the green class must be inside the branch that only runs when it IS verified
     assert verdict.index("bg-amber-100") < verdict.index("bg-green-100")
+
+
+def test_a_setting_nobody_can_set_is_not_a_setting():
+    """Angel, running the testsheet: "could not find this setting maybe not needed now?"
+
+    cash_box_float existed in the model, the migration, and the API schema — and on no screen.
+    So the §6 guard could only ever be configured by curl, which means in practice never, which
+    means the guard was dead on arrival for a real shop.
+
+    Every cash-box setting the API accepts must appear on the settings screen, and the screen
+    must both load and send it."""
+    import io
+    schema = io.open("src/schemas/pos_schema.py", encoding="utf-8").read()
+    screen = io.open("src/templates/pos/settings.html", encoding="utf-8").read()
+    upd = schema[schema.index("class StoreSettingsUpdate"):schema.index("class StoreSettingsRead")]
+    fields = [f for f in re.findall(r"^\s{4}(cash_\w+):", upd, re.M)]
+    assert fields, "no cash_* settings found — did the schema move?"
+    for f in fields:
+        assert f"form.{f}" in screen, f"{f} is accepted by the API but has no field on the screen"
+        assert f"{f}:" in screen, f"{f} is never sent in the save payload"
+
+
+def test_a_blank_baseline_means_unconfigured_not_zero():
+    """An empty box must leave the guard SILENT, not assert that the cash box should hold
+    nothing — which would make every count 'wildly off' and question every morning."""
+    import io
+    screen = io.open("src/templates/pos/settings.html", encoding="utf-8").read()
+    assert "cash_box_float === '' || F.cash_box_float == null ? null" in screen
+    assert baseline_check("600.00", None)["off_baseline"] is False

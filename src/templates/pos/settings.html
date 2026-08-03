@@ -252,6 +252,34 @@
                         </div>
                         <p class="text-xs text-gray-500" data-i18n="settings.discounts_hint">Admin is always unlimited. Enforced server-side at checkout.</p>
 
+                        <!-- 💰 THE CASH BOX (onboarding/12-the-cash-box.md §6). Admin-only, like the
+                             VAT rate — it is shop POLICY. The COUNT always stays with the cashier.
+                             Neither of these changes any expected figure: expected comes from last
+                             night's counted total (the slope). The baseline seeds day one and sets
+                             the "is that right?" threshold; the tolerance only decides whether a
+                             note is required. The record is always exact to the rappen regardless. -->
+                        <div class="pt-2 mt-2 border-t border-gray-200">
+                            <h3 class="font-semibold text-gray-800 mb-1">💰 <span data-i18n="settings.cash_box">The cash box</span></h3>
+                            <p class="text-xs text-gray-500 mb-3" data-i18n="settings.cash_box_hint">One box, everybody sells into it. These are policy, not measurements — neither one changes what the till expects at reconcile (that comes from last night's count).</p>
+                            <div class="grid md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="lbl" data-i18n="settings.cash_box_float">What the box normally carries (CHF)</label>
+                                    <input type="number" step="0.05" min="0" x-model="form.cash_box_float" class="input-field" placeholder="600.00">
+                                    <p class="text-xs text-gray-500 mt-1" data-i18n="settings.cash_box_float_hint">Used on day one, and to ask "is that right?" when a morning count is wildly off. It asks — it never refuses.</p>
+                                </div>
+                                <div>
+                                    <label class="lbl" data-i18n="settings.cash_tolerance">Difference allowed without a note (CHF)</label>
+                                    <input type="number" step="0.05" min="0" x-model="form.cash_tolerance" class="input-field" placeholder="0.20">
+                                    <p class="text-xs text-gray-500 mt-1" data-i18n="settings.cash_tolerance_hint">0.05 is one coin — the tightest possible, and only reachable since cash totals round to 5 rappen. Blank = 0.20.</p>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="lbl" data-i18n="settings.cash_box_float_note">Why this amount? (optional)</label>
+                                <input type="text" x-model="form.cash_box_float_note" class="input-field" :placeholder="t('settings.cash_box_float_note_ph')">
+                                <p class="text-xs text-gray-500 mt-1" data-i18n="settings.cash_box_float_note_hint">Shown to whoever opens up next after you change it. Who and when is recorded automatically.</p>
+                            </div>
+                        </div>
+
                         <!-- 🏅 Member loyalty tiers — Felix owns these numbers (spend earns the tier,
                              the tier earns a standing % on eligible items; tobacco/alcohol never
                              discount). Bronze = every member, points only. Applies to ALL members
@@ -834,6 +862,11 @@
                     vat_rates: vatRows,
                     receipt_header: F.receipt_header, receipt_footer: F.receipt_footer, receipt_logo_url: F.receipt_logo_url,
                     cashier_max_discount: F.cashier_max_discount, manager_max_discount: F.manager_max_discount,
+                    // The cash box (§6). Blank -> null, never 0: an empty baseline must mean "not
+                    // configured, stay silent", not "the box should hold nothing".
+                    cash_box_float: F.cash_box_float === '' || F.cash_box_float == null ? null : F.cash_box_float,
+                    cash_tolerance: F.cash_tolerance === '' || F.cash_tolerance == null ? null : F.cash_tolerance,
+                    cash_box_float_note: F.cash_box_float_note || null,
                     loyalty_tier1_threshold: F.loyalty_tier1_threshold, loyalty_tier1_discount: F.loyalty_tier1_discount,
                     loyalty_tier2_threshold: F.loyalty_tier2_threshold, loyalty_tier2_discount: F.loyalty_tier2_discount,
                     loyalty_tier3_threshold: F.loyalty_tier3_threshold, loyalty_tier3_discount: F.loyalty_tier3_discount,
