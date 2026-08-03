@@ -355,3 +355,21 @@ def test_a_blank_baseline_means_unconfigured_not_zero():
     screen = io.open("src/templates/pos/settings.html", encoding="utf-8").read()
     assert "cash_box_float === '' || F.cash_box_float == null ? null" in screen
     assert baseline_check("600.00", None)["off_baseline"] is False
+
+
+def test_an_expected_flow_step_does_not_shout_in_the_console():
+    """Angel, mid-testsheet, seeing a red `API call failed: Error {"code":"opening_variance"…}`:
+    "think it broken got a error in webconsole tigs ... this seems super complicated now".
+
+    Nothing was broken — that was the morning reveal working exactly as designed. But the
+    morning count is SUPPOSED to come back "add a note" or "is that right?", and a red console
+    line reads as a bug no matter what the page does next.
+
+    Anything carrying a structured `code` is expected and handled by its caller."""
+    import io
+    base = io.open("src/templates/pos/base.html", encoding="utf-8").read()
+    handler = base[base.index("} catch (error) {"):]
+    handler = handler[:handler.index("},")]
+    assert "error.detail && error.detail.code" in handler
+    assert "console.info" in handler and "console.error" in handler, \
+        "handled codes log quietly; everything else must still shout"

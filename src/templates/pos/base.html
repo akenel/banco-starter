@@ -687,7 +687,18 @@
 
                     return await response.json();
                 } catch (error) {
-                    console.error('API call failed:', error);
+                    // Some 4xx are STEPS IN A FLOW, not failures — the morning cash count is
+                    // *supposed* to come back "add a note" or "is that right?", and the screen
+                    // handles both. Logging those as `API call failed: Error…` had Angel
+                    // reporting a broken page mid-testsheet when the feature was working
+                    // exactly as designed. A red console line reads as a bug no matter what
+                    // the page does next.
+                    //
+                    // Anything carrying a structured `code` is expected and handled by its
+                    // caller; log it quietly. Everything else still shouts.
+                    const code = error && error.detail && error.detail.code;
+                    if (code) console.info('API (handled): ' + code, error.detail);
+                    else console.error('API call failed:', error);
                     throw error;
                 }
             },
