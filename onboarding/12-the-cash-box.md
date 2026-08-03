@@ -240,9 +240,44 @@ and the discrepancy written down.
 flow anyway, and the guard has to hang off count-blind-then-reveal to make sense. Building it
 standalone means touching the same code twice.
 
-**Still open for Angel:** whether an admin editing the baseline mid-life needs anything more than
-a settings change — e.g. if Felix raises the box from 600 to 800, does that want a dated note so
-next week's variance has an explanation, or is the daily count enough on its own?
+#### Changing the baseline later — answered 2026-08-03
+
+*Angel: "the daily count is enough, but a dated note optional would be helpful."* Agreed, and it
+is cheaper than it sounds because **most of it already exists and is running.**
+
+**The dated history is free.** `audit_store_settings` has been live on prod since 2026-07-19
+(6,733 rows) and captures who / when / old → new on every settings change. Raising the box from
+600 to 800 is therefore *already* attributed and timestamped without building anything. So the
+"note" is just an optional **reason** carried with the change — not a second logbook.
+
+**Why optional is SAFE and not merely convenient — worth being precise about.** The baseline is
+**never an input to any expected figure.** Expected comes from last night's counted (the slope,
+§2). The baseline does exactly two jobs: seed day one, and set the guard's threshold. So changing
+600 → 800 moves **no number anywhere in the books** — the only observable effect is when the guard
+starts firing. That is a structural fact, which is what makes "the daily count is enough" a safe
+rule rather than a judgement call.
+
+**The one thing that must NOT be optional is surfacing it.** A note nobody sees is worthless; its
+entire value is appearing at the moment of confusion, which is the next morning's open — not a
+settings audit screen somebody would have to think to go and read.
+
+```
+  ⓘ Baseline changed CHF 600.00 → 800.00 on 5 Aug by Felix
+    "added a 200 note for the weekend rush"
+```
+
+**Shown once**, on the first open after the change, then it is history. Shown every morning it
+becomes chrome, people stop reading it, and the one that actually matters gets skipped along with
+the rest.
+
+**Storage:** a single `cash_box_float_note` beside the setting, overwritten on each change. The
+current reason is one field; the history comes free from the audit log.
+
+> **Aside, proven the same day:** the audit trigger also marks *how* a row was touched. The
+> administrative close in §5 logged as `changed_by = system` because it went in by `psql`, while
+> pam's original open logged as `pam` (the app sets `app.actor`). So "this was not done through
+> the till" is recorded **independently of my prose** — which is exactly the property §5 asks for,
+> already working. The force-close should lean on it rather than reinvent it.
 
 ---
 
@@ -263,6 +298,7 @@ Smaller than it sounds. **The arithmetic is already right; only the scope of one
 | **force-close** | manager-only, reason required, `counted_cash` flagged **unverified** in its own column — never in prose, and never counted as a balanced drawer (§5) |
 | **baseline** | `store_settings.cash_box_float` — admin-only, asked once at stand-up; seeds the slope on day one and backs the open-count guard (§6) |
 | **the guard** | count wildly off the baseline → **ask, never refuse**; the answer is recorded either way (§6) |
+| baseline changes | optional `cash_box_float_note`; the dated history is already free from `audit_store_settings`. **Surfacing is not optional** — one banner on the next open, shown once (§6) |
 
 Untouched: float maths, paid in/out, foreign-currency tracking, the ±0.20 note rule, per-cashier
 sales reports.
