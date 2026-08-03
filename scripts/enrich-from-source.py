@@ -236,6 +236,8 @@ def main():
     ap.add_argument("--name", default="", help="only products whose name matches (ILIKE)")
     ap.add_argument("--delay", type=float, default=1.0, help="seconds between requests (be polite)")
     ap.add_argument("--container", default="banco-postgres")
+    ap.add_argument("--report", default="",
+                    help="write refused ladders to this JSON file (feeds the testsheet)")
     args = ap.parse_args()
 
     env = read_env(os.path.join(ROOT, ".env"))
@@ -287,6 +289,15 @@ def main():
         for sku, name, base, tiers in suspect:
             lad = " ".join(f"{t['min_qty']}+->{t['unit_price']}" for t in tiers)
             print(f"    {sku:<12} {name[:34]:<34} unit {base:.2f}  vs  {lad}")
+    if args.report:
+        # Hand the refused ladders to whoever builds the sheet. Printing them to a terminal
+        # that scrolls away is how a money problem becomes a forgotten one.
+        with open(args.report, "w", encoding="utf-8") as fh:
+            json.dump({"suspects": [{"sku": s_, "name": n_, "unit_price": b_, "tiers": t_}
+                                    for s_, n_, b_, t_ in suspect]}, fh,
+                      ensure_ascii=False, indent=2)
+        print(f"{C['dim']}  refused ladders written to {args.report}{C['x']}")
+
     if not updates:
         print(f"\n{C['yel']}Nothing to write.{C['x']}")
         return 0

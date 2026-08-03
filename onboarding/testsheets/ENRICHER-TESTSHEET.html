@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Enricher — tier ladders &amp; specs testsheet</title>
+<style>
+  :root{ --red:#157F52; --dark:#0f5c3b; --ink:#1f2937; --mut:#6b7280; --line:#e5e7eb;
+         --ok:#059669; --iss:#d97706; --fail:#C0392B; --bg:#f6f8f7; --gold:#b0862f; }
+  *{ box-sizing:border-box; }
+  body{ font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; color:var(--ink);
+        background:var(--bg); margin:0; line-height:1.5; }
+  header{ position:sticky; top:0; z-index:10; background:#fff; border-bottom:2px solid var(--red);
+          padding:12px 20px; box-shadow:0 2px 8px rgba(0,0,0,.06); }
+  .htop{ display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+  h1{ font-size:18px; margin:0; }
+  h1 small{ color:var(--mut); font-weight:500; font-size:13px; display:block; margin-top:2px; }
+  .meters{ display:flex; gap:16px; align-items:center; }
+  .meter{ text-align:center; } .meter b{ font-size:20px; display:block; }
+  .meter.ok b{ color:var(--ok); } .meter.iss b{ color:var(--iss); } .meter.fail b{ color:var(--fail); }
+  .meter span{ font-size:11px; color:var(--mut); text-transform:uppercase; letter-spacing:.04em; }
+  .btn{ border:1px solid var(--line); background:#fff; border-radius:8px; padding:6px 12px;
+        font-size:13px; cursor:pointer; } .btn:hover{ background:#f0f0f0; }
+  main{ max-width:900px; margin:0 auto; padding:22px 20px 80px; }
+  .lead{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin-bottom:20px; }
+  .phase{ font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.06em;
+          color:var(--red); margin:26px 0 10px; padding-bottom:6px; border-bottom:2px solid var(--red); }
+  section{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin-bottom:14px; }
+  section h2{ font-size:15px; margin:0 0 4px; }
+  section .why{ color:var(--mut); font-size:13px; margin:0 0 12px; }
+  code{ font-family:ui-monospace,Menlo,monospace; font-size:12px; background:#f3f4f6;
+        border:1px solid var(--line); border-radius:5px; padding:1px 5px; }
+  .cmd{ display:block; font-family:ui-monospace,Menlo,monospace; font-size:12.5px; background:#0f172a;
+        color:#e2e8f0; border-radius:8px; padding:9px 12px; margin:6px 0; white-space:pre-wrap; word-break:break-word; }
+  ol.steps{ margin:0; padding-left:0; list-style:none; counter-reset:s; }
+  ol.steps li{ counter-increment:s; display:flex; gap:10px; padding:9px 0; border-top:1px solid var(--line); }
+  ol.steps li:first-child{ border-top:0; }
+  ol.steps li::before{ content:counter(s); flex:0 0 22px; height:22px; border-radius:50%;
+        background:var(--red); color:#fff; font-size:12px; font-weight:700; display:flex;
+        align-items:center; justify-content:center; margin-top:2px; }
+  .step-body{ flex:1; font-size:14px; }
+  .exp{ display:block; color:var(--ok); font-size:12.5px; margin-top:4px; }
+  .verdict{ display:flex; gap:6px; margin-top:7px; }
+  .v{ border:1px solid var(--line); background:#fff; border-radius:7px; padding:3px 10px;
+      font-size:12px; cursor:pointer; font-weight:600; color:var(--mut); }
+  .v.on[data-v=ok]{ background:var(--ok); color:#fff; border-color:var(--ok); }
+  .v.on[data-v=iss]{ background:var(--iss); color:#fff; border-color:var(--iss); }
+  .v.on[data-v=fail]{ background:var(--fail); color:#fff; border-color:var(--fail); }
+  .safety{ border:1px solid var(--line); border-left:4px solid var(--gold); background:#fffdf5;
+           border-radius:8px; padding:10px 12px; margin:10px 0; font-size:13.5px; }
+  .danger{ border-left-color:var(--fail); background:#fdf2f0; }
+  table{ border-collapse:collapse; width:100%; font-size:13px; margin:8px 0; }
+  th,td{ border:1px solid var(--line); padding:6px 9px; text-align:left; vertical-align:top; }
+  th{ background:#f6f8f7; }
+  a{ color:var(--dark); } .lad{ font-size:13px; }
+</style></head>
+<body>
+
+<header><div class="htop">
+  <h1>🏷️ Enricher — quantity breaks &amp; specs
+    <small>Prove it reads the shop's own pages correctly, BEFORE it writes 5,100 products</small></h1>
+  <div class="meters">
+    <div class="meter ok"><b id="mOk">0</b><span>ok</span></div>
+    <div class="meter iss"><b id="mIss">0</b><span>issue</span></div>
+    <div class="meter fail"><b id="mFail">0</b><span>fail</span></div>
+    <button class="btn" onclick="if(confirm('Clear all marks?')){localStorage.removeItem(KEY);location.reload()}">reset</button>
+  </div>
+</div></header>
+
+<main>
+  <div class="lead">
+    <strong>What this is.</strong> <code>scripts/enrich-from-source.py</code> wants to fill
+    <b>quantity breaks</b> and <b>spec tables</b> for ~5,100 products by reading each one's own page
+    on artemisluzern.ch. Every row already knows its page — that is what <code>source_url</code> is.
+    This sheet proves it reads them <em>correctly</em>, against the real shop pages, before a single
+    row on prod is touched.
+
+    <div class="safety danger">
+      <b>Why this is a money sheet, not a data sheet.</b> A <em>missing</em> ladder is harmless — the
+      till charges the normal price. A <em>wrong</em> ladder charges a customer the wrong money, at
+      the counter, with a queue. Judge the two columns by different standards: <b>tiers are money,
+      specs are information.</b>
+    </div>
+
+    <div class="safety">
+      <b>Nothing here has touched your shop.</b> Everything below was produced on the dev laptop
+      against a 200-row slice of the real catalogue, pulled read-only. Prod is untouched.
+    </div>
+
+    <div class="safety">
+      <b>The sample already caught one.</b> 1 ladder was <b>refused</b> before it could
+      be written — see Part A. That is what this exercise is for, and it is the reason the run is
+      worth doing on a sample first.
+    </div>
+  </div>
+
+<div class="phase">Part A — the one it refused (do this first)</div>
+<section>
+<h2>A1 · Confirm the refused ladder really is wrong on Felix's page</h2>
+<p class="why">The enricher now refuses any "quantity break" that costs MORE than a single unit. It kept the specs and skipped only the pricing. Check the page agrees, then tell Felix — the error is on his site, so the next import brings it back.</p>
+<ol class="steps">
+<li><div class="step-body">Open <b>Hygiene Mundstück innen für Shishas</b> (<code>TAM-11884</code>)
+              and read the price box:
+              <span class="cmd">https://www.artemisluzern.ch/de/produkt/hygiene-mundstueck-innen-fuer-shishas-11884</span>
+              <table>
+                <tr><th>one unit costs</th><td><b>CHF 3.00</b></td></tr>
+                <tr><th>but the "break" says</th><td><b>CHF 11.90 from 100 · CHF 10.30 from 200</b></td></tr>
+              </table>
+              <span class="exp">the page really does say a bigger quantity costs more EACH. Left
+              alone, buying 100 would have been charged 100 × CHF 11.90
+              = <b>CHF 1,190</b> instead of about
+              CHF 300. Almost certainly the page means "a bag of 100 for
+              CHF 11.90" — a bundle price written as a per-unit one.</span>
+              </div></li>
+<li><div class="step-body"><b>Send the SKU to Felix</b> so it is corrected at source.
+          <span class="exp">Banco refuses it either way, so nothing is at risk while he fixes it.</span>
+          </div></li>
+</ol></section>
+<div class="phase">Part B — check the ladders against the shop pages (12 of 23)</div>
+<section>
+<h2>B1 · Open the page, compare the numbers</h2>
+<p class="why">Each row shows exactly what the enricher stored. Open the link, look at the price box, mark it. You do not need to do all of them — five or six is a real answer. A single wrong ladder means STOP.</p>
+<ol class="steps">
+<li><div class="step-body"><b>Filterpapier schmal Leaf  nicht perforiert</b> <code>TAM-5780</code>
+          <span class="cmd">https://www.artemisluzern.ch/de/produkt/filterpapier-schmal-leaf-nicht-perforiert-5780</span>
+          <div class="lad">stored: <b>10+</b> → CHF 1.20 · <b>48+</b> → CHF 0.95 · <b>98+</b> → CHF 0.80 · <b>240+</b> → CHF 0.60 &nbsp;·&nbsp; 4 spec fields</div>
+          <span class="exp">the price box on the page shows these same breaks, at these same
+          quantities.</span></div></li>
+<li><div class="step-body"><b>Feuerzeug Reilly</b> <code>TAM-16028</code>
+          <span class="cmd">https://www.artemisluzern.ch/de/produkt/feuerzeug-reilly-16028</span>
+          <div class="lad">stored: <b>10+</b> → CHF 0.70 · <b>50+</b> → CHF 0.55 · <b>150+</b> → CHF 0.40 &nbsp;·&nbsp; 2 spec fields</div>
+          <span class="exp">the price box on the page shows these same breaks, at these same
+          quantities.</span></div></li>
+<li><div class="step-body"><b>Gizeh Rolls Slim</b> <code>TAM-16300</code>
+          <span class="cmd">https://www.artemisluzern.ch/de/produkt/gizeh-rolls-slim-16300</span>
+          <div class="lad">stored: <b>10+</b> → CHF 2.80 · <b>20+</b> → CHF 2.20 · <b>60+</b> → CHF 2.10 &nbsp;·&nbsp; 4 spec fields</div>
+          <span class="exp">the price box on the page shows these same breaks, at these same
+          quantities.</span></div></li>
+<li><div class="step-body"><b>Gizeh King Size Slim Pink Edition</b> <code>TAM-17319</code>
+          <span class="cmd">https://www.artemisluzern.ch/de/produkt/gizeh-king-size-slim-pink-edition-17319</span>
+          <div class="lad">stored: <b>10+</b> → CHF 1.30 · <b>50+</b> → CHF 1.20 · <b>150+</b> → CHF 1.15 &nbsp;·&nbsp; 5 spec fields</div>
+          <span class="exp">the price box on the page shows these same breaks, at these same
+          quantities.</span></div></li>
+<li><div class="step-body"><b>Gizeh King Size Slim mit Filter</b> <code>TAM-19107</code>
+          <span class="cmd">https://www.artemisluzern.ch/de/produkt/gizeh-king-size-slim-mit-filter-19107</span>
+          <div class="lad">stored: <b>10+</b> → CHF 2.30 · <b>26+</b> → CHF 2.20 · <b>78+</b> → CHF 2.10 &nbsp;·&nbsp; 5 spec fields</div>
+          <span class="exp">the price box on the page shows these same breaks, at these same
+          quantities.</span></div></li>
+<li><div class="step-body"><b>ELFBAR - ELFA PRO - Prefilled Pod (2 x 2ml) 20mg Mix Berrys</b> <code>TAM-22145</code>
+          <span class="cmd">https://www.artemisluzern.ch/de/produkt/elfbar-elfa-pro-prefilled-pod-2-x-2ml-20mg-mix-berrys-22145</span>
+          <div class="lad">stored: <b>2+</b> → CHF 9.90 · <b>5+</b> → CHF 8.90 · <b>10+</b> → CHF 7.90 &nbsp;·&nbsp; 6 spec fields</div>
+          <span class="exp">the price box on the page shows these same breaks, at these same
+          quantities.</span></div></li>
+<li><div class="step-body"><b>Filterpapier Premium perforiert</b> <code>TAM-7710</code>
+          <span class="cmd">https://www.artemisluzern.ch/de/produkt/filterpapier-premium-perforiert-7710</span>
+          <div class="lad">stored: <b>10+</b> → CHF 1.20 · <b>50+</b> → CHF 0.95 · <b>100+</b> → CHF 0.80 &nbsp;·&nbsp; 4 spec fields</div>
+          <span class="exp">the price box on the page shows these same breaks, at these same
+          quantities.</span></div></li>
+<li><div class="step-body"><b>Filterpapier schmal Leaf nicht perforiert</b> <code>TAM-8463</code>
+          <span class="cmd">https://www.artemisluzern.ch/de/produkt/filterpapier-schmal-leaf-nicht-perforiert-8463</span>
+          <div class="lad">stored: <b>10+</b> → CHF 1.00 · <b>60+</b> → CHF 0.80 · <b>180+</b> → CHF 0.60 &nbsp;·&nbsp; 3 spec fields</div>
+          <span class="exp">the price box on the page shows these same breaks, at these same
+          quantities.</span></div></li>
+<li><div class="step-body"><b>Filterpapier schmal Skull/Rosen nicht perforiert</b> <code>TAM-8465</code>
+          <span class="cmd">https://www.artemisluzern.ch/de/produkt/filterpapier-schmal-skull-rosen-nicht-perforiert-8465</span>
+          <div class="lad">stored: <b>10+</b> → CHF 1.00 · <b>60+</b> → CHF 0.85 · <b>180+</b> → CHF 0.60 &nbsp;·&nbsp; 3 spec fields</div>
+          <span class="exp">the price box on the page shows these same breaks, at these same
+          quantities.</span></div></li>
+<li><div class="step-body"><b>Stahlsieb rund 15mm 5 Stk.</b> <code>TAM-1168</code>
+          <span class="cmd">https://www.artemisluzern.ch/de/produkt/stahlsieb-rund-15mm-5-stk-1168</span>
+          <div class="lad">stored: <b>5+</b> → CHF 0.60 · <b>10+</b> → CHF 0.45 &nbsp;·&nbsp; 3 spec fields</div>
+          <span class="exp">the price box on the page shows these same breaks, at these same
+          quantities.</span></div></li>
+<li><div class="step-body"><b>Fanta Apple 355ml</b> <code>TAM-11931</code>
+          <span class="cmd">https://www.artemisluzern.ch/de/produkt/fanta-apple-355ml-11931</span>
+          <div class="lad">stored: <b>12+</b> → CHF 1.80 · <b>24+</b> → CHF 1.75 &nbsp;·&nbsp; 3 spec fields</div>
+          <span class="exp">the price box on the page shows these same breaks, at these same
+          quantities.</span></div></li>
+<li><div class="step-body"><b>Blow vorgebauter CBD Joint Pure &quot;Sour Widow&quot; 1 Stk. gelb</b> <code>TAM-19234</code>
+          <span class="cmd">https://www.artemisluzern.ch/de/produkt/blow-vorgebauter-cbd-joint-pure-sour-widow-1-stk-gelb-19234</span>
+          <div class="lad">stored: <b>10+</b> → CHF 8.90 · <b>20+</b> → CHF 7.90 &nbsp;·&nbsp; 7 spec fields</div>
+          <span class="exp">the price box on the page shows these same breaks, at these same
+          quantities.</span></div></li>
+</ol></section>
+<section><h2>B2 · The rest of the ladders, for reference</h2>
+<p class="why">Not individually marked — scan them for anything that looks absurd (a break dearer than the unit price, a quantity of 1, a price of 0).</p>
+<table><tr><th>SKU</th><th>product</th><th>stored breaks</th><th>page</th></tr>
+<tr><td><code>TAM-19237</code></td><td>Blow vorgebauter CBD Joint Pure &quot;Strawberry&quot; 1 Stk. blau</td><td class='lad'><b>10+</b> → CHF 8.90 · <b>20+</b> → CHF 7.90</td><td><a href='https://www.artemisluzern.ch/de/produkt/blow-vorgebauter-cbd-joint-pure-strawberry-1-stk-blau-19237' target='_blank'>open</a></td></tr>
+<tr><td><code>TAM-19540</code></td><td>Filterpapier Fantasy perforiert</td><td class='lad'><b>40+</b> → CHF 1.20 · <b>80+</b> → CHF 0.95</td><td><a href='https://www.artemisluzern.ch/de/produkt/filterpapier-fantasy-perforiert-19540' target='_blank'>open</a></td></tr>
+<tr><td><code>TAM-20209</code></td><td>Filterpapier Gold Leaf perforiert</td><td class='lad'><b>10+</b> → CHF 1.20 · <b>40+</b> → CHF 0.80</td><td><a href='https://www.artemisluzern.ch/de/produkt/filterpapier-gold-leaf-perforiert-20209' target='_blank'>open</a></td></tr>
+<tr><td><code>TAM-20537</code></td><td>SWEED MCT Öl 10ml, CBD 10% / THC &lt;0.9% 10ml</td><td class='lad'><b>3+</b> → CHF 36.00 · <b>10+</b> → CHF 31.20</td><td><a href='https://www.artemisluzern.ch/de/produkt/sweed-mct-oel-10ml-cbd-10-thc-&lt;09-10ml-20537' target='_blank'>open</a></td></tr>
+<tr><td><code>TAM-6381</code></td><td>Stahlsieb mit Vertiefung 15mm 5 Stk.</td><td class='lad'><b>5+</b> → CHF 2.00 · <b>10+</b> → CHF 1.50</td><td><a href='https://www.artemisluzern.ch/de/produkt/stahlsieb-mit-vertiefung-15mm-5-stk-6381' target='_blank'>open</a></td></tr>
+<tr><td><code>TAM-8307</code></td><td>Filterpapier Freak Show Lovely Mademoiselle nicht perforiert</td><td class='lad'><b>24+</b> → CHF 1.20 · <b>72+</b> → CHF 0.95</td><td><a href='https://www.artemisluzern.ch/de/produkt/filterpapier-freak-show-lovely-mademoiselle-nicht-perforiert-8307' target='_blank'>open</a></td></tr>
+<tr><td><code>TAM-10671</code></td><td>Armband Rasta 3mm</td><td class='lad'><b>10+</b> → CHF 0.95</td><td><a href='https://www.artemisluzern.ch/de/produkt/armband-rasta-3mm-10671' target='_blank'>open</a></td></tr>
+<tr><td><code>TAM-23184</code></td><td>Cone+ Natural Brown CTIP Filter 109mm 100stk</td><td class='lad'><b>5+</b> → CHF 30.00</td><td><a href='https://www.artemisluzern.ch/de/produkt/cone-natural-brown-ctip-filter-109mm-100stk-23184' target='_blank'>open</a></td></tr>
+<tr><td><code>TAM-24574</code></td><td>VAAL E-Pack Kit 20mg Grape Ice</td><td class='lad'><b>3+</b> → CHF 24.90</td><td><a href='https://www.artemisluzern.ch/de/produkt/vaal-e-pack-kit-20mg-grape-ice-24574' target='_blank'>open</a></td></tr>
+<tr><td><code>TAM-24662</code></td><td>Fruizee Bar Salts Rising Sun 10ml 10mg</td><td class='lad'><b>10+</b> → CHF 6.90</td><td><a href='https://www.artemisluzern.ch/de/produkt/fruizee-bar-salts-rising-sun-10ml-10mg-24662' target='_blank'>open</a></td></tr>
+<tr><td><code>TAM-2834</code></td><td>Rips Hemp King Size rolling papers 5m</td><td class='lad'><b>24+</b> → CHF 1.65</td><td><a href='https://www.artemisluzern.ch/de/produkt/rips-hemp-king-size-2834' target='_blank'>open</a></td></tr>
+</table>
+<ol class="steps"><li><div class="step-body">Nothing in that table looks absurd.<span class="exp">every break is cheaper than the one before it, and cheaper than buying one.</span></div></li></ol></section>
+<div class="phase">Part C — the specs (information, not money)</div>
+<section>
+<h2>C1 · A spec table matches the page's Details block</h2>
+<p class="why">These fill <code>raw_facets</code>. They are what finally makes <code>Breite 4.4 cm</code> vs <code>5.2 cm</code> visible in Banco instead of needing two web fetches to settle whether two rows are duplicates.</p>
+<ol class="steps">
+<li><div class="step-body"><b>Blaze Glass Golf Ball Bubbler violett 200mm</b> <code>TAM-22766</code> — stored 15 fields
+          <span class="cmd">https://www.artemisluzern.ch/de/produkt/blaze-glass-golf-ball-bubbler-violett-200mm-22766</span>
+          <table><tr><th>Oil</th><td>No</td></tr><tr><th>Color</th><td>Violet</td></tr><tr><th>7.1 cm</th><td>Height</td></tr><tr><th>Eisfach</th><td>And</td></tr><tr><th>Bongstil</th><td>Special</td></tr><tr><th>Diameter</th><td>1.9 cm</td></tr></table>
+          <span class="exp">these match the <b>Details</b> block on the page, and there is no footer
+          text (<code>Kontakt</code>, <code>Impressum</code>, <code>AGB</code>) among them.</span>
+          </div></li>
+<li><div class="step-body"><b>Acryl Bong Multi Leaf 400mm</b> <code>TAM-16924</code> — stored 13 fields
+          <span class="cmd">https://www.artemisluzern.ch/de/produkt/acryl-bong-multi-leaf-400mm-16924</span>
+          <table><tr><th>Oil</th><td>No</td></tr><tr><th>Color</th><td>Black</td></tr><tr><th>Height</th><td>40 cm</td></tr><tr><th>Eisfach</th><td>No</td></tr><tr><th>Bongstil</th><td>Basic</td></tr><tr><th>Diameter</th><td>4 cm</td></tr></table>
+          <span class="exp">these match the <b>Details</b> block on the page, and there is no footer
+          text (<code>Kontakt</code>, <code>Impressum</code>, <code>AGB</code>) among them.</span>
+          </div></li>
+<li><div class="step-body"><b>Acryl Bong All-Over-Print mit LED-Beleuchtung 410mm</b> <code>TAM-22135</code> — stored 13 fields
+          <span class="cmd">https://www.artemisluzern.ch/de/produkt/acryl-bong-all-over-print-mit-led-beleuchtung-410mm-22135</span>
+          <table><tr><th>Oil</th><td>No</td></tr><tr><th>Color</th><td>Colored</td></tr><tr><th>Height</th><td>41 cm</td></tr><tr><th>Eisfach</th><td>No</td></tr><tr><th>Bongstil</th><td>Basic</td></tr><tr><th>Diameter</th><td>10.1 cm</td></tr></table>
+          <span class="exp">these match the <b>Details</b> block on the page, and there is no footer
+          text (<code>Kontakt</code>, <code>Impressum</code>, <code>AGB</code>) among them.</span>
+          </div></li>
+<li><div class="step-body">Nothing in any spec table is site furniture — no
+      <code>Kontakt: Jugendschutz</code>, no <code>AGB: Seit 1999</code>.
+      <span class="exp">the Details block ends where the footer begins. This was checked
+      automatically on 60 pages with zero hits, but a human eye is the real test.</span>
+      </div></li>
+</ol></section>
+<div class="phase">Part D — the go / no-go</div>
+<section>
+  <h2>D1 · Run it on prod</h2>
+  <p class="why">Only after Part A and B are marked. Dry run first — it writes nothing without
+     <code>--apply</code>.</p>
+  <ol class="steps">
+    <li><div class="step-body">On the prod box, read what it wants to do:
+      <span class="cmd">cd /root/banco-starter &amp;&amp; git pull
+python3 scripts/enrich-from-source.py --report /tmp/suspects.json</span>
+      <span class="exp">about 90 minutes at 1s apart. Writes nothing. Ends with the ladder count,
+      the spec count, and the list of any REFUSED ladders.</span></div></li>
+    <li><div class="step-body">Read the refused list before applying.
+      <span class="cmd">cat /tmp/suspects.json</span>
+      <span class="exp">each one is a page where a bigger quantity costs more each — Felix's data,
+      not ours. Nothing gets written for them either way.</span></div></li>
+    <li><div class="step-body">Apply.
+      <span class="cmd">python3 scripts/enrich-from-source.py --apply --report /tmp/suspects.json</span>
+      <span class="exp">"✅ enriched N product(s) from their own source pages."</span></div></li>
+    <li><div class="step-body"><b>Prove it at the till, not in a report.</b> Ring up 10 of a product
+      from Part B and check the line price matches the break.
+      <span class="exp">this is the only step that counts. A stored ladder is a claim; a till
+      charging the right money is proof.</span></div></li>
+  </ol>
+  <div class="safety">
+    <b>Expected scale, measured on the 200-row sample:</b> 23 ladders and 186 spec
+    tables out of 200. Across 5,100 products that is roughly <b>580 ladders</b> and
+    <b>4,700 spec tables</b>.
+  </div>
+  <div class="safety danger">
+    <b>If any ladder in Part B is wrong — stop.</b> Do not run <code>--apply</code> on prod. A wrong
+    break is a customer charged the wrong money, and it is far cheaper to fix the parser than to
+    find out at the counter.
+  </div>
+</section>
+</main>
+
+<script>
+  const KEY='banco-enricher-testsheet-v1';
+  let state=JSON.parse(localStorage.getItem(KEY)||'{}');
+  document.querySelectorAll('ol.steps li').forEach((li,i)=>{
+    const d=document.createElement('div'); d.className='verdict';
+    ['ok','iss','fail'].forEach(v=>{
+      const b=document.createElement('button'); b.className='v'; b.dataset.v=v;
+      b.textContent={ok:'✓ OK',iss:'⚠ ISSUE',fail:'✗ FAIL'}[v];
+      b.onclick=()=>{ state[i] = state[i]===v ? '' : v; save(); };
+      d.appendChild(b);
+    });
+    li.querySelector('.step-body').appendChild(d);
+  });
+  function save(){
+    localStorage.setItem(KEY, JSON.stringify(state));
+    let o=0,s=0,f=0;
+    document.querySelectorAll('ol.steps li').forEach((li,i)=>{
+      li.querySelectorAll('.v').forEach(b=>b.classList.toggle('on', state[i]===b.dataset.v));
+      if(state[i]==='ok')o++; else if(state[i]==='iss')s++; else if(state[i]==='fail')f++;
+    });
+    mOk.textContent=o; mIss.textContent=s; mFail.textContent=f;
+  }
+  save();
+</script>
+</body></html>
