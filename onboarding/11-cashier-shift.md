@@ -172,9 +172,9 @@ role-play, and each has to have an answer before a cashier meets a customer.
 
 | | Gap | Why it matters |
 |---|---|---|
-| **G1** | **No defined move for an unknown or inactive barcode.** The API returns *not found* and the sale stops. | Happens weekly. Sell as a manual line? Refuse? Fetch a manager? Whatever isn't decided will be improvised. |
+| **G1** | ~~No defined move for an unknown barcode.~~ **ANSWERED 2026-08-03 — build it on the fly.** Angel created the product *with* category and description and sold it in **~10 seconds** (`OTF-1785752266675-826`, TXN-20260803-0005). | The move exists and is fast. What is left: put it on the till card, and confirm a **cashier** is allowed to do it — the catalog screen currently says creating and editing need a manager role. |
 | **G2** | **No rule for shelf price ≠ screen price.** | A wrong bind shows up *here*, in front of a customer — Cannazym at CHF 12 instead of 35. Needs a stated rule. |
-| **G3** | **Checkout does not require an open cash drawer.** Sales rung before `/pos/shift` opens are excluded from the count-out, silently. | The drawer won't balance and nothing explains why. Either enforce it at checkout or make A4 impossible to miss. |
+| ~~**G3**~~ | ~~Checkout does not require an open cash drawer.~~ **NOT A GAP — tested 2026-08-03.** A cash sale with a closed drawer *stops and warns*; checkout already enforces it. | Struck. This document asserted it from reading the code and was wrong. Ten seconds of role-play settled what a careful read got backwards. |
 | **G4** | **Banana `Account` / `VatCode` are blank.** | Felix re-maps by hand daily until he hands over his codes. Get the chart of accounts. |
 | **G5** | **No park-the-sale.** `/pos/held-orders` is the kiosk pre-order board, not a parked basket. | "I'll be back in ten minutes" has no home. |
 | **G6** | **Refunds are manager-only, with no cashier path.** | Correct as a control, unworkable if Felix is out. Needs either a manager-present rule or a cashier-side escalation. |
