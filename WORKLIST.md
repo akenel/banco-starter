@@ -22,22 +22,48 @@
    code at a time. `Inventurmodus` → 20–30 facings → `Anzahl der gescannten Barcodes` → type the
    count → `Daten hochladen`. Whether the burst survives a browser textarea is the last unknown.
 
+   **⛔ BOTH BULK SCRIPTS ARE BLOCKED ON WHERE THEY RUN — 2026-08-03.** The local dev DB has
+   **6 products** (the seeded treats; `source_url IS NOT NULL` matches zero rows). The 5,111
+   live on the prod/UAT box behind `banco.wolfhold.app`, and `deploy-prod.sh` is written to run
+   *on* that server. So `enrich-from-source` and `adopt-images` need either a shell on prod or a
+   dump pulled down here. **Not a code problem — a location problem.** Decide which and they go.
+
    **Then, in order:**
    - `scripts/enrich-from-source.py --apply` — 5,111 products carry a `source_url`; their own
      pages publish the retail tier ladder + spec table. ~90 min unattended. **This is also what
      makes `Breite 4.4 cm` vs `5.2 cm` visible in Banco** instead of needing two web fetches to
      settle whether two rows are duplicates.
+     **Sampled first, 2026-08-03** — `scripts/make-enricher-testsheet.py` →
+     [`onboarding/testsheets/enricher-testsheet.md`](onboarding/testsheets/enricher-testsheet.md).
+     20 real pages through the real parser: **20/20 DE and EN agree on the ladder**, 6 ladders
+     found, 0 footer junk, 0 dead fetches. Angel ticks the 6 ladder rows before `--apply` runs.
    - `scripts/adopt-images.py --apply` — 5,150 covers hotlinked across **18 different servers**.
      ~137 min. Capture already adopts new ones; this is the back-catalogue.
-   - **Write the English packet name as an alias.** Search across `product_translations` works
-     (07-31); nothing writes to it, so the loop is still half-built.
+   - ~~**Write the English packet name as an alias.**~~ **✅ DONE 2026-08-03.**
+     `record_name_alias()` + wired into `POST /catalog/merge`, which was binning the hand-typed
+     packet name at the exact moment it learned which product it belonged to. 10 tests.
+     **The first version didn't work and every test was green:** the alias was written, the SQL
+     matched it at 1.000, and both post-filters then judged the row by `products.name` — so
+     `brands_conflict("Purize Xtra Slim…", "Aktivkohlefilter 6mm 50er…")` killed it one line
+     after it was found. The SQL now carries the *matched* name through (`DISTINCT ON`) and the
+     filters judge that. Proven live end to end by `scripts/prove-name-alias.py`.
+     *Still open: the scan-miss bind (`POST /products/{id}/barcodes`) sends only a barcode, so
+     recording the searched name there needs a front-end change too.*
    - **151 uncategorised** — Accessories (general) 73 · Other 66 · Unsorted 12.
    - **45 rolling papers classed `cbd_hemp` / 18+** from the 07-07 import trusting Artemis's
      `CBD · Diverses` breadcrumb. **Do not bulk-unfix** — loosening an age gate is the one
      direction where a wrong script is a compliance failure.
    - **Dedupe script** — same-description AND same-name found 11 real pairs out of 572 groups
      (562 were legitimate families). Worth running after every import. Angel asked for it.
-   - Spec parser loses fields on `/en/` pages (Quöllfrisch 16 → 1); `TAM-19233`
+   - ~~Spec parser loses fields on `/en/` pages (Quöllfrisch 16 → 1)~~ — **this note was
+     backwards; re-checked 2026-08-03.** Quöllfrisch (`TAM-20067`) reads **1 spec on BOTH**
+     languages, and 1 is the CORRECT answer: that page states exactly one (`Hersteller:
+     Quöllfrisch`) before the site footer begins. A 16 would have been one real spec plus
+     fifteen rows of footer (`Kontakt: Jugendschutz`, `AGB: Seit 1999`). So the risk was never
+     the EN page losing fields — it is the parser running *past* the specs and INVENTING them
+     wherever a footer heading is missing from the stop list. Audited on 60 pages: **zero junk**,
+     the stop list holds. Left here because the failure mode is worth knowing, not fixing.
+   - `TAM-19233`
      `barcode_is_internal` anomaly; the `file:///api/…` link in the audit diff; `deploy-prod.sh`
      false ❌ NOT READY.
 
