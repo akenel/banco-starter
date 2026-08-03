@@ -112,6 +112,9 @@
           the design, not a bug. So <b>Part F is not optional</b>: finish by reconciling at the amount
           that is genuinely in the box, or the next person to open up inherits your test.</li>
         <li><b>UAT only</b> — <code>banco.wolfhold.app</code>. This writes real rows into a cash book.</li>
+        <li><b>No physical cash box needed.</b> Every count on this sheet can be invented — what is
+          being tested is the screen and the order it tells you things, not the money. Suggested
+          numbers are given where they matter.</li>
         <li>You need <b>two logins on two browsers</b> (or one private window). Part C is the headline
           bug and <b>cannot be tested with one person</b>.</li>
         <li><b>Do not look up what the box should hold before you count it.</b> If you catch yourself
@@ -150,9 +153,18 @@
         <span class="exp">it says <i>“Count what is actually in the box”</i> and shows <b>no expected
         total, no ‘last night’, no float from yesterday</b> — only the denomination grid. Any number on
         this screen before you count = FAIL.</span></div></li>
-      <li><div class="step-body"><b>A2 · Count the box for real</b>, denomination by denomination, into
-        the grid. Use the actual money.
-        <span class="exp">the running total at the bottom matches what is in your hand.</span></div></li>
+      <li><div class="step-body"><b>A2 · Put a count in the grid</b>, denomination by denomination.
+        <b>At the shop:</b> the real money. <b>At your desk:</b> invent one — see the box below.
+        <span class="exp">the running total at the bottom matches what you entered.</span>
+        <div class="safety"><b>Simulating? You do not need real money.</b> What A1–A4 test is the
+          <b>order information arrives in</b>, not coins: Banco must not tell you the answer before
+          you commit to one. An invented count exercises that perfectly.
+          <div style="margin-top:6px">Type <b>1×100 · 1×50 · 1×10 · 1×2 · 1×1 = CHF 163.00</b>. It is
+          picked to be ~5 short of the slope, so the reveal and the note requirement both fire (A3,
+          A4) while staying close enough that the §6 guard stays quiet — you test that separately in
+          Part B.</div>
+          <div style="margin-top:6px"><b>The one rule that still applies:</b> do not look up what the
+          box should hold first. That is the whole control, money or no money.</div></div></div></li>
       <li><div class="step-body"><b>A3 · Submit. NOW the reveal appears.</b>
         <span class="exp">a blue panel says what last night's reconcile recorded, and by how much you
         differ. This is the first moment any expected figure exists on screen.</span></div></li>
@@ -286,8 +298,9 @@
         false</code></b>. A zero variance is exactly what a reader takes for “the drawer balanced”; the
         flag is what stops that lie. If the report shows a clean balance with no warning, mark
         FAIL.</span></div></li>
-      <li><div class="step-body"><b>F3 · PUT THE BOX BACK.</b> Open once more, count what is genuinely
-        in it, and reconcile at that real figure.
+      <li><div class="step-body"><b>F3 · PUT THE BOX BACK.</b> Open once more and reconcile at the
+        number tomorrow should start from — the real contents at the shop, or if you are simulating,
+        whatever you want the next morning's expected to be (write it in the note).
         <span class="exp">the last reconcile now matches reality — so tomorrow morning starts from a
         true number instead of your test. <b>This step is the difference between a test and a
         mess.</b></span></div></li>
