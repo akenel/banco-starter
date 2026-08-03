@@ -223,6 +223,14 @@ window.POS_STRINGS = {
       "save_failed": "Save failed"
     },
     "shift": {
+      "force_link": "Can't count the box at all?",
+      "force_title": "Close without counting",
+      "force_body": "Only when counting is genuinely impossible \u2014 the box is not here, or nobody is at the shop. The books cannot have a day left open. Banco will record the expected figure and mark plainly that nobody counted it, so it can never be read as a balanced box.",
+      "force_reason_label": "Why can it not be counted?",
+      "force_reason_ph": "e.g. box is locked in the safe and Felix has the key",
+      "force_confirm": "Close without counting",
+      "force_cancel": "Cancel \u2014 I'll count it",
+      "force_confirm_prompt": "This records the expected figure as if it were counted, flagged as NEVER COUNTED. Only do this if counting is impossible. Continue?",
       "paid_recorded": "Recorded \u2014 {amount} out of the box.",
       "cash_box": "\ud83d\udcb0 Cash Box",
       "cash_sales_all": "Cash sales (everyone)",
@@ -2107,6 +2115,14 @@ window.POS_STRINGS = {
       "save_failed": "Échec de l’enregistrement"
     },
     "shift": {
+      "force_link": "Impossible de compter la caisse ?",
+      "force_title": "Boucler sans compter",
+      "force_body": "Uniquement si compter est vraiment impossible \u2014 la caisse n'est pas l\u00e0, ou personne n'est au magasin. La comptabilit\u00e9 ne peut pas rester ouverte. Banco enregistrera le montant attendu et indiquera clairement que personne ne l'a compt\u00e9.",
+      "force_reason_label": "Pourquoi est-ce impossible \u00e0 compter ?",
+      "force_reason_ph": "p. ex. la caisse est au coffre et Felix a la cl\u00e9",
+      "force_confirm": "Boucler sans compter",
+      "force_cancel": "Annuler \u2014 je vais compter",
+      "force_confirm_prompt": "Ceci enregistre le montant attendu comme s'il avait \u00e9t\u00e9 compt\u00e9, marqu\u00e9 JAMAIS COMPT\u00c9. \u00c0 faire seulement si compter est impossible. Continuer ?",
       "paid_recorded": "Enregistr\u00e9 \u2014 {amount} sortis de la caisse.",
       "cash_box": "\ud83d\udcb0 La caisse",
       "cash_sales_all": "Ventes esp\u00e8ces (tous)",
@@ -3995,6 +4011,14 @@ window.POS_STRINGS = {
       "save_failed": "Salvataggio fallito"
     },
     "shift": {
+      "force_link": "Non riesci a contare la cassa?",
+      "force_title": "Chiudi senza contare",
+      "force_body": "Solo se contare \u00e8 davvero impossibile \u2014 la cassa non c'\u00e8, o non c'\u00e8 nessuno in negozio. I libri non possono restare aperti. Banco registrer\u00e0 l'importo atteso e indicher\u00e0 chiaramente che nessuno l'ha contato.",
+      "force_reason_label": "Perch\u00e9 non si pu\u00f2 contare?",
+      "force_reason_ph": "es. la cassa \u00e8 in cassaforte e Felix ha la chiave",
+      "force_confirm": "Chiudi senza contare",
+      "force_cancel": "Annulla \u2014 la conto",
+      "force_confirm_prompt": "Questo registra l'importo atteso come se fosse stato contato, con la marca MAI CONTATO. Solo se contare \u00e8 impossibile. Continuare?",
       "paid_recorded": "Registrato \u2014 {amount} usciti dalla cassa.",
       "cash_box": "\ud83d\udcb0 La cassa",
       "cash_sales_all": "Vendite in contanti (tutti)",
@@ -5877,6 +5901,14 @@ window.POS_STRINGS = {
       "save_failed": "Speichern fehlgeschlagen"
     },
     "shift": {
+      "force_link": "Kasse gar nicht z\u00e4hlbar?",
+      "force_title": "Ohne Z\u00e4hlen abschliessen",
+      "force_body": "Nur wenn Z\u00e4hlen wirklich unm\u00f6glich ist \u2014 die Kasse ist nicht da, oder niemand ist im Laden. Die B\u00fccher d\u00fcrfen keinen offenen Tag haben. Banco erfasst den erwarteten Betrag und h\u00e4lt klar fest, dass ihn niemand gez\u00e4hlt hat.",
+      "force_reason_label": "Warum l\u00e4sst sie sich nicht z\u00e4hlen?",
+      "force_reason_ph": "z. B. Kasse liegt im Safe und Felix hat den Schl\u00fcssel",
+      "force_confirm": "Ohne Z\u00e4hlen abschliessen",
+      "force_cancel": "Abbrechen \u2014 ich z\u00e4hle sie",
+      "force_confirm_prompt": "Damit wird der erwartete Betrag erfasst, als w\u00e4re er gez\u00e4hlt worden \u2014 markiert als NIE GEZ\u00c4HLT. Nur wenn Z\u00e4hlen unm\u00f6glich ist. Fortfahren?",
       "paid_recorded": "Erfasst \u2014 {amount} aus der Kasse.",
       "cash_box": "\ud83d\udcb0 Die Kasse",
       "cash_sales_all": "Barverk\u00e4ufe (alle)",

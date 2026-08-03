@@ -410,3 +410,18 @@ def test_the_paid_outcome_is_shown_where_the_button_is():
     import io
     screen = io.open("src/templates/pos/shift.html", encoding="utf-8").read()
     assert "paidMsg" in screen and "paidOk" in screen
+
+
+def test_the_force_close_has_a_way_in_for_a_human():
+    """Angel, at F1: "not sure where this function is". It was API-only — so the one operation
+    that exists precisely FOR the moment things have gone wrong could only be reached with curl,
+    which is exactly when nobody is going to reach for curl.
+
+    Manager-gated in the UI as well as the server, a reason required before the button enables,
+    and a confirm that spells out what it records."""
+    import io
+    screen = io.open("src/templates/pos/shift.html", encoding="utf-8").read()
+    assert "forceClose()" in screen and "/shift/force-close" in screen
+    assert 'x-show="isManager"' in screen, "a cashier must not even see it"
+    assert "forceReason.trim().length < 10" in screen, "a token reason must not enable the button"
+    assert "force_confirm_prompt" in screen, "it must say what it records before doing it"

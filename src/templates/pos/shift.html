@@ -151,6 +151,33 @@
                 </div>
             </div>
 
+            <!-- FORCE-CLOSE (§5). MANAGER ONLY — the single gated cash operation, because it is
+                 not a correction a cashier needs mid-shift, it is an admission that counting could
+                 not happen. Deliberately plain and tucked at the bottom: nobody should reach for
+                 this when they could simply count the box. -->
+            <div x-show="isManager" style="display:none" class="text-center">
+                <button x-show="!showForce" @click="showForce = true"
+                        class="text-xs text-gray-400 hover:text-gray-600 underline"
+                        data-i18n="shift.force_link">Can't count the box at all?</button>
+                <div x-show="showForce" style="display:none"
+                     class="card border-2 border-amber-400 bg-amber-50 text-left">
+                    <h3 class="font-semibold text-amber-900 mb-1">⚠️ <span data-i18n="shift.force_title">Close without counting</span></h3>
+                    <p class="text-sm text-amber-800 mb-3" data-i18n="shift.force_body">Only when counting is genuinely impossible — the box
+                        is not here, or nobody is at the shop. The books cannot have a day left open. Banco will
+                        record the expected figure and mark plainly that <b>nobody counted it</b>, so it can never
+                        be read as a balanced box.</p>
+                    <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="shift.force_reason_label">Why can it not be counted?</label>
+                    <input type="text" x-model="forceReason" class="w-full border rounded py-2 px-3"
+                           :placeholder="t('shift.force_reason_ph')">
+                    <div class="flex gap-2 mt-3">
+                        <button @click="forceClose()" :disabled="processing || forceReason.trim().length < 10"
+                                class="btn-primary flex-1" data-i18n="shift.force_confirm">Close without counting</button>
+                        <button @click="showForce = false; forceReason = ''" :disabled="processing"
+                                class="btn-secondary flex-1" data-i18n="shift.force_cancel">Cancel — I'll count it</button>
+                    </div>
+                </div>
+            </div>
+
             <!-- X-REPORT panel — appears only when asked for, and disappears on refresh. It is a
                  READ: nothing here was written, nothing was closed. -->
             <div x-show="xrep" style="display:none" class="card border-2 border-indigo-300 bg-indigo-50">
@@ -407,6 +434,8 @@ function shiftData() {
         paid: { kind: 'paid_out', amount: '', reason: '', reason_code: 'petty_cash' },
         xrep: null,            // the last X-report read (display only — it changes nothing)
         paidMsg: '', paidOk: false,   // outcome shown BESIDE the Record button, not page-top
+        isManager: false,      // manager OR admin — the ONE gate in the whole cash box
+        showForce: false, forceReason: '',
         // Denominations sourced from /config (the tenant currency's ordered face values).
         // Keys MUST match the server's valid set exactly ("0.50" not "0.5"); denomList()
         // guarantees that. Populated in init() once POSConfig has loaded.
@@ -422,6 +451,7 @@ function shiftData() {
         closeCounts: {},
 
         async init() {
+            this.isManager = AuthHelper.isManager();   // true for admin too
             this.user = AuthHelper.getUserInfo() || {};
             if (!POSConfig.loaded) await POSConfig.load();
             this.DENOMS = denomList();
@@ -549,6 +579,22 @@ function shiftData() {
                 if (!x || !x.open) { this.error = t('shift.err_no_open_box'); return; }
                 this.xrep = x;
             } catch (e) { this.error = e.message || t('shift.err_load'); }
+        },
+
+        // §5 — manager only, reason required. The server writes counted_verified = FALSE; the
+        // report then refuses to show a green verdict over it.
+        async forceClose() {
+            const reason = this.forceReason.trim();
+            if (reason.length < 10) return;
+            if (!confirm(t('shift.force_confirm_prompt'))) return;
+            this.processing = true; this.error = '';
+            try {
+                const res = await API.post('/api/v1/pos/shift/force-close', { reason });
+                this.report = res; this.shift = null; this.mode = 'report';
+                this.showForce = false; this.forceReason = '';
+                this.loadLog(res.shift_id);
+            } catch (e) { this.error = e.message || t('shift.err_close'); }
+            this.processing = false;
         },
 
         async loadLog(shiftId) {

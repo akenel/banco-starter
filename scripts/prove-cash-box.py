@@ -225,7 +225,10 @@ def main():
     check("variance is 0.00 — which is exactly the danger", D(fc["variance"]), D("0.00"))
     check("SO it is flagged unverified in its own column", fc["counted_verified"], False)
     check("...and marked as forced", fc["forced_close"], True)
-    check("the note says so in words too", "NEVER PHYSICALLY COUNTED" in fc["variance_note"])
+    # The COLUMN is what any report must key off (a note can be short, or edited later). The
+    # wording is checked too, but loosely — it was deliberately shortened from a 450-character
+    # audit essay to one sentence a person can read at 8am, and it may be reworded again.
+    check("the note still says it in words", "Never counted" in fc["variance_note"])
     print()
 
     # --- cleanup ---------------------------------------------------------------------------
