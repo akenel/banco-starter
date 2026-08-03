@@ -1218,6 +1218,12 @@ window.POS_STRINGS = {
         "done": "Done"
       },
     "cleanup": {
+      "f_fill": "Fill it from the product's own page",
+      "fill_find": "find the page →",
+      "ph_factsurl": "paste the product page link…",
+      "fill_go": "Get the facts",
+      "fill_done": "Filled from that page — check every box, then Save.",
+      "fill_undo": "↩️ Undo",
       "lookup": "🔎 Look it up",
       "f_name": "Name — what is it really?",
       "ph_name": "e.g. Champ High White Leaf Grinder 4-part 50mm",
@@ -3130,6 +3136,12 @@ window.POS_STRINGS = {
         "done": "Terminé"
       },
     "cleanup": {
+      "f_fill": "Remplir depuis la page du produit",
+      "fill_find": "trouver la page →",
+      "ph_factsurl": "collez le lien de la page produit…",
+      "fill_go": "Récupérer les infos",
+      "fill_done": "Rempli depuis cette page — vérifiez chaque champ, puis enregistrez.",
+      "fill_undo": "↩️ Annuler",
       "lookup": "🔎 Rechercher",
       "f_name": "Nom — c'est quoi exactement ?",
       "ph_name": "ex. Champ High White Leaf Grinder 4 parties 50mm",
@@ -5032,6 +5044,12 @@ window.POS_STRINGS = {
         "done": "Fatto"
       },
     "cleanup": {
+      "f_fill": "Compila dalla pagina del prodotto",
+      "fill_find": "trova la pagina →",
+      "ph_factsurl": "incolla il link della pagina prodotto…",
+      "fill_go": "Prendi i dati",
+      "fill_done": "Compilato da quella pagina — controlla ogni campo, poi salva.",
+      "fill_undo": "↩️ Annulla",
       "lookup": "🔎 Cerca",
       "f_name": "Nome — che cos'è davvero?",
       "ph_name": "es. Champ High White Leaf Grinder 4 parti 50mm",
@@ -6935,6 +6953,12 @@ window.POS_STRINGS = {
         "done": "Fertig"
       },
     "cleanup": {
+      "f_fill": "Von der Produktseite ausfüllen",
+      "fill_find": "Seite finden →",
+      "ph_factsurl": "Link zur Produktseite einfügen…",
+      "fill_go": "Daten holen",
+      "fill_done": "Von dieser Seite ausgefüllt — jedes Feld prüfen, dann speichern.",
+      "fill_undo": "↩️ Rückgängig",
       "lookup": "🔎 Nachschlagen",
       "f_name": "Name — was ist es wirklich?",
       "ph_name": "z.B. Champ High White Leaf Grinder 4-teilig 50mm",

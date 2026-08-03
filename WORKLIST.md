@@ -69,10 +69,31 @@ real EAN (`3661075283438`) while it does it. Then someone has to go back and ent
    description, photo and 18+ — everything except the one thing actually wrong with "grinder".
    Description + photo now show in the Sold tab too, since the badge names those gaps out loud.
 
-**Proof so far:** 12 tests (`src/tests/test_cleanup_rescan.py`, incl. node-executed client
-helpers — sabotaged on purpose to confirm they fail) · `scripts/probe-rescan-cleanup.py` 13/13,
-twice, self-sweeping. **⛔ That probe writes real completed sales — `BANCO_ALLOW_FAKE_SALES=1`
-guards it. NEVER on the shop's books.**
+4. **The card fills itself from the product's own page.** Paste the link → name, description,
+   category, barcode, price and photo-link drop into the boxes → you check them → Save. Same
+   `/catalog/page-facts` shelf intake uses for unknowns (it is *pure*, so pointing it at an
+   existing row needed no server change). **It writes nothing**, and ↩️ Undo restores every box.
+   Rules, because each one can be quietly wrong: the **name is always replaced** (that is the
+   point) · a **price the till already took is never overwritten**, and a foreign-currency page
+   says so out loud instead of leaving a figure in the box · **18+ can only be turned ON** ·
+   a description or category someone wrote **wins over a scraped one** · the **scanned barcode
+   outranks the page** · the photo is *offered*, not fetched.
+
+**Proof so far:** 27 tests (`test_cleanup_rescan.py` + `test_bench_fill_from_page.py`, both
+running the real client code in node) — **sabotaged on purpose** (scraped price overwriting the
+till price; a page switching an 18+ gate off) to confirm they fail · full suite 2238 pass, the 6
+failures pre-existing · `scripts/probe-rescan-cleanup.py` 13/13, twice, self-sweeping.
+**⛔ That probe writes real completed sales — `BANCO_ALLOW_FAKE_SALES=1` guards it. NEVER on the
+shop's books.**
+
+**Settled 2026-08-03 — "discontinue it and re-enter properly" DOES NOT WORK.** Tested: a
+discontinued row **keeps its barcode** (`ix_products_barcode` is a plain UNIQUE index, no
+`WHERE is_active`), and `_find_product_by_any_barcode` ignores `is_active` — so intake triages
+the EAN as **known**, pointing at the dead row, and never reaches the create path. A second row
+with that barcode is refused by Postgres. It also splits the sales history of one physical
+product across two rows, and throws away the bind — the one thing the rushed quick-add got
+right. **Fix the row in place.** (The exception: a genuine MIS-scan, where the barcode itself is
+wrong. Then the bind is the broken part and discontinuing is correct.)
 
 **⛔ What Angel retests on prod** — every one of these is a screen, and none of it has been seen
 by a person:
@@ -80,7 +101,9 @@ by a person:
 - Re-scan that packet in **Shelf Intake** → does it land in the amber bucket, not the green one?
 - **🔎 Look it up** → does the bare EAN name the packet? (`3661075283438` → three shops agree:
   Champ High White Leaf Grinder, 4-part, Ø50mm)
-- **✏️ Finish it** → one card → type the real name → **Save & done**.
+- **✏️ Finish it** → one card → paste the page link → **Get the facts** → does it fill the name,
+  description and category? Press **↩️ Undo** — does every box go back? Then **Save & done**.
+- Check the price it did **not** touch: your 15.00 must survive a page saying 12.90.
 - Type a barcode already on another row → the toast must say *"already exists"*, not *"Save failed"*.
 - Clear the name and save → must refuse, not silently keep the old one.
 - **Read the German** (`🆕 Gerade verkauft`, `Name — was ist es wirklich?`) as a shopkeeper.
