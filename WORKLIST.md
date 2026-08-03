@@ -62,38 +62,36 @@ history; these three are the work. **Do them in this order — the reason is in 
    being true in production. Not caused by this deploy; found by it. **Change the passwords, or
    stand up a real realm, before the shop trades on it.**
 
-**2 · ~~Rebuild the cash box as SHOP-owned.~~ ✅ BUILT + ON PROD 2026-08-03 — NOT yet human-green.**
-   Deployed (`bc19aa1`), all 11 columns verified on the live DB, HTTPS green. 25 unit tests +
-   `scripts/prove-cash-box.py` (30 live checks, two real logins, self-restoring).
-   **▶️ NEXT ACTION: run [`onboarding/testsheets/CASH-BOX-SHOP-OWNED-TESTSHEET.html`](onboarding/testsheets/CASH-BOX-SHOP-OWNED-TESTSHEET.html)**
-   on the tablet — 30 steps, ~30 min, needs **two logins in two browsers** (Part C cannot be done
-   with one person). **Part F3 is not optional**: finish by reconciling at the real amount, or the
-   slope hands tomorrow's opener your test.
-   *Two things caught by hand before deploy, neither by a test: the till screen would have BLOCKED
-   the shop from opening (the new 400/409 were dead ends), and the proof would have poisoned the
-   next morning's expected. Both fixed; contract tests added.*
+**2 · ~~Rebuild the cash box as SHOP-owned.~~ ✅ BUILT · ON PROD · HUMAN-TESTED 2026-08-03.**
+   Deployed through `096f0a5`. 35 unit tests + `scripts/prove-cash-box.py` (30 live checks, two
+   real logins, self-restoring). **Angel ran the testsheet on the tablet for 62 minutes with two
+   browsers** — [`CASH-BOX-SHOP-OWNED-TESTSHEET.html`](onboarding/testsheets/CASH-BOX-SHOP-OWNED-TESTSHEET.html).
 
-   **What shipped** (§1–§7 of the design note): `_shift_sales` sums everyone · shop-wide open
-   guard *and* checkout gate (Pam could not previously take cash at all on a box Felix opened) ·
-   blind open → reveal → note filed against yesterday · the slope (`previous_shift_id`) ·
-   §6 baseline + guard · §7.2 X-report · §7.3 `to_safe` reason code · §5 force-close with
-   `counted_verified` in its own column. Tolerance is now shop-configurable (`cash_tolerance`,
-   NULL = the 0.20 legacy default) — **±0.05 is reachable now that item 1 is live**.
+   **✅ Proven by a human:** the blind count · the reveal · the unverified-figure warning · the
+   note gate · the slope (223.70 → a 223.20 count) · **one box, two cashiers** · Pam ringing cash
+   on a box Felix opened (impossible yesterday) · per-person sales reporting intact.
 
-   **The live proof caught a design flaw I would have shipped:** the §6 guard measured against
-   the baseline, so after a CHF 500 skim — when the box legitimately holds ~100 — it questioned a
-   perfectly normal morning, and would have every morning the box stayed light. The reference is
-   now the **slope** when there is one. That narrowed the baseline to what it was always for:
-   seed day one, catch an absurd count when there is nothing better.
+   **🔴 SEVEN defects the run found that 35 tests and a full API proof did not.** Every one was a
+   screen, and every one is fixed and deployed:
+   1. the till screen would have **blocked the shop from opening** (new 400/409 were dead ends)
+   2. a green **"✅ Balanced within tolerance" over a box nobody counted** — the exact §5 lie, in
+      the largest element on the page
+   3. `cash_box_float` existed in model, migration and API — **and on no screen**, so the guard
+      was unconfigurable
+   4. the forced-close note was a 450-char audit essay with a developer's name in it
+   5. a normal flow step logged as a red `API call failed`
+   6. **a CHF 500 skim silently vanished** — blank free-text reason → 400 → banner at the top of
+      a scrolled-past page. A named code is now reason enough
+   7. the itemised log showed **one cashier under a summary counting two** — `shift_transactions`
+      still carried the twin of the filter removed from `_shift_sales`. **Standing rule 6, failed
+      by me:** one problem found, the pattern not checked
 
-   **Also fixed:** an unverified figure was being quoted as fact the next morning. Pam's box was
-   force-closed at 168.00, making it the slope — so the reveal would have said "last night's
-   reconcile said CHF 168.00" as though somebody had looked. `expected_verified` now rides the
-   chain (§5, one link further down).
+   *Not a bug: the "10 rappen reduction" (C4). Watched live on prod — typed price = stored price
+   for both users. The earlier rows were typed at 9.90/39.90.*
 
-   ✅ Pam's 09:59 shift is **closed** (administratively, 14:12; the retro-flag in the migration
-   set `counted_verified=false, forced_close=true` on it — the fact is in a column now, not just
-   prose). Worked example: **§5** of [`12-the-cash-box.md`](onboarding/12-the-cash-box.md).
+   **⛔ LEFT:** E4 (read the German screens as a shopkeeper) · H1–H6 in the sheet (tolerance to
+   ±0.05? baseline value? which paid-out reasons?) · **the five OTF test products are deactivated,
+   not deleted** — two were sold.
 
 **3 · The two bulk catalogue scripts** — `enrich-from-source.py --apply` then
    `adopt-images.py --apply`, on the **prod box** (local dev has only 6 products).
