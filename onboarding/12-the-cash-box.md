@@ -136,23 +136,96 @@ Smaller than it sounds. **The arithmetic is already right; only the scope of one
 | open guard (`~8690`) | "you already have an open shift" → "**the till** is already open" (shop-wide, not per user) |
 | open flow | count first, reveal after; counted becomes the float; note filed against yesterday |
 | reconcile | store the counted total as the next expected — the overnight link |
-| wording | "My Drawer" → "The Till"; cashier → *opened by* / *reconciled by* |
-| paid-out | a named "to safe" reason, kept out of petty-cash expense reporting |
+| wording | "My Drawer" → **"Cash Box"**; cashier → *opened by* / *reconciled by* |
+| paid-out | a named "to safe" reason, kept out of petty-cash expense reporting; **may be in a foreign currency**, paid-IN is home currency only |
+| **cash rounding** | **round cash totals to 0.05 at checkout** — prerequisite for any tight tolerance (see below) |
+| skipped night | banner on next login, listing every cash movement since the last reconcile |
 
 Untouched: float maths, paid in/out, foreign-currency tracking, the ±0.20 note rule, per-cashier
 sales reports.
 
 ---
 
-## Open questions for Felix
+## Answered — Angel, 2026-08-03
 
-1. **Can anyone reconcile, or only a manager?** Angel: *"one person does that, takes ownership."*
-   A cashier probably can — but the note on a discrepancy should be readable by Felix next morning.
-2. **What if nobody reconciles?** The box goes in the safe uncounted and the chain breaks. Warn
-   loudly on the next open, or refuse to open until the missing night is explained?
-3. **Is ±0.20 still right for a shared box** several people have been in all day? It may want to be
-   wider — and a tolerance that is too tight teaches people to write meaningless notes.
-4. **The foreign notes** sitting in the box: counted every time, or only at reconcile?
+**1 · Who may reconcile? A cashier. All of it.** No manager gate on opening, reconciling, paid-in
+or paid-out. The person holding the box is the person who counts it.
+
+**2 · A skipped night gets chased, not forgiven.** On the next login (or at a set hour) a banner:
+*"Yesterday's cash box was never reconciled. It should hold CHF 600.00. Please reconcile, then open
+for the day."* And it must show **enough to reconstruct**, not just a number:
+
+- who last reconciled it, and when
+- who has touched it since
+- **every cash movement since that reconcile, listed** — "2 cash sales, CHF 10.00 and CHF 5.00,
+  one paid-out CHF 500.00 to safe" — so the total is arrived at rather than asserted
+
+**3 · Foreign notes are counted at reconcile**, when there are any.
+
+**4 · Currency has a DIRECTION on paid in/out.** *"Never pull in EUR, but pull out makes sense."*
+Foreign notes arrive only as change-less takings from a sale; nobody tops the float up in euros.
+So:
+
+| | |
+|---|---|
+| **paid IN** | home currency only (CHF). No currency picker — one less thing to get wrong. |
+| **paid OUT** | may be CHF **or** any foreign currency sitting in the box, so the EUR that has piled up can leave. |
+
+Paid-out to the safe is where foreign notes go. **Banco never tracks the safe** — impossible to know
+and not our business.
+
+**5 · Call it the CASH BOX.** Not "till", not "drawer" — there is one box and everybody says box.
+*(For the German UI, ask Felix which he actually says: `Kasse` for the box, and `Kassensturz` is the
+standard word for counting it down. If that is the shop's word, use it — it will read as native
+rather than translated.)*
+
+---
+
+## Tolerance — the part worth getting right
+
+Angel: *"the tax man wants the calc to the 2nd decimal point to the penny and we can get in big
+trouble … Felix says they want it to the penny or 5 rappens maybe, otherwise it's a game of hide
+and seek."*
+
+### These are two different things, and conflating them is the risk
+
+| | |
+|---|---|
+| **The record** | **Always exact, to the rappen. Always.** Every variance is stored with the amount, who counted, when, and the reason. Nothing is ever rounded away, absorbed, or hidden. |
+| **The tolerance** | Only decides **whether a human must type a reason.** It changes no number. |
+
+So "to the penny" is already true and is not negotiable — it is what the books hold. The tolerance
+is a *workflow* setting: how big a difference may pass without someone explaining it.
+
+**An auditor wants a complete, reasoned record — not a drawer that is always perfect.** A cash box
+that balances to 0.00 every single day for a year is a red flag, not a gold star; real cash drifts,
+and forced perfection is exactly the hide-and-seek Felix is worried about, pointed the other way.
+
+### The natural floor is 5 rappen
+
+Switzerland has no 1- or 2-rappen coin in circulation. **The smallest coin is 0.05.** A pure cash
+variance therefore cannot be finer than 5 rappen, and any tolerance below that is meaningless —
+±0.05 means "one coin".
+
+**Recommendation: ±0.05, shop-configurable.** It is as tight as physical cash allows, it matches
+Felix's instinct, and it is honest. If notes start reading "dunno", widen it — that is a signal,
+not a failure.
+
+### ⛔ But there is a blocker, and it is a real bug
+
+**Banco does not round cash totals to 5 rappen.** Totals are quantized to `0.01`
+(`cash_shift_service.py:68`, and the discount maths at `pos_router.py:4793`). Swiss rounding exists
+in this codebase **only in payroll** (`payroll_service.py:74`).
+
+Undiscounted prices land on 0.05 anyway, so this has been invisible. **A discount breaks it:**
+5% off CHF 74.10 = CHF 70.395 → stored as **70.40 or 70.39**. A 1-rappen total *cannot be paid in
+Swiss coins.* The cashier takes 70.40, Banco expects 70.39, and the box is 1 rappen over — on every
+such sale, silently, for ever.
+
+**So the order matters: round cash totals to 0.05 at checkout FIRST, then a ±0.05 tolerance is
+achievable.** Set a tight tolerance before that and the drawer will drift a few rappen a day and
+nobody will know why. Card and TWINT are unaffected — they take the exact cent, which is why this
+only ever shows up in the box.
 
 ---
 
