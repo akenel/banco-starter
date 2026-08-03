@@ -12,6 +12,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_, and_
+from sqlalchemy.exc import IntegrityError
 from datetime import datetime, timezone, timedelta
 from decimal import Decimal
 from uuid import UUID
@@ -571,7 +572,19 @@ async def update_customer(
         db.add(bonus_tx)
 
     customer.updated_at = datetime.now(timezone.utc)
-    await db.commit()
+    # handle, email, instagram and qr_code are all UNIQUE. A genuine clash — two members with
+    # the same email — must tell the operator WHICH field, not hand them a 500 at a counter.
+    # (Blank boxes are coerced to NULL in the schema, which is what actually caused the 500
+    # Angel hit; this stays as the net for a real duplicate.)
+    try:
+        await db.commit()
+    except IntegrityError as e:
+        await db.rollback()
+        detail = "Another member already has that "
+        msg = str(getattr(e, "orig", e)).lower()
+        field = next((f for f in ("handle", "email", "instagram", "qr_code") if f in msg), None)
+        raise HTTPException(status_code=409,
+                            detail=detail + (field or "handle, email or Instagram") + ".")
 
     return {
         "id": str(customer.id),

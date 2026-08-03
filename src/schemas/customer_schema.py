@@ -163,6 +163,27 @@ class CustomerBase(BaseModel):
             return None
         return v
 
+    # AN EMPTY TEXT BOX IS "NOT GIVEN", NOT A VALUE — and for these three that distinction is
+    # the difference between a save and a 500.
+    #
+    # `email`, `instagram` and `qr_code` are UNIQUE and nullable in the database. NULL is exempt
+    # from a unique index; the empty string is NOT. So the first member saved with a blank email
+    # stores '', and the SECOND one collides with it — IntegrityError, uncaught, HTTP 500.
+    #
+    # Found by Angel in the cashier role-play, 2026-08-03: editing a member with the contact
+    # boxes left empty returned 500 from `PUT /api/v1/customers/{id}`. It looked like the 18+
+    # age gate rejecting an under-age date of birth, because that is what he was testing at the
+    # time. It had nothing to do with age — the second blank email in the table was enough.
+    #
+    # Reproduced exactly: save two members with a blank email, first 200, second 500.
+    @field_validator("real_name", "email", "phone", "instagram", "telegram", "whatsapp",
+                     "qr_code", "notes", mode="before")
+    @classmethod
+    def _blank_str_to_none(cls, v):
+        if isinstance(v, str) and not v.strip():
+            return None
+        return v
+
 
 class CustomerCreate(CustomerBase):
     """Create a new CRACK profile"""
@@ -195,6 +216,17 @@ class CustomerUpdate(BaseModel):
     @field_validator("birthday", "birthdate", mode="before")
     @classmethod
     def _blank_date_to_none(cls, v):
+        if isinstance(v, str) and not v.strip():
+            return None
+        return v
+
+    # Same blank-string guard as CustomerBase, and this is the class that actually hit it —
+    # the EDIT form posts every box it renders, so clearing (or never filling) email or
+    # instagram sent '' straight at a unique index. See the note on CustomerBase._blank_str_to_none.
+    @field_validator("real_name", "email", "phone", "instagram", "telegram", "whatsapp",
+                     "notes", mode="before")
+    @classmethod
+    def _blank_str_to_none(cls, v):
         if isinstance(v, str) and not v.strip():
             return None
         return v
