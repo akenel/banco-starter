@@ -70,8 +70,12 @@ history; these three are the work. **Do them in this order — the reason is in 
    pam    2026-08-03 09:59:18   (still open)   float 0.05
    felix  2026-08-03 14:03:19 → 14:03:20       float 200.00
    ```
-   Two drawers, one box, each blind to the other's sales. **Close pam's shift on prod** — and
-   note the ±0.05 tolerance is now unblocked, because item 1 is live. Design agreed and all four questions answered:
+   Two drawers, one box, each blind to the other's sales. ✅ **Pam's shift closed** 14:12 —
+   administratively, at `counted = expected = 168.00`, because nobody was at the shop to count
+   it. **The zero variance is arithmetic, not an observation**, and the stored note says exactly
+   that so it can never read as a balanced drawer. Worked example + the force-close this really
+   needs are now **§5 of [`12-the-cash-box.md`](onboarding/12-the-cash-box.md)**.
+   The ±0.05 tolerance is now unblocked, because item 1 is live. Design agreed and all four questions answered:
    → **[`onboarding/12-the-cash-box.md`](onboarding/12-the-cash-box.md)**. The core is one line
    — `pos_router.py:8632` sums `cashier_id == user_id` and must sum everyone. Then: shop-wide
    open guard, count-blind-then-reveal, last night's counted = this morning's expected, rename

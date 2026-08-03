@@ -124,6 +124,55 @@ safe is Felix's business.
 *(Worth a named reason button rather than free text, so it does not land in petty-cash expenses in
 the Banana export alongside milk and window cleaner.)*
 
+### 5 · When nobody counted — the administrative close
+
+The design above assumes a person and a box in the same room. **Sometimes there is neither**, and
+answer 2's skipped-night banner does not cover it: that chases a reconcile that *can still happen*.
+This is the other case — a shift that must be closed when counting it is no longer possible.
+
+**The rule: a close may be forced, but it must never be able to read as a count.**
+
+Setting `counted = expected` is the only way to close such a row without inventing a number. That
+produces a variance of 0.00 — and a zero variance is precisely the thing an auditor reads as *"the
+drawer balanced"*. It didn't balance. Nobody looked. So the note must carry the whole story, and
+the words "never physically counted" have to be in it.
+
+This is the same failure the retired `/pos/cash-count` screen shipped — *"Perfect balance! Pam's
+bonus pool +1 point"* announced over an uncounted drawer — arriving by a different door. **A number
+that was never observed must say so where the number is stored**, not in a chat log or a commit
+message that nobody reading the books will ever see.
+
+> **Worked example — the first one, on prod, 2026-08-03 14:12.**
+>
+> Found while verifying the 5-rappen deploy: a shift open since 09:59, labelled `pam`, holding
+> five real transactions — CHF 167.95 cash and CHF 65.70 TWINT — from that morning's cashier
+> role-play. Expected CHF 168.00 on a CHF 0.05 opening float. Nobody was at the shop.
+>
+> Closed at `counted = expected = 168.00` **by a direct database UPDATE**, writing the same
+> columns `POST /shift/close` writes (`cash_sales`, `card_sales`, `cash_refunds`,
+> `transaction_count`, `expected_cash`, `counted_cash`, `variance`, `within_tolerance`,
+> `status`, `closed_at`) with its exact semantics — `count` is COMPLETED only, only CASH touches
+> the drawer — inside a transaction guarded on `AND status = 'open'`.
+>
+> The stored `variance_note` reads, in full:
+>
+> > ADMINISTRATIVE CLOSE — THE DRAWER WAS NEVER PHYSICALLY COUNTED. Opened 09:59 during the
+> > 2026-08-03 cashier role-play and left open; found 2026-08-03 14:12 while verifying the
+> > 5-rappen rounding deploy. counted_cash was SET EQUAL TO expected (CHF 168.00) to close the
+> > row, so the zero variance is arithmetic, NOT an observation — nobody counted this box.
+> > Closed by a direct database UPDATE, not through the till, because no one was at the shop to
+> > count it. Authorised by Angel. Do not read this as a balanced count.
+>
+> **That shift is also the clearest evidence for this whole document.** `user_id`
+> `00000000-…-0001` wearing the name `pam` while Angel was logged in as felix is the same
+> wrong-cashier bug the role-play hit at `/pos/cash-count`. And an hour earlier, opening a drawer
+> to run the rounding proof created a **second** open shift on the same physical box without a
+> murmur of complaint — the per-user guard, failing live on production, exactly as predicted.
+
+**To build:** a manager-only *force-close* that demands a reason, stamps `counted_cash` as
+**unverified** in its own column rather than leaning on prose, and never counts toward any
+balanced-drawer statistic. Until that exists, the note above is the pattern to copy verbatim.
+
 ---
 
 ## What actually changes in the code
@@ -140,6 +189,7 @@ Smaller than it sounds. **The arithmetic is already right; only the scope of one
 | paid-out | a named "to safe" reason, kept out of petty-cash expense reporting; **may be in a foreign currency**, paid-IN is home currency only |
 | **cash rounding** | **round cash totals to 0.05 at checkout** — prerequisite for any tight tolerance (see below) |
 | skipped night | banner on next login, listing every cash movement since the last reconcile |
+| **force-close** | manager-only, reason required, `counted_cash` flagged **unverified** in its own column — never in prose, and never counted as a balanced drawer (§5) |
 
 Untouched: float maths, paid in/out, foreign-currency tracking, the ±0.20 note rule, per-cashier
 sales reports.
