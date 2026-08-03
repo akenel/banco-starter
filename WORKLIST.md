@@ -95,18 +95,54 @@ product across two rows, and throws away the bind — the one thing the rushed q
 right. **Fix the row in place.** (The exception: a genuine MIS-scan, where the barcode itself is
 wrong. Then the bind is the broken part and discontinuing is correct.)
 
-**⛔ What Angel retests on prod** — every one of these is a screen, and none of it has been seen
-by a person:
+**✅ Human-confirmed on prod, 2026-08-03 (Angel):**
+- The **18+ counter reads 1097**, not 3. Data was fine all along; the counter was page-scoped.
+- **Get the facts** fills a row from a page — and Angel caught it writing
+  `…Grinder [40506209] - Jelly-Joker` over a good name he had typed. Fixed both ends (title
+  cleaning server-side, full before → after on the card) and redeployed. **That defect existed
+  for about an hour and was found by a person in one use.**
+
+**⛔ Still not seen by anybody** — every one is a screen:
 - Sell something from a rushed quick-add → **Cleanup → Sold & unfinished → is it at the top?**
 - Re-scan that packet in **Shelf Intake** → does it land in the amber bucket, not the green one?
 - **🔎 Look it up** → does the bare EAN name the packet? (`3661075283438` → three shops agree:
   Champ High White Leaf Grinder, 4-part, Ø50mm)
-- **✏️ Finish it** → one card → paste the page link → **Get the facts** → does it fill the name,
-  description and category? Press **↩️ Undo** — does every box go back? Then **Save & done**.
-- Check the price it did **not** touch: your 15.00 must survive a page saying 12.90.
+- **↩️ Undo** after a fill — does every box go back?
+- The new **before → after** rename line: is it impossible to miss now?
 - Type a barcode already on another row → the toast must say *"already exists"*, not *"Save failed"*.
 - Clear the name and save → must refuse, not silently keep the old one.
 - **Read the German** (`🆕 Gerade verkauft`, `Name — was ist es wirklich?`) as a shopkeeper.
+
+---
+
+### 🟠 THE MERGE BUTTON DISAPPEARS THE MOMENT YOU NEED IT — found 2026-08-03
+
+*Angel, holding two rows: `Canna Cannazym 1L` at **CHF 43.90** (`OTF-…`, no barcode, Grow
+Supplies) and `Canna Cannazym 1L` at **CHF 21.00** (`LZ-8717524956387`, real EAN, Unsorted).
+Same pair as the TXN-0006 receipt below. He asked how to fix it with today's tools — and the
+answer turned out to be "not with the tool built for it".*
+
+`POST /catalog/merge` works, is tested, and is called from **exactly one place**:
+`shelf_intake.html:923`, on an **unknown**-code card. So the tool for duplicates is reachable
+only while a code is *unbound*. Bind the EAN — which is the whole point of shelf intake — and it
+vanishes. From the catalog screen, where duplicates are actually *seen*, there is no merge at all.
+
+Two smaller things the same case exposed:
+- **Merge never resolves the price** (`_FILLABLE` excludes it, on purpose). So even a reachable
+  merge leaves the CHF 21.00 vs CHF 43.90 question to a human. Fine — but the UI should say so
+  rather than let someone expect it.
+- **Merge only points one way** (hand-made row donates its EAN to the wholesale row). Here the
+  hand-made row had *no* barcode, so there was nothing to donate and the answer was simply
+  *discontinue the twin*. A merge screen should recognise that case and say it.
+
+**Wanted:** a *"this is a duplicate of…"* action on a catalog row → pick the survivor → `dry_run`
+plan → confirm. Everything behind it already exists. **✅ Angel resolved this pair by hand on
+2026-08-03** (fixed the keeper, discontinued the twin), so this is not urgent — it is the
+~40-duplicate backlog below that makes it worth building.
+
+**The rule that came out of it, worth keeping:** *a 2× price gap on two rows with the same name
+is not a typo — it is the signature of two different products.* The OTF row carried no barcode,
+so nothing in the database could say what it physically was. Only the bottle knew.
 
 ---
 
@@ -489,6 +525,12 @@ by a person:
    Proven end to end on a live DB: both barcodes resolve to the survivor afterwards. 7 tests.
    *Still to do: the ~40 duplicates from 2026-07-30 have not been merged yet — that is now a
    matter of working the list, not building anything.*
+
+   **⚠️ Correction 2026-08-03 — "working the list" is NOT possible from the catalog.** This
+   action exists only on a shelf-intake card for an **unknown** code. Once the EAN is bound the
+   button is gone, and the catalog screen — where you actually *see* two identical rows — has no
+   merge at all. So the ~40 duplicates cannot be worked with today's UI. See
+   **🟠 THE MERGE BUTTON DISAPPEARS THE MOMENT YOU NEED IT** near the top.
 
 4. **Retire the 2026-07-30 duplicate rows.** *(now just usage of the merge button, above)*
    - ~40 products were hand-created that already existed (e.g. `Blow Pre-built CBD Joint Pure "V1" 1 pc. black` = `Blow vorgebauter CBD Joint Pure "V1" 1 Stk. schwarz`, TAM-20350).
