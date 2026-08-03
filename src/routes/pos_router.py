@@ -8965,13 +8965,27 @@ async def shift_paid_in_out(
     amount = money(req.amount or 0)
     if amount <= 0:
         raise HTTPException(status_code=400, detail="Amount must be greater than zero.")
-    reason = (req.reason or "").strip()
-    if len(reason) < 2:
-        raise HTTPException(status_code=400, detail="Give a short reason for the cash movement.")
     code = (req.reason_code or "").strip().lower() or None
     if code is not None and code not in REASON_CODES:
         raise HTTPException(status_code=400,
                             detail=f"reason_code must be one of: {', '.join(REASON_CODES)}")
+    reason = (req.reason or "").strip()
+    # A NAMED CODE IS ALREADY A REASON. Requiring free text on top of it is the friction that
+    # silently ate Angel's skim during the testsheet: he chose the movement, typed the amount,
+    # pressed Record, and the 400 landed in a banner at the top of a page he had scrolled past.
+    # Nothing was recorded and nothing looked wrong.
+    #
+    # So the words are only required when the code cannot speak for itself — 'other', or no code
+    # at all (a legacy client). Everything else defaults to the code's own label, which is what
+    # the cashier picked and what the export needs anyway.
+    _LABELS = {"to_safe": "to the safe", "petty_cash": "petty cash",
+               "float_top_up": "float top-up", "change_order": "change order"}
+    if len(reason) < 2:
+        if code in _LABELS:
+            reason = _LABELS[code]
+        else:
+            raise HTTPException(status_code=400,
+                                detail="Say what this cash was for.")
     # A skim only makes sense outbound — nobody tops the float up FROM the safe as a "to_safe".
     if code == "to_safe" and kind != "paid_out":
         raise HTTPException(status_code=400, detail="'to safe' is money leaving the box (paid_out).")
@@ -9265,12 +9279,20 @@ async def shift_transactions(
     roles = (current_user.get("user_roles")
              or current_user.get("realm_access", {}).get("roles", []) or [])
     is_mgr = any(("manager" in r or "admin" in r or "developer" in r) for r in roles)
-    if shift.user_id != await _resolve_cashier_uid(db, current_user) and not is_mgr:
-        raise HTTPException(status_code=403, detail="Not your shift.")
+    # The box belongs to the SHOP, so "not your shift" is no longer a meaningful refusal —
+    # anyone who sells into it may read what it holds. Kept manager-only for OTHER stores.
+    if shift.store_number != 1 and not is_mgr:
+        raise HTTPException(status_code=403, detail="Not your store.")
 
     end = shift.closed_at or datetime.now(timezone.utc)
+    # EVERYONE's sales, like the summary above it (2026-08-03). This filter was missed when
+    # `_shift_sales` lost its twin: the report totalled 2 transactions from both cashiers while
+    # the itemised log underneath listed 1, because the log still filtered to whoever OPENED the
+    # box. Angel spotted the mismatch on the shift report within minutes.
+    #
+    # Standing rule 6 — when you find one problem, check for the pattern. I fixed the summing
+    # query and did not go looking for the other query with the same filter.
     txs = (await db.execute(select(TransactionModel).where(
-        TransactionModel.cashier_id == shift.user_id,
         TransactionModel.completed_at >= shift.opened_at,
         TransactionModel.completed_at <= end,
         TransactionModel.status.in_([TransactionStatus.COMPLETED, TransactionStatus.REFUNDED]),

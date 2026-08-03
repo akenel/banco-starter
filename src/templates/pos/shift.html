@@ -192,6 +192,10 @@
                     <input type="text" x-model="paid.reason" data-i18n-placeholder="shift.ph_reason" placeholder="Reason (e.g. milk, float top-up)" class="flex-1 min-w-40 border rounded py-2 px-3 text-sm">
                     <button @click="addPaid()" :disabled="processing" class="btn-secondary text-sm" data-i18n="shift.record">Record</button>
                 </div>
+                <!-- The outcome, RIGHT HERE next to the button. The page-top error banner is
+                     invisible to somebody who has scrolled down to press Record. -->
+                <p x-show="paidMsg" style="display:none" class="text-sm mt-2"
+                   :class="paidOk ? 'text-green-700' : 'text-red-700'" x-text="paidMsg"></p>
                 <!-- WHY THE CODE MATTERS, in the one place someone might wonder: a skim to the safe
                      is money leaving the drawer but NOT the business, so it must never be booked as
                      an expense next to milk and window cleaner. -->
@@ -402,6 +406,7 @@ function shiftData() {
         note: '',
         paid: { kind: 'paid_out', amount: '', reason: '', reason_code: 'petty_cash' },
         xrep: null,            // the last X-report read (display only — it changes nothing)
+        paidMsg: '', paidOk: false,   // outcome shown BESIDE the Record button, not page-top
         // Denominations sourced from /config (the tenant currency's ordered face values).
         // Keys MUST match the server's valid set exactly ("0.50" not "0.5"); denomList()
         // guarantees that. Populated in init() once POSConfig has loaded.
@@ -489,15 +494,24 @@ function shiftData() {
         async addPaid() {
             const amt = parseFloat(this.paid.amount);
             if (!amt || amt <= 0) { this.error = t('shift.err_enter_amount'); return; }
-            if (!this.paid.reason.trim()) { this.error = t('shift.err_give_reason'); return; }
+            // A named code IS the reason — only 'other' still needs words. This client-side
+            // block was the first half of the silent failure: it refused before sending, and
+            // said so in a banner at the top of a page the cashier had scrolled past.
+            if (this.paid.reason_code === 'other' && !this.paid.reason.trim()) {
+                this.error = t('shift.err_give_reason'); return; }
             this.processing = true; this.error = '';
             try {
                 await API.post('/api/v1/pos/shift/paid', {
                     kind: this.paid.kind, amount: String(amt), reason: this.paid.reason.trim(),
                     reason_code: this.paid.reason_code || null });
+                this.paidOk = true;
+                this.paidMsg = t('shift.paid_recorded', { amount: formatPrice(amt) });
                 this.paid.amount = ''; this.paid.reason = '';
                 await this.refresh();
-            } catch (e) { this.error = e.message || t('shift.err_record'); }
+            } catch (e) {
+                this.paidOk = false;
+                this.paidMsg = e.message || t('shift.err_record');
+            }
             this.processing = false;
         },
 

@@ -373,3 +373,40 @@ def test_an_expected_flow_step_does_not_shout_in_the_console():
     assert "error.detail && error.detail.code" in handler
     assert "console.info" in handler and "console.error" in handler, \
         "handled codes log quietly; everything else must still shout"
+
+
+def test_the_shift_log_shows_EVERYONE_like_the_summary_above_it():
+    """Standing rule 6, failed by me and caught by Angel in minutes.
+
+    The shift report read "Transactions 2" (both cashiers, correct) while the itemised Daily
+    Sales Log underneath listed 1 — because `shift_transactions` still carried
+    `cashier_id == shift.user_id`, the exact twin of the filter I had removed from
+    `_shift_sales`. I fixed one query and never went looking for the other."""
+    import io
+    router = io.open("src/routes/pos_router.py", encoding="utf-8").read()
+    start = router.index("async def shift_transactions(")
+    seg = router[start:start + 2500]
+    assert "cashier_id == shift.user_id" not in seg, \
+        "the itemised log must sum everyone, like the summary it sits under"
+
+
+def test_a_named_reason_is_enough_on_its_own():
+    """The skim Angel recorded never existed: he picked the movement, typed the amount, pressed
+    Record — and a 400 for a blank free-text reason landed in a banner at the top of a page he
+    had scrolled past. Nothing saved, nothing looked wrong.
+
+    A named code IS a reason. Only 'other' (or no code at all) still needs words."""
+    import io
+    router = io.open("src/routes/pos_router.py", encoding="utf-8").read()
+    start = router.index("async def shift_paid_in_out(")
+    seg = router[start:router.index("async def current_cash_shift(")]
+    assert "_LABELS" in seg and "to the safe" in seg
+    # the blank-reason refusal must be reachable ONLY when the code cannot speak for itself
+    assert 'if code in _LABELS:' in seg
+
+
+def test_the_paid_outcome_is_shown_where_the_button_is():
+    """A page-top banner is invisible to somebody who has scrolled down to press Record."""
+    import io
+    screen = io.open("src/templates/pos/shift.html", encoding="utf-8").read()
+    assert "paidMsg" in screen and "paidOk" in screen

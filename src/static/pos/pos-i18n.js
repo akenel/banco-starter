@@ -223,6 +223,7 @@ window.POS_STRINGS = {
       "save_failed": "Save failed"
     },
     "shift": {
+      "paid_recorded": "Recorded \u2014 {amount} out of the box.",
       "cash_box": "\ud83d\udcb0 Cash Box",
       "cash_sales_all": "Cash sales (everyone)",
       "card_twint_all": "Card / TWINT (not in the box)",
@@ -2106,6 +2107,7 @@ window.POS_STRINGS = {
       "save_failed": "Échec de l’enregistrement"
     },
     "shift": {
+      "paid_recorded": "Enregistr\u00e9 \u2014 {amount} sortis de la caisse.",
       "cash_box": "\ud83d\udcb0 La caisse",
       "cash_sales_all": "Ventes esp\u00e8ces (tous)",
       "card_twint_all": "Carte / TWINT (pas dans la caisse)",
@@ -3993,6 +3995,7 @@ window.POS_STRINGS = {
       "save_failed": "Salvataggio fallito"
     },
     "shift": {
+      "paid_recorded": "Registrato \u2014 {amount} usciti dalla cassa.",
       "cash_box": "\ud83d\udcb0 La cassa",
       "cash_sales_all": "Vendite in contanti (tutti)",
       "card_twint_all": "Carta / TWINT (non in cassa)",
@@ -5874,6 +5877,7 @@ window.POS_STRINGS = {
       "save_failed": "Speichern fehlgeschlagen"
     },
     "shift": {
+      "paid_recorded": "Erfasst \u2014 {amount} aus der Kasse.",
       "cash_box": "\ud83d\udcb0 Die Kasse",
       "cash_sales_all": "Barverk\u00e4ufe (alle)",
       "card_twint_all": "Karte / TWINT (nicht in der Kasse)",
