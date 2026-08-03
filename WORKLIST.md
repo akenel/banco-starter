@@ -2,7 +2,43 @@
 
 *The single source of truth for what's next, in order. Say the code word **"OPEN SHOP"** and the copilot opens this, states the top items, and starts the first actionable one. The bigger arc is in [`ROADMAP.md`](ROADMAP.md).*
 
-*Last updated: 2026-07-31 (after the Artemis shop day)*
+*Last updated: 2026-08-03 (cashier role-play day — see ▶️ START HERE)*
+
+---
+
+## ▶️ START HERE — the next three, in this order
+
+*Written 2026-08-03 at the end of a long session. Everything below this block is context and
+history; these three are the work. **Do them in this order — the reason is in item 1.***
+
+**1 · Wire the rounding engine into checkout.** `src/services/total_rounding.py` is built,
+proven and wired to nothing (29 tests). Three steps:
+   - a `rounding_adjustment` column on the transaction — **a migration on a live shop**, so do
+     it deliberately and back up first
+   - call it at checkout **only when `payment_method == CASH`**
+   - a `Rounding −0.04` line on the receipt and in the Banana export, **shown only when the
+     adjustment is non-zero** — 95% of receipts must look exactly as they do today
+   **VAT:** compute on the amount actually paid (Banco already derives incl-VAT from the total);
+   carry the adjustment as its own Banana line, a `Rundungsdifferenz`.
+   **⚠️ THIS MUST COME BEFORE ITEM 2.** A tight cash-box tolerance on totals that cannot be paid
+   in coins will drift a few rappen a day with nothing to explain it.
+
+**2 · Rebuild the cash box as SHOP-owned.** Design agreed and all four questions answered:
+   → **[`onboarding/12-the-cash-box.md`](onboarding/12-the-cash-box.md)**. The core is one line
+   — `pos_router.py:8632` sums `cashier_id == user_id` and must sum everyone. Then: shop-wide
+   open guard, count-blind-then-reveal, last night's counted = this morning's expected, rename
+   to "cash box", named "to safe" paid-out reason, foreign currency on paid-OUT only.
+   Tolerance **±0.05** once item 1 has shipped.
+
+**3 · The two bulk catalogue scripts** — `enrich-from-source.py --apply` then
+   `adopt-images.py --apply`, on the **prod box** (local dev has only 6 products).
+   Testsheet ready and unticked: `onboarding/testsheets/ENRICHER-TESTSHEET.html`. The guard for
+   the CHF 1,190 overcharge is in; `--report /tmp/suspects.json` lists any refused ladders.
+   *Correction to item 1 below: the gun roles are REVERSED — the Netum has the multi-scan store
+   mode, the Inateck does single scans. Re-test before planning the 10× path around it.*
+
+**Also open, smaller:** tell Felix about `TAM-11884` (his page says CHF 3 for one, CHF 11.90 for
+100) and the 11 duplicate pairs that the next import will bring back.
 
 ---
 
