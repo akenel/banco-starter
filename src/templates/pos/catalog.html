@@ -885,6 +885,7 @@
             ],
             results: [],
             total: 0,
+            ageTotal: 0,       // 18+ across the whole match — server-counted, never the page
             skip: 0,
             sort: 'recent',        // default: newest first — the stuff you just catalogued is on top
             pageSize: 25,
@@ -1049,7 +1050,8 @@
                     const data = await API.get(this._url(0));
                     this.results = (data.items || []).map(p => ({ ...p, is_active: true }));
                     this.total = data.total || 0;
-                } catch (e) { console.error(e); this.results = []; this.total = 0; }
+                    this.ageTotal = data.age_total || 0;
+                } catch (e) { console.error(e); this.results = []; this.total = 0; this.ageTotal = 0; }
                 finally { this.loading = false; }
             },
 
@@ -1080,7 +1082,7 @@
                     const list = await API.get('/api/v1/pos/products?active_only=false&limit=200');
                     this.results = (list || []).filter(p => p.is_active === false);
                     this.total = this.results.length;
-                } catch (e) { console.error(e); this.results = []; this.total = 0; }
+                } catch (e) { console.error(e); this.results = []; this.total = 0; this.ageTotal = 0; }
                 finally { this.loading = false; }
             },
 
@@ -1790,7 +1792,14 @@
             },
 
             // Header stat: how many of the loaded rows are age-gated.
-            ageCount() { return this.results.filter(p => p.is_age_restricted).length; },
+            // Catalogue-wide (or match-wide), NOT the loaded page. This used to be
+            //   this.results.filter(p => p.is_age_restricted).length
+            // which counted the 25 rows on screen while the box beside it read `total` = 5,162.
+            // Angel's prod catalog therefore announced "Age-restricted (18+): 3" for a shop that
+            // sells tobacco and CBD. Nothing was misclassified — the COUNTER was page-scoped and
+            // dressed as catalogue-wide, exactly like "Uncategorized: 0" hiding 78 products.
+            // The strip only renders once results exist, so a 0 here is a real 0, not "unknown".
+            ageCount() { return this.ageTotal; },
 
             // Split a comma-separated tag string into "attribute" chips (key:value, e.g.
             // brand:Backwoods → "brand · Backwoods") and plain tag chips. Mirrors the

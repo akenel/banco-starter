@@ -21,6 +21,7 @@ downstream, and this checks each of them is really gone:
     1 the SOLD queue put a once-sold row below 37 busier ones (it now leads)
     2 shelf intake reported the re-scan as "✅ already scans correctly" (it now says stub)
     3 "Finish it" reaches exactly one card, even with stale filters in the URL
+    4 the catalog header's 18+ counter counts the CATALOGUE, not the 25 rows on screen
 
 Check 3 is here because it CAUGHT a bug the tests missed: the first version of the pid filter
 reset the gap clause but left the shelf scope standing, so `?pid=<grinder>&category=Grinders`
@@ -32,7 +33,7 @@ import sys
 import uuid
 from datetime import datetime, timezone, timedelta
 
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, func
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -43,7 +44,8 @@ from src.db.models.user_model import UserModel                      # noqa: E402
 from src.db.models.transaction_model import (                       # noqa: E402
     TransactionModel, TransactionStatus, PaymentMethod)
 from src.routes.pos_router import (                                 # noqa: E402
-    get_cleanup_queue, catalog_shelf_intake_triage, ShelfIntakeRequest)
+    get_cleanup_queue, catalog_shelf_intake_triage, ShelfIntakeRequest,
+    search_products_fast)
 
 USER = {"username": "probe", "roles": ["manager"]}
 # A real EAN, and a real lookup: three shops in three countries return "Champ High White Leaf
@@ -168,6 +170,34 @@ async def run():
         check(one["items"][0].get("barcode") == EAN,
               "and the card can edit the name AND the barcode", "both fields present")
 
+        # ── the catalog header's 18+ counter ──────────────────────────────────────────
+        # Different screen, same failure shape, so it lives with the others: a stat counted
+        # over the PAGE while printed beside a catalogue-wide total. Angel's prod header read
+        # "Products 5,162 · Age-restricted (18+) 3" for a shop that sells tobacco and CBD.
+        # Nothing was misclassified — `ageCount()` filtered the 25 rows on screen.
+        print("\n4 · THE 18+ COUNTER — a compliance number must not be page-scoped")
+        for i in range(7):
+            await _product(db, name=f"{PREFIX} tobacco tin {i}", sku=f"{PREFIX}-AGE-{i}",
+                           price=9.90, category="Tobacco", is_age_restricted=True)
+        await db.commit()
+        truth = (await db.execute(select(func.count()).select_from(ProductModel).where(
+            ProductModel.is_active == True,            # noqa: E712
+            ProductModel.is_age_restricted == True))).scalar_one()   # noqa: E712
+
+        small = await search_products_fast(q="", category=None, sort=None, limit=2, skip=0, db=db)
+        big = await search_products_fast(q="", category=None, sort=None, limit=100, skip=0, db=db)
+        page_scoped = sum(1 for i in small["items"] if i.get("is_age_restricted"))
+        check(small["age_total"] == truth,
+              "a 2-row page still reports every 18+ product in the catalogue",
+              f"age_total={small['age_total']} · truth={truth} · the old count said {page_scoped}")
+        check(small["age_total"] == big["age_total"],
+              "and the number does not move with the page size")
+        narrowed = await search_products_fast(q="", category="Tobacco", sort=None,
+                                              limit=2, skip=0, db=db)
+        check(narrowed["age_total"] <= narrowed["total"] and narrowed["age_total"] >= 7,
+              "narrowing to a category narrows the count with it",
+              f"{narrowed['age_total']} of {narrowed['total']}")
+
     return 0
 
 
@@ -181,7 +211,7 @@ async def cleanup():
             ProductModel.sku.like(f"{PREFIX}%")))).scalars().all()
         txns = (await db.execute(select(TransactionModel).where(
             TransactionModel.transaction_number.like(f"{PREFIX}%")))).scalars().all()
-    print("\n4 · PUT IT BACK")
+    print("\n5 · PUT IT BACK")
     check(not prods, "no probe products left", f"{len(prods)} found")
     check(not txns, "no probe sales left in the books", f"{len(txns)} found")
 

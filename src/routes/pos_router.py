@@ -3668,7 +3668,14 @@ async def search_products_fast(
                  -- unrelated items whose description merely mentions the word saturate the top.
                  0.5 * word_similarity(:q, coalesce(name,'') || ' ' || coalesce(description,'')){syn_score}
                ) AS relevance,
-               count(*) OVER() AS total_count
+               count(*) OVER() AS total_count,
+               -- The 18+ count across the WHOLE match, not the page. The catalog header put
+               -- `ageCount()` (a filter over the 25 rows loaded) next to `total` (5,162), so a
+               -- shop selling tobacco and CBD read "Age-restricted (18+): 3". Same shape as the
+               -- "Uncategorized: 0" bug that hid 78 products (5b22581) — a page-scoped number
+               -- wearing a catalogue-wide label — except this one is the compliance-relevant
+               -- stat. A window FILTER costs nothing here: same scan, no second round trip.
+               count(*) FILTER (WHERE is_age_restricted) OVER() AS age_count
         FROM products
         WHERE is_active = true
           AND (
@@ -3731,7 +3738,12 @@ async def search_products_fast(
         }
         for row in rows
     ]
-    return {"items": items, "total": total, "skip": skip, "limit": limit}
+    # `age_total` is catalogue-wide (or match-wide when a query/category narrows it), NOT the
+    # page — see the window FILTER above. The header prints it beside `total`, so the two have
+    # to be counted over the same set or the strip quietly lies about a compliance number.
+    return {"items": items, "total": total,
+            "age_total": int(rows[0].age_count) if rows else 0,
+            "skip": skip, "limit": limit}
 
 
 @router.get("/search/categories")
