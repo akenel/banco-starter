@@ -239,15 +239,40 @@
                 </div>
 
                 <!-- SOLD: summary -->
-                <div x-show="mode === 'sold'" class="card mb-4 flex items-center justify-between">
+                <div x-show="mode === 'sold'" class="card mb-4 flex items-center justify-between flex-wrap gap-3">
                     <div>
                         <p class="text-gray-500 text-xs uppercase tracking-wide" data-i18n="cleanup.need_setup">Need setup</p>
                         <p class="text-3xl font-bold" :class="items.length ? 'text-amber-600' : 'text-green-600'" x-text="items.length"></p>
+                    </div>
+                    <!-- ORDER. Default is NEWEST SOLD: this list is the safety net for what a cashier
+                         rang in a rush, and the row you want is the one from twenty minutes ago while
+                         you still remember the customer. Busiest-first buried a once-sold item under
+                         37 others and Angel couldn't find it. Busiest is still one click away — it is
+                         the right order for a backlog sweep, just not for "what just happened". -->
+                    <div class="flex items-center gap-1 text-xs">
+                        <span class="text-gray-500 font-medium mr-1" data-i18n="cleanup.sort_label">Show</span>
+                        <button @click="setSort('newest')" class="px-3 py-1.5 rounded-full font-semibold border"
+                                :class="sortBy === 'newest' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-300'"
+                                data-i18n="cleanup.sort_newest">🆕 Just sold</button>
+                        <button @click="setSort('busiest')" class="px-3 py-1.5 rounded-full font-semibold border"
+                                :class="sortBy === 'busiest' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-300'"
+                                data-i18n="cleanup.sort_busiest">🔥 Busiest</button>
                     </div>
                     <button @click="load()" class="btn-secondary" :disabled="loading">
                         <span x-show="!loading">🔄 <span data-i18n="cleanup.refresh">Refresh</span></span>
                         <span x-show="loading" style="display:none;" data-i18n="cleanup.loading">Loading…</span>
                     </button>
+                </div>
+
+                <!-- Focused on one product (arrived here from a re-scan). Say so, and give the way
+                     out — a filtered screen that doesn't admit it is filtered is a screen that lies. -->
+                <div x-show="pidFilter" style="display:none;"
+                     class="card mb-3 border-2 border-indigo-300 bg-indigo-50 flex items-center justify-between gap-3 flex-wrap">
+                    <p class="text-sm text-indigo-900">
+                        🎯 <span class="font-semibold" data-i18n="cleanup.focus_one">Showing the one product you scanned.</span>
+                        <span data-i18n="cleanup.focus_hint">Finish it here, then go back to the shelf.</span>
+                    </p>
+                    <button @click="clearFocus()" class="btn-secondary text-sm flex-none" data-i18n="cleanup.focus_clear">Show the whole bench</button>
                 </div>
 
                 <!-- Bulk cleanup bar — mass delete / discontinue the junk (test rows, dupes) -->
@@ -303,10 +328,20 @@
                                     <p class="font-bold text-gray-900 break-words" x-text="p.name"></p>
                                     <p class="text-xs text-gray-400 truncate" x-text="p.sku"></p>
                                     <!-- Get OFF this card to the full record without losing your place. -->
-                                    <p class="flex gap-3 mt-1 text-xs">
+                                    <p class="flex gap-3 mt-1 text-xs flex-wrap">
+                                        <!-- LOOK IT UP BY BARCODE. Thirteen digits in a search engine name
+                                             the packet — Angel searched 3661075283438 and three shops in three
+                                             countries agreed it was a Champ High White Leaf Grinder, 4-part,
+                                             Ø50mm. A till quick-add always binds the scanned code, so the
+                                             row that most needs a real name is the one that always has one
+                                             of these. Falls back to the name when there is no barcode. -->
+                                        <a :href="lookupUrl(p)" target="_blank" rel="noopener"
+                                           class="text-indigo-600 font-semibold hover:underline"
+                                           :title="p.barcode || p.name"
+                                           data-i18n="cleanup.lookup">🔎 Look it up</a>
                                         <a :href="detailsUrl(p.product_id)"
                                            class="text-indigo-600 font-semibold hover:underline"
-                                           data-i18n="cleanup.open_details">🔎 Details</a>
+                                           data-i18n="cleanup.open_details">📋 Details</a>
                                         <a :href="'/pos/products/' + p.product_id + '/postcard'" target="_blank"
                                            @click="pcOpening()"
                                            class="text-indigo-600 font-semibold hover:underline"
@@ -323,7 +358,11 @@
                                     <div class="flex flex-wrap gap-1 mt-2 items-center">
                                         <!-- Readiness (bench): catches the lazy "done" — Unsorted / weak
                                              description / no photo — even when the hard gaps look filled. -->
-                                        <span x-show="mode === 'bench' && readyBadge(p).score < 100" style="display:none;"
+                                        <!-- Shown in BOTH modes now that sold-mode rows carry the same
+                                             readiness read. The sold tab only GATES on category+cost, but
+                                             a row that is 25% ready should say so on the card rather than
+                                             leave the operator to discover the rest one field at a time. -->
+                                        <span x-show="readyBadge(p).score < 100" style="display:none;"
                                               class="text-xs px-2 py-0.5 rounded-full font-semibold"
                                               :class="readyBadge(p).score >= 75 ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-700'"
                                               :title="readyBadge(p).why">
@@ -343,6 +382,26 @@
 
                             <!-- Inline fix -->
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3 pt-3 border-t">
+                                <!-- THE NAME. The one field this card was missing, and the defining
+                                     defect of everything the till hands it: a cashier with a customer
+                                     waiting types "grinder" and sells it — correctly, that is a ten-second
+                                     job, not a cataloguing job. Without a name box here, finishing that row
+                                     meant leaving for the catalog screen, searching for it, and working a
+                                     twelve-field modal. Everything else on this card was fixable in place
+                                     except the thing that was actually wrong. -->
+                                <div class="sm:col-span-2">
+                                    <label class="block text-xs font-medium text-gray-500 mb-1" data-i18n="cleanup.f_name">Name — what is it really?</label>
+                                    <input type="text" x-model="p._name" class="input-field"
+                                           placeholder="e.g. Champ High White Leaf Grinder 4-part 50mm"
+                                           data-i18n-placeholder="cleanup.ph_name">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-500 mb-1" data-i18n="cleanup.f_barcode">Barcode (EAN)</label>
+                                    <input type="text" x-model="p._barcode" class="input-field font-mono"
+                                           placeholder="scan or type" data-i18n-placeholder="cleanup.ph_barcode">
+                                    <p x-show="!p._barcode" style="display:none;" class="text-[10px] text-gray-400 mt-0.5"
+                                       data-i18n="cleanup.barcode_hint">No code yet — scan the packet and it scans forever after.</p>
+                                </div>
                                 <div>
                                     <label class="block text-xs font-medium text-gray-500 mb-1" data-i18n="cleanup.f_category">Category</label>
                                     <input type="text" x-model="p._category" :list="'cats-' + p.product_id"
@@ -391,8 +450,13 @@
                                     <p x-show="p._costEyeballed" style="display:none;" class="text-[10px] text-amber-600 mt-0.5" data-i18n="cleanup.cost_estimated">≈ estimated from markup — verify against a delivery slip</p>
                                 </div>
 
-                                <!-- BENCH ONLY: description + photo (the other two master-data gaps) -->
-                                <div x-show="mode === 'bench'" style="display:none;" class="sm:col-span-2">
+                                <!-- Description + photo — in BOTH modes. They used to be bench-only, but
+                                     the readiness badge on this card now names them out loud ("25% ready ·
+                                     no photo · no description"), and a screen that states a problem it
+                                     gives you no way to fix is the shape §5 keeps catching. The sold tab
+                                     still only GATES on category+cost — filling these is optional there,
+                                     just no longer impossible. -->
+                                <div class="sm:col-span-2">
                                     <label class="block text-xs font-medium text-gray-500 mb-1" data-i18n="cleanup.f_desc">Description</label>
                                     <textarea x-model="p._description" rows="2" class="input-field"
                                               placeholder="What is it? Two lines is plenty." data-i18n-placeholder="cleanup.ph_desc"></textarea>
@@ -415,7 +479,7 @@
                                               placeholder="e.g. no cost yet — need the delivery slip; check supplier price Monday"
                                               data-i18n-placeholder="cleanup.ph_worknote"></textarea>
                                 </div>
-                                <div x-show="mode === 'bench'" style="display:none;" class="sm:col-span-2">
+                                <div class="sm:col-span-2">
                                     <label class="block text-xs font-medium text-gray-500 mb-1">
                                         <span data-i18n="cleanup.f_photo">Photo</span>
                                         <!-- Angel: "can we have a link for the article, not just choose file
@@ -423,8 +487,11 @@
                                              already got the tab open; save-to-disk-then-upload is the exact
                                              donkey-work the import already deleted. Brand-scoped when we know
                                              the brand, so the results are the REAL pack, not gibberish. -->
-                                        <a :href="'https://www.google.com/search?tbm=isch&q=' + encodeURIComponent(p.name || '')"
-                                           target="_blank" class="text-indigo-600 font-semibold hover:underline ml-1"
+                                        <!-- Image search on the BARCODE when we have one: a bare EAN is
+                                             unambiguous where a one-word name is not, and "grinder" in Google
+                                             Images returns every grinder ever made. Name is the fallback. -->
+                                        <a :href="'https://www.google.com/search?tbm=isch&q=' + encodeURIComponent(p.barcode || p.name || '')"
+                                           target="_blank" rel="noopener" class="text-indigo-600 font-semibold hover:underline ml-1"
                                            data-i18n="cleanup.find_photo">🖼️ find one</a>
                                     </label>
                                     <div class="flex gap-1">
@@ -511,6 +578,13 @@
             // Rookie workbench: bounded date batch + "keep tabs" noted filter.
             periodFilter: '',   // '' = all · today · yesterday · week
             notedOnly: false,   // show only items I've parked with a note
+            // SOLD-tab order. 'newest' (default) = most recently sold first, because this tab's job
+            // is catching what a cashier rang in a rush while the story is still fresh. 'busiest'
+            // is the backlog sweep. See the long note in pos_router.get_cleanup_queue.
+            sortBy: 'newest',
+            // Focused on ONE product — set by a re-scan in shelf intake (?pid=…). The whole bench in
+            // a single card, for the packet in your hand.
+            pidFilter: '',
             postcardBusy: false, _pcT: null,   // indeterminate bar while a postcard tab loads
             selected: {},          // product_id -> true (bulk-delete selection)
             bulkBusy: false,
@@ -579,6 +653,9 @@
                 // EXACT batch you left (the buttery "edit one, back to my spot" loop).
                 const qs = new URLSearchParams(window.location.search);
                 if (qs.get('mode') === 'bench') this.mode = 'bench';
+                // ?pid=… — one product, sent here by a re-scan in shelf intake. Implies the bench,
+                // because the bench card is the one that can fix everything without leaving.
+                if (qs.get('pid')) { this.pidFilter = qs.get('pid'); this.mode = 'bench'; }
                 if (qs.get('gap')) this.gapFilter = qs.get('gap');
                 if (qs.get('category')) this.catFilter = qs.get('category');
                 if (qs.get('offset')) this.offset = parseInt(qs.get('offset'), 10) || 0;
@@ -589,6 +666,7 @@
             // The bench view as a URL — so Details can send us back to the same spot after save.
             benchUrl() {
                 const p = new URLSearchParams({ mode: 'bench' });
+                if (this.pidFilter) p.set('pid', this.pidFilter);   // come back to the same one card
                 if (this.gapFilter) p.set('gap', this.gapFilter);
                 if (this.catFilter) p.set('category', this.catFilter);
                 if (this.offset) p.set('offset', String(this.offset));
@@ -604,9 +682,14 @@
                 if (this.mode === m) return;
                 this.mode = m;
                 this.offset = 0;
+                // Switching tabs by hand ends the one-product focus. Otherwise it lies in wait and
+                // re-applies itself the next time you come back to the bench, for no visible reason.
+                this.pidFilter = '';
                 this.load();
             },
 
+            setSort(s) { if (this.sortBy === s) return; this.sortBy = s; this.load(); },
+            clearFocus() { this.pidFilter = ''; this.offset = 0; this.load(); },
             applyShelf() { this.offset = 0; this.load(); },
             // BL-98 gap filter: jump to just the items missing ONE thing (photo/description/…).
             setGap(kind) { this.gapFilter = (this.gapFilter === kind) ? '' : kind; this.offset = 0; this.load(); },
@@ -617,6 +700,13 @@
             addNoteTag(p, tag) {
                 const cur = (p._workNote || '').trim();
                 p._workNote = cur ? (cur + (cur.endsWith('\n') ? '' : '\n') + tag) : tag;
+            },
+            // The barcode is the best query we have — see the card comment. Plain web search, NOT
+            // image search: Angel's own lookup returned three shops agreeing on the product and an
+            // image strip whose third hit was drink powder. The web results are the reliable half.
+            lookupUrl(p) {
+                const q = (p.barcode || '').trim() || (p._name || p.name || '').trim();
+                return 'https://www.google.com/search?q=' + encodeURIComponent(q);
             },
             readyBadge(p) {
                 const q = p.quality || { score: 100, gripes: [] };
@@ -718,17 +808,27 @@
                     let url = '/api/v1/pos/catalog/cleanup-queue?mode=' + this.mode;
                     if (this.mode === 'bench') {
                         url += `&limit=${this.limit}&offset=${this.offset}`;
-                        const shelf = (this.catFilter || '').trim();
-                        if (shelf) url += `&category=${encodeURIComponent(shelf)}`;
-                        if (this.gapFilter) url += `&gap=${encodeURIComponent(this.gapFilter)}`;
-                        if (this.periodFilter) url += `&period=${encodeURIComponent(this.periodFilter)}`;
-                        if (this.notedOnly) url += `&noted=true`;
+                        if (this.pidFilter) {
+                            // One product, by id. Deliberately WITHOUT the shelf/gap/period filters —
+                            // they'd be free to hide the very row the operator just scanned.
+                            url += `&pid=${encodeURIComponent(this.pidFilter)}`;
+                        } else {
+                            const shelf = (this.catFilter || '').trim();
+                            if (shelf) url += `&category=${encodeURIComponent(shelf)}`;
+                            if (this.gapFilter) url += `&gap=${encodeURIComponent(this.gapFilter)}`;
+                            if (this.periodFilter) url += `&period=${encodeURIComponent(this.periodFilter)}`;
+                            if (this.notedOnly) url += `&noted=true`;
+                        }
+                    } else {
+                        url += `&sort=${encodeURIComponent(this.sortBy)}`;
                     }
                     const data = await API.get(url);
                     this.items = (data.items || []).map(p => ({
                         ...p,
                         // editable working copies — blank the placeholder so the manager types a real one
                         _category: (p.gaps.category ? '' : (p.category || '')),
+                        _name: (p.name || ''),          // editable in place — see the card comment
+                        _barcode: (p.barcode || ''),
                         _cost: (p.cost != null ? p.cost : ''),
                         _price: (p.price != null && p.price > 0 ? p.price : ''),   // BL-142: settable here
                         _costEyeballed: false,   // BL-047b: true once the eyeball fills the cost
@@ -836,11 +936,29 @@
                 if (priceRaw !== null && (isNaN(priceRaw) || priceRaw < 0)) {
                     showToast(t('cleanup.toast_bad_price') || 'Enter a valid price', 'warning'); return;
                 }
+                // Name is REQUIRED on a product, so an empty box must never reach the server as a
+                // blank. Refuse loudly instead — the operator's finger lands in this field first on
+                // every card, and a silently-ignored edit is the failure shape this repo keeps
+                // paying for. (Nothing has been sent yet, so returning here changes nothing.)
+                const name = (p._name || '').trim();
+                if (!name && (p.name || '').trim()) {
+                    showToast(t('cleanup.toast_name_blank') ||
+                        'A product needs a name — put one in, or put the old one back.', 'warning');
+                    return;
+                }
+                const bc = (p._barcode || '').trim();
+
                 const payload = { is_age_restricted: !!p._age };
+                // Send name/barcode only when they actually CHANGED, so a save that was only ever
+                // about a cost can't trip the barcode's unique index on a value it didn't touch.
+                if (name && name !== (p.name || '')) payload.name = name;
+                // Clearing a barcode IS a real intent (a mis-scan bound to the wrong row), so an
+                // explicit blank goes through — but only when the row actually had one to clear.
+                if (bc !== (p.barcode || '')) payload.barcode = bc || null;
                 if (cat) payload.category = cat;
                 if (costRaw !== null) payload.cost = costRaw;
                 if (priceRaw !== null) payload.price = priceRaw;
-                if (this.mode === 'bench' && desc) payload.description = desc;
+                if (desc) payload.description = desc;   // editable in both modes now
                 // Rookie note travels with every save (incl. clearing) so "why parked / next step" sticks.
                 if (this.mode === 'bench') payload.work_note = (p._workNote || '').trim() || null;
                 p._saving = true;
@@ -870,7 +988,12 @@
                     }
                 } catch (e) {
                     console.error('save failed', e);
-                    showToast(t('cleanup.toast_save_failed') || 'Save failed', 'error');
+                    // SURFACE THE REAL REASON. Now that a barcode can be typed here, the likeliest
+                    // failure is the 409 "a product with this barcode or SKU already exists" — which
+                    // is not an error at all, it is the answer: that packet is already on another
+                    // row and the two should be merged. A flat "Save failed" hides the one sentence
+                    // the operator needs, and hands them a dead end instead of a next step.
+                    showToast(e.message || t('cleanup.toast_save_failed') || 'Save failed', 'error');
                 } finally { p._saving = false; }
             },
 

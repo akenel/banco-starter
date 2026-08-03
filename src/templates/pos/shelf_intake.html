@@ -86,7 +86,7 @@
     <!-- ══════════════ STAGE 2 · the summary ══════════════ -->
     <template x-if="result">
       <div>
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4">
           <div class="bg-white rounded-xl shadow p-4">
             <p class="text-xs text-gray-500">Scanned</p>
             <p class="text-2xl font-black text-gray-900" x-text="result.total_scanned"></p>
@@ -98,8 +98,19 @@
           </div>
           <div class="bg-white rounded-xl shadow p-4">
             <p class="text-xs text-gray-500">Already scannable</p>
-            <p class="text-2xl font-black text-emerald-600" x-text="result.known_count"></p>
+            <p class="text-2xl font-black text-emerald-600" x-text="finishedKnown().length"></p>
             <p class="text-xs text-gray-400">nothing to do</p>
+          </div>
+          <!-- The THIRD bucket. These scan perfectly and are still stubs — a cashier's ten-second
+               quick-add at the till, which is the right thing to do with a customer waiting. They
+               were counted as "nothing to do" because the only question triage asked was whether
+               the code resolved. Cheapest work on the shelf: the barcode is already bound, so
+               finishing one is typing, not hunting. -->
+          <div class="bg-white rounded-xl shadow p-4" :class="unfinishedKnown().length ? 'ring-2 ring-amber-300' : ''">
+            <p class="text-xs text-gray-500">Scan, but unfinished</p>
+            <p class="text-2xl font-black" :class="unfinishedKnown().length ? 'text-amber-600' : 'text-gray-300'"
+               x-text="unfinishedKnown().length"></p>
+            <p class="text-xs text-gray-400">quick to fix</p>
           </div>
           <div class="bg-white rounded-xl shadow p-4">
             <p class="text-xs text-gray-500">Still unknown</p>
@@ -125,10 +136,54 @@
           <div class="bg-amber-50 border-2 border-amber-300 rounded-xl p-4 mb-3 text-sm text-amber-900" x-text="w"></div>
         </template>
 
-        <!-- Known — collapsed by default, because it is the part that needs no attention -->
+        <!-- ══ Scans, but the row behind it is a stub. NOT collapsed: this is work. ══
+             This bucket exists because "the code resolved" and "the product is catalogued" are
+             different claims, and reporting only the first congratulated the operator on the exact
+             row they came back to fix. Every one of these is a packet you are holding right now —
+             the only moment you can see what the row should have said. -->
+        <div x-show="unfinishedKnown().length" style="display:none" class="bg-white rounded-2xl shadow mb-4 border-2 border-amber-300">
+          <div class="px-6 py-4 border-b border-amber-100">
+            <p class="font-bold text-gray-900">
+              🛠️ <span x-text="unfinishedKnown().length"></span> scan fine — but the row is still a stub
+            </p>
+            <p class="text-sm text-gray-500 mt-1">
+              Rung in at the till in a hurry (right call, there was a customer waiting). The barcode is
+              already bound, so these are the cheapest wins on the shelf — you're holding the packet.
+            </p>
+          </div>
+          <div class="px-6 py-2">
+            <template x-for="k in unfinishedKnown()" :key="'u-' + k.barcode">
+              <div class="flex items-center gap-3 py-3 border-b last:border-0 flex-wrap">
+                <img :src="k.image_url || '/static/pos/img/placeholder.png'" class="w-10 h-10 object-contain rounded flex-none bg-gray-50">
+                <div class="min-w-0 flex-1">
+                  <p class="text-sm font-medium text-gray-900 truncate" x-text="k.name"></p>
+                  <p class="text-xs text-gray-400 font-mono" x-text="k.barcode + ' · ' + (k.sku || '')"></p>
+                  <p class="text-xs mt-1">
+                    <span class="px-2 py-0.5 rounded-full font-semibold"
+                          :class="k.ready_score >= 75 ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-700'">
+                      ⚠ <span x-text="k.ready_score"></span>% ready
+                    </span>
+                    <span class="text-gray-500 ml-1" x-text="gapWords(k)"></span>
+                  </p>
+                </div>
+                <div class="flex gap-2 flex-none">
+                  <!-- The lookup that actually works: thirteen digits, plain web search. -->
+                  <a :href="'https://www.google.com/search?q=' + encodeURIComponent(k.barcode)"
+                     target="_blank" rel="noopener"
+                     class="px-3 py-2 rounded-lg bg-white border border-indigo-300 text-indigo-700 text-sm font-semibold hover:bg-indigo-50">🔎 Look it up</a>
+                  <!-- Straight to the ONE card that can fix all of it without a search box. -->
+                  <a :href="'/pos/cleanup?pid=' + k.product_id"
+                     class="px-3 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700">✏️ Finish it</a>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <!-- Known AND finished — collapsed by default, because it is the part that needs no attention -->
         <div class="bg-white rounded-2xl shadow mb-4">
           <button @click="showKnown = !showKnown" class="w-full text-left px-6 py-4 flex justify-between items-center">
-            <span class="font-bold text-gray-900">✅ <span x-text="result.known_count"></span> already scan correctly</span>
+            <span class="font-bold text-gray-900">✅ <span x-text="finishedKnown().length"></span> already scan correctly</span>
             <span class="text-gray-400" x-text="showKnown ? '▾' : '▸'"></span>
           </button>
           <div x-show="showKnown" style="display:none" class="px-6 pb-4">
@@ -138,7 +193,7 @@
               was <span class="font-semibold">minted by Banco</span>, not printed by a manufacturer — so the gun read
               one of our own labels. Fine at the till; it just means the packet's real EAN is still missing.
             </p>
-            <template x-for="k in result.known" :key="k.barcode">
+            <template x-for="k in finishedKnown()" :key="k.barcode">
               <div class="flex items-center gap-3 py-2 border-b last:border-0">
                 <img :src="k.image_url || '/static/pos/img/placeholder.png'" class="w-10 h-10 object-contain rounded flex-none bg-gray-50">
                 <div class="min-w-0 flex-1">
@@ -647,6 +702,18 @@ function shelfIntake() {
 
     // ── the work list ─────────────────────────────────────────────────────────────────
     internalHits() { return ((this.result && this.result.known) || []).filter(k => k.matched_internal_row); },
+    // KNOWN splits in two. `is_finished` comes from the same readiness read the cockpit uses, so
+    // the two screens can't disagree about whether a row is done. Older responses have no
+    // is_finished field at all — treat those as finished rather than inventing work.
+    _known() { return (this.result && this.result.known) || []; },
+    finishedKnown() { return this._known().filter(k => k.is_finished !== false); },
+    unfinishedKnown() { return this._known().filter(k => k.is_finished === false); },
+    // Plain words for the gap codes. Same labels the cockpit's readiness badge uses.
+    gapWords(k) {
+        const label = { category: 'no real category', cost: 'no cost',
+                        photo: 'no photo', description: 'no description' };
+        return ((k && k.ready_gaps) || []).map(g => label[g] || g).join(' · ');
+    },
     doneCount() { return this.pending.filter(r => r.status !== 'todo').length; },
     remaining() { return this.pending.filter(r => r.status === 'todo').length; },
     batch() { return this.pending.slice(this.batchStart, this.batchStart + 10); },

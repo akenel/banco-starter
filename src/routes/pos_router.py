@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request, UploadFi
 from fastapi.responses import HTMLResponse, Response
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_, or_, update
+from sqlalchemy import select, func, and_, or_, update, true
 from sqlalchemy.exc import IntegrityError, DataError
 from datetime import datetime, timezone, date, timedelta
 from decimal import Decimal, ROUND_HALF_UP
@@ -878,6 +878,16 @@ async def catalog_shelf_intake_triage(
 ):
     """Split a shelf dump into ALREADY KNOWN and STILL UNKNOWN. Nothing is written.
 
+    KNOWN IS TWO THINGS, and conflating them cost a real evening (Angel, 2026-08-03). A till
+    quick-add binds the scanned barcode, so re-scanning that packet resolves perfectly — and the
+    row it resolves to is a one-word name, no category, no cost, no photo. Reported as simply
+    "already scans correctly" it reads as *finished*, and the screen quietly congratulates you on
+    the exact row you came back to fix. So every known row carries its readiness, and the ones
+    that are not really done are counted separately (`unfinished_count`).
+
+    That is the whole point of a re-scan: standing at the shelf holding the packet is the ONE
+    moment the operator can see what the row should say.
+
     This endpoint answers exactly one question per code — *does this resolve to a product
     today?* — and deliberately stops there. It is tempting to also propose catalogue matches
     for the unknowns, but a bare EAN carries no name, so there is nothing to match ON. The
@@ -905,6 +915,7 @@ async def catalog_shelf_intake_triage(
         if product is None:
             unknown.append(row)
             continue
+        score, gripes = _readiness(product)
         known.append({
             **row,
             "product_id": str(product.id),
@@ -914,6 +925,11 @@ async def catalog_shelf_intake_triage(
             "image_url": product.image_url,
             "category": product.category,
             "is_active": bool(product.is_active),
+            # Scans fine ≠ finished. Same readiness read the cockpit uses, so the two screens
+            # can never disagree about whether a row is done.
+            "ready_score": score,
+            "ready_gaps": gripes,
+            "is_finished": not gripes,
             # A code that resolves to a row whose PRIMARY barcode was minted is only "known"
             # by luck — someone scanned our own printed label. Worth surfacing: it means the
             # packet's real EAN is still missing from that row.
@@ -928,6 +944,9 @@ async def catalog_shelf_intake_triage(
         "warnings": dump_warnings(parsed, req.expected),
         "known_count": len(known),
         "unknown_count": len(unknown),
+        # Scans, but the row behind it is still a stub — the third bucket. These are the cheapest
+        # wins on the shelf: the barcode is already bound, so finishing one is typing, not hunting.
+        "unfinished_count": sum(1 for k in known if not k["is_finished"]),
         "known": known,
         "unknown": unknown,
     }
@@ -6729,13 +6748,15 @@ async def get_cleanup_queue(
     gap: Optional[str] = None,
     period: Optional[str] = None,
     noted: bool = False,
+    sort: str = "newest",
+    pid: Optional[UUID] = None,
     db: AsyncSession = Depends(get_db_session),
     current_user: dict = Depends(require_manager_or_admin()),
 ):
     """The catalog cockpit — manager/admin. TWO MODES, same card, same inline fix:
 
     • mode=sold  (default) — SOLD-but-half-baked. The reactive safety net: nothing a cashier
-      rings in a rush falls through permanently. Busiest gaps first. Unpaginated (naturally small).
+      rings in a rush falls through permanently. NEWEST SALE FIRST. Unpaginated (naturally small).
 
     • mode=bench (BL-98) — the ENRICHMENT QUEUE. The migration workbench: hand me the next N
       unfinished products (photo / description / category / cost), sold or not, ordered so you
@@ -6744,7 +6765,7 @@ async def get_cleanup_queue(
     Cashier never edits the catalog/cost — they ring it in; the manager sets it up here."""
     if mode == "bench":
         return await _bench_queue(db, limit=limit, offset=offset, category=category,
-                                  gap=gap, period=period, noted=noted)
+                                  gap=gap, period=period, noted=noted, pid=pid)
 
     # ---- mode=sold (original) ------------------------------------------------------------
     # Units + revenue + last-sold per real product, over ALL completed sales (giveaways excluded).
@@ -6784,10 +6805,18 @@ async def get_cleanup_queue(
         if not (gap_category or gap_cost):
             continue  # fully set up — not in the queue
         s = sold_by_pid[p.id]
+        score, gripes = _readiness(p)
         items.append({
             "product_id": str(p.id),
             "name": p.name,
             "sku": p.sku,
+            # The BARCODE is what makes this row fixable: a till quick-add binds the scanned EAN
+            # (scan.html mints the SKU as 'LZ-'+barcode), and thirteen digits in a search engine
+            # return the packet's real name, brand and picture. Without it on the card the
+            # operator is left guessing at a one-word name they didn't write.
+            "barcode": p.barcode,
+            "description": p.description,
+            "quality": {"score": score, "gripes": gripes},   # same readiness read as the bench
             "category": p.category,
             "price": float(p.price) if p.price is not None else None,
             "cost": float(p.cost) if p.cost is not None else None,
@@ -6804,9 +6833,8 @@ async def get_cleanup_queue(
                 "photo": not p.image_url,   # soft — shown, not gated
             },
         })
-    # Busiest gaps first: most units sold = most urgent to tidy.
-    items.sort(key=lambda x: (x["qty_sold"], x["revenue"]), reverse=True)
-    return {"items": items, "count": len(items), "mode": "sold"}
+    sort_used = sort_sold_queue(items, sort)
+    return {"items": items, "count": len(items), "mode": "sold", "sort": sort_used}
 
 
 # Rookie workbench — a description shorter than this "looks done" but says nothing.
@@ -6833,6 +6861,36 @@ def _bench_period_bounds(period):
     return (None, None)
 
 
+def sort_sold_queue(items, sort=None):
+    """Order the SOLD-but-half-baked queue in place. Returns the order actually applied.
+
+    This tab is the REACTIVE safety net — "what did a cashier ring in a rush that still needs
+    tidying" — so the default is the most RECENTLY sold, not the busiest.
+
+    Angel, 2026-08-03, playing a cashier: a customer spots a new grinder on the counter, the scan
+    misses, she types "grinder / 15.00" and sells it — which is the RIGHT call with someone
+    waiting. Someone then has to finish that row while the story is still fresh ("it was on the
+    counter, he seen them, so I sold it"). Under busiest-first that row had sold ONCE, so it
+    sorted below every one of the other 37 items. He went looking and couldn't see it, and
+    concluded the screen had missed it. `last_sold` was computed, returned and printed on the
+    card the whole time, and never sorted on.
+
+    Busiest-first is still right for a backlog SWEEP (most units = most tills affected), so it
+    stays one click away rather than disappearing.
+
+    A module-level function on purpose: the ordering is the decision worth pinning, and pinning
+    it should not need a database.
+    """
+    if (sort or "").strip().lower() == "busiest":
+        items.sort(key=lambda x: (x["qty_sold"], x["revenue"]), reverse=True)
+        return "busiest"
+    # None-safe: a completed sale always has completed_at, but a NULL must never crash the one
+    # screen whose whole job is catching what fell through. Unsold-but-listed sorts last, and
+    # qty breaks ties so two sales in the same second still order sensibly.
+    items.sort(key=lambda x: (x["last_sold"] or "", x["qty_sold"]), reverse=True)
+    return "newest"
+
+
 def _readiness(p):
     """Rule-based 'is this REALLY finished' read — catches the lazy 'done' the hard gaps miss:
     still Unsorted, a one-word description, no picture. Returns (score 0-100, [gripe codes]).
@@ -6857,7 +6915,8 @@ def _readiness(p):
 
 async def _bench_queue(db: AsyncSession, *, limit: int, offset: int,
                        category: Optional[str], gap: Optional[str] = None,
-                       period: Optional[str] = None, noted: bool = False):
+                       period: Optional[str] = None, noted: bool = False,
+                       pid: Optional[UUID] = None):
     """BL-98 ENRICHMENT QUEUE — the migration workbench (back office, not the till).
 
     Hands back the next `limit` UNFINISHED products plus the progress counter. Ordered by
@@ -6892,6 +6951,20 @@ async def _bench_queue(db: AsyncSession, *, limit: int, offset: int,
     active_gap = _bench_gap_expr(gap)    # the filter for THIS view (one kind, or all four)
     noted_expr = func.coalesce(func.trim(ProductModel.work_note), "") != ""   # has a parked note
     list_clause = and_(active_gap, noted_expr) if noted else active_gap
+
+    # ONE product, by id — the landing spot for "I just scanned this, finish it". Shelf intake
+    # sends the operator straight here with the full inline card instead of making them search a
+    # catalogue for a row they are literally holding.
+    #
+    # EVERY other filter is discarded, not just the gap one. First attempt only reset the gap and
+    # left the shelf/period scope standing, so `?pid=<the grinder>&category=Grinders` returned
+    # ZERO cards — a dead end in answer to a scan the operator had just made, which is precisely
+    # the silent-failure shape this repo keeps paying for. Caught by a probe, not by a test I had
+    # thought to write. `is_active` goes too: a discontinued row still has to be reachable, or
+    # re-scanning one lands on an empty screen that explains nothing.
+    if pid is not None:
+        scope = [ProductModel.id == pid]
+        list_clause = true()
 
     async def _count(clause):
         return (await db.execute(
@@ -6961,6 +7034,7 @@ async def _bench_queue(db: AsyncSession, *, limit: int, offset: int,
         "limit": limit,
         "offset": offset,
         "category": category,
+        "pid": str(pid) if pid else None,           # focused on one product (from a re-scan)
     }
 
 

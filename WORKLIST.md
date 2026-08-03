@@ -51,6 +51,42 @@ work now.*
 
 ---
 
+### 🟡 SHIPPED 2026-08-03, NOT YET HUMAN-GREEN — the re-scan cleanup path
+
+*Angel simulating a cashier: a customer spots a new grinder on the counter, the scan misses, Pam
+types `grinder / 15.00` and sells it. All correct with someone waiting — and the till binds the
+real EAN (`3661075283438`) while it does it. Then someone has to go back and enter it properly.*
+
+**Three screens each dropped that row, none of them with an error.** All three are fixed:
+
+1. **The cockpit's Sold tab now leads with what just sold.** It sorted `(qty_sold, revenue)`
+   desc, so a row sold ONCE sat below 37 busier ones — `last_sold` was computed, returned and
+   printed on the card the whole time and never sorted on. `🔥 Busiest` is still one click away.
+2. **Shelf intake has a third bucket: "scan fine — but the row is still a stub."** Re-scan the
+   packet and it no longer lands in the green *nothing to do* pile. Carries the readiness badge,
+   a **🔎 Look it up** link on the bare EAN, and **✏️ Finish it** → `/pos/cleanup?pid=…`.
+3. **The bench card can edit the NAME and the BARCODE.** It could fix category, price, cost,
+   description, photo and 18+ — everything except the one thing actually wrong with "grinder".
+   Description + photo now show in the Sold tab too, since the badge names those gaps out loud.
+
+**Proof so far:** 12 tests (`src/tests/test_cleanup_rescan.py`, incl. node-executed client
+helpers — sabotaged on purpose to confirm they fail) · `scripts/probe-rescan-cleanup.py` 13/13,
+twice, self-sweeping. **⛔ That probe writes real completed sales — `BANCO_ALLOW_FAKE_SALES=1`
+guards it. NEVER on the shop's books.**
+
+**⛔ What Angel retests on prod** — every one of these is a screen, and none of it has been seen
+by a person:
+- Sell something from a rushed quick-add → **Cleanup → Sold & unfinished → is it at the top?**
+- Re-scan that packet in **Shelf Intake** → does it land in the amber bucket, not the green one?
+- **🔎 Look it up** → does the bare EAN name the packet? (`3661075283438` → three shops agree:
+  Champ High White Leaf Grinder, 4-part, Ø50mm)
+- **✏️ Finish it** → one card → type the real name → **Save & done**.
+- Type a barcode already on another row → the toast must say *"already exists"*, not *"Save failed"*.
+- Clear the name and save → must refuse, not silently keep the old one.
+- **Read the German** (`🆕 Gerade verkauft`, `Name — was ist es wirklich?`) as a shopkeeper.
+
+---
+
 ### 🔻 Carried over from 2026-08-03 — small, and two are Angel's hands only
 
 - **F3 · Reconcile the cash box on prod.** It may still be open with test sales in it, and
