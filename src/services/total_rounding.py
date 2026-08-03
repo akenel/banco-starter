@@ -33,6 +33,12 @@ fine — that's how he does it actually."*
 **Rounding is physics. Treats are pricing. They must not be the same lever.** A rule that is
 neutral leaves the giving to Felix, deliberately, where he can see and cost it.
 
+Angel, closing the loop: *"Swiss convention — and that's why they always have treats and gifts
+at the counter, to cover for the minor rappens."* The bowl of lollipops beside a Swiss till is
+not a marketing gimmick; it is the human-scale rounding mechanism, and it has been settling
+this argument for decades. Banco keeps both halves and keeps them apart: the arithmetic here,
+the generosity in `is_treat` where somebody chooses it.
+
 Not "always up" either: that systematically charges above the marked price to gain two rappen,
 and "the sticker said 9.90 and you paid 9.92" is the one conversation nobody at a till should
 have to have. Nearest is neutral over many sales, is the Swiss retail convention, and gives
