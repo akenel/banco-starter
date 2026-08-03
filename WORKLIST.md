@@ -8,6 +8,36 @@
 
 ## 🎯 On deck (next actionable, in order)
 
+0. **🔴 THE CASH BOX IS SHARED — Banco assumes one drawer PER CASHIER. Design agreed 2026-08-03,
+   not built.** → **[`onboarding/12-the-cash-box.md`](onboarding/12-the-cash-box.md)**
+
+   Artemis has **one** cash box. Everyone sells into it, it is never emptied (~CHF 600 carries
+   over), it sleeps in the safe and comes back out the same. `cash_shift_model.py` says in its own
+   docstring *"per-cashier drawer accountability … THEIR drawer"*, and `pos_router.py:8632` sums
+   `TransactionModel.cashier_id == user_id`.
+
+   **So: Felix opens with 200, Pam sells 150 cash into the same box, Felix counts out → expected
+   counts only Felix's sales → variance +150 → he writes a note explaining money that was never
+   missing.** The "already have an open shift" guard is per-user too, so two people can hold open
+   drawers on one physical box.
+
+   **The fix is smaller than it looks — the arithmetic is right, the SCOPE of one query is wrong.**
+   Drop the cashier filter, make the till shop-owned, and link last night's counted total to this
+   morning's expected (the "slope"). Per-cashier *sales* reporting is untouched.
+
+   **The one genuinely new idea, and it is Felix's own:** he counts the box **before** looking at
+   what it should hold — *"a little test I play with myself"*. That is correct practice (seeing
+   `555` first makes you count until you find `555`), so **Banco should enforce the order**: count
+   blind → reveal → explain, and the discrepancy is filed against *yesterday's* reconcile while
+   today starts from what is really in the box.
+
+   Also resolves **G8**'s two-meanings-of-shift: session = who is logged in (per person), till =
+   the money (one, shop-owned). Cashiers stop touching the drawer entirely — A4 leaves their day.
+
+   **Blocked on Felix answering four questions** at the end of the doc (who may reconcile; what if
+   a night is skipped; is ±0.20 still right for a shared box; foreign notes counted when).
+
+
 0. **🟢 CASHIER SHIFT ROLE-PLAY RUN — 2026-08-03, 64 minutes, UAT b170.** Angel played the day
    open-to-close on the tablet. Sheet: [`onboarding/testsheets/CASHIER-SHIFT-E2E-TESTSHEET.html`](onboarding/testsheets/CASHIER-SHIFT-E2E-TESTSHEET.html).
 
