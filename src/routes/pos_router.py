@@ -9168,11 +9168,15 @@ async def force_close_cash_box(
     shift.counted_verified = False          # <- the load-bearing line
     shift.forced_close = True
     shift.reconciled_by = username
+    # THE NOTE IS FOR A PERSON, NOT FOR THE AUDIT. Everything structural — that it was forced,
+    # that nobody counted it, who did it, when — is already in columns (`forced_close`,
+    # `counted_verified`, `reconciled_by`, `closed_at`) and in `audit_log`. Repeating all of it
+    # in prose produced a wall of text on the shift report that Angel could not parse at a
+    # glance, which is the opposite of what §5 was for. So: one sentence, shop language, and the
+    # reason the human actually typed. No names — attribution lives in the columns.
     shift.variance_note = (
-        f"FORCED CLOSE — THE BOX WAS NEVER PHYSICALLY COUNTED. counted_cash was set equal to "
-        f"expected ({exp}) to close the row, so the zero variance is arithmetic, NOT an "
-        f"observation. Forced by {username} on {now.astimezone(SHOP_TZ):%Y-%m-%d %H:%M}. "
-        f"Reason: {reason[:400]}")
+        f"Never counted — closed to balance the books. The {exp} is what the till expected, "
+        f"not a count. Reason: {reason[:300]}")
     shift.status = CashShiftStatus.CLOSED; shift.closed_at = now
     await db.commit()
     logger.warning("Cash box FORCE-CLOSED by %s: expected=%s never counted — %s",

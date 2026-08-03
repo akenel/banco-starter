@@ -270,3 +270,34 @@ def test_day_one_baseline_is_also_not_a_count():
     seg = router[start:router.index("async def shift_paid_in_out(")]
     baseline_branch = seg[seg.index("day one: the baseline seeds it"):]
     assert "expected_verified = False" in baseline_branch[:200]
+
+
+def test_the_forced_close_note_is_for_a_person_not_for_the_audit():
+    """Angel, reading the first version on the shift report: "this has my name in there, this
+    seems really confusing to me". He was right, twice over.
+
+    Everything structural — forced, never counted, by whom, when — is ALREADY in columns and in
+    audit_log. Repeating it in prose produced a wall of text nobody can parse at the moment they
+    need it, which is the opposite of what §5 was for. And a developer's name means nothing to
+    an auditor or to Leandra: attribution belongs in reconciled_by, not in a sentence.
+
+    So the note stays short, in shop language, and carries only what a human typed."""
+    import io
+    router = io.open("src/routes/pos_router.py", encoding="utf-8").read()
+    start = router.index("async def force_close_cash_box(")
+    end = router.index("def _shift_report(")
+    note = router[start:end]
+    assert "Never counted" in note
+    assert "{username}" not in note.split("variance_note")[1][:400], \
+        "no names in the note — attribution is a column, not prose"
+    assert "counted_verified = False" in note or "counted_verified" in note
+
+
+def test_the_report_shows_a_badge_from_the_COLUMN_not_the_prose():
+    """A forced close shows counted == expected and variance 0.00 — which reads as 'the drawer
+    balanced'. The badge that stops that must key off counted_verified, so it still works when
+    somebody writes a short or empty note."""
+    import io
+    screen = io.open("src/templates/pos/shift.html", encoding="utf-8").read()
+    assert "report.counted_verified === false" in screen, \
+        "the not-counted badge must read the column, not search the note text"

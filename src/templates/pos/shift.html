@@ -261,6 +261,18 @@
                     </tbody>
                 </table>
 
+                <!-- NOT COUNTED. Read from the COLUMN, not from prose — that was the whole point
+                     of giving it a column (§5). A forced close shows counted == expected and a
+                     variance of 0.00, which reads as "the drawer balanced"; this is the badge that
+                     stops it. One line, in shop language, at the top where the numbers are. -->
+                <div x-show="report && report.counted_verified === false" style="display:none"
+                     class="mt-4 rounded-lg border-2 border-amber-400 bg-amber-50 p-3 text-sm">
+                    <b class="text-amber-900">⚠️ <span data-i18n="shift.not_counted_title">Nobody counted this box</span></b>
+                    <div class="text-amber-800 mt-1" data-i18n="shift.not_counted_body">The figures below are what the till
+                        expected, not what anyone found. The zero difference is arithmetic — do not read it as a
+                        balanced box.</div>
+                </div>
+
                 <div x-show="report && report.variance_note" class="mt-4 bg-gray-50 rounded p-3 text-sm">
                     <span class="text-gray-500" data-i18n="shift.note_label">Note:</span> <span x-text="report && report.variance_note"></span>
                 </div>
