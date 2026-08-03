@@ -32,6 +32,7 @@
 # ============================================================================
 import argparse
 import html as _html
+import json
 import asyncio
 import os
 import random
@@ -251,6 +252,44 @@ def render(rows, path):
             "dead": len(dead)}
 
 
+def from_db(limit):
+    """Render the sheet from rows the enricher ACTUALLY WROTE, not from a fresh fetch.
+
+    This is the stronger artifact. A sheet built by re-parsing pages says "the parser can
+    read this"; a sheet built from the database says "this is what is now in your catalogue,
+    go and check it against the shop page." Only the second one can catch a write that
+    mangled what the parse got right.
+    """
+    import subprocess as sp
+    sql = ("SELECT sku, name, source_url, coalesce(price_tiers::text,''), "
+           "coalesce(jsonb_object_keys_count, 0) FROM ("
+           "  SELECT sku, name, source_url, price_tiers, "
+           "         (SELECT count(*) FROM jsonb_object_keys(raw_facets)) AS jsonb_object_keys_count "
+           "  FROM products WHERE attributes ? '_sample_load') q "
+           "WHERE price_tiers IS NOT NULL ORDER BY sku LIMIT %d;" % limit)
+    out = sp.run(["docker", "exec", "-i", "banco-postgres", "psql", "-U", "helix_user",
+                  "-d", "helix_db", "-tA", "-F", "\x1f"],
+                 input=sql, capture_output=True, text=True, timeout=120)
+    if out.returncode != 0:
+        print(out.stderr[:400], file=sys.stderr)
+        return []
+    rows = []
+    for line in out.stdout.splitlines():
+        f = line.split("\x1f")
+        if len(f) < 5:
+            continue
+        try:
+            tiers = json.loads(f[3]) if f[3] else []
+        except Exception:
+            tiers = []
+        rows.append({"sku": f[0], "name": f[1], "en_url": f[2],
+                     "de_url": f[2].replace("/en/product/", "/de/produkt/"),
+                     "de_tiers": tiers, "en_tiers": tiers,
+                     "de_facets": int(f[4] or 0), "en_facets": int(f[4] or 0),
+                     "de_ok": True, "en_ok": True, "junk": {}, "facets_sample": []})
+    return rows
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--count", type=int, default=20)
@@ -258,9 +297,14 @@ def main():
     ap.add_argument("--seed", type=int, default=3)
     ap.add_argument("--out", default=os.path.join(
         ROOT, "onboarding", "testsheets", "enricher-testsheet.md"))
+    ap.add_argument("--from-db", action="store_true",
+                    help="render from rows the enricher already wrote into the dev DB")
     args = ap.parse_args()
 
-    rows = asyncio.run(main_async(args))
+    rows = from_db(args.count) if args.from_db else asyncio.run(main_async(args))
+    if not rows:
+        print("no rows", file=sys.stderr)
+        return 1
     s = render(rows, args.out)
     print(f"\n✅ {args.out}")
     print(f"   {s['n']} products · ladders de={s['de_t']} en={s['en_t']} · "

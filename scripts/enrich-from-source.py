@@ -165,10 +165,11 @@ def psql(env, sql, container):
 async def main_async(args, env, rows):
     import httpx
     updates, stats = [], {"fetched": 0, "tiers": 0, "facets": 0, "failed": 0, "skipped": 0}
+    suspect = []
     fails_in_a_row = 0
 
     async with httpx.AsyncClient(follow_redirects=True, timeout=25, headers=UA) as client:
-        for pid, sku, name, url, has_tiers, has_facets in rows:
+        for pid, sku, name, url, has_tiers, has_facets, base in rows:
             if has_tiers and has_facets:
                 stats["skipped"] += 1
                 continue
@@ -189,6 +190,26 @@ async def main_async(args, env, rows):
 
             got = parse_page(r.text)
             u = {"id": pid}
+            # A "QUANTITY BREAK" THAT COSTS MORE THAN ONE IS NOT A BREAK.
+            #
+            # TAM-11884 (Hygiene Mundstück, found 2026-08-03 in the first 200-row sample):
+            # the page reads "CHF 3.– ... CHF 11.90 from 100 pieces". Both languages agree, so
+            # it is Felix's page and not a parse error. The existing guard only checks the
+            # ladder DESCENDS WITHIN ITSELF — 11.90 >= 10.30 passes — and it never looks at
+            # what one unit costs. We write tier_mode='per_unit' unconditionally, so a
+            # customer buying 100 would be charged 100 × 11.90 = CHF 1,190 instead of ~300.
+            #
+            # Almost certainly the page means "a bag of 100 for 11.90", i.e. a BUNDLE price
+            # wearing per-unit wording. We cannot tell which from the page, and guessing on
+            # money is how the 3× overcharge shipped in July. So: refuse the ladder, keep the
+            # specs, and report it for a human. Silence is the one thing not on offer.
+            if got.get("tiers") and base is not None:
+                first = float(got["tiers"][0]["unit_price"])
+                if first > base:
+                    suspect.append((sku, name, base, got["tiers"]))
+                    got.pop("tiers")
+                    print(f"  {C['yel']}⚠{C['x']} {sku:<12} {name[:34]:<34} "
+                          f"tier {first:.2f} > unit price {base:.2f} — LADDER REFUSED")
             if got.get("tiers") and not has_tiers:
                 u["tiers"] = got["tiers"]; stats["tiers"] += 1
             if got.get("facets") and not has_facets:
@@ -202,7 +223,7 @@ async def main_async(args, env, rows):
                     bits.append(f"{len(u['facets'])} specs")
                 print(f"  {C['grn']}✓{C['x']} {sku:<12} {name[:34]:<34} {' · '.join(bits)}")
             await asyncio.sleep(args.delay)
-    return updates, stats
+    return updates, stats, suspect
 
 
 def main():
@@ -230,7 +251,7 @@ def main():
     raw = psql(env,
                "SELECT id, sku, name, source_url, "
                "  (price_tiers IS NOT NULL AND price_tiers::text NOT IN ('[]','null')), "
-               "  (raw_facets IS NOT NULL AND raw_facets::text <> '{}') "
+               "  (raw_facets IS NOT NULL AND raw_facets::text <> '{}'), price "
                "FROM products WHERE " + " AND ".join(where) +
                " ORDER BY sku" + (f" LIMIT {int(args.limit)}" if args.limit else "") + ";",
                args.container)
@@ -240,19 +261,32 @@ def main():
     rows = []
     for line in raw.splitlines():
         p = line.split("\x1f")
-        if len(p) >= 6:
-            rows.append((p[0], p[1], p[2], p[3], p[4] == "t", p[5] == "t"))
+        if len(p) >= 7:
+            try:
+                base = float(p[6]) if p[6] not in ("", None) else None
+            except ValueError:
+                base = None
+            rows.append((p[0], p[1], p[2], p[3], p[4] == "t", p[5] == "t", base))
 
     print(f"{C['b']}Enrich from each product's own page{C['x']}  "
           f"{C['dim']}({'APPLY' if args.apply else 'dry run'}, {len(rows)} products, "
           f"{args.delay}s apart){C['x']}\n")
 
-    updates, stats = asyncio.run(main_async(args, env, rows))
+    updates, stats, suspect = asyncio.run(main_async(args, env, rows))
 
     print(f"\n  fetched {stats['fetched']} · already complete {stats['skipped']} · "
           f"failed {stats['failed']}")
     print(f"  {C['grn']}tier ladders found: {stats['tiers']}{C['x']}   "
           f"{C['grn']}spec tables found: {stats['facets']}{C['x']}")
+    if suspect:
+        print(f"\n{C['yel']}⚠ {len(suspect)} ladder(s) REFUSED — the break costs more than one "
+              f"unit.{C['x']}")
+        print(f"{C['dim']}  These are almost certainly bundle prices written as per-unit on the "
+              f"source page.\n  Specs were still stored; only the pricing was skipped. Send the "
+              f"list to Felix.{C['x']}")
+        for sku, name, base, tiers in suspect:
+            lad = " ".join(f"{t['min_qty']}+->{t['unit_price']}" for t in tiers)
+            print(f"    {sku:<12} {name[:34]:<34} unit {base:.2f}  vs  {lad}")
     if not updates:
         print(f"\n{C['yel']}Nothing to write.{C['x']}")
         return 0
