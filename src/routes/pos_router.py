@@ -10274,35 +10274,36 @@ async def pos_shift(request: Request):
     return templates.TemplateResponse("pos/shift.html", {"request": request})
 
 
-@html_router.get("/pos/cash-count", response_class=HTMLResponse, name="pos_cash_count")
+@html_router.get("/pos/cash-count", name="pos_cash_count")
 async def pos_cash_count(request: Request):
+    """RETIRED 2026-08-03 — redirects to `/pos/shift`, the real drawer.
+
+    This was a MOCK that told the operator it had saved. Angel found it in the cashier
+    role-play (gap G8: "a cashier cannot have three closing screens"), and reading it was
+    worse than the three cosmetic bugs he reported:
+
+      • `loadExpectedTotal()` was an empty `try` with a TODO. `expectedTotal` stayed **0**,
+        so counting an empty drawer showed variance 0 and announced
+        *"✅ Perfect balance! Pam's bonus pool +1 point"* over an uncounted drawer.
+      • `submitCount()` was `// TODO: POST to API` + `console.log`. It set `submitted = true`
+        and showed a success toast. **Nothing was ever persisted.** A cashier could count out,
+        read "Cash Count Submitted", and have saved nothing at all.
+      • The notes box was `x-model="notes"` — and `notes` is the BANKNOTE DENOMINATIONS ARRAY.
+        So it rendered `[object Object],[object Object],…` and the typed note went nowhere;
+        the real field (`memo`) was bound to nothing.
+      • The cashier was a free-text box placeholdered "Pam", with "Pam's bonus pool" hardcoded
+        in the success message — instead of the logged-in user.
+
+    Nothing in the app linked here; it was reachable only by typing the URL. `/pos/shift`
+    does this job properly: it knows the float, the cash sales, the paid in/out, the foreign
+    cash, and it REFUSES to close outside ±0.20 without a note — the exact control this screen
+    was missing. Repairing this one would have meant building a second, competing cash count
+    and making a screen that lies look trustworthy.
+
+    The URL is kept as a redirect rather than a 404, because it may be bookmarked on a till.
     """
-    Cash Drawer Count - End of Day Reconciliation
-
-    Felix's daily ritual: Count the drawer, verify against POS totals.
-    Features denomination-by-denomination counting (Swiss Francs).
-
-    Swiss Franc Denominations:
-    - Notes: 200, 100, 50, 20, 10 CHF
-    - Coins: 5, 2, 1 CHF, 50/20/10/5 Rappen
-
-    Workflow:
-    1. Enter cashier name
-    2. Count each denomination
-    3. System calculates total
-    4. Compare against expected (from POS)
-    5. Route variance (bonus/slush/review)
-    6. Submit and print summary
-
-    Variance Rules:
-    - Perfect (0): +1 bonus point for cashier
-    - Small over (<0.50): Goes to cashier bonus pool
-    - Small under (<0.50): Goes to slush fund
-    - Large variance: Manager review required
-
-    URL: https://helix.local/pos/cash-count
-    """
-    return templates.TemplateResponse("pos/cash_count.html", {"request": request})
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/pos/shift", status_code=302)
 
 
 @html_router.get("/pos/customer-lookup", response_class=HTMLResponse, name="pos_customer_lookup")
