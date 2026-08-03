@@ -230,12 +230,30 @@
                     </p>
                 </div>
 
+                <!-- A forced close has counted == expected and variance 0.00, so this banner used
+                     to render a GREEN "✅ Balanced within tolerance" over a box nobody had counted.
+                     That is the precise lie §5 exists to prevent, and it sat directly above the
+                     note explaining it was not true. The verdict now keys off counted_verified
+                     FIRST: no count, no verdict — because there is nothing to have a verdict about. -->
                 <div class="rounded-lg p-4 mb-4 text-center"
-                     :class="report && report.within_tolerance ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'">
-                    <p class="text-sm" x-show="report && report.within_tolerance" data-i18n="shift.balanced">✅ Balanced within tolerance</p>
-                    <p class="text-sm" x-show="report && !report.within_tolerance" data-i18n="shift.variance_flagged">⚠️ Variance flagged — see note</p>
-                    <p class="text-3xl font-bold mt-1" x-text="(report && num(report.variance) >= 0 ? '+' : '') + formatPrice(num(report && report.variance))"></p>
-                    <p class="text-xs mt-1" data-i18n="shift.variance_caption">variance (counted − expected)</p>
+                     :class="report && report.counted_verified === false ? 'bg-amber-100 text-amber-900'
+                             : (report && report.within_tolerance ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800')">
+                    <template x-if="report && report.counted_verified === false">
+                        <div>
+                            <p class="text-sm font-semibold" data-i18n="shift.not_counted_title">⚠️ Nobody counted this box</p>
+                            <p class="text-3xl font-bold mt-1" data-i18n="shift.no_count">no count</p>
+                            <p class="text-xs mt-1" data-i18n="shift.not_counted_body">The figures below are what the till expected,
+                                not what anyone found. The zero difference is arithmetic — do not read it as a balanced box.</p>
+                        </div>
+                    </template>
+                    <template x-if="!report || report.counted_verified !== false">
+                        <div>
+                            <p class="text-sm" x-show="report && report.within_tolerance" data-i18n="shift.balanced">✅ Balanced within tolerance</p>
+                            <p class="text-sm" x-show="report && !report.within_tolerance" data-i18n="shift.variance_flagged">⚠️ Variance flagged — see note</p>
+                            <p class="text-3xl font-bold mt-1" x-text="(report && num(report.variance) >= 0 ? '+' : '') + formatPrice(num(report && report.variance))"></p>
+                            <p class="text-xs mt-1" data-i18n="shift.variance_caption">variance (counted − expected)</p>
+                        </div>
+                    </template>
                 </div>
 
                 <table class="w-full text-sm data-table">
@@ -260,18 +278,6 @@
                         <tr><td class="py-2 text-gray-600" data-i18n="shift.transactions">Transactions</td><td class="py-2 text-right" x-text="report && report.transaction_count"></td></tr>
                     </tbody>
                 </table>
-
-                <!-- NOT COUNTED. Read from the COLUMN, not from prose — that was the whole point
-                     of giving it a column (§5). A forced close shows counted == expected and a
-                     variance of 0.00, which reads as "the drawer balanced"; this is the badge that
-                     stops it. One line, in shop language, at the top where the numbers are. -->
-                <div x-show="report && report.counted_verified === false" style="display:none"
-                     class="mt-4 rounded-lg border-2 border-amber-400 bg-amber-50 p-3 text-sm">
-                    <b class="text-amber-900">⚠️ <span data-i18n="shift.not_counted_title">Nobody counted this box</span></b>
-                    <div class="text-amber-800 mt-1" data-i18n="shift.not_counted_body">The figures below are what the till
-                        expected, not what anyone found. The zero difference is arithmetic — do not read it as a
-                        balanced box.</div>
-                </div>
 
                 <div x-show="report && report.variance_note" class="mt-4 bg-gray-50 rounded p-3 text-sm">
                     <span class="text-gray-500" data-i18n="shift.note_label">Note:</span> <span x-text="report && report.variance_note"></span>

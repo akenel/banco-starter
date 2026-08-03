@@ -301,3 +301,28 @@ def test_the_report_shows_a_badge_from_the_COLUMN_not_the_prose():
     screen = io.open("src/templates/pos/shift.html", encoding="utf-8").read()
     assert "report.counted_verified === false" in screen, \
         "the not-counted badge must read the column, not search the note text"
+
+
+def test_a_forced_close_never_shows_a_GREEN_BALANCED_VERDICT():
+    """Angel's screenshot, mid-testsheet: pam's uncounted box rendered
+
+        ✅ Balanced within tolerance
+        +CHF 0.00
+
+    in green, directly above the note saying nobody had counted it. The banner keyed off
+    `within_tolerance`, and a forced close sets counted == expected, so within_tolerance is
+    True — truthfully, and misleadingly.
+
+    No count means there is nothing to have a verdict ABOUT. counted_verified is checked FIRST
+    and the green path is not reachable when it is false."""
+    import io
+    screen = io.open("src/templates/pos/shift.html", encoding="utf-8").read()
+    verdict = screen[screen.index("rounded-lg p-4 mb-4 text-center"):]
+    verdict = verdict[:verdict.index("<table")]
+    assert "counted_verified === false" in verdict, "the verdict must consult the column first"
+    green = verdict.index("shift.balanced")
+    guard = verdict.index("counted_verified === false")
+    assert guard < green, "the not-counted branch must come BEFORE the balanced branch"
+    assert "bg-green-100" in verdict and "bg-amber-100" in verdict
+    # and the green class must be inside the branch that only runs when it IS verified
+    assert verdict.index("bg-amber-100") < verdict.index("bg-green-100")
