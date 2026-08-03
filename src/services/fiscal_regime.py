@@ -21,6 +21,12 @@ REGIMES: dict[str, dict] = {
         "currency": "CHF",
         "locale": "de-CH",
         "vat_number_format": "CHE-XXX.XXX.XXX MWST",
+        # CASH ROUNDING STEP — the smallest coin that physically exists, NOT a tax rule.
+        # Switzerland withdrew the 1-rappen (2007) and 2-rappen (1978) pieces, so the
+        # smallest coin is 5 rappen and a cash total of CHF 70.39 CANNOT BE PAID. Card and
+        # TWINT are unaffected: they settle the exact cent. This is coin availability, which
+        # is a plain fact and not the tax law this module refuses to invent.
+        "cash_rounding_step": "0.05",
     },
     "IT": {
         # IDENTITY ONLY — jurisdiction facts (currency/locale/VAT-number label + regime code
@@ -33,6 +39,10 @@ REGIMES: dict[str, dict] = {
         "currency": "EUR",
         "locale": "it-IT",
         "vat_number_format": "P. IVA",
+        # Italy stopped minting/issuing 1 and 2 cent pieces in 2018 and rounds CASH to 5
+        # cents, same as CH. Again: coin availability, not IVA. If an Italian shop ever runs
+        # this for real, have the commercialista confirm — but the coins are simply not there.
+        "cash_rounding_step": "0.05",
     },
 }
 
