@@ -937,6 +937,7 @@ window.POS_STRINGS = {
       "confirm_abandon": "Abandon current transaction?"
     },
     "customer": {
+      "members_truncated": "That is as many as we show — type more of the name to narrow it down.",
       "add_new_crack": "➕ Add New CRACK",
       "age_confirm": "✓ I confirm this member is <b>18 or older</b> (required)",
       "all_members": "📖 All Members",
@@ -1897,6 +1898,7 @@ window.POS_STRINGS = {
       "receiving_failed": "Receiving failed"
     },
     "search": {
+      "showing_first": "showing the first",
       "title": "Product Search",
       "products": "products",
       "categories": "categories",
@@ -2850,6 +2852,7 @@ window.POS_STRINGS = {
       "confirm_abandon": "Abandonner la transaction en cours ?"
     },
     "customer": {
+      "members_truncated": "C'est tout ce que nous affichons — tapez plus du nom pour affiner.",
       "add_new_crack": "➕ Ajouter un nouveau CRACK",
       "age_confirm": "✓ Je confirme que ce membre a <b>18 ans ou plus</b> (obligatoire)",
       "all_members": "📖 Tous les membres",
@@ -3815,6 +3818,7 @@ window.POS_STRINGS = {
       "receiving_failed": "Échec de la réception"
     },
     "search": {
+      "showing_first": "affichage des premiers",
       "title": "Recherche de produit",
       "products": "produits",
       "categories": "catégories",
@@ -4763,6 +4767,7 @@ window.POS_STRINGS = {
       "confirm_abandon": "Abbandonare la transazione corrente?"
     },
     "customer": {
+      "members_truncated": "Non ne mostriamo di più — digita altre lettere del nome per restringere.",
       "add_new_crack": "➕ Aggiungi nuovo CRACK",
       "age_confirm": "✓ Confermo che questo membro ha <b>18 anni o più</b> (obbligatorio)",
       "all_members": "📖 Tutti i membri",
@@ -5724,6 +5729,7 @@ window.POS_STRINGS = {
       "receiving_failed": "Ricezione non riuscita"
     },
     "search": {
+      "showing_first": "mostrati i primi",
       "title": "Cerca prodotti",
       "products": "prodotti",
       "categories": "categorie",
@@ -6672,6 +6678,7 @@ window.POS_STRINGS = {
       "confirm_abandon": "Aktuelle Transaktion abbrechen?"
     },
     "customer": {
+      "members_truncated": "Mehr zeigen wir nicht — tipp mehr vom Namen, um einzugrenzen.",
       "add_new_crack": "➕ Neuen CRACK hinzufügen",
       "age_confirm": "✓ Ich bestätige, dass dieses Mitglied <b>18 oder älter</b> ist (erforderlich)",
       "all_members": "📖 Alle Mitglieder",
@@ -7632,6 +7639,7 @@ window.POS_STRINGS = {
       "receiving_failed": "Wareneingang fehlgeschlagen"
     },
     "search": {
+      "showing_first": "gezeigt werden die ersten",
       "title": "Produktsuche",
       "products": "Produkte",
       "categories": "Kategorien",

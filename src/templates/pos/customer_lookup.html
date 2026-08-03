@@ -58,6 +58,10 @@
                 <p class="text-sm font-semibold text-gray-700 mb-2">
                     <span x-text="matches.length"></span> <span data-i18n="customer.members_match">members match — tap the right one:</span>
                 </p>
+                <!-- 50 is the endpoint's ceiling, so exactly 50 means "probably more". Say so — the
+                     whole point of this list is that the right person is ON it. -->
+                <p x-show="matches.length >= 50" x-cloak class="text-xs text-amber-700 mb-2"
+                   data-i18n="customer.members_truncated">That is as many as we show — type more of the name to narrow it down.</p>
                 <div class="space-y-2 max-h-72 overflow-y-auto">
                     <template x-for="m in matches" :key="m.id">
                         <button @click="selectCustomer(m)"
@@ -464,7 +468,14 @@
 
                 try {
                     const token = AuthHelper.getToken();
-                    const response = await fetch(`/api/v1/customers/search?q=${encodeURIComponent(this.searchQuery)}`, {
+                    // ASK FOR THE LOT (50 is the endpoint's ceiling). No limit was passed, so the
+                    // server's default of 10 applied — and this is not merely a count, it is the
+                    // PICK LIST: "3 members match — tap the right one" printed 10 when there were
+                    // more, and the person you wanted could simply not be on it. The comment two
+                    // lines below promises "no more silent 'first Larry'"; a silent truncation at
+                    // ten is the same failure wearing a longer list.
+                    const response = await fetch(
+                        `/api/v1/customers/search?q=${encodeURIComponent(this.searchQuery)}&limit=50`, {
                         headers: { 'Authorization': `Bearer ${token}` }
                     });
 

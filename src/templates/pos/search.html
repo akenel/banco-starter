@@ -98,9 +98,20 @@
                         <p class="text-xs text-gray-500" data-i18n="search.search_time">Search time</p>
                         <p class="font-mono text-lg font-bold text-green-600" x-text="searchTime + 'ms'"></p>
                     </div>
+                    <!-- The count is the SERVER's, not `results.length`. This box read "Results 50"
+                         for any query matching more than a page, because the fetch asks for 50 and
+                         this counted what came back — while `data.total` sat unused in the very same
+                         response. Third instance of that shape in this repo (Uncategorized: 0 hiding
+                         78 products, 5b22581; Age-restricted 3 of 5,162, this evening). When the two
+                         differ, say so the way scan.html does rather than quietly printing the
+                         smaller number. -->
                     <div class="bg-indigo-100 px-4 py-2 rounded-lg">
                         <p class="text-xs text-indigo-600" data-i18n="search.results">Results</p>
-                        <p class="text-2xl font-bold text-indigo-700" x-text="results.length"></p>
+                        <p class="text-2xl font-bold text-indigo-700" x-text="total"></p>
+                        <p x-show="total > results.length" style="display:none;" class="text-[10px] text-indigo-600">
+                            <span data-i18n="search.showing_first">showing the first</span>
+                            <span x-text="results.length"></span>
+                        </p>
                     </div>
                 </div>
             </div>
@@ -358,6 +369,7 @@ function searchApp() {
     return {
         query: '',
         results: [],
+        total: 0,            // the SERVER's match count — never results.length (capped at 50)
         categories: [],
         selectedCategory: null,
         selectedProduct: null,
@@ -423,7 +435,7 @@ function searchApp() {
 
         async search() {
             if (this.query.length === 0) {
-                this.results = [];
+                this.results = []; this.total = 0;
                 this.barcodeMode = false;
                 return;
             }
@@ -440,7 +452,8 @@ function searchApp() {
                 const response = await fetch(url);
                 if (response.ok) {
                     const data = await response.json();
-                    this.results = data.items || [];   // /search now returns {items,total,...}
+                    this.results = data.items || [];   // /search returns {items,total,...}
+                    this.total = data.total || this.results.length;   // and we now USE the total
 
                     // Mark exact barcode matches
                     this.results.forEach(p => {
@@ -451,7 +464,7 @@ function searchApp() {
                     if (this.barcodeMode && this.results.length === 1 && this.results[0].barcode === this.query) {
                         this.addToCart(this.results[0]);
                         this.query = '';
-                        this.results = [];
+                        this.results = []; this.total = 0;
                         this.barcodeMode = false;
                         this.$refs.searchInput.focus();
                     }
@@ -471,7 +484,7 @@ function searchApp() {
 
         clearSearch() {
             this.query = '';
-            this.results = [];
+            this.results = []; this.total = 0;
             this.selectedCategory = null;
             this.barcodeMode = false;
             this.$refs.searchInput.focus();
