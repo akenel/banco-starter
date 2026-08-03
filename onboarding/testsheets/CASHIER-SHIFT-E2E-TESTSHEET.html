@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cashier's day — open to close (E2E role-play)</title>
+<style>
+  :root{ --red:#157F52; --dark:#0f5c3b; --ink:#1f2937; --mut:#6b7280; --line:#e5e7eb;
+         --ok:#059669; --iss:#d97706; --fail:#C0392B; --bg:#f6f8f7; --gold:#b0862f; }
+  *{ box-sizing:border-box; }
+  body{ font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; color:var(--ink);
+        background:var(--bg); margin:0; line-height:1.5; }
+  a{ color:var(--dark); }
+  header{ position:sticky; top:0; z-index:10; background:#fff; border-bottom:2px solid var(--red);
+          padding:12px 20px; box-shadow:0 2px 8px rgba(0,0,0,.06); }
+  .htop{ display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+  h1{ font-size:18px; margin:0; }
+  h1 small{ color:var(--mut); font-weight:500; font-size:13px; display:block; margin-top:2px; }
+  .meters{ display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
+  .meter{ text-align:center; } .meter b{ font-size:20px; display:block; }
+  .meter.ok b{ color:var(--ok); } .meter.iss b{ color:var(--iss); } .meter.fail b{ color:var(--fail); }
+  .meter span{ font-size:11px; color:var(--mut); text-transform:uppercase; letter-spacing:.04em; }
+  .timer{ font-variant-numeric:tabular-nums; font-size:22px; font-weight:700; color:var(--ink); }
+  .btn{ border:1px solid var(--line); background:#fff; border-radius:8px; padding:6px 12px;
+        font-size:13px; cursor:pointer; } .btn:hover{ background:#f0f0f0; }
+  .btn.red{ background:var(--red); color:#fff; border-color:var(--red); }
+  main{ max-width:920px; margin:0 auto; padding:22px 20px 80px; }
+  .lead{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin-bottom:20px; }
+  .phase{ font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.06em;
+          color:var(--red); margin:26px 0 10px; padding-bottom:6px; border-bottom:2px solid var(--red); }
+  section{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin-bottom:14px; }
+  section h2{ font-size:15px; margin:0 0 4px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  section .why{ color:var(--mut); font-size:13px; margin:0 0 12px; }
+  code{ font-family:ui-monospace,Menlo,monospace; font-size:12px; background:#f3f4f6;
+        border:1px solid var(--line); border-radius:5px; padding:1px 5px; }
+  .cmd{ display:block; font-family:ui-monospace,Menlo,monospace; font-size:12.5px; background:#0f172a;
+        color:#e2e8f0; border-radius:8px; padding:9px 12px; margin:6px 0; white-space:pre-wrap; word-break:break-word; }
+  ol.steps{ margin:0; padding:0; list-style:none; }
+  ol.steps li{ display:flex; gap:10px; padding:9px 0; border-top:1px dashed var(--line); align-items:flex-start; }
+  ol.steps li:first-child{ border-top:none; }
+  .verdict{ display:flex; gap:4px; flex:none; margin-top:1px; }
+  .vbtn{ border:1px solid var(--line); background:#fff; border-radius:7px; padding:4px 8px; font-size:11px;
+         font-weight:700; cursor:pointer; color:var(--mut); white-space:nowrap; }
+  .vbtn:hover{ background:#f6f6f6; }
+  .vbtn.v-pass.on{ background:var(--ok); border-color:var(--ok); color:#fff; }
+  .vbtn.v-fail.on{ background:var(--fail); border-color:var(--fail); color:#fff; }
+  .vbtn.v-issue.on{ background:var(--iss); border-color:var(--iss); color:#fff; }
+  @media (max-width:600px){ .vbtn{ padding:4px 6px; font-size:10px; } ol.steps li{ flex-wrap:wrap; } }
+  .step-body{ flex:1; min-width:220px; font-size:14px; }
+  .exp{ display:block; color:var(--ok); font-size:12.5px; margin-top:4px; }
+  .exp::before{ content:"✓ expect: "; font-weight:600; }
+  textarea{ width:100%; border:1px solid var(--line); border-radius:8px; padding:8px 10px; font:inherit;
+            font-size:13px; margin-top:10px; resize:vertical; min-height:54px; }
+  textarea.step-cm{ margin-top:0; min-height:32px; font-size:12.5px; background:#fcfcfd; flex:1; }
+  .step-extra{ margin-top:8px; }
+  .cm-row{ display:flex; gap:6px; align-items:flex-start; }
+  .mic-btn{ border:1px solid var(--line); background:#fff; border-radius:8px; padding:4px 9px; cursor:pointer;
+            font-size:15px; flex:none; }
+  .mic-btn.on{ background:#e6f6ee; border-color:var(--red); color:var(--red); animation:pulse 1s infinite; }
+  @keyframes pulse{ 50%{ opacity:.45 } }
+  .shot-zone{ margin-top:6px; border:1.5px dashed var(--line); border-radius:8px; padding:6px 10px; font-size:12px;
+              color:var(--mut); cursor:pointer; background:#fafafa; }
+  .shot-zone:focus,.shot-zone.drag{ outline:none; border-color:var(--red); background:#f2fbf6; color:var(--ink); }
+  .thumbs{ display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; }
+  .thumbs .sh{ position:relative; }
+  .thumbs img{ height:66px; border-radius:6px; border:1px solid var(--line); cursor:zoom-in; display:block; }
+  .thumbs .rm{ position:absolute; top:-7px; right:-7px; background:var(--red); color:#fff; border:none;
+               border-radius:99px; width:19px; height:19px; font-size:11px; cursor:pointer; line-height:1; }
+  .hidden{ display:none; }
+  label.cm{ font-size:11px; color:var(--mut); text-transform:uppercase; letter-spacing:.04em; }
+  .safety{ border:1px solid var(--line); border-left:4px solid var(--gold); background:#fffdf5;
+           border-radius:8px; padding:10px 12px; margin:10px 0; font-size:13.5px; }
+  .danger{ border-left-color:var(--fail); background:#fdf2f0; }
+  .tag{ font-size:11px; font-weight:700; padding:2px 8px; border-radius:99px; background:#dcfce7; color:#065f46; }
+  .tag.gap{ background:#fef3c7; color:#92400e; }
+  .tag.t{ background:#e0e7ff; color:#3730a3; font-variant-numeric:tabular-nums; }
+  table{ border-collapse:collapse; width:100%; font-size:13px; margin:8px 0; }
+  th,td{ border:1px solid var(--line); padding:6px 9px; text-align:left; vertical-align:top; }
+  th{ background:#f6f8f7; }
+  .card{ font-family:ui-monospace,Menlo,monospace; font-size:12.5px; background:#0f172a; color:#e2e8f0;
+         border-radius:10px; padding:14px 16px; white-space:pre-wrap; }
+</style>
+</head>
+<body>
+
+<header><div class="htop">
+  <h1>🧾 The cashier's day — open to close
+    <small>Role-play the whole shift on the tablet. Findings are the point, not a clean run.</small></h1>
+  <div class="meters">
+    <div class="meter"><span class="timer" id="clock">00:00</span><span>elapsed</span></div>
+    <div class="meter"><b id="prog">0/0</b><span>marked</span></div>
+    <div class="meter ok"><b id="mOk">0</b><span>ok</span></div>
+    <div class="meter iss"><b id="mIss">0</b><span>issue</span></div>
+    <div class="meter fail"><b id="mFail">0</b><span>fail</span></div>
+    <button class="btn red" id="startBtn" onclick="toggleTimer()">▶ Start</button>
+    <button class="btn" onclick="copyFindings()">📋 findings</button>
+    <button class="btn" onclick="if(confirm('Clear everything — marks, notes and screenshots?')){localStorage.removeItem(KEY);location.reload()}">reset</button>
+  </div>
+</div></header>
+
+<main>
+  <div class="lead">
+    <strong>What this is.</strong> The daily cycle from
+    <a href="../11-cashier-shift.md">11-cashier-shift.md</a>, run as a role-play before go-live.
+    Angel plays the cashier from opening to close. Every step gets a mark and, when it goes sideways,
+    a note. <b>What you cannot do is the finding.</b>
+
+    <div class="safety danger">
+      <b>The rules for the day — these decide whether the test is worth anything.</b>
+      <ul style="margin:6px 0 0 18px; padding:0">
+        <li>Log in as a <b>cashier account</b>. Not admin, not your account. The role gate is half of what
+          is being tested.</li>
+        <li><b>The tablet only.</b> No ProBook, no terminal, no database, no Tigs.</li>
+        <li><b>When you get stuck, write down the stuck and do what a cashier would do.</b> Do not fix it.
+          Today you are collecting the list; the fix is tomorrow.</li>
+        <li><b>Stopwatch the exceptions, not the sales.</b> Nobody cares that a scan takes 2 s.</li>
+      </ul>
+      <div style="margin-top:8px">Your own lesson, 2026-07-30: you kept proving search worked while
+        Felix was scanning. <b>You will route around every pothole without noticing you did it</b> —
+        which is exactly why the rule above says do what a cashier would do, not what you can do.</div>
+    </div>
+
+    <div class="safety">
+      <b>The contract being tested.</b> The cashier makes <b>no decisions</b>, and each item takes
+      <b>2 seconds or it is broken</b>. Every place this sheet makes you think is either a gap in the
+      catalogue or a gap in the training — and both get fixed <em>before</em> a shift, never during one.
+    </div>
+
+    <div class="safety">
+      <b>Eight things are known to be unsettled</b> (G1–G8 in the guide). They are marked
+      <span class="tag gap">GAP</span> below. Those are <b>decisions for you and Felix, not bugs</b> —
+      when you hit one, the useful output is the answer you invent on the spot. <b>Part G is where you
+      write it down.</b> Whatever isn't decided will be improvised at a counter, and whatever a cashier
+      improvises becomes the shop's policy.
+    </div>
+  </div>
+
+  <div class="phase">Part A — Opening · target under 5 minutes</div>
+  <section>
+    <h2>A · Before the first customer <span class="tag t">⏱ &lt; 5 min</span></h2>
+    <p class="why">Do these in order — each one proves the one before it.</p>
+    <ol class="steps">
+      <li><div class="step-body"><b>A1 · Log in as yourself</b>, on a cashier account — not the shop's
+        shared login. <span class="cmd">/pos</span>
+        <span class="exp">your own name is on the screen.</span></div></li>
+      <li><div class="step-body"><b>A2 · Dongle in, scan the test code.</b>
+        <span class="cmd">/pos/hardware</span>
+        <span class="exp">green. Do this per machine, every time a gun moves.</span></div></li>
+      <li><div class="step-body"><b>A3 · Second gun on the charger.</b>
+        <span class="exp">it is physically there and charging. This is what makes C11 survivable.</span></div></li>
+      <li><div class="step-body"><b>A4 · Open your drawer — count the float IN</b>, denomination by
+        denomination, not as a remembered total. <span class="cmd">/pos/shift</span>
+        <span class="exp">shift shows OPEN with your float. The whole close depends on this number
+        being real.</span></div></li>
+      <li><div class="step-body"><b>A4b · The silent trap</b> <span class="tag gap">GAP G3</span> — before
+        opening the drawer, could you have sold anything?
+        <span class="exp">Banco lets you sell all day with no drawer open, and the tally only counts
+        sales rung AFTER it opened. Those sales vanish from your count-out and nothing warns you. Mark
+        ISSUE if nothing stopped you.</span></div></li>
+      <li><div class="step-body"><b>A5 · Card terminal on</b>, tested if the shop's rule says so.
+        <span class="exp">its own screen says ready.</span></div></li>
+    </ol>
+  </section>
+
+  <div class="phase">Part B — Selling · 99% of the day</div>
+  <section>
+    <h2>B · The happy path <span class="tag t">⏱ 2 s / item</span></h2>
+    <p class="why">scan → scan → scan → take payment → receipt → next customer. This needs no training.
+      <b>If the till asks you a question mid-sale, that is a bug in yesterday's setup, not a slow
+      cashier.</b></p>
+    <ol class="steps">
+      <li><div class="step-body"><b>B1 · Ring up 20 normal sales</b> with the gun on
+        <span class="cmd">/pos/scan</span>
+        <span class="exp">each item lands in about 2 seconds and nothing asks you anything. Note any
+        item that made you pause — that one is the finding.</span></div></li>
+      <li><div class="step-body"><b>B2 · Take payment every way the shop does</b> — cash · Visa · debit ·
+        TWINT · bank transfer · crypto · other.
+        <span class="exp">each completes and prints/offers a receipt.</span></div></li>
+      <li><div class="step-body"><b>B3 · One 18+ sale, ID checked</b> <span class="tag t">⏱ &lt; 20 s</span>
+        — attach an of-age member, or attest the walk-in is 18+.
+        <span class="exp">it will not check out until you do. This is enforced server-side and cannot be
+        clicked past; every clearance is logged with who cleared it and how.</span></div></li>
+      <li><div class="step-body"><b>B4 · Try to sell an 18+ line to someone with no ID.</b>
+        <span class="exp"><b>refuse it.</b> There is no override and that is correct. This is the only
+        place a cashier can personally create a legal problem for Felix — <em>no ID, no sale.</em></span></div></li>
+      <li><div class="step-body"><b>B5 · A member whose date of birth makes them under 18.</b>
+        <span class="exp">blocked outright — no attestation overrides it.</span></div></li>
+    </ol>
+  </section>
+
+  <div class="phase">Part C — When it goes wrong · where the training earns its money</div>
+  <section>
+    <h2>C · The exceptions</h2>
+    <p class="why">The happy path teaches itself; these do not. Stopwatch each one. Several have
+      <b>no agreed answer yet</b> — for those, the note matters more than the mark.</p>
+    <ol class="steps">
+      <li><div class="step-body"><b>C1 · Scan a barcode that isn't in the catalogue</b>
+        <span class="tag gap">GAP G1</span>
+        <span class="exp">Banco says <i>"Product with barcode 'x' not found"</i> and the sale stops.
+        <b>What do you do next?</b> Write the move you invent — that becomes the policy. This is not
+        rare: it is every delivery since the last setup session.</span></div></li>
+      <li><div class="step-body"><b>C2 · Scan a product that exists but is inactive</b>
+        <span class="tag gap">GAP G1</span>
+        <span class="exp"><i>"Product is inactive"</i> and it stops. Same question, possibly a
+        different answer.</span></div></li>
+      <li><div class="step-body"><b>C3 · Screen price ≠ shelf price</b> <span class="tag gap">GAP G2</span>
+        — sell at which one, and who is allowed to decide?
+        <span class="exp">no rule exists. Note what you'd tell Leandra to do. A wrong bind surfaces
+        <em>here</em>, in front of a customer — Cannazym at CHF 12 instead of 35.</span></div></li>
+      <li><div class="step-body"><b>C4 · Wrong item scanned — remove the line before checkout</b>
+        <span class="tag t">⏱ &lt; 15 s</span>
+        <span class="exp">works today, no manager needed.</span></div></li>
+      <li><div class="step-body"><b>C5 · Customer changes mind after paying</b>
+        <span class="tag gap">GAP G6</span> — try it as the cashier.
+        <span class="exp">refund is <b>manager-only</b> and you will be blocked. Correct as a control,
+        unworkable if Felix is out. Note what a cashier should actually do at 18:40 on a Saturday.</span></div></li>
+      <li><div class="step-body"><b>C6 · Card declines</b> — ask for another method.
+        <span class="exp">the basket is still open and takes the second method.</span></div></li>
+      <li><div class="step-body"><b>C7 · Split payment</b> — part cash, part card
+        <span class="tag gap">GAP G7</span>
+        <span class="exp">one method per transaction today. Note whether the shop actually needs
+        split before go-live.</span></div></li>
+      <li><div class="step-body"><b>C8 · "I forgot my wallet, back in ten minutes"</b>
+        <span class="tag gap">GAP G5</span>
+        <span class="exp">no park-the-sale for a cashier. <code>/pos/held-orders</code> is the kiosk
+        pre-order board, not a parked basket.</span></div></li>
+      <li><div class="step-body"><b>C9 · Cash leaves the drawer</b> (milk, window cleaner) —
+        <b>paid-out</b> with a reason <span class="tag t">⏱ &lt; 30 s</span>
+        <span class="cmd">/pos/shift → paid-out</span>
+        <span class="exp">works, and a reason is required.</span></div></li>
+      <li><div class="step-body"><b>C10 · Cash comes in that isn't a sale</b> (float top-up) —
+        <b>paid-in</b> with a reason
+        <span class="exp">works, reason required.</span></div></li>
+      <li><div class="step-body"><b>C11 · Gun goes flat mid-queue</b> — swap the dongle to the charged one
+        <span class="tag t">⏱ &lt; 30 s</span>
+        <span class="exp">works — that is why there are two. Re-run the A2 hardware check after
+        the swap.</span></div></li>
+      <li><div class="step-body"><b>C12 · Customer offers foreign cash</b>
+        <span class="exp">Banco tracks foreign cash per currency at close. This exists but has
+        <b>never been tested by a human</b> — you are the first.</span></div></li>
+      <li><div class="step-body"><b>C13 · 18+ item, no ID</b> — refuse the line.
+        <span class="exp">no override exists, correctly.</span></div></li>
+    </ol>
+  </section>
+
+  <div class="phase">Part D — Closing · target under 10 minutes</div>
+  <section>
+    <h2>D · Count the drawer out <span class="tag t">⏱ &lt; 10 min</span></h2>
+    <p class="why">The paper version took 90 minutes. This is the step that has to feel worth it.</p>
+    <ol class="steps">
+      <li><div class="step-body"><b>D1 · Close the shift and count out</b>, denomination by denomination.
+        <span class="cmd">/pos/shift → close</span>
+        <span class="exp">Banco computes <code>expected = float + cash sales + paid-in − paid-out −
+        cash refunds</code>.</span></div></li>
+      <li><div class="step-body"><b>D2 · Land inside tolerance</b> — variance = counted − expected,
+        tolerance <b>CHF 0.20</b>.
+        <span class="exp">closes clean.</span></div></li>
+      <li><div class="step-body"><b>D3 · Now deliberately be out</b> — count one note wrong on purpose.
+        <span class="exp">it <b>will not close without a note</b>. That is deliberate: the note is the
+        audit trail. Check the wording makes sense to someone who is tired.</span></div></li>
+      <li><div class="step-body"><b>D4 · Read the shift report</b> — hours, transaction count, cash,
+        card, expected, counted, variance.
+        <span class="exp">one page. Reload it at <code>/pos/shift/last</code> — closing must not lose
+        it.</span></div></li>
+      <li><div class="step-body"><b>D5 · Card sales are NOT in the drawer.</b> Confirm the report makes
+        that obvious.
+        <span class="exp">reported but not counted, and the screen says so. This is the classic
+        first-week mistake — if the sheet doesn't make it obvious, that's a finding.</span></div></li>
+      <li><div class="step-body"><b>D6 · Three closing screens</b> <span class="tag gap">GAP G8</span> —
+        from the cashier's navigation, can you reach <code>/pos/closeout</code>,
+        <code>/pos/shift</code> and <code>/pos/cash-count</code>?
+        <span class="exp">a cashier cannot have three closing screens and two meanings of "shift".
+        Note which one you instinctively reached for — that is probably the real one.</span></div></li>
+    </ol>
+  </section>
+
+  <div class="phase">Part E — The manager's part · after the cashiers have gone</div>
+  <section>
+    <h2>E · Read the day and get it into Banana</h2>
+    <p class="why">Switch to a manager account for this part — and note the moment you had to.</p>
+    <ol class="steps">
+      <li><div class="step-body"><b>E1 · Read the day</b> — totals, per payment method, VAT
+        <span class="cmd">/pos/reports</span>
+        <span class="exp">the numbers match what you actually rang up.</span></div></li>
+      <li><div class="step-body"><b>E2 · Check each cashier's variance</b> and read every note.
+        <span class="exp">your D3 note is there and readable.</span></div></li>
+      <li><div class="step-body"><b>E3 · Process the refund you were blocked on in C5.</b>
+        <span class="exp">works as manager. Time how long the whole cashier→manager round trip took.</span></div></li>
+      <li><div class="step-body"><b>E4 · Export for Banana</b> <span class="tag t">⏱ &lt; 5 min</span>
+        <span class="cmd">/api/v1/pos/reports/daily-summary.csv</span>
+        <span class="exp">lands as <code>banana-YYYY-MM-DD.csv</code>: one quoted line per payment
+        method that took money, a giveaway-cost line if treats went out, and a VAT summary block
+        (8.1% / 2.6%) in its own Turnover and VAT columns.</span></div></li>
+      <li><div class="step-body"><b>E5 · Actually import it into Banana.</b>
+        <span class="tag gap">GAP G4</span>
+        <span class="exp"><b>does it import?</b> <code>Account</code> and <code>VatCode</code> ship
+        <b>blank</b> — Felix maps them by hand every single day until he hands over his chart of
+        accounts. Time the mapping. A daily manual step is what gets abandoned in week three, and it
+        takes the bookkeeping with it.</span></div></li>
+    </ol>
+  </section>
+
+  <div class="phase">Part F — The verdict</div>
+  <section>
+    <h2>F · Did one person run the whole day alone?</h2>
+    <ol class="steps">
+      <li><div class="step-body"><b>F1 · The whole cycle ran end to end, by one person, with no help —
+        and the drawer balanced.</b>
+        <span class="exp">that is the only definition of done. Anything else is a finding, and findings
+        are the point.</span></div></li>
+      <li><div class="step-body"><b>F2 · Could Leandra do this tomorrow with the till card alone?</b>
+        <span class="exp">be honest. If the answer needs a "yes, but…", write the but.</span></div></li>
+    </ol>
+    <label class="cm">the big notes — where did you pause, what would you word differently, what would
+      you not let a cashier meet a customer without?</label>
+    <textarea data-cm="verdict" placeholder="Your call, Wolf." style="min-height:90px"></textarea>
+  </section>
+
+  <div class="phase">Part G — The eight decisions (the real output of the day)</div>
+  <section>
+    <h2>G · What you and Felix have to settle</h2>
+    <p class="why">These are <b>not bugs</b> — nothing here is broken code. They are unanswered
+      questions, and every one will surface at a counter whether or not it has an answer. Write the
+      answer you want, in the shop's words, not ours.</p>
+
+    <label class="cm">G1 · Unknown or inactive barcode — what does the cashier do?</label>
+    <textarea data-cm="g1" placeholder="Sell as a manual line? Refuse? Fetch a manager? Set it aside and carry on?"></textarea>
+
+    <label class="cm">G2 · Shelf price ≠ screen price — which price, and who decides?</label>
+    <textarea data-cm="g2" placeholder="Honour the shelf? Honour the screen? Under what amount can a cashier just decide?"></textarea>
+
+    <label class="cm">G3 · Selling with no drawer open — enforce it, or make A4 impossible to miss?</label>
+    <textarea data-cm="g3" placeholder="Block checkout until a shift is open, or a loud banner?"></textarea>
+
+    <label class="cm">G4 · Banana Account / VatCode — when do we get Felix's chart of accounts?</label>
+    <textarea data-cm="g4" placeholder="Who asks him, by when. This is a go-live item."></textarea>
+
+    <label class="cm">G5 · Park the sale — does the shop need it?</label>
+    <textarea data-cm="g5" placeholder="How often does 'back in ten minutes' actually happen at Artemis?"></textarea>
+
+    <label class="cm">G6 · Refunds with no manager in the shop — what is the rule?</label>
+    <textarea data-cm="g6" placeholder="Manager-present rule? A cashier escalation? Refund only when Felix is in?"></textarea>
+
+    <label class="cm">G7 · Split payment — needed before go-live, or not?</label>
+    <textarea data-cm="g7" placeholder="Ask Felix how often part-cash part-card comes up."></textarea>
+
+    <label class="cm">G8 · Three closing screens and two meanings of "shift" — which one is real?</label>
+    <textarea data-cm="g8" placeholder="Pick the real one; the others come out of the cashier's navigation. Biggest smoothness risk in the cycle."></textarea>
+  </section>
+
+  <div class="phase">The till card — what gets laminated</div>
+  <section>
+    <h2>The whole job, on one card</h2>
+    <p class="why">Once G1–G8 have answers, this prints and goes on the counter. Nobody at a till reads
+      a manual. Check it still reads true after your run.</p>
+    <div class="card">OPEN       hardware green → drawer open with float counted
+SELL       scan · scan · pay · receipt
+18+        no ID, no sale. Ever.
+NOT FOUND  → [ G1 — fill this in ]
+REFUND     → get a manager
+CASH OUT   → /pos/shift → paid-out → say why
+CLOSE      count out → note any difference → hand the report over</div>
+    <ol class="steps">
+      <li><div class="step-body">After the run, this card is still true and the NOT FOUND line has a real
+        answer in it.
+        <span class="exp">if the card can't be filled in, the shift can't be handed over.</span></div></li>
+    </ol>
+  </section>
+</main>
+
+<script>
+  const KEY='banco-cashier-shift-e2e-v1';
+  const STEPS=[];
+  const VDEFS=[['pass','OK','✓'],['fail','FAIL','✗'],['issue','ISSUE','⚠']];
+
+  function verdictControl(i){
+    const box=document.createElement('div'); box.className='verdict';
+    VDEFS.forEach(([v,lbl,ic])=>{ const b=document.createElement('button'); b.type='button';
+      b.className='vbtn v-'+v; b.innerHTML=ic+' '+lbl; b.title=lbl;
+      b.addEventListener('click', ()=>setVerdict(i, STEPS[i].verdict===v ? '' : v));
+      box.appendChild(b); STEPS[i]._btns[v]=b; });
+    return box;
+  }
+  function paintVerdict(i){ const s=STEPS[i]; VDEFS.forEach(([v])=>{ const b=s._btns[v];
+    if(b) b.classList.toggle('on', s.verdict===v); }); }
+  function setVerdict(i,v){ STEPS[i].verdict=v; paintVerdict(i); save(); progress(); }
+
+  function buildSteps(){
+    document.querySelectorAll('ol.steps li').forEach((li,i)=>{
+      const bodyEl = li.querySelector('.step-body');
+      const label = (bodyEl?.textContent||'').trim().replace(/\s+/g,' ').slice(0,120);
+      STEPS[i]={ li, label, verdict:'', ta:null, thumbs:null, shots:[], _btns:{} };
+      li.insertBefore(verdictControl(i), li.firstChild);
+      const wrap=document.createElement('div'); wrap.className='step-extra';
+      const row=document.createElement('div'); row.className='cm-row';
+      const ta=document.createElement('textarea'); ta.className='step-cm'; ta.rows=1;
+      ta.placeholder='note… what happened, how long, what you had to invent (type or 🎤 speak)';
+      ta.addEventListener('input', save);
+      const mic=document.createElement('button'); mic.className='mic-btn'; mic.type='button';
+      mic.textContent='🎤'; mic.title='Dictate this note';
+      mic.addEventListener('click', ()=>micToggle(mic, ta));
+      row.appendChild(ta); row.appendChild(mic); wrap.appendChild(row);
+      const zone=document.createElement('div'); zone.className='shot-zone'; zone.tabIndex=0;
+      zone.textContent='📋 click & paste a screenshot (Ctrl+V) · drop an image · or 📷 pick a file';
+      const fin=document.createElement('input'); fin.type='file'; fin.accept='image/*';
+      fin.capture='environment'; fin.className='hidden';
+      zone.addEventListener('click', ()=>{ activeIdx=i; fin.click(); });
+      zone.addEventListener('focus', ()=>{ activeIdx=i; });
+      zone.addEventListener('dragover', e=>{ e.preventDefault(); zone.classList.add('drag'); });
+      zone.addEventListener('dragleave', ()=>zone.classList.remove('drag'));
+      zone.addEventListener('drop', e=>{ e.preventDefault(); zone.classList.remove('drag'); activeIdx=i;
+        [...(e.dataTransfer.files||[])].forEach(f=>{ if(f.type.startsWith('image/')) addShot(i,f); }); });
+      fin.addEventListener('change', e=>{ [...(e.target.files||[])].forEach(f=>addShot(i,f)); e.target.value=''; });
+      const thumbs=document.createElement('div'); thumbs.className='thumbs';
+      wrap.appendChild(zone); wrap.appendChild(fin); wrap.appendChild(thumbs);
+      bodyEl.appendChild(wrap);
+      STEPS[i].ta=ta; STEPS[i].thumbs=thumbs;
+    });
+  }
+
+  let activeIdx=null;
+  document.addEventListener('paste', e=>{ if(activeIdx==null) return;
+    const items=(e.clipboardData||{}).items||[];
+    for(const it of items){ if(it.type && it.type.startsWith('image/')){ const f=it.getAsFile();
+      if(f){ addShot(activeIdx,f); e.preventDefault(); } } } });
+  function downscale(file, cb){ const url=URL.createObjectURL(file); const img=new Image();
+    img.onload=()=>{ const max=1000; let w=img.width,h=img.height; if(w>max){ h=Math.round(h*max/w); w=max; }
+      const c=document.createElement('canvas'); c.width=w; c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h); URL.revokeObjectURL(url);
+      try{ cb(c.toDataURL('image/jpeg',0.6)); }catch(e){ cb(null); } };
+    img.onerror=()=>{ URL.revokeObjectURL(url); cb(null); }; img.src=url; }
+  function addShot(i,file){ downscale(file, data=>{ if(!data) return;
+    STEPS[i].shots.push({name:file.name||'screenshot.png', data}); renderThumbs(i); save(); }); }
+  function renderThumbs(i){ const t=STEPS[i].thumbs; t.innerHTML='';
+    STEPS[i].shots.forEach((sh,si)=>{ const d=document.createElement('div'); d.className='sh';
+      const im=document.createElement('img'); im.src=sh.data; im.title=sh.name;
+      im.onclick=()=>{ const w=window.open(); if(w) w.document.write('<img src="'+sh.data+'" style="max-width:100%">'); };
+      const rm=document.createElement('button'); rm.className='rm'; rm.textContent='✕'; rm.title='remove';
+      rm.onclick=()=>{ STEPS[i].shots.splice(si,1); renderThumbs(i); save(); };
+      d.appendChild(im); d.appendChild(rm); t.appendChild(d); }); }
+
+  function save(){ const d={verdict:[],note:[],shots:[],cm:{},seconds};
+    STEPS.forEach((s,i)=>{ d.verdict[i]=s.verdict||''; d.note[i]=s.ta.value; d.shots[i]=s.shots; });
+    document.querySelectorAll('textarea[data-cm]').forEach(t=>d.cm[t.dataset.cm]=t.value);
+    try{ localStorage.setItem(KEY,JSON.stringify(d)); }catch(e){ console.warn('storage full', e); } }
+  function restore(){ try{ const d=JSON.parse(localStorage.getItem(KEY)||'{}');
+    STEPS.forEach((s,i)=>{ if(d.verdict&&d.verdict[i]){ s.verdict=d.verdict[i]; paintVerdict(i); }
+      if(d.note&&d.note[i]!=null) s.ta.value=d.note[i];
+      if(d.shots&&Array.isArray(d.shots[i])){ s.shots=d.shots[i]; renderThumbs(i); } });
+    if(d.cm) document.querySelectorAll('textarea[data-cm]').forEach(t=>{ if(d.cm[t.dataset.cm]!=null) t.value=d.cm[t.dataset.cm]; });
+    if(typeof d.seconds==='number'){ seconds=d.seconds; paintClock(); } }catch(e){} }
+
+  function progress(){ let p=0,f=0,iss=0,dec=0;
+    STEPS.forEach(s=>{ if(s.verdict){ dec++; if(s.verdict==='pass')p++; else if(s.verdict==='fail')f++; else iss++; } });
+    document.getElementById('prog').textContent=dec+'/'+STEPS.length;
+    mOk.textContent=p; mIss.textContent=iss; mFail.textContent=f; }
+
+  // Turn the run into something that can be pasted straight into WORKLIST.md. A finding that
+  // stays in a browser tab is a finding nobody acts on.
+  function copyFindings(){
+    const L=['# Cashier shift role-play — findings','', 'elapsed: '+document.getElementById('clock').textContent, ''];
+    STEPS.forEach(s=>{ if(s.verdict==='fail'||s.verdict==='issue'||(s.ta.value||'').trim()){
+      L.push('- ['+(s.verdict||'note').toUpperCase()+'] '+s.label + ((s.ta.value||'').trim()? '\n      → '+s.ta.value.trim() : '')); } });
+    L.push('', '## Decisions for Angel + Felix');
+    document.querySelectorAll('textarea[data-cm]').forEach(t=>{ const v=(t.value||'').trim();
+      if(v) L.push('- **'+t.dataset.cm.toUpperCase()+'** — '+v); });
+    const txt=L.join('\n');
+    navigator.clipboard?.writeText(txt).then(
+      ()=>alert('Findings copied — paste into WORKLIST.md'),
+      ()=>{ const w=window.open(); if(w) w.document.write('<pre>'+txt.replace(/</g,'&lt;')+'</pre>'); });
+  }
+
+  let seconds=0, timer=null;
+  function paintClock(){ const m=String(Math.floor(seconds/60)).padStart(2,'0'),
+    s=String(seconds%60).padStart(2,'0'); document.getElementById('clock').textContent=m+':'+s; }
+  function toggleTimer(){ const b=document.getElementById('startBtn');
+    if(timer){ clearInterval(timer); timer=null; b.textContent='▶ Resume'; }
+    else { timer=setInterval(()=>{ seconds++; paintClock(); if(seconds%10===0) save(); },1000);
+      b.textContent='⏸ Pause'; } }
+
+  let rec=null;
+  function micToggle(btn, ta){
+    if(rec){ rec.stop(); return; }
+    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    if(!SR){ alert('This browser has no speech recognition — type the note instead.'); return; }
+    rec=new SR(); rec.lang='en-GB'; rec.interimResults=false; rec.continuous=true;
+    rec.onresult=e=>{ let t=''; for(let i=e.resultIndex;i<e.results.length;i++) t+=e.results[i][0].transcript;
+      ta.value=(ta.value?ta.value+' ':'')+t.trim(); save(); };
+    rec.onend=()=>{ btn.classList.remove('on'); rec=null; };
+    rec.onerror=()=>{ btn.classList.remove('on'); rec=null; };
+    btn.classList.add('on'); rec.start();
+  }
+
+  buildSteps(); restore(); progress(); paintClock();
+</script>
+</body></html>
