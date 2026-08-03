@@ -1,7 +1,7 @@
 {% extends "pos/base.html" %}
 
-{% block title %}My Drawer - HelixPOS{% endblock %}
-{% block page_name %}My Drawer{% endblock %}
+{% block title %}Cash Box - HelixPOS{% endblock %}
+{% block page_name %}Cash Box{% endblock %}
 
 {% block content %}
 <div class="min-h-screen bg-gray-50" x-data="shiftData()" x-init="init()">
@@ -13,7 +13,7 @@
                 <button @click="goDashboard()" class="btn-secondary flex-none" title="Dashboard" aria-label="Dashboard">🏠
                 </button>
                 <div>
-                    <h1 class="text-2xl font-bold text-gray-900" data-i18n="shift.my_drawer">💰 My Drawer</h1>
+                    <h1 class="text-2xl font-bold text-gray-900" data-i18n="shift.cash_box">💰 Cash Box</h1>
                     <p class="text-sm text-gray-600" x-text="user.username ? t('shift.cashier_prefix', {name: user.username}) : ''"></p>
                 </div>
             </div>
@@ -111,14 +111,24 @@
                 <div class="flex justify-between items-start mb-4">
                     <div>
                         <span class="inline-block bg-green-100 text-green-800 text-xs font-bold px-2 py-1 rounded-full" data-i18n="shift.open_badge">● OPEN</span>
-                        <p class="text-sm text-gray-500 mt-1"><span data-i18n="shift.opened">Opened</span> <span x-text="fmtTime(shift && shift.opened_at)"></span></p>
+                        <p class="text-sm text-gray-500 mt-1"><span data-i18n="shift.opened">Opened</span>
+                            <span x-text="fmtTime(shift && shift.opened_at)"></span>
+                            <span x-show="shift && shift.opened_by"><span data-i18n="shift.by">by</span>
+                                <b x-text="shift && shift.opened_by"></b></span></p>
                     </div>
-                    <button @click="refresh()" class="text-sm text-indigo-600 hover:underline" data-i18n="shift.refresh">↻ Refresh</button>
+                    <div class="flex gap-3 items-center">
+                        <!-- X-REPORT: the standard non-resetting mid-shift read. This is the
+                             "it's getting heavy, shall we drop some to the safe?" moment — you need
+                             the position WITHOUT reconciling, because reconciling ends the day. -->
+                        <button @click="xReport()" class="text-sm text-indigo-600 hover:underline"
+                                data-i18n="shift.x_report">📄 X-report</button>
+                        <button @click="refresh()" class="text-sm text-indigo-600 hover:underline" data-i18n="shift.refresh">↻ Refresh</button>
+                    </div>
                 </div>
                 <div class="grid grid-cols-2 gap-4 text-sm">
                     <div><p class="text-gray-500" data-i18n="shift.opening_float">Opening float</p><p class="font-semibold text-lg" x-text="formatPrice(num(shift && shift.opening_float))"></p></div>
-                    <div><p class="text-gray-500" data-i18n="shift.my_cash_sales">My cash sales</p><p class="font-semibold text-lg text-green-600" x-text="formatPrice(num(shift && shift.cash_sales))"></p></div>
-                    <div><p class="text-gray-500" data-i18n="shift.my_card_twint">My card/Twint (not in drawer)</p><p class="font-semibold" x-text="formatPrice(num(shift && shift.card_sales))"></p></div>
+                    <div><p class="text-gray-500" data-i18n="shift.cash_sales_all">Cash sales (everyone)</p><p class="font-semibold text-lg text-green-600" x-text="formatPrice(num(shift && shift.cash_sales))"></p></div>
+                    <div><p class="text-gray-500" data-i18n="shift.card_twint_all">Card / TWINT (not in the box)</p><p class="font-semibold" x-text="formatPrice(num(shift && shift.card_sales))"></p></div>
                     <div><p class="text-gray-500" data-i18n="shift.transactions">Transactions</p><p class="font-semibold" x-text="shift && shift.transaction_count"></p></div>
                     <div x-show="num(shift && shift.paid_in_total) > 0"><p class="text-gray-500" data-i18n="shift.paid_in">Paid in</p><p class="font-semibold text-blue-600" x-text="formatPrice(num(shift && shift.paid_in_total))"></p></div>
                     <div x-show="num(shift && shift.paid_out_total) > 0"><p class="text-gray-500" data-i18n="shift.paid_out">Paid out</p><p class="font-semibold text-orange-600" x-text="formatPrice(num(shift && shift.paid_out_total))"></p></div>
@@ -141,6 +151,29 @@
                 </div>
             </div>
 
+            <!-- X-REPORT panel — appears only when asked for, and disappears on refresh. It is a
+                 READ: nothing here was written, nothing was closed. -->
+            <div x-show="xrep" style="display:none" class="card border-2 border-indigo-300 bg-indigo-50">
+                <div class="flex justify-between items-start mb-2">
+                    <h3 class="font-semibold text-indigo-900">📄 <span data-i18n="shift.x_report_title">X-report — a reading only</span></h3>
+                    <button @click="xrep = null" class="text-sm text-indigo-600 hover:underline" data-i18n="shift.close_panel">✕ close</button>
+                </div>
+                <p class="text-xs text-indigo-700 mb-3" data-i18n="shift.x_report_hint">Nothing was closed and nothing was written — this is the
+                    position right now, for deciding whether to move cash to the safe.</p>
+                <div class="grid grid-cols-2 gap-3 text-sm">
+                    <div><p class="text-gray-500" data-i18n="shift.opening_float">Opening float</p><p class="font-semibold" x-text="formatPrice(num(xrep && xrep.opening_float))"></p></div>
+                    <div><p class="text-gray-500" data-i18n="shift.cash_sales_all">Cash sales (everyone)</p><p class="font-semibold text-green-700" x-text="formatPrice(num(xrep && xrep.cash_sales))"></p></div>
+                    <div><p class="text-gray-500" data-i18n="shift.paid_out">Paid out</p><p class="font-semibold text-orange-600" x-text="formatPrice(num(xrep && xrep.paid_out_total))"></p></div>
+                    <div><p class="text-gray-500" data-i18n="shift.to_safe_total">Of that, to the safe</p><p class="font-semibold" x-text="formatPrice(num(xrep && xrep.to_safe_total))"></p></div>
+                    <div><p class="text-gray-500" data-i18n="shift.transactions">Transactions</p><p class="font-semibold" x-text="xrep && xrep.transaction_count"></p></div>
+                    <div><p class="text-gray-500" data-i18n="shift.hours_open">Hours open</p><p class="font-semibold" x-text="(xrep && xrep.hours_open) + ' h'"></p></div>
+                </div>
+                <div class="border-t border-indigo-200 mt-3 pt-3 flex justify-between items-center">
+                    <span class="font-semibold text-indigo-900" data-i18n="shift.in_the_box_now">In the box right now</span>
+                    <span class="text-2xl font-bold text-indigo-700" x-text="formatPrice(num(xrep && xrep.expected_cash))"></span>
+                </div>
+            </div>
+
             <!-- Paid in / out -->
             <div class="card">
                 <h3 class="font-semibold text-gray-900 mb-3" data-i18n="shift.cash_in_out">Cash in / out (not a sale)</h3>
@@ -151,15 +184,26 @@
                         <option value="paid_in" data-i18n="shift.paid_in_opt">Paid IN</option>
                     </select>
                     <input type="number" min="0" step="0.05" x-model="paid.amount" data-i18n-placeholder="shift.ph_amount" placeholder="Amount" class="w-28 border rounded py-2 px-3 text-sm">
+                    <select x-model="paid.reason_code" class="border rounded py-2 px-3 text-sm">
+                        <template x-for="rc in reasonCodes()" :key="rc.code">
+                            <option :value="rc.code" x-text="rc.label"></option>
+                        </template>
+                    </select>
                     <input type="text" x-model="paid.reason" data-i18n-placeholder="shift.ph_reason" placeholder="Reason (e.g. milk, float top-up)" class="flex-1 min-w-40 border rounded py-2 px-3 text-sm">
                     <button @click="addPaid()" :disabled="processing" class="btn-secondary text-sm" data-i18n="shift.record">Record</button>
                 </div>
+                <!-- WHY THE CODE MATTERS, in the one place someone might wonder: a skim to the safe
+                     is money leaving the drawer but NOT the business, so it must never be booked as
+                     an expense next to milk and window cleaner. -->
+                <p x-show="paid.reason_code === 'to_safe'" style="display:none"
+                   class="text-xs text-gray-500 mt-2" data-i18n="shift.to_safe_hint">Money to the safe is not an expense — it stays the
+                    shop's, it just leaves the box. Banco does not track the safe.</p>
             </div>
 
             <!-- Close: count the drawer -->
             <div class="card" id="close-drawer">
-                <h3 class="font-semibold text-gray-900 mb-1" data-i18n="shift.close_count_out">Close drawer — count out</h3>
-                <p class="text-sm text-gray-600 mb-4" data-i18n="shift.close_count_hint">Count what's physically in the drawer now.</p>
+                <h3 class="font-semibold text-gray-900 mb-1" data-i18n="shift.reconcile_count_out">Reconcile — count the box out</h3>
+                <p class="text-sm text-gray-600 mb-4" data-i18n="shift.reconcile_count_hint">Count what is physically in the box now. What you count becomes tomorrow morning's expected.</p>
 
                 <div class="border rounded-lg overflow-hidden mb-4">
                     <table class="w-full text-sm data-table">
@@ -356,7 +400,8 @@ function shiftData() {
         report: null,          // /shift/last or close result
         log: null,             // itemized daily sales log for the report
         note: '',
-        paid: { kind: 'paid_out', amount: '', reason: '' },
+        paid: { kind: 'paid_out', amount: '', reason: '', reason_code: 'petty_cash' },
+        xrep: null,            // the last X-report read (display only — it changes nothing)
         // Denominations sourced from /config (the tenant currency's ordered face values).
         // Keys MUST match the server's valid set exactly ("0.50" not "0.5"); denomList()
         // guarantees that. Populated in init() once POSConfig has loaded.
@@ -448,7 +493,8 @@ function shiftData() {
             this.processing = true; this.error = '';
             try {
                 await API.post('/api/v1/pos/shift/paid', {
-                    kind: this.paid.kind, amount: String(amt), reason: this.paid.reason.trim() });
+                    kind: this.paid.kind, amount: String(amt), reason: this.paid.reason.trim(),
+                    reason_code: this.paid.reason_code || null });
                 this.paid.amount = ''; this.paid.reason = '';
                 await this.refresh();
             } catch (e) { this.error = e.message || t('shift.err_record'); }
@@ -466,6 +512,29 @@ function shiftData() {
                 this.loadLog(res.shift_id);
             } catch (e) { this.error = e.message || t('shift.err_close'); }
             this.processing = false;
+        },
+
+        // The named movement reasons (§7.3). `to_safe` is the one that matters: it is money
+        // leaving the box but NOT the business, so it must never book as an expense.
+        reasonCodes() {
+            return [
+                { code:'petty_cash',   label: t('shift.rc_petty_cash') },
+                { code:'to_safe',      label: t('shift.rc_to_safe') },
+                { code:'float_top_up', label: t('shift.rc_float_top_up') },
+                { code:'change_order', label: t('shift.rc_change_order') },
+                { code:'other',        label: t('shift.rc_other') },
+            ];
+        },
+
+        // X-report — a READ. It writes nothing, closes nothing, starts no new chain. That is the
+        // whole distinction from the Z-report (the closeout), which is fiscal and resetting.
+        async xReport() {
+            this.error = '';
+            try {
+                const x = await API.get('/api/v1/pos/shift/x-report');
+                if (!x || !x.open) { this.error = t('shift.err_no_open_box'); return; }
+                this.xrep = x;
+            } catch (e) { this.error = e.message || t('shift.err_load'); }
         },
 
         async loadLog(shiftId) {
