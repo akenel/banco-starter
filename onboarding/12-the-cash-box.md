@@ -175,9 +175,15 @@ Paid-out to the safe is where foreign notes go. **Banco never tracks the safe** 
 and not our business.
 
 **5 · Call it the CASH BOX.** Not "till", not "drawer" — there is one box and everybody says box.
-*(For the German UI, ask Felix which he actually says: `Kasse` for the box, and `Kassensturz` is the
-standard word for counting it down. If that is the shop's word, use it — it will read as native
-rather than translated.)*
+
+**German: `Kasse` for the thing, `Kassensturz` for the reconcile action.** ✅ Confirmed by a
+native speaker (Sylvken), 2026-08-03 — so this is settled, not a guess. `Kassensturz machen` is
+what a shopkeeper actually says for counting the till down, which is exactly the operation in
+section 2. Use those two words in the German UI rather than a translation of "reconcile the cash
+box", which would read as software-German.
+
+*(`Geldkassette` is the precise word for the physical lockable box that goes in the safe, but it
+is formal — nobody says it across a counter.)*
 
 ---
 
