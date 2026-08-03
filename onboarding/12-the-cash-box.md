@@ -173,6 +173,77 @@ message that nobody reading the books will ever see.
 **unverified** in its own column rather than leaning on prose, and never counts toward any
 balanced-drawer statistic. Until that exists, the note above is the pattern to copy verbatim.
 
+### 6 · What the box starts with — a baseline, and a guard that is not a lock
+
+*Angel, 2026-08-03, after finding pam's shift opened on a CHF 0.05 float:* **"when a system starts
+maybe we need a way to say, ok here is what the float cash box has to start."**
+
+Yes — and pam's row is the gap happening. `store_settings` carries **no cash-box configuration at
+all**: no float, no baseline, and even `tolerance` sits on each shift row rather than shop-wide.
+`opening_float` is free-typed at every open by whoever opens, so `{"0.05": 1}` — one 5-rappen coin
+clicked in the grid — was accepted as the day's starting float on a box that carries ~CHF 600.
+
+#### The two things one field is currently doing
+
+| | | |
+|---|---|---|
+| **float** | what is in the box *right now* | a **measurement** — belongs to whoever is holding it |
+| **baseline** | what the shop *intends* it to carry (~CHF 600) | a **policy** — belongs in settings |
+
+Banco has one typed number doing both jobs. That conflation is the whole bug: nothing in the
+system knows CHF 0.05 is absurd, because nothing has ever been told what normal looks like.
+
+#### But note where this does NOT bite
+
+**In the target design nobody types the float at all.** §2 makes the morning a count — *"the
+counted amount becomes today's opening float, not the expected amount, the real one"* — so the
+everyday case already self-heals. A wrong number lives exactly one day and the next morning's
+count replaces it. **So the real gap is BOOTSTRAP, not everyday:** on day one there is no "last
+night's counted" to seed the slope. That is where "here is what the box starts with" belongs —
+asked **once**, at stand-up, alongside the other `init-banco.py` questions.
+
+#### The rule: admin owns the BASELINE, the cashier owns the COUNT
+
+Angel's instinct was *"admin sets it once and then only admin can override to make corrections."*
+Half of that is right and the other half collides with his own **answer 1** — *a cashier may do
+everything*, no manager gate on opening, reconciling, paid-in or paid-out. An admin-only
+correction means a cashier facing a wrong baseline at 07:00 on a Sunday either cannot open the
+shop or trades on a number they know is false. Both are worse than the typo.
+
+It splits cleanly, and then both halves are true at once:
+
+| | who | why |
+|---|---|---|
+| the **baseline** (`cash_box_float` in store settings) | **admin only**, like the VAT rate or the rounding step | it is a shop policy, not a per-shift observation |
+| the **count** at open / reconcile | **any cashier**, always, never gated | it is the truth of what is physically there — and §2 rebuilds it every morning anyway |
+
+#### So: a guard, not a lock
+
+When the count is wildly off the baseline, **ask — do not refuse**:
+
+```
+  The box normally holds around CHF 600.00.
+  You counted CHF 0.05.
+
+  Is that right?     [ Yes, that's what's in it ]     [ Let me recount ]
+```
+
+It catches the fat finger, gates nobody, and the answer is recorded either way — a confirmed
+"yes" is itself worth having in the record. **A hard block here would fail the shop on the one
+morning the box really has been emptied**, which is precisely the morning you most want it opened
+and the discrepancy written down.
+
+*(Threshold: proportional, not absolute — something like ±50% of baseline. The point is to catch
+0.05-for-600, not to nag about 580.)*
+
+**Sequencing: this is part of item 2, not its own job.** The shop-owned rebuild rewrites the open
+flow anyway, and the guard has to hang off count-blind-then-reveal to make sense. Building it
+standalone means touching the same code twice.
+
+**Still open for Angel:** whether an admin editing the baseline mid-life needs anything more than
+a settings change — e.g. if Felix raises the box from 600 to 800, does that want a dated note so
+next week's variance has an explanation, or is the daily count enough on its own?
+
 ---
 
 ## What actually changes in the code
@@ -190,6 +261,8 @@ Smaller than it sounds. **The arithmetic is already right; only the scope of one
 | **cash rounding** | **round cash totals to 0.05 at checkout** — prerequisite for any tight tolerance (see below) |
 | skipped night | banner on next login, listing every cash movement since the last reconcile |
 | **force-close** | manager-only, reason required, `counted_cash` flagged **unverified** in its own column — never in prose, and never counted as a balanced drawer (§5) |
+| **baseline** | `store_settings.cash_box_float` — admin-only, asked once at stand-up; seeds the slope on day one and backs the open-count guard (§6) |
+| **the guard** | count wildly off the baseline → **ask, never refuse**; the answer is recorded either way (§6) |
 
 Untouched: float maths, paid in/out, foreign-currency tracking, the ±0.20 note rule, per-cashier
 sales reports.

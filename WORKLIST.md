@@ -75,7 +75,16 @@ history; these three are the work. **Do them in this order — the reason is in 
    it. **The zero variance is arithmetic, not an observation**, and the stored note says exactly
    that so it can never read as a balanced drawer. Worked example + the force-close this really
    needs are now **§5 of [`12-the-cash-box.md`](onboarding/12-the-cash-box.md)**.
-   The ±0.05 tolerance is now unblocked, because item 1 is live. Design agreed and all four questions answered:
+   The ±0.05 tolerance is now unblocked, because item 1 is live.
+
+   **Scope grew by two, both from the same shift — see §5 and §6 of the design note:** a
+   **force-close** (manager-only, reason required, `counted_cash` flagged *unverified* in its own
+   column, never counted as a balanced drawer), and a shop **baseline** —
+   `store_settings.cash_box_float`, admin-only, asked once at stand-up. The baseline seeds the
+   slope on day one and backs a **guard, not a lock**: a count wildly off it *asks* ("the box
+   normally holds ~CHF 600, you counted CHF 0.05 — is that right?") and never refuses, because a
+   hard block would fail the shop on the one morning the box really has been emptied. Admin owns
+   the baseline; **the cashier always owns the count** (answer 1 stands). Design agreed and all four questions answered:
    → **[`onboarding/12-the-cash-box.md`](onboarding/12-the-cash-box.md)**. The core is one line
    — `pos_router.py:8632` sums `cashier_id == user_id` and must sum everyone. Then: shop-wide
    open guard, count-blind-then-reveal, last night's counted = this morning's expected, rename
