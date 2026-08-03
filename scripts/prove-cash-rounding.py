@@ -21,14 +21,30 @@ So this rings four real sales through the real endpoint:
 It refunds its own sales at the end, so the day's takings are left as it found them. The
 REFUNDED rows stay (line items are sales history — Banco never deletes them).
 """
+import os
 import sys
 import uuid
 from decimal import Decimal
 
 import httpx
 
-BASE = "http://localhost:3000/api/v1/pos"
-KC = "http://localhost:8090/realms/kc-pos-realm-dev/protocol/openid-connect/token"
+# Defaults are the local dev stack. Point it at another shop with env vars:
+#
+#   BANCO_URL=https://banco.example.app BANCO_REALM=kc-pos-realm \
+#   BANCO_USER=felix BANCO_PASS=... python3 scripts/prove-cash-rounding.py
+#
+# IT RINGS REAL SALES. Three of them, then refunds all three — but a refunded sale is still
+# a permanent row in that shop's books and shows on the day's Z-report. That is deliberate:
+# the whole point is to exercise the real chain, and a "safe" read-only version would prove
+# nothing. Know what it leaves behind before pointing it at a shop that is trading.
+ROOT = os.environ.get("BANCO_URL", "http://localhost:3000").rstrip("/")
+REALM = os.environ.get("BANCO_REALM", "kc-pos-realm-dev")
+KC_ROOT = os.environ.get("BANCO_KC_URL", "http://localhost:8090").rstrip("/")
+USER = os.environ.get("BANCO_USER", "felix")
+PASS = os.environ.get("BANCO_PASS", "felix")
+
+BASE = f"{ROOT}/api/v1/pos"
+KC = f"{KC_ROOT}/realms/{REALM}/protocol/openid-connect/token"
 
 D = lambda v: Decimal(str(v))
 FAILURES: list[str] = []
@@ -43,8 +59,12 @@ def check(label, got, want):
 
 
 def main():
-    tok = httpx.post(KC, data={"client_id": "helix_pos_web", "username": "felix",
-                               "password": "felix", "grant_type": "password"}).json()["access_token"]
+    print(f"target: {ROOT}  (realm {REALM}, user {USER})\n")
+    r = httpx.post(KC, data={"client_id": "helix_pos_web", "username": USER,
+                             "password": PASS, "grant_type": "password"}, timeout=30)
+    if r.status_code != 200 or "access_token" not in r.json():
+        sys.exit(f"login failed: {r.status_code} {r.text[:300]}")
+    tok = r.json()["access_token"]
     c = httpx.Client(headers={"Authorization": f"Bearer {tok}"}, timeout=30)
 
     # --- a product to sell, and an open drawer (a cash sale is gated on one) ----------------
