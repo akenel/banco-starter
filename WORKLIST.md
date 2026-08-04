@@ -568,8 +568,22 @@ so nothing in the database could say what it physically was. Only the bottle kne
 
 ## 🔭 Backlog (not yet scheduled)
 
-- **🏠 Run Banco IN THE SHOP — the honest answer to "no internet, no selling".** *(Angel,
-  2026-08-04)* Four network paths all reach the same box in a data centre, so a Hetzner outage, a bad
+- **🏠 ❄️ PARKED — run Banco in the shop.** *(raised and then argued down 2026-08-04. Full reasoning:
+  [`onboarding/14-when-it-goes-down.md`](onboarding/14-when-it-goes-down.md) — read that before
+  reviving this.)*
+  **Verdict: do not build it.** Angel's objection is the right one — *"Hetzner servers are extremely
+  good, probably more reliable than some laptop."* On-prem does **not** buy reliability, it buys
+  independence from the WAN, and the proposed box is a 2015 rubbish-find laptop against a data centre
+  with redundant power, ECC and staff on site. Expect **more** downtime, just downtime you can walk
+  over to. It also does nothing for the likeliest failure of all — a bad deploy or an app bug follows
+  you on-prem — and barely helps in a power cut, when the card terminal and the lights are out
+  anyway. The one case it uniquely fixes is *internet down, power up, for hours*, and four
+  independent paths (two on separate mobile networks) already make that unlikely.
+  **Revive only if** the shop's internet proves unreliable **measured, not feared**, or the shop
+  grows past absorbing a lost hour. Kept below because the implementation notes are worth having if
+  that day comes.
+  ---
+  Four network paths all reach the same box in a data centre, so a Hetzner outage, a bad
   deploy or an expired cert still stops every till at once. Offline-capable tills would fix it and
   cost a **rewrite** — Banco is server-rendered Jinja, so offline means turning the till screen into
   a client-side app with a service worker, a local database and a sync layer, on top of stock
@@ -651,8 +665,16 @@ so nothing in the database could say what it physically was. Only the bottle kne
   permission story (backdating is a money-editing power) and a decision on whether a closed shift can
   be reopened or the sale attaches some other way.
   **Note it is the same problem as offline selling.** If the till ever queues sales locally during an
-  outage and syncs them later, it needs exactly this re-entry path. Solve it once. *(Phase A ·
-  money-correctness · shop floor)*
+  outage and syncs them later, it needs exactly this re-entry path. Solve it once.
+  **⚖️ Scope it CHEAP first — Angel's read on the cost of getting it slightly wrong (2026-08-04):**
+  *"It would be the wrong time, when the sale didn't happen — but it wouldn't really be that bad,
+  because it doesn't ever happen."* So true backdating, shift reattribution, reopening a closed shift
+  and a permission story for editing money are **not** justified by an event this rare. The cheap
+  version probably is: key the sales in when the system is back and **use the cash box's existing
+  named reasons and note field** to say why the drawer and the shift disagree. An explained
+  discrepancy is not a discrepancy; an unexplained one costs somebody an evening. Build the cheap one,
+  and only reach for the expensive one if it happens twice. *(Phase A · money-correctness · shop
+  floor)*
 
 - **The transactions PDF export stops after page one.** *(Angel, 2026-08-04)* Exported the
   transactions report both ways: **CSV came out perfect**, the **PDF produced only the first page**
