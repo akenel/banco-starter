@@ -217,6 +217,13 @@ lp -d QL820BT /usr/share/cups/data/testprint
 >
 > Set `retry-job` and the printer's own power button becomes the whole procedure — which is the only
 > version a cashier can be expected to run.
+>
+> **✅ Verified 2026-08-04.** With `retry-job` set, a label printed straight out of a genuinely
+> asleep printer — blank LCD, green LED pulsing every 5 s, no wake-up first. That is the exact state
+> that swallowed the job before.
+>
+> **Still to prove: the lunch-break gap.** Twenty minutes dead — no sales, no touch, tablet awake —
+> then fire a label. A few minutes passing is not the same test as a real quiet hour in a shop.
 
 ### 5 · Make it a till, not a laptop
 
