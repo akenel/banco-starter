@@ -200,6 +200,12 @@ works where 1.6 failed. Gun and printer now run at the same time on one tablet.
 **Windows 10 on the *old* tablet still gets left alone.** It works, and the argument above stands.
 The X1s are additional machines, not replacements.
 
+**Each X1 has a WWAN modem and a nano-SIM slot** — that is where the IMEI on the sticker comes from.
+With a data-only SIM in each, two tablets means **two independent internet paths on the counter**,
+not two copies of the same single point of failure. That beats the phone-hotspot plan on every
+count: nothing to enable, no second device's battery, no shop phone that wandered off. Details and
+the one-tap switcher in [`13`](13-tablet-x1-debian.md).
+
 ---
 
 ## Still open

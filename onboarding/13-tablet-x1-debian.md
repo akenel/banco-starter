@@ -678,10 +678,53 @@ Names must match `nmcli connection show` exactly, quotes included. Pin both to t
 Outage procedure becomes: turn on the phone hotspot, tap **Switch to Hotspot**. Tap **Switch to Shop
 WiFi** when it is back. No settings, no picker, no password, nothing typed.
 
-**About the LTE modem:** it makes *link-loss* failover automatic and invisible. It has the **same
-blind spot** for internet-behind-a-working-router. Worth knowing before buying a SIM to fix tonight's
-failure mode — that needs a connectivity checker that flips the connection itself, which is a script
-and a real project, not a setting.
+### 📶 The LTE modem — the best answer available, and it is already fitted
+
+*Corrected 2026-08-04. An earlier note here said the LTE modem "has the same blind spot" as the
+hotspot. Half right, and the wrong half matters.*
+
+**The tablet has a WWAN modem and a nano-SIM slot, confirmed.** The proof was in hand from the
+first hour: **the IMEI on the sticker.** An IMEI is a modem's identity — a machine without one does
+not have an IMEI to print. The nano-SIM tray sits with the microSD **under the kickstand** on the
+back.
+
+Settle it on the machine rather than hunting for the slot:
+
+```bash
+sudo apt install -y modemmanager
+mmcli -L
+nmcli device          # a device of type `gsm` = modem present and NetworkManager can drive it
+```
+
+**What LTE does not do:** switch by itself when the router is up and the internet behind it is dead.
+Same as the hotspot — NetworkManager will not leave a working link. That limit is real and applies
+to every option.
+
+**What LTE does, and the hotspot cannot:** give a genuinely independent path to the internet **with
+no phone involved.** No hotspot to enable, no second device's battery to burn, no shop phone that
+walked off in someone's pocket. Add a third launcher beside the other two and the entire outage
+procedure is **one tap, on the tablet itself**:
+
+```bash
+cat > ~/.local/share/applications/net-mobile.desktop <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=Switch to Mobile
+Exec=nmcli connection up "Mobile Data"
+Icon=network-cellular
+Terminal=false
+EOF
+```
+
+**And it compounds with the second tablet.** Two tablets, each with its own SIM, is *two independent
+internet paths sitting on the counter* — not two copies of the same single point of failure. A gun
+each, a data path each. A till doesn't move much data; a pair of cheap Swiss data-only SIMs only
+have to earn their keep on the days the Wi-Fi is out.
+
+> **Provenance, worth knowing for tablet #2:** Felix picked this specific unit to hand over, and
+> Angel's read is that he knew it had the WWAN feature. He has connections and more units like it —
+> so the second tablet most likely comes from the same source, same spec, and this build sheet
+> applies unchanged.
 
 > **The thing none of this solves.** Banco lives at `banco.wolfhold.app`, in a data centre. **No
 > internet means no selling**, whatever happens with Wi-Fi — a hotspot buys a second path to the
