@@ -134,5 +134,82 @@ mechanism to say why the drawer and the shift disagree.** Named cash reasons and
 from the 2026-08-03 work. An explained discrepancy is not a discrepancy; an unexplained one costs
 somebody an evening.
 
-That is the whole plan, and it fits on a line: **four ways onto the internet, paper when they all
-fail, and a documented way back in.**
+---
+
+## Don't write barcodes by hand — scan them into a text file
+
+**The gun is a keyboard.** It does not know or care whether the internet exists. Open a plain text
+editor on the tablet, scan, and the barcode types itself in — perfectly, every time.
+
+That matters more here than it looks. `CATALOG-IDENTITY.md` says the **barcode is the identity**;
+a hand-copied 13-digit EAN with one transposed digit is a worthless line. Scanning gives a clean
+code with no transcription step at all. **Paper is the fallback to the fallback.**
+
+The codebase already knew this — `catalog_workbook.py` was built around it:
+
+> *"the BARCODE — scanned straight into the cell, since a scanner gun is just a keyboard"*
+
+**Two things to settle while it is calm, not during an outage:**
+
+1. **Test it once.** Scan into a plain text editor on the tablet and confirm the code lands clean.
+   Same question as `/pos/hardware` — **use a hyphenated code**, because digits sit in the same place
+   on every keyboard layout and prove nothing.
+2. **Agree the line format now.** `EAN, qty, price` and re-entry is a paste. Let everyone invent
+   their own under pressure and it is transcription work again, which is exactly what scanning was
+   supposed to remove.
+
+---
+
+## 📦 The offline kit — and why it is bigger than an outage plan
+
+*Angel's idea, 2026-08-04, and it is the best one in this document.*
+
+A **daily export** sitting on the back-office laptop: the whole catalogue — names, barcodes, **sale
+prices and costs** — as a real spreadsheet, plus the product images in a folder the sheet links to,
+plus a simple order form.
+
+When Banco is unreachable, Felix opens the file. He can look a product up, price a basket, fill the
+form, and print it or save a PDF — *"I'll email it to you, give me your address"*. Nothing on that
+path needs a server, a network, or Banco.
+
+**Most of the machinery already exists.** `src/services/catalog_workbook.py` writes a genuine `.xlsx`
+with formulas, dropdowns and conditional formatting, and its design rules were chosen for exactly
+this: **formulas and validation, never macros**, so it opens in Excel, LibreOffice *and* Google
+Sheets. This is a second export profile on a tool that already works, not a build from scratch.
+
+**The order form should be a VLOOKUP, not a blank page.** Scan the barcode into a cell; the name and
+price appear from the catalogue tab. That is a working cash till in a spreadsheet, using the gun you
+already own, with no code and no network.
+
+### Why this is the point of the whole project
+
+`CLAUDE.md` states the premise: *"kill the 'what if the vendor vanishes?' fear with ownership, not a
+promise."*
+
+**This is that promise made testable.** Not a licence clause, not a repository he will never read —
+a file on his own laptop that opens without us, and would still open in twenty years. Angel put it
+best:
+
+> *"The day he says, listen, I've had enough, Angelo, you're just too much for me — I'm taking my
+> CSV file and I'm going onto a spreadsheet version of this whole thing."*
+
+**That has to be true, or the premise is marketing.** A shop owner who can walk away with a working
+spreadsheet is a shop owner who chose to stay.
+
+### What it needs to actually work
+
+- **Generated daily and automatically.** A bundle nobody refreshes is stale on the one day it is
+  needed. `scripts/install-backup-cron.sh` already establishes the pattern.
+- **Images as relative paths into a subfolder**, zipped with the sheet — absolute URLs are dead links
+  the moment the network is.
+- **Costs included, not just sale prices.** Half the value of a catalogue you own is knowing your
+  margin.
+- **Proved the only way that counts:** open the bundle on a machine with the network switched off and
+  price a real basket. A green export script proves nothing — same rule as the label printer.
+
+---
+
+## The whole plan, on one line
+
+**Four ways onto the internet · scan into a text file when they all fail · a daily spreadsheet bundle
+that works without us · and a documented way back in.**

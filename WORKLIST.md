@@ -568,6 +568,42 @@ so nothing in the database could say what it physically was. Only the bottle kne
 
 ## 🔭 Backlog (not yet scheduled)
 
+- **📦 THE OFFLINE KIT — a daily bundle that works with no Banco at all.** *(Angel, 2026-08-04. Full
+  reasoning: [`onboarding/14-when-it-goes-down.md`](onboarding/14-when-it-goes-down.md))* A dated
+  export on the back-office laptop: the whole catalogue with **barcodes, sale prices AND costs** as a
+  real `.xlsx`, product images in a subfolder the sheet links to by **relative path**, and a simple
+  order form. Outage: Felix opens the file, looks a product up, prices a basket, fills the form,
+  prints it or saves a PDF to email. Nothing on that path needs a server or a network.
+  **Most of it exists.** `src/services/catalog_workbook.py` already writes a genuine `.xlsx` with
+  formulas, dropdowns and conditional formatting, and its design rules were chosen for exactly this —
+  **formulas and validation, never macros**, so it opens in Excel, LibreOffice *and* Google Sheets.
+  This is a **second export profile**, not a build.
+  **Make the order form a VLOOKUP, not a blank page:** scan the barcode into a cell, the name and
+  price appear from the catalogue tab. A working till in a spreadsheet, with the gun already owned,
+  no code and no network. (`catalog_workbook.py`'s own docstring: *"the BARCODE — scanned straight
+  into the cell, since a scanner gun is just a keyboard"*.)
+  **⭐ This is the project's premise made testable.** `CLAUDE.md`: *"kill the 'what if the vendor
+  vanishes?' fear with ownership, not a promise."* Not a licence clause — a file on his laptop that
+  opens without us and would still open in twenty years. Angel: *"The day he says I've had enough,
+  Angelo — I'm taking my CSV file and going onto a spreadsheet version of this whole thing."* **That
+  has to be true or the premise is marketing.** An owner who *can* walk away with a working
+  spreadsheet is an owner who chose to stay.
+  **Requirements:** generated **daily and automatically** (`scripts/install-backup-cron.sh` sets the
+  pattern — a bundle nobody refreshes is stale on the one day it matters); **relative** image paths,
+  zipped with the sheet; **costs included**, since half the value of owning a catalogue is knowing the
+  margin. **Proof: open the bundle on a machine with the network off and price a real basket.** A
+  green export script proves nothing — same rule as the label printer. *(Phase B · the "own it"
+  premise · shop floor)*
+
+- **Scan into a text file during an outage — test it, and fix the line format.** *(2026-08-04)* The
+  gun is a keyboard; it works with no internet. A plain text editor on the tablet beats paper because
+  `CATALOG-IDENTITY.md` makes the **barcode the identity**, and a hand-copied 13-digit EAN with one
+  transposed digit is a worthless line. Two small jobs, both while it is calm: **(a)** scan a
+  **hyphenated** test code into a text editor on the tablet and confirm it lands clean — digits sit in
+  the same place on every layout and prove nothing; **(b)** agree the line format, `EAN, qty, price`,
+  so re-entry is a paste rather than transcription work, which is what scanning was supposed to
+  remove. *(shop floor · ~30 min)*
+
 - **🏠 ❄️ PARKED — run Banco in the shop.** *(raised and then argued down 2026-08-04. Full reasoning:
   [`onboarding/14-when-it-goes-down.md`](onboarding/14-when-it-goes-down.md) — read that before
   reviving this.)*
