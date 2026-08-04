@@ -568,6 +568,15 @@ so nothing in the database could say what it physically was. Only the bottle kne
 
 ## 🔭 Backlog (not yet scheduled)
 
+- **The transactions PDF export stops after page one.** *(Angel, 2026-08-04)* Exported the
+  transactions report both ways: **CSV came out perfect**, the **PDF produced only the first page**
+  when it should have been two or three. So the data is right and the PDF renderer is truncating —
+  pagination, not content. **Reproducible locally; no printer needed.** The bug is in generating the
+  PDF, not in printing it, so "open the PDF and count the pages" is a complete test — Felix's
+  Windows printer at the shop is a separate, later question about drivers and paper. Worth doing
+  before any report is put in front of an accountant, because a report that silently drops pages is
+  worse than one that fails. *(Phase A · reports)*
+
 - **TARGET SALE PRICE — the cashier names the total, not the discount.** *(shop floor · Angel's
   idea 2026-08-03)* Felix **deliberately does not discount** — he holds the selling price and
   gives a **free treat** instead (papers for CHF 3 plus a lollipop, rather than CHF 2.95). That

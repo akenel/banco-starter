@@ -63,16 +63,71 @@ camera explicitly so the next person doesn't spend twenty minutes on it.
 ## Guns: buy two, and know why
 
 The gun does **not** charge usefully while it is being used, and a flat gun mid-shift is a stopped
-till. So:
+till. So: **two guns, always.** Not redundancy for breakage — it is the normal duty cycle.
 
-- **Two guns, always.** One in hand, one on charge. This is not redundancy for breakage — it is the
-  normal duty cycle.
-- **The dongle beats Bluetooth** on any device with a USB port. It is the manufacturer's default,
-  needs no driver or pairing, and — the real reason — **there is nothing to re-pair when it drops
-  mid-sale.**
-- A charging cradle at the kiosk gives the spare gun a home. A gun with no home gets lost.
+### They are interchangeable, and they are not the same tool
+
+*Angel, 2026-08-04, after running both on the tablet.* Either gun scans anything, so either can
+cover the other. But each has one capability the other lacks, and that decides where it lives:
+
+| | 🔵 **Cheap gun** — Bluetooth | ⚫ **Good gun** — dongle + store mode |
+|---|---|---|
+| Connection | **Bluetooth** (pairs to the tablet) | **USB-A dongle** — no pairing |
+| Special skill | **roams** — goes anywhere with the tablet in hand | **store/inventory mode** — buffers a whole section, dumps on command |
+| Home | wherever the walk takes it | the stand, in auto mode |
+| Best at | EAN checks at the shelf, catalogue QA, *"does this photo match the packet?"* | shelf-intake sessions, and the counter |
+| Charging | its own cable | **a different cable** |
+
+**So the split is:** the dongle gun sits at the counter on its stand in auto mode; the Bluetooth
+gun floats around the shop with the tablet for double-checking EANs, catalogue entries and product
+photos. Swap them freely — that is the point.
+
+> ⚠️ **The Bluetooth gun must stay WITH the tablet.** It talks to the tablet, not to Banco. Class-2
+> Bluetooth is ~10 m in open air and shop shelving eats that fast, so a gun that roams while the
+> tablet stays at the counter will silently stop delivering scans. Tablet in hand, or the gun stays
+> put.
+
+> 💡 **A gun that beeps but puts nothing on screen is usually still in `Inventurmodus`.** It decodes
+> locally, stores the code, transmits nothing — looks broken, is working exactly as configured.
+> Scan `Normalmodus` off the config sheet. Second suspect: *paired* is not *connected*
+> (`bluetoothctl info <MAC>` → `Connected: yes`). Third: some cheap guns default to SPP rather than
+> HID-keyboard, and only HID types into a field.
+
+### The stand IS the charging station
+
+- **Screwed to the counter.** It does not move, so the guns always have the same home and a gun with
+  a home does not get lost.
+- **Sited next to a plug**, because both guns charge there between uses. That is what makes "two
+  guns always live" survivable — neither is off-duty, both are topped up.
+- **Label the two cables.** Two guns, two different chargers, one stand: they get mixed up.
+
+### Power: a bar with at least four sockets
+
+Nobody plans for this and everybody needs it. Per till: **two guns + the label printer + the
+tablet**, and **five** once the second tablet lands. Site the bar at the stand and give the cables
+some slack — a yanked gun should not drag the bar off the counter.
+
+### The rule that outlives all of it
+
+**Two tablets and two guns per till.** That is the cashier's backup on both halves — a dead gun or a
+dead tablet is a stopped till otherwise, and neither failure gives you warning.
 
 Setup and the keyboard-layout trap: [`testsheets/Scanners/README.md`](testsheets/Scanners/README.md).
+**Re-check `/pos/hardware` with a hyphenated code every time a gun moves to a different machine** —
+interchangeable guns across two tablets and the ProBook is a lot of combinations, and a plain EAN
+passes on any layout and proves nothing.
+
+---
+
+## The back office box — a CHF 40 answer
+
+Angel refurbished a big HP laptop (~2015, found in the rubbish, new SSD) for about **CHF 40**. Full
+keyboard, proper screen. That is the back-office machine: bulk enrichment, reports, restores,
+anything wanting real typing.
+
+**A shop owner probably does not need to buy one** — whatever he already uses for back-office work
+will do. It is listed here so nobody thinks the kit demands a new computer. The tills are where the
+money goes; the back office can be a hand-me-down.
 
 ---
 
