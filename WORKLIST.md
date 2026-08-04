@@ -592,8 +592,26 @@ so nothing in the database could say what it physically was. Only the bottle kne
   pattern — a bundle nobody refreshes is stale on the one day it matters); **relative** image paths,
   zipped with the sheet; **costs included**, since half the value of owning a catalogue is knowing the
   margin. **Proof: open the bundle on a machine with the network off and price a real basket.** A
-  green export script proves nothing — same rule as the label printer. *(Phase B · the "own it"
-  premise · shop floor)*
+  green export script proves nothing — same rule as the label printer.
+  **🔻 NOT high priority (Angel, 2026-08-04).** Item 3 and the shop scan come first. Filed with the
+  groundwork done so it starts fast whenever it starts.
+  **Gap analysis — code read 2026-08-04, so tomorrow is not discovery.** What exists: the Migration
+  Workbench export at `pos_router.py:6285` + `src/services/catalog_workbook.py`, already carrying
+  SKU · name · brand · **barcode** · category · **price** · **cost** · size · source URL · notes, with
+  formulas, dropdowns and a working import back (`parse_worklist_workbook`, `pos_router.py:6395`).
+  **Four things block it being the offline kit:**
+  1. **It exports only UNFINISHED rows** — `_bench_gap_clause()` at `pos_router.py:6301`. That is the
+     point of a worklist; the kit needs everything. Needs an "all products" profile.
+  2. **⚠️ It silently caps at 2,000** — `min(limit, 2000)`, `pos_router.py:6303`. The catalogue is
+     **5,173**, so a "full" export today drops ~3,000 products **and looks complete**. Exactly the
+     shape the no-silent-caps rule exists for. Fix or paginate before anything else.
+  3. **No images** — there is a `Photo?` yes/no column, not a link. The subfolder + relative paths +
+     zip is the genuinely new part.
+  4. **On demand, not daily.** Copy the pattern in `scripts/install-backup-cron.sh`.
+  **Performance trap:** `_reference_best_match` runs **per row** (`pos_router.py:6330`) — one query
+  each. Fine for a few hundred worklist rows, ~5,173 queries on a full export, and it will likely time
+  out. That lookup is an enrichment aid, not catalogue data — **skip it in the offline profile** and
+  the export gets fast. *(Phase B · the "own it" premise · shop floor)*
 
 - **Scan into a text file during an outage — test it, and fix the line format.** *(2026-08-04)* The
   gun is a keyboard; it works with no internet. A plain text editor on the tablet beats paper because
