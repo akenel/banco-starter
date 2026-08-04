@@ -568,6 +568,23 @@ so nothing in the database could say what it physically was. Only the bottle kne
 
 ## 🔭 Backlog (not yet scheduled)
 
+- **Paper-and-pen is the real last resort — and Banco has no way back from it.** *(Angel,
+  2026-08-04, listing the failover stack: shop Wi-Fi → phone hotspot → two tablet SIMs on two
+  different networks → paper and pen)* The connectivity side is now genuinely hard to break. The
+  tail is what happens **after** the shop sells on paper for an hour: someone has to key those sales
+  in, and today they land with **today's timestamp, in the current shift, under whoever is typing** —
+  not when, where or by whom the money was actually taken.
+  **That breaks the cash box.** The drawer holds cash the shift never recorded, so §5's tolerance
+  check flags a discrepancy that is not one, and the shift report disagrees with the money in the
+  box — the exact failure [`12-the-cash-box.md`](onboarding/12-the-cash-box.md) exists to prevent.
+  **Wanted:** enter a sale after the fact — backdated, attributed to the right cashier and the right
+  shift, and **marked as an offline sale** so the audit trail says why it arrived late. Needs a
+  permission story (backdating is a money-editing power) and a decision on whether a closed shift can
+  be reopened or the sale attaches some other way.
+  **Note it is the same problem as offline selling.** If the till ever queues sales locally during an
+  outage and syncs them later, it needs exactly this re-entry path. Solve it once. *(Phase A ·
+  money-correctness · shop floor)*
+
 - **The transactions PDF export stops after page one.** *(Angel, 2026-08-04)* Exported the
   transactions report both ways: **CSV came out perfect**, the **PDF produced only the first page**
   when it should have been two or three. So the data is right and the PDF renderer is truncating —
