@@ -568,6 +568,38 @@ so nothing in the database could say what it physically was. Only the bottle kne
 
 ## 🔭 Backlog (not yet scheduled)
 
+- **🏠 Run Banco IN THE SHOP — the honest answer to "no internet, no selling".** *(Angel,
+  2026-08-04)* Four network paths all reach the same box in a data centre, so a Hetzner outage, a bad
+  deploy or an expired cert still stops every till at once. Offline-capable tills would fix it and
+  cost a **rewrite** — Banco is server-rendered Jinja, so offline means turning the till screen into
+  a client-side app with a service worker, a local database and a sync layer, on top of stock
+  conflicts, catalogue drift, shift boundaries and cash-only-because-Worldline-needs-the-network.
+  **On-prem dodges nearly all of it.** "The internet is down" becomes "the WAN is down"; the till
+  talks to a local server over the LAN exactly as it does today. No offline mode, no sync, no
+  conflict resolution, **no line of the till screen changes.** Weeks, not months. And it is what the
+  project claims to be: *a self-hostable POS a shop owner stands up and owns outright.* A shop that
+  cannot sell when a data centre sneezes does not own it yet.
+  **The hardware already exists.** Angel's CHF 40 rubbish-find HP: ~2015, **8 GB RAM**, **250 GB SSD**
+  (he fitted it). Enough for one shop — Keycloak's JVM is the hungry one and worth a heap cap.
+  **A laptop is a better shop server than a desktop: the battery is a built-in UPS**, so a power
+  blip does not take the shop down.
+  **The fiddly parts are NOT the app — they are these:**
+  - **HTTPS on a LAN.** Caddy's normal Let's Encrypt flow needs public reachability. On a private
+    address you need **DNS-01**, Tailscale certs, or a local CA. Not optional: plain `http://192.168…`
+    is **not a secure context**, so the phone's camera snap-fill and anything else needing one
+    **breaks**. Get this wrong and it looks like the app regressed.
+  - **Remote access for Angel.** Deploys, restores and debugging all currently go over `ssh` to a
+    public IP. Tailscale or WireGuard replaces that cleanly; port-forwarding on the shop router does
+    not (and per 2026-08-04, the router is not always ours to configure).
+  - **It becomes the single point of failure.** Off-site backups stop being hygiene and start being
+    the whole recovery plan — see the untested-restore item above, which this promotes from "should"
+    to "must".
+  - **Theft and fire.** A shop box can walk. Off-site B2 covers the data loss; disclosure is a
+    separate question, and disk encryption on a headless box has the same no-keyboard-at-boot trap
+    that made us refuse it on the tablet.
+  - **Pick ONE source of truth.** Running prod and on-prem together is split-brain. On-prem primary
+    plus off-site backup is the clean shape. *(Phase A/B · architecture · the "own it" premise)*
+
 - **Nobody is watching prod. Felix is the monitoring.** *(2026-08-04, from the client-vs-server
   crash review)* `restart: unless-stopped` is on every service and there are real healthchecks on the
   app and Postgres, so an app crash or a host reboot self-heals. **None of that covers host death,
