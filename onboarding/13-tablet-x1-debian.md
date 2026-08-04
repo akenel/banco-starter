@@ -383,9 +383,57 @@ nmcli connection modify "<phone-hotspot>" connection.autoconnect-priority 5
 Failover is then **one action, on the phone** — turn the hotspot on. The tablet moves by itself and
 moves back when shop Wi-Fi returns. Nothing is done on the till.
 
-**Better still, and the hardware is already paid for:** this tablet has an LTE modem. A data-only
-SIM makes failover automatic and invisible — NetworkManager falls to WWAN with no phone, no human,
-no procedure to remember.
+### Measured 2026-08-04 — what the priorities actually buy you
+
+Tested with Angel's Fairphone hotspot as primary (the one he controls) and the neighbour's Wi-Fi as
+fallback. Two findings, both worth knowing before anyone relies on this:
+
+**1. `autoconnect-priority` is a *choosing* rule, not a *leaving* rule.** NetworkManager fails over
+on **link loss** — the AP physically disappearing. It does **not** fail over on **internet loss**.
+Kill the hotspot and it moves in about **20 seconds**. Leave the AP up with dead internet behind it
+and it sits there forever, because NM sees a healthy connection and never re-chooses.
+
+> ⚠️ **That is the shop's likely failure.** Router up, internet down — exactly what the flaky
+> neighbour Wi-Fi does. **No priority tuning will ever switch anything automatically in that case.**
+> A human has to act. Plan for it rather than trusting the failover.
+
+**2. It does not switch back.** Once on the fallback, NM stays there even after the primary returns
+— same reason: it has a working connection and does not care that a better one exists. Coming home
+is manual too. **This is why there are two launchers, not one.**
+
+### One tap each way — the launchers
+
+Since a human triggers it regardless, remove the network picker rather than the human:
+
+```bash
+mkdir -p ~/.local/share/applications
+cat > ~/.local/share/applications/net-hotspot.desktop <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=Switch to Hotspot
+Exec=nmcli connection up "Fairphone Hotspot"
+Icon=network-wireless
+Terminal=false
+EOF
+cat > ~/.local/share/applications/net-wifi.desktop <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=Switch to Shop WiFi
+Exec=nmcli connection up "Shop-SSID"
+Icon=network-wireless
+Terminal=false
+EOF
+```
+
+Names must match `nmcli connection show` exactly, quotes included. Pin both to the dash.
+
+Outage procedure becomes: turn on the phone hotspot, tap **Switch to Hotspot**. Tap **Switch to Shop
+WiFi** when it is back. No settings, no picker, no password, nothing typed.
+
+**About the LTE modem:** it makes *link-loss* failover automatic and invisible. It has the **same
+blind spot** for internet-behind-a-working-router. Worth knowing before buying a SIM to fix tonight's
+failure mode — that needs a connectivity checker that flips the connection itself, which is a script
+and a real project, not a setting.
 
 > **The thing none of this solves.** Banco lives at `banco.wolfhold.app`, in a data centre. **No
 > internet means no selling**, whatever happens with Wi-Fi — a hotspot buys a second path to the
