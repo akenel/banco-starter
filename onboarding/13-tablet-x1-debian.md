@@ -353,6 +353,57 @@ is worth knowing for a machine that has something on it.
 
 ---
 
+## When the Wi-Fi drops — decided 2026-08-04
+
+Angel's flaky neighbour Wi-Fi died mid-test and gave us the failure mode for free. The offline
+banner behaved correctly. Question raised: run all day on the shop mobile hotspot with shop Wi-Fi
+as backup, or the reverse?
+
+**Shop Wi-Fi primary, hotspot as backup — Angel's instinct, and it is right.**
+
+- The phone **has a job already**: doc 10 makes it the emergency backup *and the camera*, the only
+  one of the three machines that can photograph a packet. A phone that has been a hotspot since 9am
+  is flat when someone needs it.
+- Data cost is real for a POS pulling product images all day.
+- Hotspots are flaky too — thermal throttling, and they leave when the phone walks to the stockroom.
+- Mobile coverage inside a shop (concrete, basement) is often worse than the guess.
+
+**The weak point is the procedure, not the choice.** "Grab the mobile and turn on the hotspot" puts
+a network picker and a typed password in front of a cashier with a customer waiting — nowhere near
+doc 10's *2 seconds, or it is broken*.
+
+**Fix: pre-save the hotspot while nothing is broken, and set priorities.**
+
+```bash
+nmcli connection show
+nmcli connection modify "<shop-wifi>"     connection.autoconnect-priority 10
+nmcli connection modify "<phone-hotspot>" connection.autoconnect-priority 5
+```
+
+Failover is then **one action, on the phone** — turn the hotspot on. The tablet moves by itself and
+moves back when shop Wi-Fi returns. Nothing is done on the till.
+
+**Better still, and the hardware is already paid for:** this tablet has an LTE modem. A data-only
+SIM makes failover automatic and invisible — NetworkManager falls to WWAN with no phone, no human,
+no procedure to remember.
+
+> **The thing none of this solves.** Banco lives at `banco.wolfhold.app`, in a data centre. **No
+> internet means no selling**, whatever happens with Wi-Fi — a hotspot buys a second path to the
+> same remote server, not independence from it. A Banco running *in the shop* would keep selling
+> through a WAN outage. That cuts against the "own it outright" premise and is worth a real
+> decision someday; noted here, not scheduled.
+
+**Sleep settings, same session:** blank the screen, never suspend. **Suspend drops the Bluetooth
+link to the printer**, so waking costs a reconnect on top of the QL's 25–30 s calibration. Screen
+blank costs nothing and wakes instantly.
+
+```bash
+gsettings set org.gnome.desktop.session idle-delay 900        # 15 min
+gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type 'nothing'
+```
+
+---
+
 ## Idea parked 2026-08-04 — gun battery on `/pos/hardware`
 
 The cheap Bluetooth gun **does** publish the standard BLE Battery Service; `upower -d` read it as
