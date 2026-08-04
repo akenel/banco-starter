@@ -50,6 +50,194 @@ nothing to buy. The "one USB port is all it takes" line from doc 10 carries over
 
 ---
 
+## 🔧 BUILD SHEET — doing this again on tablet #2
+
+*Everything below this section is background and history. **This section is the procedure.** Work
+top to bottom; the traps are inline where you hit them. Budget ~90 minutes.*
+
+**Target fleet:** two X1 Tablets, two guns, everything on charge all day, the mobile as backup.
+
+### 0 · Before you touch it
+
+- [ ] Confirm with the owner **nothing on it needs saving** — device encryption means no recovery.
+- [ ] Have ready: Debian **13 (trixie) amd64 netinst** stick, the folio, the charger, the gun, and
+      **a piece of paper** for the password.
+- [ ] No hub needed: folio = keyboard (pogo pins), **USB-A = stick**, **USB-C = charger**.
+
+### 1 · Boot the installer
+
+- [ ] **Restart**, not Shut down. Windows Fast Startup hibernates instead of powering off and skips
+      straight past the boot menu.
+- [ ] Tap **F12** at the ThinkPad logo → pick the USB stick. **Do not edit the boot order** — F12 is
+      a one-time menu, nothing to undo afterwards.
+- [ ] Secure Boot can stay **on**; Debian's bootloader is signed. Only if the stick refuses to
+      appear: `Security → Secure Boot → Disabled`, which also needs
+      `Restart → OS Optimized Defaults → Disabled` first or it flips back.
+- [ ] Installer finds no disk? Look for a storage controller set to `RST`/`RAID`; change to
+      `AHCI`/`NVMe`. It is an explicit error, not a silent one.
+
+### 2 · Installer answers
+
+| Screen | Answer | Why |
+|---|---|---|
+| Language | **English** | also fixes the German-everything problem |
+| Location | anything (Zurich may not be listed) | **timezone is fixed after install, do not fight it** |
+| Keyboard | **match the letters printed on the folio keys** | this is what the **scanner gun** types into |
+| Hostname | e.g. `banco-tablet-2` | shows up on the network and in CUPS |
+| Domain | blank | |
+| Root password | **LEAVE EMPTY** | supported path; wires the user into `sudo`. One password, not two |
+| User | short, lowercase (`art`) | |
+| User password | **lowercase letters + digits ONLY** | see the box below |
+| Mirror country | **Switzerland** → `ftp.ch.debian.org` | **separate question from Location** — the default follows Location and will be slow |
+| Partitioning | **Guided – use entire disk** | this is the point of no return |
+| Encryption / LUKS | **NO** | see the box below |
+| Software selection | ✅ Debian desktop environment · ✅ **GNOME** · ✅ standard system utilities · ✅ **SSH server** | uncheck Xfce/KDE/Cinnamon/MATE/LXDE/LXQt |
+| GRUB | yes, to the internal disk | |
+
+> 🔴 **The password rule — this cost us a whole reinstall.**
+> **No `y`, no `z`, no symbols.** `y`/`z` swap between QWERTY and QWERTZ and every symbol moves, so
+> the same keystrokes are a different string on a different layout — and a login screen cannot tell
+> you which one you got wrong. Something like `banco1234`. **Write it on paper before typing it.**
+> Set a proper password later from inside the desktop, where the layout is known.
+> *Diagnostic if it happens anyway: type the password into the **username** field, where it renders
+> in the clear, and see which characters the keyboard is actually producing.*
+
+> 🔴 **Say NO to disk encryption.** The passphrase is typed at boot from the initramfs, which has
+> **no on-screen keyboard**. On a tablet whose keyboard detaches, a lost or dead folio would mean a
+> machine that cannot boot — a shop-can't-open failure, traded for theft protection on a device
+> holding no customer data. Banco's data lives on the server.
+
+> 💡 **Tick SSH server.** Missed on both of tonight's runs. It is the difference between driving the
+> machine from the ProBook and typing every command on a touchscreen.
+
+### 3 · First boot — the base
+
+```bash
+sudo timedatectl set-timezone Europe/Zurich
+sudo apt update && sudo apt full-upgrade -y
+sudo apt install -y avahi-daemon avahi-utils cups chromium bluez-cups printer-driver-ptouch
+sudo systemctl enable --now avahi-daemon cups
+sudo usermod -aG lpadmin $USER          # log out and back in for this to take effect
+```
+
+> ⏰ **The timezone that looks right until October.** South Africa (or any UTC+2) agrees with
+> Switzerland *all summer* and goes an hour wrong at the end of October — silently putting every
+> shift time and receipt out. Run the `timedatectl` line even if the clock looks correct.
+
+> 💡 `lpinfo`, `lpadmin`, `rfkill` live in `/usr/sbin`, which is **not** in a normal user's `PATH` on
+> Debian. *command not found* on any of them means you need `sudo`, not a missing package.
+
+### 4 · Printer — USB fallback first, then Bluetooth
+
+**Always build the USB queue first.** It gives you a known-good fallback to compare against if the
+Bluetooth attempt misbehaves.
+
+```bash
+# cable plugged in
+sudo lpinfo -v                                    # expect an ipp:// Brother line via ipp-usb
+sudo lpadmin -p QL820USB -E -v ipp://localhost:60000/ipp/print -m everywhere
+lpstat -v
+lp -d QL820USB /usr/share/cups/data/testprint
+```
+
+Then Bluetooth — **this is what frees USB-A for the gun**, and it is the whole reason the machine
+works as a till:
+
+```bash
+# Bluetooth ON + discoverable in the printer's own LCD menu FIRST — it is off out of the box
+bluetoothctl devices                              # note the QL's MAC
+bluetoothctl trust AA:BB:CC:DD:EE:FF
+sudo lpadmin -p QL820BT -E -v "bluetooth://AABBCCDDEEFF" \
+     -m ptouch:0/ppd/ptouch-driver/Brother-QL-820NWB-ptouch-ql.ppd
+# UNPLUG THE USB CABLE, then:
+lp -d QL820BT /usr/share/cups/data/testprint
+```
+
+- **Unplug the cable before testing Bluetooth.** With it in, a label proves nothing about which path
+  carried it.
+- `bluez-cups` only exposes a `bluetooth://` device once the printer is **paired** — an unpaired
+  printer looks exactly like a broken backend.
+- **Do not pick the driverless/`everywhere` option for the Bluetooth queue** (Bluetooth cannot carry
+  IPP) and **do not pick a Brother PPD for the USB queue**. Each transport gets its own driver.
+- First job after wake takes **25–30 s** (roll calibration); later ones ~4 s. A slow first label is
+  not a stuck queue.
+- Queue shows *disabled*? That is a backend failure, not a driver failure — `cupsenable QL820BT`.
+- Printing dies for no reason later: `sudo systemctl restart ipp-usb`. **Suspect the daemon before
+  the hardware.**
+
+### 5 · Make it a till, not a laptop
+
+```bash
+mkdir -p ~/.local/share/applications ~/.config/autostart
+cat > ~/.local/share/applications/banco.desktop <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=Banco
+Exec=/usr/bin/chromium --kiosk --app=https://banco.wolfhold.app --noerrdialogs --disable-session-crashed-bubble
+Icon=chromium
+Terminal=false
+Categories=Network;
+EOF
+cp ~/.local/share/applications/banco.desktop ~/.config/autostart/
+
+gsettings set org.gnome.desktop.session idle-delay 900
+gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type 'nothing'
+```
+
+- Activities → search "Banco" → right-click → **Pin to Dash**. (GNOME has no desktop icons.)
+- Settings → Users → **Automatic Login** on — safe, the tablet holds nothing.
+- **Rotation lock** in the top-right quick settings. Pick one orientation and lock it so it cannot
+  spin while someone holds it over a shelf.
+- **Blank the screen, never suspend on mains.** Suspend **drops the Bluetooth link to the printer**,
+  so waking costs a reconnect on top of the 25–30 s calibration.
+
+### 6 · Network — save both while nothing is broken
+
+```bash
+# connect to the shop Wi-Fi AND the phone hotspot once each, then:
+nmcli connection show
+nmcli connection modify "Shop-SSID"        connection.autoconnect-priority 10
+nmcli connection modify "Phone Hotspot"    connection.autoconnect-priority 5
+
+cat > ~/.local/share/applications/net-hotspot.desktop <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=Switch to Hotspot
+Exec=nmcli connection up "Phone Hotspot"
+Icon=network-wireless
+Terminal=false
+EOF
+cat > ~/.local/share/applications/net-wifi.desktop <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=Switch to Shop WiFi
+Exec=nmcli connection up "Shop-SSID"
+Icon=network-wireless
+Terminal=false
+EOF
+```
+
+Pin both to the dash. **Do not expect the priorities to save you** — see the measured findings
+below. Failover is a human action either way; the launchers just remove the picker and the password.
+
+### 7 · Prove it — human-green, not machine-green
+
+None of the above counts until a person confirms it:
+
+- [ ] **`/pos/hardware` — scan a HYPHENATED test code.** Not a plain EAN: digits sit in the same
+      place on every layout, so a numeric code passes happily and proves nothing.
+- [ ] **Print a real Banco label from Chromium** and hold it against a shelf. The CUPS test page
+      proves the *transport*; the browser is a different rendering path, and it is where the
+      `@page { size: 62mm auto }` A4-fallback trap lives.
+- [ ] **Gun and printer at the same time** — dongle/Bluetooth gun, printer on Bluetooth, charger on
+      USB-C. Scan something and print its label in one go.
+- [ ] **Reboot, then repeat all three with nothing re-paired and nothing re-typed.**
+- [ ] Detach the folio and confirm the on-screen keyboard appears.
+- [ ] `free -h` — record 8 or 16 GB for this unit.
+- [ ] BIOS via `fwupdmgr` (charger in, battery >30%) — see below.
+
+---
+
 ## Before you wipe — four things, in order
 
 1. ~~**Ask Felix what is on it.**~~ ✅ **Answered 2026-08-04: wipe it, nothing to save.** That was

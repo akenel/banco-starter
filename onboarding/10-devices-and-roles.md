@@ -121,10 +121,40 @@ needs the packet, and by then you don't have it — see [09](09-shelf-intake.md)
 
 ---
 
+## The detachable tablets — answered 2026-08-04
+
+The "other Lenovo units" below turned out to be **ThinkPad X1 Tablet Gen 2** (7th-gen i5 vPro,
+detachable folio, LTE modem). Felix handed one over to be scrapped; it now runs Debian and prints
+labels. Full build sheet: [`13-tablet-x1-debian.md`](13-tablet-x1-debian.md).
+
+**Target fleet — Angel, 2026-08-04:** *"There'll be two tablets, two guns, and everything's charging
+all day long, and the mobile phone is on backup. That's the way it has to be."*
+
+| | 📱 Phone | 💻 Tablet (Win 10) | 📲 **X1 Tablet** ×2 (Debian) | 🖥️ ProBook |
+|---|---|---|---|---|
+| **Role** | backup + camera | shop floor till | **till + capture** | back office |
+| Scanner gun | Bluetooth only | USB dongle ✅ | **USB-A dongle *or* Bluetooth** ✅ | ✅ |
+| Label printer | ✗ | ✗ | ✅ **over Bluetooth** | ✅ |
+| Camera | ✅ best | ❌ | ❌ | ✅ |
+| Detaches | — | ✗ | ✅ folio, portrait or landscape | — |
+
+**The X1 changes one thing that mattered:** it has **one USB-A port and the gun needs it**, so the
+printer had to go wireless. It prints over **Bluetooth** — `printer-driver-ptouch` 1.7.1, which
+works where 1.6 failed. Gun and printer now run at the same time on one tablet.
+
+**Windows 10 on the *old* tablet still gets left alone.** It works, and the argument above stands.
+The X1s are additional machines, not replacements.
+
+---
+
 ## Still open
 
-- **Charging cradle** for the spare gun — where does it live on the counter?
-- **Detachable tablets.** Felix has other Lenovo units where the screen detaches from the keyboard.
-  Worth knowing which model before buying more; this one does not detach.
-- **Label printer on the tablet.** Today it is ProBook-only. Networking the QL-820NWB over Wi-Fi
-  would let any till print — it is a `NWB`, the hardware is already there.
+- **Charging cradle** for the spare gun — where does it live on the counter? More urgent now: two
+  tablets and two guns means four things wanting a home and a charger on that counter.
+- **Build the second X1.** Follow the build sheet in [`13`](13-tablet-x1-debian.md) §BUILD SHEET.
+- **Label printer over Wi-Fi.** Bluetooth solved the tablet, but the QL is a `NWB` and putting it on
+  the network would let *every* machine print, including the old Win 10 tablet and the phone. Still
+  worth doing.
+- **No internet means no selling.** Banco lives in a data centre, so a WAN outage stops the till
+  whatever you do about Wi-Fi. See the failover section in [`13`](13-tablet-x1-debian.md) — the
+  honest answer is a Banco running *in* the shop, which is a real decision, not a setting.
