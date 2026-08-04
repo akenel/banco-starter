@@ -568,6 +568,43 @@ so nothing in the database could say what it physically was. Only the bottle kne
 
 ## 🔭 Backlog (not yet scheduled)
 
+- **Nobody is watching prod. Felix is the monitoring.** *(2026-08-04, from the client-vs-server
+  crash review)* `restart: unless-stopped` is on every service and there are real healthchecks on the
+  app and Postgres, so an app crash or a host reboot self-heals. **None of that covers host death,
+  disk failure, a Hetzner outage, a bad deploy or an expired cert** — and in every one of those cases
+  the way we find out is a phone call from the shop.
+  **Wanted:** an external check on `https://banco.wolfhold.app/health/healthz` with an SMS or push
+  alert. Free tier is fine; a till does not need five-nines, it needs *someone to know*.
+  ⚠️ **It must run OFF the box.** A monitor living on the same host tells you nothing at the exact
+  moment it matters — the classic green-that-cannot-turn-red, same call already made about the
+  Keycloak and MinIO healthchecks in `compose.yml`. Cheapest item on this list by a distance and the
+  biggest return. *(Phase A · ops)*
+
+- **The backup has never been restored, so it is a belief.** *(2026-08-04)* `backup-to-b2` and
+  `restore-to-b2` exist and run. Nothing has ever come *back*. Standing rule 4 says "Fixed" is a
+  claim until the output is verified, and a backup is the purest example: it looks identical whether
+  it works or not, right up to the day you need it.
+  **Wanted: a restore drill, written down.** Restore the latest B2 backup to a scratch container,
+  then check three things a human recognises — **the product count matches prod**, **a known
+  transaction is present with the right total**, and **a login actually works** (Keycloak realm data
+  is the part most likely to be missed). **Record how long it took** — that number is the real
+  recovery time, and today nobody knows it. *(Phase A · ops · money-correctness)*
+
+- **A crashed tablet loses the cart, and the spare tablet cannot pick it up.** *(2026-08-04)* The
+  in-progress cart lives in **`sessionStorage`** — `pos_cart`, `checkout_customer`, `pos_sale_uuid`
+  (`checkout.html:761`, `scan.html:1775`). Completed sales are safe on the server and `pos_sale_uuid`
+  already prevents a double-charge on retry. But `sessionStorage` is scoped to the browser tab: it
+  survives a reload and the scan↔checkout hop, and **dies with a browser crash, a reboot or a flat
+  battery.**
+  **The bit that undercuts the two-tablet plan:** `sessionStorage` does not travel, so tablet B
+  **cannot resume tablet A's cart**. The spare is a fresh start and a re-scan, not a handover — worth
+  saying out loud before a cashier is told otherwise. `held_orders` is the manual park-it-safely tool
+  that exists today.
+  **Wanted:** the cart survives a crash — either auto-hold server-side, or move it to `localStorage`.
+  ⚠️ **Not a find-and-replace:** `localStorage` is shared across tabs and never expires, so a naive
+  swap trades a lost cart for a stale or bleeding one. Needs a decision, not a rename. *(shop floor ·
+  Phase A)*
+
 - **Paper-and-pen is the real last resort — and Banco has no way back from it.** *(Angel,
   2026-08-04, listing the failover stack: shop Wi-Fi → phone hotspot → two tablet SIMs on two
   different networks → paper and pen)* The connectivity side is now genuinely hard to break. The
