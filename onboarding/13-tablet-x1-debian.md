@@ -165,6 +165,56 @@ lp -d QL820BT /usr/share/cups/data/testprint
 - Printing dies for no reason later: `sudo systemctl restart ipp-usb`. **Suspect the daemon before
   the hardware.**
 
+> ### 🔴 The sleeping printer — found 2026-08-04, do BOTH of these on every build
+>
+> Real Banco labels print from Chromium ✅ (so the `@page` A4-fallback trap is not biting). But
+> **take a one-minute break and the next label never comes out.** Everything looks right, the print
+> dialog behaves, nothing happens.
+>
+> Two causes stacked on each other:
+>
+> **1. Something goes idle.** ~~Set Auto Power Off → Off in the QL's LCD menu.~~ **There is no such
+> setting on this printer's panel** — Angel looked, 2026-08-04. Brother exposes it only through
+> their Printer Setting Tool, which is Windows/Mac, so it cannot be changed from Linux at all. Left
+> on mains the printer stays lit and green, which points at the **Bluetooth link going idle rather
+> than the printer sleeping**. Either way the fix is the same and it is fix 2.
+>
+> **2. CUPS disables the queue after one failure.** Default `printer-error-policy` is
+> `stop-printer` — one failed job disables the whole queue and **every job after it is silently
+> swallowed.** That is what "I selected everything right and it didn't print" actually is.
+>
+> ```bash
+> sudo lpadmin -p QL820BT -o printer-error-policy=retry-job
+> ```
+>
+> `retry-job` holds the job and retries instead. A cashier should never need to know what
+> `cupsenable` is.
+>
+> **Recovery when it has already happened:** `lpstat -p QL820BT` (look for *disabled*), then
+> `cancel -a` and `cupsenable QL820BT`.
+>
+> **Tell the two apart — they look identical from the front:**
+> - ~25–30 s then a label → **normal**, roll calibration on the first job after any wake. Do not
+>   cancel it.
+> - Nothing ever, and `lpstat -p` says *disabled* → the stuck queue above.
+>
+> ### ⚠️ Power-cycling the PRINTER does not clear a disabled QUEUE
+>
+> The obvious recovery — switch the labeller off and on — fixes the printer side and **does nothing
+> to CUPS**. The disabled queue lives on the tablet. Power-cycle a printer whose queue CUPS has
+> stopped and it still will not print, which reads as "the printer is broken" when it is not.
+>
+> **`retry-job` is what makes "just turn it off and on again" a valid recovery**, because CUPS then
+> never disables the queue: the job sits held, the printer comes back, it prints. Without that
+> setting the honest recovery is two steps and one of them is a terminal command:
+>
+> ```bash
+> cancel -a && cupsenable QL820BT
+> ```
+>
+> Set `retry-job` and the printer's own power button becomes the whole procedure — which is the only
+> version a cashier can be expected to run.
+
 ### 5 · Make it a till, not a laptop
 
 ```bash
