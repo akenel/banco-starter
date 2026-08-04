@@ -209,8 +209,11 @@ lp -d QL820BT /usr/share/cups/data/testprint
 > setting the honest recovery is two steps and one of them is a terminal command:
 >
 > ```bash
-> cancel -a && cupsenable QL820BT
+> cancel -a && sudo cupsenable QL820BT
 > ```
+>
+> **`cupsenable` needs `sudo`** — it lives in `/usr/sbin`, same as `lpinfo`, `lpadmin` and `rfkill`.
+> Without it you get *command not found*, which reads like a missing package and is not.
 >
 > Set `retry-job` and the printer's own power button becomes the whole procedure — which is the only
 > version a cashier can be expected to run.
