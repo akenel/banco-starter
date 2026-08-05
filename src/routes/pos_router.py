@@ -6186,14 +6186,39 @@ def _bench_gap_clause():
     )
 
 
+# PLACEHOLDER PRICES — the sentinel a human types when they do not know the price yet.
+#
+# 2026-08-05, Angel, after a shelf-intake session: "I didn't know the price... so I figured I'd put
+# it at ninety nine just to flag it. If they ever go to do a checkout and they see papers selling at
+# ninety nine, they know there's something wrong."
+#
+# That is sound: shelf intake REQUIRES a sale price (correctly — an item ringing up at 0.00 is worse
+# than a missing one, because the missing one gets noticed), so an operator with a shelf to finish
+# needs SOMETHING to type. The failure was never his number — it was that **nothing in Banco knew it
+# was a sentinel**. 74 products sat at 99.00, all scannable, and every gap detector stayed quiet
+# because they all ask "what is MISSING?" and a placeholder is not missing. It is the 0.00 doctrine
+# wearing a plausible number, and worse: 0.00 gets noticed, 99.00 looks like a price.
+#
+# 999.99 is the BETTER sentinel and the one to type from now on: 99.00 is a plausible price for a
+# bong or a vaporizer, so it can hide among real ones. 999.99 cannot be anything but a flag.
+# Both are recognised — 99.00 because the shop already has 74 of them on the shelf today.
+UNVERIFIED_PRICES = (Decimal("99.00"), Decimal("999.99"))
+
 # BL-98 gap FILTER (Angel: "most are just cost — let me filter when a photo/description is missing").
 # The SAME single-gap expression drives the list AND that gap's count chip, so a "📷 Photo (800)"
 # chip can never disagree with the rows it shows. An unknown/blank kind falls back to all-four.
-_BENCH_GAP_KINDS = ("photo", "description", "category", "cost")
+#
+# `price` is filterable here but is deliberately NOT in `_bench_gap_clause()` — it is not a
+# master-data COMPLETENESS gap like the other four, it is a live MONEY bug, and folding it into the
+# "unfinished" bar would silently move every counter the shop is already working against. It gets
+# its own louder treatment on Catalog Health instead.
+_BENCH_GAP_KINDS = ("photo", "description", "category", "cost", "price")
 
 
 def _bench_gap_expr(kind):
-    """The gap clause for ONE kind (photo|description|category|cost), or ALL four (default)."""
+    """The gap clause for ONE kind (photo|description|category|cost|price), or the four-gap
+    completeness bench (default). NOTE `price` is a money flag, not a completeness gap — see
+    UNVERIFIED_PRICES and the comment on _BENCH_GAP_KINDS."""
     cat = _bench_category_expr()
     if kind == "photo":
         return func.coalesce(func.trim(ProductModel.image_url), "") == ""
@@ -6203,6 +6228,8 @@ def _bench_gap_expr(kind):
         return or_(cat == "", func.lower(cat).in_([c.lower() for c in _HALFBAKED_CATEGORIES]))
     if kind == "cost":
         return ProductModel.cost.is_(None)
+    if kind == "price":
+        return ProductModel.price.in_(UNVERIFIED_PRICES)
     return _bench_gap_clause()   # None / 'all' / anything else → any of the four
 
 
@@ -6229,6 +6256,10 @@ async def catalog_health(
     total = await _count()
     gaps = {k: await _count(_bench_gap_expr(k)) for k in _BENCH_GAP_KINDS}
     on_bench = await _count(_bench_gap_clause())
+    # 💸 The money check, reported LOUDER than any completeness gap because it is the only one a
+    # CUSTOMER pays for. See UNVERIFIED_PRICES: a product still carrying the "I don't know yet"
+    # sentinel is scannable and will ask a real person for a wrong amount.
+    price_unverified = gaps.get("price", 0)
     # Barcode is a 5th master-data signal (not part of the 4-gap "finished" bar): a scan-sheet
     # internal code or none at all means a shopper's real EAN scan won't find it at the till.
     no_barcode = await _count(or_(
@@ -6264,8 +6295,11 @@ async def catalog_health(
         "complete": complete,
         "on_bench": on_bench,
         "pct_complete": round(100 * complete / total) if total else 100,
-        "gaps": gaps,          # {photo, description, category, cost}
+        "gaps": gaps,          # {photo, description, category, cost, price}
         "no_barcode": no_barcode,
+        # 💸 money, not completeness — a scannable product that will overcharge a real customer
+        "price_unverified": price_unverified,
+        "unverified_prices": [str(p) for p in UNVERIFIED_PRICES],
         # the honest headline + the two things it deliberately leaves out
         "sellable": sellable,
         "pct_sellable": round(100 * sellable / total) if total else 100,

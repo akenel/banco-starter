@@ -63,6 +63,43 @@
           </p>
         </div>
 
+        <!-- 💸 THE MONEY CHECK — above the completeness cards on purpose.
+             Every other number here says "this record is incomplete". This one says "a customer
+             will be charged the wrong amount", which is a different kind of wrong and the only
+             one that costs somebody money. 2026-08-05: 74 products sat at CHF 99.00 — the
+             sentinel an operator types when the price isn't known yet — and nothing said a word,
+             because every gap check asks what is MISSING and a placeholder is not missing. -->
+        <a x-show="data.price_unverified > 0" href="/pos/cleanup?mode=bench&gap=price"
+           class="block bg-rose-50 border-2 border-rose-300 rounded-xl shadow p-5 mb-4 hover:shadow-lg transition">
+          <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+              <span class="text-3xl flex-none">💸</span>
+              <div>
+                <p class="font-bold text-rose-900">Price not verified yet</p>
+                <p class="text-xs text-rose-700">
+                  still carrying the placeholder
+                  <span class="font-mono font-bold"
+                        x-text="(data.unverified_prices || []).join(' or ')"></span>
+                  — these <b>scan at the till</b> and will ask a customer for the wrong amount
+                </p>
+              </div>
+            </div>
+            <div class="text-right flex-none">
+              <p class="text-3xl font-black text-rose-600" x-text="data.price_unverified"></p>
+              <p class="text-xs text-rose-700 font-semibold">Price these →</p>
+            </div>
+          </div>
+          <p class="text-xs text-rose-600 mt-2">
+            A human types the sale price — the shop's, not a website's. Take the packets in hand.
+          </p>
+          <p class="text-xs text-rose-500 mt-1">
+            ⚠️ <b>Some of these may be real.</b> CHF 99 is a believable price for a bong or a
+            vaporizer, so this list asks you to <i>confirm</i>, not to assume it is wrong. Type
+            <span class="font-mono font-bold">999.99</span> for "I don't know yet" from now on —
+            nothing costs that, so it can never hide among real prices.
+          </p>
+        </a>
+
         <!-- Gap cards — each a tap into the bench filtered to that gap -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <template x-for="g in gapCards" :key="g.kind">
