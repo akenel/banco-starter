@@ -18,6 +18,7 @@ stand up the same thing.*
 | 6 | **DK-44205** continuous roll, 62 mm black | ≥2 | ~25.– | **50.–** | consumable |
 | 7 | **Gun stand**, screwed to the counter | 1 | ~20.– | **20.–** | ⛔ to buy |
 | 8 | **Power bar, 5+ sockets** | 1 | ~25.– | **25.–** | ⛔ to buy |
+| 8b | **USB webcam** (any UVC) — the X1's built-in camera is IPU3 and **does not work on Linux** | 1–2 | ~20.– | **20–40.–** | ⛔ to buy |
 | 9 | **Data-only SIM** (Yallo / Salt — *different networks*) | 2 | ~10.–/mo | **20.–/mo** | ⛔ optional |
 | 10 | **Hetzner VPS** + `wolfhold.app` | 1 | ~10.–/mo | **10.–/mo** | ✅ running |
 | 11 | **Backblaze B2** off-site backup | 1 | ~2.–/mo | **2.–/mo** | ✅ running |

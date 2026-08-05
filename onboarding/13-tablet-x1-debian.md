@@ -789,6 +789,38 @@ often ship this way.
 | `lsusb` shows a camera, no `/dev/video` | UVC module | minutes |
 | `lspci` shows an **Imaging Unit**, USB shows nothing | **Intel IPU3** | an afternoon — `libcamera` + software ISP, and Chromium must be told to use it |
 
+### 🛑 MEASURED 2026-08-05 — dead end. Do not re-run this hunt.
+
+```
+lspci | grep -i imaging     → Imaging Unit           (IPU3 present)
+dmesg | grep -iE 'int3472|ov[0-9]{4}|cio2'
+                            → no sensor named, no int3472
+```
+
+**The kernel sees the imaging unit on the PCI bus and nothing attached to the other end.** No
+`ov####` sensor driver bound, no `int3472` power/clock provider. So there is nothing for `libcamera`
+to drive — installing it would achieve exactly nothing, and the failure mode would have been a clean
+install and a black rectangle.
+
+**Stopped here deliberately.** Same call as the reinstall on 2026-08-04: the certain path beats the
+clever one when the clever one may end in nothing. Kernel version and date are recorded above — per
+the driver lesson, **this is a measurement with a timestamp, not a permanent verdict.** Re-check
+after a major kernel jump; do not re-check on a hunch.
+
+### ✅ The answer instead: a USB webcam
+
+**CHF ~20, works instantly, zero driver work**, and Chromium sees it as an ordinary camera.
+
+Two reasons it is genuinely better rather than a consolation prize:
+
+- **The gun already scans EANs far better than any camera** — faster, fine in bad light, no focus
+  hunting. So the camera's only real job is **photographing packets**, not scanning.
+- Doc 10 already names the ProBook as the **photo booth**. A webcam on a stand is a *better* photo
+  booth than a tablet held at an angle over a packet.
+
+**Until it arrives:** gun for EANs, phone for photos. Nothing is blocked — snap-and-fill is a
+convenience, and file upload from disk works on the tablet today with no camera at all.
+
 > ⚠️ **Two things are being tested, not one.** GNOME seeing a camera and **Chromium** getting a frame
 > are separate questions. Banco's 📷 snap-and-fill needs the browser to get it, and the page must be a
 > **secure context** — HTTPS is fine, a bare `http://192.168…` is not. Finish by testing snap-and-fill
