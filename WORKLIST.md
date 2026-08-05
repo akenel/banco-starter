@@ -654,6 +654,37 @@ so nothing in the database could say what it physically was. Only the bottle kne
   [`16-bom-artemis-luzern.md`](onboarding/16-bom-artemis-luzern.md) (the layout). *(Phase B ·
   onboarding · the thing a second shop would need most)*
 
+- **🔴 A BARCODE WITH LETTERS IN IT CAN NEVER BE SCANNED — and two got in tonight.**
+  *(Found 2026-08-05 auditing Angel's shelf-intake session.)*
+  ```
+  ITEM-0070 | 2024VL099B | JaJa Noir King Size XXL Black Zigarettenpapier
+  ITEM-0072 | 2024Vl099b | JaJa Noir King Size XXL Black Zigarettenpapier - H…
+  ```
+  `2024VL099B` is **a website's article number**, captured into the barcode field from a pasted page.
+  It contains letters, so **no scanner will ever resolve it** — a dead row that looks alive, and the
+  cruelest kind because nothing reports it. It happened **twice for the same packet**, differing only
+  in letter case, so there are also two rows for one product.
+  This is the 2026-07-30 lesson from the other side: that one was *"never invent an identifier that
+  exists in the physical world"*; this is **Banco accepting someone else's identifier**.
+  **Fix: validate the barcode field — digits only.** Real EANs are 8, 12, 13 or 14 digits (verified:
+  every other real barcode in prod is 8, 12 or 13). Reject at the point of entry, in shelf intake and
+  in the catalogue form. **Cheap, and it closes the class, not just these two rows.**
+  Then merge `ITEM-0070` + `ITEM-0072` and bind the real EAN off the packet. *(shop floor ·
+  money-correctness · catalogue integrity)*
+
+- **A pasted page can put a competitor's shop name and price into the product NAME.** *(2026-08-05 —
+  six rows, four created tonight.)* `ITEM-0049 · 0060 · 0072 · 0075 · 0106 · 0111` carry SEO page
+  titles: `Elements Connoisseur Paper + Tips - Headshop - scorpio-shop.de, 1,50 €` ·
+  `Blue Cyclone Hemp Cones jetzt günstig online kaufen` ·
+  `50 Stück Aktivkohlefilter-Cones von PURIZE jetzt günstig online kaufe` (truncated mid-word).
+  Same shape as `650b3ee` ("a competitor's shop name and article number landed in the catalogue"), so
+  **that fix does not cover the shelf-intake web-paste path.** Cosmetic next to the barcode bug —
+  `CATALOG-IDENTITY.md` makes names labels, not identity — but a competitor's domain and price in the
+  catalogue is not a good look, and the truncation shows the title was taken raw.
+  **Wanted:** strip the shop-name tail from a scraped `<title>` (`- Headshop -`, `| shopname`,
+  `jetzt günstig online kaufen`, a trailing price), and **show the operator the name before it is
+  saved** rather than after. *(shop floor · catalogue)*
+
 ## 🔭 Backlog (not yet scheduled)
 
 - **📦 THE OFFLINE KIT — a daily bundle that works with no Banco at all.** *(Angel, 2026-08-04. Full
