@@ -821,6 +821,30 @@ Two reasons it is genuinely better rather than a consolation prize:
 **Until it arrives:** gun for EANs, phone for photos. Nothing is blocked — snap-and-fill is a
 convenience, and file upload from disk works on the tablet today with no camera at all.
 
+#### ❌ Not Bluetooth — and the port problem has a free fix
+
+**Bluetooth webcams are not a real category.** Bluetooth tops out around 2–3 Mbps in practice, video
+needs far more, and there is no standard profile for it. Anything sold as one is Wi-Fi underneath or
+badly compromised.
+
+**The clip-on part is right though** — that *is* a normal USB webcam. Nearly all of them ship with a
+hinged clip for the top edge of a laptop or monitor, and a tablet edge grips the same way.
+
+**The port clash and its fix:** USB-A holds the gun's dongle. But **put the Inateck on Bluetooth** —
+it is the gun that has it — and USB-A is free for the webcam, with the charger still on USB-C.
+Everything runs at once and there is nothing extra to buy. (A USB-C hub with power pass-through also
+works, but it is one more thing to carry and lose.)
+
+> ⚠️ **Ergonomics, honestly.** A webcam clipped to the tablet means carrying a 12-inch screen *to*
+> the packet at the right angle and distance — worse than a phone, which is already camera-shaped.
+> Where the webcam genuinely wins is **fixed on a stand at the back office**: packet down, both hands
+> free, consistent light and framing every time. **Realistic split — webcam on a stand for catalogue
+> photos, phone for grab shots at the shelf, tablet for scanning and intake.**
+>
+> Third option if the lens matters: **the phone can act as the tablet's webcam** over USB or Wi-Fi,
+> and it has the best sensor in the kit. More moving parts than a CHF 20 camera, so only worth it for
+> photo quality.
+
 > ⚠️ **Two things are being tested, not one.** GNOME seeing a camera and **Chromium** getting a frame
 > are separate questions. Banco's 📷 snap-and-fill needs the browser to get it, and the page must be a
 > **secure context** — HTTPS is fine, a bare `http://192.168…` is not. Finish by testing snap-and-fill
