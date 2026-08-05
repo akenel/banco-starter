@@ -574,6 +574,35 @@ so nothing in the database could say what it physically was. Only the bottle kne
   actually brought to the counter, not what we guessed. Cheap to capture (the miss already happens),
   and it makes every later catalogue session evidence-led. *(shop floor · catalogue)*
 
+- **Fixing a wrong product mid-sale means signing out — and the cart dies with the session.**
+  *(Angel, 2026-08-05, from the UAT sim: "if a product was wrong I would sign out to felix and fix the
+  catalog and then relog in again as pam to complete the sale — and that was awkward.")* He is right
+  that the answer is to **fix the catalogue before the sale**, not invent something at the till. **But
+  a cashier at 17:00 cannot do that**, and this is exactly the moment a shop gets a bad row: one-word
+  name, no category, no cost — the Pam-and-the-grinder path from 2026-08-03. Worse, the cart lives in
+  `sessionStorage`, so **signing out loses the sale in progress** and the customer waits through a
+  re-scan.
+  **Note Felix does not discount** — he holds the price and gives a **free treat** instead
+  (`line_item.is_giveaway`, already working and seen in today's data). So this is *not* a discount
+  feature; it is "the price on the row is wrong and someone must be able to proceed honestly".
+  **Wanted:** a manager-reviewable one-off price at the till, or an in-place edit that does not
+  destroy the cart. Needs Felix's answer on what a cashier may do with price — asked on the UAT
+  sheet. *(shop floor · Phase A)*
+
+- **📚 A real training manual — business process, workflow, layout, schedule.** *(Angel, 2026-08-05:
+  "we really need a proper training manual covering the business process and a plan and workflow and
+  layout and schedule … training the people and testing them in UAT is key.")* The onboarding kit
+  today explains **Banco**; it does not explain **the shop's day**. Missing: who does what and when
+  (open, trade, shift change, close), the counter layout and where each device lives, the weekly
+  rhythm (catalogue work, label runs, backups), and **how a new cashier is trained and then tested**.
+  Angel's point is that UAT is not only about finding defects — *he* is learning the way of working at
+  the same time, and that knowledge is currently only in his head and in scattered testsheets.
+  Should end with a **sign-off**: a new cashier runs a scripted day and someone confirms they can do
+  it. Pairs with [`10-devices-and-roles.md`](onboarding/10-devices-and-roles.md) (roles),
+  [`14-when-it-goes-down.md`](onboarding/14-when-it-goes-down.md) (the ladder) and
+  [`16-bom-artemis-luzern.md`](onboarding/16-bom-artemis-luzern.md) (the layout). *(Phase B ·
+  onboarding · the thing a second shop would need most)*
+
 ## 🔭 Backlog (not yet scheduled)
 
 - **📦 THE OFFLINE KIT — a daily bundle that works with no Banco at all.** *(Angel, 2026-08-04. Full

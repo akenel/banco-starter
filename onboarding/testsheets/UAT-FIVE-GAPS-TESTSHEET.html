@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UAT — the five paths this morning never touched</title>
+<style>
+  :root{ --red:#157F52; --dark:#0f5c3b; --ink:#1f2937; --mut:#6b7280; --line:#e5e7eb;
+         --ok:#059669; --iss:#d97706; --fail:#C0392B; --bg:#f6f8f7; --gold:#b0862f; }
+  *{ box-sizing:border-box; }
+  body{ font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; color:var(--ink);
+        background:var(--bg); margin:0; line-height:1.5; }
+  a{ color:var(--dark); }
+  header{ position:sticky; top:0; z-index:10; background:#fff; border-bottom:2px solid var(--red);
+          padding:12px 20px; box-shadow:0 2px 8px rgba(0,0,0,.06); }
+  .htop{ display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+  h1{ font-size:18px; margin:0; }
+  h1 small{ color:var(--mut); font-weight:500; font-size:13px; display:block; margin-top:2px; }
+  .meters{ display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
+  .meter{ text-align:center; } .meter b{ font-size:20px; display:block; }
+  .meter.ok b{ color:var(--ok); } .meter.iss b{ color:var(--iss); } .meter.fail b{ color:var(--fail); }
+  .meter span{ font-size:11px; color:var(--mut); text-transform:uppercase; letter-spacing:.04em; }
+  .timer{ font-variant-numeric:tabular-nums; font-size:22px; font-weight:700; color:var(--ink); }
+  .btn{ border:1px solid var(--line); background:#fff; border-radius:8px; padding:6px 12px;
+        font-size:13px; cursor:pointer; } .btn:hover{ background:#f0f0f0; }
+  .btn.red{ background:var(--red); color:#fff; border-color:var(--red); }
+  main{ max-width:920px; margin:0 auto; padding:22px 20px 80px; }
+  .lead{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin-bottom:20px; }
+  .phase{ font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.06em;
+          color:var(--red); margin:26px 0 10px; padding-bottom:6px; border-bottom:2px solid var(--red); }
+  section{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin-bottom:14px; }
+  section h2{ font-size:15px; margin:0 0 4px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  section .why{ color:var(--mut); font-size:13px; margin:0 0 12px; }
+  code{ font-family:ui-monospace,Menlo,monospace; font-size:12px; background:#f3f4f6;
+        border:1px solid var(--line); border-radius:5px; padding:1px 5px; }
+  .cmd{ display:block; font-family:ui-monospace,Menlo,monospace; font-size:12.5px; background:#0f172a;
+        color:#e2e8f0; border-radius:8px; padding:9px 12px; margin:6px 0; white-space:pre-wrap; word-break:break-word; }
+  ol.steps{ margin:0; padding:0; list-style:none; }
+  ol.steps li{ display:flex; gap:10px; padding:9px 0; border-top:1px dashed var(--line); align-items:flex-start; }
+  ol.steps li:first-child{ border-top:none; }
+  .verdict{ display:flex; gap:4px; flex:none; margin-top:1px; }
+  .vbtn{ border:1px solid var(--line); background:#fff; border-radius:7px; padding:4px 8px; font-size:11px;
+         font-weight:700; cursor:pointer; color:var(--mut); white-space:nowrap; }
+  .vbtn:hover{ background:#f6f6f6; }
+  .vbtn.v-pass.on{ background:var(--ok); border-color:var(--ok); color:#fff; }
+  .vbtn.v-fail.on{ background:var(--fail); border-color:var(--fail); color:#fff; }
+  .vbtn.v-issue.on{ background:var(--iss); border-color:var(--iss); color:#fff; }
+  @media (max-width:600px){ .vbtn{ padding:4px 6px; font-size:10px; } ol.steps li{ flex-wrap:wrap; } }
+  .step-body{ flex:1; min-width:220px; font-size:14px; }
+  .exp{ display:block; color:var(--ok); font-size:12.5px; margin-top:4px; }
+  .exp::before{ content:"✓ expect: "; font-weight:600; }
+  textarea{ width:100%; border:1px solid var(--line); border-radius:8px; padding:8px 10px; font:inherit;
+            font-size:13px; margin-top:10px; resize:vertical; min-height:54px; }
+  textarea.step-cm{ margin-top:0; min-height:32px; font-size:12.5px; background:#fcfcfd; flex:1; }
+  .step-extra{ margin-top:8px; }
+  .cm-row{ display:flex; gap:6px; align-items:flex-start; }
+  .mic-btn{ border:1px solid var(--line); background:#fff; border-radius:8px; padding:4px 9px; cursor:pointer;
+            font-size:15px; flex:none; }
+  .mic-btn.on{ background:#e6f6ee; border-color:var(--red); color:var(--red); animation:pulse 1s infinite; }
+  @keyframes pulse{ 50%{ opacity:.45 } }
+  .shot-zone{ margin-top:6px; border:1.5px dashed var(--line); border-radius:8px; padding:6px 10px; font-size:12px;
+              color:var(--mut); cursor:pointer; background:#fafafa; }
+  .shot-zone:focus,.shot-zone.drag{ outline:none; border-color:var(--red); background:#f2fbf6; color:var(--ink); }
+  .thumbs{ display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; }
+  .thumbs .sh{ position:relative; }
+  .thumbs img{ height:66px; border-radius:6px; border:1px solid var(--line); cursor:zoom-in; display:block; }
+  .thumbs .rm{ position:absolute; top:-7px; right:-7px; background:var(--red); color:#fff; border:none;
+               border-radius:99px; width:19px; height:19px; font-size:11px; cursor:pointer; line-height:1; }
+  .hidden{ display:none; }
+  label.cm{ font-size:11px; color:var(--mut); text-transform:uppercase; letter-spacing:.04em; }
+  .safety{ border:1px solid var(--line); border-left:4px solid var(--gold); background:#fffdf5;
+           border-radius:8px; padding:10px 12px; margin:10px 0; font-size:13.5px; }
+  .danger{ border-left-color:var(--fail); background:#fdf2f0; }
+  .tag{ font-size:11px; font-weight:700; padding:2px 8px; border-radius:99px; background:#dcfce7; color:#065f46; }
+  .tag.gap{ background:#fef3c7; color:#92400e; }
+  .tag.t{ background:#e0e7ff; color:#3730a3; font-variant-numeric:tabular-nums; }
+  table{ border-collapse:collapse; width:100%; font-size:13px; margin:8px 0; }
+  th,td{ border:1px solid var(--line); padding:6px 9px; text-align:left; vertical-align:top; }
+  th{ background:#f6f8f7; }
+  .card{ font-family:ui-monospace,Menlo,monospace; font-size:12.5px; background:#0f172a; color:#e2e8f0;
+         border-radius:10px; padding:14px 16px; white-space:pre-wrap; }
+</style>
+</head>
+<body>
+
+<header><div class="htop">
+  <h1>🎯 UAT — the five paths this morning never touched
+    <small>The arithmetic is proven. These are the awkward ones: an uneven total, a drawer that disagrees, money out of the box, a sale undone.</small></h1>
+  <div class="meters">
+    <div class="meter"><span class="timer" id="clock">00:00</span><span>elapsed</span></div>
+    <div class="meter"><b id="prog">0/0</b><span>marked</span></div>
+    <div class="meter ok"><b id="mOk">0</b><span>ok</span></div>
+    <div class="meter iss"><b id="mIss">0</b><span>issue</span></div>
+    <div class="meter fail"><b id="mFail">0</b><span>fail</span></div>
+    <button class="btn red" id="startBtn" onclick="toggleTimer()">▶ Start</button>
+    <button class="btn" onclick="copyFindings()">📋 findings</button>
+    <button class="btn" onclick="if(confirm('Clear everything — marks, notes and screenshots?')){localStorage.removeItem(KEY);location.reload()}">reset</button>
+  </div>
+</div></header>
+
+<main>
+  <div class="lead">
+    <strong>Why this sheet exists.</strong> This morning's simulation — 3 shifts, 8 transactions,
+    17 line items — was audited row by row against the production database. <b>Every number was
+    right.</b> Cash and card split correctly per shift, every line summed to its total, the float
+    carried cleanly from each close to the next open, and <b>a shift opened by felix correctly
+    counted three sales rung by pam</b> — the shared-cash-box fix, proven on real data.
+
+    <p style="margin:10px 0 0"><b>But five paths never ran once.</b> Every cash total was already
+    5-rappen clean, so the rounding engine never fired. Every count matched exactly, so the drawer
+    never disagreed. No money left the box, nothing was refunded. Those are the paths where money
+    actually goes missing, and they are what this sheet is for.</p>
+
+    <div class="safety danger">
+      <b>Read before you touch anything.</b>
+      <ul style="margin:6px 0 0 18px; padding:0">
+        <li><b>UAT on <code>banco.wolfhold.app</code></b> — this writes real rows into a real cash book.</li>
+        <li><b>Whatever you leave as the last reconcile becomes the next morning's expected.</b>
+          <b>Part F is not optional.</b> Finish by reconciling to what is genuinely there, or you hand
+          your test to the next person who opens up.</li>
+        <li>The box currently holds an <b>open shift from 09:39, float CHF 396.00, one sale of 5.00</b>.
+          Expected right now: <b>401.00</b>.</li>
+        <li><b>No physical cash needed.</b> Every count here can be invented — what is under test is the
+          screen and the order it tells you things.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ================= A ================= -->
+  <div class="phase">A · Rounding — the feature that has never once fired</div>
+
+  <section>
+    <h2>🪙 A1 · Why this is not a formality <span class="tag gap">never tested in prod</span></h2>
+    <p class="why">Shipped 2026-08-03 with 35 unit tests and a live proof. In real trading it has
+      produced <b>zero</b> rounding adjustments — <code>rounding_adjustment</code> is 0.00 on all 8 of
+      this morning's sales.</p>
+    <p class="why"><b>And now we know why.</b> Artemis prices end in 0 or 5 — 5.90, 6.95, 49.90, 40.00.
+      Any sum of those is already a multiple of 5 rappen, so there is nothing to round. <b>The engine
+      may almost never fire in normal trading</b>, which makes the rare time it does the time nobody
+      will be expecting it.</p>
+    <div class="safety">
+      <b>The one real product that breaks the pattern:</b>
+      <code>Rips Hemp King Size rolling papers 5m</code> — unit price <b>CHF 1.67</b>.
+      One of them is an uneven total. That is our test.
+    </div>
+  </section>
+
+  <section>
+    <h2>🪙 A2 · One Rips, paid in cash</h2>
+    <p class="why">The smallest possible uneven total. <b>1.67 cannot be handed over</b> — there is no
+      1- or 2-rappen coin in Switzerland.</p>
+    <ol class="steps">
+      <li><div class="step-body">Ring <b>1 × Rips Hemp King Size</b> and nothing else. Look at the cart
+        subtotal <i>before</i> choosing a payment method.
+        <span class="exp">1.67</span></div></li>
+      <li><div class="step-body">Choose <b>CASH</b>. Read the total the screen now asks for.
+        <span class="exp">1.65 — and it says somewhere that it was rounded</span></div></li>
+      <li><div class="step-body">Tender <b>2.00</b>. Check the change.
+        <span class="exp">0.35, not 0.33</span></div></li>
+      <li><div class="step-body">Look at the printed/on-screen receipt. <b>Does it show the rounding as
+        its own line?</b> A total that silently differs from the sum of the items is how a customer
+        loses trust in a till.
+        <span class="exp">a visible rounding line, not a mystery 2 rappen</span></div></li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>🪙 A3 · The same cart on TWINT — the control</h2>
+    <p class="why">This is the check that matters, and it is the one a script cannot fake. <b>Do not
+      work out the expected number yourself.</b> On 2026-08-03 a proof script recomputed the answer,
+      got it wrong, and produced two ❌s against code that was right. <b>Ring the identical cart on a
+      card and let the system hand you the authoritative figure.</b></p>
+    <ol class="steps">
+      <li><div class="step-body">Ring <b>1 × Rips</b> again. Pay by <b>TWINT</b>.
+        <span class="exp">1.67 — cards do not round, only coins have the constraint</span></div></li>
+      <li><div class="step-body">Put the two side by side: <b>same cart, two payment methods, differing
+        by exactly the rounding.</b>
+        <span class="exp">1.67 vs 1.65 — a 0.02 difference and nothing else</span></div></li>
+      <li><div class="step-body">Ring <b>2 × Rips</b> in cash (3.34).
+        <span class="exp">3.35 — rounds UP. Nearest, not always down.</span></div></li>
+      <li><div class="step-body">Now check the drawer: <b>X-report</b>. Does expected cash account for
+        the rounding, or is it quietly 2 rappen out?
+        <span class="exp">expected matches what you would physically count</span></div></li>
+    </ol>
+    <label class="cm">A · what the rounding actually did</label>
+    <textarea data-cm="rounding" placeholder="cash total · card total · the difference · did the receipt say so"></textarea>
+  </section>
+
+  <!-- ================= B ================= -->
+  <div class="phase">B · The drawer that disagrees — the whole point of a cash box</div>
+
+  <section>
+    <h2>⚖️ B1 · Count it SHORT <span class="tag gap">never tested</span></h2>
+    <p class="why">Three closes this morning, three variances of <b>exactly 0.00</b>. The screen has
+      never once had to say "this does not match". <b>A cash box that only handles agreement is not a
+      cash box.</b></p>
+    <div class="safety"><b>Do not look up what it should be before you count.</b> Type a number that is
+      deliberately wrong <i>first</i>, and see what the screen does with it.</div>
+    <ol class="steps">
+      <li><div class="step-body">Close the shift. When it asks for the count, enter <b>10.00 less</b>
+        than you believe is there.
+        <span class="exp">it says SHORT, shows the gap, and does NOT show a green tick</span></div></li>
+      <li><div class="step-body">Is the number it shows <b>the gap</b>, or does it just tell you what it
+        expected? Telling you the expected figure teaches you to type it next time.
+        <span class="exp">the variance, not a hint</span></div></li>
+      <li><div class="step-body">Does it <b>demand a note</b> before letting you finish?
+        <span class="exp">a short cash box that closes silently is money quietly gone</span></div></li>
+      <li><div class="step-body">Write a real note — <i>"miscounted, recounting"</i> — and try to
+        <b>go back and correct the count</b> without closing.
+        <span class="exp">a way back. A wrong number you cannot fix is a wrong number in the books.</span></div></li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>⚖️ B2 · Count it OVER, and count it exact</h2>
+    <ol class="steps">
+      <li><div class="step-body">Enter <b>10.00 more</b> than expected.
+        <span class="exp">OVER is called out just as loudly as SHORT</span></div></li>
+      <li><div class="step-body">Now enter the <b>right</b> figure and finish the close.
+        <span class="exp">balanced — and NOW the green tick is honest</span></div></li>
+      <li><div class="step-body">🔴 <b>The one that shipped broken before.</b> Check the green
+        "✅ Balanced" is not rendering over a box you have not counted yet. On 2026-08-03 it did
+        exactly that — the largest element on the page, directly above the note explaining it was not
+        true.
+        <span class="exp">no green anything until a count has been entered</span></div></li>
+      <li><div class="step-body">Open the next shift. Does the float carry from what you just counted?
+        <span class="exp">the new float = your counted figure, to the rappen</span></div></li>
+    </ol>
+    <label class="cm">B · the drawer disagreeing</label>
+    <textarea data-cm="variance" placeholder="what it said when short · when over · did it demand a note · could you correct a wrong count"></textarea>
+  </section>
+
+  <!-- ================= C ================= -->
+  <div class="phase">C · Money out of the box — and the reason code that has never held a value</div>
+
+  <section>
+    <h2>💸 C1 · Take CHF 500 to the safe <span class="tag gap">reason_code always empty</span></h2>
+    <p class="why">Two cash movements exist in the whole database, both from 2026-08-03, and
+      <b><code>reason_code</code> is empty on both</b> — they predate the named reasons. So the feature
+      built on 2026-08-03 has <b>never once stored a value</b>.</p>
+    <div class="safety"><b>The bug this replaced:</b> a CHF 500 skim never saved. The cashier chose the
+      movement, typed the amount, pressed Record — and a 400 landed in a banner at the <b>top of a page
+      he had scrolled past</b>. Nothing saved, nothing looked wrong, and the report simply showed no
+      paid-out. <b>Watch where the outcome appears, not just whether it worked.</b></div>
+    <ol class="steps">
+      <li><div class="step-body">Record a <b>paid-out of 500.00</b>, reason <b>to the safe</b> from the
+        dropdown. Leave any free-text box <b>empty</b>.
+        <span class="exp">it saves. "to the safe" IS the reason — no sentence required after it.</span></div></li>
+      <li><div class="step-body">🔴 <b>Where did the confirmation appear?</b> Scroll position matters —
+        stand where the button is and see if you can tell it worked <i>without scrolling</i>.
+        <span class="exp">the outcome appears where the button is</span></div></li>
+      <li><div class="step-body">Record a <b>paid-in of 100.00</b>, reason <b>float top-up</b>.
+        <span class="exp">saves, and the expected cash moves by +100</span></div></li>
+      <li><div class="step-body">X-report: are paid-in and paid-out shown <b>separately</b>, with their
+        reasons, or blended into one number?
+        <span class="exp">both visible with their reasons — you can see where money went</span></div></li>
+      <li><div class="step-body">Close and check the expected figure includes both movements.
+        <span class="exp">float + cash sales − 500 + 100</span></div></li>
+    </ol>
+    <label class="cm">C · which paid-out reasons Artemis actually uses</label>
+    <textarea data-cm="reasons" placeholder="safe · supplier · petty cash · wages · something else? — Felix's answer"></textarea>
+  </section>
+
+  <!-- ================= D ================= -->
+  <div class="phase">D · Undoing a sale — a customer changed their mind</div>
+
+  <section>
+    <h2>↩️ D1 · Refund and void <span class="tag gap">all 8 sales COMPLETED, nothing undone</span></h2>
+    <p class="why">Every transaction in the database is <code>COMPLETED</code>. Nothing has ever been
+      refunded, voided or abandoned. In a real shop this happens on day one.</p>
+    <ol class="steps">
+      <li><div class="step-body">Ring a small cash sale, complete it, then <b>refund it</b>.
+        <span class="exp">cash_refunds moves, and expected cash comes back DOWN</span></div></li>
+      <li><div class="step-body">Does the refund show on the <b>X-report</b> as its own figure, not just
+        netted into sales?
+        <span class="exp">refunds visible separately — netting hides them</span></div></li>
+      <li><div class="step-body">Start a cart, add three items, then <b>abandon it</b> — walk away, hit
+        back, close the tab.
+        <span class="exp">no phantom transaction, and the drawer is unaffected</span></div></li>
+      <li><div class="step-body">⚠️ <b>Then reload the page.</b> Is the abandoned cart still there?
+        The cart lives in <code>sessionStorage</code>, so it dies with the tab — <b>and it does not
+        travel to the other tablet.</b>
+        <span class="exp">know which it is, and tell the cashier</span></div></li>
+      <li><div class="step-body">Refund a <b>card</b> sale. Does Banco make clear it has <i>recorded</i>
+        a refund and not <i>moved</i> any money — the card refund is Worldline's job?
+        <span class="exp">no implication that the customer has been paid back</span></div></li>
+    </ol>
+    <label class="cm">D · refunds and abandoned carts</label>
+    <textarea data-cm="refunds" placeholder="what the refund did to the drawer · did the abandoned cart leave anything behind"></textarea>
+  </section>
+
+  <!-- ================= E ================= -->
+  <div class="phase">E · The friction Angel hit — fixing a product mid-sale</div>
+
+  <section>
+    <h2>🔀 E1 · A wrong product with a customer waiting <span class="tag gap">Angel, this morning</span></h2>
+    <p class="why"><b>Angel's own words:</b> <i>"if a product was wrong I would sign out to felix and
+      fix the catalog and then relog in again as pam to complete the sale — and that was awkward."</i></p>
+    <p class="why">He is right that the answer is to fix the catalogue <i>before</i> the sale rather than
+      invent something at the till. <b>But a cashier at 5pm cannot do that</b>, and this is the moment
+      the till hands a shop a bad row: one-word name, no category, no cost — the Pam-and-the-grinder
+      path from 2026-08-03.</p>
+    <ol class="steps">
+      <li><div class="step-body">As <b>pam</b>, ring a product whose <b>price is wrong</b>. Try to
+        complete the sale correctly <b>without signing out.</b>
+        <span class="exp">some way through — even if it is a one-off price the manager reviews later</span></div></li>
+      <li><div class="step-body">Time the sign-out → fix as felix → sign back in as pam round trip.
+        <b>Write the seconds down.</b>
+        <span class="exp">the number that says whether this is friction or a blocker</span></div></li>
+      <li><div class="step-body">Does the sale survive the sign-out, or is the cart lost?
+        <span class="exp">expect it to be LOST — sessionStorage dies with the session</span></div></li>
+      <li><div class="step-body">Felix does <b>not</b> discount — he gives a <b>free treat</b> instead.
+        Ring a normal sale and add a <b>treat at 0.00</b> (a lollipop).
+        <span class="exp">treat recorded, drawer unaffected, shows on the Z-report as a treat</span></div></li>
+      <li><div class="step-body">🗣️ <b>Ask Felix:</b> when a price needs to flex — a regular, a damaged
+        box, a haggle — what does he actually want the cashier to be able to do?
+        <span class="exp">his answer, in his words, written below</span></div></li>
+    </ol>
+    <label class="cm">E · price flexibility — what Felix actually wants</label>
+    <textarea data-cm="flex" placeholder="the sign-out round trip in seconds · what he wants a cashier to be allowed to do on price"></textarea>
+  </section>
+
+  <!-- ================= F ================= -->
+  <div class="phase">F · Leave the box honest — not optional</div>
+
+  <section>
+    <h2>🔒 F1 · Reconcile to reality</h2>
+    <div class="safety danger"><b>Whatever you leave becomes tomorrow's expected.</b> Every test above
+      wrote real rows. Close the box at the figure that is genuinely there.</div>
+    <ol class="steps">
+      <li><div class="step-body">Close the shift, counting <b>what is actually in the box</b> — not what
+        the screen expects.
+        <span class="exp">closed, with a note if it does not match</span></div></li>
+      <li><div class="step-body">Run the <b>Z-report</b>. Read it as a shopkeeper: does it tell you the
+        day's story — sales, refunds, treats, money in, money out?
+        <span class="exp">a report Felix could hand an accountant</span></div></li>
+      <li><div class="step-body">🔴 Cross-check: does the <b>transaction count on the report</b> match
+        the number of rows in the log underneath? On 2026-08-03 they disagreed — 2 against 1 — from one
+        stale filter twelve hundred lines from its twin.
+        <span class="exp">the two numbers agree</span></div></li>
+      <li><div class="step-body">Export the report as <b>CSV</b> and as <b>PDF</b>. Count the PDF pages.
+        <span class="exp">CSV complete · PDF known to stop after page one — confirm it still does</span></div></li>
+    </ol>
+    <label class="cm">F · anything that would embarrass us in front of an accountant</label>
+    <textarea data-cm="close" placeholder="what the Z-report got right or wrong · PDF page count"></textarea>
+  </section>
+
+  <section>
+    <h2>📋 Before you close the tab</h2>
+    <p class="why">Press <b>📋 findings</b> and paste into <code>WORKLIST.md</code>. A finding that stays
+      in a browser tab is a finding nobody acts on.</p>
+  </section>
+</main>
+<script>
+  const KEY='banco-uat-five-gaps-v1';
+  const STEPS=[];
+  const VDEFS=[['pass','OK','✓'],['fail','FAIL','✗'],['issue','ISSUE','⚠']];
+
+  function verdictControl(i){
+    const box=document.createElement('div'); box.className='verdict';
+    VDEFS.forEach(([v,lbl,ic])=>{ const b=document.createElement('button'); b.type='button';
+      b.className='vbtn v-'+v; b.innerHTML=ic+' '+lbl; b.title=lbl;
+      b.addEventListener('click', ()=>setVerdict(i, STEPS[i].verdict===v ? '' : v));
+      box.appendChild(b); STEPS[i]._btns[v]=b; });
+    return box;
+  }
+  function paintVerdict(i){ const s=STEPS[i]; VDEFS.forEach(([v])=>{ const b=s._btns[v];
+    if(b) b.classList.toggle('on', s.verdict===v); }); }
+  function setVerdict(i,v){ STEPS[i].verdict=v; paintVerdict(i); save(); progress(); }
+
+  function buildSteps(){
+    document.querySelectorAll('ol.steps li').forEach((li,i)=>{
+      const bodyEl = li.querySelector('.step-body');
+      const label = (bodyEl?.textContent||'').trim().replace(/\s+/g,' ').slice(0,120);
+      STEPS[i]={ li, label, verdict:'', ta:null, thumbs:null, shots:[], _btns:{} };
+      li.insertBefore(verdictControl(i), li.firstChild);
+      const wrap=document.createElement('div'); wrap.className='step-extra';
+      const row=document.createElement('div'); row.className='cm-row';
+      const ta=document.createElement('textarea'); ta.className='step-cm'; ta.rows=1;
+      ta.placeholder='note… what happened, how long, what you had to invent (type or 🎤 speak)';
+      ta.addEventListener('input', save);
+      const mic=document.createElement('button'); mic.className='mic-btn'; mic.type='button';
+      mic.textContent='🎤'; mic.title='Dictate this note';
+      mic.addEventListener('click', ()=>micToggle(mic, ta));
+      row.appendChild(ta); row.appendChild(mic); wrap.appendChild(row);
+      const zone=document.createElement('div'); zone.className='shot-zone'; zone.tabIndex=0;
+      zone.textContent='📋 click & paste a screenshot (Ctrl+V) · drop an image · or 📷 pick a file';
+      const fin=document.createElement('input'); fin.type='file'; fin.accept='image/*';
+      fin.capture='environment'; fin.className='hidden';
+      zone.addEventListener('click', ()=>{ activeIdx=i; fin.click(); });
+      zone.addEventListener('focus', ()=>{ activeIdx=i; });
+      zone.addEventListener('dragover', e=>{ e.preventDefault(); zone.classList.add('drag'); });
+      zone.addEventListener('dragleave', ()=>zone.classList.remove('drag'));
+      zone.addEventListener('drop', e=>{ e.preventDefault(); zone.classList.remove('drag'); activeIdx=i;
+        [...(e.dataTransfer.files||[])].forEach(f=>{ if(f.type.startsWith('image/')) addShot(i,f); }); });
+      fin.addEventListener('change', e=>{ [...(e.target.files||[])].forEach(f=>addShot(i,f)); e.target.value=''; });
+      const thumbs=document.createElement('div'); thumbs.className='thumbs';
+      wrap.appendChild(zone); wrap.appendChild(fin); wrap.appendChild(thumbs);
+      bodyEl.appendChild(wrap);
+      STEPS[i].ta=ta; STEPS[i].thumbs=thumbs;
+    });
+  }
+
+  let activeIdx=null;
+  document.addEventListener('paste', e=>{ if(activeIdx==null) return;
+    const items=(e.clipboardData||{}).items||[];
+    for(const it of items){ if(it.type && it.type.startsWith('image/')){ const f=it.getAsFile();
+      if(f){ addShot(activeIdx,f); e.preventDefault(); } } } });
+  function downscale(file, cb){ const url=URL.createObjectURL(file); const img=new Image();
+    img.onload=()=>{ const max=1000; let w=img.width,h=img.height; if(w>max){ h=Math.round(h*max/w); w=max; }
+      const c=document.createElement('canvas'); c.width=w; c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h); URL.revokeObjectURL(url);
+      try{ cb(c.toDataURL('image/jpeg',0.6)); }catch(e){ cb(null); } };
+    img.onerror=()=>{ URL.revokeObjectURL(url); cb(null); }; img.src=url; }
+  function addShot(i,file){ downscale(file, data=>{ if(!data) return;
+    STEPS[i].shots.push({name:file.name||'screenshot.png', data}); renderThumbs(i); save(); }); }
+  function renderThumbs(i){ const t=STEPS[i].thumbs; t.innerHTML='';
+    STEPS[i].shots.forEach((sh,si)=>{ const d=document.createElement('div'); d.className='sh';
+      const im=document.createElement('img'); im.src=sh.data; im.title=sh.name;
+      im.onclick=()=>{ const w=window.open(); if(w) w.document.write('<img src="'+sh.data+'" style="max-width:100%">'); };
+      const rm=document.createElement('button'); rm.className='rm'; rm.textContent='✕'; rm.title='remove';
+      rm.onclick=()=>{ STEPS[i].shots.splice(si,1); renderThumbs(i); save(); };
+      d.appendChild(im); d.appendChild(rm); t.appendChild(d); }); }
+
+  function save(){ const d={verdict:[],note:[],shots:[],cm:{},seconds};
+    STEPS.forEach((s,i)=>{ d.verdict[i]=s.verdict||''; d.note[i]=s.ta.value; d.shots[i]=s.shots; });
+    document.querySelectorAll('textarea[data-cm]').forEach(t=>d.cm[t.dataset.cm]=t.value);
+    try{ localStorage.setItem(KEY,JSON.stringify(d)); }catch(e){ console.warn('storage full', e); } }
+  function restore(){ try{ const d=JSON.parse(localStorage.getItem(KEY)||'{}');
+    STEPS.forEach((s,i)=>{ if(d.verdict&&d.verdict[i]){ s.verdict=d.verdict[i]; paintVerdict(i); }
+      if(d.note&&d.note[i]!=null) s.ta.value=d.note[i];
+      if(d.shots&&Array.isArray(d.shots[i])){ s.shots=d.shots[i]; renderThumbs(i); } });
+    if(d.cm) document.querySelectorAll('textarea[data-cm]').forEach(t=>{ if(d.cm[t.dataset.cm]!=null) t.value=d.cm[t.dataset.cm]; });
+    if(typeof d.seconds==='number'){ seconds=d.seconds; paintClock(); } }catch(e){} }
+
+  function progress(){ let p=0,f=0,iss=0,dec=0;
+    STEPS.forEach(s=>{ if(s.verdict){ dec++; if(s.verdict==='pass')p++; else if(s.verdict==='fail')f++; else iss++; } });
+    document.getElementById('prog').textContent=dec+'/'+STEPS.length;
+    mOk.textContent=p; mIss.textContent=iss; mFail.textContent=f; }
+
+  // Turn the run into something that can be pasted straight into WORKLIST.md. A finding that
+  // stays in a browser tab is a finding nobody acts on.
+  function copyFindings(){
+    const L=['# UAT five gaps — findings','', 'elapsed: '+document.getElementById('clock').textContent, ''];
+    STEPS.forEach(s=>{ if(s.verdict==='fail'||s.verdict==='issue'||(s.ta.value||'').trim()){
+      L.push('- ['+(s.verdict||'note').toUpperCase()+'] '+s.label + ((s.ta.value||'').trim()? '\n      → '+s.ta.value.trim() : '')); } });
+    L.push('', '## Decisions for Angel + Felix');
+    document.querySelectorAll('textarea[data-cm]').forEach(t=>{ const v=(t.value||'').trim();
+      if(v) L.push('- **'+t.dataset.cm.toUpperCase()+'** — '+v); });
+    const txt=L.join('\n');
+    navigator.clipboard?.writeText(txt).then(
+      ()=>alert('Findings copied — paste into WORKLIST.md'),
+      ()=>{ const w=window.open(); if(w) w.document.write('<pre>'+txt.replace(/</g,'&lt;')+'</pre>'); });
+  }
+
+  let seconds=0, timer=null;
+  function paintClock(){ const m=String(Math.floor(seconds/60)).padStart(2,'0'),
+    s=String(seconds%60).padStart(2,'0'); document.getElementById('clock').textContent=m+':'+s; }
+  function toggleTimer(){ const b=document.getElementById('startBtn');
+    if(timer){ clearInterval(timer); timer=null; b.textContent='▶ Resume'; }
+    else { timer=setInterval(()=>{ seconds++; paintClock(); if(seconds%10===0) save(); },1000);
+      b.textContent='⏸ Pause'; } }
+
+  let rec=null;
+  function micToggle(btn, ta){
+    if(rec){ rec.stop(); return; }
+    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    if(!SR){ alert('This browser has no speech recognition — type the note instead.'); return; }
+    rec=new SR(); rec.lang='en-GB'; rec.interimResults=false; rec.continuous=true;
+    rec.onresult=e=>{ let t=''; for(let i=e.resultIndex;i<e.results.length;i++) t+=e.results[i][0].transcript;
+      ta.value=(ta.value?ta.value+' ':'')+t.trim(); save(); };
+    rec.onend=()=>{ btn.classList.remove('on'); rec=null; };
+    rec.onerror=()=>{ btn.classList.remove('on'); rec=null; };
+    btn.classList.add('on'); rec.start();
+  }
+
+  buildSteps(); restore(); progress(); paintClock();
+</script>
+</body>
+</html>
