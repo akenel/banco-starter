@@ -654,6 +654,26 @@ so nothing in the database could say what it physically was. Only the bottle kne
   [`16-bom-artemis-luzern.md`](onboarding/16-bom-artemis-luzern.md) (the layout). *(Phase B ·
   onboarding · the thing a second shop would need most)*
 
+- **💵 COST above a price threshold, optional below it — so the queue can actually reach zero.**
+  *(Angel, 2026-08-05: "that final check was when he puts in the cost, then we know it's done" — then,
+  the same evening: "**he might not do costs**.")* Both are true, and together they are a trap.
+  **If cost is the completion signal and Felix never supplies it, nothing ever completes** — and a
+  queue that can never empty is a queue people stop opening. That is the inverse of the
+  green-that-cannot-turn-red already rejected twice in `compose.yml`: **a red that can never turn
+  green carries no information either.**
+  `catalog_health` already splits `sellable` / `scannable` / `costed` for exactly this reason — a
+  single score once read **1% complete** over a catalogue that was 99% priced, categorised and
+  pictured, purely because cost was missing on 5,099 rows.
+  **Proposal: require cost only above a price threshold.** Nobody needs margin on a CHF 1.40 packet of
+  papers. Everybody wants it on a **CHF 398 vaporizer** — and per
+  [`19`](onboarding/19-what-actually-sells.md) that is exactly where the money is (biggest sales of
+  the month: 398.– · 378.– · 307.– · 300.–). A threshold makes the bench **drain to zero** while still
+  protecting the decisions worth protecting.
+  **Angel's framing to keep:** *"it leaves it hanging in the queue all the time that it still needs to
+  be fixed. It's only 75% correct. I think that's fair."* A row that scans and has a name, price and
+  picture **is** sellable — say so, and keep flagging what is missing, rather than choosing between a
+  green tick and a permanent red. *(Phase A · catalogue · Felix's call on the threshold)*
+
 - **🌀 GRINDERS — the no-barcode workflow, and the pilot for trays and bongs.** *(Angel, 2026-08-05.
   Full workflow: [`onboarding/20-no-barcode-items.md`](onboarding/20-no-barcode-items.md))* The day
   book ranks grinders **4th** — roughly one a day, not the slow mover we assumed — and **none of them

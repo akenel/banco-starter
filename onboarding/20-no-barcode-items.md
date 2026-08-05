@@ -101,6 +101,82 @@ is right** — check the name and picture match the thing you are holding.
 
 ---
 
+## 🔴 BONGS ARE A DIFFERENT PROBLEM — and it is bigger than grinders
+
+*Angel, 2026-08-05: "they have parts like you wouldn't believe… little screw pieces, different
+millimeters. It goes on and on. **That scares the hell out of me.** None of that stuff is marked."*
+
+He is right, and the catalogue confirms it. Measured on prod 2026-08-05:
+
+| Category | Rows | Real EAN | Avg price | Range |
+|---|---|---|---|---|
+| Bong & Pipe Accessories | **253** | **0** | 12.51 | 1 – 299 |
+| Vaporizers | **248** | **0** | 59.42 | 2.50 – 519 |
+| Bongs | **178** | **0** | 80.34 | 5.90 – 590 |
+| Dab & Concentrate Gear | **157** | **0** | 69.00 | 2.50 – 1199 |
+| Pipes | **116** | **0** | 23.68 | 1.90 – 79 |
+| | **952** | **0** | | |
+
+**952 rows, not one real barcode between them.** That is five to six times the papers job.
+
+### The thing that makes it *harder*, not just bigger
+
+**Grinders are an IDENTIFICATION problem. Bong parts are a COMPATIBILITY problem.**
+
+A customer walks in holding their own bong and asks *"will this fit?"* Answering needs exactly two
+facts about every part:
+
+1. **Joint size** — `10 mm` · `14.5 mm` · `18.8 mm` (the German *Schliff* standard)
+2. **Gender** — male (*Stecker*) or female (*Muffe*)
+
+A 14.5 male bowl fits a 14.5 female downstem. Nothing else does. **Two facts, and without them the
+cashier cannot answer the only question anyone asks about these products.**
+
+How many of the 431 bong/accessory rows carry it today:
+
+| | Count | of 431 |
+|---|---|---|
+| Name contains a **mm size** | 52 | **12%** |
+| Name contains a fitting word (*Schliff · Adapter · Joint*) | 66 | 15% |
+| Any structured `attributes` at all | 61 | 14% |
+| Bowls (*Kopf · Chillum · Steckkopf*) | 105 | |
+| Downstems | 19 | |
+| Screens (*Sieb*) | 30 | |
+
+> **~88% of bong parts do not record the one fact that decides whether they fit.** No photograph
+> fixes that — a picture cannot reliably tell 14.5 from 18.8. **It has to be measured or read off
+> the supplier's spec.**
+
+### The reframe that makes it tractable
+
+**The parts that NEED compatibility data are the cheap ones. The expensive ones do not need it.**
+
+- **Bongs themselves** (178 rows, avg **80.–**, up to 590.–) — a customer picks these **by eye**.
+  They need a correct **price**, not a spec. Low urgency, high value: catalogue them for the money,
+  not for the till.
+- **Accessories** (253 rows, avg **12.50**) — chosen entirely **by fit**. This is where the two facts
+  matter, and it is the harder, cheaper, more numerous half.
+
+### 🛑 Recommendation: do NOT attack bongs tomorrow
+
+Grinders first — that workflow is worth proving on ~50 items where a photo genuinely identifies the
+thing. Bongs need a different tool and a decision that has not been made yet.
+
+**When bongs do get done, the order should be:**
+
+1. **Accessories that actually sell** — bowls, downstems, screens, adapters. Not all 253.
+2. **Record size + gender as structured `attributes`**, not buried in the name. The column already
+   exists and 61 rows already use it — no migration needed.
+3. **Then make it searchable**: a cashier types `14.5 male` and gets everything that fits. *That* is
+   the feature; the catalogue rows are just the input.
+4. **Bongs themselves last**, priced and photographed, no spec work.
+
+⚠️ **Do not let the parts problem stall the price problem.** Every one of those 952 rows needs a
+verified price regardless of whether anyone ever records a joint size — and per doc 19, a bong sale
+carried a **307.–** transaction. Wrong price on a 590.– bong is a far worse day than a missing spec.
+
+---
+
 ## 📊 The other question: how many bongs do they actually sell?
 
 Angel: *"they got a lot of those on the top shelves, they're hard to get at."*
