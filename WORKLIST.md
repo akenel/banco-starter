@@ -654,7 +654,44 @@ so nothing in the database could say what it physically was. Only the bottle kne
   [`16-bom-artemis-luzern.md`](onboarding/16-bom-artemis-luzern.md) (the layout). *(Phase B ·
   onboarding · the thing a second shop would need most)*
 
-- **🔴 A BARCODE WITH LETTERS IN IT CAN NEVER BE SCANNED — and two got in tonight.**
+- **🔴🔴 74 PRODUCTS RING UP AT CHF 99.00 — 40 of them created tonight, all scannable.**
+  *(Found 2026-08-05 while fixing the junk names. **This is money, and it is live on prod.**)*
+  A packet of OCB papers worth ~1.50 currently asks the customer for **99.00**. Also affected:
+  `RAW Original Filtertips` · `CLIPPER GAS 300 ML` · `Cigarettes Tabac Fred Roses` ·
+  `Blue Cyclone Hemp Cones` — across Rolling Papers, Tobacco, CBD Flower, Lighters and Other.
+  **Why it happened, and it is not carelessness:** shelf intake *requires* a sale price (correctly —
+  `10-devices-and-roles.md`), so `99` is what you type to get past the field with a shelf to finish.
+  **Why nothing caught it:** every gap detector asks *"what is MISSING?"* and 99.00 is not missing. It
+  is the 0.00 doctrine wearing a plausible number —
+  > *"an item that rings up at 0.00 is worse than one that is missing, because the missing one gets
+  > noticed"*
+  — except **99.00 does not even get noticed**, because it looks like a price. The shelf-intake stub
+  list flags `no cost`; it says nothing about an absurd `price`.
+  **Two jobs:**
+  1. **Price the 74** — human only. Tigs will not invent prices; guessing on 40 rows is how a shop
+     overcharges. `SELECT sku, name, category FROM products WHERE is_active AND price = 99.00`.
+  2. **Detect the class.** Catalog Health should flag *"74 products share the exact price 99.00 across
+     8 unrelated categories"* — a placeholder betrays itself by being **identical across products that
+     have nothing in common**. Also worth a "capture without a real price yet" state, so the operator
+     is not forced to invent one to move on. *(Phase A · money-correctness · shop floor)*
+
+- **✅ FIXED 2026-08-05 — a barcode with letters in it can never be scanned.**
+  ~~`ITEM-0070` `2024VL099B` and `ITEM-0072` `2024Vl099b`~~ — a website's article number captured from
+  a pasted page. Both set to **`NULL`** (not `''` — `''` is not NULL to a unique index, per
+  2026-08-03), so the first real scan can bind them. Verified: **zero** barcodes in prod now contain a
+  non-digit. **The pair still needs merging** — same product, two rows, and it is a good first real
+  test of the merge screen, which no human has yet used on a real pair. **The validation is still
+  open**: the barcode field should refuse non-digits at the point of entry, in shelf intake and in the
+  catalogue form, or this recurs.
+
+- **✅ FIXED 2026-08-05 — six product names carried SEO page titles.** ~~`Elements Connoisseur Paper +
+  Tips - Headshop - scorpio-shop.de, 1,50 €`~~ and five like it. Marketing tail stripped, nothing
+  invented. Verified zero remaining. **The cause is still open** — the shelf-intake web-paste path
+  takes a `<title>` raw, so it recurs on the next pasted page. Wanted: strip the shop-name tail
+  (`- Headshop -`, `| shopname`, `jetzt günstig online kaufen`, a trailing price) and **show the
+  operator the name before saving**, not after.
+
+- **(original note, for the record) A barcode with letters in it can never be scanned.**
   *(Found 2026-08-05 auditing Angel's shelf-intake session.)*
   ```
   ITEM-0070 | 2024VL099B | JaJa Noir King Size XXL Black Zigarettenpapier
