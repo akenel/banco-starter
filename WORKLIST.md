@@ -589,6 +589,32 @@ so nothing in the database could say what it physically was. Only the bottle kne
   destroy the cart. Needs Felix's answer on what a cashier may do with price — asked on the UAT
   sheet. *(shop floor · Phase A)*
 
+- **🔁 CONSUMABLE vs DURABLE — the field already exists and is EMPTY.** *(Angel, 2026-08-05: "you
+  don't buy a grinder every day … but papers, filters, more CBD … we don't have a category for that
+  per se.")* Checked prod before inventing anything, and the answer is not a new taxonomy:
+  - ❌ **Do not reuse `product_class`.** It is `standard` / `tobacco_nicotine` / `cbd_hemp` /
+    `cbd_open` / `alcohol` and **drives the 18+ gate and VAT**. Repurposing it breaks the age gate.
+  - ❌ **`consumption` on `line_items` is a red herring** — it means `dine_in` / `takeaway` for café
+    VAT. Confusing name, unrelated job.
+  - ❌ **`product_group` is merchandising** (Vape 1885 · Smoking Gear 1511 · Papers & Rolling 593 …),
+    populated on 5,157/5,163. It answers *"where does it hang?"*, not *"how fast does it go?"*
+  - ✅ **`min_stock`, `max_stock`, `lead_time_days`, `stock_alert_threshold` already exist on
+    `products` — and are populated on 0, 0, 0 and 6 rows respectively.** That IS the reorder
+    machinery, shipped and unused. **A consumable is simply a product with a reorder point set.** No
+    migration, no new column, no new concept for anyone to learn.
+  **Bulk-seed it from the categories, which already separate the two cleanly:** consumables =
+  `E-Liquids` (699) · `Coils & Pods` (349) · `Prefilled & Disposables` (292) · `Filters & Tips` (258)
+  · `CBD Flower` (205) · `Shisha Tobacco` (126) · `Tobacco` (126) · `Rolling Papers` (94) ·
+  `Blunts & Wraps` (57). Durables = `Vape Devices` · `Vaporizers` · `Bongs` · `Grinders` · `Pipes` ·
+  `Rolling Trays` · `Ashtrays` · `Decor`. That is roughly the 300-hottest list picking itself.
+  **Then let sales replace the guess.** A declared flag is a bootstrap; **velocity is the real
+  answer** and it arrives free once the till has been running — which is also the ranked queue the
+  unknown-EAN item above produces. Declare it now because there are only 8 transactions of history;
+  measure it later because measurement always wins.
+  ⚠️ **Related and worse: `cost` is set on 61 of 5,163 products.** No cost, no margin — that weakens
+  reorder decisions, the offline kit's whole "know your margin" value, and any slow-mover review.
+  *(shop floor · master data)*
+
 - **📚 A real training manual — business process, workflow, layout, schedule.** *(Angel, 2026-08-05:
   "we really need a proper training manual covering the business process and a plan and workflow and
   layout and schedule … training the people and testing them in UAT is key.")* The onboarding kit
