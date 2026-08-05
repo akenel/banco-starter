@@ -589,28 +589,53 @@ so nothing in the database could say what it physically was. Only the bottle kne
   destroy the cart. Needs Felix's answer on what a cashier may do with price — asked on the UAT
   sheet. *(shop floor · Phase A)*
 
-- **🔁 CONSUMABLE vs DURABLE — the field already exists and is EMPTY.** *(Angel, 2026-08-05: "you
-  don't buy a grinder every day … but papers, filters, more CBD … we don't have a category for that
-  per se.")* Checked prod before inventing anything, and the answer is not a new taxonomy:
+- **🔁 CONSUMABLE vs DURABLE — answered: VELOCITY already does this, and it is already built.**
+  *(Angel, 2026-08-05: "you don't buy a grinder every day … but papers, filters, more CBD … we don't
+  have a category for that per se.")*
+  **✅ THE ANSWER: nothing to build, and nothing to declare.** A consumable is not a flag — it is a
+  product that keeps reappearing in sales. The till already knows:
+  - **`GET /reorder/suggestions`** (`pos_router.py:2625`) — *"fastest-selling products over the last
+    `days` that are NOT already on the Order Book. **Velocity is rock-solid even with zero-perpetual —
+    the till knows exactly what sold.** Suggest, don't decide."*
+  - **`ReorderItemModel`** — the Order Book, `to_order → on_order → received`, with the supplier a
+    human picked per line (one product can be ordered from several suppliers).
+  **Why this beats a declared flag:** it cannot be wrong about a product you *thought* was slow, and
+  it needs no maintenance. Papers come back weekly; a grinder does not. The only input it needs is
+  **sales history**, and there are 8 transactions so far. So the sequence is: trade → velocity
+  accumulates → the Order Book fills itself.
+  > ### ⛔ Do NOT set `min_stock` / `max_stock` / reorder points. Tigs proposed this on 2026-08-05 and
+  > it was wrong twice over.
+  > **First**, `stock_quantity` is `1` on 5,099 of 5,163 rows — so any reorder point fires instantly
+  > and produces ~2,200 false alerts on day one, teaching the shop to ignore its own alarm.
+  > **Second and more important, the design deliberately rejects the whole mechanism**, and says so:
+  > - `reorder_item_model.py:4` — *"Banco is ZERO-PERPETUAL — we never compute reorder from an
+  >   on-hand count (**it's a lie**)."*
+  > - `catalog.html:732` — *"**No min/max/reorder thresholds**: Banco runs zero perpetual inventory.
+  >   Reorder guidance comes from sales velocity, not a count."*
+  > - `pos_router.py:5180` — *"a sale never decrements a stock count."*
+  > - `catalog_enrichment.py:571` — `stock_quantity=1  # zero-perpetual: the shelf is the stock check`
+  >
+  > `stock_quantity = 1` is **not missing data**. It is the design. **Shelf intake is confirmed
+  > master-data-only** — its `count` fields mean "this barcode was seen ×3 in one scan batch" and
+  > "unknown codes still to resolve", never inventory. **Anyone reading a stock count in Banco as a
+  > stock claim is reading it wrong.**
+  Retained below only as a record of what was checked and ruled out:
   - ❌ **Do not reuse `product_class`.** It is `standard` / `tobacco_nicotine` / `cbd_hemp` /
     `cbd_open` / `alcohol` and **drives the 18+ gate and VAT**. Repurposing it breaks the age gate.
   - ❌ **`consumption` on `line_items` is a red herring** — it means `dine_in` / `takeaway` for café
     VAT. Confusing name, unrelated job.
   - ❌ **`product_group` is merchandising** (Vape 1885 · Smoking Gear 1511 · Papers & Rolling 593 …),
     populated on 5,157/5,163. It answers *"where does it hang?"*, not *"how fast does it go?"*
-  - ✅ **`min_stock`, `max_stock`, `lead_time_days`, `stock_alert_threshold` already exist on
-    `products` — and are populated on 0, 0, 0 and 6 rows respectively.** That IS the reorder
-    machinery, shipped and unused. **A consumable is simply a product with a reorder point set.** No
-    migration, no new column, no new concept for anyone to learn.
-  **Bulk-seed it from the categories, which already separate the two cleanly:** consumables =
+  - ⛔ **`min_stock`, `max_stock`, `lead_time_days`, `stock_alert_threshold` exist on `products` and
+    are populated on 0, 0, 0 and 6 rows — because they are DELIBERATELY unused.** Legacy columns the
+    zero-perpetual design walked away from, **not machinery waiting to be switched on.**
+  **If a human ever wants to eyeball the split** (e.g. to pick the 300 hottest before there is enough
+  sales history), the categories already separate it: consumables ≈
   `E-Liquids` (699) · `Coils & Pods` (349) · `Prefilled & Disposables` (292) · `Filters & Tips` (258)
   · `CBD Flower` (205) · `Shisha Tobacco` (126) · `Tobacco` (126) · `Rolling Papers` (94) ·
-  `Blunts & Wraps` (57). Durables = `Vape Devices` · `Vaporizers` · `Bongs` · `Grinders` · `Pipes` ·
-  `Rolling Trays` · `Ashtrays` · `Decor`. That is roughly the 300-hottest list picking itself.
-  **Then let sales replace the guess.** A declared flag is a bootstrap; **velocity is the real
-  answer** and it arrives free once the till has been running — which is also the ranked queue the
-  unknown-EAN item above produces. Declare it now because there are only 8 transactions of history;
-  measure it later because measurement always wins.
+  `Blunts & Wraps` (57); durables ≈ `Vape Devices` · `Vaporizers` · `Bongs` · `Grinders` · `Pipes` ·
+  `Rolling Trays` · `Ashtrays` · `Decor`. **That is a reading aid for choosing where to scan first —
+  not a field to write.** Velocity replaces it the moment the till has history.
   ⚠️ **Related and worse: `cost` is set on 61 of 5,163 products.** No cost, no margin — that weakens
   reorder decisions, the offline kit's whole "know your margin" value, and any slow-mover review.
   *(shop floor · master data)*
