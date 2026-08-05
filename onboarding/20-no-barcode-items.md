@@ -57,6 +57,20 @@ price sticker in frame if there is one.
 It searches **both** the catalogue and the **420** reference — which is exactly where Angel says the
 grinders come from. Nothing to build to get started.
 
+> ### 🔎 Where the button actually is — found the hard way 2026-08-06
+>
+> **`/pos/catalog` → `+ New product` → the indigo box at the top of the modal → ✨ snap-fill.**
+>
+> ⚠️ **There are two photo controls on that screen and the obvious one is wrong.** The file picker in
+> the **scan** overlay is the *barcode reader's* no-camera fallback — it tries to decode a **barcode**
+> out of the photo, and on a grinder it correctly fails with
+> `No MultiFormat Readers were able to detect the code`. That reads exactly like the AI broke. It did
+> not; it was never called.
+>
+> The AI button is gated `x-show="!editing"` — **create mode only** — so you have to open "new
+> product" before the tool that tells you whether the product already exists will run. Backwards, and
+> filed in `WORKLIST.md`. Until it moves, **go through `+ New product` even when you expect a match.**
+
 ⚠️ **A rarely-sold-online product is a thin-web product.** Angel: *"they don't sell online… people
 wanna feel it in their hand."* That is *why* they sell in the shop, and also why the web has little
 to say about them. Expect a worse hit rate than papers, and budget for typing names by hand.

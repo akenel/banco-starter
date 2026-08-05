@@ -691,6 +691,28 @@ so nothing in the database could say what it physically was. Only the bottle kne
   picture **is** sellable — say so, and keep flagging what is missing, rather than choosing between a
   green tick and a permanent red. *(Phase A · catalogue · Felix's call on the threshold)*
 
+- **📷 The AI snap-find is buried behind "Create new product" — but its whole job is to tell you
+  whether you need one.** *(Found 2026-08-06 when Angel tried to photograph a grinder and got
+  `No MultiFormat Readers were able to detect the code`.)*
+  **Not a bug — two different photo controls, and the discoverable one is the wrong one:**
+  - `onScanFile` (`catalog.html:970`, inside the **scan** overlay) — the barcode reader's no-camera
+    fallback. Decodes a **barcode** out of a still. On a grinder it correctly reports "no barcode in
+    photo", which reads like the AI failed.
+  - `aiSuggest` → `POST /products/snap-find` (`catalog.html:527`) — the one he wants. **Lives inside
+    the Create/Edit modal, gated `x-show="!editing"`, so it is create-mode only.**
+  **The contradiction:** snap-find's own comment says *"FIND-FIRST … if it's already in the shop (or
+  the FourTwenty reference), show the picker so the cashier picks the existing row instead of creating
+  a duplicate."* **You must declare you are creating a new product before the tool that tells you
+  whether to create one will run.** For the grinder pass — 192 rows, and Angel does not know which
+  already exist — that is backwards.
+  **Same shape as the merge button** (2026-08-03): a tool reachable only from where the problem is
+  invisible. *Ask where the person is STANDING when they need it.*
+  **Wanted:** a photo entry point on the catalog screen itself — "I have a picture, what is this?" —
+  that lands on the same find-first picker, with *create* as the outcome rather than the prerequisite.
+  ⚠️ Also worth a look: `catalog:41` logs an **i18n key-parity warning, `it` vs `en`, 1 extra key**.
+  Harmless today, but it is the kind of thing that becomes a blank label on a screen later. *(shop
+  floor · UX)*
+
 - **🌀 GRINDERS — the no-barcode workflow, and the pilot for trays and bongs.** *(Angel, 2026-08-05.
   Full workflow: [`onboarding/20-no-barcode-items.md`](onboarding/20-no-barcode-items.md))* The day
   book ranks grinders **4th** — roughly one a day, not the slow mover we assumed — and **none of them
