@@ -129,6 +129,54 @@ items. Felix's *hold the price, give a treat* policy is not theory — it is run
 
 ---
 
+## 💥 Where the big days come from — and it is NOT the consumables
+
+The card day totals swing from **311 to 1325 CHF**. Reading what sat on the big days, the spikes are
+consistently **hardware and CBD oil/flower**, never papers:
+
+| Single transaction | What it was |
+|---|---|
+| **398.–** | **`Mighty`** — a Storz & Bickel vaporizer |
+| **378.–** | `Zigi Pap` — bulk, reads like a trade sale |
+| **307.–** | `Bong-Ersatz` + `Filter` + `Dochte` + `Brenner` — a bong and its kit |
+| **300.–** | `Hanfsalbe` |
+| **158.40** | `Purize` + `Waxy` + `Filter` + `Grips` |
+| 138.– · 127.– | `QC Öl` · `CBD Öl` |
+| **100.–** | `Amnesia` |
+| 110.– · 104.– · 102.50 | (unread detail) |
+
+> ### 🎯 The shape of the business, in one line
+>
+> **Consumables are the VOLUME. Hardware and flower are the VALUE.**
+>
+> Papers at 2–12.– appear on every page and make the day tick over. A single `Mighty` at **398.–** is
+> worth roughly **eighty packets of papers**. Both matter, and they need opposite treatment:
+> consumables need a **fast till**, hardware needs the **price and the product to be exactly right**.
+>
+> ⚠️ **And the high-value end is precisely the end with no barcodes** — vaporizers, bongs, grinders,
+> trays. The stuff that is hardest to get into Banco is the stuff where a mistake costs the most.
+
+---
+
+## 📅 What sold on 5 August (the day Angel was there)
+
+Both sheets for the day were photographed — the cash page and the card page.
+
+**Cash:** opening float **763.70** (Noten 610.– · Münz 153.70). Around **28 line items**, the
+largest being `UD-Tips` **81.–**, `Zigi-Maschine` **55.–**, `Purize` **39.90 ×2**, `Blau` 33.30,
+`Starbuds` 22.90, `Borghi` 19.50, `Brenner` 19.–. The rest are 1.50–15.– consumables.
+
+**Card:** ~21 transactions, 1.– to 50.–. `Zigi Case` 50.– · `Local Mary` 49.80 · `Clippers` 42.– ·
+`HD-Pipe` 38.– · `B-Pro` 32.20 · `Local Weed` 31.70 · `GP Grill` 30.–.
+
+**On the day: `Pape` ~8 times · `Clipper` 3 · `Grips` 3 · `Local Mary` 2 · `Purize` 3.** One
+`Zigi einzeln` at **1.–** — the loose-cigarette case, live.
+
+**A completely ordinary day**, which is what makes it useful: papers, filters, lighters and grinders
+tick over all day, and one or two 40–80.– items carry the takings.
+
+---
+
 ## ⚠️ Grinders and bongs need a different approach
 
 *Angel, 2026-08-05: "The bongs are gonna be hard, and the grinders are gonna be hard stuff too, get

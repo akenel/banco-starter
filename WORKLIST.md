@@ -654,6 +654,26 @@ so nothing in the database could say what it physically was. Only the bottle kne
   [`16-bom-artemis-luzern.md`](onboarding/16-bom-artemis-luzern.md) (the layout). *(Phase B ·
   onboarding · the thing a second shop would need most)*
 
+- **🌀 GRINDERS — the no-barcode workflow, and the pilot for trays and bongs.** *(Angel, 2026-08-05.
+  Full workflow: [`onboarding/20-no-barcode-items.md`](onboarding/20-no-barcode-items.md))* The day
+  book ranks grinders **4th** — roughly one a day, not the slow mover we assumed — and **none of them
+  carry an EAN**, so the scan-and-bind loop that worked on papers does not apply. Neither do trays or
+  bongs. **And it is the expensive end of the shop:** the month's biggest single sales were a `Mighty`
+  vaporizer at 398.–, a bong-plus-kit at 307.–, `Hanfsalbe` at 300.–.
+  **Angel's plan, and it is the right one:** photograph every grinder, match the picture (most come
+  from **420**; they rarely sell online, which is *why* people buy them in the shop and why picture
+  matching beats a web search), then **mint a code and print a label**.
+  **⚖️ Minting is CORRECT here** — the 2026-07-30 lesson says *never invent an identifier that
+  EXISTS*, and a grinder has none. `barcode_is_internal` is exactly this case. Do not let that lesson
+  block the only workable route.
+  **The step that is cheap now and expensive later: a naming convention, decided once.** Proposal
+  `Grinder · <brand> · <material> · <parts> · <Ø mm>` — size, parts, material and brand are what a
+  customer actually asks for. Without one, nobody can find a grinder by typing.
+  **Open and needs a PHYSICAL test, not a decision:** does an 18 mm QR label fit the *smallest*
+  grinder (18 mm read as cleanly as 20 mm in the 2026-07-29 tests), and will Felix accept a sticker on
+  goods a customer picks up? Fallbacks if not: a **shelf-edge label** to scan, or a **PLU button** for
+  the few that sell most. *(shop floor · catalogue)*
+
 - **✏️ Let a MANAGER fix a price from the checkout screen.** *(Angel's idea, 2026-08-05: "the cashier
   sees, hey Felix, it's wrong — can you fix it for me, and they can just jump in and fix it.")*
   The cashier is the one who **discovers** a wrong price, with the customer standing there, and today
