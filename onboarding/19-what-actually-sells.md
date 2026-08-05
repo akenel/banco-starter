@@ -6,16 +6,19 @@ book has a month of them.*
 
 > ### ⚠️ Read this before you trust a number
 >
-> **10 of 31 photographed pages were read**, spread across the whole date range. The ranking below
-> was **stable from page to page** — the same names kept coming up in the same order — so the top of
-> the list is solid. **The tail is a sample, not a census.**
+> **25 of 31 photographed pages were read** across the whole date range; the remaining 6 are too
+> blurred to transcribe honestly. The ranking was **stable from page to page** — the same names kept
+> coming up in the same order — so the top is solid.
 >
 > It is handwritten German shorthand in biro. Names that repeat constantly (`Pape`, `Blow`,
-> `Purize`, `Grips`) are unambiguous. One-off entries are my best reading and some are guesses; a
-> few I could not read at all and left out. **Treat this as a ranking, not an audit.**
+> `Purize`, `Grips`, `Clipper`) are unambiguous. One-off entries are my best reading and some are
+> guesses. **Treat this as a ranking, not an audit.**
 >
 > **Angel can check it in ten seconds** — he knows what sells. If the top five look wrong, the
 > reading is wrong.
+>
+> **Day totals seen on the card pages:** 311 · 346 · 398 · 431 · 477 · 480 · 523 · 644 · 806 ·
+> 1292 · 1325 CHF. Cash is a separate sheet on top of that.
 
 ---
 
@@ -36,44 +39,54 @@ it is the thing Banco replaces.
 
 ## 🏆 The ranking
 
-### Tier 1 — every day, several times a day
+### Tier 1 — on almost every page, often more than once
 
 | | Written as | What it is | Typical |
 |---|---|---|---|
 | **1** | **Pape · Papes** | rolling papers | 2–12.– |
-| **2** | **Blow · Blow PR** | CBD joints | 6.90–39.60 |
-| **3** | **Purize** | activated-carbon filters | 4–39.90 |
-| **4** | **Filter · Siebe · Tips** | filters, screens, tips | 0.90–10.– |
-| **5** | **Grips** | grinders | 5–15.– |
+| **2** | **Purize · A-Filter · Filter · Siebe · Tips** | activated-carbon filters, screens, tips | 0.90–39.90 |
+| **3** | **Blow · Blow PR** | CBD joints | 6.90–39.60 |
+| **4** | **Grips · Grinder** | **grinders** | 5–35.– |
+| **5** | **Clipper · Feuer · Brenner** | lighters and torches | 1–20.– |
 
-> 🎯 **This is exactly the shelf Angel scanned on 5 August.** Papers, filters and tips were the right
-> call by a wide margin — they are the shop's bread and butter and they now scan.
+> 🎯 **Ranks 1–3 are exactly the shelf Angel scanned on 5 August.** Papers and filters are the shop's
+> bread and butter by a wide margin, and they now scan.
 >
-> ⚠️ **Except grinders.** Angel's read was *"you don't buy a grinder every day… I don't sell those
-> very often."* **The book disagrees** — `Grips` shows up on most pages. Worth a shelf of its own.
+> 🔴 **Rank 4 contradicts the plan.** Angel's read was *"you don't buy a grinder every day… I don't
+> sell those very often."* **The book disagrees flatly.** `Grips` or `Grinder` appears on nearly
+> every page read, **twice on some** — 5.50 · 7.– · 9.– · 10.– · 15.– · 35.– · 38.50. It is a tier-1
+> line, not a slow mover. **Next shelf.**
 
 ### Tier 2 — most days
 
 | Written as | What it is |
 |---|---|
-| **Clipper · Feuer · Brenner** | lighters and torches |
-| **Local Mary** | CBD flower/brand |
+| **Local Mary** | CBD flower — the most-named single brand |
 | **Blau** | tobacco |
-| **Medusa · Hash Medusa** | hash |
-| **Getränke** | **drinks** |
-| **Zigi · Zigi einzeln** | cigarettes, incl. **loose singles** |
+| **Medusa · Hash · GP Hasch** | hash |
+| **Rolls · Rips** | paper rolls |
+| **Getränke · Bio Bier · Red Bull** | **drinks** |
+| **Zigi · Zigi einzeln** | cigarettes, incl. **loose singles at 1.–** |
+| **Puesto · Puebla** | (recurring, product unclear) |
 
 ### Tier 3 — regular but not daily
 
-`Qualicann` · `Green Passion` · `Starbuds` · `Heimat` · `Parisienne` · `J-Hülle` (joint tubes) ·
-`CBD Öl` · `Rolls` · `Räucherstäbchen` (incense) · `Farfalla` (essential oils) ·
-pipes (`Glas-Pipe`, `HD-Pipe`, `Holzpfeife`) · vapes and e-liquid · `Cones` · `Dose`
+`Qualicann` · `Green Passion` · `Starbuds` · `Heimat` · `Parisienne` · `Elfbar` · `CBD Vape` ·
+`E-Liquid` · `J-Hülle` (joint tubes) · `CBD Öl` (69–138.–) · `Räucherstäbchen` · `Farfalla` ·
+`Gizeh` · `OCB` · `Elements` · `Smoking` · pipes (`Glas-Pipe`, `HD-Pipe`, `Holzpfeife`) · `Dose` ·
+`Tabakersatz` · `Local Weed` · `Cannabees`
 
-### Seen once or twice — the long tail
+### 💰 Big-ticket, seen once or twice — but they matter to the takings
 
-`Schnitz-Set` · `Zigi-Maschine` (55.–) · `Waxy` · `Hanfsalbe` · `Bong-Ersatz` · `Red Bull` ·
-`Lollies` · `Brownie Hasch` · `Local Weed` · `Osiris Öl` · `Sonnenberg` · `Red Leaf` ·
-`Bubblegum Sticker` · `Karten` · `Warmer Coco` · `Cannalees`
+`Mighty` **398.–** (Storz & Bickel vaporizer) · `Amnesia` 100.– · `CBD Öl` 127–138.– ·
+`Zigi-Maschine` 55.– · `Rips-Box` 49.– · `Raffco T.2` 89.– · `Farfalla` 57.– · `Vaporizer` 30–44.– ·
+`Hanfsalbe` 300.– · `Bong-Ersatz` · `Storz+Bickel Netzadapter`
+
+### The long tail
+
+`Schnitz-Set` · `Waxy` · `Lolly` · `Brownie Hasch` · `Osiris Öl` · `Sonnenberg` · `Red Leaf` ·
+`Bubblegum Sticker` · `Karten` · `Warmer Coco` · `Swiss Polar` · `Wildkraut` · `Dünger` ·
+`Akku Pen` · `Rollmaschine` · `Stahlwolle` · `Winston` · `Löffel` · `Ashtray`
 
 ---
 
@@ -89,19 +102,50 @@ among them.
 **3. Loose cigarettes.** `Zigi einzeln 1.–` — sold as singles out of a pack. That has **no barcode**
 and cannot be scanned, so it needs a button or a PLU, not a bind. Worth deciding before go-live.
 
-**4. The basket is small and fast.** Card totals run 1.10 to ~80.–, mostly 5–40.–, with occasional
-150–380 outliers. Days total roughly **300–800 CHF on cards** plus cash. **This is a
+**4. The basket is small and fast.** Card transactions run 1.10 to ~80.–, mostly **5–40.–**, with
+occasional 100–400 outliers. Card days total 311–1325 CHF, plus a separate cash sheet. **This is a
 many-small-transactions shop**, which is exactly the till speed doc 10 demands: *2 seconds, or it
 is broken.*
+
+**5. The treat bowl is real and in use.** `Lolly` appears in the book at 1.–, alongside full-price
+items. Felix's *hold the price, give a treat* policy is not theory — it is running, on paper, today.
+`line_item.is_giveaway` already models it.
 
 ---
 
 ## What to do with this
 
-- **Next shelves to scan**, in order: **grinders**, then lighters (`Clipper`), then the CBD flower
-  brands (`Local Mary`, `Green Passion`, `Qualicann`, `Starbuds`).
+- **Next shelves to scan**, in order: **grinders** (the finding), then **lighters** (`Clipper` is
+  everywhere), then the CBD flower brands (`Local Mary` first — it is the most-named single brand in
+  the book), then `Green Passion` · `Qualicann` · `Starbuds`.
 - **Check drinks** are in the catalogue at all.
-- **Decide the loose-cigarette question** — it has no EAN by definition.
+- **Decide the loose-cigarette question** — no EAN by definition.
+- **The big-ticket lines are worth binding even though they sell rarely** — a `Mighty` at 398.– is
+  worth more than a hundred packets of papers, and getting it wrong at the till is a much bigger
+  mistake.
 - **Retire this document** once Banco has a few weeks of real sales. `GET /reorder/suggestions`
   already ranks by what the till actually sold, and a query beats a photograph. Until then, this is
   the only demand data that exists.
+
+---
+
+## ⚠️ Grinders and bongs need a different approach
+
+*Angel, 2026-08-05: "The bongs are gonna be hard, and the grinders are gonna be hard stuff too, get
+EAN numbers. **None of the grinders have EAN numbers.** They have prices on them, and they have
+pictures."*
+
+So the shelf-intake loop — scan the packet, bind the real EAN — **does not apply to the shelf the
+book says is rank 4.** Options, none of them decided:
+
+- **Mint an internal barcode and print a label.** That is what `barcode_is_internal` is for, and the
+  labeller already works over Bluetooth. It makes them scannable at the till, which is the whole
+  point. ⚠️ But it is the 2026-07-30 lesson's neighbour — *never invent an identifier that exists in
+  the physical world.* A grinder with genuinely no EAN is the case where minting is **correct**,
+  because nothing real is being overwritten. **The rule is "don't invent one that exists", not
+  "never mint".**
+- **Sell by name/search**, no barcode. Works, but breaks the 2-second till.
+- **A PLU button** for the handful that sell most.
+
+Same question covers **loose cigarettes**, which can never have a barcode either. Worth deciding
+once, for all three.
