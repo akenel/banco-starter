@@ -65,22 +65,31 @@ camera explicitly so the next person doesn't spend twenty minutes on it.
 The gun does **not** charge usefully while it is being used, and a flat gun mid-shift is a stopped
 till. So: **two guns, always.** Not redundancy for breakage — it is the normal duty cycle.
 
-### They are interchangeable, and they are not the same tool
+### They both scan — and only one can do each of the two special jobs
 
-*Angel, 2026-08-04, after running both on the tablet.* Either gun scans anything, so either can
-cover the other. But each has one capability the other lacks, and that decides where it lives:
+*Named and confirmed by Angel 2026-08-05. **Get this the right way round**: the deck had it reversed
+once already, and a shelf-intake session planned around the wrong gun is a wasted trip.*
 
-| | 🔵 **Cheap gun** — Bluetooth | ⚫ **Good gun** — dongle + store mode |
+| | 🔵 **Inateck** | ⚫ **Netum** |
 |---|---|---|
-| Connection | **Bluetooth** (pairs to the tablet) | **USB-A dongle** — no pairing |
-| Special skill | **roams** — goes anywhere with the tablet in hand | **store/inventory mode** — buffers a whole section, dumps on command |
-| Home | wherever the walk takes it | the stand, in auto mode |
-| Best at | EAN checks at the shelf, catalogue QA, *"does this photo match the packet?"* | shelf-intake sessions, and the counter |
-| Charging | its own cable | **a different cable** |
+| Connection | **Bluetooth *and* dongle** | **dongle only** — no Bluetooth |
+| Special skill | **roams** — Bluetooth to the tablet, goes anywhere | **store mode, up to 3,000 codes** — buffers a section, dumps on command |
+| Config codes | **a PDF — print it before you need it** | **a printed booklet**, came in the box |
+| Home | with the tablet, wherever it goes | the counter stand |
+| Best at | the till, EAN spot-checks, catalogue QA | **shelf intake / mass scanning** |
+| Charger | its own cable | **a different cable — not interchangeable** |
 
-**So the split is:** the dongle gun sits at the counter on its stand in auto mode; the Bluetooth
-gun floats around the shop with the tablet for double-checking EANs, catalogue entries and product
-photos. Swap them freely — that is the point.
+**Either gun scans anything**, so either covers the other for ordinary work. But the two special
+jobs are not swappable: **only the Netum can do a shelf-intake session**, and **only the Inateck can
+roam without the tablet's USB port.**
+
+> 📄 **Both need their config codes to hand, and they arrive differently.** The Netum's booklet is
+> printed — keep it *with the gun*. The Inateck's is a **PDF, so print a hard copy** and keep it in
+> the same place. Mass scanning needs `Inventurmodus` / `Daten hochladen` / `Normalmodus` off the
+> booklet, and a gun in a store mode you cannot get out of is a gun that beeps and types nothing.
+
+> 🔌 **Label both charging cables.** Two guns, two chargers, one stand, and they do not
+> interchange.
 
 > ⚠️ **The Bluetooth gun must stay WITH the tablet.** It talks to the tablet, not to Banco. Class-2
 > Bluetooth is ~10 m in open air and shop shelving eats that fast, so a gun that roams while the
@@ -157,12 +166,6 @@ That is genuinely three paths to one printer on the tablet — `QL820LAN`, `QL82
 > 🔧 **Address it by mDNS name, never by IP** — `ipp://BRW<nodename>.local/ipp/print`. DHCP moves
 > addresses, and a queue pinned to an IP dies silently. The name also survives the move between
 > Angel's house and the shop.
-
-### ⚠️ Confirm which gun is which before planning a session
-
-The deck **used to say the reverse**, so re-check by hand: the **Netum** has the multi-scan store
-mode (buffer a section, dump it); the **Inateck** does single scans. Anything planning the batch
-inventory path depends on getting this the right way round.
 
 ---
 

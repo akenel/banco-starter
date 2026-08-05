@@ -566,6 +566,14 @@ so nothing in the database could say what it physically was. Only the bottle kne
 8. **Feed labels from the catalog.** *(shop floor)*
    - Barcode + name + price by product ID, so a shelf label is one command and a re-price is a re-print.
 
+- **Log the unknown EANs that get hit at the till.** *(Angel, 2026-08-05, deciding the 300-hottest
+  scope — [`onboarding/16-bom-artemis-luzern.md`](onboarding/16-bom-artemis-luzern.md))* The
+  catalogue tail is ~4,800 products nobody will validate by hand, and the right answer is to let the
+  till bind them on first scan. **But record the misses**: a scan that resolves to nothing is real
+  demand data, and it turns the tail from a wall into a **ranked queue** — validate what customers
+  actually brought to the counter, not what we guessed. Cheap to capture (the miss already happens),
+  and it makes every later catalogue session evidence-led. *(shop floor · catalogue)*
+
 ## 🔭 Backlog (not yet scheduled)
 
 - **📦 THE OFFLINE KIT — a daily bundle that works with no Banco at all.** *(Angel, 2026-08-04. Full
