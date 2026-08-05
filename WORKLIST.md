@@ -654,6 +654,20 @@ so nothing in the database could say what it physically was. Only the bottle kne
   [`16-bom-artemis-luzern.md`](onboarding/16-bom-artemis-luzern.md) (the layout). *(Phase B ·
   onboarding · the thing a second shop would need most)*
 
+- **✏️ Let a MANAGER fix a price from the checkout screen.** *(Angel's idea, 2026-08-05: "the cashier
+  sees, hey Felix, it's wrong — can you fix it for me, and they can just jump in and fix it.")*
+  The cashier is the one who **discovers** a wrong price, with the customer standing there, and today
+  the only route is sign out → fix as manager → sign back in, **which loses the cart** (`sessionStorage`).
+  **Wanted:** on the checkout line item, an **edit/override button that only renders for a manager**.
+  The cashier calls Felix or Ralph over, they tap, fix, and the sale continues — cart intact, no
+  re-scan, and the fix lands in the catalogue instead of being a one-off.
+  **Why it fits now:** every one of the 173 rows touched 2026-08-05 has an unverified price, so
+  wrong prices *will* surface at the till over the coming weeks. This turns each one into a
+  five-second correction by the right person instead of a lost sale or a bad row.
+  ⚠️ **Keep the roles honest** — a cashier must not be able to change a price; the button appears for
+  a manager only, and the change is audited. Same shape as the force-close: *ask where the person is
+  STANDING when they need it.* *(shop floor · Phase A)*
+
 - **🔴🔴 74 PRODUCTS RING UP AT CHF 99.00 — 40 of them created tonight, all scannable.**
   *(Found 2026-08-05 while fixing the junk names. **This is money, and it is live on prod.**)*
   A packet of OCB papers worth ~1.50 currently asks the customer for **99.00**. Also affected:
