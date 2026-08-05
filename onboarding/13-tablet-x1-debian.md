@@ -11,10 +11,13 @@ Identified from "Intel Core i5 vPro, 7th gen, detachable touchscreen, has an IME
 
 **ThinkPad X1 Tablet, 2nd Generation (2017)** — Lenovo model `20JB` / `20JC`.
 
+**Read off the machine 2026-08-05** — MTM **`20JCS0WR00`** · BIOS **`N1OET59W` 1.44 (2022-05-23)` ·
+CPU **i5-7Y57 @ 1.2 GHz** · **8 GB** · Secure Boot **off**.
+
 | | |
 |---|---|
-| CPU | Kaby Lake Core i5 vPro, Y-series (4.5 W, fanless) |
-| RAM | 8 or 16 GB LPDDR3, **soldered** — confirm which, it is not upgradable |
+| CPU | **i5-7Y57** — Kaby Lake Y-series, 4.5 W, fanless ✅ confirmed |
+| RAM | **8 GB** LPDDR3, **soldered** — not upgradable ✅ confirmed |
 | Storage | **NVMe SSD** (M.2 2242), not eMMC — fast install, no space crawl |
 | Wi-Fi | Intel Wireless-AC 8265 — **works out of the box**, firmware ships in the Debian 13 installer |
 | WWAN | LTE modem present (that is where the IMEI comes from). Optional; ignore unless wanted |
@@ -743,6 +746,56 @@ gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type 'no
 
 ---
 
+## 📷 The camera — read this before debugging it
+
+*Opened 2026-08-05. Angel wants snap-and-fill and EAN capture on the tablet, not the phone: Felix
+wants tablets, training happens on tablets, and the screen is **six times** the phone's. Doc 10's
+line "the tablet has no camera" is about the **old Win 10 tablet** — the X1 has a front camera, a
+rear camera and an IR sensor for Windows Hello. The glass you can see may be any of the three.*
+
+**Symptom:** GNOME **Snapshot** (`gnome-snapshot 48.0.1-1`, already installed) reports *no cameras
+found*.
+
+### ✅ Ruled out first — BIOS. Everything is ON.
+
+Read off the machine 2026-08-05, `F1` → `Security` → `I/O Port Access`:
+
+| Setting | State |
+|---|---|
+| Integrated camera | **On** ✅ |
+| Microphone | On |
+| Wireless LAN · Wireless WAN · Bluetooth | On |
+| USB port · Memory card slot | On |
+| Fingerprint reader · WiGig | On |
+
+**Check this before touching a single package.** A ThinkPad can disable the camera at the hardware
+level, and Linux then correctly reports no camera — no driver work will ever fix it. Corporate fleets
+often ship this way.
+
+### The diagnostic that decides everything
+
+```bash
+{ echo "== video devices =="; ls -l /dev/video* 2>&1
+  echo "== USB =="; lsusb
+  echo "== PCI imaging =="; lspci -nn | grep -iE 'imaging|multimedia|camera'
+  echo "== modules =="; lsmod | grep -iE 'uvc|ipu|ov[0-9]|videodev'
+  echo "== kernel messages =="; sudo dmesg | grep -iE 'ipu|uvc|camera|ov[0-9]{4}|cio2' | tail -20
+  echo "== kernel =="; uname -r; } 2>&1 | tee ~/cam.txt
+```
+
+| What comes back | What it is | Effort |
+|---|---|---|
+| `/dev/video0` exists | app or permissions | minutes |
+| `lsusb` shows a camera, no `/dev/video` | UVC module | minutes |
+| `lspci` shows an **Imaging Unit**, USB shows nothing | **Intel IPU3** | an afternoon — `libcamera` + software ISP, and Chromium must be told to use it |
+
+> ⚠️ **Two things are being tested, not one.** GNOME seeing a camera and **Chromium** getting a frame
+> are separate questions. Banco's 📷 snap-and-fill needs the browser to get it, and the page must be a
+> **secure context** — HTTPS is fine, a bare `http://192.168…` is not. Finish by testing snap-and-fill
+> on a real product, not by celebrating a picture in Snapshot.
+
+---
+
 ## Idea parked 2026-08-04 — gun battery on `/pos/hardware`
 
 The cheap Bluetooth gun **does** publish the standard BLE Battery Service; `upower -d` read it as
@@ -770,8 +823,9 @@ Not promoted to `WORKLIST.md`; item 3 (the bulk catalogue scripts on prod) is st
 ## Open items
 
 - [x] ~~Read the port layout~~ — 1 × USB-C + 1 × USB-A, no hub needed (2026-08-04)
-- [ ] Confirm 8 vs 16 GB RAM
-- [ ] BIOS update from Windows **before** the wipe
+- [x] ~~Confirm 8 vs 16 GB RAM~~ — **8 GB**, MTM `20JCS0WR00`, i5-7Y57 (2026-08-05)
+- [ ] **BIOS is 1.44, dated 2022-05-23** — over three years old. Check `fwupdmgr` for a newer one
+- [ ] 📷 **Camera** — Snapshot reports no cameras; BIOS switch confirmed ON. Run the diagnostic
 - [ ] Confirm with Felix that nothing on it needs saving
 - [ ] Decide the gun's keyboard layout *before* the installer asks
 - [ ] Network the QL-820NWB over **Wi-Fi** so this machine can print at all
