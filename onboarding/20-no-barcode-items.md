@@ -44,13 +44,46 @@ exists to say "this code is ours, not GS1's".
 Angel's plan, and the only route in without an EAN. **One photo per SKU**, not per unit. Get the
 price sticker in frame if there is one.
 
-### 2 · Identify it
-Most Artemis grinders come from **420** (the wholesaler), so the pictures should match against their
-catalogue. **They rarely sell online** — Angel: *"people wanna feel it in their hand, that's why they
-buy them in the store"* — which is why picture-matching beats a web search here.
+### 2 · Identify it — ✅ THE TOOL ALREADY EXISTS
 
-⚠️ **A rarely-sold-online product is a thin-web product.** Expect the enricher's hit rate to be far
-worse than it was for papers. Budget for typing the name by hand.
+**`POST /products/snap-find`** (`pos_router.py:1438`), exposed on **`/pos/catalog`**
+(`catalog.html:1259`). Its own docstring describes this exact job:
+
+> *"Snap a photo → the AI reads the item → **SEARCH the real catalog** for it (find-first)… so the
+> cashier can pick the item that **ALREADY exists** (in `products` or the **FourTwenty reference**).
+> …Honest confidence is the match score, not the model's self-rating — **the grinder can't return a
+> confident wrong answer**, because a low `best_match_score` means 'not found → search or create'."*
+
+It searches **both** the catalogue and the **420** reference — which is exactly where Angel says the
+grinders come from. Nothing to build to get started.
+
+⚠️ **A rarely-sold-online product is a thin-web product.** Angel: *"they don't sell online… people
+wanna feel it in their hand."* That is *why* they sell in the shop, and also why the web has little
+to say about them. Expect a worse hit rate than papers, and budget for typing names by hand.
+
+### 2b · ❓ Batch? Not yet — and here is the test that decides it
+
+Angel: *"I'm thinking of somehow doing a batch… paste the folder where all the pictures are."*
+
+**No batch endpoint exists** — `snap-find` takes one file. Building one is a new multi-file endpoint
+plus a worklist screen in the shelf-intake shape.
+
+**But batch only saves the UPLOAD clicks. It cannot batch the DECISIONS** — every grinder still needs
+a human confirming the match, and that is where the time actually goes.
+
+> ### 🎯 So: run **10 grinders** through `snap-find` first and measure ONE number — **how often does
+> the photo find the right grinder in the 420 reference?**
+>
+> - **7+/10** → batch is clearly worth building, and the ten runs will have shown exactly what the
+>   worklist needs to display.
+> - **Poor** → batch would only be a faster way to fail; the real answer is typing names off the
+>   photos, and no amount of upload plumbing helps.
+>
+> Same discipline that saved the enricher: **a sample you can check beats a sample that is merely
+> large.** Twenty minutes buys the answer.
+
+**Photographing:** phone (best camera in the kit), **one shot per model, not per unit**, price
+sticker in frame. Then work them from `/pos/catalog` on the tablet or the ProBook.
 
 ### 3 · A naming convention, decided ONCE and applied to all of them
 This is the load-bearing step and the one that is cheap now and expensive later. Without it, a
