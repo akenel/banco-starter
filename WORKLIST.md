@@ -654,6 +654,23 @@ so nothing in the database could say what it physically was. Only the bottle kne
   [`16-bom-artemis-luzern.md`](onboarding/16-bom-artemis-luzern.md) (the layout). *(Phase B ·
   onboarding · the thing a second shop would need most)*
 
+- **📦 Receiving today is a spot-check, and the delivery slip carries the COST nobody else has.**
+  *(Angel, after talking to Rafi 2026-08-05: when a delivery arrives he "looks at the delivery slip
+  and says okay, that's about there" — a spot-check, not a count — then prices it with his own
+  stickers and restocks. **Nothing item-level is captured.**)*
+  Angel's own read is that a pile of slips would give the same *shape* of information the day book
+  gave — what to focus on, not which item. **True for quantities. Not true for cost.** The slip is the
+  one place a wholesale price is written down, and cost is precisely the field Felix may never enter
+  by hand (see the threshold item below).
+  **So: grab slips for HARDWARE deliveries only** — bongs, vaporizers, grinders, dab gear. Per
+  [`19`](onboarding/19-what-actually-sells.md) that is where the money is (398.– · 307.– · 300.–), and
+  per the threshold item it is where cost actually matters. **Papers do not need it.**
+  Also worth noting for the grinder work: **grinders often DO have an EAN**, just not findable without
+  the slip or the outer box. That does **not** block minting — the alias table already carries a
+  minted code and a real EAN on the same product (proved 2026-08-05: `TAM-10886` holds both
+  `2000000108865` and `716165280286`, and both scan). **Mint now; if the real EAN surfaces off a slip
+  later, it joins as an alias and nothing is redone.** *(shop floor · catalogue · Phase B)*
+
 - **💵 COST above a price threshold, optional below it — so the queue can actually reach zero.**
   *(Angel, 2026-08-05: "that final check was when he puts in the cost, then we know it's done" — then,
   the same evening: "**he might not do costs**.")* Both are true, and together they are a trap.

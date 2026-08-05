@@ -226,7 +226,65 @@ who has *done* step 4 in front of somebody has.
 
 ---
 
-## 8 · The five things worth putting on the wall
+## 8 · "What's in it for me?" — the honest answer for a cashier
+
+*Angel, 2026-08-05: "Felix probably [understands], and you and I do, but Rafi and Leila and Leandra
+not so much. **So what's in it for them?**"*
+
+**The right question, and it deserves a straight answer rather than a pitch.** Most tills make the
+cashier's day worse: the owner gets reports, the cashier gets extra steps. If that is what this is,
+they will be right to resist it.
+
+### What they do today — counted off the real day book, 5 August 2026
+
+| | Per day |
+|---|---|
+| Sales written out by hand (name + price) | **~28 cash + ~21 card ≈ 50** |
+| Card slips stapled into the book | ~21 |
+| Coin and note denominations counted and added | every close |
+| Day totalled by hand, cash and card separately | every close |
+
+**That is the job Banco removes.** Not "improves" — removes.
+
+### The four things that get better, in their order of interest
+
+**1. You stop writing.** Scan, take the money, next customer. **No name, no price, no column, no
+adding up.** Fifty handwritten lines a day become zero. This is the whole pitch and everything else
+is a footnote.
+
+**2. You stop being on the hook for the drawer.** Today a short till is somebody's word against the
+arithmetic. Banco records **every** sale with who rang it and when, and the box belongs to the shop,
+so the report and the drawer are checked against each other, not against a person's memory. **The
+count protects you.** And when something genuinely does not match, there is a note field to say why —
+an explained difference is not a problem.
+
+**3. You stop hunting for a price.** No sticker to find, no colleague to ask, no guessing on a
+product you have not seen before. It scans and the price is there. *(This is only true once the
+catalogue is done — which is what the shelf work is for. Say so honestly; it will not all work on
+day one.)*
+
+**4. Closing gets shorter.** X-report mid-shift to see where you are, Z-report at the end. **No
+hand-totalling, no adding coin columns twice.**
+
+### What honestly gets worse — say this too
+
+- **There is a new thing to learn.** Half a day, and §7 is how.
+- **Every sale is now attributed to whoever rang it.** That is a real change and it is fair to name
+  it. The purpose is that the drawer stops being a group accusation — but it does mean individual
+  mistakes are visible. **Better to say this out loud than to let someone discover it.**
+
+### The line that lands
+
+> **"You never write a sale down again, and if the till is short, the system can show it wasn't
+> you."**
+
+**Do not sell them the reporting.** *"We'll finally know which papers to reorder"* is a real benefit
+and it is **Felix's** benefit, not theirs. A cashier does not care which paper sells best. They care
+that the queue moves and that nobody blames them at closing time.
+
+---
+
+## 9 · The five things worth putting on the wall
 
 1. **Count the drawer before you look at what Banco expects.**
 2. **Cash rounds to 5 rappen. Cards do not. The till is right.**
