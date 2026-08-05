@@ -119,6 +119,53 @@ passes on any layout and proves nothing.
 
 ---
 
+## 🖨️ The print matrix — who can print what, from where
+
+*Opened 2026-08-05. **This is the hardware checklist**, and most of it is still unproven. Mark a cell
+✅ only when a human has held the paper — a clean `lpstat` proved nothing in July and proves nothing
+now.*
+
+| From | → 🏷️ Labeller (QL-820NWB) | → 📄 Shop document printer |
+|---|---|---|
+| **X1 tablet** (Debian) | ✅ **Bluetooth — proved 2026-08-04**, survives sleep | ❓ untested — needs the printer on the LAN |
+| **HP back office** (rebuilt) | ✅ USB today | ❓ untested |
+| **Old Win 10 tablet** | ❌ not wired | ❓ untested |
+| **Felix's Windows system** | ❌ **needs the labeller on the LAN** | ✅ works today (his own setup) |
+| **Phone** | ❌ | ❌ |
+
+### The single change that fills most of the empty cells
+
+**Put the QL on the shop Wi-Fi.** It is a `NW`**`B`** — the radio is already in the box, and this has
+been an open item since July.
+
+**Bluetooth is one-to-one; LAN is one-to-many.** Pairing gets *one* device printing. Putting it on
+the network gets **every** machine printing over IPP — including Felix's Windows box, which cannot
+reach a Bluetooth pairing that belongs to Angel's tablet.
+
+**They coexist.** The QL runs Wi-Fi and Bluetooth at the same time, so:
+
+- **LAN/IPP** = the shop's shared path. Anything on the network prints.
+- **Bluetooth** = the roaming tablet's private path. Keeps working when the Wi-Fi does not.
+
+That is genuinely three paths to one printer on the tablet — `QL820LAN`, `QL820BT`, `QL820USB`.
+
+> ⚠️ **Three queues to one printer is also a way to lose a label.** A cashier who picks the wrong
+> queue gets silence, not an error. **Pick one default, name them so a human can tell them apart, and
+> write down which one is normal.** Setup detail in
+> [`13-tablet-x1-debian.md`](13-tablet-x1-debian.md).
+
+> 🔧 **Address it by mDNS name, never by IP** — `ipp://BRW<nodename>.local/ipp/print`. DHCP moves
+> addresses, and a queue pinned to an IP dies silently. The name also survives the move between
+> Angel's house and the shop.
+
+### ⚠️ Confirm which gun is which before planning a session
+
+The deck **used to say the reverse**, so re-check by hand: the **Netum** has the multi-scan store
+mode (buffer a section, dump it); the **Inateck** does single scans. Anything planning the batch
+inventory path depends on getting this the right way round.
+
+---
+
 ## The back office box — a CHF 40 answer
 
 Angel refurbished a big HP laptop (~2015, found in the rubbish, new SSD) for about **CHF 40**. Full

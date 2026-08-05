@@ -209,6 +209,45 @@ spreadsheet is a shop owner who chose to stay.
 
 ---
 
+---
+
+## 🪜 The degradation ladder — what to do when it gets ugly
+
+*Pin this by the till. Each rung: what still works, and the one action.*
+
+| # | What broke | Can the shop sell? | Do this |
+|---|---|---|---|
+| **0** | nothing | ✅ | — |
+| **1** | a tablet or a gun dies | ✅ | **Take the spare.** Two of each is why they exist. ⚠️ The cart does **not** transfer — re-scan the basket. |
+| **2** | labeller's network path | ✅ | Switch to the **Bluetooth** queue. Or the USB cable. |
+| **3** | labeller dead entirely | ✅ | **Keep selling.** Labels are *shelf prep*, not part of a sale. Catch up later. |
+| **4** | shop Wi-Fi | ✅ | **One tap** — *Switch to Hotspot* or *Switch to Mobile*. It will **not** switch itself, in either direction. |
+| **5** | all internet | ⚠️ **cash only** | Cards are gone — Worldline needs the network. Put up a **cash-only** sign. **Scan into a text file**, don't write EANs by hand. |
+| **6** | Banco itself (bad deploy, Hetzner) | ⚠️ cash only | Same as 5. Network is fine, so **the phone camera still works** — photograph anything unclear. |
+| **7** | power | ⚠️ cash only, briefly | Tablets and the laptop run on battery; the printer and card terminal do not. **The offline spreadsheet** on the back-office laptop is the lookup. Then paper. |
+| **8** | everything | ⚠️ cash only | **Paper and cash.** Nothing else to do, and it is enough. |
+
+### The three things worth knowing before you need them
+
+**Rung 3 is the reassuring one.** A dead labeller feels like a stopped shop and is not — nothing in a
+sale depends on printing a label. Say that to staff in advance or someone will close the till over it.
+
+**Rungs 5 and up are all the same shop:** cash, a list of scanned barcodes, and a customer who does
+not care. The only real loss is **card payments**, and no amount of engineering fixes that.
+
+**Every rung ends the same way — coming back.** The sale is not the problem; the *re-entry* is. See
+the backlog item on offline sales, and the note above about scoping it cheap.
+
+### Recovery order when it all comes back
+
+1. **Power-cycle the labeller** if it was mid-job — but remember the queue lives on the tablet, so
+   `retry-job` is what makes that enough on its own.
+2. **Tap back to shop Wi-Fi.** It does not return by itself.
+3. **Key in the scanned list**, and use the cash box's note field to say why the drawer is high.
+4. **Then** print the labels you skipped at rung 3.
+
+---
+
 ## The whole plan, on one line
 
 **Four ways onto the internet · scan into a text file when they all fail · a daily spreadsheet bundle
