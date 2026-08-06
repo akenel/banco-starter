@@ -1113,6 +1113,7 @@
             pageUrl: '',          // 🔗 paste-a-product-page (the other way in when there is no EAN)
             pageBusy: false,
             pageNote: '',
+            pendingImageUrl: '', // that page's photo — fetched into our storage AFTER the row exists
             snapBusy: false,      // BL-34: manual "🔎 Search similar" in flight
             // BL-35: live supplier-site search fallback
             liveResults: [],
@@ -1302,7 +1303,7 @@
             openCreate() {
                 this.editing = false;
                 this.form = this._blankForm();
-                this.gallery = []; this.pendingPhotos = []; this.uploadingPhoto = false;
+                this.gallery = []; this.pendingPhotos = []; this.pendingImageUrl = ''; this.uploadingPhoto = false;
                 this.aiBusy = false; this.aiNote = '';
                 this.modalOpen = true;
                 this._formSnapshot = this._formSig();   // baseline for the unsaved-changes guard
@@ -1652,7 +1653,10 @@
                                            (gotChf ? '' : ' — foreign currency, type YOUR price'));
                     if (f.image) bits.push('photo found');
                     this.pageNote = '✅ read: ' + (bits.join(' · ') || 'name only');
-                    if (f.image && !this.snapPreview) { this.snapPreview = f.image; this.snapName = url; }
+                    if (f.image) {
+                        this.pendingImageUrl = f.image;          // ← attached on save
+                        if (!this.snapPreview) { this.snapPreview = f.image; this.snapName = url; }
+                    }
                 } catch (e) {
                     console.warn('page-facts', e);
                     this.pageNote = "Couldn't read that page — check the link, or type it by hand.";
@@ -1784,7 +1788,7 @@
             async openEdit(p) {
                 this.editing = true;
                 this.form = { id: p.id, ...this._blankForm(), ...p };  // start with row data
-                this.gallery = []; this.pendingPhotos = []; this.uploadingPhoto = false;
+                this.gallery = []; this.pendingPhotos = []; this.pendingImageUrl = ''; this.uploadingPhoto = false;
                 this.modalOpen = true;
                 try {
                     // Enrich with the full record (cost, thresholds, supplier, etc.).
@@ -1938,6 +1942,23 @@
                     if (productId && this.pendingPhotos.length) {
                         for (const ph of this.pendingPhotos) { await this._uploadPhoto(productId, ph.file); }
                         this.pendingPhotos = [];
+                    }
+                    // 🖼️ …and the photo from a pasted product page. It can only be fetched AFTER the
+                    // product exists (the endpoint copies it into our own storage keyed on the row),
+                    // which is why it is queued as a URL rather than a File.
+                    // 2026-08-06, Angel: "I didn't get the image — the whole point of it. I wanted
+                    // their image, I had the URL right there." The first cut only set the on-screen
+                    // preview and never attached anything. Fetching it into OUR storage also matters
+                    // beyond convenience: a hotlinked supplier URL rots (2026-08-02, adopt-images).
+                    if (productId && this.pendingImageUrl) {
+                        try {
+                            await API.post(`/api/v1/pos/products/${productId}/images/from-url`,
+                                           { url: this.pendingImageUrl });
+                        } catch (e) {
+                            console.warn('image from-url', e);
+                            showToast("Saved, but that page's photo could not be fetched.", 'warning');
+                        }
+                        this.pendingImageUrl = '';
                     }
                     showToast(this.editing ? t('catalog.saved') : t('catalog.product_created'), 'success');
                     this.modalOpen = false;
