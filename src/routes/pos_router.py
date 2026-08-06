@@ -6505,6 +6505,27 @@ _HALFBAKED_CATEGORIES = ("On the fly", "On The Fly", "on the fly",
 # "done / total" progress counter are all computed from ONE definition and can never disagree.
 
 
+# Zero-width and invisible characters that make a field LOOK empty while passing every
+# "is it blank?" test ever written. U+200B-200F (ZWSP/ZWNJ/ZWJ/LRM/RLM), U+00A0 (nbsp),
+# U+2060 (word joiner), U+FEFF (BOM), U+3000 (ideographic space).
+#
+# 2026-08-06 — Angel re-created a G-Rollz blunt and asked why it had no description. It HAD one:
+# a single U+200C, three bytes of nothing. Scraped page descriptions carry these, and **46 active
+# products** were holding one. Every gap check counts them as DESCRIBED, so Catalog Health reported
+# 186 missing when the true figure was 232 — the same shape as the green "Balanced" tick over an
+# uncounted cash box: a check satisfied by something that is not there.
+#
+# `trim()` does not touch them; only an explicit strip does. Fixed at the TEST, not at the source —
+# these arrive from any number of shop pages, and the boundary is the one place that catches all of
+# them (same call as _clean_barcode centralising the scanner-junk problem).
+_INVISIBLE_CLASS = r'[\u200B-\u200F\u00A0\u2060\uFEFF\u3000\s]'
+
+
+def _visibly_blank(col):
+    """SQL: is this text column empty ONCE invisible characters are removed?"""
+    return func.coalesce(func.regexp_replace(col, _INVISIBLE_CLASS, "", "g"), "") == ""
+
+
 def _bench_category_expr():
     """Trimmed category, '' when NULL — the value the gap test and the ordering both use."""
     return func.coalesce(func.trim(ProductModel.category), "")
@@ -6516,7 +6537,8 @@ def _bench_gap_clause():
     cat = _bench_category_expr()
     return or_(
         func.coalesce(func.trim(ProductModel.image_url), "") == "",     # no photo
-        func.coalesce(func.trim(ProductModel.description), "") == "",   # no description
+        _visibly_blank(ProductModel.description),                        # no description
+                                                                         # (invisible chars count as blank)
         cat == "",                                                       # no category
         func.lower(cat).in_([c.lower() for c in _HALFBAKED_CATEGORIES]),  # placeholder category
         ProductModel.cost.is_(None),                                     # margin-blind
@@ -6560,7 +6582,7 @@ def _bench_gap_expr(kind):
     if kind == "photo":
         return func.coalesce(func.trim(ProductModel.image_url), "") == ""
     if kind == "description":
-        return func.coalesce(func.trim(ProductModel.description), "") == ""
+        return _visibly_blank(ProductModel.description)
     if kind == "category":
         return or_(cat == "", func.lower(cat).in_([c.lower() for c in _HALFBAKED_CATEGORIES]))
     if kind == "cost":
