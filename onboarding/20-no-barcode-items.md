@@ -57,6 +57,70 @@ price sticker in frame if there is one.
 It searches **both** the catalogue and the **420** reference — which is exactly where Angel says the
 grinders come from. Nothing to build to get started.
 
+> ### 📉 MEASURED 2026-08-06 — what photo matching can and cannot do
+>
+> Proved end to end on a real grinder photo, on prod, with Gemini working:
+>
+> | | |
+> |---|---|
+> | AI read | `Rasta Leaf Metal Grinder` · category `Grinders` ✅ |
+> | Catalogue name | `Grinder Champ High White Leaf - 4-teiliger Ø50mm` |
+> | Same photo, 3 runs | **1 hit, 2 misses** |
+>
+> **The category boost shipped and works** — all six results are now grinders; before it, an
+> `Acryl Bong Atomic` ranked **first** on a photo of a grinder. But it cannot fix what is actually
+> wrong here.
+>
+> 🔴 **The limit: the catalogue is indexed by BRAND, and the brand is not on the object.** That
+> grinder is called *Champ High* and carries no readable text at all — just rasta-coloured leaves. So
+> the model describes what it **sees**, and drifts run to run (`…Metal Grinder` → `…Herb Grinder`).
+> The only overlap with the catalogue name is `Leaf` + `Grinder`, which matches forty other grinders
+> about equally, so **one word of drift flips it in and out of the top six.**
+>
+> **No vision model can recover a brand that was never printed on the product.** This is a property
+> of the goods, not a bug.
+>
+> **➡️ What it means for the ten-grinder test:** expect the hit rate to **split by whether the
+> grinder has readable branding**. Ones with a printed logo should match well; plain decorative ones
+> may be near-random. **Note which ones had visible text when you take the tally** — a single
+> blended number would hide the pattern and give the wrong answer on the batch-tool question.
+>
+> ### ⭐ LESS IS MORE — and it makes most of the above beside the point
+>
+> *Angel, 2026-08-06, while the AI runs above were being measured:*
+>
+> > *"The person searching it wouldn't put in all those details. They're gonna put in **champ high** —
+> > the brand name. That narrows it down tremendously within the category Grinders. You almost get a
+> > direct hit. You wouldn't put in the full name."*
+>
+> He is right, and it exposes a mistake in how the AI route was being judged. Those runs had the
+> model generate a **long descriptive** query and then scored the search on it. **A human types two
+> words and a category** — and the shorter query is *more* selective, not less:
+>
+> ```
+> "Champ High White Leaf"  +  category Grinders   →   2 of 2 matches, the right one first
+> ```
+>
+> **That is the same product the AI missed twice out of three.** No AI involved, no photo, no batch
+> tool. It already works.
+>
+> **The real difference: an AI produces a DESCRIPTION, a human produces a BRAND.**
+> `Rasta Leaf Metal Grinder` is what the object looks like; `Champ High` is what it is *called*, and
+> the catalogue is indexed by the second. So **the photo route only earns its keep when the brand is
+> readable on the object** — the rest of the time a person reading the shelf beats it.
+>
+> ### The method should match the product, not the other way round
+>
+> | Product | How it gets found | Why |
+> |---|---|---|
+> | Papers, filters, tobacco | **scan the EAN** | name search is hopeless — three languages, and Angel: *"searching for a pack of papers by name — good luck with that"*. **They have barcodes, so it never comes up.** |
+> | Grinders, bongs, pipes (200+ each) | **category + 2 words** (brand · colour · size · material) | browsable, memorable, and no barcode to scan |
+> | Anything with a visible brand and no EAN | photo → snap-find | the AI can read what is printed |
+> | Plain decorative, no text, no EAN | **the article number** (see A1) | nothing else is reliable |
+>
+> **The category selector is doing most of the work** in row 2 — 192 rows instead of 5,282 — which is
+> also why the spec filters in `WORKLIST.md` matter more than the photo tooling.
+>
 > ### 🔎 Where the button actually is — found the hard way 2026-08-06
 >
 > **`/pos/catalog` → `+ New product` → the indigo box at the top of the modal → ✨ snap-fill.**

@@ -691,6 +691,18 @@ so nothing in the database could say what it physically was. Only the bottle kne
   picture **is** sellable — say so, and keep flagging what is missing, rather than choosing between a
   green tick and a permanent red. *(Phase A · catalogue · Felix's call on the threshold)*
 
+- **⬇️ DEMOTE the photo/batch tooling — "less is more" already solves this.** *(Angel, 2026-08-06,
+  while the AI runs were being measured.)* He typed **`Champ High White Leaf` + category Grinders**
+  and got **2 of 2 matches, the right one first** — the same product snap-find missed on two runs
+  out of three. **No AI, no photo, no batch tool.**
+  **The mistake in how the AI route was judged:** the model was made to generate a *long descriptive*
+  query and the search was scored on that. A human types **two words and a category**, and the
+  shorter query is *more* selective. **An AI produces a DESCRIPTION; a human produces a BRAND** —
+  `Rasta Leaf Metal Grinder` vs `Champ High` — and the catalogue is indexed by the second.
+  **➡️ So the photo route only earns its keep when the brand is READABLE on the object.** Still worth
+  the ten-item measurement, but **it is no longer on the critical path**, and a batch upload tool
+  should not be built before the spec filters below. *(shop floor · priorities)*
+
 - **📷 snap-find throws away the CATEGORY the AI just told it.** *(Found 2026-08-06 proving the
   vision path end to end on Angel's real grinder photo.)* Gemini read the photo as
   `"Rasta Leaf Metal Grinder"` **with `category: "Grinders"`**, and `snap_find_product`
