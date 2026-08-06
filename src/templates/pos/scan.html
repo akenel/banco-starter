@@ -480,6 +480,43 @@
                                class="text-xs mt-2 font-medium text-amber-900"></p>
                         </div>
                     </div>
+
+                    <!-- 💰 CASHIER FIRST PRICE — a blank, filled once, by whoever is standing there.
+                         Angel 2026-08-07: "she does work there, she's gonna try her best. It will
+                         get flagged to be checked later ... it's a special exception that the
+                         cashier can set the price once when it's not set. After that, she has to
+                         work with it."
+                         Shown to EVERYONE (a manager gets the fuller panel above as well) but the
+                         rule lives on the server: /first-price 409s the moment a price exists, so
+                         this can never become a discount. -->
+                    <div x-show="firstPriceOpen" style="display:none;" class="mt-3">
+                        <div class="border-2 border-red-300 bg-red-50 rounded-lg p-3 text-left">
+                            <p class="text-xs font-bold text-red-900 mb-1">💰 This item has no price yet</p>
+                            <p class="text-xs text-red-800 mb-2">
+                                Type what it sells for and carry on. It gets flagged for
+                                <span class="font-semibold">Felix to check</span> — better a sale
+                                with a note than no sale.
+                            </p>
+                            <label class="block text-xs font-medium text-gray-700">Price (CHF)</label>
+                            <input type="number" step="0.05" min="0" x-model="firstPrice"
+                                   @keydown.enter.prevent="saveFirstPrice()"
+                                   placeholder="e.g. 12.00"
+                                   class="w-full border rounded-lg px-3 py-2 text-lg font-bold mb-2">
+                            <div class="flex gap-2">
+                                <button @click="saveFirstPrice()" :disabled="firstPriceBusy"
+                                        class="flex-1 py-2 rounded-lg bg-red-600 text-white font-semibold text-sm disabled:opacity-50">
+                                    <span x-show="!firstPriceBusy">Set price &amp; add to cart</span>
+                                    <span x-show="firstPriceBusy" style="display:none;">Saving…</span>
+                                </button>
+                                <button @click="firstPriceOpen=false; firstPriceNote=''"
+                                        class="px-3 py-2 rounded-lg border text-sm">Cancel</button>
+                            </div>
+                            <!-- the outcome lands HERE, under the button that caused it (2026-08-03:
+                                 a CHF 500 skim vanished into a banner the cashier had scrolled past) -->
+                            <p x-show="firstPriceNote" x-text="firstPriceNote" style="display:none;"
+                               class="text-xs mt-2 font-medium text-red-900"></p>
+                        </div>
+                    </div>
                 </div>
                 <!-- Right: specs -->
                 <div class="text-sm">
@@ -924,6 +961,12 @@
             priceEditBusy: false,
             priceEditNote: '',
             priceEdit: { price: '', tiers: [], bundle: false },
+            // 💰 cashier FIRST price — fill in a blank, once. Never edits an existing price;
+            // the server 409s if one is already set, so this cannot become a discount.
+            firstPriceOpen: false,
+            firstPriceBusy: false,
+            firstPriceNote: '',
+            firstPrice: '',
 
             // Catalog mode
             // On-the-fly "New item" fields. Required: name + price. Optional: photo,
@@ -1669,6 +1712,43 @@
                 this.priceEditOpen = true;
             },
 
+            // 💰 Fill in a blank price and put the item straight in the cart — one action, because
+            // the cashier's actual goal is finishing the sale, not editing master data.
+            async saveFirstPrice() {
+                const p = this.detailProduct;
+                if (!p || !p.id) return;
+                const price = Number(this.firstPrice);
+                if (!(price > 0)) { this.firstPriceNote = 'Type a price above 0.'; return; }
+                this.firstPriceBusy = true;
+                try {
+                    const updated = await API.post(
+                        `/api/v1/pos/products/${p.id}/first-price`, { price: String(price) });
+                    // take the SERVER's figure, not the typed one — it quantizes and it is the
+                    // authority on what was actually stored
+                    p.price = updated.price;
+                    this.firstPriceOpen = false;
+                    this.firstPrice = '';
+                    this.addToCart(p);          // now passes the guard
+                    this.detailProduct = null;
+                    showToast(`${p.name} set to CHF ${updated.price} — flagged for Felix`, 'success');
+                } catch (e) {
+                    // `err.status` is set by the API helper — use it rather than sniffing the
+                    // message text, which changes every time somebody rewords a detail string.
+                    const st = e && e.status;
+                    if (st === 409) {
+                        // somebody else priced it, or this screen is stale
+                        this.firstPriceNote = 'This item already has a price now — close this and scan it again.';
+                    } else if (st === 422) {
+                        this.firstPriceNote = (e && e.message) || 'That price was not accepted.';
+                    } else if (st === 403) {
+                        this.firstPriceNote = "You're not allowed to set prices. Create it on the fly instead.";
+                    } else {
+                        this.firstPriceNote = "Couldn't save that. Create it on the fly instead and carry on with the sale.";
+                    }
+                    console.warn('first price', e);
+                } finally { this.firstPriceBusy = false; }
+            },
+
             async savePriceEdit() {
                 const p = this.detailProduct;
                 if (!p || !p.id) return;
@@ -1709,6 +1789,7 @@
                 // Show immediately with the search-row data, then enrich with the full
                 // product (description, supplier, tags) from the catalog.
                 this.priceEditOpen = false; this.priceEditNote = '';   // never carry a half-typed fix
+                this.firstPriceOpen = false; this.firstPriceNote = ''; this.firstPrice = '';
                 this.detailProduct = { ...p };
                 try {
                     const full = await API.get(`/api/v1/pos/products/${p.id}`);
@@ -1771,9 +1852,17 @@
                         this.priceEditNote = 'This item has no real price yet. Set it to sell it.';
                         showToast(`${product.name} needs a price — set it here`, 'error');
                     } else {
-                        showToast(
-                            `${product.name} has no price yet — a manager has to set it before it can be sold.`,
-                            'error');
+                        // A cashier may fill in a BLANK price, once — Angel's call 2026-08-07.
+                        // Before this she hit a dead end, and what a real shop actually does is
+                        // re-create the item on the fly in ten seconds and sell that instead:
+                        // sale saved, duplicate row born, minted barcode, correct row still
+                        // unpriced. The block did not prevent a made-up price, it relocated it.
+                        // The server still owns the rule — /first-price 409s if a price exists.
+                        this.detailProduct = product;
+                        this.firstPriceOpen = true;
+                        this.firstPrice = '';
+                        this.firstPriceNote = '';
+                        showToast(`${product.name} has no price yet — type it to sell it`, 'error');
                     }
                     return false;   // never reaches the cart
                 }

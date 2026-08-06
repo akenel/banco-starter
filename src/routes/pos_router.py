@@ -2316,6 +2316,98 @@ async def adopt_reference_product(
     return new_product
 
 
+TILL_PRICED_FLAG = "price_set_at_till"
+
+
+@router.post("/products/{product_id}/first-price", response_model=ProductRead)
+async def set_first_price(
+    product_id: UUID,
+    body: dict = Body(...),
+    db: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(require_any_pos_role()),
+):
+    """A cashier may set the FIRST price on a product that has none. Once. Never a second time.
+
+    2026-08-07. The till guard shipped that morning refused to sell a placeholder-priced product.
+    Angel simulated Pam hitting it with a customer at the counter and showed me what a real shop
+    does: she re-created the item on the fly in ten seconds, typed a price, and sold that instead.
+    The sale went through — and left a DUPLICATE row carrying a minted `2569…` barcode, while the
+    correct row (with the real EAN 615068009973) sat there still unpriced and still unsellable.
+
+    So the guard did not stop a made-up price reaching a customer. It RELOCATED it, and damaged
+    the catalogue on the way. The rule causing that — "a cashier must never change a price" —
+    exists to stop a cashier DISCOUNTING a real price. A placeholder is not a real price; there is
+    nothing to protect. And she can already type any number she likes through create-on-the-fly,
+    so the rule was never enforcing anything: its only measurable effect was duplicate rows.
+
+    Angel's call, and the shape of it is his: *"it's a special exception that the cashier can set
+    the price once when it's not set. After that, it doesn't make sense — once the price has been
+    set, she has to work with it."*
+
+    THE ONE PROPERTY THAT MATTERS: this endpoint can only ever fill a blank, never change a
+    figure. If the current price is not one of UNVERIFIED_PRICES it returns 409 and touches
+    nothing — so it cannot be used to discount, mark up, or "correct" a price a manager set. That
+    check is on the SERVER because the till is not the authority on who may do what.
+
+    It is not a silent write either. She works there and will try her best, and she may be wrong,
+    so the row is flagged `price_set_at_till` and carries a work note saying who typed it and
+    what it replaced. That is a bench gap kind (`till_priced`), so Felix gets a list. And these
+    are the rows that matter most for COST: something that actually sold, at a price a cashier
+    guessed, with no cost behind it — the margin is unknown on a real transaction.
+
+    Create-on-the-fly stays exactly as it is. Angel is explicit that a cashier must never spend
+    half an hour hunting a 5,000-row catalogue with someone waiting: *"just create the damn thing
+    on the fly, get it over with… somebody else can clean up the master data later."* This is the
+    better path when the right row IS in front of her, not a replacement for the escape hatch."""
+    from decimal import InvalidOperation
+
+    product = (await db.execute(
+        select(ProductModel).where(ProductModel.id == product_id))).scalar_one_or_none()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    # ── the gate: a blank may be filled, a price may not be changed ──────────────────────────
+    current = product.price
+    if current is None or Decimal(str(current)) not in UNVERIFIED_PRICES:
+        raise HTTPException(
+            status_code=409,
+            detail=(f"“{product.name}” already has a price (CHF {current}). "
+                    f"Only a manager can change a price that is already set."),
+        )
+
+    try:
+        new_price = Decimal(str(body.get("price", ""))).quantize(Decimal("0.01"))
+    except (InvalidOperation, ValueError):
+        raise HTTPException(status_code=422, detail="Type a price, e.g. 12.00")
+    if new_price <= 0:
+        raise HTTPException(status_code=422, detail="Price must be above 0.00")
+    if new_price in UNVERIFIED_PRICES:
+        # otherwise "fixing" 999.99 by typing 999.99 would clear the flag and change nothing
+        raise HTTPException(
+            status_code=422,
+            detail=f"CHF {new_price} is the placeholder itself — type the real shelf price.")
+
+    who = (current_user or {}).get("preferred_username") or (current_user or {}).get("sub") or "?"
+    stamp = datetime.now(timezone.utc)
+
+    flags = list(product.enrichment_flags or [])
+    if TILL_PRICED_FLAG not in flags:
+        flags.append(TILL_PRICED_FLAG)
+    product.enrichment_flags = flags
+
+    note = (f"💰 Price CHF {new_price} set at the till by {who} on "
+            f"{stamp:%Y-%m-%d %H:%M} (was the placeholder CHF {current}). "
+            f"Needs checking — and this one has SOLD, so the cost matters.")
+    product.work_note = f"{product.work_note}\n{note}" if product.work_note else note
+    product.price = new_price
+    product.updated_at = stamp
+
+    await db.commit()
+    await db.refresh(product)
+    logger.info(f"FIRST-PRICE · {product.sku} · {current} -> {new_price} · by={who}")
+    return product
+
+
 @router.put("/products/{product_id}", response_model=ProductRead)
 async def update_product(
     product_id: UUID,
@@ -6625,7 +6717,7 @@ def _guard_unverified_price(product, is_giveaway: bool = False) -> None:
 # master-data COMPLETENESS gap like the other four, it is a live MONEY bug, and folding it into the
 # "unfinished" bar would silently move every counter the shop is already working against. It gets
 # its own louder treatment on Catalog Health instead.
-_BENCH_GAP_KINDS = ("photo", "description", "category", "cost", "price")
+_BENCH_GAP_KINDS = ("photo", "description", "category", "cost", "price", "till_priced")
 
 
 def _bench_gap_expr(kind):
@@ -6643,6 +6735,13 @@ def _bench_gap_expr(kind):
         return ProductModel.cost.is_(None)
     if kind == "price":
         return ProductModel.price.in_(UNVERIFIED_PRICES)
+    if kind == "till_priced":
+        # A cashier filled in a blank price mid-sale (see POST /products/{id}/first-price).
+        # NOT a completeness gap either — the row is complete, it is the AUTHORITY that is thin:
+        # a price somebody guessed at the counter, on something that has actually sold. Angel:
+        # "it may be wrong ... and it still doesn't have a cost, and these are things that should
+        # be put out front." Felix reviews this list; it is the shortest path to real margin.
+        return ProductModel.enrichment_flags.contains([TILL_PRICED_FLAG])
     return _bench_gap_clause()   # None / 'all' / anything else → any of the four
 
 
