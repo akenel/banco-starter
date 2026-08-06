@@ -538,6 +538,33 @@
                             <p x-show="aiNote" x-text="aiNote" class="text-xs mt-1 font-medium text-indigo-700"></p>
                         </div>
                     </div>
+                    <!-- 🔗 PASTE THE PAGE. 2026-08-06, Angel: snap-find found nothing for a Purize
+                         Com Cruncher (correctly — the catalogue has 53 Purize rows and no grinder),
+                         he found the exact product on the web, and "there's only an option for me to
+                         add the photo. There should be an option to add the link so you can read
+                         that website just like we do for everything else."
+                         `/catalog/page-facts` already does this for shelf intake and cleanup — it
+                         reads the shop's own schema.org record, and it is the ONLY route that can
+                         hand back a real EAN for an item whose code will not scan. It just was not
+                         on this screen. -->
+                    <div class="mt-3 pt-3 border-t border-indigo-200">
+                        <label class="block text-xs font-semibold text-indigo-900 mb-1">
+                            🔗 Or paste the product page — the AI reads name, price, photo and the EAN
+                        </label>
+                        <div class="flex gap-2">
+                            <input type="url" x-model="pageUrl" @keydown.enter.prevent="readPageFacts()"
+                                   placeholder="https://… (the maker's own page is best)"
+                                   class="input-field flex-1 min-w-0 text-sm">
+                            <button type="button" @click="readPageFacts()" :disabled="pageBusy || !(pageUrl||'').trim()"
+                                    class="btn-secondary flex-none text-sm">
+                                <span x-show="!pageBusy">Read</span>
+                                <span x-show="pageBusy" style="display:none;">Reading…</span>
+                            </button>
+                        </div>
+                        <p x-show="pageNote" x-text="pageNote" style="display:none;"
+                           class="text-xs mt-1 font-medium text-indigo-700"></p>
+                    </div>
+
                     <!-- 📷 THE SHOT BEING READ. Without it the operator is comparing the AI's answer
                          against a photo they cannot see — Angel, working a folder of grinder shots:
                          "I have no way of knowing what I'm looking at except g08 or g09." -->
@@ -1083,6 +1110,9 @@
             // and its filename while it reads and in the picker, so the comparison is possible at all.
             snapPreview: '',      // object URL for the shot being read (revoked on close)
             snapName: '',         // its filename — the only handle on WHICH photo this was
+            pageUrl: '',          // 🔗 paste-a-product-page (the other way in when there is no EAN)
+            pageBusy: false,
+            pageNote: '',
             snapBusy: false,      // BL-34: manual "🔎 Search similar" in flight
             // BL-35: live supplier-site search fallback
             liveResults: [],
@@ -1590,6 +1620,45 @@
                 this._resetLive();
             },
             _resetLive() { this.liveResults = []; this.liveVariants = []; this.liveSearched = false; this.liveErrors = {}; this.liveBusy = false; },
+            // 🔗 Paste a product page → fill the blanks from what that page STATES.
+            // Same endpoint shelf intake and cleanup already use. Two rules carried over from
+            // there, both learned the hard way:
+            //   * fill only BLANK fields — never overwrite something the operator typed. On
+            //     2026-08-03 a fill replaced Angel's good name with another shop's SEO title.
+            //   * a foreign-currency price is EVIDENCE, not our price (doc 10) — so the price is
+            //     prefilled only when the page states CHF, and otherwise just reported.
+            async readPageFacts() {
+                const url = (this.pageUrl || '').trim();
+                if (!url) return;
+                this.pageBusy = true; this.pageNote = '';
+                try {
+                    const f = await API.post('/api/v1/pos/catalog/page-facts', { url });
+                    if (!f || !f.name) {
+                        this.pageNote = (f && f.why) ||
+                            "That page didn't state a product name — try the maker's own page.";
+                        return;
+                    }
+                    const blank = v => v === '' || v === null || v === undefined;
+                    if (blank(this.form.name)) this.form.name = f.name;
+                    if (blank(this.form.description) && f.description) this.form.description = f.description;
+                    if (blank(this.form.category) && f.suggested_category) this.form.category = f.suggested_category;
+                    // The EAN is the prize — a real code beats a minted one every time.
+                    if (blank(this.form.barcode) && f.barcode) this.form.barcode = f.barcode;
+                    const gotChf = f.price && (!f.currency || String(f.currency).toUpperCase() === 'CHF');
+                    if (blank(this.form.price) && gotChf) this.form.price = f.price;
+                    const bits = [];
+                    if (f.barcode) bits.push('EAN ' + f.barcode);
+                    if (f.price) bits.push(f.price + ' ' + (f.currency || '') +
+                                           (gotChf ? '' : ' — foreign currency, type YOUR price'));
+                    if (f.image) bits.push('photo found');
+                    this.pageNote = '✅ read: ' + (bits.join(' · ') || 'name only');
+                    if (f.image && !this.snapPreview) { this.snapPreview = f.image; this.snapName = url; }
+                } catch (e) {
+                    console.warn('page-facts', e);
+                    this.pageNote = "Couldn't read that page — check the link, or type it by hand.";
+                } finally { this.pageBusy = false; }
+            },
+
             snapClose() {
                 this.snapOpen = false; this._resetLive();
                 if (this.snapPreview) { try { URL.revokeObjectURL(this.snapPreview); } catch (e) {} }

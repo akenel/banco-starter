@@ -3080,6 +3080,27 @@ def _is_thumbnail_url(url: str) -> bool:
 _TITLE_SEPARATORS = re.compile(r"\s+[-–—|·:]{1,2}\s+")
 
 
+def _strip_seo_tail(s: str) -> str:
+    """Drop a shop's marketing tail and any trailing price off a page title.
+
+    Added 2026-08-06 after `/purize-filters-com-cruncher-hanf` came back as
+    "Crusher von PURIZE günstig online bestellen", and after six rows had to be hand-cleaned on
+    2026-08-05 — "… jetzt günstig online kaufe", "PARISIENNE CHEZ MOI DOSE kaufen, 25,64 CHF",
+    "… - Headshop - scorpio-shop.de, 1,50 €".
+
+    Deliberately narrow, same rule as its caller: over-trimming a name a customer reads is worse
+    than under-trimming. These are FIXED marketing phrases and a trailing price — neither can be
+    part of a product's actual name in any shop.
+    """
+    s = re.sub(r"\s*[-–—,|]?\s*(?:jetzt\s+)?(?:g[uü]nstig\s+)?online\s+(?:kaufen|bestellen|shoppen)\b.*$",
+               "", s or "", flags=re.I)
+    s = re.sub(r"\s*[-–—,|]?\s*(?:jetzt\s+)?g[uü]nstig\s+(?:kaufen|bestellen)\b.*$", "", s, flags=re.I)
+    s = re.sub(r"\s*[-–—,|]?\s*(?:kaufen|bestellen)\s*,\s*[\d.,]+\s*(?:CHF|EUR|€|\$)\s*$", "", s, flags=re.I)
+    # a bare trailing price: "…, 1,50 €" / "… - 25.64 CHF"
+    s = re.sub(r"\s*[-–—,|]\s*[\d]+[.,]\d{2}\s*(?:CHF|EUR|€|\$)\s*$", "", s, flags=re.I)
+    return s.strip(" -–—|·:,")
+
+
 def _clean_page_title(title: str, page_url: str = "") -> str:
     """Strip a shop's own decoration off an og:title so it reads as a PRODUCT name.
 
@@ -3109,20 +3130,31 @@ def _clean_page_title(title: str, page_url: str = "") -> str:
     except Exception:
         host = ""
     host = re.sub(r"^www\.", "", host)
-    site = re.sub(r"[^a-z0-9]", "", host.split(".")[0]) if host else ""
+    # Match the seller's name with OR without its TLD — a title ends "…- scorpio-shop.de" as often
+    # as "…- Jelly-Joker". Comparing only against the first label left the ".de" attached and the
+    # segment survived (found 2026-08-06 on a scorpio-shop.de title).
+    sites = {re.sub(r"[^a-z0-9]", "", host.split(".")[0]),
+             re.sub(r"[^a-z0-9]", "", host)} if host else set()
+    sites.discard("")
+
+    # ⚠️ ORDER MATTERS: strip the SEO/price tail BEFORE splitting on separators, or the shop-name
+    # check compares against "scorpio-shop.de, 1,50 €" and never matches its own domain.
+    raw = _strip_seo_tail(raw)
 
     parts = [p for p in _TITLE_SEPARATORS.split(raw) if p.strip()]
-    if site and len(parts) > 1:
+    if sites and len(parts) > 1:
         # Only the ENDS — a shop name in the middle is part of the product name, not decoration.
-        while len(parts) > 1 and re.sub(r"[^a-z0-9]", "", parts[-1].lower()) == site:
+        while len(parts) > 1 and re.sub(r"[^a-z0-9]", "", parts[-1].lower()) in sites:
             parts.pop()
-        while len(parts) > 1 and re.sub(r"[^a-z0-9]", "", parts[0].lower()) == site:
+        while len(parts) > 1 and re.sub(r"[^a-z0-9]", "", parts[0].lower()) in sites:
             parts.pop(0)
     out = " - ".join(parts)
 
     # Their article number. 4+ digits in brackets is a SKU; "(2 pcs)" and "[50mm]" survive.
     out = re.sub(r"\s*[\[(]\s*\d{4,}\s*[\])]\s*", " ", out)
-    out = re.sub(r"\s+", " ", out).strip(" -–—|·:")
+    out = _strip_seo_tail(out)      # again — a middle segment may now be the last one
+
+    out = re.sub(r"\s+", " ", out).strip(" -–—|·:,")
     return out or raw
 
 
