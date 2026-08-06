@@ -494,7 +494,7 @@
                             <p class="text-xs font-bold text-red-900 mb-1">💰 This item has no price yet</p>
                             <p class="text-xs text-red-800 mb-2">
                                 Type what it sells for and carry on. It gets flagged for
-                                <span class="font-semibold">Felix to check</span> — better a sale
+                                <span class="font-semibold">a manager to check</span> — better a sale
                                 with a note than no sale.
                             </p>
                             <label class="block text-xs font-medium text-gray-700">Price (CHF)</label>
@@ -1730,7 +1730,7 @@
                     this.firstPrice = '';
                     this.addToCart(p);          // now passes the guard
                     this.detailProduct = null;
-                    showToast(`${p.name} set to CHF ${updated.price} — flagged for Felix`, 'success');
+                    showToast(`${p.name} set to CHF ${updated.price} — flagged for review`, 'success');
                 } catch (e) {
                     // `err.status` is set by the API helper — use it rather than sniffing the
                     // message text, which changes every time somebody rewords a detail string.

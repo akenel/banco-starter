@@ -2351,7 +2351,7 @@ async def set_first_price(
 
     It is not a silent write either. She works there and will try her best, and she may be wrong,
     so the row is flagged `price_set_at_till` and carries a work note saying who typed it and
-    what it replaced. That is a bench gap kind (`till_priced`), so Felix gets a list. And these
+    what it replaced. That is a bench gap kind (`till_priced`), so the manager gets a list. And these
     are the rows that matter most for COST: something that actually sold, at a price a cashier
     guessed, with no cost behind it — the margin is unknown on a real transaction.
 

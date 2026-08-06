@@ -184,8 +184,31 @@ def test_a_priced_row_then_sells(row):
     _guard_unverified_price(_P(Decimal("20.00")))          # must not raise
 
 
-def test_it_is_a_bench_gap_kind_so_felix_gets_a_list():
+def test_it_is_a_bench_gap_kind_so_the_manager_gets_a_list():
     """A flag nobody can filter on is a flag nobody acts on."""
     from src.routes.pos_router import _BENCH_GAP_KINDS, _bench_gap_expr
     assert "till_priced" in _BENCH_GAP_KINDS
     assert _bench_gap_expr("till_priced") is not None
+
+
+def test_the_cashier_panel_names_a_ROLE_not_a_person():
+    """Angel, on reading "flagged for Felix" in the toast: *"should that be hard code or like
+    role like manager or admin ... or did you pull that from the kc"*
+
+    It was hardcoded — I typed it. Banco is meant to be cloned and self-hosted by other shops,
+    and a shop that clones it should not find the previous owner's name in their till. A role is
+    true in every deployment; a name is true in exactly one. (Comments naming Felix are
+    provenance and stay — this is about text a cashier reads.)"""
+    import pathlib
+    html = (pathlib.Path(__file__).resolve().parents[1]
+            / "templates" / "pos" / "scan.html").read_text(encoding="utf-8")
+
+    # the two strings this feature puts on screen
+    panel = "a manager to check"
+    toast = "flagged for review"
+    assert panel in html, "the cashier price panel stopped naming a role"
+    assert toast in html, "the confirmation toast stopped naming a role"
+
+    # and neither may name a person again
+    for marker in ("flagged for Felix", "Felix to check"):
+        assert marker not in html, f"a person's name is back in the till UI: {marker!r}"
