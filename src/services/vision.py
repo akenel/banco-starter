@@ -368,10 +368,12 @@ _PRODUCT_PROMPT = (
     '  "size"          pack size / weight if visible (e.g. "5g", "10ml"), else ""\n'
     '  "description"   one tidy sentence in ENGLISH a customer would read\n'
     '  "tags"          comma-separated keywords for search\n'
-    '  "price_estimate" a number in CHF if you can guess from the type, else null\n'
     '  "confidence"    0.0–1.0, how sure you are about the name\n'
     "Read any visible text on the label literally. If unsure, use empty string / null "
-    "and a low confidence. Output JSON only."
+    "and a low confidence.\n"
+    "Do NOT return a price. Never report a price you can see on a sticker, a shelf label or "
+    "the packaging, and never estimate one. Prices come from the shop, not from a photo.\n"
+    "Output JSON only."
 )
 
 
@@ -380,8 +382,23 @@ def _coerce_product(obj: dict) -> dict:
         "name": _s(obj, "name"), "brand": _s(obj, "brand"),
         "category": _opt(obj, "category"), "size": _s(obj, "size"),
         "description": _opt(obj, "description"), "tags": _tags(obj),
-        "price_estimate": _num(obj, "price_estimate"), "confidence": _confidence(obj),
+        "confidence": _confidence(obj),
     }
+    # 2026-08-06 — NO PRICE, EVER, even if the model volunteers one.
+    #
+    # This domain used to ask for `price_estimate`: "a number in CHF if you can GUESS from the
+    # type". Four screens then auto-filled it into a saveable field the moment that field was
+    # blank — `scan.html` → the TILL price, `catalog.html` → the new-product price,
+    # `receiving.html` → the goods-in price, `kiosk.html` → the kiosk price.
+    #
+    # Angel photographed three wooden grinders on a shelf with a hand-written `10.-` sticker in
+    # frame and marked it FAIL twice. The model did not even have to guess — the price was
+    # printed in the picture. The catalogue rows for those grinders are CHF 39.00 and CHF 12.90.
+    #
+    # `read_product_page` 140 lines below has refused to return a price since the day it shipped,
+    # for the reason written there: *"a wrong price overcharges a customer"*. The photo path was
+    # doing the opposite in the same file. The coerce drops the key even if a model returns it,
+    # so an old prompt cached anywhere still cannot put a number on a shelf.
 
 
 PRODUCT = VisionDomain(name="product", prompt=_PRODUCT_PROMPT, coerce=_coerce_product)

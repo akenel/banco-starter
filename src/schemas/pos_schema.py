@@ -183,7 +183,6 @@ class ProductSuggestion(BaseModel):
     size: str = ""
     description: Optional[str] = None
     tags: Optional[str] = None
-    price_estimate: Optional[Decimal] = None
     confidence: float = 0.0
 
 

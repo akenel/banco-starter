@@ -1323,7 +1323,6 @@
                         this.searchExisting(); this.searchReference();
                     }
                     if (blank(this.lazyName) && s.name) this.lazyName = s.name;
-                    if (blank(this.lazyPrice) && s.price_estimate != null) this.lazyPrice = s.price_estimate;
                     this.aiNote = d.note
                         ? d.note
                         : `Read by ${d.provider} in ${(d.elapsed_ms/1000).toFixed(1)}s · confidence ${Math.round((s.confidence||0)*100)}% — pick a catalog match above, or save as new below.`;

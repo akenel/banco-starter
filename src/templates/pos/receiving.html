@@ -857,7 +857,6 @@
                     const blank = v => v === '' || v === null || v === undefined;
                     if (s.name) { this.refQuery = s.name; this.searchRef(s.name, ''); }  // find-first
                     if (blank(this.newName) && s.name) this.newName = s.name;
-                    if (blank(this.newPrice) && s.price_estimate != null) { this.newPrice = s.price_estimate; this.applyTradeDiscount(); }
                     this.aiNote = d.note || t('receiving.ai_read_note');
                 } catch (err) {
                     console.warn('ai snap', err);

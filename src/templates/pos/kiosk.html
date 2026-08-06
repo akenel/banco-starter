@@ -736,7 +736,6 @@
           if (r.ok){
             const d = await r.json(); const s = (d && d.suggestion) || {};
             if (s.name && !(this.cName||'').trim()) this.cName = s.name;
-            if (s.price_estimate != null && !(this.cPrice||'').toString().trim()) this.cPrice = String(s.price_estimate);
             this.cAiNote = s.name ? ('✨ ' + s.name) : '';
           }
         } catch(e){ /* AI is a helper, never a blocker */ }
