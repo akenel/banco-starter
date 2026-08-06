@@ -424,6 +424,60 @@
                     </template>
                     <button @click="addToCart(detailProduct); detailProduct=null"
                             class="bg-green-500 hover:bg-green-600 text-white w-full mt-4 py-3 rounded-lg font-semibold">➕ <span data-i18n="scan.add_to_cart">Add to Cart</span></button>
+
+                    <!-- ✏️ MANAGER PRICE FIX — right where the wrong price is discovered.
+                         2026-08-06, Angel holding a customer's papers: "the price is wrong, it's not
+                         two francs, it's at least two fifty, and the tiering is the wrong type. Now
+                         you could pop out, go to the catalog, fix it, then sell it — otherwise
+                         you're stuck."
+                         Signing out to a manager LOSES THE CART (sessionStorage dies with the
+                         session), so today the honest options are abandon the sale or sell at the
+                         wrong price. Same shape as the merge button and the force-close: the tool
+                         existed, just never where the person was standing.
+                         MANAGER/ADMIN ONLY — a cashier must never change a price. -->
+                    <div x-show="user.isManager || user.isAdmin" style="display:none;" class="mt-3">
+                        <button x-show="!priceEditOpen" @click="openPriceEdit()"
+                                class="w-full py-2 rounded-lg border-2 border-amber-300 bg-amber-50 text-amber-900 font-semibold text-sm hover:bg-amber-100">
+                            ✏️ <span>Price looks wrong? Fix it here</span>
+                        </button>
+                        <div x-show="priceEditOpen" style="display:none;"
+                             class="border-2 border-amber-300 bg-amber-50 rounded-lg p-3 text-left">
+                            <p class="text-xs font-bold text-amber-900 mb-2">✏️ Manager price fix — the sale keeps going</p>
+                            <label class="block text-xs font-medium text-gray-700">Price (CHF)</label>
+                            <input type="number" step="0.05" min="0" x-model="priceEdit.price"
+                                   class="w-full border rounded-lg px-3 py-2 text-lg font-bold mb-2">
+                            <label class="block text-xs font-medium text-gray-700">Quantity price breaks</label>
+                            <template x-for="(row, i) in priceEdit.tiers" :key="i">
+                                <div class="flex items-center gap-2 mb-1">
+                                    <span class="text-xs text-gray-500 flex-none">buy</span>
+                                    <input type="number" min="2" x-model="row.min_qty" class="border rounded px-2 py-1 w-16 text-sm">
+                                    <span class="text-xs text-gray-500 flex-none">for</span>
+                                    <input type="number" step="0.05" min="0" x-model="row.unit_price" class="border rounded px-2 py-1 w-24 text-sm">
+                                    <button @click="priceEdit.tiers.splice(i,1)" class="text-rose-500 text-lg leading-none px-1">&times;</button>
+                                </div>
+                            </template>
+                            <div class="flex items-center gap-2 mb-2">
+                                <button @click="priceEdit.tiers.push({min_qty:'',unit_price:''})"
+                                        class="text-xs font-semibold text-indigo-600">+ add break</button>
+                                <label class="text-xs text-gray-600 ml-auto flex items-center gap-1">
+                                    <input type="checkbox" x-model="priceEdit.bundle"> price is for the whole pack
+                                </label>
+                            </div>
+                            <p class="text-xs text-amber-800 mb-2">
+                                ⚠️ This changes the product for everyone, not just this sale.
+                            </p>
+                            <div class="flex gap-2">
+                                <button @click="savePriceEdit()" :disabled="priceEditBusy"
+                                        class="flex-1 bg-amber-600 hover:bg-amber-700 text-white py-2 rounded-lg font-semibold text-sm disabled:opacity-50">
+                                    <span x-show="!priceEditBusy">Save &amp; keep selling</span>
+                                    <span x-show="priceEditBusy" style="display:none;">Saving…</span>
+                                </button>
+                                <button @click="priceEditOpen=false" class="px-3 py-2 rounded-lg border text-sm">Cancel</button>
+                            </div>
+                            <p x-show="priceEditNote" x-text="priceEditNote" style="display:none;"
+                               class="text-xs mt-2 font-medium text-amber-900"></p>
+                        </div>
+                    </div>
                 </div>
                 <!-- Right: specs -->
                 <div class="text-sm">
@@ -857,6 +911,11 @@
             _searchSeq: 0,         // request sequencing — the LAST keystroke's answer must win
             categories: [],
             detailProduct: null,
+            // ✏️ manager price fix, opened from the detail modal (see the panel above)
+            priceEditOpen: false,
+            priceEditBusy: false,
+            priceEditNote: '',
+            priceEdit: { price: '', tiers: [], bundle: false },
 
             // Catalog mode
             // On-the-fly "New item" fields. Required: name + price. Optional: photo,
@@ -1585,9 +1644,64 @@
                 }
             },
 
+            // ✏️ MANAGER PRICE FIX — see the panel in the detail modal for the why.
+            // A cashier discovers a wrong price with a customer waiting; the only route today is to
+            // sign out to a manager, which LOSES the cart. This edits the product in place and
+            // leaves the sale running.
+            openPriceEdit() {
+                const p = this.detailProduct || {};
+                this.priceEditNote = '';
+                this.priceEdit = {
+                    price: p.price != null ? String(p.price) : '',
+                    // copy, never alias — cancelling must leave the displayed product untouched
+                    tiers: (p.price_tiers || []).map(t => ({
+                        min_qty: String(t.min_qty ?? ''), unit_price: String(t.unit_price ?? ''),
+                    })),
+                    bundle: (p.tier_mode || 'per_unit') === 'bundle',
+                };
+                this.priceEditOpen = true;
+            },
+
+            async savePriceEdit() {
+                const p = this.detailProduct;
+                if (!p || !p.id) return;
+                const price = Number(this.priceEdit.price);
+                if (!(price > 0)) { this.priceEditNote = 'Type a price above 0.'; return; }
+                const tiers = (this.priceEdit.tiers || [])
+                    .filter(t => Number(t.min_qty) >= 2 && Number(t.unit_price) > 0)
+                    .map(t => ({ min_qty: Number(t.min_qty), unit_price: String(t.unit_price) }));
+                this.priceEditBusy = true;
+                try {
+                    // PATCH-shaped PUT: only the price fields. Sending the whole product from a
+                    // till screen would write back whatever this page happened to be holding.
+                    await API.put(`/api/v1/pos/products/${p.id}`, {
+                        price: price, price_tiers: tiers,
+                        tier_mode: this.priceEdit.bundle ? 'bundle' : 'per_unit',
+                    });
+                    // Reflect it here AND on any line ALREADY in the cart — otherwise the manager
+                    // fixes the price, the line keeps the old figure, and the customer pays it.
+                    // Cart lines are `{...product, quantity}` (see addToCart), so they carry their
+                    // own copy of the price — updating the product alone would not reach them.
+                    // `totals` is a getter over `cart`, so it re-reads on its own; nothing to call.
+                    const mode = this.priceEdit.bundle ? 'bundle' : 'per_unit';
+                    p.price = price; p.price_tiers = tiers; p.tier_mode = mode;
+                    (this.cart || []).forEach(line => {
+                        if (line.id === p.id) {
+                            line.price = price; line.price_tiers = tiers; line.tier_mode = mode;
+                        }
+                    });
+                    this.priceEditOpen = false;
+                    showToast('Price updated — carry on with the sale', 'success');
+                } catch (e) {
+                    console.warn('price edit', e);
+                    this.priceEditNote = "Couldn't save that — you may not have permission.";
+                } finally { this.priceEditBusy = false; }
+            },
+
             async openDetail(p) {
                 // Show immediately with the search-row data, then enrich with the full
                 // product (description, supplier, tags) from the catalog.
+                this.priceEditOpen = false; this.priceEditNote = '';   // never carry a half-typed fix
                 this.detailProduct = { ...p };
                 try {
                     const full = await API.get(`/api/v1/pos/products/${p.id}`);
