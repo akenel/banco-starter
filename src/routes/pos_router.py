@@ -1322,6 +1322,36 @@ async def read_delivery_slip(
     }
 
 
+# ── WHITE-LABEL SHELVES — where the PRINT is decoration and the FORM is the product ────────
+#
+# 2026-08-06, Angel: "you have a style of grinder in 3 sizes that a manufacturer white-labels and
+# sells plain or in 15 colours — I was hoping it would recognise the shape."
+#
+# He is right, and the catalogue already names things that way:
+#     Grinder Alu CNC 4teilig mit Sieb 62mm Rasta
+#             └material┘ └parts┘ └feature┘ └size┘ └artwork┘
+# The vision prompt asks for a BRAND-LED shelf name, which is correct for branded retail and wrong
+# here — a promo grinder printed "Barney's Farm" is the same body as a catalogue row, and the brand
+# is the one part that does NOT appear in the catalogue.
+#
+# Measured on prod over Angel's nine photos, same code, same images, brand-led vs form-led:
+#     g00 0.552 → 0.895 · g02 0.368 → 0.895 · g04 0.370 → 0.744 · g03 0.393 → 0.613 · g05 0.619 → 0.700
+# Form-led won on every one.
+_WHITE_LABEL_CATEGORIES = {
+    "Grinders", "Rolling Trays", "Ashtrays", "Storage & Stash", "Scales",
+}
+
+# The second read. Deliberately German-catalogue-shaped, because that is how the rows are named.
+_FORM_HINT = (
+    "This is a WHITE-LABEL item: any printed artwork, logo or brand is decoration and must be "
+    "IGNORED — the same body is sold plain or in many colours. Name it by its PHYSICAL FORM only, "
+    "in the style of a German wholesale catalogue: material (Alu / Alu CNC / Metall / Edelstahl / "
+    "Zink / Acryl / Holz / Silikon), number of parts (2teilig / 3teilig / 4teilig), notable feature "
+    "(mit Sieb / mit Dose / mit Trichter), and the approximate diameter in mm. "
+    "Example: 'Grinder Alu CNC 4teilig mit Sieb 50mm'."
+)
+
+
 async def _find_catalog_matches(db: AsyncSession, q: str, limit: int = 6,
                                 category: str | None = None) -> dict:
     """Find-first: given a NAME, search the LIVE catalog (`products`) AND the FourTwenty
@@ -1502,14 +1532,58 @@ async def snap_find_product(
     # Pass the shelf the model named — it ranks same-category rows first WITHOUT filtering, so a
     # wrong guess costs nothing. See _find_catalog_matches: without it a bong outranked a grinder
     # on a photo of a grinder.
-    matches = await _find_catalog_matches(db, q, limit, category=(s.get("category") or ""))
+    cat = (s.get("category") or "").strip()
+    matches = await _find_catalog_matches(db, q, limit, category=cat)
+
+    # ── STAGE 2: on a white-label shelf, ask AGAIN for the FORM and merge what it finds ──────
+    #
+    # ⚠️ A SECOND read, never a replacement — and Angel's stash tin is why. Told "this is a
+    # white-label grinder", the model dutifully returned `Grinder Acryl 2teilig 50mm` for a vacuum
+    # storage container, while the brand-led read correctly called it a `Tightvac`. **Brand-led is
+    # what recognises a non-grinder**, so it runs first and it decides the category. Stage 2 only
+    # ever ADDS candidates; it cannot retype the item or hide anything.
+    #
+    # 🔴 The form read is for FINDING ONLY — never for drafting. It guesses the diameter (Angel
+    # predicted this before the test: a photo carries no size reference, and the model duly
+    # answered "50mm" for nearly everything). A guess wearing a number is this project's most
+    # repeated bug shape, so `suggestion` stays the brand-led one and the operator still types the
+    # size off a caliper or the packaging.
+    form_query = None
+    if cat in _WHITE_LABEL_CATEGORIES:
+        try:
+            form = await suggest_product_from_image(
+                raw, file.content_type or "image/jpeg", hint=_FORM_HINT, provider=provider,
+            )
+            fs = form.get("suggestion") or {}
+            fq = (fs.get("name") or "").strip()
+            if fq and fq.lower() != q.lower():
+                form_query = fq
+                extra = await _find_catalog_matches(db, fq, limit, category=cat)
+                # Merge best-score-wins, de-duped by product id, and re-rank. The form read is the
+                # stronger signal on these shelves (measured ~0.37 → ~0.90), so a row it scores
+                # higher deserves to move up — but rows only the brand read found still survive.
+                seen = {p["id"]: p for p in matches["product_matches"]}
+                for p in extra["product_matches"]:
+                    prev = seen.get(p["id"])
+                    if prev is None or (p.get("score") or 0) > (prev.get("score") or 0):
+                        seen[p["id"]] = p
+                merged = sorted(seen.values(), key=lambda p: -(p.get("score") or 0))[:limit]
+                matches = {
+                    **matches,
+                    "product_matches": merged,
+                    "best_match_score": max(matches["best_match_score"], extra["best_match_score"]),
+                }
+        except Exception as e:  # noqa: BLE001 — stage 2 is an ENHANCEMENT; never fail the request
+            logger.warning("snap-find form read failed (%s) — brand-led results stand: %s",
+                           type(e).__name__, e)
+
     logger.info(
-        "AI snap-find: provider=%s %dms q=%r → %d catalog + %d reference (best=%.2f) by %s",
-        result.get("provider"), result.get("elapsed_ms", 0), q,
+        "AI snap-find: provider=%s %dms q=%r form=%r → %d catalog + %d reference (best=%.2f) by %s",
+        result.get("provider"), result.get("elapsed_ms", 0), q, form_query,
         len(matches["product_matches"]), len(matches["reference_matches"]),
         matches["best_match_score"], current_user["username"],
     )
-    return {**result, **matches}
+    return {**result, **matches, "form_query": form_query}
 
 
 @router.get("/products/search-suppliers-live")
