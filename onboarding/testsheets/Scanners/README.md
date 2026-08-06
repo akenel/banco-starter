@@ -52,6 +52,23 @@ Three ways, and the manufacturer's default is also the right one for a till (BCS
 | Wired (USB cable) | no | Cable into the gun's USB-B socket | Fine. Tethers the gun. |
 | Bluetooth (HID) | no | Scan `Bluetooth Pairing` (page 3), then pair in the OS | Last resort. |
 
+### 🔴 "It doesn't scan" may be the GUN, not the barcode
+
+*Angel, 2026-08-06, spot-checking the previous day's bindings:* the **Netum read everything**, while
+the **Inateck read most and choked on a few of the same codes**. He had bound those items the day
+before with the Netum and hit no trouble at all.
+
+**So a failed read is not proof of a bad code.** Two guns, same packet, different verdicts — and the
+expensive mistake is the one that follows: concluding the barcode is unreadable, then re-binding or
+re-creating a row that was already perfectly correct. That is how a duplicate is born.
+
+**The rule: before declaring a code dead, try the OTHER gun.** It costs five seconds. Only if both
+guns fail is it the packet — and then the 2026-08-02 lesson applies (it may be an outer multipack;
+open it and scan a single).
+
+Worth knowing which is which: the **Netum** is the more capable reader here. The Inateck is a fine
+2D imager and reads our QR labels down to 10 mm, but on worn or curved 1D codes the Netum wins.
+
 ### 🔵 Bluetooth won't hold? It is almost never the radio
 
 *Angel, 2026-08-06, pairing the Inateck to his phone: "connecting is really unreliable, what do I do
