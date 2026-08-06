@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Grinders — finding a product that has no barcode</title>
+<style>
+  :root{ --red:#157F52; --dark:#0f5c3b; --ink:#1f2937; --mut:#6b7280; --line:#e5e7eb;
+         --ok:#059669; --iss:#d97706; --fail:#C0392B; --bg:#f6f8f7; --gold:#b0862f; }
+  *{ box-sizing:border-box; }
+  body{ font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; color:var(--ink);
+        background:var(--bg); margin:0; line-height:1.5; }
+  a{ color:var(--dark); }
+  header{ position:sticky; top:0; z-index:10; background:#fff; border-bottom:2px solid var(--red);
+          padding:12px 20px; box-shadow:0 2px 8px rgba(0,0,0,.06); }
+  .htop{ display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+  h1{ font-size:18px; margin:0; }
+  h1 small{ color:var(--mut); font-weight:500; font-size:13px; display:block; margin-top:2px; }
+  .meters{ display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
+  .meter{ text-align:center; } .meter b{ font-size:20px; display:block; }
+  .meter.ok b{ color:var(--ok); } .meter.iss b{ color:var(--iss); } .meter.fail b{ color:var(--fail); }
+  .meter span{ font-size:11px; color:var(--mut); text-transform:uppercase; letter-spacing:.04em; }
+  .timer{ font-variant-numeric:tabular-nums; font-size:22px; font-weight:700; color:var(--ink); }
+  .btn{ border:1px solid var(--line); background:#fff; border-radius:8px; padding:6px 12px;
+        font-size:13px; cursor:pointer; } .btn:hover{ background:#f0f0f0; }
+  .btn.red{ background:var(--red); color:#fff; border-color:var(--red); }
+  main{ max-width:920px; margin:0 auto; padding:22px 20px 80px; }
+  .lead{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin-bottom:20px; }
+  .phase{ font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.06em;
+          color:var(--red); margin:26px 0 10px; padding-bottom:6px; border-bottom:2px solid var(--red); }
+  section{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin-bottom:14px; }
+  section h2{ font-size:15px; margin:0 0 4px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  section .why{ color:var(--mut); font-size:13px; margin:0 0 12px; }
+  code{ font-family:ui-monospace,Menlo,monospace; font-size:12px; background:#f3f4f6;
+        border:1px solid var(--line); border-radius:5px; padding:1px 5px; }
+  .cmd{ display:block; font-family:ui-monospace,Menlo,monospace; font-size:12.5px; background:#0f172a;
+        color:#e2e8f0; border-radius:8px; padding:9px 12px; margin:6px 0; white-space:pre-wrap; word-break:break-word; }
+  ol.steps{ margin:0; padding:0; list-style:none; }
+  ol.steps li{ display:flex; gap:10px; padding:9px 0; border-top:1px dashed var(--line); align-items:flex-start; }
+  ol.steps li:first-child{ border-top:none; }
+  .verdict{ display:flex; gap:4px; flex:none; margin-top:1px; }
+  .vbtn{ border:1px solid var(--line); background:#fff; border-radius:7px; padding:4px 8px; font-size:11px;
+         font-weight:700; cursor:pointer; color:var(--mut); white-space:nowrap; }
+  .vbtn:hover{ background:#f6f6f6; }
+  .vbtn.v-pass.on{ background:var(--ok); border-color:var(--ok); color:#fff; }
+  .vbtn.v-fail.on{ background:var(--fail); border-color:var(--fail); color:#fff; }
+  .vbtn.v-issue.on{ background:var(--iss); border-color:var(--iss); color:#fff; }
+  @media (max-width:600px){ .vbtn{ padding:4px 6px; font-size:10px; } ol.steps li{ flex-wrap:wrap; } }
+  .step-body{ flex:1; min-width:220px; font-size:14px; }
+  .exp{ display:block; color:var(--ok); font-size:12.5px; margin-top:4px; }
+  .exp::before{ content:"✓ expect: "; font-weight:600; }
+  textarea{ width:100%; border:1px solid var(--line); border-radius:8px; padding:8px 10px; font:inherit;
+            font-size:13px; margin-top:10px; resize:vertical; min-height:54px; }
+  textarea.step-cm{ margin-top:0; min-height:32px; font-size:12.5px; background:#fcfcfd; flex:1; }
+  .step-extra{ margin-top:8px; }
+  .cm-row{ display:flex; gap:6px; align-items:flex-start; }
+  .mic-btn{ border:1px solid var(--line); background:#fff; border-radius:8px; padding:4px 9px; cursor:pointer;
+            font-size:15px; flex:none; }
+  .mic-btn.on{ background:#e6f6ee; border-color:var(--red); color:var(--red); animation:pulse 1s infinite; }
+  @keyframes pulse{ 50%{ opacity:.45 } }
+  .shot-zone{ margin-top:6px; border:1.5px dashed var(--line); border-radius:8px; padding:6px 10px; font-size:12px;
+              color:var(--mut); cursor:pointer; background:#fafafa; }
+  .shot-zone:focus,.shot-zone.drag{ outline:none; border-color:var(--red); background:#f2fbf6; color:var(--ink); }
+  .thumbs{ display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; }
+  .thumbs .sh{ position:relative; }
+  .thumbs img{ height:66px; border-radius:6px; border:1px solid var(--line); cursor:zoom-in; display:block; }
+  .thumbs .rm{ position:absolute; top:-7px; right:-7px; background:var(--red); color:#fff; border:none;
+               border-radius:99px; width:19px; height:19px; font-size:11px; cursor:pointer; line-height:1; }
+  .hidden{ display:none; }
+  label.cm{ font-size:11px; color:var(--mut); text-transform:uppercase; letter-spacing:.04em; }
+  .safety{ border:1px solid var(--line); border-left:4px solid var(--gold); background:#fffdf5;
+           border-radius:8px; padding:10px 12px; margin:10px 0; font-size:13.5px; }
+  .danger{ border-left-color:var(--fail); background:#fdf2f0; }
+  .tag{ font-size:11px; font-weight:700; padding:2px 8px; border-radius:99px; background:#dcfce7; color:#065f46; }
+  .tag.gap{ background:#fef3c7; color:#92400e; }
+  .tag.t{ background:#e0e7ff; color:#3730a3; font-variant-numeric:tabular-nums; }
+  table{ border-collapse:collapse; width:100%; font-size:13px; margin:8px 0; }
+  th,td{ border:1px solid var(--line); padding:6px 9px; text-align:left; vertical-align:top; }
+  th{ background:#f6f8f7; }
+  .card{ font-family:ui-monospace,Menlo,monospace; font-size:12.5px; background:#0f172a; color:#e2e8f0;
+         border-radius:10px; padding:14px 16px; white-space:pre-wrap; }
+</style>
+</head>
+<body>
+
+<header><div class="htop">
+  <h1>🌀 Grinders — finding a product that has no barcode
+    <small>Prove the three ways in: the article number, the size, the photo. Then decide the label with Felix.</small></h1>
+  <div class="meters">
+    <div class="meter"><span class="timer" id="clock">00:00</span><span>elapsed</span></div>
+    <div class="meter"><b id="prog">0/0</b><span>marked</span></div>
+    <div class="meter ok"><b id="mOk">0</b><span>ok</span></div>
+    <div class="meter iss"><b id="mIss">0</b><span>issue</span></div>
+    <div class="meter fail"><b id="mFail">0</b><span>fail</span></div>
+    <button class="btn red" id="startBtn" onclick="toggleTimer()">▶ Start</button>
+    <button class="btn" onclick="copyFindings()">📋 findings</button>
+    <button class="btn" onclick="if(confirm('Clear everything — marks, notes and screenshots?')){localStorage.removeItem(KEY);location.reload()}">reset</button>
+  </div>
+</div></header>
+
+<main>
+  <div class="lead">
+    <strong>Why this sheet.</strong> Felix said <b>no barcodes on the grinders</b>, and the day book
+    says grinders sell about <b>one a day</b> — rank 4 on the shelf, not the slow mover we assumed.
+    So the till has to find <b>192 products with no code on them</b>, fast.
+
+    <p style="margin:10px 0 0"><b>Three routes were built for this on 2026-08-06.</b> Parts A–C prove
+    they work. Part D measures whether the photo route is worth building a batch tool for. Part E is
+    the one decision only Felix can make.</p>
+
+    <div class="safety">
+      <b>Take with you:</b> the tablet · the Netum gun + booklet · phone for photos ·
+      <b>the smallest grinder in the shop</b> (Part E) · a printed label sample if you have one.
+    </div>
+    <div class="safety danger">
+      <b>UAT on <code>banco.wolfhold.app</code>.</b> Parts A–C are read-only — searching changes
+      nothing. Part D <b>creates products</b>. Note the SKU of anything you create so it can be
+      undone.
+    </div>
+  </div>
+
+  <!-- ============ A ============ -->
+  <div class="phase">A · The article number — the fastest way in, and it needs no sticker</div>
+
+  <section>
+    <h2>🔢 A1 · Type the full number <span class="tag">shipped 2026-08-06</span></h2>
+    <p class="why"><b>Every grinder already carries one.</b> 191 of 192 have a <code>TAM-</code> SKU
+      and all 192 are distinct. Measured: the <b>full 5 digits</b> returned exactly one product
+      <b>300 times out of 300</b>. This is the route that needs nothing stuck to the goods.</p>
+    <p class="why">Search on <code>/pos/catalog</code> — type just the digits, no <code>TAM-</code>.</p>
+    <ol class="steps">
+      <li><div class="step-body">Type <code>24350</code>
+        <span class="exp">Grinder "Flower Mill" Next-Gen Premium 3tlg. 66mm schwarz — CHF 99.00, first</span></div></li>
+      <li><div class="step-body">Type <code>4619</code>
+        <span class="exp">Grinder Metall 3teilig mit Sieb Poker Chip 42mm — CHF 9.90</span></div></li>
+      <li><div class="step-body">Type <code>23357</code>
+        <span class="exp">Grinder Alu 3-teilig Santa Cruz Shredder L Grün — CHF 95.00</span></div></li>
+      <li><div class="step-body">Type <code>TAM-24350</code> — the whole SKU, as it appears on a shelf label
+        <span class="exp">same product as step 1</span></div></li>
+      <li><div class="step-body">⏱️ <b>Time one lookup</b> — number typed to product on screen.
+        <span class="exp">under 5 seconds. Write the actual number in the note.</span></div></li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>🔴 A2 · The bug this fixed — a 4-digit number that is also the start of a 5-digit one</h2>
+    <p class="why">Angel found it: <i>"if you type 1002 well then good luck."</i> A bare 4-digit type
+      hit <b>15 products</b> at worst. Before the fix, searching <code>1166</code> put the exact
+      <code>TAM-1166</code> <b>last of four</b>, under <code>TAM-11666</code>.</p>
+    <ol class="steps">
+      <li><div class="step-body">Type <code>1166</code>
+        <span class="exp">Messingsieb rund 20mm 5 Stk. (TAM-1166) is FIRST — not TAM-11666</span></div></li>
+      <li><div class="step-body">Type <code>1131</code>
+        <span class="exp">Metall-Kopf konisch Hanfblatt (TAM-1131) first, above TAM-11315</span></div></li>
+      <li><div class="step-body">Type <code>2584</code>
+        <span class="exp">Smoking King Size black De Luxe (TAM-2584) first, above TAM-25847</span></div></li>
+      <li><div class="step-body">The near-misses should still be <b>visible underneath</b>, not hidden —
+        you may have typed 4 digits of a 5-digit code.
+        <span class="exp">exact one on top, the others still listed</span></div></li>
+    </ol>
+    <label class="cm">A · the number route</label>
+    <textarea data-cm="number" placeholder="seconds per lookup · anything that did NOT come first · would a cashier do this?"></textarea>
+  </section>
+
+  <!-- ============ B ============ -->
+  <div class="phase">B · The size — 165 of 192 grinder names carry a diameter</div>
+
+  <section>
+    <h2>📏 B1 · Search by millimetres <span class="tag">shipped 2026-08-06</span></h2>
+    <p class="why">Diameter is the first thing a customer asks and the best-covered spec on the shelf.
+      It was <b>not</b> understood until today: searching <code>62 mm</code> returned a DynaVap
+      condenser, a skateboard and two <b>6mm</b> filters in the top four.</p>
+    <ol class="steps">
+      <li><div class="step-body">Type <code>62mm</code>
+        <span class="exp">62mm grinders at the top</span></div></li>
+      <li><div class="step-body">Type <code>62 mm</code> — <b>with a space</b>, the way a person types
+        <span class="exp">the SAME results. This is the case that was broken.</span></div></li>
+      <li><div class="step-body">Type <code>grinder 62mm</code> — two words
+        <span class="exp">62mm grinders, not 6mm filters</span></div></li>
+      <li><div class="step-body">Type <code>50mm</code>, then <code>42mm</code>
+        <span class="exp">each floats its own diameter</span></div></li>
+      <li><div class="step-body">⚠️ <b>Check nothing vanished.</b> 27 grinders state no diameter. Search
+        <code>grinder</code> and confirm you still see grinders with no mm in the name.
+        <span class="exp">they are still there — the size is a SORT, never a filter</span></div></li>
+    </ol>
+    <label class="cm">B · the size route</label>
+    <textarea data-cm="size" placeholder="did the mm search behave · did anything disappear"></textarea>
+  </section>
+
+  <!-- ============ C ============ -->
+  <div class="phase">C · Name and category — the fallback, and the naming problem</div>
+
+  <section>
+    <h2>🔤 C1 · Two words off the object</h2>
+    <p class="why">Angel: <i>"the descriptions are not consistent."</i> Measured — <b>49 grinders state
+      no material, 66 state no part count.</b> This part is as much about finding the gaps as testing
+      the search.</p>
+    <ol class="steps">
+      <li><div class="step-body">Type <code>santa cruz</code>
+        <span class="exp">the Santa Cruz Shredders</span></div></li>
+      <li><div class="step-body">Type <code>flower mill</code>
+        <span class="exp">the Flower Mill range</span></div></li>
+      <li><div class="step-body">Type <code>grinder 4teilig</code>, then <code>grinder 4 teilig</code> with a space
+        <span class="exp">both work — note it if they differ</span></div></li>
+      <li><div class="step-body">Pick up <b>three real grinders</b> and try to find each by typing two
+        words you can read off the object.
+        <span class="exp">3/3. Write down any you could NOT find and what you typed.</span></div></li>
+    </ol>
+    <label class="cm">C · what you could not find by name</label>
+    <textarea data-cm="name" placeholder="the object in your hand · what you typed · what came back"></textarea>
+  </section>
+
+  <!-- ============ D ============ -->
+  <div class="phase">D · The photo route — measure ONE number</div>
+
+  <section>
+    <h2>📷 D1 · Ten grinders through snap-find <span class="tag gap">this decides the batch tool</span></h2>
+    <p class="why"><b>The whole point of this part is a hit rate.</b> Batch upload only saves the
+      upload clicks — it cannot batch the <i>decisions</i>. So: <b>7+/10 → building a batch tool is
+      worth it. Poor → batch would just be a faster way to fail</b>, and the answer is typing names
+      off the photos.</p>
+    <div class="safety">
+      <b>⚠️ The button is not where you expect.</b> <code>/pos/catalog</code> →
+      <b>+ New product</b> → the <b>indigo box at the top</b> → <b>✨ snap-fill</b>.
+      The file picker in the <i>scan</i> overlay is the BARCODE reader — on a grinder it correctly
+      says <code>No MultiFormat Readers were able to detect the code</code>, which reads like the AI
+      failed. It was never called. (Filed: the AI tool is gated behind "create", which is backwards.)
+    </div>
+    <ol class="steps">
+      <li><div class="step-body">Photograph <b>10 grinders</b> — one shot per model, price sticker in
+        frame if there is one.
+        <span class="exp">10 photos on the phone</span></div></li>
+      <li><div class="step-body">Run each through <b>✨ snap-fill</b>. For each, tick one:
+        <b>①</b> found the right grinder · <b>②</b> found something, wrong one · <b>③</b> found nothing.
+        <span class="exp">write the tally in the note — this is the number that matters</span></div></li>
+      <li><div class="step-body">Does it search the <b>420 reference</b>, not just our catalogue?
+        <span class="exp">reference matches appear as well as catalogue matches</span></div></li>
+      <li><div class="step-body">⏱️ <b>Time one</b> photo → confirmed product.
+        <span class="exp">compare with 47 s/row measured on the papers shelf</span></div></li>
+      <li><div class="step-body">🔬 <b>Also try Google Lens</b> on the same 10, on the phone. Different
+        engine, whole-web reverse image search.
+        <span class="exp">two tallies, same 10 grinders — which wins?</span></div></li>
+    </ol>
+    <label class="cm">D · THE HIT RATE (write both tallies)</label>
+    <textarea data-cm="hitrate" placeholder="snap-find: __/10 right, __ wrong, __ nothing   ·   Lens: __/10   ·   seconds each"></textarea>
+  </section>
+
+  <!-- ============ E ============ -->
+  <div class="phase">E · The label — Felix's decision, not ours</div>
+
+  <section>
+    <h2>🏷️ E1 · Does an 18 mm label even fit?</h2>
+    <p class="why">The 2026-07-29 scan tests showed <b>18 mm reads as cleanly as 20 mm</b>, so a
+      genuinely small sticker exists. <b>Test it physically before offering it.</b></p>
+    <ol class="steps">
+      <li><div class="step-body">Print one <b>18 mm</b> label and stick it on the <b>smallest grinder in
+        the shop</b>.
+        <span class="exp">it fits, and looks acceptable on a CHF 20 object</span></div></li>
+      <li><div class="step-body">Scan it with the gun, off the curved surface.
+        <span class="exp">reads first time — a grinder is round, which a flat test does not prove</span></div></li>
+      <li><div class="step-body">Try it on the <b>largest</b> one too.
+        <span class="exp">one size works across the range, or you need two</span></div></li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>🗣️ E2 · The conversation with Felix — bring a choice, not a request</h2>
+    <div class="safety"><b>Rafi already stickers every grinder with a price.</b> So Felix is not
+      objecting to marking the product — that happens today. <b>Find out which objection it really
+      is</b>, because two of the three are not true:
+      <ul style="margin:6px 0 0 18px; padding:0">
+        <li><b>"It'll look ugly"</b> → a design problem. Ours can be neater than what is on there.</li>
+        <li><b>"More work for Rafi"</b> → it is the <b>same</b> work — one label, either way.</li>
+        <li><b>"Customers pick them up"</b> → the only one needing an alternative.</li>
+      </ul>
+    </div>
+    <ol class="steps">
+      <li><div class="step-body">Ask it as: <b>"You already put a price sticker on every grinder. What
+        if that same sticker had the number on it too?"</b> — number in plain text, <b>not</b> a barcode.
+        <span class="exp">his actual answer, in his words</span></div></li>
+      <li><div class="step-body">If no: offer the <b>scan card</b> — thumbnail · name · price · barcode,
+        4–6 A4 pages at the till. <b>Nothing marked</b>, and it shows a picture to match against.
+        <span class="exp">yes / no / "let me think"</span></div></li>
+      <li><div class="step-body">Ask what he wants for <b>bongs</b> — 952 rows with no barcode, and the
+        month's biggest sales were hardware (398.– · 307.– · 300.–).
+        <span class="exp">a direction, not a decision — bongs are not today's job</span></div></li>
+    </ol>
+    <label class="cm">E · Felix's answer</label>
+    <textarea data-cm="felix" placeholder="which objection it really was · what he agreed to · anything about bongs"></textarea>
+  </section>
+
+  <!-- ============ F ============ -->
+  <div class="phase">F · While you are there — the CHF 99 rows</div>
+
+  <section>
+    <h2>💸 F1 · 74 products still ring up at 99.00</h2>
+    <p class="why">40 were created on 5 August and <b>they scan at the till right now</b>. The list is
+      in <a href="2026-08-05-verify-tomorrow.md">2026-08-05-verify-tomorrow.md</a>, and Catalog Health
+      has a red card for them.</p>
+    <ol class="steps">
+      <li><div class="step-body">Open <code>/pos/catalog-health</code> — is the red
+        <b>💸 Price not verified yet</b> card there, and does it tap through to the list?
+        <span class="exp">74, and the tap lands on those rows</span></div></li>
+      <li><div class="step-body">Price as many of the 40 as you can with the shelf in front of you.
+        <span class="exp">count how many you got — write it in the note</span></div></li>
+      <li><div class="step-body">⚠️ Some of the other 34 may be <b>real</b> — a bong at CHF 99 is
+        plausible. Confirm, do not assume.
+        <span class="exp">nothing correct got changed</span></div></li>
+    </ol>
+    <label class="cm">F · prices done</label>
+    <textarea data-cm="prices" placeholder="how many of the 40 · anything that was actually correct at 99"></textarea>
+  </section>
+
+  <section>
+    <h2>📋 Before you close the tab</h2>
+    <p class="why">Press <b>📋 findings</b> and paste into <code>WORKLIST.md</code>. The number that
+      matters most is <b>D · the hit rate</b> — it decides the next build.</p>
+  </section>
+</main>
+<script>
+  const KEY='banco-grinder-search-v1';
+  const STEPS=[];
+  const VDEFS=[['pass','OK','✓'],['fail','FAIL','✗'],['issue','ISSUE','⚠']];
+
+  function verdictControl(i){
+    const box=document.createElement('div'); box.className='verdict';
+    VDEFS.forEach(([v,lbl,ic])=>{ const b=document.createElement('button'); b.type='button';
+      b.className='vbtn v-'+v; b.innerHTML=ic+' '+lbl; b.title=lbl;
+      b.addEventListener('click', ()=>setVerdict(i, STEPS[i].verdict===v ? '' : v));
+      box.appendChild(b); STEPS[i]._btns[v]=b; });
+    return box;
+  }
+  function paintVerdict(i){ const s=STEPS[i]; VDEFS.forEach(([v])=>{ const b=s._btns[v];
+    if(b) b.classList.toggle('on', s.verdict===v); }); }
+  function setVerdict(i,v){ STEPS[i].verdict=v; paintVerdict(i); save(); progress(); }
+
+  function buildSteps(){
+    document.querySelectorAll('ol.steps li').forEach((li,i)=>{
+      const bodyEl = li.querySelector('.step-body');
+      const label = (bodyEl?.textContent||'').trim().replace(/\s+/g,' ').slice(0,120);
+      STEPS[i]={ li, label, verdict:'', ta:null, thumbs:null, shots:[], _btns:{} };
+      li.insertBefore(verdictControl(i), li.firstChild);
+      const wrap=document.createElement('div'); wrap.className='step-extra';
+      const row=document.createElement('div'); row.className='cm-row';
+      const ta=document.createElement('textarea'); ta.className='step-cm'; ta.rows=1;
+      ta.placeholder='note… what happened, how long, what you had to invent (type or 🎤 speak)';
+      ta.addEventListener('input', save);
+      const mic=document.createElement('button'); mic.className='mic-btn'; mic.type='button';
+      mic.textContent='🎤'; mic.title='Dictate this note';
+      mic.addEventListener('click', ()=>micToggle(mic, ta));
+      row.appendChild(ta); row.appendChild(mic); wrap.appendChild(row);
+      const zone=document.createElement('div'); zone.className='shot-zone'; zone.tabIndex=0;
+      zone.textContent='📋 click & paste a screenshot (Ctrl+V) · drop an image · or 📷 pick a file';
+      const fin=document.createElement('input'); fin.type='file'; fin.accept='image/*';
+      fin.capture='environment'; fin.className='hidden';
+      zone.addEventListener('click', ()=>{ activeIdx=i; fin.click(); });
+      zone.addEventListener('focus', ()=>{ activeIdx=i; });
+      zone.addEventListener('dragover', e=>{ e.preventDefault(); zone.classList.add('drag'); });
+      zone.addEventListener('dragleave', ()=>zone.classList.remove('drag'));
+      zone.addEventListener('drop', e=>{ e.preventDefault(); zone.classList.remove('drag'); activeIdx=i;
+        [...(e.dataTransfer.files||[])].forEach(f=>{ if(f.type.startsWith('image/')) addShot(i,f); }); });
+      fin.addEventListener('change', e=>{ [...(e.target.files||[])].forEach(f=>addShot(i,f)); e.target.value=''; });
+      const thumbs=document.createElement('div'); thumbs.className='thumbs';
+      wrap.appendChild(zone); wrap.appendChild(fin); wrap.appendChild(thumbs);
+      bodyEl.appendChild(wrap);
+      STEPS[i].ta=ta; STEPS[i].thumbs=thumbs;
+    });
+  }
+
+  let activeIdx=null;
+  document.addEventListener('paste', e=>{ if(activeIdx==null) return;
+    const items=(e.clipboardData||{}).items||[];
+    for(const it of items){ if(it.type && it.type.startsWith('image/')){ const f=it.getAsFile();
+      if(f){ addShot(activeIdx,f); e.preventDefault(); } } } });
+  function downscale(file, cb){ const url=URL.createObjectURL(file); const img=new Image();
+    img.onload=()=>{ const max=1000; let w=img.width,h=img.height; if(w>max){ h=Math.round(h*max/w); w=max; }
+      const c=document.createElement('canvas'); c.width=w; c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h); URL.revokeObjectURL(url);
+      try{ cb(c.toDataURL('image/jpeg',0.6)); }catch(e){ cb(null); } };
+    img.onerror=()=>{ URL.revokeObjectURL(url); cb(null); }; img.src=url; }
+  function addShot(i,file){ downscale(file, data=>{ if(!data) return;
+    STEPS[i].shots.push({name:file.name||'screenshot.png', data}); renderThumbs(i); save(); }); }
+  function renderThumbs(i){ const t=STEPS[i].thumbs; t.innerHTML='';
+    STEPS[i].shots.forEach((sh,si)=>{ const d=document.createElement('div'); d.className='sh';
+      const im=document.createElement('img'); im.src=sh.data; im.title=sh.name;
+      im.onclick=()=>{ const w=window.open(); if(w) w.document.write('<img src="'+sh.data+'" style="max-width:100%">'); };
+      const rm=document.createElement('button'); rm.className='rm'; rm.textContent='✕'; rm.title='remove';
+      rm.onclick=()=>{ STEPS[i].shots.splice(si,1); renderThumbs(i); save(); };
+      d.appendChild(im); d.appendChild(rm); t.appendChild(d); }); }
+
+  function save(){ const d={verdict:[],note:[],shots:[],cm:{},seconds};
+    STEPS.forEach((s,i)=>{ d.verdict[i]=s.verdict||''; d.note[i]=s.ta.value; d.shots[i]=s.shots; });
+    document.querySelectorAll('textarea[data-cm]').forEach(t=>d.cm[t.dataset.cm]=t.value);
+    try{ localStorage.setItem(KEY,JSON.stringify(d)); }catch(e){ console.warn('storage full', e); } }
+  function restore(){ try{ const d=JSON.parse(localStorage.getItem(KEY)||'{}');
+    STEPS.forEach((s,i)=>{ if(d.verdict&&d.verdict[i]){ s.verdict=d.verdict[i]; paintVerdict(i); }
+      if(d.note&&d.note[i]!=null) s.ta.value=d.note[i];
+      if(d.shots&&Array.isArray(d.shots[i])){ s.shots=d.shots[i]; renderThumbs(i); } });
+    if(d.cm) document.querySelectorAll('textarea[data-cm]').forEach(t=>{ if(d.cm[t.dataset.cm]!=null) t.value=d.cm[t.dataset.cm]; });
+    if(typeof d.seconds==='number'){ seconds=d.seconds; paintClock(); } }catch(e){} }
+
+  function progress(){ let p=0,f=0,iss=0,dec=0;
+    STEPS.forEach(s=>{ if(s.verdict){ dec++; if(s.verdict==='pass')p++; else if(s.verdict==='fail')f++; else iss++; } });
+    document.getElementById('prog').textContent=dec+'/'+STEPS.length;
+    mOk.textContent=p; mIss.textContent=iss; mFail.textContent=f; }
+
+  // Turn the run into something that can be pasted straight into WORKLIST.md. A finding that
+  // stays in a browser tab is a finding nobody acts on.
+  function copyFindings(){
+    const L=['# Grinder search — findings','', 'elapsed: '+document.getElementById('clock').textContent, ''];
+    STEPS.forEach(s=>{ if(s.verdict==='fail'||s.verdict==='issue'||(s.ta.value||'').trim()){
+      L.push('- ['+(s.verdict||'note').toUpperCase()+'] '+s.label + ((s.ta.value||'').trim()? '\n      → '+s.ta.value.trim() : '')); } });
+    L.push('', '## Decisions for Angel + Felix');
+    document.querySelectorAll('textarea[data-cm]').forEach(t=>{ const v=(t.value||'').trim();
+      if(v) L.push('- **'+t.dataset.cm.toUpperCase()+'** — '+v); });
+    const txt=L.join('\n');
+    navigator.clipboard?.writeText(txt).then(
+      ()=>alert('Findings copied — paste into WORKLIST.md'),
+      ()=>{ const w=window.open(); if(w) w.document.write('<pre>'+txt.replace(/</g,'&lt;')+'</pre>'); });
+  }
+
+  let seconds=0, timer=null;
+  function paintClock(){ const m=String(Math.floor(seconds/60)).padStart(2,'0'),
+    s=String(seconds%60).padStart(2,'0'); document.getElementById('clock').textContent=m+':'+s; }
+  function toggleTimer(){ const b=document.getElementById('startBtn');
+    if(timer){ clearInterval(timer); timer=null; b.textContent='▶ Resume'; }
+    else { timer=setInterval(()=>{ seconds++; paintClock(); if(seconds%10===0) save(); },1000);
+      b.textContent='⏸ Pause'; } }
+
+  let rec=null;
+  function micToggle(btn, ta){
+    if(rec){ rec.stop(); return; }
+    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    if(!SR){ alert('This browser has no speech recognition — type the note instead.'); return; }
+    rec=new SR(); rec.lang='en-GB'; rec.interimResults=false; rec.continuous=true;
+    rec.onresult=e=>{ let t=''; for(let i=e.resultIndex;i<e.results.length;i++) t+=e.results[i][0].transcript;
+      ta.value=(ta.value?ta.value+' ':'')+t.trim(); save(); };
+    rec.onend=()=>{ btn.classList.remove('on'); rec=null; };
+    rec.onerror=()=>{ btn.classList.remove('on'); rec=null; };
+    btn.classList.add('on'); rec.start();
+  }
+
+  buildSteps(); restore(); progress(); paintClock();
+</script>
+</body>
+</html>
