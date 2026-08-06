@@ -1036,6 +1036,21 @@ so nothing in the database could say what it physically was. Only the bottle kne
 
 ## 🔭 Backlog (not yet scheduled)
 
+- **👤 `store_settings.owner_name` — stop hardcoding a person into the UI.** *(Angel, 2026-08-07:
+  "leave it for now, we can do the owner_name thing later")* **34 user-facing strings name a person**
+  across `my_day.html`, the closeout flow and all three languages in `src/static/pos/pos-i18n.js` —
+  `"Sent to Felix"`, `"Ask Felix to add you in Staff…"`, `"e.g. box is locked in the safe and Felix
+  has the key"`, `"p. ex. la caisse est au coffre et Felix a la clé"`. It is **deliberate**: the
+  i18n header lists `Felix/Ralph` alongside TWINT and Gizeh as names preserved across translations.
+  For Artemis it reads warmly and beats "your manager" — Pam knows who Felix is. For anyone cloning
+  the starter it is a stranger's name in their till.
+  **The fix:** add `owner_name` to `store_settings` (default `"your manager"`), render it through
+  the `{placeholder}` machinery the i18n file already supports, sweep the 34. Artemis keeps "Felix",
+  a fresh install reads sensibly. ~1 hour across three languages.
+  **Already done:** the cashier first-price panel and toast say *"a manager to check"* / *"flagged
+  for review"*, pinned by a test in `src/tests/test_cashier_first_price.py`. Code COMMENTS naming
+  Felix are provenance and stay — this is only about text on a screen.
+
 - **📦 THE OFFLINE KIT — a daily bundle that works with no Banco at all.** *(Angel, 2026-08-04. Full
   reasoning: [`onboarding/14-when-it-goes-down.md`](onboarding/14-when-it-goes-down.md))* A dated
   export on the back-office laptop: the whole catalogue with **barcodes, sale prices AND costs** as a
