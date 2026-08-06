@@ -691,6 +691,29 @@ so nothing in the database could say what it physically was. Only the bottle kne
   picture **is** sellable — say so, and keep flagging what is missing, rather than choosing between a
   green tick and a permanent red. *(Phase A · catalogue · Felix's call on the threshold)*
 
+- **🔴 SNAP-FIND HAS NO WORKING AI ON PROD — one key unblocks it.** *(Angel at the shop 2026-08-06:
+  photographed a grinder, got an empty create form, reasonably concluded the AI could not identify
+  it.)* **It was never called.** The grinder was in the catalogue the whole time
+  (`LZ-3661075283438`, *Ø50mm - 4-teiliger Champ High White Leaf Grinder*), and every plausible read
+  of that photo — `grinder` · `leaf grinder` · `white leaf grinder` · `Champ High` — finds it by name
+  search. **The search was never the problem.**
+  **✅ Already fixed and deployed:** the screen now surfaces the vision service's `note` as a warning
+  toast, so an AI that did not run says so instead of looking like an AI that found nothing; and a
+  scheme-less provider URL is normalised rather than trusted (prod had
+  `OLLAMA_TURBO_URL=www.ollama.com`, which httpx refuses outright).
+  **⛔ Still blocked — neither provider works on this box:**
+  | Provider | State |
+  |---|---|
+  | `gemini` (the default) | **`BH_GOOGLE_API_KEY` not set** |
+  | `ollama` | key + URL set, but `https://ollama.com/api/chat` returns **404** — endpoint unverified, and `.env.example` leaves `OLLAMA_TURBO_URL` blank so it was hand-set |
+  **➡️ THE ONE ACTION: put a `BH_GOOGLE_API_KEY` in prod `.env`.** Free from Google AI Studio, and
+  gemini is already the code default — `BANCO_VISION_PROVIDER` has been deliberately left **unset**
+  so the key alone is enough, with no second config step. *(Alternative: find the correct Ollama Turbo
+  endpoint and model — Angel set that up and knows what it should be.)*
+  ⚠️ **Until then the whole photo route in [`20`](onboarding/20-no-barcode-items.md) is untestable** —
+  the ten-grinder hit rate that decides whether a batch tool is worth building cannot be measured.
+  *(Phase A · blocks the grinder workflow)*
+
 - **🔎 SPEC FILTERS at the till — the real answer for no-barcode goods.** *(Angel, 2026-08-06: "when
   a cashier searches for an item they either have a working EAN barcode or they don't, and then they
   need to search via cat or name or part number **and have filters for ss or plastic or types of
