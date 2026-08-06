@@ -118,13 +118,35 @@ async def _claude(b64: str, prompt: str, mime: str = "image/jpeg") -> tuple[str,
     return data["content"][0]["text"], model
 
 
+def _with_scheme(url: str, default: str = "https://") -> str:
+    """Add `https://` to a host that was configured without one, and trim the trailing slash.
+
+    2026-08-06 — snap-find looked broken at the shop: photograph a grinder, get an empty create
+    form, conclude the AI could not identify it. The AI was never called. Prod carried
+    `OLLAMA_TURBO_URL=www.ollama.com` — no scheme — and httpx refuses that with
+    *"Request URL is missing an 'http://' or 'https://' protocol"*, which the caller degrades to a
+    generic "AI unavailable". The message lands nowhere near the cause.
+
+    This is the `.env` fragility lesson again (CLAUDE.md 2026-07-22, inline comments parsed as
+    values). A URL typed without its scheme is an easy, invisible mistake, and the code's own
+    DEFAULT here already had `https://` — so the override was strictly worse than no override.
+    Normalise instead of trusting the value.
+    """
+    u = (url or "").strip().rstrip("/")
+    if not u:
+        return ""
+    return u if u.startswith(("http://", "https://")) else default + u
+
+
 async def _ollama(b64: str, prompt: str, mime: str = "image/jpeg") -> tuple[str, str]:  # noqa: ARG001
-    base = os.getenv("OLLAMA_URL", "http://ollama:11434").rstrip("/")
+    # Same normalisation as the Turbo URL below — standing rule 6, the sibling had the same shape.
+    # `http://` default here because this one is an in-cluster host, not the public service.
+    base = _with_scheme(os.getenv("OLLAMA_URL", "http://ollama:11434"), "http://")
     model = os.getenv("OLLAMA_VISION_MODEL", "llama3.2-vision")
     headers = {}
     key = os.getenv("BH_OLLAMA_KEY", "")
     if key:  # Turbo-style bearer, if a hosted vision model is in use
-        base = os.getenv("OLLAMA_TURBO_URL", "https://ollama.com").rstrip("/")
+        base = _with_scheme(os.getenv("OLLAMA_TURBO_URL", "https://ollama.com"))
         headers["Authorization"] = f"Bearer {key}"
     body = {
         "model": model,
