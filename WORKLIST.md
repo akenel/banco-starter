@@ -691,6 +691,21 @@ so nothing in the database could say what it physically was. Only the bottle kne
   picture **is** sellable — say so, and keep flagging what is missing, rather than choosing between a
   green tick and a permanent red. *(Phase A · catalogue · Felix's call on the threshold)*
 
+- **🤝 THE TWO READS DISAGREEING IS A SIGNAL — and it is currently thrown away.** *(Found 2026-08-06
+  proving the two-stage read on the real endpoint.)* The safety argument for stage 1 was *"brand-led
+  is what recognises a non-grinder"*. **It is only usually right.** On Angel's stash tin the brand
+  read returned `Tightvac Vacuum Storage Container` / `Storage & Stash` on one run — correct — and
+  **`Egatvec Grinder` / `Grinders`** on the next. When it miscategorises, stage 2 inherits the error
+  and searches the wrong shelf.
+  **The interesting part:** on that same run the *form* read answered **`Dose Silikon 2teilig 35mm`**
+  — a **tin**, not a grinder. It resisted the framing it was given and described what it actually
+  saw. **The two reads contradicted each other, and nothing noticed.**
+  **Wanted:** when the form read's own noun disagrees with the brand read's category (`Dose` under
+  `Grinders`), **say so on screen** — "the two reads disagree, check the category". Cheap, and it is
+  the same doctrine as the honest match score: *never a confident wrong answer.* A disagreement is
+  the system knowing something is off; swallowing it is the silent-failure shape again.
+  *(shop floor · catalogue)*
+
 - **🔬 ASK THE AI FOR THE FORM, NOT THE BRAND — measured, and it roughly doubles the match score.**
   *(Angel's insight, 2026-08-06: "you have a style of grinder in 3 sizes that a manufacturer white-
   labels and sells plain or in 15 colours — I was hoping it would recognise the shape.")*
