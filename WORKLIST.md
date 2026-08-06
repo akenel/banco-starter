@@ -691,6 +691,36 @@ so nothing in the database could say what it physically was. Only the bottle kne
   picture **is** sellable — say so, and keep flagging what is missing, rather than choosing between a
   green tick and a permanent red. *(Phase A · catalogue · Felix's call on the threshold)*
 
+- **🔬 ASK THE AI FOR THE FORM, NOT THE BRAND — measured, and it roughly doubles the match score.**
+  *(Angel's insight, 2026-08-06: "you have a style of grinder in 3 sizes that a manufacturer white-
+  labels and sells plain or in 15 colours — I was hoping it would recognise the shape.")*
+  He is right, and the catalogue names already encode exactly that:
+  `Grinder Alu CNC 4teilig mit Sieb 62mm Rasta` = material · parts · feature · size · artwork. The
+  prompt asks for a **brand-led shelf name**, which is right for branded retail and wrong for
+  white-label goods where the print is decoration and the **form is the signal**.
+  **Measured on prod via the existing `hint` param, same photos, same code:**
+  | photo | brand-led | form-led |
+  |---|---|---|
+  | g00 Champ High | 0.552 | **0.895** |
+  | g02 Garden Highpro | 0.368 | **0.895** |
+  | g04 Barney's Farm | 0.370 | **0.744** |
+  | g03 Birdy | 0.393 | **0.613** |
+  | g05 Master The Grow | 0.619 | **0.700** |
+  Form-led won on **every** photo, and the matches were the right form —
+  `Grinder Alu CNC 4teilig mit Sieb 50mm …`.
+  **⚠️ It is a SECOND read, not a replacement.** The hint presupposes the category: told "this is a
+  white-label grinder", the model dutifully turned Angel's **stash tin** into
+  `Grinder Acryl 2teilig 50mm`, while the brand-led read correctly called it
+  `Tightvac Vacuum Storage Container`. **Brand-led is what recognises a non-grinder.**
+  **Design: two-stage.** ① brand-led → category (and the non-grinder catch) ② if the category is a
+  white-label class (grinders · trays · plain glass), re-read form-led and search on that — or just
+  run both queries and merge. Two calls, ~5 s.
+  **🔴 Do NOT trust the size it returns.** Angel predicted this before the test: *"on the pictures
+  there is no way to know relative sizes."* Confirmed — the model answered `50mm` for nearly
+  everything. It helps the match because most grinders are ~50mm, but it is **a guess wearing a
+  number**, which is this project's most-repeated bug shape. If a form-led read ever WRITES a
+  product, the mm comes off a caliper or the packaging, never the model. *(shop floor · catalogue)*
+
 - **⬇️ DEMOTE the photo/batch tooling — "less is more" already solves this.** *(Angel, 2026-08-06,
   while the AI runs were being measured.)* He typed **`Champ High White Leaf` + category Grinders**
   and got **2 of 2 matches, the right one first** — the same product snap-find missed on two runs
