@@ -1473,9 +1473,20 @@ async def _find_catalog_matches(db: AsyncSession, q: str, limit: int = 6,
     #
     # ⚠️ BOOST, NEVER FILTER — the same call as the mm ranking. A category scope would HIDE the
     # right row whenever the model guessed the shelf wrong, which is the 2026-07-31 failure mode
-    # ("a filter that treats unknown as a value throws away the right answer"). Ranking same-shelf
-    # matches first costs nothing when the guess is wrong and fixes the order when it is right.
+    # ("a filter that treats unknown as a value throws away the right answer").
     # The prompt constrains the model to CANONICAL_CATEGORIES, so the value is a known label.
+    #
+    # 2026-08-06 — AND A SORT KEY *ABOVE* SCORE IS A FILTER WEARING A BOOST'S CLOTHES.
+    # This first shipped as `ORDER BY <category matches> , <name prefix> , score DESC` — three
+    # hard tiers, score last. Angel photographed a **Greengo** grinder off the shelf wall; the AI
+    # read `Greengo` + `Grinders` and the search returned ten grinders at 0.625, **not one of them
+    # a Greengo**, while the six genuine `Greengo` rows sat at **1.000** — buried, because they
+    # are filed under `Other`/`Rolling Papers`. Drop the category and they come back 1..6. A
+    # perfect brand match lost to a mediocre same-shelf one, which is precisely what the line
+    # above says must never happen. `limit` then turns "ranked lower" into "does not exist".
+    # So the boost is now ADDITIVE: +0.15 same category, +0.10 name-prefix, added to the score
+    # rather than sorted ahead of it. A 0.625 shelf-mate can no longer bury a 1.000 exact hit,
+    # and a right-shelf row still wins every close call — which was the whole point.
     cat = (category or "").strip()
 
     # Live catalog = the Artemis-Luzern truth already imported into `products`.
@@ -1503,8 +1514,12 @@ async def _find_catalog_matches(db: AsyncSession, q: str, limit: int = 6,
            OR word_similarity(:q, coalesce(name,'') || ' ' || coalesce(description,'')) > 0.45
            OR supplier_name ILIKE '%' || :q || '%'
         ORDER BY is_active DESC,
-                 CASE WHEN :cat <> '' AND category = :cat THEN 0 ELSE 1 END,
-                 CASE WHEN name ILIKE :q || '%' THEN 0 ELSE 1 END,
+                 (GREATEST(
+                    similarity(name, :q),
+                    word_similarity(:q, coalesce(name,'') || ' ' || coalesce(description,''))
+                  )
+                  + CASE WHEN :cat <> '' AND category = :cat THEN 0.15 ELSE 0 END
+                  + CASE WHEN name ILIKE :q || '%' THEN 0.10 ELSE 0 END) DESC,
                  score DESC, name
         LIMIT :limit
     """), {"q": q, "limit": limit, "cat": cat})).fetchall()
