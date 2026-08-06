@@ -1114,6 +1114,7 @@
             pageBusy: false,
             pageNote: '',
             pendingImageUrl: '', // that page's photo — fetched into our storage AFTER the row exists
+            _aiTail: '',         // the spec/tag line WE appended — so a re-read replaces it, not stacks it
             snapBusy: false,      // BL-34: manual "🔎 Search similar" in flight
             // BL-35: live supplier-site search fallback
             liveResults: [],
@@ -1303,7 +1304,7 @@
             openCreate() {
                 this.editing = false;
                 this.form = this._blankForm();
-                this.gallery = []; this.pendingPhotos = []; this.pendingImageUrl = ''; this.uploadingPhoto = false;
+                this.gallery = []; this.pendingPhotos = []; this.pendingImageUrl = ''; this._aiTail = ''; this.uploadingPhoto = false;
                 this.aiBusy = false; this.aiNote = '';
                 this.modalOpen = true;
                 this._formSnapshot = this._formSig();   // baseline for the unsaved-changes guard
@@ -1657,8 +1658,18 @@
                         .map(k => f.ai_specs[k]).filter(Boolean).join(' · '));
                     if (f.ai_tags && f.ai_tags.length) extra.push(f.ai_tags.join(', '));
                     const tail = extra.filter(Boolean).join(' · ');
-                    if (tail && !(this.form.description || '').includes(tail)) {
-                        this.form.description = ((this.form.description || '') + '\n' + tail).trim();
+                    if (tail) {
+                        // REPLACE the previous spec line, never stack another one. Pressing Read
+                        // twice appended twice on 2026-08-06 — the model reworded itself between
+                        // runs ("55 mm" → "55 mm Durchmesser, 26 mm Höhe"), so an exact-match guard
+                        // saw a different string and let it through. Remember what we wrote and cut
+                        // exactly that, so a second read CORRECTS the line instead of duplicating it.
+                        let base = this.form.description || '';
+                        if (this._aiTail && base.endsWith(this._aiTail)) {
+                            base = base.slice(0, -this._aiTail.length);
+                        }
+                        this._aiTail = '\n' + tail;
+                        this.form.description = (base.trimEnd() + this._aiTail).trim();
                     }
                     // The EAN is the prize — a real code beats a minted one every time.
                     if (blank(this.form.barcode) && f.barcode) this.form.barcode = f.barcode;
@@ -1812,7 +1823,7 @@
             async openEdit(p) {
                 this.editing = true;
                 this.form = { id: p.id, ...this._blankForm(), ...p };  // start with row data
-                this.gallery = []; this.pendingPhotos = []; this.pendingImageUrl = ''; this.uploadingPhoto = false;
+                this.gallery = []; this.pendingPhotos = []; this.pendingImageUrl = ''; this._aiTail = ''; this.uploadingPhoto = false;
                 this.modalOpen = true;
                 try {
                     // Enrich with the full record (cost, thresholds, supplier, etc.).
