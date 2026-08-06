@@ -3614,6 +3614,35 @@ def _query_size_regex(q: str) -> Optional[str]:
     return r"\y" + num + r"\s?" + unit + r"\y"               # \y = word boundary in Postgres regex
 
 
+# An ARTICLE NUMBER typed at the till: bare digits, or a SKU with its letter prefix
+# ("12815", "TAM-12815", "tam12815"). 3-digit floor on purpose — a 2-digit query is far
+# more likely a SIZE ("62" for a 62mm grinder) than a code, and 5,094 of the 5,099 TAM
+# SKUs carry 3+ digits, so the floor costs almost nothing and avoids fighting _query_size_regex.
+_CODE_Q_RE = re.compile(r"^\s*(?:[A-Za-z]{2,6}[-_ ]?)?(\d{3,})\s*$")
+
+
+def _query_code_exact(q: str) -> Optional[str]:
+    """The bare article number in a query, or None.
+
+    2026-08-06 — Angel: "every grinder already has a 4-5 digit number unique in the system…
+    if you type 1002 well then good luck." He is right on both counts. Measured on prod:
+    the FULL 5 digits returned exactly one product **300 times out of 300**, while a bare
+    4-digit type hit **15 products** at worst and was unique only 30% of the time.
+
+    Typing the number is the fastest way to sell a product that has NO BARCODE — grinders,
+    bongs, trays — and it needs no sticker on the goods, which is the constraint Felix set
+    (see onboarding/20-no-barcode-items.md). But the search RANKED it by `relevance`, a
+    name+description trigram, and **a number never matches a name** — so the order of numeric
+    hits was noise, and an exact `TAM-1002` was not guaranteed to beat `TAM-10027`.
+
+    This only says "the query looks like a code". The ranking is done in SQL against
+    `supplier_sku` (already the bare digits for every TAM row), the SKU with its prefix
+    stripped, and `barcode` — so it works for LZ-/ITEM-/SKU- rows too, not just TAM.
+    """
+    m = _CODE_Q_RE.match(q or "")
+    return m.group(1) if m else None
+
+
 def _product_size(name: str) -> str:
     """Normalized size token in a product name ('2g','10ml','20mg','34stk','250er') or '' — the
     Python mirror of the client's posProductSize. Used by the dedup guard so a variant is only a
@@ -3708,6 +3737,26 @@ async def search_products_fast(
     if size_rx:
         order_clause = "CASE WHEN name ~* :size_rx THEN 0 ELSE 1 END, " + order_clause
 
+    # 2026-08-06 — an ARTICLE NUMBER beats every other signal, so this is prepended LAST and
+    # therefore sorts FIRST, under any chosen sort. See _query_code_exact for the measurement:
+    # typing a full 5-digit TAM was unique 300/300, but the ranking scored numbers by a
+    # name-trigram (noise), so `TAM-1002` could sit below `TAM-10027`. This is the whole route
+    # to selling a no-barcode product without sticking anything on it.
+    #
+    # Matched three ways so it is not TAM-only: `supplier_sku` (already the bare digits on every
+    # TAM row), the SKU with its letter prefix stripped (covers LZ-/ITEM-/SKU-), and `barcode`.
+    # An exact hit is FLOATED, never filtered — the near-misses still show underneath, which is
+    # what a cashier wants when they typed 4 digits of a 5-digit code.
+    code_exact = _query_code_exact(q)
+    if code_exact:
+        order_clause = (
+            "CASE WHEN supplier_sku = :code_exact"
+            "       OR regexp_replace(sku, '^[A-Za-z]+[-_]', '') = :code_exact"
+            "       OR sku = :code_exact"
+            "       OR barcode = :code_exact"
+            "     THEN 0 ELSE 1 END, "
+        ) + order_clause
+
     # image fallback: a product's cover lives in products.image_url, but a cashier-
     # uploaded gallery photo only sets the cover when none exists yet — so a product can
     # have a perfectly good photo (visible in the edit gallery) while image_url is NULL,
@@ -3766,6 +3815,8 @@ async def search_products_fast(
         params["syn_like"] = syn_like
     if size_rx:
         params["size_rx"] = size_rx
+    if code_exact:
+        params["code_exact"] = code_exact
     rows = (await db.execute(query, params)).fetchall()
 
     from src.services.catalog_taxonomy import class_promo_restricted
