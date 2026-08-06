@@ -691,6 +691,34 @@ so nothing in the database could say what it physically was. Only the bottle kne
   picture **is** sellable — say so, and keep flagging what is missing, rather than choosing between a
   green tick and a permanent red. *(Phase A · catalogue · Felix's call on the threshold)*
 
+- **📋 THE PAPER BUNDLE PRICES EXIST — ON A SIGN ON THE WALL, AND NOWHERE ELSE.** *(Angel
+  photographed it 2026-08-06 — `onboarding/testsheets/grinders/2026-08-06-shelf-wall/w02.jpg`.)*
+  ```
+  !! Preise gesenkt !!            Bundle Preise — ALLE HERSTELLER
+     3x Longpape      5.-            3x Rollenpape    10.-
+  Boxen — ALLE HERSTELLER
+     Box Longpape    39.-            Box Rollen       49.-
+  Budget Papes Rockies Box:  25.- Rollen · 17.- Longpape weiss/braun · 19.- Longpape weiss mit Filter
+  ```
+  **"Alle Hersteller" makes it a RULE, not a per-product price** — which is exactly what
+  `price_tiers` + `tier_mode='bundle'` model, and it is the missing half of the 30-July item below
+  (*"retail tier prices aren't reaching the POS"*). That item assumed the answer had to be scraped
+  off artemisluzern.ch. **It did not: it is on the wall, and it is four numbers.**
+  **State today: 6 of 155 rolling papers carry any tier, and none of them is this one.** The six hold
+  ladders like `1.40 → 1.30 @10 → 0.95 @50 → 0.80 @150` — **Tamar's WHOLESALE ladder, what Felix
+  pays**, which is precisely the confusion the 30-July item names.
+  ⚠️ **Do NOT bulk-apply this without Angel.** The sign speaks Artemis's own language, and the
+  mapping is a judgement only he can make: `Rips Hemp King Size rolling papers 5m` is a 5-metre roll,
+  yet he priced it `3 for 6.00` — not the sign's `3x Rollenpape 10.-` — because at CHF 2.50 a single,
+  3-for-10 would cost MORE than three singles. **So "Longpape" and "Rollenpape" do not map onto the
+  catalogue by name.** The sign is the rule; deciding which products it covers is human work.
+  **Wanted:** Angel tags which products are Longpape vs Rollenpape (a category or a tag), then one
+  script applies the ladder to each group. ✅ He has already done the first one by hand from the till
+  using the new manager price panel — `TAM-2834`, 2.50, bundle, 3/6.00 · 5/9.00 · 10/17.00.
+  ✅ **Fixed on the way:** `Papers & Filters` is **not** in `CANONICAL_CATEGORIES` and 2 rows carried
+  it (both Rips), making them invisible to a `Rolling Papers` filter. Moved. *(shop floor ·
+  money-correctness)*
+
 - **🔇 THE CATALOG SEARCH NEVER SAYS "no strong match" — 69 weak rows look exactly like a hit.**
   *(Angel, 2026-08-06: searched `hempsana salbe 75ml`, got 69 results led by a Chubby Gorilla bottle
   and a tube of toothpaste, concluded "the look up is not good".)*
