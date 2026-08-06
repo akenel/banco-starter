@@ -1352,6 +1352,46 @@ _FORM_HINT = (
 )
 
 
+# The form read opens with the product NOUN ("Grinder Alu 4teilig…", "Dose Silikon 2teilig…").
+# Mapping that noun to the shelf it implies lets us catch the two reads CONTRADICTING each other.
+#
+# 2026-08-06 — the case that made this necessary. Angel photographed a vacuum storage tin. The brand
+# read called it `Tightvac Vacuum Storage Container` / `Storage & Stash` on one run (right) and
+# `Egatvec Grinder` / `Grinders` on the next (wrong). Stage 2 then inherited the wrong shelf. But on
+# that same run the FORM read answered **`Dose Silikon 2teilig 35mm`** — a tin, not a grinder. It
+# described what it actually saw and disagreed with stage 1, **and nothing noticed.**
+#
+# A disagreement is the system knowing something is off. Swallowing it is the silent-failure shape
+# (2026-08-06 morning: an AI that never ran, reported as 200 OK) and the opposite of the honest
+# match score this endpoint was built around — *never a confident wrong answer*.
+_FORM_NOUN_CATEGORY = {
+    "grinder": "Grinders", "mühle": "Grinders", "muehle": "Grinders", "crusher": "Grinders",
+    "dose": "Storage & Stash", "box": "Storage & Stash", "behälter": "Storage & Stash",
+    "behaelter": "Storage & Stash", "container": "Storage & Stash", "tube": "Storage & Stash",
+    "glas": "Storage & Stash", "glasflasche": "Storage & Stash",
+    "schale": "Rolling Trays", "tray": "Rolling Trays", "rollingtray": "Rolling Trays",
+    "aschenbecher": "Ashtrays", "ashtray": "Ashtrays",
+    "waage": "Scales", "scale": "Scales",
+    "pfeife": "Pipes", "pipe": "Pipes", "holzpfeife": "Pipes", "glaspfeife": "Pipes",
+    "bong": "Bongs", "wasserpfeife": "Bongs",
+    "feuerzeug": "Lighters", "lighter": "Lighters",
+    "filter": "Filters & Tips", "sieb": "Bong & Pipe Accessories",
+    "papers": "Rolling Papers", "blättchen": "Rolling Papers", "paper": "Rolling Papers",
+}
+
+
+def _form_noun_category(form_name: str) -> Optional[str]:
+    """The shelf the form read's opening NOUN implies, or None when we do not recognise it.
+
+    Returns None generously on purpose — an unrecognised noun must NOT raise a false alarm. Only a
+    noun we positively know maps to a shelf can contradict anything."""
+    for tok in (form_name or "").replace("/", " ").replace("-", " ").split():
+        cat = _FORM_NOUN_CATEGORY.get(tok.strip(",.;:\"'").lower())
+        if cat:
+            return cat
+    return None
+
+
 async def _find_catalog_matches(db: AsyncSession, q: str, limit: int = 6,
                                 category: str | None = None) -> dict:
     """Find-first: given a NAME, search the LIVE catalog (`products`) AND the FourTwenty
@@ -1549,6 +1589,7 @@ async def snap_find_product(
     # repeated bug shape, so `suggestion` stays the brand-led one and the operator still types the
     # size off a caliper or the packaging.
     form_query = None
+    category_conflict = None
     if cat in _WHITE_LABEL_CATEGORIES:
         try:
             form = await suggest_product_from_image(
@@ -1556,23 +1597,35 @@ async def snap_find_product(
             )
             fs = form.get("suggestion") or {}
             fq = (fs.get("name") or "").strip()
+            # ⚖️ DO THE TWO READS AGREE ON WHAT THE THING IS? The form read opens with a noun; if
+            # that noun names a DIFFERENT shelf from the one stage 1 chose, one of them is wrong and
+            # the operator must be told rather than handed a confident list off the wrong shelf.
+            implied = _form_noun_category(fq)
+            if implied and implied != cat:
+                category_conflict = {"brand_says": cat, "form_says": implied, "form_name": fq}
+                logger.info("snap-find DISAGREEMENT: brand=%r form=%r (%r)", cat, implied, fq)
             if fq and fq.lower() != q.lower():
                 form_query = fq
-                extra = await _find_catalog_matches(db, fq, limit, category=cat)
-                # Merge best-score-wins, de-duped by product id, and re-rank. The form read is the
-                # stronger signal on these shelves (measured ~0.37 → ~0.90), so a row it scores
-                # higher deserves to move up — but rows only the brand read found still survive.
+                # Search the form query on stage 1's shelf — and, WHEN THE READS DISAGREE, on the
+                # shelf the form read named too. A warning that leaves the operator looking at the
+                # wrong shelf is half a fix: if stage 1 mislabelled a tin as a grinder, the tins are
+                # what we actually want in the list. Both scopes are plain SQL (~50 ms), not another
+                # vision call, so covering both costs nothing worth counting.
+                scopes = [cat] + ([category_conflict["form_says"]] if category_conflict else [])
                 seen = {p["id"]: p for p in matches["product_matches"]}
-                for p in extra["product_matches"]:
-                    prev = seen.get(p["id"])
-                    if prev is None or (p.get("score") or 0) > (prev.get("score") or 0):
-                        seen[p["id"]] = p
+                best = matches["best_match_score"]
+                for scope in scopes:
+                    extra = await _find_catalog_matches(db, fq, limit, category=scope)
+                    # Merge best-score-wins, de-duped by product id. The form read is the stronger
+                    # signal on these shelves (measured ~0.37 → ~0.90), so a row it scores higher
+                    # moves up — but rows only the brand read found still survive.
+                    for p in extra["product_matches"]:
+                        prev = seen.get(p["id"])
+                        if prev is None or (p.get("score") or 0) > (prev.get("score") or 0):
+                            seen[p["id"]] = p
+                    best = max(best, extra["best_match_score"])
                 merged = sorted(seen.values(), key=lambda p: -(p.get("score") or 0))[:limit]
-                matches = {
-                    **matches,
-                    "product_matches": merged,
-                    "best_match_score": max(matches["best_match_score"], extra["best_match_score"]),
-                }
+                matches = {**matches, "product_matches": merged, "best_match_score": best}
         except Exception as e:  # noqa: BLE001 — stage 2 is an ENHANCEMENT; never fail the request
             logger.warning("snap-find form read failed (%s) — brand-led results stand: %s",
                            type(e).__name__, e)
@@ -1583,7 +1636,8 @@ async def snap_find_product(
         len(matches["product_matches"]), len(matches["reference_matches"]),
         matches["best_match_score"], current_user["username"],
     )
-    return {**result, **matches, "form_query": form_query}
+    return {**result, **matches, "form_query": form_query,
+            "category_conflict": category_conflict}
 
 
 @router.get("/products/search-suppliers-live")
