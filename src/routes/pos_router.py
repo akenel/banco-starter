@@ -3605,8 +3605,24 @@ _SIZE_UNIT_FAMILY = {
 }
 
 
+# DIMENSIONS (mm/cm) are a SEARCH-RANKING unit only, and deliberately NOT part of _SIZE_Q_RE.
+#
+# 2026-08-06: `mm` is the best-covered spec on the grinder shelf — 165 of 192 names carry it
+# ("Grinder Alu CNC 4teilig mit Sieb 62mm Rasta") — and it is the first thing a customer asks.
+# But `62mm` got no size boost, because _SIZE_Q_RE only knows PACK sizes (g/ml/stk/er).
+#
+# ⚠️ Why a SEPARATE pattern instead of just adding "mm" to _SIZE_Q_RE: that regex has two users.
+# `_query_size_regex` feeds an ORDER BY — it can only reorder, never hide. `_product_size` feeds
+# the dedup guard, which FILTERS: `if same_size_only and want and not _same_size(...): continue`,
+# and `_same_size` returns False when either side is unknown. So teaching the shared regex about
+# mm would make a query for "50mm" silently DROP the 27 grinders whose names do not state a
+# diameter. That is the 2026-07-31 bug exactly ("a filter downstream of a fix can quietly undo
+# it" — pc./Stk.). Sort here, filter nowhere. The dedup side is filed in WORKLIST.md.
+_DIM_Q_RE = re.compile(r'(\d+(?:[.,]\d+)?)\s?(mm|cm)\b', re.I)
+
+
 def _query_size_regex(q: str) -> Optional[str]:
-    m = _SIZE_Q_RE.search(q or "")
+    m = _SIZE_Q_RE.search(q or "") or _DIM_Q_RE.search(q or "")
     if not m:
         return None
     num = m.group(1).replace(",", ".").replace(".", r"\.")   # escape the decimal dot for the PG regex

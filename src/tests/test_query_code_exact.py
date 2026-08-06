@@ -68,16 +68,13 @@ def test_it_does_not_steal_queries_the_size_ranker_wants():
         assert _query_size_regex(q) is not None, q
 
 
-def test_mm_is_not_a_pack_size_and_that_is_fine_here():
-    """Noted while writing these: `_query_size_regex` handles PACK sizes (g / ml / stk) and does
-    NOT treat `mm` as one — so '62mm' gets no size boost. That is a gap for GRINDERS specifically,
-    where the diameter in mm is the size a customer asks for ('Grinder … 62mm Rasta').
-
-    It is filed rather than fixed here, because it belongs to the size ranker, not the code
-    ranker. What matters for THIS change is only that the two never fight over the same string:
-    '62mm' is claimed by neither, so nothing regresses."""
-    assert _query_size_regex("62mm") is None
-    assert _query_code_exact("62mm") is None
+def test_a_dimension_belongs_to_the_SIZE_ranker_not_this_one():
+    """Written 2026-08-06 when `mm` was still unknown to both; the size ranker learned it the same
+    day (see test_dimension_boost.py). The invariant that matters here is unchanged and is the
+    reason both tests exist: a dimension must be claimed by **exactly one** ranker, or the ORDER BY
+    ends up carrying two competing CASE arms over the same string."""
+    assert _query_code_exact("62mm") is None          # not a code
+    assert _query_size_regex("62mm") is not None      # it is a size
 
 
 def test_a_pure_number_is_not_treated_as_a_size():
