@@ -691,7 +691,20 @@ so nothing in the database could say what it physically was. Only the bottle kne
   picture **is** sellable — say so, and keep flagging what is missing, rather than choosing between a
   green tick and a permanent red. *(Phase A · catalogue · Felix's call on the threshold)*
 
-- **🔴 SNAP-FIND HAS NO WORKING AI ON PROD — one key unblocks it.** *(Angel at the shop 2026-08-06:
+- **📷 snap-find throws away the CATEGORY the AI just told it.** *(Found 2026-08-06 proving the
+  vision path end to end on Angel's real grinder photo.)* Gemini read the photo as
+  `"Rasta Leaf Metal Grinder"` **with `category: "Grinders"`**, and `snap_find_product`
+  (`pos_router.py`) builds its query from **name + brand only** — the category is dropped.
+  **Result on the real photo:** the right grinder (`LZ-3661075283438`) came back at **rank 5 of 6**,
+  and **rank 1 was `Acryl Bong Atomic - Smoke Blower`**. A bong, above the grinder, on a photo of a
+  grinder.
+  **Fix:** pass the AI's category into `_find_catalog_matches` as a scope (or at least a ranking
+  boost). It would drop the bong and lift the real match several places — and the AI is already
+  constrained to the canonical tree by the prompt (`CANONICAL_CATEGORIES`), so the value is safe to
+  trust. **Cheap, and it directly improves the hit rate that decides the batch-tool question.**
+  *(shop floor · catalogue)*
+
+- **✅ RESOLVED 2026-08-06 — snap-find had no working AI on prod.** *(Angel at the shop 2026-08-06:
   photographed a grinder, got an empty create form, reasonably concluded the AI could not identify
   it.)* **It was never called.** The grinder was in the catalogue the whole time
   (`LZ-3661075283438`, *Ø50mm - 4-teiliger Champ High White Leaf Grinder*), and every plausible read
@@ -706,13 +719,15 @@ so nothing in the database could say what it physically was. Only the bottle kne
   |---|---|
   | `gemini` (the default) | **`BH_GOOGLE_API_KEY` not set** |
   | `ollama` | key + URL set, but `https://ollama.com/api/chat` returns **404** — endpoint unverified, and `.env.example` leaves `OLLAMA_TURBO_URL` blank so it was hand-set |
-  **➡️ THE ONE ACTION: put a `BH_GOOGLE_API_KEY` in prod `.env`.** Free from Google AI Studio, and
-  gemini is already the code default — `BANCO_VISION_PROVIDER` has been deliberately left **unset**
-  so the key alone is enough, with no second config step. *(Alternative: find the correct Ollama Turbo
-  endpoint and model — Angel set that up and knows what it should be.)*
-  ⚠️ **Until then the whole photo route in [`20`](onboarding/20-no-barcode-items.md) is untestable** —
-  the ten-grinder hit rate that decides whether a batch tool is worth building cannot be measured.
-  *(Phase A · blocks the grinder workflow)*
+  **✅ FIXED — `BH_GOOGLE_API_KEY` is now set on prod** (2026-08-06). Verified end to end on Angel's
+  real grinder photo: `gemini-2.5-flash`, ~2.7 s, no error note, and the correct product returned.
+  `BANCO_VISION_PROVIDER` is deliberately left **unset** so the code default (gemini) applies with no
+  second setting.
+  **Ollama is a dead end for this and that is settled** — Angel: *"Ollama IMHO has no vision
+  models."* Turbo returns **404** on `/api/chat`. The key and URL stay in `.env` harmlessly; do not
+  spend time on them.
+  **The photo route in [`20`](onboarding/20-no-barcode-items.md) is now testable** — the ten-grinder
+  hit rate can be measured. *(Phase A)*
 
 - **🔎 SPEC FILTERS at the till — the real answer for no-barcode goods.** *(Angel, 2026-08-06: "when
   a cashier searches for an item they either have a working EAN barcode or they don't, and then they
