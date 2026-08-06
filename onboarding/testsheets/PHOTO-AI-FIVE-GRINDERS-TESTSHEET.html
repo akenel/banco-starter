@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Five photos through the AI — 2026-08-06</title>
+<style>
+  :root{ --red:#157F52; --dark:#0f5c3b; --ink:#1f2937; --mut:#6b7280; --line:#e5e7eb;
+         --ok:#059669; --iss:#d97706; --fail:#C0392B; --bg:#f6f8f7; --gold:#b0862f; }
+  *{ box-sizing:border-box; }
+  body{ font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; color:var(--ink);
+        background:var(--bg); margin:0; line-height:1.5; }
+  a{ color:var(--dark); }
+  header{ position:sticky; top:0; z-index:10; background:#fff; border-bottom:2px solid var(--red);
+          padding:12px 20px; box-shadow:0 2px 8px rgba(0,0,0,.06); }
+  .htop{ display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+  h1{ font-size:18px; margin:0; }
+  h1 small{ color:var(--mut); font-weight:500; font-size:13px; display:block; margin-top:2px; }
+  .meters{ display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
+  .meter{ text-align:center; } .meter b{ font-size:20px; display:block; }
+  .meter.ok b{ color:var(--ok); } .meter.iss b{ color:var(--iss); } .meter.fail b{ color:var(--fail); }
+  .meter span{ font-size:11px; color:var(--mut); text-transform:uppercase; letter-spacing:.04em; }
+  .timer{ font-variant-numeric:tabular-nums; font-size:22px; font-weight:700; color:var(--ink); }
+  .btn{ border:1px solid var(--line); background:#fff; border-radius:8px; padding:6px 12px;
+        font-size:13px; cursor:pointer; } .btn:hover{ background:#f0f0f0; }
+  .btn.red{ background:var(--red); color:#fff; border-color:var(--red); }
+  main{ max-width:920px; margin:0 auto; padding:22px 20px 80px; }
+  .lead{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin-bottom:20px; }
+  .phase{ font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.06em;
+          color:var(--red); margin:26px 0 10px; padding-bottom:6px; border-bottom:2px solid var(--red); }
+  section{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin-bottom:14px; }
+  section h2{ font-size:15px; margin:0 0 4px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  section .why{ color:var(--mut); font-size:13px; margin:0 0 12px; }
+  code{ font-family:ui-monospace,Menlo,monospace; font-size:12px; background:#f3f4f6;
+        border:1px solid var(--line); border-radius:5px; padding:1px 5px; }
+  .cmd{ display:block; font-family:ui-monospace,Menlo,monospace; font-size:12.5px; background:#0f172a;
+        color:#e2e8f0; border-radius:8px; padding:9px 12px; margin:6px 0; white-space:pre-wrap; word-break:break-word; }
+  ol.steps{ margin:0; padding:0; list-style:none; }
+  ol.steps li{ display:flex; gap:10px; padding:9px 0; border-top:1px dashed var(--line); align-items:flex-start; }
+  ol.steps li:first-child{ border-top:none; }
+  .verdict{ display:flex; gap:4px; flex:none; margin-top:1px; }
+  .vbtn{ border:1px solid var(--line); background:#fff; border-radius:7px; padding:4px 8px; font-size:11px;
+         font-weight:700; cursor:pointer; color:var(--mut); white-space:nowrap; }
+  .vbtn:hover{ background:#f6f6f6; }
+  .vbtn.v-pass.on{ background:var(--ok); border-color:var(--ok); color:#fff; }
+  .vbtn.v-fail.on{ background:var(--fail); border-color:var(--fail); color:#fff; }
+  .vbtn.v-issue.on{ background:var(--iss); border-color:var(--iss); color:#fff; }
+  @media (max-width:600px){ .vbtn{ padding:4px 6px; font-size:10px; } ol.steps li{ flex-wrap:wrap; } }
+  .step-body{ flex:1; min-width:220px; font-size:14px; }
+  .exp{ display:block; color:var(--ok); font-size:12.5px; margin-top:4px; }
+  .exp::before{ content:"✓ expect: "; font-weight:600; }
+  textarea{ width:100%; border:1px solid var(--line); border-radius:8px; padding:8px 10px; font:inherit;
+            font-size:13px; margin-top:10px; resize:vertical; min-height:54px; }
+  textarea.step-cm{ margin-top:0; min-height:32px; font-size:12.5px; background:#fcfcfd; flex:1; }
+  .step-extra{ margin-top:8px; }
+  .cm-row{ display:flex; gap:6px; align-items:flex-start; }
+  .mic-btn{ border:1px solid var(--line); background:#fff; border-radius:8px; padding:4px 9px; cursor:pointer;
+            font-size:15px; flex:none; }
+  .mic-btn.on{ background:#e6f6ee; border-color:var(--red); color:var(--red); animation:pulse 1s infinite; }
+  @keyframes pulse{ 50%{ opacity:.45 } }
+  .shot-zone{ margin-top:6px; border:1.5px dashed var(--line); border-radius:8px; padding:6px 10px; font-size:12px;
+              color:var(--mut); cursor:pointer; background:#fafafa; }
+  .shot-zone:focus,.shot-zone.drag{ outline:none; border-color:var(--red); background:#f2fbf6; color:var(--ink); }
+  .thumbs{ display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; }
+  .thumbs .sh{ position:relative; }
+  .thumbs img{ height:66px; border-radius:6px; border:1px solid var(--line); cursor:zoom-in; display:block; }
+  .thumbs .rm{ position:absolute; top:-7px; right:-7px; background:var(--red); color:#fff; border:none;
+               border-radius:99px; width:19px; height:19px; font-size:11px; cursor:pointer; line-height:1; }
+  .hidden{ display:none; }
+  label.cm{ font-size:11px; color:var(--mut); text-transform:uppercase; letter-spacing:.04em; }
+  .safety{ border:1px solid var(--line); border-left:4px solid var(--gold); background:#fffdf5;
+           border-radius:8px; padding:10px 12px; margin:10px 0; font-size:13.5px; }
+  .danger{ border-left-color:var(--fail); background:#fdf2f0; }
+  .tag{ font-size:11px; font-weight:700; padding:2px 8px; border-radius:99px; background:#dcfce7; color:#065f46; }
+  .tag.gap{ background:#fef3c7; color:#92400e; }
+  .tag.t{ background:#e0e7ff; color:#3730a3; font-variant-numeric:tabular-nums; }
+  table{ border-collapse:collapse; width:100%; font-size:13px; margin:8px 0; }
+  th,td{ border:1px solid var(--line); padding:6px 9px; text-align:left; vertical-align:top; }
+  th{ background:#f6f8f7; }
+  .card{ font-family:ui-monospace,Menlo,monospace; font-size:12.5px; background:#0f172a; color:#e2e8f0;
+         border-radius:10px; padding:14px 16px; white-space:pre-wrap; }
+</style>
+</head>
+<body>
+
+<header><div class="htop">
+  <h1>📸 Five photos through the AI — does it find what the shop already owns?
+    <small>Shot off the accessory wall 2026-08-06. Each one tests a different way the read can go wrong.</small></h1>
+  <div class="meters">
+    <div class="meter"><span class="timer" id="clock">00:00</span><span>elapsed</span></div>
+    <div class="meter"><b id="prog">0/0</b><span>marked</span></div>
+    <div class="meter ok"><b id="mOk">0</b><span>ok</span></div>
+    <div class="meter iss"><b id="mIss">0</b><span>issue</span></div>
+    <div class="meter fail"><b id="mFail">0</b><span>fail</span></div>
+    <button class="btn red" id="startBtn" onclick="toggleTimer()">▶ Start</button>
+    <button class="btn" onclick="copyFindings()">📋 findings</button>
+    <button class="btn" onclick="if(confirm('Clear everything — marks, notes and screenshots?')){localStorage.removeItem(KEY);location.reload()}">reset</button>
+  </div>
+</div></header>
+
+<main>
+  <div class="lead">
+    <strong>What this sheet is for.</strong> Five real photos from the shelf wall, chosen because each
+    one breaks the photo route in a <em>different</em> place. Two should now work because of a fix
+    deployed today; one should honestly say <b>"I don't know"</b>; one is a bug we have <b>not</b>
+    fixed and I want to see it happen to you; one has three products and a price sticker in the same
+    frame.
+
+    <p style="margin:10px 0 0"><b>How to run it.</b> Open <code>/pos/catalog</code> on the tablet, use
+    <b>📷 snap-find</b>, and feed it the photo named in each test — either from the folder below or by
+    re-shooting the item on the shelf. Mark ✓ / ⚠ / ✗, and use the <b>🎤 mic</b> on each note to talk
+    instead of type. Paste a screenshot of what came back — that is the part I cannot see.</p>
+
+    <div class="safety">
+      <b>The photos live here:</b>
+      <code>onboarding/testsheets/grinders/2026-08-06-shelf-wall/</code>, sorted into
+      <code>grinders-metal/</code>, <code>grinders-wood/</code>, <code>grinders-plastic/</code> …
+      Full descriptions in <code>INDEX.md</code> in that folder.
+    </div>
+    <div class="safety danger">
+      <b>UAT on <code>banco.wolfhold.app</code> — deployed <code>7bfb431</code>, 2026-08-06.</b>
+      Snap-find and search are <b>read-only</b>. Do <b>not</b> press <i>Create new product</i> in
+      tests 1–4; test 5 is the only one where creating is the point, and note the SKU if you do.
+    </div>
+  </div>
+
+  <!-- ============ 1 ============ -->
+  <div class="phase">1 · The one today's fix was built for</div>
+
+  <section>
+    <h2>🟢 P1 · Greengo — a perfect match that used to be invisible <span class="tag">fixed 2026-08-06</span></h2>
+    <p class="why"><b>What happened before the fix.</b> The AI read this photo perfectly — name
+      <code>Greengo</code>, category <code>Grinders</code>, brand printed right on the lid with its
+      website. Search then returned <b>ten generic grinders</b> at 0.625 and
+      <b>not one of them a Greengo</b>, while the shop's <b>six real Greengo rows scored 1.000</b>
+      and never appeared. They are filed under <code>Other</code>, and the category hint was sorting
+      <i>above</i> the score — so every grinder, however wrong, beat every Greengo, however right.</p>
+    <p class="why">The bonus is now <b>added</b> to the score instead of ranked above it.</p>
+    <img src="grinders/2026-08-06-shelf-wall/grinders-metal/grinder-greengo-metal-2part-branded-w37.jpg"
+         alt="Greengo metal 2-part grinder" style="max-width:230px;border-radius:10px;border:1px solid var(--line);margin:6px 0">
+    <ol class="steps">
+      <li><div class="step-body">Snap-find <code>grinder-greengo-metal-2part-branded-w37.jpg</code>
+        <span class="exp">the AI reads the name as <b>Greengo</b> — it is printed on the lid</span></div></li>
+      <li><div class="step-body">Look at what search returned underneath
+        <span class="exp"><b>Greengo</b> rows at the top (King Size, Rolls Slim, Wide Rolls…) at 1.000</span></div></li>
+      <li><div class="step-body">⚠️ Now the honest part: <b>are any of them the grinder?</b>
+        <span class="exp"><b>No.</b> The shop's Greengo rows are all <b>papers</b>. The Greengo
+        <i>grinder</i> is genuinely not in the catalogue — this is a correct "brand found, product missing".</span></div></li>
+      <li><div class="step-body">Type <code>Greengo</code> into plain catalogue search too, no photo
+        <span class="exp">same six rows — the photo route and the typed route agree</span></div></li>
+    </ol>
+    <label class="cm">P1 · did the brand surface at all?</label>
+    <textarea data-cm="p1" placeholder="what name did the AI read? · were the Greengo rows on top? · did you notice they are papers, not a grinder?"></textarea>
+  </section>
+
+  <!-- ============ 2 ============ -->
+  <div class="phase">2 · Can it read a logo with no words?</div>
+
+  <section>
+    <h2>🏷️ P2 · Champ High — the brand is a mark, not text</h2>
+    <p class="why">This lid carries the Champ High figure and <b>no printed brand name at all</b>.
+      The catalogue holds exactly one: <code>Grinder Champ High White Leaf - 4-teiliger Ø50mm</code>,
+      CHF 15.00 — the row you found and edited yourself. If the AI can name the logo, the whole
+      no-barcode wall becomes searchable. If it cannot, this class needs a shelf label.</p>
+    <p class="why">Measured today: typing <code>champ high</code> scores that row <b>1.000</b>. So this
+      test is purely <b>can the model read the picture</b> — the search half is already proven.</p>
+    <img src="grinders/2026-08-06-shelf-wall/grinders-metal/grinder-alu-orange-copper-2part-champhigh-w32.jpg"
+         alt="Champ High orange anodised grinder" style="max-width:230px;border-radius:10px;border:1px solid var(--line);margin:6px 0">
+    <ol class="steps">
+      <li><div class="step-body">Snap-find <code>grinder-alu-orange-copper-2part-champhigh-w32.jpg</code>
+        <span class="exp">a name containing <b>Champ High</b>, category <b>Grinders</b></span></div></li>
+      <li><div class="step-body">If it did <b>not</b> say Champ High — <b>write down exactly what it did say.</b>
+        <span class="exp">"Orange metal grinder" is a useful failure; copy the wording into the note</span></div></li>
+      <li><div class="step-body">Check the top result
+        <span class="exp"><code>Grinder Champ High White Leaf - 4-teiliger Ø50mm</code> CHF 15.00 first</span></div></li>
+      <li><div class="step-body">A <code>Sturmfeuerzeug Jet "Champ High Titan"</code> may appear too
+        <span class="exp">that is <b>correct</b> and new today — same brand, different shelf. Not a bug.</span></div></li>
+      <li><div class="step-body">Now the same test on the <b>purple/green</b> pair,
+        <code>grinder-alu-purple-green-2part-champhigh-w28.jpg</code>
+        <span class="exp">same brand read — proves it was the logo, not luck with the colour</span></div></li>
+    </ol>
+    <label class="cm">P2 · logo reading</label>
+    <textarea data-cm="p2" placeholder="exact name the AI returned · did it get the brand from the mark alone? · colour right?"></textarea>
+  </section>
+
+  <!-- ============ 3 ============ -->
+  <div class="phase">3 · Does it admit when it does not know?</div>
+
+  <section>
+    <h2>🤔 P3 · SLX v2.5 — genuinely not in the catalogue</h2>
+    <p class="why"><b>I checked: zero hits.</b> No product name or description anywhere in 5,379 rows
+      contains "SLX". This is a real branded grinder sitting on your shelf that Banco has never heard of.</p>
+    <p class="why">So the <b>right</b> behaviour is a confident read of the <i>name</i> and an honest
+      <b>"no strong match"</b> on the search — not a plausible wrong grinder presented as the answer.
+      Measured: the best score is <b>0.529</b>, which is the system saying "nothing close".
+      <b>A wrong product shown confidently is the worst outcome on this sheet</b> — that is the
+      Cannazym-bound-to-Cannaboost mistake, and nothing in the database can catch it afterwards.</p>
+    <img src="grinders/2026-08-06-shelf-wall/grinders-metal/grinder-slx-v25-blue-ceramic-coated-w33.jpg"
+         alt="SLX v2.5 blue ceramic-coated grinder" style="max-width:230px;border-radius:10px;border:1px solid var(--line);margin:6px 0">
+    <ol class="steps">
+      <li><div class="step-body">Snap-find <code>grinder-slx-v25-blue-ceramic-coated-w33.jpg</code>
+        <span class="exp">name reads <b>SLX</b> (v2.5 / 2.5 / non-stick / ceramic all fine)</span></div></li>
+      <li><div class="step-body">Read the screen carefully: <b>does it tell you it found nothing good?</b>
+        <span class="exp">a "no strong match — search or create new" style message, <b>not</b> a top result dressed up as the answer</span></div></li>
+      <li><div class="step-body">✗ Mark FAIL if any grinder is presented as <i>the</i> match
+        <span class="exp">scores here are ~0.5 — the screen must not make that look like a find</span></div></li>
+      <li><div class="step-body">Is the <b>create new</b> route offered, and is it obvious?
+        <span class="exp">yes — this is a real product the shop owns and should be added</span></div></li>
+      <li><div class="step-body">🛑 <b>Do not create it yet.</b> Note the price on the shelf instead.
+        <span class="exp">we add it deliberately, with cost and photo, not mid-test</span></div></li>
+    </ol>
+    <label class="cm">P3 · honest abstain</label>
+    <textarea data-cm="p3" placeholder="did it say 'not found' clearly? · or did a wrong grinder look like the answer? · shelf price?"></textarea>
+  </section>
+
+  <!-- ============ 4 ============ -->
+  <div class="phase">4 · A bug I have NOT fixed — I want to watch it happen</div>
+
+  <section>
+    <h2>🔴 P4 · Poker chip — one missing space costs the right answer <span class="tag gap">known, open</span></h2>
+    <p class="why"><b>The row exists</b>: <code>Grinder Metall 3teilig mit Sieb Poker Chip 42mm</code>,
+      CHF 9.90. Whether you find it depends entirely on <b>how the AI spells it</b>:</p>
+    <table>
+      <tr><th>what gets searched</th><th>score</th><th>where the right row lands</th></tr>
+      <tr><td><code>Poker Chip Grinder</code> — two words</td><td>0.611</td><td>✅ <b>#1</b></td></tr>
+      <tr><td><code>Pokerchip Grinder</code> — one word</td><td>0.450</td><td>❌ <b>not in the top 6</b>, under a Hello Kitty grinder</td></tr>
+    </table>
+    <p class="why">German and Swiss German glue compounds together — <i>Pokerchip</i>, <i>Kräutermühle</i>,
+      <i>Holzgrinder</i>. The right row survives the search and then <b>loses on score</b>, silently.
+      Same family as the <code>pc.</code>/<code>Stk.</code> bug. Fixing it properly means teaching the
+      search to split compounds, which is a real change — so first I want to know
+      <b>how often it actually bites in your hands.</b></p>
+    <img src="grinders/2026-08-06-shelf-wall/grinders-plastic/grinder-plastic-pokerchip-three-colours-w39.jpg"
+         alt="Three poker chip grinders" style="max-width:230px;border-radius:10px;border:1px solid var(--line);margin:6px 0">
+    <ol class="steps">
+      <li><div class="step-body">Snap-find <code>grinder-plastic-pokerchip-three-colours-w39.jpg</code>
+        <span class="exp">note the <b>exact</b> name the AI produced — the spacing is the whole test</span></div></li>
+      <li><div class="step-body">Did the CHF 9.90 <code>Poker Chip 42mm</code> row come back?
+        <span class="exp">if the AI wrote "Poker Chip" → yes, #1. If it wrote "Pokerchip" → no.</span></div></li>
+      <li><div class="step-body">Now type it yourself, both ways: <code>Poker Chip Grinder</code>, then <code>Pokerchip Grinder</code>
+        <span class="exp">first finds it, second does not — this is the bug, reproduced by hand</span></div></li>
+      <li><div class="step-body">Try <code>Pokerchip</code> alone (no "Grinder")
+        <span class="exp">0.615 — better. Worth knowing that the extra word <i>hurts</i>.</span></div></li>
+      <li><div class="step-body">💭 Your call: how often do you type German compounds at the till?
+        <span class="exp">say it into the mic — this decides whether I build decompounding next</span></div></li>
+    </ol>
+    <label class="cm">P4 · the compound problem</label>
+    <textarea data-cm="p4" placeholder="exact AI spelling · did both hand-typed versions behave as predicted? · how often would this bite you?"></textarea>
+  </section>
+
+  <!-- ============ 5 ============ -->
+  <div class="phase">5 · Three products and a price in one frame</div>
+
+  <section>
+    <h2>🪵 P5 · Wooden grinders — what does it do with a shelf, not a product?</h2>
+    <p class="why">This is not one product. It is <b>three wooden grinders</b> and a
+      <b><code>10.-</code> price sticker</b>, shot the way you would actually shoot a shelf. Every
+      other test hands the AI a single object on a white counter; this one is the real world.</p>
+    <p class="why">The catalogue has five wooden rows, and typing <code>Holz Grinder</code> scores them
+      all <b>1.000</b> — <code>Grinder Holz / Alu Egypt 60mm</code>, <code>Indianer</code>,
+      <code>Maori</code> (CHF 39), <code>Rosenholz Blatt 35mm</code> (CHF 12.90). <b>None is CHF 10.</b>
+      So the sticker and the catalogue disagree, and I want to know which one is true.</p>
+    <img src="grinders/2026-08-06-shelf-wall/grinders-wood/grinder-wood-three-on-shelf-10chf-w26.jpg"
+         alt="Three wooden grinders with a 10.- sticker" style="max-width:230px;border-radius:10px;border:1px solid var(--line);margin:6px 0">
+    <ol class="steps">
+      <li><div class="step-body">Snap-find <code>grinder-wood-three-on-shelf-10chf-w26.jpg</code>
+        <span class="exp">it picks <b>one</b> grinder and names it — it must not invent a "set of 3"</span></div></li>
+      <li><div class="step-body">Did it read the <b><code>10.-</code></b> sticker as a price?
+        <span class="exp"><b>It should NOT.</b> The page reader is deliberately blocked from returning
+        a price — prices come from the shop, never from a photo.</span></div></li>
+      <li><div class="step-body">✗ Mark FAIL if a price appeared anywhere it could be saved
+        <span class="exp">a photographed price becoming a till price is how a shop loses money quietly</span></div></li>
+      <li><div class="step-body">Do the five <code>Holz</code> rows come back?
+        <span class="exp">Egypt / Indianer / Maori / Rosenholz — all at the top</span></div></li>
+      <li><div class="step-body">🧍 <b>Pick the grinders up.</b> Which row is the CHF 10 one really?
+        <span class="exp">the 08-02 lesson: only a hand on the product settles a price disagreement</span></div></li>
+      <li><div class="step-body">Now the harder one: <code>grinder-wood-rosewood-tall-carved-lid-w30.jpg</code>
+        <span class="exp">a single object — does a clean shot beat the shelf shot? that answers whether it's worth re-shooting the wall</span></div></li>
+    </ol>
+    <label class="cm">P5 · shelf shots and the price rule</label>
+    <textarea data-cm="p5" placeholder="did it pick one product? · any price shown? · which wooden row is the CHF 10 one? · clean shot vs shelf shot"></textarea>
+  </section>
+
+  <!-- ============ wrap ============ -->
+  <div class="phase">Afterwards — the two questions I actually need answered</div>
+
+  <section>
+    <h2>🎯 The verdict</h2>
+    <p class="why">Everything above is measurable. These two are not, and only you can answer them.</p>
+    <ol class="steps">
+      <li><div class="step-body"><b>Is the photo route fast enough to use with a customer waiting?</b>
+        <span class="exp">time one full snap → product on screen, and write the seconds</span></div></li>
+      <li><div class="step-body"><b>Of the five, which failure would have cost you a sale?</b>
+        <span class="exp">that one gets fixed first — the others wait</span></div></li>
+      <li><div class="step-body">Anything on screen that <b>said something untrue</b>?
+        <span class="exp">a confident wrong match, a price that came from a photo, a green tick over
+        something nobody checked. Those outrank every ranking score on this sheet.</span></div></li>
+    </ol>
+    <label class="cm">verdict</label>
+    <textarea data-cm="verdict" placeholder="seconds per lookup · which failure hurts most · anything that lied"></textarea>
+  </section>
+
+  <section>
+    <h2>📋 When you're done</h2>
+    <p class="why">Press <b>📋 findings</b> in the header — it copies every mark, note and screenshot
+      count to the clipboard. Paste that straight back to me. Marks and notes are saved in this
+      browser as you go, so closing the tab is safe.</p>
+  </section>
+</main>
+<script>
+  const KEY='banco-photo-ai-five-v1';
+  const STEPS=[];
+  const VDEFS=[['pass','OK','✓'],['fail','FAIL','✗'],['issue','ISSUE','⚠']];
+
+  function verdictControl(i){
+    const box=document.createElement('div'); box.className='verdict';
+    VDEFS.forEach(([v,lbl,ic])=>{ const b=document.createElement('button'); b.type='button';
+      b.className='vbtn v-'+v; b.innerHTML=ic+' '+lbl; b.title=lbl;
+      b.addEventListener('click', ()=>setVerdict(i, STEPS[i].verdict===v ? '' : v));
+      box.appendChild(b); STEPS[i]._btns[v]=b; });
+    return box;
+  }
+  function paintVerdict(i){ const s=STEPS[i]; VDEFS.forEach(([v])=>{ const b=s._btns[v];
+    if(b) b.classList.toggle('on', s.verdict===v); }); }
+  function setVerdict(i,v){ STEPS[i].verdict=v; paintVerdict(i); save(); progress(); }
+
+  function buildSteps(){
+    document.querySelectorAll('ol.steps li').forEach((li,i)=>{
+      const bodyEl = li.querySelector('.step-body');
+      const label = (bodyEl?.textContent||'').trim().replace(/\s+/g,' ').slice(0,120);
+      STEPS[i]={ li, label, verdict:'', ta:null, thumbs:null, shots:[], _btns:{} };
+      li.insertBefore(verdictControl(i), li.firstChild);
+      const wrap=document.createElement('div'); wrap.className='step-extra';
+      const row=document.createElement('div'); row.className='cm-row';
+      const ta=document.createElement('textarea'); ta.className='step-cm'; ta.rows=1;
+      ta.placeholder='note… what happened, how long, what you had to invent (type or 🎤 speak)';
+      ta.addEventListener('input', save);
+      const mic=document.createElement('button'); mic.className='mic-btn'; mic.type='button';
+      mic.textContent='🎤'; mic.title='Dictate this note';
+      mic.addEventListener('click', ()=>micToggle(mic, ta));
+      row.appendChild(ta); row.appendChild(mic); wrap.appendChild(row);
+      const zone=document.createElement('div'); zone.className='shot-zone'; zone.tabIndex=0;
+      zone.textContent='📋 click & paste a screenshot (Ctrl+V) · drop an image · or 📷 pick a file';
+      const fin=document.createElement('input'); fin.type='file'; fin.accept='image/*';
+      fin.capture='environment'; fin.className='hidden';
+      zone.addEventListener('click', ()=>{ activeIdx=i; fin.click(); });
+      zone.addEventListener('focus', ()=>{ activeIdx=i; });
+      zone.addEventListener('dragover', e=>{ e.preventDefault(); zone.classList.add('drag'); });
+      zone.addEventListener('dragleave', ()=>zone.classList.remove('drag'));
+      zone.addEventListener('drop', e=>{ e.preventDefault(); zone.classList.remove('drag'); activeIdx=i;
+        [...(e.dataTransfer.files||[])].forEach(f=>{ if(f.type.startsWith('image/')) addShot(i,f); }); });
+      fin.addEventListener('change', e=>{ [...(e.target.files||[])].forEach(f=>addShot(i,f)); e.target.value=''; });
+      const thumbs=document.createElement('div'); thumbs.className='thumbs';
+      wrap.appendChild(zone); wrap.appendChild(fin); wrap.appendChild(thumbs);
+      bodyEl.appendChild(wrap);
+      STEPS[i].ta=ta; STEPS[i].thumbs=thumbs;
+    });
+  }
+
+  let activeIdx=null;
+  document.addEventListener('paste', e=>{ if(activeIdx==null) return;
+    const items=(e.clipboardData||{}).items||[];
+    for(const it of items){ if(it.type && it.type.startsWith('image/')){ const f=it.getAsFile();
+      if(f){ addShot(activeIdx,f); e.preventDefault(); } } } });
+  function downscale(file, cb){ const url=URL.createObjectURL(file); const img=new Image();
+    img.onload=()=>{ const max=1000; let w=img.width,h=img.height; if(w>max){ h=Math.round(h*max/w); w=max; }
+      const c=document.createElement('canvas'); c.width=w; c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h); URL.revokeObjectURL(url);
+      try{ cb(c.toDataURL('image/jpeg',0.6)); }catch(e){ cb(null); } };
+    img.onerror=()=>{ URL.revokeObjectURL(url); cb(null); }; img.src=url; }
+  function addShot(i,file){ downscale(file, data=>{ if(!data) return;
+    STEPS[i].shots.push({name:file.name||'screenshot.png', data}); renderThumbs(i); save(); }); }
+  function renderThumbs(i){ const t=STEPS[i].thumbs; t.innerHTML='';
+    STEPS[i].shots.forEach((sh,si)=>{ const d=document.createElement('div'); d.className='sh';
+      const im=document.createElement('img'); im.src=sh.data; im.title=sh.name;
+      im.onclick=()=>{ const w=window.open(); if(w) w.document.write('<img src="'+sh.data+'" style="max-width:100%">'); };
+      const rm=document.createElement('button'); rm.className='rm'; rm.textContent='✕'; rm.title='remove';
+      rm.onclick=()=>{ STEPS[i].shots.splice(si,1); renderThumbs(i); save(); };
+      d.appendChild(im); d.appendChild(rm); t.appendChild(d); }); }
+
+  function save(){ const d={verdict:[],note:[],shots:[],cm:{},seconds};
+    STEPS.forEach((s,i)=>{ d.verdict[i]=s.verdict||''; d.note[i]=s.ta.value; d.shots[i]=s.shots; });
+    document.querySelectorAll('textarea[data-cm]').forEach(t=>d.cm[t.dataset.cm]=t.value);
+    try{ localStorage.setItem(KEY,JSON.stringify(d)); }catch(e){ console.warn('storage full', e); } }
+  function restore(){ try{ const d=JSON.parse(localStorage.getItem(KEY)||'{}');
+    STEPS.forEach((s,i)=>{ if(d.verdict&&d.verdict[i]){ s.verdict=d.verdict[i]; paintVerdict(i); }
+      if(d.note&&d.note[i]!=null) s.ta.value=d.note[i];
+      if(d.shots&&Array.isArray(d.shots[i])){ s.shots=d.shots[i]; renderThumbs(i); } });
+    if(d.cm) document.querySelectorAll('textarea[data-cm]').forEach(t=>{ if(d.cm[t.dataset.cm]!=null) t.value=d.cm[t.dataset.cm]; });
+    if(typeof d.seconds==='number'){ seconds=d.seconds; paintClock(); } }catch(e){} }
+
+  function progress(){ let p=0,f=0,iss=0,dec=0;
+    STEPS.forEach(s=>{ if(s.verdict){ dec++; if(s.verdict==='pass')p++; else if(s.verdict==='fail')f++; else iss++; } });
+    document.getElementById('prog').textContent=dec+'/'+STEPS.length;
+    mOk.textContent=p; mIss.textContent=iss; mFail.textContent=f; }
+
+  // Turn the run into something that can be pasted straight into WORKLIST.md. A finding that
+  // stays in a browser tab is a finding nobody acts on.
+  function copyFindings(){
+    const L=['# Five photos through the AI — findings','', 'elapsed: '+document.getElementById('clock').textContent, ''];
+    STEPS.forEach(s=>{ if(s.verdict==='fail'||s.verdict==='issue'||(s.ta.value||'').trim()){
+      L.push('- ['+(s.verdict||'note').toUpperCase()+'] '+s.label + ((s.ta.value||'').trim()? '\n      → '+s.ta.value.trim() : '')); } });
+    L.push('', '## Decisions for Angel');
+    document.querySelectorAll('textarea[data-cm]').forEach(t=>{ const v=(t.value||'').trim();
+      if(v) L.push('- **'+t.dataset.cm.toUpperCase()+'** — '+v); });
+    const txt=L.join('\n');
+    navigator.clipboard?.writeText(txt).then(
+      ()=>alert('Findings copied — paste into WORKLIST.md'),
+      ()=>{ const w=window.open(); if(w) w.document.write('<pre>'+txt.replace(/</g,'&lt;')+'</pre>'); });
+  }
+
+  let seconds=0, timer=null;
+  function paintClock(){ const m=String(Math.floor(seconds/60)).padStart(2,'0'),
+    s=String(seconds%60).padStart(2,'0'); document.getElementById('clock').textContent=m+':'+s; }
+  function toggleTimer(){ const b=document.getElementById('startBtn');
+    if(timer){ clearInterval(timer); timer=null; b.textContent='▶ Resume'; }
+    else { timer=setInterval(()=>{ seconds++; paintClock(); if(seconds%10===0) save(); },1000);
+      b.textContent='⏸ Pause'; } }
+
+  let rec=null;
+  function micToggle(btn, ta){
+    if(rec){ rec.stop(); return; }
+    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    if(!SR){ alert('This browser has no speech recognition — type the note instead.'); return; }
+    rec=new SR(); rec.lang='en-GB'; rec.interimResults=false; rec.continuous=true;
+    rec.onresult=e=>{ let t=''; for(let i=e.resultIndex;i<e.results.length;i++) t+=e.results[i][0].transcript;
+      ta.value=(ta.value?ta.value+' ':'')+t.trim(); save(); };
+    rec.onend=()=>{ btn.classList.remove('on'); rec=null; };
+    rec.onerror=()=>{ btn.classList.remove('on'); rec=null; };
+    btn.classList.add('on'); rec.start();
+  }
+
+  buildSteps(); restore(); progress(); paintClock();
+</script>
+</body>
+</html>
