@@ -515,7 +515,7 @@
                        stored is what the shop actually calls it — because that is the string a
                        cashier has to recognise at the counter.
                        The EAN is the identity. This is just a label. (CATALOG-IDENTITY.md) -->
-                  <div x-show="row.facts && row.facts.name" style="display:none" class="mb-2">
+                  <div x-show="(row.facts && row.facts.name) || row.checked" style="display:none" class="mb-2">
                     <label class="text-sm block mb-2">
                       <span class="block text-xs text-gray-500 mb-1">Name at the counter — edit it to what the shop says</span>
                       <input type="text" x-model="row.title" maxlength="255"
@@ -532,7 +532,7 @@
                     </p>
                   </div>
 
-                  <div x-show="row.facts && row.facts.name" style="display:none"
+                  <div x-show="(row.facts && row.facts.name) || row.checked" style="display:none"
                        class="flex items-end gap-3 flex-wrap mb-2">
                     <label class="text-sm">
                       <span class="block text-xs text-gray-500 mb-1">
@@ -564,15 +564,26 @@
                           :disabled="row.busy || !(row.title || '').trim() || !(row.price > 0)"
                           class="text-sm"
                           :class="[(row.candidates && row.candidates.length) ? 'btn-secondary' : 'btn-primary',
-                                   (!(row.facts && row.facts.name) || !(row.price > 0)) ? 'opacity-50 cursor-not-allowed' : '']"
+                                   (!(row.title || '').trim() || !(row.price > 0)) ? 'opacity-50 cursor-not-allowed' : '']"
                           x-text="row.redoId
                                     ? '✅ Accept — save this product'
                                     : ((row.candidates && row.candidates.length)
                                         ? '✨ None of these — create it new'
                                         : '✅ That\'s it — add it to the catalogue')">
                   </button>
-                  <span x-show="!(row.facts && row.facts.name)" style="display:none" class="text-xs text-gray-400 ml-2">
+                  <span x-show="!(row.facts && row.facts.name) && !row.checked" style="display:none" class="text-xs text-gray-400 ml-2">
                     Read a product page first, so the new row starts with a name, price and picture.
+                  </span>
+                  <!-- 2026-08-06, Angel binding a Zippo pouch: the page read failed (Amazon and
+                       Kaufland publish no structured data at all), the screen said "this one is
+                       genuinely new — set your price and add it below", and there was NOTHING
+                       below: the name and price boxes were gated on `row.facts.name`, i.e. on a
+                       page having been read successfully. A dead end that instructs you to do the
+                       thing it is preventing. He is holding the packet — he does not need a
+                       website's permission to name it. -->
+                  <span x-show="row.checked && !(row.facts && row.facts.name)" style="display:none"
+                        class="text-xs text-gray-500 ml-2">
+                    No page? Type the name off the packet and your price — that is enough.
                   </span>
                   <span x-show="row.facts && row.facts.name && !(row.price > 0)" style="display:none"
                         class="text-xs text-gray-400 ml-2">
@@ -828,7 +839,12 @@ function shelfIntake() {
 
     async createNew(row) {
       const f = row.facts || {};
-      if (!f.name) return;
+      // NO PAGE IS FINE. This used to `return` silently whenever a page had not been read —
+      // so with the button somehow enabled, clicking it did nothing at all and said nothing.
+      // 2026-08-06, Angel binding a Zippo pouch: Amazon and Kaufland publish no structured data,
+      // the read failed, the screen told him to "set your price and add it below", and both the
+      // boxes and the handler refused. He is holding the packet; a website's silence is not a
+      // reason to refuse a name. The EAN is the identity — the rest is a label. (CATALOG-IDENTITY)
       if (!(row.price > 0)) { row.error = 'Set your sale price first.'; return; }
       if (!(row.title || '').trim()) { row.error = 'Give it a name first.'; return; }
       row.busy = true; row.error = '';
