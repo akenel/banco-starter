@@ -691,6 +691,26 @@ so nothing in the database could say what it physically was. Only the bottle kne
   picture **is** sellable — say so, and keep flagging what is missing, rather than choosing between a
   green tick and a permanent red. *(Phase A · catalogue · Felix's call on the threshold)*
 
+- **🔇 THE CATALOG SEARCH NEVER SAYS "no strong match" — 69 weak rows look exactly like a hit.**
+  *(Angel, 2026-08-06: searched `hempsana salbe 75ml`, got 69 results led by a Chubby Gorilla bottle
+  and a tube of toothpaste, concluded "the look up is not good".)*
+  **Diagnosed, and the ranking is NOT broken.** `salbe` expands via BL-101 synonyms to
+  `balm · cosmetic · cream · creme · kosmetik · salbe · topical`, which deliberately widens the
+  search to the whole cosmetics shelf — the same machinery that lets an English `lighter` find a
+  German `Feuerzeug`. His query held one rare word (`hempsana`, 2 rows) and one floodgate (`salbe`).
+  **And the product genuinely was not there** — only `Hempsana Hanf Gel Roller` and
+  `Hempsana Hanftee` exist; no Salbe, no sheabutter, nothing. Creating it was correct.
+  **So the gap is not relevance, it is CONFIDENCE.** `snap-find` already has the doctrine —
+  `best_match_score`, *"found it"* vs *"no strong match → search or create new"*, described in its own
+  docstring as *never a confident wrong answer*. The catalog search has no equivalent, so **69 loose
+  matches are presented exactly like 69 good ones**, and the operator scrolls and doubts the tool.
+  **Wanted:** return a top-match score and say it out loud — *"no strong match · 69 loose results"*
+  above the list when the best row scores below a threshold. Angel would have known in one second
+  that the Salbe was absent instead of hunting for it.
+  ⚠️ **A ranking change is NOT the fix** — one was tried and reverted the same day for failing
+  standing rule 4: it reordered nothing on either test query, so it could not be shown to help.
+  *(shop floor · till speed · honest-confidence doctrine)*
+
 - **📄 LET THE AI READ THE PAGE when the shop publishes no structured data.** *(Angel, 2026-08-06,
   after pasting a Purize Com Cruncher page: "It read that page. It just picked up the title and
   pretty much discarded everything else… that page had a lot of details, the type of grinder, the
