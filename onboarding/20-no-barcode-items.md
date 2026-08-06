@@ -130,6 +130,30 @@ name mid-sale — which breaks doc 10's *2 seconds, or it is broken*.
 > small code on it too?"** The QL prints price and barcode on one label. If that lands, this whole
 > problem disappears.
 >
+> **#1b · ⭐ THE NUMBER THEY ALREADY HAVE — Angel, 2026-08-06, and it may beat all of this.**
+> *"Every grinder already has a 4-5 digit number unique in the system."* Measured on prod:
+> **191/192 grinders carry a `TAM-` SKU and all 192 are distinct.** Typing the **full 5 digits**
+> returned **exactly one product, 300 times out of 300**. Bare 4 digits is a mess — worst case 15
+> hits — so the rule is *type the whole number*.
+>
+> **Felix said no BARCODES. He did not say no NUMBERS.** Rafi already stickers every grinder with a
+> price; make that same sticker read:
+>
+> ```
+> CHF 29.—
+> 12815
+> ```
+>
+> Not a barcode. Looks like an ordinary price tag. Same sticker, same work, **direct hit at the till**
+> — about **3 seconds to type five digits** against ~15 fumbling a name search. **No permission
+> needed, because nothing new is being stuck to anything.**
+>
+> ⚠️ **First, check at the shelf whether the number is ALREADY readable** on the product or the shelf
+> strip — Tamar's article number is often on the supplier's own tag. If it is, there is nothing to do
+> at all.
+> ⚠️ And see `WORKLIST.md`: a numeric query is **not yet ranked exact-first**, so a 4-digit SKU can
+> surface behind a 5-digit one. Full numbers are safe today; the ranking fix makes all of them safe.
+>
 > **#2 · A scan card at the till — nothing is marked.**
 > A printed sheet on the counter: **thumbnail · name · price · barcode**, one row per grinder. The
 > cashier finds the row and scans off the paper. 192 grinders ≈ **4–6 A4 pages**, laminated or in a

@@ -691,6 +691,30 @@ so nothing in the database could say what it physically was. Only the bottle kne
   picture **is** sellable — say so, and keep flagging what is missing, rather than choosing between a
   green tick and a permanent red. *(Phase A · catalogue · Felix's call on the threshold)*
 
+- **🔢 A NUMERIC query should return the exact SKU first — it is the fastest route to a no-barcode
+  product and today it is unranked.** *(Angel, 2026-08-06: "every grinder already has a 4-5 digit
+  number unique in the system… if you type 1002 well then good luck.")*
+  **His idea is right and the data backs it hard.** Grinders: **191/192 carry a `TAM-` SKU, all 192
+  distinct**, and `supplier_sku` holds the bare digits. Measured across the catalogue:
+  | Typed | Hits |
+  |---|---|
+  | bare 4 digits | **worst 15**, avg 3.53, unique only 30% of the time |
+  | **full 5 digits** | **worst 1, avg 1.00, 300/300 sampled unique** |
+  **So "type the full number" is already a working answer** — it needs no label, no sticker and no
+  permission from Felix, which is exactly the constraint (see
+  [`20`](onboarding/20-no-barcode-items.md)).
+  **The gap:** `pos_router.py:3741` matches `sku ILIKE '%q%'`, and the ranking
+  (`pos_router.py:3704`) only boosts rows whose **NAME** starts with the query. **A number never
+  matches a name**, so `relevance` — a name/description trigram — decides the order of numeric hits.
+  It is noise. An exact `TAM-1002` is not guaranteed to beat `TAM-10027`.
+  **Fix (small, high value):** when the query is **pure digits** or `TAM-<digits>`, put
+  `CASE WHEN sku = 'TAM-'||:q OR sku = :q OR supplier_sku = :q THEN 0 ELSE 1 END` at the FRONT of the
+  order clause. Turns "type the number, scan a list" into "type the number, done" — the difference
+  between a 3-second and a 15-second sale.
+  ⚠️ **694 products carry 4-digit TAMs**, and a 4-digit full number is a substring of any 5-digit one
+  starting the same way — which is precisely the case Angel hit. Exact-first is what fixes it; nothing
+  else does. *(shop floor · till speed)*
+
 - **📷 The AI snap-find is buried behind "Create new product" — but its whole job is to tell you
   whether you need one.** *(Found 2026-08-06 when Angel tried to photograph a grinder and got
   `No MultiFormat Readers were able to detect the code`.)*
