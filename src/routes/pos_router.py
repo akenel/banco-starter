@@ -1322,7 +1322,8 @@ async def read_delivery_slip(
     }
 
 
-async def _find_catalog_matches(db: AsyncSession, q: str, limit: int = 6) -> dict:
+async def _find_catalog_matches(db: AsyncSession, q: str, limit: int = 6,
+                                category: str | None = None) -> dict:
     """Find-first: given a NAME, search the LIVE catalog (`products`) AND the FourTwenty
     reference (`reference_products`) by pg_trgm similarity and return the REAL matching
     rows, best-first. This is the *librarian* half of snap-find — it FINDS what already
@@ -1341,6 +1342,22 @@ async def _find_catalog_matches(db: AsyncSession, q: str, limit: int = 6) -> dic
     empty = {"query": q, "product_matches": [], "reference_matches": [], "best_match_score": 0.0}
     if not q:
         return empty
+
+    # 2026-08-06 — USE THE CATEGORY THE AI ALREADY TOLD US.
+    #
+    # Angel photographed a grinder at the shop. Gemini read it correctly, including
+    # `category: "Grinders"` — and this function threw that away and scored the name against all
+    # 5,282 products. The right grinder came back **5th of 6, under an "Acryl Bong Atomic"**. A bong
+    # ranked above a grinder, on a photo of a grinder. Re-running the same photo put it out of the
+    # top 6 entirely, because the model's wording drifts run to run ("Rasta Leaf Metal Grinder" →
+    # "…Herb Grinder") and the signal was weak enough for that to flip the order.
+    #
+    # ⚠️ BOOST, NEVER FILTER — the same call as the mm ranking. A category scope would HIDE the
+    # right row whenever the model guessed the shelf wrong, which is the 2026-07-31 failure mode
+    # ("a filter that treats unknown as a value throws away the right answer"). Ranking same-shelf
+    # matches first costs nothing when the guess is wrong and fixes the order when it is right.
+    # The prompt constrains the model to CANONICAL_CATEGORIES, so the value is a known label.
+    cat = (category or "").strip()
 
     # Live catalog = the Artemis-Luzern truth already imported into `products`.
     # BL-33: INCLUDE inactive products here (unlike the till search) — an inactive product
@@ -1367,10 +1384,11 @@ async def _find_catalog_matches(db: AsyncSession, q: str, limit: int = 6) -> dic
            OR word_similarity(:q, coalesce(name,'') || ' ' || coalesce(description,'')) > 0.45
            OR supplier_name ILIKE '%' || :q || '%'
         ORDER BY is_active DESC,
+                 CASE WHEN :cat <> '' AND category = :cat THEN 0 ELSE 1 END,
                  CASE WHEN name ILIKE :q || '%' THEN 0 ELSE 1 END,
                  score DESC, name
         LIMIT :limit
-    """), {"q": q, "limit": limit})).fetchall()
+    """), {"q": q, "limit": limit, "cat": cat})).fetchall()
     product_matches = [{
         "id": str(r.id), "sku": r.sku, "barcode": r.barcode, "name": r.name,
         "category": r.category, "price": float(r.price) if r.price else 0,
@@ -1481,7 +1499,10 @@ async def snap_find_product(
     brand = (s.get("brand") or "").strip()
     q = f"{brand} {name}".strip() if (brand and brand.lower() not in name.lower()) else (name or brand)
 
-    matches = await _find_catalog_matches(db, q, limit)
+    # Pass the shelf the model named — it ranks same-category rows first WITHOUT filtering, so a
+    # wrong guess costs nothing. See _find_catalog_matches: without it a bong outranked a grinder
+    # on a photo of a grinder.
+    matches = await _find_catalog_matches(db, q, limit, category=(s.get("category") or ""))
     logger.info(
         "AI snap-find: provider=%s %dms q=%r → %d catalog + %d reference (best=%.2f) by %s",
         result.get("provider"), result.get("elapsed_ms", 0), q,
