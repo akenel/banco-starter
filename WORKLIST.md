@@ -691,6 +691,35 @@ so nothing in the database could say what it physically was. Only the bottle kne
   picture **is** sellable — say so, and keep flagging what is missing, rather than choosing between a
   green tick and a permanent red. *(Phase A · catalogue · Felix's call on the threshold)*
 
+- **🔎 SPEC FILTERS at the till — the real answer for no-barcode goods.** *(Angel, 2026-08-06: "when
+  a cashier searches for an item they either have a working EAN barcode or they don't, and then they
+  need to search via cat or name or part number **and have filters for ss or plastic or types of
+  grinders based on their specs**.")* That is the correct shape, and it replaces the A/B/C idea below.
+  **The search ladder, in order of speed:** ① barcode ② **article number** (built 2026-08-06, exact
+  match now ranks first) ③ category + name ④ **filters on specs** ← this item.
+  **⛔ Do NOT store an A/B/C price class.** Measured on the 192 grinders: `>50` = 18 (9%),
+  `20–50` = **125 (65%)**, `<20` = 49 (26%). **A class where two-thirds of stock lands in one letter
+  cannot help anyone choose.** And the quality hypothesis fails outright — **plastic averages 34.30
+  and reaches 69.–**, non-CNC alu (55.59) beats CNC alu (32.59), and **3-teilig (51.56) averages more
+  than 4-teilig (33.12)**. Neither material nor part count predicts price. A stored class would also
+  be a field someone must set on every new product, and it would be wrong within a month.
+  **Price is already a column** — a range filter (`20–30`) needs no new data, cannot drift, and
+  answers what a customer actually asks. Note the shop prices at *points*, not ranges: **25.– (40
+  products) · 29.– (25) · 39.– (23) · 49.– (15) · 19.– (14) = 61% of all grinders.**
+  **✅ The spec data mostly EXISTS — it is just not in a filterable column.** Parsed from the names
+  today: **diameter mm 165/192 (86%)** · material 143 (74%) · parts 126 (66%) · all three 107 (56%).
+  And **191/192 carry a `source_url`**, i.e. a supplier page with a spec table — which is exactly what
+  `scripts/enrich-from-source.py` (item 3) already reads. `attributes` jsonb exists and holds
+  `{"brand": …}` on 8 rows; **no migration needed.**
+  **Three steps, cheapest first:**
+  1. **Backfill `attributes` from the names** by regex — free, no network, covers 56% fully and 86%
+     for diameter alone.
+  2. **Run the enricher over the grinders** to fill the rest from the real spec table.
+  3. **Filter chips on the catalog/scan screen** — material · parts · Ø mm · price range.
+  ⚠️ **Fix `_query_size_regex` to understand `mm` while doing this** — it handles pack sizes (g/ml/stk)
+  and not diameters, so `62mm` gets no size boost today even though 165 grinders carry mm in the name.
+  It is the single most-covered spec on the shelf. *(shop floor · till speed · catalogue)*
+
 - **🔢 A NUMERIC query should return the exact SKU first — it is the fastest route to a no-barcode
   product and today it is unranked.** *(Angel, 2026-08-06: "every grinder already has a 4-5 digit
   number unique in the system… if you type 1002 well then good luck.")*
