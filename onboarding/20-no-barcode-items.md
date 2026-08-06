@@ -114,6 +114,40 @@ chosen, **every grinder gets the same shape.**
 2026-08-04). **Without a label it still cannot be scanned**, and the cashier is back to typing a
 name mid-sale — which breaks doc 10's *2 seconds, or it is broken*.
 
+> ### 🛑 FELIX SAID NO TO BARCODES ON GRINDERS — four ways round it
+>
+> *Angel, 2026-08-06: "Felix says I don't want to put barcodes on all the grinders. I said nothing at
+> the time… but today I face the reality. How do we do it Felix's way?"*
+>
+> **#1 · Find out what the objection actually IS — because they already sticker.**
+> Rafi *"does his own pricing, little sticker labels for the stuff, and restocks the shelf."* **Every
+> grinder is already being marked today.** So Felix is not objecting to a sticker in principle:
+> - *"It'll look ugly"* → a **design** problem. Ours can be smaller and neater than what is on there.
+> - *"More work for Rafi"* → it is **the same work** — one label printed and stuck, either way.
+> - *"Customers pick them up and handle them"* → the only version that needs a real alternative.
+>
+> **Ask it as: "You already put a price sticker on every grinder. What if that same sticker had a
+> small code on it too?"** The QL prints price and barcode on one label. If that lands, this whole
+> problem disappears.
+>
+> **#2 · A scan card at the till — nothing is marked.**
+> A printed sheet on the counter: **thumbnail · name · price · barcode**, one row per grinder. The
+> cashier finds the row and scans off the paper. 192 grinders ≈ **4–6 A4 pages**, laminated or in a
+> ring binder. Normal retail practice, and it has a bonus nothing else has: **it shows a picture**, so
+> a new cashier can match the object in the customer's hand to the row.
+>
+> **#3 · Shelf-edge labels.** Barcode on the shelf strip. Fine if grinders sit near the till; costs a
+> walk when the customer carries one to the counter, which a 2-second till cannot afford.
+>
+> **#4 · Search by name.** Free, works today, slowest. **This is why the naming convention in step 3
+> is load-bearing** — with a consistent shape, two typed words find it; without one, nothing does.
+> Good enough as the fallback for the long tail even if the top sellers get stickers or a card.
+>
+> **Take it to Felix as a CHOICE, not a request:** print one sample label, put it on the smallest
+> grinder, show him that beside the scan-card idea. *"Either the price sticker carries a code, or we
+> keep a card at the till — which do you prefer?"* Both are workable, and that is a far easier
+> conversation than asking permission to mark his stock.
+>
 > ### 🏷️ The open question Angel raised: does the label FIT?
 >
 > *"I don't know if the small QR code label fits on most of the small grinders. And I don't know if
