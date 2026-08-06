@@ -422,7 +422,9 @@
                             </ul>
                         </div>
                     </template>
-                    <button @click="addToCart(detailProduct); detailProduct=null"
+                    <!-- Close ONLY if the item really went in. It used to close unconditionally,
+                         which would have slammed shut over the price-fix panel the guard opens. -->
+                    <button @click="if (addToCart(detailProduct)) detailProduct=null"
                             class="bg-green-500 hover:bg-green-600 text-white w-full mt-4 py-3 rounded-lg font-semibold">➕ <span data-i18n="scan.add_to_cart">Add to Cart</span></button>
 
                     <!-- ✏️ MANAGER PRICE FIX — right where the wrong price is discovered.
@@ -834,6 +836,12 @@
 </div>
 
 <script>
+    // 💸 The placeholder prices, handed down from the server's UNVERIFIED_PRICES tuple.
+    // NOT re-typed here: this repo's most expensive bug shape is a client mirror that drifts
+    // silently (the pc./Stk. size table, dead for weeks with every unit test green). If the
+    // shop adopts a third sentinel, this list follows on the next page load.
+    const UNVERIFIED_PRICES = ({{ unverified_prices | default([]) | tojson }} || []).map(Number);
+
     function scanData() {
         return {
             user: {},
@@ -1734,7 +1742,41 @@
             },
 
 
+            // 💸 Is this the "I don't know yet" price rather than a real one?
+            needsPrice(product) {
+                const p = Number(product && product.price);
+                return Number.isFinite(p) && UNVERIFIED_PRICES.includes(p);
+            },
+
+            // 🛑 THE TILL GUARD. 110 active products were priced 999.99 / 99.00 / 0.00 and every
+            // one of them scannable — scan the RAW Mason Jar and the drawer asks for CHF 999.99.
+            //
+            // The server refuses these too (`_guard_unverified_price`), and the server is the real
+            // gate — this is here so the cashier finds out AT THE SCAN, not after building a cart
+            // and pressing Complete Sale. That is the 2026-08-03 rule: put the outcome where the
+            // button is. A CHF 500 skim vanished because a 400 landed in a banner above the fold.
+            //
+            // A manager gets the price-fix panel opened for them, prefilled and empty — the panel
+            // already exists in the detail modal and edits in place without losing the cart. A
+            // cashier gets a plain sentence naming the product and what to do about it. Neither
+            // gets the item silently in the basket at a placeholder price.
             addToCart(product, qty = 1) {
+                if (this.needsPrice(product)) {
+                    const manager = this.user.isManager || this.user.isAdmin;
+                    if (manager) {
+                        this.detailProduct = product;
+                        this.openPriceEdit();
+                        // blank the sentinel — prefilling 999.99 invites pressing Save on it
+                        this.priceEdit.price = '';
+                        this.priceEditNote = 'This item has no real price yet. Set it to sell it.';
+                        showToast(`${product.name} needs a price — set it here`, 'error');
+                    } else {
+                        showToast(
+                            `${product.name} has no price yet — a manager has to set it before it can be sold.`,
+                            'error');
+                    }
+                    return false;   // never reaches the cart
+                }
                 const existing = this.cart.find(item => item.id === product.id);
                 if (existing) {
                     existing.quantity += qty;
@@ -1744,6 +1786,7 @@
                         quantity: qty
                     });
                 }
+                return true;    // the detail modal only closes itself when this is true
             },
 
             removeFromCart(index) {

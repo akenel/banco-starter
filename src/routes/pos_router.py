@@ -5198,6 +5198,10 @@ async def add_item_to_transaction(
             raise HTTPException(status_code=404, detail="Product not found")
         if not product.is_active:
             raise HTTPException(status_code=400, detail="Product is inactive")
+        # Same gate as the atomic /sales path — the legacy 3-step route reaches the drawer too,
+        # and a guard on one of two doors is not a guard (2026-08-03: `cashier_id == user_id`
+        # removed from `_shift_sales` and left standing in `shift_transactions`).
+        _guard_unverified_price(product, item.is_giveaway)
 
         # A giveaway is a real product handed over free: zero revenue, but stock still
         # leaves (deducted at checkout) so it's tracked for COGS/tax.
@@ -5654,6 +5658,7 @@ async def create_sale(
                 raise HTTPException(status_code=404, detail=f"Product not found: {ln.product_id}")
             if not product.is_active:
                 raise HTTPException(status_code=400, detail=f"Product is inactive: {product.name}")
+            _guard_unverified_price(product, ln.is_giveaway)
             unit_price = Decimal("0.00") if ln.is_giveaway else product.price
             if not ln.is_giveaway:
                 # BL-26: a quantity-break tier price wins over the flat price for this qty.
@@ -6577,6 +6582,40 @@ def _bench_gap_clause():
 # bong or a vaporizer, so it can hide among real ones. 999.99 cannot be anything but a flag.
 # Both are recognised — 99.00 because the shop already has 74 of them on the shelf today.
 UNVERIFIED_PRICES = (Decimal("99.00"), Decimal("999.99"))
+
+
+def _guard_unverified_price(product, is_giveaway: bool = False) -> None:
+    """Refuse to SELL a product still carrying the "I don't know yet" price. 400, never silent.
+
+    2026-08-06 — the count that made this necessary: **110 active products** priced 999.99, 99.00
+    or 0.00, every one of them scannable at the till. Scan the RAW Mason Jar and the drawer asks a
+    customer for CHF 999.99. Thirty-two of them were created that same afternoon during the
+    papers-and-filters intake, so the pile grows every time the shop does the right thing and
+    captures new stock.
+
+    The placeholder is not a bug — it is the honest answer to "what does this cost?" before a
+    human has decided. The bug is that a placeholder and a real price are indistinguishable at the
+    moment money changes hands. Same shape as the green "✅ Balanced within tolerance" printed over
+    a cash box nobody had counted: the screen states a number confidently and the number is a
+    stand-in.
+
+    Deliberately NOT a silent fix:
+      * not auto-zeroed — a free RAW Mason Jar is a different lie, and stock walks out the door;
+      * not auto-deactivated — that hides the product from the person holding it;
+      * not a warning — a warning next to a "Complete Sale" button gets pressed through.
+
+    A 400 with the product name is what a cashier can act on, and `scan.html` turns it into the
+    manager price-fix panel, which edits the price in place and leaves the cart standing.
+
+    Giveaways pass: a treat rings at 0.00 by design and never reads `product.price`."""
+    if is_giveaway:
+        return
+    if product.price is not None and Decimal(str(product.price)) in UNVERIFIED_PRICES:
+        raise HTTPException(
+            status_code=400,
+            detail=(f"“{product.name}” has no real price yet (CHF {product.price} is a placeholder). "
+                    f"A manager can set it from the product card — the cart stays as it is."),
+        )
 
 # BL-98 gap FILTER (Angel: "most are just cost — let me filter when a photo/description is missing").
 # The SAME single-gap expression drives the list AND that gap's count chip, so a "📷 Photo (800)"
@@ -10168,7 +10207,13 @@ async def pos_scan(request: Request):
     - Swiss VAT calculation (7.7%)
     - Real-time totals
     """
-    return templates.TemplateResponse("pos/scan.html", {"request": request})
+    # The till needs the placeholder-price list to stop a cashier BEFORE the cart is built.
+    # Fed from the same UNVERIFIED_PRICES tuple the server gate uses, never re-typed in JS —
+    # a hand-copied constant is the pc./Stk. size-table bug waiting to happen.
+    return templates.TemplateResponse("pos/scan.html", {
+        "request": request,
+        "unverified_prices": [str(p) for p in UNVERIFIED_PRICES],
+    })
 
 
 @html_router.get("/pos/catalog", response_class=HTMLResponse, name="pos_catalog")
@@ -11430,7 +11475,13 @@ async def pos_products(request: Request):
 
     For now: Redirects to scan page
     """
-    return templates.TemplateResponse("pos/scan.html", {"request": request})
+    # The till needs the placeholder-price list to stop a cashier BEFORE the cart is built.
+    # Fed from the same UNVERIFIED_PRICES tuple the server gate uses, never re-typed in JS —
+    # a hand-copied constant is the pc./Stk. size-table bug waiting to happen.
+    return templates.TemplateResponse("pos/scan.html", {
+        "request": request,
+        "unverified_prices": [str(p) for p in UNVERIFIED_PRICES],
+    })
 
 
 @html_router.get("/pos/search", response_class=HTMLResponse, name="pos_search")
