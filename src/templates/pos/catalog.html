@@ -538,6 +538,19 @@
                             <p x-show="aiNote" x-text="aiNote" class="text-xs mt-1 font-medium text-indigo-700"></p>
                         </div>
                     </div>
+                    <!-- 📷 THE SHOT BEING READ. Without it the operator is comparing the AI's answer
+                         against a photo they cannot see — Angel, working a folder of grinder shots:
+                         "I have no way of knowing what I'm looking at except g08 or g09." -->
+                    <div x-show="snapPreview" style="display:none;" class="flex items-center gap-3 mt-3 pt-3 border-t border-indigo-200">
+                        <img :src="snapPreview" alt=""
+                             class="w-16 h-16 object-cover rounded-lg border border-indigo-200 flex-none cursor-zoom-in"
+                             @click="window.open(snapPreview, '_blank')">
+                        <div class="min-w-0">
+                            <p class="text-xs font-semibold text-indigo-900" x-show="aiBusy">🔎 reading this photo…</p>
+                            <p class="text-xs font-semibold text-indigo-900" x-show="!aiBusy" style="display:none;">📷 read from this photo</p>
+                            <p class="text-xs text-gray-500 truncate font-mono" x-text="snapName"></p>
+                        </div>
+                    </div>
                 </div>
                 <div class="grid md:grid-cols-2 gap-4">
                     <div class="md:col-span-2">
@@ -1064,6 +1077,12 @@
             snap: null,           // find-first: {suggestion, product_matches, reference_matches, best_match_score, query}
             snapOpen: false,      // the "is it already in the shop?" picker
             snapFile: null,       // the snapped photo, kept if the cashier goes "new item"
+            // 2026-08-06, Angel testing a folder of grinder photos: "I have no way of knowing what
+            // I'm actually looking at except g08 or g09 — I don't know what the picture looks like."
+            // The operator is comparing the AI's read against a photo they cannot see. Show the shot
+            // and its filename while it reads and in the picker, so the comparison is possible at all.
+            snapPreview: '',      // object URL for the shot being read (revoked on close)
+            snapName: '',         // its filename — the only handle on WHICH photo this was
             snapBusy: false,      // BL-34: manual "🔎 Search similar" in flight
             // BL-35: live supplier-site search fallback
             liveResults: [],
@@ -1278,6 +1297,12 @@
                 if (!f) return;
                 if (!f.type.startsWith('image/')) { showToast(t('catalog.not_an_image'), 'warning'); return; }
                 this.aiBusy = true; this.aiNote = ''; this.snapFile = f;
+                // Show the operator WHICH photo is being read. Revoke any previous URL first —
+                // these leak the whole image until the tab closes otherwise, and this screen is
+                // used dozens of times in a sitting.
+                if (this.snapPreview) { try { URL.revokeObjectURL(this.snapPreview); } catch (e) {} }
+                this.snapPreview = URL.createObjectURL(f);
+                this.snapName = f.name || '';
                 try {
                     const fd = new FormData(); fd.append('file', f);
                     const r = await fetch('/api/v1/pos/products/snap-find', {
@@ -1565,7 +1590,11 @@
                 this._resetLive();
             },
             _resetLive() { this.liveResults = []; this.liveVariants = []; this.liveSearched = false; this.liveErrors = {}; this.liveBusy = false; },
-            snapClose() { this.snapOpen = false; this._resetLive(); },
+            snapClose() {
+                this.snapOpen = false; this._resetLive();
+                if (this.snapPreview) { try { URL.revokeObjectURL(this.snapPreview); } catch (e) {} }
+                this.snapPreview = ''; this.snapName = '';
+            },
             // BL-35 wholesale-vs-competitor labeling: what this site's price MEANS.
             roleLabel(role) {
                 if (role === 'retail') return '🏪 ' + t('catalog.role_retail');
