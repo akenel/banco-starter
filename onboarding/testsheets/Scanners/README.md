@@ -52,6 +52,34 @@ Three ways, and the manufacturer's default is also the right one for a till (BCS
 | Wired (USB cable) | no | Cable into the gun's USB-B socket | Fine. Tethers the gun. |
 | Bluetooth (HID) | no | Scan `Bluetooth Pairing` (page 3), then pair in the OS | Last resort. |
 
+### 🔵 Bluetooth won't hold? It is almost never the radio
+
+*Angel, 2026-08-06, pairing the Inateck to his phone: "connecting is really unreliable, what do I do
+wrong… actually it was easier — I just needed to add the new device. I had another name before, I
+deleted that and now it works fine, and I renamed the BT connection so I cannot mess it up."*
+
+**A stale bond is the usual culprit**, and it presents as a bad radio rather than as bookkeeping.
+Work down this list before suspecting the gun:
+
+1. **Delete the OLD pairing entry and add it fresh.** A half-dead bond from an earlier attempt keeps
+   answering and then dropping. This is what it was.
+2. **Rename the connection to something unmistakable** ("Angel phone — Inateck"). These guns all
+   advertise near-identical default names; with two guns and three hosts you will pair the wrong one.
+3. **The gun bonds to ONE host.** If the tablet is nearby with Bluetooth on, it will try to reconnect
+   there. **Turn the tablet's Bluetooth off while pairing the phone**, or unpair it there first.
+4. **Is it even in Bluetooth mode?** The BCST-35 ships in *Wireless Adapter* mode and does not
+   advertise at all until you scan `Enter Setup` → `Bluetooth Paring (HID Mode)` → `Save and Exit`
+   (manual §4.1, page 3 — scan straight off the screen).
+5. **On Android, Gboard must be the active keyboard** (manual §4.3, page 4): set the gun to
+   *Windows/Android Mode* + *US Keyboard*. With another keyboard app it pairs and then behaves
+   erratically — which reads exactly like an unreliable connection.
+
+> ⚠️ **One gun cannot be right for both hosts.** The tablet wants **German Keyboard** (QWERTZ, correct
+> hyphen); the phone wants **US Keyboard** with Gboard. That is a setting on the GUN, not per host —
+> so a gun that moves between them needs re-scanning each time, or it types wrong characters on one.
+> **Decide which host each gun belongs to.** The Netum is dongle-only, so it is the tablet's; leaving
+> the Inateck as the phone's gun keeps both settings stable.
+
 **Why the dongle wins, and it isn't just convenience.** It presents as a plain USB keyboard: no driver,
 no pairing dialog, no OS Bluetooth stack, and **nothing to re-pair when it drops mid-sale**. Bluetooth HID
 on a till has one failure mode the dongle simply doesn't have — the gun silently unpairs, and the next scan
