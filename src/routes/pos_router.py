@@ -814,6 +814,55 @@ async def catalog_page_facts(
     One paste beats typing 13 digits off a shiny box, especially on a tablet at a counter.
     """
     facts = await _page_product_facts(req.url)
+
+    # 🤖 THE AI PAGE READ — only where the structured read came up thin.
+    #
+    # 2026-08-06, Angel: "It read that page. It just picked up the title and pretty much discarded
+    # everything else. That page had a lot of details — the type of grinder, the material, the
+    # dimensions. It should really enrich and give it a robust description, tags, the whole thing."
+    #
+    # He is right. Everything above reads schema.org JSON-LD and falls back to og:description — so a
+    # shop that publishes no structured data hands us its MARKETING blurb ("Blitzschneller Versand ✔
+    # Spitzenpreis ✔") while the real specs sit in the body prose. A body parser per supplier does
+    # not scale; the model already wired up for photos reads text just as well.
+    #
+    # ⚠️ STRUCTURED DATA STILL WINS. JSON-LD is the shop STATING its facts; the model is INFERRING
+    # them, and this endpoint's own rule is *a page is evidence, not truth* — an inference is weaker
+    # evidence still. So the model may only FILL BLANKS, and `read_product_page` cannot return a
+    # price or a barcode at all: a wrong EAN binds the wrong product, a wrong price overcharges a
+    # customer. Both keep coming from the page's own record or not at all.
+    ai_note = None
+    html_body = facts.get("_html") or ""
+    thin = (not facts.get("description")) or _looks_like_marketing(facts.get("description", ""))
+    if html_body and thin:
+        from src.services.vision import read_product_page
+        page_text = _html_to_text(html_body)
+        res = await read_product_page(page_text)
+        ai_note = res.get("note")
+        d = res.get("data") or {}
+        if d:
+            # Blanks only — never overwrite what the shop stated about itself.
+            if not facts.get("description") or _looks_like_marketing(facts.get("description", "")):
+                if d.get("description"):
+                    facts["description"] = d["description"]
+            for k in ("brand",):
+                if not facts.get(k) and d.get(k):
+                    facts[k] = d[k]
+            # Extras the structured read has no slot for at all.
+            for k in ("material", "size", "parts"):
+                if d.get(k):
+                    facts.setdefault("ai_specs", {})[k] = d[k]
+            if d.get("tags"):
+                facts["ai_tags"] = d["tags"]
+            if d.get("category"):
+                facts["ai_category"] = d["category"]
+            if d.get("name") and not facts.get("name"):
+                facts["name"] = d["name"]
+            facts["ai_read"] = {"provider": res.get("provider"), "model": res.get("model"),
+                                "elapsed_ms": res.get("elapsed_ms")}
+    if ai_note:
+        facts["ai_note"] = ai_note
+
     facts.pop("_html", None)          # the raw body is an internal detail, never shipped to a UI
 
     # NEVER take the source's own category. Angel, on 420's tree: "420 stuff is 70% wrong."
@@ -3078,6 +3127,46 @@ def _is_thumbnail_url(url: str) -> bool:
 
 
 _TITLE_SEPARATORS = re.compile(r"\s+[-–—|·:]{1,2}\s+")
+
+
+# A shop's og:description is written for Google, not for a shelf. These phrases are the tell.
+_MARKETING_RE = re.compile(
+    r"blitzschnell|schneller versand|gratis versand|kostenloser versand|top.?bewertung|"
+    r"spitzenpreis|bestpreis|g[uü]nstig (?:online )?(?:kaufen|bestellen)|jetzt bestellen|"
+    r"free shipping|fast shipping|best price|buy now|order now|✔|✓", re.I)
+
+
+def _looks_like_marketing(text: str) -> bool:
+    """Is this 'description' actually the shop's sales pitch?
+
+    2026-08-06: `drehmoment-headshop.de` publishes no JSON-LD, so `og:description` came through as
+    *"Zweiteilige Kräutermühle – Blitzschneller Versand ✔ Spitzenpreis ✔ Top-Bewertungen ✔"* and
+    landed in the product. It names the product in five words and then sells the SHOP.
+
+    Kept blunt on purpose — it only decides whether to ASK the AI for something better, never
+    whether to delete anything. A false positive costs one model call; a false negative leaves a
+    shipping promise in the catalogue.
+    """
+    t = (text or "").strip()
+    return bool(t) and (len(t) < 400 and bool(_MARKETING_RE.search(t)))
+
+
+def _html_to_text(html: str) -> str:
+    """The visible words of a page, for the model to read.
+
+    Deliberately crude and dependency-free: drop script/style/nav/footer wholesale, unwrap the
+    rest, collapse whitespace. The model tolerates messy input far better than a bespoke parser
+    tolerates a shop redesign — which is exactly why this is not a per-supplier scraper.
+    """
+    import html as _h
+    s = re.sub(r"(?is)<(script|style|noscript|svg|head)[^>]*>.*?</\1>", " ", html or "")
+    s = re.sub(r"(?is)<(nav|footer|header|form)[^>]*>.*?</\1>", " ", s)
+    s = re.sub(r"(?i)<br\s*/?>|</(p|div|li|tr|h[1-6])>", "\n", s)
+    s = re.sub(r"<[^>]+>", " ", s)
+    s = _h.unescape(s)
+    s = re.sub(r"[ \t\r\f\v]+", " ", s)
+    s = re.sub(r"\n\s*\n+", "\n", s)
+    return s.strip()
 
 
 def _strip_seo_tail(s: str) -> str:

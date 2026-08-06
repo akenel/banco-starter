@@ -163,6 +163,75 @@ async def _ollama(b64: str, prompt: str, mime: str = "image/jpeg") -> tuple[str,
 _PROVIDERS = {"gemini": _gemini, "claude": _claude, "ollama": _ollama}
 
 
+# ===========================================================================
+# TEXT — the same brains, reading a PAGE instead of a photo.
+#
+# 2026-08-06, Angel after pasting a product page: "It read that page. It just picked up the title
+# and pretty much discarded everything else. That page had a lot of details — the type of grinder,
+# the material, the dimensions. It should really enrich and give it a robust description and
+# everything else, tags, the whole thing."
+#
+# `/catalog/page-facts` reads schema.org JSON-LD, falling back to og:description. When a shop
+# publishes no structured data — and plenty do not — that fallback is their MARKETING blurb
+# ("Blitzschneller Versand ✔ Spitzenpreis ✔") while the real specs sit in the page BODY.
+#
+# Writing a body parser per supplier is the wrong shape: every shop is laid out differently, the
+# enricher only manages it for artemisluzern.ch because it targets ONE known site, and per-site
+# parsers rot silently. The model already wired up for photos reads text just as happily.
+# ===========================================================================
+
+async def _gemini_text(prompt: str) -> tuple[str, str]:
+    key = os.getenv("BH_GOOGLE_API_KEY", "") or os.getenv("GOOGLE_API_KEY", "")
+    if not key:
+        raise RuntimeError("BH_GOOGLE_API_KEY not set")
+    model = os.getenv("GEMINI_TEXT_MODEL", "") or os.getenv("GEMINI_VISION_MODEL", "gemini-2.5-flash")
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+    body = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {"temperature": 0.1, "response_mime_type": "application/json"},
+    }
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as c:
+        r = await c.post(url, headers={"x-goog-api-key": key}, json=body)
+        r.raise_for_status()
+        data = r.json()
+    return data["candidates"][0]["content"]["parts"][0]["text"], model
+
+
+async def _claude_text(prompt: str) -> tuple[str, str]:
+    key = os.getenv("ANTHROPIC_API_KEY", "")
+    if not key:
+        raise RuntimeError("ANTHROPIC_API_KEY not set")
+    model = os.getenv("CLAUDE_TEXT_MODEL", "") or os.getenv("CLAUDE_VISION_MODEL", "claude-sonnet-4-6")
+    body = {"model": model, "max_tokens": 1200,
+            "messages": [{"role": "user", "content": [{"type": "text", "text": prompt}]}]}
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as c:
+        r = await c.post("https://api.anthropic.com/v1/messages",
+                         headers={"x-api-key": key, "anthropic-version": "2023-06-01"}, json=body)
+        r.raise_for_status()
+        data = r.json()
+    return data["content"][0]["text"], model
+
+
+async def _ollama_text(prompt: str) -> tuple[str, str]:
+    base = _with_scheme(os.getenv("OLLAMA_URL", "http://ollama:11434"), "http://")
+    model = os.getenv("OLLAMA_TEXT_MODEL", "") or os.getenv("OLLAMA_VISION_MODEL", "llama3.2-vision")
+    headers = {}
+    key = os.getenv("BH_OLLAMA_KEY", "")
+    if key:
+        base = _with_scheme(os.getenv("OLLAMA_TURBO_URL", "https://ollama.com"))
+        headers["Authorization"] = f"Bearer {key}"
+    body = {"model": model, "messages": [{"role": "user", "content": prompt}],
+            "stream": False, "format": "json", "options": {"temperature": 0.1}}
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as c:
+        r = await c.post(f"{base}/api/chat", headers=headers, json=body)
+        r.raise_for_status()
+        data = r.json()
+    return (data.get("message") or {}).get("content", ""), model
+
+
+_TEXT_PROVIDERS = {"gemini": _gemini_text, "claude": _claude_text, "ollama": _ollama_text}
+
+
 async def _call_provider(provider: str, b64: str, prompt: str, mime: str = "image/jpeg") -> tuple[str, str]:
     """Dispatch to one provider. Split out so tests monkeypatch exactly here."""
     fn = _PROVIDERS.get(provider)
@@ -403,3 +472,101 @@ DELIVERY_SLIP = VisionDomain(
 
 # Registry — look a domain up by name (e.g. from an endpoint ?domain= param).
 DOMAINS = {d.name: d for d in (PRODUCT, LAB_REPORT, DELIVERY_SLIP)}
+
+
+# ===========================================================================
+# PAGE — read a product page's TEXT into the fields a shop page states.
+# ===========================================================================
+
+_PAGE_PROMPT_HEAD = (
+    "You are cataloguing stock for a Swiss head-shop. Below is the visible TEXT of ONE product page "
+    "from a retailer's website. Return ONLY a JSON object (no prose, no code fence):\n"
+    '  "name"         the product\'s own name, as a shelf label would read it. STRIP the shop\'s\n'
+    '                 marketing ("günstig online kaufen", "Blitzschneller Versand", a price, the\n'
+    '                 shop\'s own name). If the page never names the product, use "".\n'
+    '  "description"  2-4 plain sentences describing THE PRODUCT from what the page states —\n'
+    '                 what it is, its material, size, how many parts, what is included. NO\n'
+    '                 shipping, ratings, payment, delivery or promotional text.\n'
+    '  "material"     e.g. "Alu CNC", "Edelstahl", "Acryl", "Holz", "Zink", "Silikon", else ""\n'
+    '  "size"         the stated size WITH its unit, e.g. "50mm", "12cm", "5g", else ""\n'
+    '  "parts"        e.g. "2teilig", "3teilig", "4teilig", else ""\n'
+    '  "brand"        the maker (NOT the shop selling it), else ""\n'
+    '  "tags"         up to 6 short lowercase keywords a customer might search, as a JSON array\n'
+    '  "category"     the closest EXACT label from this list, or "Unsorted" if unsure:\n'
+)
+_PAGE_PROMPT_TAIL = (
+    "\n\nRULES — these matter more than completeness:\n"
+    "  * NEVER invent. If the page does not state something, use \"\" (or [] for tags).\n"
+    "  * Do NOT return a price and do NOT return a barcode/EAN — those are read from the page's\n"
+    "    own structured data, not inferred, because a wrong one costs a shop real money.\n"
+    "  * The page is a SELLER's copy. Facts about the product are useful; claims about the shop\n"
+    "    (fast shipping, best price, top ratings) are not.\n\n"
+    "PAGE TEXT:\n"
+)
+
+
+async def read_product_page(page_text: str, provider: str | None = None) -> dict:
+    """Read a product page's text into catalogue fields.
+
+    Same contract as `analyze_image`: **NEVER raises** for model/transport problems — it returns
+    empty data plus a `note`, so a caller can degrade to whatever the structured read already found.
+
+    Returns {"data": {...}, "provider", "model", "elapsed_ms", "note"}.
+
+    ⚠️ Deliberately CANNOT return a price or a barcode. Those come from the page's own schema.org
+    record — the shop STATING a fact — never from a model inferring one. `/catalog/page-facts`'s
+    docstring is the rule: *a page is evidence, not truth*, and an inference is weaker evidence
+    still. A wrong EAN binds the wrong product; a wrong price overcharges a customer.
+    """
+    from src.services.catalog_taxonomy import CANONICAL_CATEGORIES
+
+    text = re.sub(r"\s+", " ", (page_text or "")).strip()
+    if len(text) < 40:
+        return {"data": {}, "provider": "", "model": "", "elapsed_ms": 0,
+                "note": "That page had almost no readable text."}
+    text = text[:12000]          # a shop page's substance is near the top; cap the token bill
+
+    prompt = (_PAGE_PROMPT_HEAD + ", ".join(CANONICAL_CATEGORIES)
+              + _PAGE_PROMPT_TAIL + text)
+    provider = (provider or os.getenv("BANCO_VISION_PROVIDER", "gemini")).lower()
+
+    started = time.perf_counter()
+    try:
+        fn = _TEXT_PROVIDERS.get(provider)
+        if fn is None:
+            raise RuntimeError(f"unknown text provider: {provider}")
+        raw, model = await fn(prompt)
+    except Exception as e:  # noqa: BLE001 — any provider/transport error degrades, never fails
+        logger.warning("page read provider %s failed: %s", provider, e)
+        return {"data": {}, "provider": provider, "model": "",
+                "elapsed_ms": int((time.perf_counter() - started) * 1000),
+                "note": f"AI page read unavailable ({type(e).__name__})."}
+    elapsed_ms = int((time.perf_counter() - started) * 1000)
+
+    try:
+        obj = _parse_json(raw)
+    except Exception as e:  # noqa: BLE001
+        logger.warning("page read parse failed (%s): %.120s", e, raw)
+        return {"data": {}, "provider": provider, "model": model, "elapsed_ms": elapsed_ms,
+                "note": "The AI's answer wasn't readable."}
+
+    def _s(k: str, cap: int = 400) -> str:
+        v = obj.get(k)
+        return re.sub(r"\s+", " ", str(v)).strip()[:cap] if isinstance(v, (str, int, float)) else ""
+
+    tags = obj.get("tags")
+    tags = [re.sub(r"\s+", " ", str(t)).strip().lower()[:24]
+            for t in tags[:6]] if isinstance(tags, list) else []
+
+    cat = _s("category", 60)
+    if cat and cat not in set(CANONICAL_CATEGORIES):
+        cat = ""      # the funnel, same as everywhere: an off-tree label is no label
+
+    return {
+        "data": {
+            "name": _s("name", 200), "description": _s("description", 2000),
+            "material": _s("material", 40), "size": _s("size", 40), "parts": _s("parts", 20),
+            "brand": _s("brand", 80), "tags": [t for t in tags if t], "category": cat,
+        },
+        "provider": provider, "model": model, "elapsed_ms": elapsed_ms, "note": None,
+    }

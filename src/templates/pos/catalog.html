@@ -1642,7 +1642,24 @@
                     const blank = v => v === '' || v === null || v === undefined;
                     if (blank(this.form.name)) this.form.name = f.name;
                     if (blank(this.form.description) && f.description) this.form.description = f.description;
-                    if (blank(this.form.category) && f.suggested_category) this.form.category = f.suggested_category;
+                    // Category: the page's own classification first, then the AI's read of the body.
+                    if (blank(this.form.category) && (f.suggested_category || f.ai_category))
+                        this.form.category = f.suggested_category || f.ai_category;
+                    // Specs and tags go into the DESCRIPTION, not a field of their own.
+                    // `_payload()` sends no `tags`, so writing `form.tags` would vanish on save —
+                    // the phantom-field trap (cash_box_float existed on every layer a test could
+                    // reach and on no screen). The description is saved, shown, editable, AND
+                    // searched: `word_similarity(q, name || ' ' || description)` is what lets an
+                    // English query find a German-named row. So "50mm · 4teilig · alu" here is
+                    // genuinely findable, where a hidden field would not be.
+                    const extra = [];
+                    if (f.ai_specs) extra.push(['material', 'size', 'parts']
+                        .map(k => f.ai_specs[k]).filter(Boolean).join(' · '));
+                    if (f.ai_tags && f.ai_tags.length) extra.push(f.ai_tags.join(', '));
+                    const tail = extra.filter(Boolean).join(' · ');
+                    if (tail && !(this.form.description || '').includes(tail)) {
+                        this.form.description = ((this.form.description || '') + '\n' + tail).trim();
+                    }
                     // The EAN is the prize — a real code beats a minted one every time.
                     if (blank(this.form.barcode) && f.barcode) this.form.barcode = f.barcode;
                     const gotChf = f.price && (!f.currency || String(f.currency).toUpperCase() === 'CHF');
@@ -1651,8 +1668,15 @@
                     if (f.barcode) bits.push('EAN ' + f.barcode);
                     if (f.price) bits.push(f.price + ' ' + (f.currency || '') +
                                            (gotChf ? '' : ' — foreign currency, type YOUR price'));
-                    if (f.image) bits.push('photo found');
-                    this.pageNote = '✅ read: ' + (bits.join(' · ') || 'name only');
+                    if (f.image) bits.push('photo');
+                    if (f.ai_specs && Object.keys(f.ai_specs).length) bits.push('specs');
+                    if (f.ai_tags && f.ai_tags.length) bits.push(f.ai_tags.length + ' tags');
+                    // Say WHERE it came from. The shop's own record and a model's reading of the
+                    // prose are different grades of evidence, and the operator should know which
+                    // one they are proofing.
+                    if (f.ai_read) bits.push('body read by ' + f.ai_read.provider);
+                    this.pageNote = '✅ read: ' + (bits.join(' · ') || 'name only')
+                                  + (f.ai_note ? ' — ' + f.ai_note : '');
                     if (f.image) {
                         this.pendingImageUrl = f.image;          // ← attached on save
                         if (!this.snapPreview) { this.snapPreview = f.image; this.snapName = url; }
