@@ -691,6 +691,29 @@ so nothing in the database could say what it physically was. Only the bottle kne
   picture **is** sellable — say so, and keep flagging what is missing, rather than choosing between a
   green tick and a permanent red. *(Phase A · catalogue · Felix's call on the threshold)*
 
+- **📄 LET THE AI READ THE PAGE when the shop publishes no structured data.** *(Angel, 2026-08-06,
+  after pasting a Purize Com Cruncher page: "It read that page. It just picked up the title and
+  pretty much discarded everything else… that page had a lot of details, the type of grinder, the
+  material, the dimensions. It should really enrich and give it a robust description and everything
+  else, tags, the whole thing.")*
+  **He is right, and the cause is structural.** `_page_product_facts` reads **schema.org JSON-LD**
+  first and falls back to **`og:description`**. `drehmoment-headshop.de` publishes no JSON-LD, so
+  what came back was its marketing meta tag —
+  *"Zweiteilige Kräutermühle – Blitzschneller Versand ✔ Spitzenpreis ✔"* — while the real specs sit
+  in the page **body**, which the reader never touches.
+  **A generic body parser is the wrong fix.** Every shop structures its page differently; the
+  enricher only manages it for `artemisluzern.ch` because it targets one known site. Writing one
+  parser per supplier does not scale and rots silently.
+  **➡️ The right fix: feed the page TEXT to the model we already pay for.** Gemini is wired up and
+  reads text as happily as photos. One call turns any shop's page into
+  name · specs · material · dimensions · category · tags, with the **honest-note contract already in
+  `vision.py`** (never raises, returns a `note` when it could not).
+  ⚠️ **Structured data must still WIN** where it exists — JSON-LD is the shop *stating* its facts,
+  the model is *inferring* them, and per `/catalog/page-facts`'s own docstring *"a page is evidence,
+  not truth"*. Model output goes in the description and tags; **never the price and never the EAN.**
+  **What already works:** the ✅ photo (fixed 2026-08-06 — it was queued but never attached), the
+  title with its SEO tail stripped, and a CHF price when stated. *(shop floor · catalogue)*
+
 - **🤝 THE TWO READS DISAGREEING IS A SIGNAL — and it is currently thrown away.** *(Found 2026-08-06
   proving the two-stage read on the real endpoint.)* The safety argument for stage 1 was *"brand-led
   is what recognises a non-grinder"*. **It is only usually right.** On Angel's stash tin the brand
