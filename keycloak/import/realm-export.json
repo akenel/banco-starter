@@ -1,8 +1,8 @@
 {
   "realm": "kc-pos-realm-dev",
   "enabled": true,
-  "displayName": "\ud83d\uded2\ufe0f HelixPOS \ud83d\udcb3\ufe0f Development \ud83c\udfea\ufe0f Realm \ud83d\udce6\ufe0f kc-pos-realm-dev \ud83d\udcb0\ufe0f",
-  "displayNameHtml": "<div class='kc-logo-text'><span>\ud83d\uded2\ufe0f HelixPOS \ud83d\udcb3\ufe0f</span></div>",
+  "displayName": "🛒️ HelixPOS 💳️ Development 🏪️ Realm 📦️ kc-pos-realm-dev 💰️",
+  "displayNameHtml": "<div class='kc-logo-text'><span>🛒️ HelixPOS 💳️</span></div>",
   "registrationAllowed": false,
   "rememberMe": true,
   "sslRequired": "external",
@@ -15,23 +15,23 @@
   "roles": {
     "realm": [
       {
-        "name": "\ud83d\udcb0\ufe0f pos-cashier",
+        "name": "💰️ pos-cashier",
         "description": "Cashier role - Create transactions, scan products, process checkout. Limited to 10% discount threshold."
       },
       {
-        "name": "\ud83d\udc54\ufe0f pos-manager",
+        "name": "👔️ pos-manager",
         "description": "Manager role - Full POS access including product management, unlimited discounts, and reporting."
       },
       {
-        "name": "\ud83d\udee0\ufe0f pos-developer",
+        "name": "🛠️ pos-developer",
         "description": "Developer role - Create products for testing, limited access to production data."
       },
       {
-        "name": "\ud83d\udcca\ufe0f pos-auditor",
+        "name": "📊️ pos-auditor",
         "description": "Auditor role - Read-only access to all transactions, products, and reports for compliance."
       },
       {
-        "name": "\ud83d\udc51\ufe0f pos-admin",
+        "name": "👑️ pos-admin",
         "description": "System administrator - Full control over POS realm and configuration."
       },
       {
@@ -43,9 +43,9 @@
   },
   "groups": [
     {
-      "name": "\ud83d\udcb0\ufe0f Cashiers",
+      "name": "💰️ Cashiers",
       "realmRoles": [
-        "\ud83d\udcb0\ufe0f pos-cashier",
+        "💰️ pos-cashier",
         "default-roles-kc-pos-realm-dev"
       ],
       "attributes": {
@@ -55,10 +55,10 @@
       }
     },
     {
-      "name": "\ud83d\udc54\ufe0f Managers",
+      "name": "👔️ Managers",
       "realmRoles": [
-        "\ud83d\udc54\ufe0f pos-manager",
-        "\ud83d\udcb0\ufe0f pos-cashier",
+        "👔️ pos-manager",
+        "💰️ pos-cashier",
         "default-roles-kc-pos-realm-dev"
       ],
       "attributes": {
@@ -68,9 +68,9 @@
       }
     },
     {
-      "name": "\ud83d\udee0\ufe0f Developers",
+      "name": "🛠️ Developers",
       "realmRoles": [
-        "\ud83d\udee0\ufe0f pos-developer",
+        "🛠️ pos-developer",
         "default-roles-kc-pos-realm-dev"
       ],
       "attributes": {
@@ -80,9 +80,9 @@
       }
     },
     {
-      "name": "\ud83d\udcca\ufe0f Auditors",
+      "name": "📊️ Auditors",
       "realmRoles": [
-        "\ud83d\udcca\ufe0f pos-auditor",
+        "📊️ pos-auditor",
         "default-roles-kc-pos-realm-dev"
       ],
       "attributes": {
@@ -92,11 +92,11 @@
       }
     },
     {
-      "name": "\ud83d\udc51\ufe0f Admins",
+      "name": "👑️ Admins",
       "realmRoles": [
-        "\ud83d\udc51\ufe0f pos-admin",
-        "\ud83d\udc54\ufe0f pos-manager",
-        "\ud83d\udcb0\ufe0f pos-cashier",
+        "👑️ pos-admin",
+        "👔️ pos-manager",
+        "💰️ pos-cashier",
         "default-roles-kc-pos-realm-dev"
       ],
       "attributes": {
@@ -109,7 +109,7 @@
   "clients": [
     {
       "clientId": "helix_pos_web",
-      "name": "\ud83d\uded2\ufe0f HelixPOS Web Application (Public)",
+      "name": "🛒️ HelixPOS Web Application (Public)",
       "description": "Frontend web application for POS terminals",
       "enabled": true,
       "protocol": "openid-connect",
@@ -153,7 +153,7 @@
     },
     {
       "clientId": "helix_pos_service",
-      "name": "\ud83d\udd10\ufe0f HelixPOS Service Account (Backend API)",
+      "name": "🔐️ HelixPOS Service Account (Backend API)",
       "description": "Service account for HelixPOS backend operations",
       "enabled": true,
       "protocol": "openid-connect",
@@ -177,7 +177,7 @@
     },
     {
       "clientId": "helix_pos_mobile",
-      "name": "\ud83d\udcf1\ufe0f HelixPOS Mobile App",
+      "name": "📱️ HelixPOS Mobile App",
       "description": "Mobile POS application for tablets and smartphones",
       "enabled": true,
       "protocol": "openid-connect",
@@ -237,11 +237,11 @@
         ]
       },
       "realmRoles": [
-        "\ud83d\udcb0\ufe0f pos-cashier",
+        "💰️ pos-cashier",
         "default-roles-kc-pos-realm-dev"
       ],
       "groups": [
-        "/\ud83d\udcb0\ufe0f Cashiers"
+        "/💰️ Cashiers"
       ]
     },
     {
@@ -271,13 +271,13 @@
         ]
       },
       "realmRoles": [
-        "\ud83d\udc54\ufe0f pos-manager",
-        "\ud83d\udcb0\ufe0f pos-cashier",
+        "👔️ pos-manager",
+        "💰️ pos-cashier",
         "default-roles-kc-pos-realm-dev"
       ],
       "groups": [
-        "/\ud83d\udc54\ufe0f Managers",
-        "/\ud83d\udcb0\ufe0f Cashiers"
+        "/👔️ Managers",
+        "/💰️ Cashiers"
       ]
     },
     {
@@ -310,11 +310,11 @@
         ]
       },
       "realmRoles": [
-        "\ud83d\udee0\ufe0f pos-developer",
+        "🛠️ pos-developer",
         "default-roles-kc-pos-realm-dev"
       ],
       "groups": [
-        "/\ud83d\udee0\ufe0f Developers"
+        "/🛠️ Developers"
       ]
     },
     {
@@ -347,15 +347,15 @@
         ]
       },
       "realmRoles": [
-        "\ud83d\udc51\ufe0f pos-admin",
-        "\ud83d\udc54\ufe0f pos-manager",
-        "\ud83d\udcb0\ufe0f pos-cashier",
+        "👑️ pos-admin",
+        "👔️ pos-manager",
+        "💰️ pos-cashier",
         "default-roles-kc-pos-realm-dev"
       ],
       "groups": [
-        "/\ud83d\udc51\ufe0f Admins",
-        "/\ud83d\udc54\ufe0f Managers",
-        "/\ud83d\udcb0\ufe0f Cashiers"
+        "/👑️ Admins",
+        "/👔️ Managers",
+        "/💰️ Cashiers"
       ]
     },
     {
@@ -381,11 +381,11 @@
         ]
       },
       "realmRoles": [
-        "\ud83d\udee0\ufe0f pos-developer",
+        "🛠️ pos-developer",
         "default-roles-kc-pos-realm-dev"
       ],
       "groups": [
-        "/\ud83d\udee0\ufe0f Developers"
+        "/🛠️ Developers"
       ]
     },
     {
@@ -411,11 +411,11 @@
         ]
       },
       "realmRoles": [
-        "\ud83d\udcca\ufe0f pos-auditor",
+        "📊️ pos-auditor",
         "default-roles-kc-pos-realm-dev"
       ],
       "groups": [
-        "/\ud83d\udcca\ufe0f Auditors"
+        "/📊️ Auditors"
       ]
     }
   ],
@@ -437,7 +437,7 @@
   "failureFactor": 5,
   "accessTokenLifespan": 300,
   "accessTokenLifespanForImplicitFlow": 900,
-  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionIdleTimeout": 3600,
   "ssoSessionMaxLifespan": 36000,
   "offlineSessionIdleTimeout": 2592000,
   "accessCodeLifespan": 60,

@@ -609,6 +609,38 @@
             } catch (e) {}
         })();
 
+        // ── Renew the session the moment the till comes back to the front ──────────────
+        // 2026-08-07, Angel: "for some bizarre reason i get logged out for no reason."
+        //
+        // Nothing was broken server-side — the refresh endpoint and Keycloak both answered 200
+        // when driven by hand. What died was the refresh TOKEN, which lives exactly
+        // `ssoSessionIdleTimeout`. The session normally survives because the notification poller
+        // fires every 45s and renews the access token every ~5 min.
+        //
+        // BUT A BACKGROUND TAB HAS NO TIMERS. Chrome throttles setInterval in a hidden tab and
+        // then freezes it outright. His POS sat behind a dozen other tabs, so nothing refreshed,
+        // the idle clock ran out, and the next click signed him out. On a real counter the same
+        // thing happens to a tablet with the screen off.
+        //
+        // So: refresh on the way BACK IN, before the operator can touch anything. `refresh()` is
+        // single-flight and never logs anybody out by itself — it renews, or it quietly fails and
+        // the normal 401 path decides. Cheap, and it means the FIRST tap after a coffee break is
+        // a working tap instead of a login screen.
+        document.addEventListener('visibilitychange', function () {
+            if (document.visibilityState !== 'visible') return;
+            try {
+                if (!AuthHelper.getRefreshToken()) return;    // not logged in — nothing to renew
+                AuthHelper.refresh().catch(function () {});   // best-effort, never throws at the user
+            } catch (e) {}
+        });
+        // Same reasoning for waking from sleep / regaining the network: the tab may have been
+        // visible the whole time and simply frozen with the laptop lid shut.
+        window.addEventListener('online', function () {
+            try {
+                if (AuthHelper.getRefreshToken()) AuthHelper.refresh().catch(function () {});
+            } catch (e) {}
+        });
+
         // API helper with automatic auth + silent token refresh
         const API = {
             _buildConfig(options) {
