@@ -819,6 +819,10 @@ window.POS_STRINGS = {
       "no_barcode_in_photo": "Couldn't read a barcode in that photo. Try another, or type it in."
     },
     "scan": {
+      "dept_no_name": "No name needed — just the price.",
+      "dept_price_label": "Price",
+      "dept_qty_label": "Qty",
+      "dept_or_create": "…or create a real product instead — for something you will sell again",
       "heading": "New Sale",
       "transaction_label": "Transaction",
       "cashier": "Cashier",
@@ -2779,6 +2783,10 @@ window.POS_STRINGS = {
       "no_barcode_in_photo": "Impossible de lire le code‑barres sur la photo. Essayez une autre ou saisissez‑le."
     },
     "scan": {
+      "dept_no_name": "Pas de nom — seulement le prix.",
+      "dept_price_label": "Prix",
+      "dept_qty_label": "Qté",
+      "dept_or_create": "…ou créer un vrai article — pour quelque chose que vous revendrez",
       "heading": "Nouvelle vente",
       "transaction_label": "Transaction",
       "cashier": "Caissier",
@@ -4739,6 +4747,10 @@ window.POS_STRINGS = {
       "no_barcode_in_photo": "Non sono riuscito a leggere un codice a barre in quella foto. Provane un'altra, o digitalo."
     },
     "scan": {
+      "dept_no_name": "Nessun nome — solo il prezzo.",
+      "dept_price_label": "Prezzo",
+      "dept_qty_label": "Qtà",
+      "dept_or_create": "…oppure crea un vero articolo — per qualcosa che venderai ancora",
       "heading": "Nuova vendita",
       "transaction_label": "Transazione",
       "cashier": "Cassiere",
@@ -6695,6 +6707,10 @@ window.POS_STRINGS = {
       "no_barcode_in_photo": "Konnte in diesem Foto keinen Barcode lesen. Versuch ein anderes, oder tippe ihn ein."
     },
     "scan": {
+      "dept_no_name": "Kein Name nötig — nur der Preis.",
+      "dept_price_label": "Preis",
+      "dept_qty_label": "Anzahl",
+      "dept_or_create": "…oder lieber einen richtigen Artikel anlegen — für etwas, das du wieder verkaufst",
       "heading": "Neuer Verkauf",
       "transaction_label": "Transaktion",
       "cashier": "Kassierer",

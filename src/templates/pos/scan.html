@@ -142,33 +142,52 @@
                           </template>
                         </div>
 
-                        <!-- Price entry. Opens with focus in the amount field (SPEC §4.4). -->
+                        <!-- Price entry. Opens with focus in the amount field (SPEC §4.4).
+                             LAYOUT NOTE (2026-08-07, Angel's screenshot): this was one flex row
+                             with `w-20` on the quantity box, and it came out INVERTED — a global
+                             `.input-field { width:100% }` beat the utility class, so quantity took
+                             the whole row and the price collapsed to a stub with two spinner
+                             arrows in it. Widths now live on the WRAPPERS, never on the inputs. -->
                         <div x-show="deptOpen" x-cloak class="mt-3 pt-3 border-t-2 border-slate-300">
-                          <p class="font-bold text-lg text-slate-900 mb-2">
+                          <p class="font-bold text-lg text-slate-900">
                             <span x-text="deptChosen && deptChosen.receipt"></span>
-                            <span class="text-sm font-normal text-slate-600" x-text="deptChosen && ('· ' + deptChosen.covers)"></span>
                           </p>
-                          <div class="flex gap-2 items-start">
-                            <div class="flex-1">
-                              <input type="number" step="0.05" min="0" inputmode="decimal"
-                                     x-model="deptPrice" x-ref="deptPrice"
-                                     @keyup.enter="addDepartmentLine()"
-                                     placeholder="CHF" class="input-field text-2xl font-bold">
-                              <!-- SPEC §4.4 fat-finger guard: a second, deliberate tap above 200. -->
-                              <p x-show="Number(deptPrice) >= 200" x-cloak
-                                 class="text-sm text-red-700 font-semibold mt-1">
-                                ⚠️ <span data-i18n="scan.dept_confirm_high">That is a big amount — press again to confirm</span>
-                              </p>
+                          <p class="text-xs text-slate-600 mb-2" x-text="deptChosen && deptChosen.covers"></p>
+
+                          <!-- The reassurance Angel needed and did not get: "it looks like if i
+                               select vape i still need a name for the product". He does not. -->
+                          <p class="text-sm font-semibold text-green-800 bg-green-50 border border-green-300 rounded px-2 py-1 mb-3">
+                            ✓ <span data-i18n="scan.dept_no_name">No name needed — just the price.</span>
+                          </p>
+
+                          <label class="block text-sm font-medium text-slate-700 mb-1">
+                            <span data-i18n="scan.dept_price_label">Price</span> (CHF) <span class="text-red-500">*</span>
+                          </label>
+                          <input type="number" step="0.05" min="0" inputmode="decimal"
+                                 x-model="deptPrice" x-ref="deptPrice"
+                                 @keyup.enter="addDepartmentLine()"
+                                 placeholder="0.00" class="input-field text-2xl font-bold">
+                          <!-- SPEC §4.4 fat-finger guard: a second, deliberate tap above 200. -->
+                          <p x-show="Number(deptPrice) >= 200" x-cloak
+                             class="text-sm text-red-700 font-semibold mt-1">
+                            ⚠️ <span data-i18n="scan.dept_confirm_high">That is a big amount — press again to confirm</span>
+                          </p>
+
+                          <div class="flex gap-2 items-end mt-3">
+                            <div class="w-24 flex-none">
+                              <label class="block text-xs font-medium text-slate-600 mb-1"
+                                     data-i18n="scan.dept_qty_label">Qty</label>
+                              <input type="number" min="1" max="99" x-model="deptQty"
+                                     class="input-field text-center text-xl font-bold">
                             </div>
-                            <input type="number" min="1" max="99" x-model="deptQty"
-                                   class="input-field w-20 text-center text-2xl font-bold" title="Anzahl">
                             <button @click="addDepartmentLine()"
-                                    class="px-5 py-3 rounded-lg bg-slate-800 text-white font-bold text-lg flex-none"
-                                    :class="Number(deptPrice) >= 200 && !deptConfirmed ? 'bg-red-700' : ''"
-                                    x-text="Number(deptPrice) >= 200 && !deptConfirmed ? '⚠️ Confirm' : '➕ Add'"></button>
+                                    class="flex-1 py-4 rounded-lg text-white font-bold text-lg"
+                                    :class="Number(deptPrice) >= 200 && !deptConfirmed ? 'bg-red-700' : 'bg-slate-800'"
+                                    x-text="Number(deptPrice) >= 200 && !deptConfirmed ? '⚠️ Confirm' : '➕ Add to cart'"></button>
                             <button @click="deptOpen=false; deptChosen=null; deptConfirmed=false"
-                                    class="px-3 py-3 rounded-lg border-2 border-slate-300 text-slate-600 flex-none">✕</button>
+                                    class="px-4 py-4 rounded-lg border-2 border-slate-300 text-slate-600 flex-none">✕</button>
                           </div>
+
                           <p x-show="pendingBarcode" x-cloak class="text-xs text-slate-500 mt-2">
                             📎 <span data-i18n="scan.dept_attach">the scanned code is attached to this line</span>
                             <span class="font-mono" x-text="pendingBarcode"></span>
@@ -177,13 +196,28 @@
                       </div>
                     </div>
 
+                    <!-- ── the fork, spelled out ──────────────────────────────────────────
+                         2026-08-07, Angel on the first screen: "it looks like if i select vape
+                         i still need a name for the product". He did not — but the create form
+                         sat directly under the open department panel with a red-starred "Item
+                         name *", and two stacked panels read as one form.
+
+                         So: while a department is open the create form COLLAPSES to a single
+                         line, and the choice between them is written down instead of implied. -->
+                    <div x-show="searchMode === 'catalog' && deptOpen" x-cloak class="my-3">
+                      <button @click="deptOpen=false; deptChosen=null"
+                              class="w-full text-left text-sm text-gray-500 border border-dashed border-gray-300 rounded-lg px-3 py-2 hover:bg-gray-50">
+                        <span data-i18n="scan.dept_or_create">…or create a real product instead — for something you will sell again</span> ›
+                      </button>
+                    </div>
+
                     <!-- New item on the fly: fast cashier create for no-barcode goods.
                          Name + price (photo optional), auto-filed under "On the fly" so
                          Pam never picks a category; a manager enhances/discontinues later.
                          KEPT on purpose: a department key records revenue but loses the
                          identity, so for something she WILL sell again, creating it is still
                          the better answer. The strip above is for everything else. -->
-                    <div x-show="searchMode === 'catalog'" class="space-y-4">
+                    <div x-show="searchMode === 'catalog' && !deptOpen" class="space-y-4">
                         <div class="bg-yellow-50 border-2 border-yellow-400 rounded-lg p-4">
                             <p class="text-sm font-semibold text-yellow-800 mb-2">🆕 <span data-i18n="scan.new_item_title">New item — no barcode</span></p>
                             <p class="text-sm text-yellow-700" data-i18n-html="scan.new_item_help">
