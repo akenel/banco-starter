@@ -73,6 +73,47 @@ _MULTIWORD_KEYS = tuple(k for k in _INDEX if " " in k or "&" in k)
 _TOKEN = re.compile(r"[a-zäöüß0-9]+", re.I)
 _MAX_Q = 60
 
+# --- German compounds (2026-08-07) -------------------------------------------------
+# Token matching is EXACT, so "Aktivkohlefilter" — one word, as German writes it — expanded
+# to NOTHING, while "Aktiv Kohle Filter" expanded to seven terms. Same concept, same shop,
+# and filters are rank 2 in the day book. German compounds are head-FINAL: the last element
+# is the type ("…filter", "…papier", "…waage"), which is exactly the word the concept index
+# holds. So a suffix match on a long token recovers the concept.
+#
+# Deliberately conservative, because a bad expansion is worse than none — it would boost a
+# whole unrelated shelf:
+#   • suffix only (head-final), never an interior substring
+#   • the token must be a real compound (>= 8 chars) with >= 3 chars left in front of the head
+#   • FALSE FRIENDS are listed explicitly, measured against the live catalogue vocabulary
+#     rather than imagined: "silicone" ends in "cone" but is not a joint tube.
+_COMPOUND_MIN_TOKEN = 8
+_COMPOUND_MIN_HEAD = 4
+_COMPOUND_MIN_STEM = 3
+# Found by running this expander over all 1,401 catalogue words of 8+ letters and READING the
+# output — not by imagining what might go wrong. 70 words expand; these are the ones that were
+# wrong, and "Durchmesser" is the dangerous one: diameter appears in half the bong and grinder
+# names in this shop, and it would have boosted the entire knife shelf on a size query.
+_FALSE_FRIENDS = frozenset((
+    "durchmesser",   # DIAMETER — ends "messer" (knife). Everywhere in this catalogue.
+    "rootjuice",     # BioBizz plant food — ends "juice" (e-liquid)
+    "silicone",      # ends "cone" — a material, not a joint tube
+    "silikon",
+    "vaporizer",     # ends in its own key; harmless but skip the extra pass
+))
+_COMPOUND_HEADS = tuple(sorted(
+    (k for k in _INDEX if " " not in k and "&" not in k and len(k) >= _COMPOUND_MIN_HEAD),
+    key=len, reverse=True))          # longest head first: "digitalwaage" before "waage"
+
+
+def _compound_concepts(token: str) -> frozenset:
+    """Concept terms for a German compound noun, via its head. Empty when it isn't one."""
+    if len(token) < _COMPOUND_MIN_TOKEN or token in _FALSE_FRIENDS:
+        return frozenset()
+    for head in _COMPOUND_HEADS:
+        if token.endswith(head) and len(token) - len(head) >= _COMPOUND_MIN_STEM:
+            return _INDEX[head]
+    return frozenset()
+
 
 def expand_search_terms(q: str) -> list[str]:
     """Extra German/variant terms to also match+boost for a raw query.
@@ -93,6 +134,9 @@ def expand_search_terms(q: str) -> list[str]:
     for c in candidates:
         if c in _INDEX:
             hits |= _INDEX[c]
+        else:
+            # not a known term on its own — it may be a German compound whose HEAD is one
+            hits |= _compound_concepts(c)
     for key in _MULTIWORD_KEYS:
         if key in q:
             hits |= _INDEX[key]

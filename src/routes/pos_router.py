@@ -4036,6 +4036,53 @@ def _query_code_exact(q: str) -> Optional[str]:
     return m.group(1) if m else None
 
 
+# 2026-08-07 — GERMAN COMPOUNDS. German writes "Aktivkohlefilter" where English writes
+# "activated carbon filter", and a Swiss cashier types "Pokerchip" for a row stored as
+# "… Poker Chip 42mm". Trigram similarity is computed over 3-character windows, so the
+# SPACE is part of the data: `poker chip` and `pokerchip` differ at the junction ("er ",
+# " ch" vs "erc", "rch") and score differently against the same row. Nothing errors — the
+# right row survives the WHERE clause and then quietly loses on score, which is this repo's
+# most expensive bug shape (the `pc.`/`Stk.` size table, dead for weeks with every unit
+# test green).
+#
+# The fix needs no lexicon and no decompounder: strip every separator from BOTH sides and
+# the two spellings become the SAME string. It works in both directions — a compound query
+# finds a spaced name, and a spaced query finds a compound name — which matters because the
+# catalogue is German and the people typing are not always.
+_DESPACE_RE = re.compile(r"[^a-z0-9]+")
+
+# Function words that sit inside half the German product names. Their presence proves
+# nothing, so counting them as "coverage" would just add a flat bonus to everything.
+_COMPOUND_STOP = frozenset((
+    "mit", "und", "der", "die", "das", "den", "dem", "fur", "für", "von", "aus",
+    "ohne", "zum", "zur", "auf", "the", "and", "for", "with", "von",
+))
+
+# How much a full token cover is worth. Deliberately smaller than the synonym bonus below:
+# this breaks TIES inside a shelf, it does not decide which shelf you are on.
+_COMPOUND_BONUS = 0.25
+
+
+def _despace(s: str) -> str:
+    """Lowercase, letters and digits only — the form in which "Poker Chip" and "Pokerchip"
+    are the same string. Both sides of every comparison must be folded with THIS function;
+    folding only the query would leave the catalogue's spelling facing the cashier's."""
+    return _DESPACE_RE.sub("", (s or "").lower())
+
+
+def _query_compound_tokens(q: str) -> list[str]:
+    """The query's meaningful tokens, de-spaced, for compound-tolerant matching.
+
+    Minimum length 4 ON PURPOSE. A junction problem only exists in a token long enough to
+    contain one, and a 3-letter brand (`OCB`, `RAW`, `BIC` — all tier-1 here) already matches
+    by plain ILIKE and trigram. Letting 3-letter tokens in would mean matching them INSIDE
+    unrelated compounds, where the word boundary that made them meaningful is gone.
+    """
+    toks = {t for t in (_despace(w) for w in re.split(r"\s+", (q or "").strip()))
+            if len(t) >= 4 and t not in _COMPOUND_STOP}
+    return sorted(toks)
+
+
 def _product_size(name: str) -> str:
     """Normalized size token in a product name ('2g','10ml','20mg','34stk','250er') or '' — the
     Python mirror of the client's posProductSize. Used by the dedup guard so a variant is only a
@@ -4088,13 +4135,49 @@ async def search_products_fast(
     from src.services.catalog_search_synonyms import expand_search_terms
     syn_like = [f"%{t}%" for t in expand_search_terms(q)]
     # SQL fragments injected only when we have expansions (never user text → no injection):
-    # a category/name hit on a synonym term scores a floor high enough to beat an incidental
-    # description mention, so "lighter" surfaces the whole "Feuerzeuge" shelf, BIC included.
+    # a category/name hit on a synonym term is worth enough to beat an incidental description
+    # mention, so "lighter" surfaces the whole "Feuerzeuge" shelf, BIC included.
+    #
+    # 2026-08-07 — THIS WAS A FLOOR INSIDE `GREATEST(…, 0.75)` AND IT SATURATED.
+    # Measured on prod: "Pokerchip Grinder" and "Poker Chip Grinder" returned the IDENTICAL
+    # list, because `grinder` expands to the Grinders concept and **201 rows then tied at
+    # exactly 0.750** — every text score below the floor was discarded, so the tiebreak fell
+    # through to `name` and the screen led with replacement SIEVES in alphabetical order. The
+    # actual "Grinder Metall … Poker Chip 42mm" was nowhere near the top. A floor a real score
+    # cannot exceed is not a boost; it is the category tier of 2026-08-06 wearing yet another
+    # coat, and this is the FOURTH time this shape has bitten (07-31 dedup guard, 08-03 alias
+    # filters, 08-06 category ORDER BY, now this).
+    #
+    # ADDITIVE instead, and sized to keep what the floor was actually for: an English query
+    # scores ~0 against a German name, so the shelf must still outrank a row that merely
+    # mentions the word in its description (~0.30 there). +0.45 does that WITHOUT flattening
+    # the shelf into a tie — inside the shelf, text relevance decides again.
     syn_score = (
-        ", CASE WHEN category ILIKE ANY(:syn_like) THEN 0.75"
-        "       WHEN name ILIKE ANY(:syn_like) THEN 0.55 ELSE 0 END"
+        " + CASE WHEN category ILIKE ANY(:syn_like) THEN 0.45"
+        "        WHEN name ILIKE ANY(:syn_like) THEN 0.30 ELSE 0 END"
     ) if syn_like else ""
     syn_recall = " OR category ILIKE ANY(:syn_like) OR name ILIKE ANY(:syn_like)" if syn_like else ""
+
+    # De-spaced token coverage — the German-compound fix. See _query_compound_tokens.
+    # Both fragments are built from a COUNT and a CONSTANT (never user text); the tokens
+    # themselves ride in as the bound param :dtoks, so there is no injection surface.
+    dtoks = _query_compound_tokens(q)
+    _covered = (
+        "(SELECT count(*) FROM unnest(CAST(:dtoks AS text[])) dt"
+        "  WHERE regexp_replace(lower(products.name), '[^a-z0-9]+', '', 'g')"
+        "        LIKE '%' || dt || '%')"
+    )
+    # A row covering EVERY token gets the full bonus; partial cover gets its share, so
+    # "Pokerchip Grinder" separates the one Poker Chip row from 200 other grinders.
+    compound_score = f" + {_COMPOUND_BONUS} * {_covered}::float / {len(dtoks)}" if dtoks else ""
+    # SCORE ONLY — there is deliberately no matching recall arm. I wrote one ("the compound row
+    # is never fetched") and then measured it: across 20 realistic German/English spellings
+    # against the live 5,361-row catalogue it added **0 rows, every time**. `word_similarity`
+    # already matches the best EXTENT of the target, so "aktivkohlefilter" is recalled by
+    # "Aktiv Kohle Filter" without help. Recall was never the problem — RANKING was. Keeping
+    # the arm would have cost a correlated subquery on every row of every search to buy
+    # nothing, and it was untestable by construction: deleting it broke no test because there
+    # was no behaviour to break.
 
     # Sort is interpolated from a FIXED whitelist (never user text) → no injection surface;
     # q/category/limit/skip stay bound params. (No stock/reorder filter on purpose: the shop
@@ -4167,8 +4250,8 @@ async def search_products_fast(
                  -- item ("Feuerzeug BIC mini" for "bic lighter") without letting an incidental
                  -- word in a long description outrank a real name match. Full weight let
                  -- unrelated items whose description merely mentions the word saturate the top.
-                 0.5 * word_similarity(:q, coalesce(name,'') || ' ' || coalesce(description,'')){syn_score}
-               ) AS relevance,
+                 0.5 * word_similarity(:q, coalesce(name,'') || ' ' || coalesce(description,''))
+               ){syn_score}{compound_score} AS relevance,
                count(*) OVER() AS total_count,
                -- The 18+ count across the WHOLE match, not the page. The catalog header put
                -- `ageCount()` (a filter over the 25 rows loaded) next to `total` (5,162), so a
@@ -4206,6 +4289,8 @@ async def search_products_fast(
     params = {"q": q or "", "category": category, "limit": limit, "skip": skip}
     if syn_like:
         params["syn_like"] = syn_like
+    if dtoks:
+        params["dtoks"] = dtoks
     if size_rx:
         params["size_rx"] = size_rx
     if code_exact:
