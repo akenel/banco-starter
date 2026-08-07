@@ -1169,6 +1169,7 @@ window.POS_STRINGS = {
       "g_description_desc": "Empty description"
     },
     "transactions": {
+      "cashier_today_only": "cashiers see today only; ask a manager for other days",
       "showing": "Showing",
       "widen_hint": "change the dates above to see more",
       "range_today": "today",
@@ -3177,6 +3178,7 @@ window.POS_STRINGS = {
       "g_description_desc": "Description vide"
     },
     "transactions": {
+      "cashier_today_only": "les caissiers ne voient qu'aujourd'hui ; demandez à un responsable pour d'autres jours",
       "showing": "Affiché :",
       "widen_hint": "modifiez les dates ci-dessus pour en voir plus",
       "range_today": "aujourd'hui",
@@ -5175,6 +5177,7 @@ window.POS_STRINGS = {
       "g_description_desc": "Descrizione vuota"
     },
     "transactions": {
+      "cashier_today_only": "i cassieri vedono solo oggi; per altri giorni chiedi a un responsabile",
       "showing": "Mostrato:",
       "widen_hint": "cambia le date sopra per vederne altre",
       "range_today": "oggi",
@@ -7173,6 +7176,7 @@ window.POS_STRINGS = {
       "g_description_desc": "Leere Beschreibung"
     },
     "transactions": {
+      "cashier_today_only": "Kassiererinnen sehen nur heute; für andere Tage einen Vorgesetzten fragen",
       "showing": "Angezeigt:",
       "widen_hint": "Daten oben ändern, um mehr zu sehen",
       "range_today": "heute",
