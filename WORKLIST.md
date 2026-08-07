@@ -60,6 +60,21 @@ one a screen, none reachable from the API.** So this is the work now, in this or
    - ⚠️ **The ~30 names in tiers 1–2 of `19-what-actually-sells.md` are the real prep** — not 5,389
      rows. Drinks were never checked and `Zigi einzeln 1.–` has no EAN by definition.
 
+**▶️ E · THE OTF ORPHAN — a sale with no link to what was sold.**
+   *Angel 2026-08-07: "we sold bongs but no link to what it was … if no ean scanned and otf for
+   30% of the sales IMHO."* The money is never wrong; what dies is **velocity**, and velocity is
+   the whole of `/reorder/suggestions` — the one thing Banco does that paper cannot.
+   - `POST /pos/products` **already** runs the name-dedup guard at 0.65 and returns
+     `409 {"message": "A very similar item already exists — is it one of these?", "matches": […]}`.
+   - ⚠️ **The till's on-the-fly panel does not appear to render those candidates** —
+     `createNoCodeItem()` in `scan.html` has no 409/matches branch. Verify on the screen. If
+     confirmed this is the FIFTH instance of the repo's most repeated bug (`cash_box_float`,
+     the force-close, `/catalog/merge`, honest confidence): built on every layer a test can
+     reach, and on no screen.
+   - For bongs the answer is **not** an EAN — Tamar publishes none and never will. It is the
+     article number, already built (`_query_code_exact`, measured unique **300/300** on the full
+     5 digits) and documented in `onboarding/20-no-barcode-items.md`.
+
 **🔴 STILL THE GO-LIVE BLOCKER:** prod authenticates against the **DEMO realm** — those passwords
 are in a public GitHub repo. Nothing else on this list matters if the shop goes live on it.
 A shadow day puts real sales on it — close it first, or shadow on a local instance, and **do not
