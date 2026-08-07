@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shadow Day — tally sheet</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --mute:#555; --line:#bbb; --rule:#888;
+    --green:#1f8a4c; --greenbg:#eaf7ef;
+    --amber:#9a6b00; --amberbg:#fdf4de;
+    --red:#b8321f;   --redbg:#fbecea;
+    --blue:#1a5f9c;  --bluebg:#e9f2fa;
+    --shade:#f2f4f6;
+  }
+  *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  html,body{margin:0}
+  body{font-family:"Helvetica Neue",Arial,sans-serif;color:var(--ink);
+       line-height:1.35;padding:12mm 10mm;font-size:10.5pt}
+
+  header{display:flex;justify-content:space-between;align-items:flex-end;
+         border-bottom:3px solid var(--ink);padding-bottom:6px;margin-bottom:9px}
+  h1{font-size:19pt;margin:0}
+  .sub{font-size:10pt;color:var(--mute);margin-top:2px}
+  .badge{font-size:8.5pt;color:var(--mute);text-align:right;font-family:monospace;line-height:1.6}
+
+  h2{font-size:12pt;margin:11px 0 5px;padding-bottom:3px;border-bottom:2px solid var(--ink);
+     break-after:avoid}
+  h2 .en{font-weight:400;color:var(--mute);font-size:9.5pt}
+
+  .lead{background:var(--bluebg);border:1px solid #b9d4ea;border-radius:7px;
+        padding:9px 11px;margin-bottom:9px;break-inside:avoid}
+  .lead p{margin:0 0 5px} .lead p:last-child{margin-bottom:0}
+
+  .why{border-left:4px solid var(--green);background:var(--greenbg);padding:7px 10px;
+       margin:8px 0;font-size:9.5pt;border-radius:0 5px 5px 0;break-inside:avoid}
+  .warn{border-left:4px solid var(--red);background:var(--redbg);padding:7px 10px;
+        margin:8px 0;font-size:9.5pt;border-radius:0 5px 5px 0;break-inside:avoid}
+  .amber{border-left:4px solid var(--amber);background:var(--amberbg);padding:7px 10px;
+        margin:8px 0;font-size:9.5pt;border-radius:0 5px 5px 0;break-inside:avoid}
+
+  table{width:100%;border-collapse:collapse;font-size:9.5pt}
+  th{background:var(--shade);text-align:left;padding:4px 5px;border:1px solid var(--rule);
+     font-size:8pt;text-transform:uppercase;letter-spacing:.03em}
+  td{padding:4px 5px;border:1px solid var(--line);vertical-align:top}
+  tr{break-inside:avoid}
+
+  /* the tally grid */
+  table.tally td{height:20px;padding:2px 4px}
+  table.tally .n{width:22px;text-align:center;color:#aaa;font-size:8pt}
+  table.tally .t{width:38px}
+  table.tally .chf{width:44px}
+  table.tally .sc{width:34px;text-align:center}
+  table.tally .key{width:40px;background:#fffdf3}
+  table.tally .sec{width:32px}
+  table.tally tr:nth-child(5n) td{border-bottom:1.5px solid var(--rule)}
+
+  .keys{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0 8px}
+  .keys span{border:1px solid var(--rule);border-radius:4px;padding:2px 7px;font-size:9pt;
+             background:#fff}
+  .keys b{font-family:monospace;font-size:10pt}
+  .keys .divs{background:var(--shade);font-style:italic}
+
+  ol.chk{margin:6px 0;padding-left:0;list-style:none}
+  ol.chk li{margin-bottom:5px;padding-left:26px;position:relative;font-size:10pt;
+            break-inside:avoid}
+  ol.chk li::before{content:"";position:absolute;left:0;top:1px;width:15px;height:15px;
+                    border:1.5px solid var(--rule);border-radius:3px}
+  .num{display:flex;gap:8px;margin:8px 0}
+  .num .cell{flex:1;border:1px solid var(--line);border-radius:6px;padding:7px 9px;
+             break-inside:avoid}
+  .num .cell .lab{font-size:8.5pt;color:var(--mute);text-transform:uppercase;letter-spacing:.04em}
+  .num .cell .box{border-bottom:1.5px solid var(--rule);height:24px;margin-top:5px}
+  .num .cell .hint{font-size:8pt;color:var(--mute);margin-top:3px;font-style:italic}
+
+  .rule{border-bottom:1px solid var(--rule);height:19px;margin-top:6px}
+
+  footer{margin-top:8px;padding-top:4px;border-top:1px solid var(--line);
+         font-size:8pt;color:var(--mute);display:flex;justify-content:space-between;
+         break-before:avoid}
+  .pagebreak{break-before:page}
+
+  @page{ size:A4; margin:10mm }
+  @media print{ body{padding:0} }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Shadow Day</h1>
+    <div class="sub">Felix sells on paper exactly as always. Angel rings the same sale into Banco.
+      Paper stays the truth.</div>
+  </div>
+  <div class="badge">
+    Artemis Luzern<br>
+    Date: ______________<br>
+    Who is on the till: ____________
+  </div>
+</header>
+
+<div class="lead">
+  <p><strong>The shop risks nothing.</strong> Felix and the girls change nothing and type nothing.
+     The paper book is still the record of the day. Banco is a silent second copy that Angel keys
+     in, standing to one side.</p>
+  <p><strong>Ring it as it happens — never rebuild the day at 18:00.</strong> Reconstructing from
+     the sheet at closing would prove the totals and hide every single thing that went wrong at the
+     counter, and those are the findings.</p>
+  <p><strong>This day is also the department-key dress rehearsal, done on paper.</strong> Every item
+     that will not scan gets a button letter in the <em>KEY</em> column. At close you will know the
+     real percentage <em>and</em> the real spread across the ten buttons — before a line of code is
+     written. If a bucket nobody predicted keeps coming up, that is the tenth button.</p>
+</div>
+
+<h2>Before you start <span class="en">— do not skip these, they cost one hour and save the day</span></h2>
+
+<ol class="chk">
+  <li><strong>Ring the paper book's 477.– day on the tablet, alone, first.</strong> If Banco lands on
+      477 the arithmetic is proved and any defect you hit cost you nothing instead of costing you
+      Felix's patience.</li>
+  <li><strong>Till guard + cashier price panel touched by a human</strong> (WORKLIST item A). It sits
+      between the shop and every sale and no person has used it yet.</li>
+  <li><strong>Cash box float set on a screen</strong> — not by <code>curl</code>.</li>
+  <li><strong>Decide the loose cigarette</strong> (<code>Zigi einzeln 1.–</code>) before the day, not
+      at the counter with a queue behind you.</li>
+  <li><strong>Check the fridge drinks exist in the catalogue at all</strong> — 46 items in Cafe &amp;
+      Food and only 1 of them scans.</li>
+  <li><strong>Phone charged, paper sheet and pen beside the tablet.</strong> You cannot tally on the
+      same device you are ringing on.</li>
+</ol>
+
+<div class="warn">
+  🔴 <strong>The demo realm.</strong> A shadow day puts real sales on an instance whose passwords are
+  in a public GitHub repo. Close it first, or run the day on a local instance — and do not let the
+  shadow run quietly become go-live.
+</div>
+
+<h2>The four numbers <span class="en">— fill these in at close</span></h2>
+
+<div class="num">
+  <div class="cell">
+    <div class="lab">1 · Banco total</div><div class="box"></div>
+    <div class="hint">must match the paper total to the rappen</div>
+  </div>
+  <div class="cell">
+    <div class="lab">1 · Paper total</div><div class="box"></div>
+    <div class="hint">Felix's day book, cash + card</div>
+  </div>
+</div>
+<div class="num">
+  <div class="cell">
+    <div class="lab">2 · Lines that would NOT scan</div><div class="box"></div>
+    <div class="hint">🎯 the number the whole project turns on — under 10% the till is ready,
+      over 25% stop coding and start scanning</div>
+  </div>
+  <div class="cell">
+    <div class="lab">3 · Slowest sale (seconds)</div><div class="box"></div>
+    <div class="hint">doc 10 says 2 seconds or it is broken — this is a many-small-baskets shop</div>
+  </div>
+</div>
+
+<div class="amber">
+  <strong>4 · Every screen that stopped you</strong> — write them on the last page <em>in the moment</em>.
+  You will not remember them at 18:00. On 2026-08-03 a human pass found seven defects in 62 minutes
+  and <strong>every one was a screen</strong>, none reachable from the API.
+</div>
+
+<div class="why">
+  <strong>Failing this day is a successful day.</strong> The outcome to actually fear is a day staged
+  so carefully that it passes and teaches nothing.
+</div>
+
+<footer>
+  <span>onboarding/PARALLEL-RUN.md &middot; run 1 of 2 &middot; Angel drives, Felix risks nothing</span>
+  <span>page 1</span>
+</footer>
+
+<!-- ============================ TALLY PAGES ============================ -->
+
+<div class="pagebreak"></div>
+
+<h2>Tally — one line per item sold <span class="en">(not per basket)</span></h2>
+
+<p style="font-size:9.5pt;margin:0 0 4px"><strong>SCAN?</strong> tick ✓ if the barcode resolved in
+Banco. If not, write the button letter it <em>would</em> have gone to:</p>
+
+<div class="keys">
+  <span><b>Gl</b> Glas</span><span><b>Gr</b> Grips</span><span><b>Zu</b> Zubehör</span>
+  <span><b>Va</b> Vape</span><span><b>Ta</b> Tabak</span><span><b>CB</b> CBD</span>
+  <span><b>De</b> Deko</span><span><b>Dü</b> Dünger</span><span><b>Ge</b> Getränke</span>
+  <span class="divs"><b>Di</b> Diverses</span>
+</div>
+
+<table class="tally">
+  <thead><tr>
+    <th class="n">#</th><th class="t">Time</th>
+    <th>What it was (her word off the book — <em>Pape</em>, <em>Grips</em>, <em>Blow</em>)</th>
+    <th class="chf">CHF</th><th class="sc">Scan ✓</th><th class="key">Key</th><th class="sec">Sec</th>
+  </tr></thead>
+  <tbody>
+    <tr><td class="n">1</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">2</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">3</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">4</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">5</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">6</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">7</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">8</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">9</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">10</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">11</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">12</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">13</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">14</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">15</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">16</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">17</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">18</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">19</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">20</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">21</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">22</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">23</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">24</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">25</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">26</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">27</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">28</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">29</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">30</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">31</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">32</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">33</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">34</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">35</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+  </tbody>
+</table>
+
+<p style="font-size:9pt;color:#555;margin-top:5px"><strong>Sec</strong> — only fill this in when a
+sale felt slow. A blank means it was fine; you do not need a stopwatch on every packet of papers.</p>
+
+<footer><span>Shadow Day tally</span><span>page 2</span></footer>
+
+<div class="pagebreak"></div>
+
+<h2>Tally (continued)</h2>
+<div class="keys">
+  <span><b>Gl</b> Glas</span><span><b>Gr</b> Grips</span><span><b>Zu</b> Zubehör</span>
+  <span><b>Va</b> Vape</span><span><b>Ta</b> Tabak</span><span><b>CB</b> CBD</span>
+  <span><b>De</b> Deko</span><span><b>Dü</b> Dünger</span><span><b>Ge</b> Getränke</span>
+  <span class="divs"><b>Di</b> Diverses</span>
+</div>
+
+<table class="tally">
+  <thead><tr>
+    <th class="n">#</th><th class="t">Time</th><th>What it was</th>
+    <th class="chf">CHF</th><th class="sc">Scan ✓</th><th class="key">Key</th><th class="sec">Sec</th>
+  </tr></thead>
+  <tbody>
+    <tr><td class="n">36</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">37</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">38</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">39</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">40</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">41</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">42</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">43</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">44</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">45</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">46</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">47</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">48</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">49</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">50</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">51</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">52</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">53</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">54</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">55</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">56</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">57</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">58</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">59</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">60</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">61</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">62</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">63</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">64</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">65</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">66</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">67</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">68</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">69</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+    <tr><td class="n">70</td><td></td><td></td><td></td><td></td><td class="key"></td><td></td></tr>
+  </tbody>
+</table>
+
+<footer><span>Shadow Day tally</span><span>page 3</span></footer>
+
+<!-- ============================ CLOSE ============================ -->
+
+<div class="pagebreak"></div>
+
+<h2>At close — count the Key column <span class="en">— this is what validates the ten buttons</span></h2>
+
+<table>
+  <thead><tr>
+    <th style="width:120px">Button</th><th style="width:70px">Lines</th><th style="width:80px">CHF</th>
+    <th>Did anything land here that clearly does not belong? Did she want a bucket that is missing?</th>
+  </tr></thead>
+  <tbody>
+    <tr><td><strong>Gl</strong> &nbsp;Glas</td><td></td><td></td><td></td></tr>
+    <tr><td><strong>Gr</strong> &nbsp;Grips</td><td></td><td></td><td></td></tr>
+    <tr><td><strong>Zu</strong> &nbsp;Zubehör</td><td></td><td></td><td></td></tr>
+    <tr><td><strong>Va</strong> &nbsp;Vape</td><td></td><td></td><td></td></tr>
+    <tr><td><strong>Ta</strong> &nbsp;Tabak</td><td></td><td></td><td></td></tr>
+    <tr><td><strong>CB</strong> &nbsp;CBD</td><td></td><td></td><td></td></tr>
+    <tr><td><strong>De</strong> &nbsp;Deko</td><td></td><td></td><td></td></tr>
+    <tr><td><strong>Dü</strong> &nbsp;Dünger</td><td></td><td></td><td></td></tr>
+    <tr><td><strong>Ge</strong> &nbsp;Getränke</td><td></td><td></td><td></td></tr>
+    <tr><td><strong>Di</strong> &nbsp;Diverses</td><td></td><td></td><td></td></tr>
+    <tr style="background:var(--shade)"><td><strong>✓ Scanned</strong></td><td></td><td></td>
+        <td><em>catalogue lines — the number that should grow every month</em></td></tr>
+  </tbody>
+</table>
+
+<div class="amber">
+  <strong>⚠️ Watch <code>Diverses</code>.</strong> If it is the biggest bucket, the other nine are
+  wrong or she could not tell them apart. That is a finding, not a failure — but it must be read
+  before anything is built.
+</div>
+
+<div class="why">
+  <strong>The five that belong in the shelf binder.</strong> Angel's idea: a folder at the grinder
+  shelf holding printed barcodes for the top few, so the gun never leaves her hand. <strong>Do not
+  guess which five — this tally names them.</strong> Whatever repeats under <code>Gr</code> today is
+  what goes on the page. Same for <code>Gl</code> and <code>Va</code>.
+  <div style="margin-top:5px">📸 <strong>Put a photo beside every barcode in that binder.</strong>
+  On 2026-08-02 the same brand, same bottle and adjacent barcodes produced Cannazym bound to
+  Cannaboost — CHF 12 against CHF 35. A page of five similar grinders with barcodes and no pictures
+  is that trap, printed and laminated.</div>
+</div>
+
+<h2>Every screen that stopped you <span class="en">— write these in the moment, not at 18:00</span></h2>
+<div class="rule"></div><div class="rule"></div><div class="rule"></div><div class="rule"></div>
+<div class="rule"></div>
+
+<h2>Anything the paper book does that Banco cannot</h2>
+<p style="font-size:9pt;color:#555;margin:0">Returns, split payment, a discount off the top, the treat
+bowl, someone paying half cash half TWINT, a delivery mid-basket, the phone ringing.</p>
+<div class="rule"></div><div class="rule"></div>
+
+<h2>Verdict</h2>
+<table>
+  <thead><tr><th style="width:46%">Pass</th><th style="width:46%">Fail</th><th>✓</th></tr></thead>
+  <tbody>
+    <tr><td>Day total matches paper to the rappen</td><td>any unexplained gap</td><td></td></tr>
+    <tr><td>Lines that would not scan &lt; 10%</td><td>&gt; 25% → stop coding, start scanning</td><td></td></tr>
+    <tr><td>No slower than paper</td><td>slower than paper → nobody will ever adopt it</td><td></td></tr>
+    <tr><td>≤ 3 screens stopped you, all cosmetic</td><td>any dead end with a customer waiting</td><td></td></tr>
+  </tbody>
+</table>
+
+<footer>
+  <span>onboarding/PARALLEL-RUN.md &middot; onboarding/ai-coach/SPEC-department-keys.md</span>
+  <span>page 4 &middot; signed: __________________</span>
+</footer>
+
+</body>
+</html>
