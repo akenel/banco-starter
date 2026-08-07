@@ -496,3 +496,76 @@ def test_a_bad_department_never_reaches_the_database(sold):
     with conn.cursor() as cur:
         cur.execute("SELECT count(*) FROM line_items")
         assert cur.fetchone()[0] == before, "a rejected sale still wrote lines"
+
+
+# ------------------------------------------------------------------ the day close (SPEC §7)
+
+def _summary(day=None):
+    """The ACTUAL /reports/daily-summary endpoint function against a real database."""
+    import asyncio
+    from datetime import date
+    from sqlalchemy.pool import NullPool
+    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+    from src.routes.pos_router import get_daily_summary
+
+    dsn = PG.replace("postgresql://", "postgresql+asyncpg://")
+
+    async def go():
+        engine = create_async_engine(dsn, poolclass=NullPool)
+        try:
+            async with async_sessionmaker(engine, expire_on_commit=False)() as db:
+                return await get_daily_summary(
+                    report_date=(day or date.today().isoformat()), db=db,
+                    current_user={"sub": PAM_UID, "preferred_username": "pam"})
+        finally:
+            await engine.dispose()
+    return asyncio.run(go())
+
+
+def test_the_close_lists_every_button_even_the_ones_that_took_nothing(sold):
+    """SPEC §7: laid out in the same order and wording as the paper tally sheet, so the parallel
+    run can be reconciled LINE BY LINE. A block that hides its zero rows has to be matched up by
+    eye against the sheet, which is exactly the friction the shadow day cannot afford."""
+    from src.services.departments import DEPARTMENTS
+    conn, made = sold
+    (tid, _), err = _ring([{"department_code": "GLAS", "unit_price": "95.00", "quantity": 1}])
+    assert err is None
+    made.append(tid)
+
+    s = _summary()
+    codes = [d["code"] for d in s.departments]
+    assert codes[:len(DEPARTMENTS)] == [d["code"] for d in DEPARTMENTS], \
+        f"the block is not in strip order: {codes}"
+    assert s.departments[-1]["code"] == "DIV" or any(d.get("retired") for d in s.departments), \
+        "Diverses must be last in the close block too"
+    glas = next(d for d in s.departments if d["code"] == "GLAS")
+    assert glas["lines"] >= 1 and glas["revenue"] >= Decimal("95.00")
+    assert glas["receipt"] == "Glas", "the block must use her word, same as the receipt"
+
+
+def test_department_revenue_and_the_rollout_number_are_reported(sold):
+    """The number SPEC §7 says tells you whether the rollout is working. It must be a real
+    fraction of LINES, not of money — one CHF 398 vaporizer would otherwise swamp forty packets
+    of papers and make the catalogue look like it was losing when it was not."""
+    conn, made = sold
+    (t1, _), e1 = _ring([{"department_code": "GLAS", "unit_price": "10.00", "quantity": 1}])
+    (t2, _), e2 = _ring([{"name": "Handmade thing", "unit_price": "10.00", "quantity": 1}])
+    assert e1 is None and e2 is None
+    made += [t1, t2]
+
+    s = _summary()
+    assert s.department_lines >= 1
+    assert s.catalog_lines >= 1, "a plain custom line must count as NOT a department line"
+    assert Decimal("0") <= s.catalog_line_pct <= Decimal("100")
+    assert s.department_revenue >= Decimal("10.00")
+    assert Decimal("0") <= s.department_revenue_pct <= Decimal("100")
+
+
+def test_a_day_with_no_department_sales_still_shows_the_whole_strip():
+    """An empty day must not render an empty block — the shape has to be stable, otherwise the
+    person reconciling has to remember what should have been there."""
+    s = _summary(day="2020-01-01")
+    assert len(s.departments) >= 10
+    assert s.department_revenue == Decimal("0.00")
+    assert s.department_lines == 0
+    assert all(d["lines"] == 0 for d in s.departments)

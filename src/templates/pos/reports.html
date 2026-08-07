@@ -90,6 +90,57 @@
             </table>
         </div>
 
+        <!-- ═══ DEPARTMENTS ═══ non-catalog sales (SPEC onboarding/ai-coach/SPEC-department-keys.md §7)
+             Laid out in STRIP ORDER with the zero rows kept, so this block reconciles line-by-line
+             against the shop's paper tally sheet during the parallel run instead of having to be
+             matched up by eye. Hidden entirely on a day that had none. -->
+        <div class="card mb-6" x-show="(summary.department_lines || 0) > 0" x-cloak>
+            <div class="flex items-baseline justify-between mb-2">
+                <h2 class="text-lg font-semibold text-gray-900">
+                    🏷️ <span data-i18n="reports.dept_title">Departments — sold without a barcode</span>
+                </h2>
+                <span class="text-sm text-gray-500">
+                    <span x-text="formatPrice(summary.department_revenue)"></span>
+                    · <span x-text="(summary.department_revenue_pct || 0) + '%'"></span>
+                    <span data-i18n="reports.dept_of_turnover">of turnover</span>
+                </span>
+            </div>
+
+            <!-- 🎯 SPEC §7: the number that says whether the rollout is working. Share of LINES
+                 rung against a real catalogue product — it should climb every month as barcodes
+                 get bound. Read it as a TREND: measured 2026-08-07 only 7% of the catalogue is
+                 scannable at all, so it starts low by arithmetic, not by failure. -->
+            <div class="rounded-lg border-2 p-3 mb-3"
+                 :class="(summary.catalog_line_pct || 0) >= 80 ? 'bg-green-50 border-green-300'
+                                                               : 'bg-amber-50 border-amber-300'">
+                <div class="flex items-baseline justify-between">
+                    <span class="font-semibold" data-i18n="reports.dept_catalog_share">Rung from the catalogue</span>
+                    <span class="text-2xl font-bold" x-text="(summary.catalog_line_pct || 0) + '%'"></span>
+                </div>
+                <p class="text-xs text-gray-600 mt-1">
+                    <span x-text="summary.catalog_lines"></span> <span data-i18n="reports.dept_catalog_lines">catalogue lines</span> ·
+                    <span x-text="summary.department_lines"></span> <span data-i18n="reports.dept_dept_lines">department lines</span>.
+                    <span data-i18n="reports.dept_trend_hint">Watch the trend, not the number — it climbs as barcodes get bound.</span>
+                </p>
+            </div>
+
+            <table class="w-full text-sm">
+                <tbody>
+                    <template x-for="d in (summary.departments || [])" :key="d.code">
+                        <tr class="border-b last:border-0" :class="d.lines ? '' : 'text-gray-300'">
+                            <td class="py-1 font-semibold" x-text="d.receipt"></td>
+                            <td class="py-1 text-right text-gray-500" x-text="d.lines"></td>
+                            <td class="py-1 text-right" x-text="formatPrice(d.revenue)"></td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+            <p class="text-xs text-gray-500 mt-2" data-i18n="reports.dept_footnote">
+                These sales have no product behind them — on purpose. What they bought is gone; what
+                they took is not.
+            </p>
+        </div>
+
         <!-- Top seller + cashiers -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
             <div class="card">

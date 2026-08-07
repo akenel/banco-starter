@@ -1388,6 +1388,13 @@ window.POS_STRINGS = {
       "toast_delete_failed": "Delete failed"
     },
     "reports": {
+      "dept_title": "Departments — sold without a barcode",
+      "dept_of_turnover": "of turnover",
+      "dept_catalog_share": "Rung from the catalogue",
+      "dept_catalog_lines": "catalogue lines",
+      "dept_dept_lines": "department lines",
+      "dept_trend_hint": "Watch the trend, not the number — it climbs as barcodes get bound.",
+      "dept_footnote": "These sales have no product behind them — on purpose. What they bought is gone; what they took is not.",
       "title": "📊 Sales Reports",
       "dashboard": "🏠 Dashboard",
       "product_sales": "📦 Product Sales",
@@ -3346,6 +3353,13 @@ window.POS_STRINGS = {
       "toast_delete_failed": "Échec de la suppression"
     },
     "reports": {
+      "dept_title": "Rayons — vendus sans code-barres",
+      "dept_of_turnover": "du chiffre d'affaires",
+      "dept_catalog_share": "Encaissé depuis le catalogue",
+      "dept_catalog_lines": "lignes catalogue",
+      "dept_dept_lines": "lignes rayon",
+      "dept_trend_hint": "Regardez la tendance, pas le chiffre — il monte à mesure que les codes sont liés.",
+      "dept_footnote": "Ces ventes n'ont volontairement aucun article derrière. Ce qui a été acheté est perdu ; ce qui a été encaissé ne l'est pas.",
       "title": "📊 Rapports de ventes",
       "dashboard": "🏠 Tableau de bord",
       "product_sales": "📦 Ventes de produits",
@@ -5294,6 +5308,13 @@ window.POS_STRINGS = {
       "toast_delete_failed": "Eliminazione non riuscita"
     },
     "reports": {
+      "dept_title": "Reparti — venduti senza codice a barre",
+      "dept_of_turnover": "del fatturato",
+      "dept_catalog_share": "Battuto da catalogo",
+      "dept_catalog_lines": "righe catalogo",
+      "dept_dept_lines": "righe reparto",
+      "dept_trend_hint": "Guarda la tendenza, non il numero — sale man mano che i codici vengono collegati.",
+      "dept_footnote": "Dietro queste vendite non c'è volutamente alcun articolo. Cosa è stato comprato è perso; quanto è stato incassato no.",
       "title": "📊 Rapporti vendite",
       "dashboard": "🏠 Cruscotto",
       "product_sales": "📦 Vendite prodotti",
@@ -7243,6 +7264,13 @@ window.POS_STRINGS = {
       "toast_delete_failed": "Löschen fehlgeschlagen"
     },
     "reports": {
+      "dept_title": "Abteilungen — ohne Strichcode verkauft",
+      "dept_of_turnover": "des Umsatzes",
+      "dept_catalog_share": "Aus dem Katalog gebucht",
+      "dept_catalog_lines": "Katalog-Zeilen",
+      "dept_dept_lines": "Abteilungs-Zeilen",
+      "dept_trend_hint": "Auf den Trend schauen, nicht auf die Zahl — sie steigt, sobald Strichcodes hinterlegt sind.",
+      "dept_footnote": "Hinter diesen Verkäufen steht bewusst kein Artikel. Was gekauft wurde, ist weg; was eingenommen wurde, nicht.",
       "title": "📊 Verkaufsberichte",
       "dashboard": "🏠 Übersicht",
       "product_sales": "📦 Produktverkäufe",

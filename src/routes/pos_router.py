@@ -6331,6 +6331,56 @@ async def get_daily_summary(
             top_seller = top_sellers[0]["name"]
             top_seller_quantity = top_sellers[0]["quantity"]
 
+    # ═══ DEPARTMENT KEYS — the non-catalog block (SPEC §7) ═══════════════════════════════
+    # Department lines ARE sales: same journal, same close, same VAT split. Nothing above this
+    # point special-cases them, and that is deliberate. What they need is their own visibility,
+    # because a bucket is a confession that the identity is gone — and if that confession is
+    # not on the day sheet, nobody ever works it down.
+    from src.services.departments import all_departments as _all_depts
+    _dept_rows: dict = {}
+    dept_lines_n = catalog_lines_n = 0
+    if tx_ids:
+        _dr = (await db.execute(
+            select(LineItemModel.department_code,
+                   func.count().label("lines"),
+                   func.sum(LineItemModel.quantity).label("qty"),
+                   func.sum(LineItemModel.line_total).label("revenue"))
+            .where(and_(LineItemModel.transaction_id.in_(tx_ids),
+                        LineItemModel.is_giveaway == False))     # noqa: E712
+            .group_by(LineItemModel.department_code)
+        )).all()
+        for code, lines, qty, revenue in _dr:
+            if code:
+                _dept_rows[code] = (int(lines or 0), int(qty or 0),
+                                    Decimal(str(revenue or 0)))
+                dept_lines_n += int(lines or 0)
+            else:
+                catalog_lines_n += int(lines or 0)
+
+    # EVERY button, in strip order, zeros included — so this reconciles line-by-line against the
+    # paper tally sheet during the parallel run instead of having to be matched up by eye.
+    departments_block = []
+    for d in _all_depts():
+        lines, qty, revenue = _dept_rows.get(d["code"], (0, 0, Decimal("0.00")))
+        departments_block.append({
+            "code": d["code"], "receipt": d["receipt"], "en": d["en"],
+            "lines": lines, "quantity": qty, "revenue": revenue,
+        })
+    # A code that is no longer a button (renamed, retired) must NOT vanish from a day it took
+    # money on — the block has to reconcile to the till, not to today's configuration.
+    for code, (lines, qty, revenue) in _dept_rows.items():
+        if not any(b["code"] == code for b in departments_block):
+            departments_block.append({"code": code, "receipt": code, "en": code,
+                                      "lines": lines, "quantity": qty, "revenue": revenue,
+                                      "retired": True})
+
+    department_revenue = sum((b["revenue"] for b in departments_block), Decimal("0.00"))
+    _all_lines = dept_lines_n + catalog_lines_n
+    catalog_line_pct = (Decimal(catalog_lines_n) * 100 / _all_lines).quantize(
+        Decimal("0.1"), rounding=ROUND_HALF_UP) if _all_lines else Decimal("0.0")
+    department_revenue_pct = (department_revenue * 100 / Decimal(str(total_sales))).quantize(
+        Decimal("0.1"), rounding=ROUND_HALF_UP) if total_sales else Decimal("0.0")
+
     # Average basket.
     n = len(transactions)
     average_sale = (Decimal(str(total_sales)) / n).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP) if n else Decimal("0.00")
@@ -6384,6 +6434,13 @@ async def get_daily_summary(
         giveaway_cost=giveaway_cost,
         rounding_total=rounding_total,
         rounding_count=rounding_count,
+        # Department keys (SPEC §7) — non-catalog sales, and the rollout number.
+        departments=departments_block,
+        department_revenue=department_revenue,
+        department_lines=dept_lines_n,
+        catalog_lines=catalog_lines_n,
+        catalog_line_pct=catalog_line_pct,
+        department_revenue_pct=department_revenue_pct,
     )
 
 

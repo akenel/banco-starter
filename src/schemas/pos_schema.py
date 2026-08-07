@@ -471,6 +471,20 @@ class DailySummary(BaseModel):
     # Promotional treats given free today: count + their cost (COGS, for tax).
     giveaway_count: int = 0
     giveaway_cost: Decimal = Decimal("0.00")
+    # ═══ DEPARTMENT KEYS (SPEC §7) ═══ non-catalog sales: stock with no barcode.
+    # ALWAYS all ten buttons in strip order, INCLUDING the ones that took nothing today, so the
+    # block can be reconciled line-by-line against the shop's paper tally sheet during the
+    # parallel run. A missing zero row means counting which line is which.
+    departments: list[dict] = Field(default_factory=list)   # [{code,receipt,lines,quantity,revenue}]
+    department_revenue: Decimal = Decimal("0.00")
+    department_lines: int = 0
+    catalog_lines: int = 0
+    # 🎯 THE ROLLOUT NUMBER (SPEC §7). Share of LINES rung against a real catalogue product.
+    # It should climb every month as barcodes get bound; if it falls, the catalogue is losing.
+    # The spec's 80% target is a guess — measured 2026-08-07, only 7% of the catalogue is
+    # scannable at all, so expect this to start low and be read as a TREND, not a grade.
+    catalog_line_pct: Decimal = Decimal("0.00")
+    department_revenue_pct: Decimal = Decimal("0.00")
     # Swiss 5-rappen cash rounding: the day's net Rundungsdifferenz across cash sales, and how
     # many sales it touched. Nearly always 0.00 (every shelf price is already a 0.05 multiple,
     # so only a percentage discount produces an unpayable total). Exported as its own Banana
