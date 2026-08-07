@@ -1762,6 +1762,7 @@ window.POS_STRINGS = {
       "toast_reject_failed": "Could not reject"
     },
     "kb": {
+      "by": "by",
       "title": "📚 KB Approvals",
       "subtitle": "Review and approve CRACK knowledge contributions",
       "select_all": "☑️ Select All",
@@ -3763,6 +3764,7 @@ window.POS_STRINGS = {
       "toast_reject_failed": "Impossible de rejeter"
     },
     "kb": {
+      "by": "par",
       "title": "📚 Approbations KB",
       "subtitle": "Examiner et approuver les contributions de connaissances CRACK",
       "select_all": "☑️ Tout sélectionner",
@@ -7746,6 +7748,7 @@ window.POS_STRINGS = {
       "toast_reject_failed": "Ablehnen nicht möglich"
     },
     "kb": {
+      "by": "von",
       "title": "📚 KB-Freigaben",
       "subtitle": "CRACK-Wissensbeiträge prüfen und freigeben",
       "select_all": "☑️ Alle auswählen",
