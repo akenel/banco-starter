@@ -122,7 +122,23 @@
             </div>
         </div>
 
-        <!-- Summary Stats -->
+        <!-- Summary Stats
+             2026-08-07, Angel: "is it true we have from 01062026 to today only these
+             transactions seems rather low -- can you double check". He was right to.
+             The page opens filtered to TODAY, and the two big numbers below were labelled
+             "Total Transactions" / "Total Sales" with nothing saying so — 7 and CHF 216.60
+             read as the whole history when prod holds 46 going back to 25 July.
+
+             The numbers were never wrong; the LABEL was. Exactly the shape of "Age-restricted
+             (18+): 3" over a 5,162-product catalogue and "Uncategorized: 0" hiding 78
+             products — a scoped number wearing a global label. So the scope is now printed
+             next to it, and says plainly when it is only one day. -->
+        <p class="text-sm text-gray-600 mb-3">
+            <span data-i18n="transactions.showing">Showing</span>
+            <span class="font-semibold text-gray-900" x-text="rangeLabel()"></span><span
+                x-show="isSingleDay()" x-cloak class="text-gray-500"> — <span
+                data-i18n="transactions.widen_hint">change the dates above to see more</span></span>
+        </p>
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
             <div class="card">
                 <p class="text-sm text-gray-600" data-i18n="transactions.total_transactions">Total Transactions</p>
@@ -335,6 +351,22 @@
                 this.generatedAt = formatDateTime(new Date());
 
                 await this.loadTransactions();
+            },
+
+            // The active filter window, in words. Exists so the two big numbers above can never
+            // again read as "everything" when they mean "today" (Angel, 2026-08-07).
+            isSingleDay() {
+                return !!this.filterFrom && this.filterFrom === this.filterTo;
+            },
+            rangeLabel() {
+                const f = this.filterFrom, u = this.filterTo;
+                if (!f && !u) return t('transactions.range_all');
+                const today = (d => new Date(d.getTime() - d.getTimezoneOffset() * 60000)
+                                      .toISOString().split('T')[0])(new Date());
+                if (f && f === u) return f === today ? t('transactions.range_today') : formatDate(f);
+                if (f && !u) return t('transactions.range_from') + ' ' + formatDate(f);
+                if (!f && u) return t('transactions.range_until') + ' ' + formatDate(u);
+                return formatDate(f) + ' – ' + formatDate(u);
             },
 
             async loadTransactions() {

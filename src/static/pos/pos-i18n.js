@@ -1169,6 +1169,12 @@ window.POS_STRINGS = {
       "g_description_desc": "Empty description"
     },
     "transactions": {
+      "showing": "Showing",
+      "widen_hint": "change the dates above to see more",
+      "range_today": "today",
+      "range_all": "all time",
+      "range_from": "from",
+      "range_until": "until",
       "back": "← Back to Dashboard",
       "title": "💳 Transaction History",
       "print_title": "Transaction History",
@@ -3171,6 +3177,12 @@ window.POS_STRINGS = {
       "g_description_desc": "Description vide"
     },
     "transactions": {
+      "showing": "Affiché :",
+      "widen_hint": "modifiez les dates ci-dessus pour en voir plus",
+      "range_today": "aujourd'hui",
+      "range_all": "tout l'historique",
+      "range_from": "à partir du",
+      "range_until": "jusqu'au",
       "back": "← Retour au tableau de bord",
       "title": "💳 Historique des transactions",
       "print_title": "Historique des transactions",
@@ -5163,6 +5175,12 @@ window.POS_STRINGS = {
       "g_description_desc": "Descrizione vuota"
     },
     "transactions": {
+      "showing": "Mostrato:",
+      "widen_hint": "cambia le date sopra per vederne altre",
+      "range_today": "oggi",
+      "range_all": "tutto lo storico",
+      "range_from": "dal",
+      "range_until": "fino al",
       "back": "← Torna alla Dashboard",
       "title": "💳 Cronologia transazioni",
       "print_title": "Cronologia transazioni",
@@ -7155,6 +7173,12 @@ window.POS_STRINGS = {
       "g_description_desc": "Leere Beschreibung"
     },
     "transactions": {
+      "showing": "Angezeigt:",
+      "widen_hint": "Daten oben ändern, um mehr zu sehen",
+      "range_today": "heute",
+      "range_all": "gesamter Zeitraum",
+      "range_from": "ab",
+      "range_until": "bis",
       "back": "← Zurück zum Dashboard",
       "title": "💳 Transaktionsverlauf",
       "print_title": "Transaktionsverlauf",
