@@ -2281,5 +2281,5 @@
 <!-- BL-87: vendored locally (no runtime CDN). Powers the camera barcode scan. -->
 <script src="/static/vendor/html5-qrcode.min.js"></script>
 <!-- BL-90: shared hardened scanner (retail formats + 2-in-a-row stable read). BL-93: + QR. -->
-<script src="/static/pos-scanner.js?v=qr2"></script>
+<script src="/static/pos-scanner.js?v={{ asset_v('pos-scanner.js') }}"></script>
 {% endblock %}

@@ -381,6 +381,11 @@ templates.env.globals["lp_kc_url"] = get_settings().LP_KC_PUBLIC_URL  # browser-
 from src.build_info import get_version, get_git_sha, get_build_date_short, get_build_date  # noqa: E402
 templates.env.globals["app_version"] = get_version()
 templates.env.globals["git_sha"] = get_git_sha()
+# Cache busting derived from the FILE, not from a hand-typed date. See build_info.asset_version:
+# a "?v=20260701" that nobody bumps means a shipped JS fix never reaches a device that has
+# been here before (Angel, 2026-08-07 — four rebuilds, still the old i18n bundle).
+from src.build_info import asset_version as _asset_version
+templates.env.globals["asset_v"] = _asset_version
 templates.env.globals["build_date"] = get_build_date_short()  # BL-010: '29 Jun' freshness in the bar
 templates.env.globals["build_date_iso"] = get_build_date()  # BL-012: offset-carrying ISO → client localizes to device tz
 templates.env.globals["app_env"] = os.environ.get("HX_ENVIRONMENT", "")  # env code (SBX/STG/PRD); read os.environ directly — get_settings() is cached too early at import time

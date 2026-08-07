@@ -13,6 +13,7 @@ fallbacks. Resolved order:
 
 Computed once and cached so it costs nothing per request.
 """
+import hashlib
 import os
 import subprocess
 from functools import lru_cache
@@ -104,3 +105,63 @@ def get_build_date_short() -> str:
         return f"{dt.day:02d}/{dt.month:02d} {dt.hour:02d}:{dt.minute:02d}"
     except Exception:
         return d[:10]
+
+
+# ── Static-asset cache busting (2026-08-07) ────────────────────────────────────────────────
+# Angel, after four straight rebuilds: "labels are not language sensitive -- do i need a
+# container refresh or something special?" He did not. Two cache layers were both pinning a
+# month-old bundle:
+#
+#   1. base.html linked `pos-i18n.js?v=20260701` — a HAND-TYPED version, i.e. one nobody ever
+#      bumps. The browser HTTP cache had no reason to refetch.
+#   2. The service worker serves /static/ CACHE-FIRST with no expiry and only evicts when
+#      CACHE_NAME changes. CACHE_NAME is the git sha — which inside the container is "dev",
+#      because there is no .git and no env stamp. Constant across every build, forever.
+#
+# sw.js already carried a comment about exactly this failure ("a deployed JS fix would verify
+# green on the server and still never reach the till") — it was half-fixed, because the stamp
+# it depends on does not vary in the environment most people run.
+#
+# So derive the version from THE FILE ITSELF. mtime+size, hashed. It cannot go stale, needs no
+# build discipline, no env var and no script anybody has to remember to run, and it behaves
+# identically in dev and prod. A file that did not change keeps its URL and stays cached.
+_ASSET_V_CACHE: dict = {}
+
+
+def asset_version(rel_path: str) -> str:
+    """Short content-ish version for a file under src/static — for `?v=` cache busting.
+
+    Keyed on (mtime_ns, size), which changes on every real edit and on every image rebuild.
+    Cached per process: the file cannot change under a running container, and this is called
+    on every page render.
+    """
+    if rel_path in _ASSET_V_CACHE:
+        return _ASSET_V_CACHE[rel_path]
+    v = "dev"
+    try:
+        p = _REPO_ROOT / "src" / "static" / rel_path.lstrip("/")
+        st = p.stat()
+        v = hashlib.sha1(f"{st.st_mtime_ns}:{st.st_size}".encode()).hexdigest()[:10]
+    except Exception:
+        pass                       # a missing asset must never 500 a page render
+    _ASSET_V_CACHE[rel_path] = v
+    return v
+
+
+@lru_cache(maxsize=1)
+def static_bundle_version() -> str:
+    """One version for the whole /static/pos + /static tree — the service worker's cache key.
+
+    The SW caches many files under one CACHE_NAME, so the key has to move when ANY of them
+    changes, not just when git does. Falls back to the sha alone if the tree cannot be walked.
+    """
+    try:
+        h = hashlib.sha1()
+        root = _REPO_ROOT / "src" / "static"
+        for p in sorted(root.rglob("*")):
+            if p.is_file() and p.suffix in (".js", ".css", ".json", ".webmanifest"):
+                st = p.stat()
+                h.update(f"{p.relative_to(root)}:{st.st_mtime_ns}:{st.st_size}".encode())
+        return f"{get_git_sha()}-{h.hexdigest()[:10]}"
+    except Exception:
+        return get_git_sha() or "dev"

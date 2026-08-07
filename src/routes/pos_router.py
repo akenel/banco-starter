@@ -114,6 +114,11 @@ html_router = APIRouter(tags=["🖥️ POS Web UI"])
 # Setup Jinja2 templates
 templates_dir = Path(__file__).parent.parent / "templates"
 templates = Jinja2Templates(directory=str(templates_dir))
+# Cache busting from the file itself — see build_info.asset_version. Registered on THIS env
+# too: every /pos page renders through pos_router's Jinja instance, not main.py's, so a
+# global set only there would silently be missing here.
+from src.build_info import asset_version as _asset_version
+templates.env.globals.setdefault("asset_v", _asset_version)
 # Real build stamp in the POS status bar (version + the SHA actually deployed).
 from src.build_info import get_version, get_git_sha, get_build_date_short, get_build_date  # noqa: E402
 templates.env.globals["app_version"] = get_version()
@@ -10359,7 +10364,13 @@ async def pos_service_worker():
     # that has been here before. Static files are served cache-first with no expiry, so with a
     # hand-typed version (the old 'v185', bumped by hand, i.e. never) a deployed JS fix would
     # verify green on the server and still never reach the till.
-    build = get_git_sha() or "dev"
+    # 2026-08-07 — the sha ALONE was not enough. Inside the container there is no .git and no
+    # env stamp, so get_git_sha() returns "dev" on every build and CACHE_NAME never moved:
+    # 'banco-pos-dev', forever. Angel rebuilt four times and kept getting a July i18n bundle.
+    # static_bundle_version() hashes the mtime+size of every js/css/json under /static, so the
+    # key moves whenever anything the SW caches actually changes — in dev and in prod alike.
+    from src.build_info import static_bundle_version
+    build = static_bundle_version() or get_git_sha() or "dev"
     body = body.replace("__BANCO_BUILD__", re.sub(r"[^A-Za-z0-9._-]", "", build)[:40])
 
     return Response(

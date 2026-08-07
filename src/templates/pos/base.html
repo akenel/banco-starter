@@ -71,7 +71,7 @@
     <!-- Tailwind CSS — REAL compiled build (build/tailwind → src/static/pos/tailwind.css), not the
          in-browser Play engine. Rebuild after adding classes: see build/tailwind/README. Kills the
          "cdn.tailwindcss.com should not be used in production" warning + the 451KB runtime compile. -->
-    <link rel="stylesheet" href="/static/pos/tailwind.css?v=20260712">
+    <link rel="stylesheet" href="/static/pos/tailwind.css?v={{ asset_v('pos/tailwind.css') }}">
 
 
     <!-- Alpine.js for reactive components -->
@@ -85,7 +85,7 @@
 
     <!-- PHASE 2 (Go-Italian) i18n string catalog: EN + IT + DE. Loaded in <head> so
          POS_STRINGS is a global before the engine (defined below) runs its detection. -->
-    <script src="/static/pos/pos-i18n.js?v=20260701"></script>
+    <script src="/static/pos/pos-i18n.js?v={{ asset_v('pos/pos-i18n.js') }}"></script>
 
     <!-- Inter font (still CDN — falls back to system sans offline; vendor in a later phase) -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
