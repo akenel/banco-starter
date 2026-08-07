@@ -2,11 +2,57 @@
 
 *The single source of truth for what's next, in order. Say the code word **"OPEN SHOP"** and the copilot opens this, states the top items, and starts the first actionable one. The bigger arc is in [`ROADMAP.md`](ROADMAP.md).*
 
-*Last updated: 2026-08-03 — rounding + cash box shipped to prod and human-tested; next up is item 3.*
+*Last updated: 2026-08-07 — money-safety week shipped to prod. Everything below is machine-green
+and waiting on Angel's hands.*
 
 ---
 
-## ▶️ START HERE — item 3, the two bulk catalogue scripts
+## ▶️ START HERE — put a human on the till, then price the 79
+
+*Set 2026-08-07 after four days that were not in this file: the X1 tablet + Bluetooth label
+printing (08-04), the shop-model audit and papers/filters shelf intake (08-05), catalogue search
+and the no-barcode workflow (08-06), and a money-safety run (08-06→07). All shipped to prod. None
+of it has been touched by a person yet, and **2026-08-03 cost 62 minutes and seven defects — every
+one a screen, none reachable from the API.** So this is the work now, in this order.*
+
+**▶️ A · FIVE MINUTES ON THE TABLET — the till guard and the cashier price panel.**
+   Shipped `45085a3` + `976eb0a`, verified live server-side, **never seen by a human**.
+   1. Sign in as **Pam** (cashier). Scan / search `ITEM-0212` (*Grandma's Baking Again*, 999.99).
+      → expect a **red panel on the product**: "This item has no price yet", one price field,
+      **Set price & add to cart**. Type a price → it saves, goes in the cart, sale completes.
+   2. Sign in as a **manager**. Same item → the **amber** manager panel opens instead, price field
+      **blank** (not prefilled with 999.99), cart survives.
+   3. Try to change a price that already exists from the till → must refuse (409). Server-proved
+      on `ITEM-0211` (CHF 18.00, unchanged), but confirm the screen says something useful.
+   4. Ring a normal product → **nothing changed**, no new friction. This is the regression risk.
+   If A fails, stop and fix it before anything else — it sits between the shop and every sale.
+
+**▶️ B · 79 rows still priced `999.99`.** They are unsellable until priced (that is the point).
+   All placeholders now — the 34 real Tamar CHF 99.00 prices were left alone deliberately
+   (`scripts/normalise-placeholder-prices.py` explains why; 99.00 is a genuine Tamar price point:
+   79:31 · 89:23 · 99:34 · 119:27 · 129:19).
+   Bench filter: gap kind **`price`**. New gap kind **`till_priced`** lists anything a cashier
+   priced at the counter — *sold, guessed price, no cost*, the shortest path to real margin.
+   **Confirm both filters are actually reachable on the screen** — that is this repo's most
+   repeated bug (`cash_box_float`, the force-close, `/catalog/merge`, honest confidence).
+
+**▶️ C · Angel's hands only, small:**
+   - Delete the duplicate `OTF-1786054495004-703` (*Grandma's Baking Again*, minted barcode).
+   - Price `ITEM-0212`: its **26 Tamar siblings say MINI = 12.00, plain = 20.00**, no exceptions.
+     Only Angel can say which jar sold. `ITEM-0211` (Nag Champa) is CHF **18.00** — matches
+     neither; might be a third size, might be a typo.
+   - The 7 photo drafts `ITEM-0235..0241` are **inactive** with no price and no barcode. Price
+     them to make them sellable, or leave them parked.
+
+**🔴 STILL THE GO-LIVE BLOCKER:** prod authenticates against the **DEMO realm** — those passwords
+are in a public GitHub repo. Nothing else on this list matters if the shop goes live on it.
+
+*The catalogue-enrichment work below is still valid and still unrun; it just is not the top of the
+deck any more. Counts in it are from 2026-08-03 (5,173); prod now holds **5,389**.*
+
+---
+
+## 📋 THEN — the two bulk catalogue scripts
 
 *Set 2026-08-03 at the end of a long day. **Items 1 and 2 are DONE and on prod** — the 5-rappen
 cash rounding and the shop-owned cash box, both human-tested by Angel. Their history is in
@@ -1261,6 +1307,41 @@ so nothing in the database could say what it physically was. Only the bottle kne
 - Sharpen the AI setup coach for a non-technical owner. *(Phase B)*
 
 ## ✅ Done (most recent first)
+
+- 2026-08-07 — **Money safety: a photo cannot set a price, and the till cannot sell a placeholder.**
+  `976eb0a` `45085a3` `3a28a87` `b4d31ce` `dff36bc`. Four things, one thread. (1) The `product`
+  vision domain asked the model for `"price_estimate" — a number in CHF if you can GUESS`, and
+  **four screens auto-filled it**: `scan.html`→the TILL, `catalog.html`, `receiving.html`,
+  `kiosk.html`. Angel photographed three wooden grinders with a `10.-` sticker in frame and marked
+  it FAIL twice; the model did not even have to guess. `read_product_page` 140 lines down the same
+  file had refused a price since it shipped — *"a wrong price overcharges a customer"*. Removed
+  from prompt, coerce, schema and all four screens. (2) **110 active products** were priced 999.99
+  / 99.00 / 0.00 and every one scannable — the RAW Mason Jar asked for CHF 999.99. Now a 400 on
+  BOTH sale paths (`/sales` and `/transactions/{id}/items`; `/scan` inherits it). (3) Angel then
+  showed the guard's real-world hole: Pam re-created the item on the fly in 10 s and sold **that**
+  — sale saved, duplicate row, minted barcode, correct row still unpriced. So `POST
+  /products/{id}/first-price` lets a cashier fill a **blank** price once; 409 if one exists, so it
+  can never become a discount. Flagged `price_set_at_till` + a work note naming who typed it —
+  `audit_log.changed_by` is `'system'` for every row and could not do that job. New bench gap kind
+  `till_priced`. (4) 79 placeholders normalised to 999.99 — and **34 real Tamar CHF 99.00 prices
+  left alone**, because 99.00 is a genuine price point there (79:31 · 89:23 · 99:34 · 119:27 ·
+  129:19) and a blanket UPDATE would have destroyed them with no undo.
+  33 tests, every guard confirmed failing on a revert. **Machine-green only — see START HERE.**
+
+- 2026-08-06 — **A perfect brand match lost to six mediocre shelf-mates.** `7bfb431`. The category
+  hint shipped as `ORDER BY <category>, <prefix>, score DESC` — score fourth, under a comment
+  reading "⚠️ BOOST, NEVER FILTER". A photographed **Greengo** grinder returned ten generic
+  grinders at 0.625 and **not one Greengo**, while the shop's six real Greengo rows sat at 1.000,
+  filed under `Other`. A sort key above `score` IS a filter; `LIMIT` turns "ranked lower" into
+  "does not exist". Now additive (+0.15 category, +0.10 prefix). Greengo absent → 1..6, and
+  champ high / Holz Grinder / Poker Chip / Purize / Rick and Morty all keep #1.
+  **Angel's verdict on the wider idea, after 35 minutes of testing: the AI lookup route does not
+  work for grinders and will not work for bongs** — 4% of 203 grinders and **0% of 179 bongs**
+  carry a real EAN, versus 54% of rolling papers. A grinder has no identity in the world. Filed
+  42 shelf photos renamed and sorted with an `INDEX.md`, and 7 draft rows (`ITEM-0235..0241`)
+  written **by eye** — no lookup, no invented barcode, no invented price, created inactive.
+  Still open: `Pokerchip Grinder` (one word) drops the right row out of the top 6 at 0.450 while
+  `Poker Chip Grinder` ranks it #1 at 0.611 — German compounds, not yet fixed.
 
 - 2026-08-03 — **The cash box belongs to the SHOP, and it is human-tested.** `_shift_sales`
   carried `cashier_id == user_id`: Felix opened with 200, Pam sold 150 into the same box, and
