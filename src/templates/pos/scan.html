@@ -99,9 +99,90 @@
                         </p>
                     </div>
 
+                    <!-- ═══ DEPARTMENT KEYS ═══ selling the ~30% of stock with no barcode.
+                         SPEC: onboarding/ai-coach/SPEC-department-keys.md
+
+                         This sits ABOVE the on-the-fly create on purpose. Angel, 2026-08-07:
+                         "pam is not going to try harder than a single scan and if nothing to
+                         scan she will create a whole new bong and never search it out in the
+                         catalog." Whichever of these two is easier to reach is the one that
+                         gets used, so the one that does NOT pollute the catalogue goes first. -->
+                    <div x-show="searchMode === 'catalog'" class="mb-4">
+                      <!-- The pending-scan banner. NON-BLOCKING by design (SPEC §4.2): no modal,
+                           nothing to dismiss, and if she does something else instead the code is
+                           dropped silently. A modal here would be the thing she learns to hate. -->
+                      <div x-show="pendingBarcode" x-cloak
+                           class="bg-amber-50 border-2 border-amber-400 rounded-lg p-3 mb-3 flex items-center justify-between gap-3">
+                        <div>
+                          <p class="font-bold text-amber-900">🔍 <span data-i18n="scan.dept_not_found">Nicht gefunden — Abteilung wählen</span></p>
+                          <p class="text-xs text-amber-800 font-mono" x-text="pendingBarcode"></p>
+                        </div>
+                        <button @click="pendingBarcode = ''" class="text-amber-700 text-sm underline flex-none"
+                                data-i18n="scan.dept_dismiss">ignore</button>
+                      </div>
+
+                      <div class="bg-slate-50 border-2 border-slate-300 rounded-lg p-3">
+                        <p class="text-sm font-semibold text-slate-800 mb-1">
+                          🏷️ <span data-i18n="scan.dept_title">Abteilung — no barcode, just sell it</span>
+                        </p>
+                        <p class="text-xs text-slate-600 mb-3" data-i18n="scan.dept_help">
+                          One tap, type the price, done. Nothing is added to the catalogue.
+                        </p>
+
+                        <!-- The strip. Order comes from the server (Diverses always last) so a shop
+                             that clones Banco edits services/departments.py and the strip moves. -->
+                        <div class="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                          <template x-for="d in departments" :key="d.code">
+                            <button @click="openDepartment(d)"
+                                    class="py-3 px-2 rounded-lg border-2 font-bold text-sm active:scale-95 transition"
+                                    :class="d.code === 'DIV'
+                                       ? 'bg-gray-100 border-gray-300 text-gray-600 italic'
+                                       : 'bg-white border-slate-400 text-slate-800 hover:bg-slate-100'"
+                                    x-text="d.receipt"></button>
+                          </template>
+                        </div>
+
+                        <!-- Price entry. Opens with focus in the amount field (SPEC §4.4). -->
+                        <div x-show="deptOpen" x-cloak class="mt-3 pt-3 border-t-2 border-slate-300">
+                          <p class="font-bold text-lg text-slate-900 mb-2">
+                            <span x-text="deptChosen && deptChosen.receipt"></span>
+                            <span class="text-sm font-normal text-slate-600" x-text="deptChosen && ('· ' + deptChosen.covers)"></span>
+                          </p>
+                          <div class="flex gap-2 items-start">
+                            <div class="flex-1">
+                              <input type="number" step="0.05" min="0" inputmode="decimal"
+                                     x-model="deptPrice" x-ref="deptPrice"
+                                     @keyup.enter="addDepartmentLine()"
+                                     placeholder="CHF" class="input-field text-2xl font-bold">
+                              <!-- SPEC §4.4 fat-finger guard: a second, deliberate tap above 200. -->
+                              <p x-show="Number(deptPrice) >= 200" x-cloak
+                                 class="text-sm text-red-700 font-semibold mt-1">
+                                ⚠️ <span data-i18n="scan.dept_confirm_high">That is a big amount — press again to confirm</span>
+                              </p>
+                            </div>
+                            <input type="number" min="1" max="99" x-model="deptQty"
+                                   class="input-field w-20 text-center text-2xl font-bold" title="Anzahl">
+                            <button @click="addDepartmentLine()"
+                                    class="px-5 py-3 rounded-lg bg-slate-800 text-white font-bold text-lg flex-none"
+                                    :class="Number(deptPrice) >= 200 && !deptConfirmed ? 'bg-red-700' : ''"
+                                    x-text="Number(deptPrice) >= 200 && !deptConfirmed ? '⚠️ Confirm' : '➕ Add'"></button>
+                            <button @click="deptOpen=false; deptChosen=null; deptConfirmed=false"
+                                    class="px-3 py-3 rounded-lg border-2 border-slate-300 text-slate-600 flex-none">✕</button>
+                          </div>
+                          <p x-show="pendingBarcode" x-cloak class="text-xs text-slate-500 mt-2">
+                            📎 <span data-i18n="scan.dept_attach">the scanned code is attached to this line</span>
+                            <span class="font-mono" x-text="pendingBarcode"></span>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
                     <!-- New item on the fly: fast cashier create for no-barcode goods.
                          Name + price (photo optional), auto-filed under "On the fly" so
-                         Pam never picks a category; a manager enhances/discontinues later. -->
+                         Pam never picks a category; a manager enhances/discontinues later.
+                         KEPT on purpose: a department key records revenue but loses the
+                         identity, so for something she WILL sell again, creating it is still
+                         the better answer. The strip above is for everything else. -->
                     <div x-show="searchMode === 'catalog'" class="space-y-4">
                         <div class="bg-yellow-50 border-2 border-yellow-400 rounded-lg p-4">
                             <p class="text-sm font-semibold text-yellow-800 mb-2">🆕 <span data-i18n="scan.new_item_title">New item — no barcode</span></p>
@@ -985,6 +1066,16 @@
 
             // Cart
             cart: [],
+            // ═══ DEPARTMENT KEYS (SPEC onboarding/ai-coach/SPEC-department-keys.md) ═══
+            departments: [],        // fetched from /pos/departments — never hard-coded here
+            deptOpen: false,
+            deptChosen: null,
+            deptPrice: '',
+            deptQty: 1,
+            deptConfirmed: false,   // SPEC §4.4: second deliberate tap above CHF 200
+            // The unresolved barcode, held for the NEXT line only. If she does anything else
+            // it is dropped silently — SPEC §4.2, "no nagging".
+            pendingBarcode: '',
             discount: 0,
             showClearModal: false,   // clear-cart confirm modal (replaces native confirm)
             discountError: '',
@@ -1023,6 +1114,12 @@
                         history.replaceState({}, document.title, '/pos/scan');
                     }
                 } catch (e) {}
+
+                // The department strip. Fetched, not hard-coded: services/departments.py is the
+                // single source of truth for the buttons, the receipt text and the VAT class.
+                API.get('/api/v1/pos/departments')
+                   .then(r => { this.departments = (r && r.departments) || []; })
+                   .catch(() => { this.departments = []; });   // strip absent > till broken
 
                 // Restore cart from sessionStorage if coming back from checkout (Edit Cart)
                 const storedCart = sessionStorage.getItem('pos_cart');
@@ -1111,9 +1208,19 @@
                         showToast(t('scan.toast_offline_not_cached'), 'warning');
                         return;
                     }
-                    // BL-87: not on file → lazy capture. Save it as a real product now so
-                    // it's known on every future scan (cashiers fall back to a one-off line).
-                    this.openLazyCapture(code);
+                    // Not on file. 2026-08-07 — this used to jump straight into lazy capture
+                    // (create a product), which is how the catalogue filled with unidentifiable
+                    // stubs and a fresh duplicate every time the same bong sold again.
+                    //
+                    // Now: hold the code, say so WITHOUT blocking, and show the department strip.
+                    // No modal, nothing to dismiss, and the create form is still right there
+                    // underneath for something she genuinely will sell again.
+                    this.pendingBarcode = code;
+                    this.searchMode = 'catalog';
+                    this.barcodeInput = '';
+                    showToast(t('scan.toast_dept_prompt'), 'warning');
+                    // Cursor stays in the scan box — she may just scan the next thing instead.
+                    this.$nextTick(() => this.$refs.barcodeInput && this.$refs.barcodeInput.focus());
                 }
             },
 
@@ -1876,6 +1983,56 @@
                     });
                 }
                 return true;    // the detail modal only closes itself when this is true
+            },
+
+            // ═══ DEPARTMENT KEYS ═══════════════════════════════════════════════════
+            openDepartment(d) {
+                this.deptChosen = d;
+                this.deptOpen = true;
+                this.deptPrice = '';
+                this.deptQty = 1;
+                this.deptConfirmed = false;
+                // SPEC §4.4: the keypad opens with focus already in the amount field.
+                this.$nextTick(() => this.$refs.deptPrice && this.$refs.deptPrice.focus());
+            },
+
+            addDepartmentLine() {
+                if (!this.deptChosen) return false;
+                const price = Number(this.deptPrice);
+                if (!(price > 0)) {
+                    showToast(t('scan.toast_dept_need_price'), 'error');
+                    return false;
+                }
+                // SPEC §4.4 — above CHF 200 the first press only ARMS the button. The server
+                // enforces the 999.00 ceiling regardless; this is the fat-finger guard, and a
+                // guard the client owns alone is not a guard.
+                if (price >= 200 && !this.deptConfirmed) {
+                    this.deptConfirmed = true;
+                    showToast(t('scan.toast_dept_confirm'), 'warning');
+                    return false;
+                }
+                const qty = Math.max(1, Math.min(99, Number(this.deptQty) || 1));
+                this.cart.push({
+                    // `dept_` prefix is what checkout.html keys on to send it as a department
+                    // line rather than a catalog product. Keep the two in step.
+                    id: 'dept_' + this.deptChosen.code + '_' + Date.now(),
+                    name: this.deptChosen.receipt,
+                    price: price,
+                    quantity: qty,
+                    isCatalogItem: true,          // → product_id null at checkout
+                    departmentCode: this.deptChosen.code,
+                    // Attach the pending scan to THIS line only (SPEC §4.2 / §6).
+                    unresolvedBarcode: this.pendingBarcode || null,
+                    product_class: (this.deptChosen.vat_class || 'standard'),
+                });
+                showToast(`${this.deptChosen.receipt} ${formatPrice(price * qty)}`, 'success');
+                this.deptOpen = false;
+                this.deptChosen = null;
+                this.deptPrice = '';
+                this.deptConfirmed = false;
+                this.pendingBarcode = '';        // consumed — one line only
+                this.$nextTick(() => this.$refs.barcodeInput && this.$refs.barcodeInput.focus());
+                return true;
             },
 
             removeFromCart(index) {

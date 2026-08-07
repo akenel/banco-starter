@@ -41,6 +41,27 @@ class LineItemModel(Base):
         comment="Product from catalog. NULL for custom lines (manual catalog entry, "
                 "product-as-change treats) -- name lives in notes, price is sent by the till."
     )
+    # DEPARTMENT KEY (2026-08-07) -- a non-catalog sale: stock with no barcode that never will
+    # have one (glass, grinders, pipes, grow supplies -- 7% of this catalogue scans at all).
+    # Always accompanies product_id IS NULL. Deliberately a plain code and NOT a foreign key:
+    # a department is an accounting bucket, not a row somebody can rename or delete out from
+    # under a closed sale. The receipt text and VAT class are resolved from it at sale time via
+    # services/departments.py and SNAPSHOTTED onto the line, same as vat_rate -- so renaming a
+    # button next year never rewrites a past receipt.
+    department_code: Mapped[str | None] = mapped_column(
+        String(8),
+        nullable=True,
+        index=True,
+        comment="Non-catalog department bucket (GLAS/GRIP/...). NULL on every catalog line."
+    )
+    # The barcode scanned immediately before this line that resolved to nothing. Feeds
+    # catalog_miss so the enrichment backlog is ranked by real scan frequency rather than by
+    # somebody's guess. NULL is the common case -- most department items have nothing to scan.
+    unresolved_barcode: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+        comment="Barcode that failed to resolve just before this department line was rung"
+    )
 
     # Line Item Details
     quantity: Mapped[int] = mapped_column(

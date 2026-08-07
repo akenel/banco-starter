@@ -4477,6 +4477,69 @@ async def assist_decision(
     }
 
 
+@router.get("/departments")
+async def list_departments():
+    """The department buttons for the till strip, in strip order (Diverses last).
+
+    No auth, same as the catalog search: this is a fixed list of ten accounting buckets, not
+    shop data. The till renders it rather than hard-coding the names, so a shop that clones
+    Banco changes `services/departments.py` in one place and its strip, its receipts and its
+    day-close block all move together.
+    """
+    from src.services.departments import all_departments, MAX_DEPARTMENTS
+    return {"departments": all_departments(), "max": MAX_DEPARTMENTS}
+
+
+@router.get("/catalog-misses")
+async def list_catalog_misses(
+    limit: int = 100,
+    include_resolved: bool = False,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(require_roles(["👔️ pos-manager", "👑️ pos-admin"])),
+):
+    """Unresolved barcodes, most-scanned first — the enrichment backlog (SPEC §6).
+
+    Ranked by `hit_count` on purpose: a code scanned nine times is a real mover worth an hour;
+    one scanned once is noise. The back office works this top-down, never at the till.
+
+    ⚠️ It cannot see the stock that motivated department keys. A miss is only recorded when a
+    barcode was SCANNED and failed — bongs and grinders have no barcode to scan at all. Expect
+    this list to be drinks, cigarettes and new arrivals; for glass the department total is the
+    only signal there will ever be.
+    """
+    import json
+    from src.db.models.catalog_miss_model import CatalogMissModel
+
+    stmt = select(CatalogMissModel)
+    if not include_resolved:
+        stmt = stmt.where(CatalogMissModel.resolved_ean.is_(None))
+    stmt = stmt.order_by(CatalogMissModel.hit_count.desc(),
+                         CatalogMissModel.last_seen.desc()).limit(max(1, min(limit, 500)))
+    rows = (await db.execute(stmt)).scalars().all()
+
+    def _prices(r):
+        try:
+            return json.loads(r.prices_seen or "[]")
+        except Exception:            # noqa: BLE001
+            return []
+
+    from src.services.departments import receipt_text
+    return {"items": [{
+        "barcode": r.barcode,
+        "hit_count": r.hit_count,
+        "department_code": r.department_code,
+        "department": receipt_text(r.department_code) if r.department_code else None,
+        "last_price": float(r.last_price) if r.last_price is not None else None,
+        "prices_seen": _prices(r),
+        # A code that always rings the same price is one product worth binding; one ringing
+        # 5/45/120 is a shelf position, a mis-scan, or a code shared across a range.
+        "price_stable": len(set(_prices(r))) <= 1,
+        "first_seen": r.first_seen.isoformat() if r.first_seen else None,
+        "last_seen": r.last_seen.isoformat() if r.last_seen else None,
+        "resolved_ean": r.resolved_ean,
+    } for r in rows], "total": len(rows)}
+
+
 @router.get("/search/picture")
 async def search_from_picture(
     description: str,
@@ -5397,7 +5460,8 @@ async def add_item_to_transaction(
         unit_price = item.unit_price
         tier_final = False
         # Keep the name for the receipt -- stored in notes (the only free-text column).
-        line_notes = item.name or item.notes
+        # Custom line OR department key — one helper, shared with the atomic /sales path.
+        _dept_class, line_notes = _resolve_custom_line(item)
 
     # Line is stored GROSS (qty x unit_price). The cart-wide % discount is applied ONCE
     # at the transaction level below. (Per-line discounting + the running subtotal being
@@ -5412,7 +5476,7 @@ async def add_item_to_transaction(
     # + amount are SNAPSHOTTED here so a later rate change never rewrites this receipt.
     # (INC2: line-level only; the transaction total still uses the single-rate rollup
     # below — INC3 sums these per-line amounts.)
-    prod_class = product.product_class if item.product_id is not None else "standard"
+    prod_class = product.product_class if item.product_id is not None else _dept_class
     _add_std, _add_red = await _tenant_vat_rates(db)   # store's effective rates (not the CH 8.1 default)
     line_rate, line_vat_amount = line_vat(prod_class, item.consumption, line_total,
                                           standard_rate=_add_std, reduced_rate=_add_red)
@@ -5448,9 +5512,16 @@ async def add_item_to_transaction(
         consumption=item.consumption.value,
         vat_rate=line_rate,
         vat_amount=line_vat_amount,
+        # Department key: SNAPSHOTTED onto the line, never looked up again. Renaming a button
+        # next year must not rewrite a receipt printed today.
+        department_code=(item.department_code or None) and item.department_code.strip().upper(),
+        unresolved_barcode=(item.unresolved_barcode or None),
     )
 
     db.add(new_line_item)
+    if item.department_code and item.unresolved_barcode:
+        await _record_catalog_miss(db, item.unresolved_barcode,
+                                   item.department_code.strip().upper(), unit_price)
 
     # Transaction totals (inclusive VAT: subtotal & total are the GROSS the customer pays).
     # total = round(subtotal * (1 - pct/100)) -- the EXACT formula the till displays, so the
@@ -5847,8 +5918,8 @@ async def create_sale(
             if ln.unit_price is None:
                 raise HTTPException(status_code=422, detail="Custom line item requires unit_price")
             unit_price = ln.unit_price
-            line_notes = ln.name or ln.notes
-            prod_class = "standard"
+            # Custom line OR department key — one helper, shared with the legacy /items path.
+            prod_class, line_notes = _resolve_custom_line(ln)
 
         if class_is_age_restricted(prod_class):
             cart_age_restricted = True
@@ -5868,8 +5939,15 @@ async def create_sale(
             discount_amount=Decimal("0.00"), line_total=line_total, notes=line_notes,
             is_giveaway=ln.is_giveaway, consumption=ln.consumption.value,
             vat_rate=line_rate, vat_amount=line_vat_amount,
+            # Department key: SNAPSHOTTED onto the line, never looked up again. Renaming a
+            # button next year must not rewrite a receipt printed today.
+            department_code=(ln.department_code or None) and ln.department_code.strip().upper(),
+            unresolved_barcode=(ln.unresolved_barcode or None),
         )
         db.add(line)
+        if ln.department_code and ln.unresolved_barcode:
+            await _record_catalog_miss(db, ln.unresolved_barcode,
+                                       ln.department_code.strip().upper(), unit_price)
         built_lines.append(line)
         subtotal += line_gross
         # BL-26: a volume-break line is discount-FINAL — keep it out of the discount base too.
@@ -6793,6 +6871,103 @@ def _guard_unverified_price(product, is_giveaway: bool = False) -> None:
             detail=(f"“{product.name}” has no real price yet (CHF {product.price} is a placeholder). "
                     f"A manager can set it from the product card — the cart stays as it is."),
         )
+
+
+# --- DEPARTMENT KEYS (2026-08-07) --------------------------------------------------------
+# SPEC: onboarding/ai-coach/SPEC-department-keys.md
+#
+# ONE helper, called from BOTH sale paths, deliberately. On 2026-08-03 `cashier_id == user_id`
+# was removed from `_shift_sales`, tested, proved live — and the IDENTICAL filter sat twelve
+# hundred lines away in `shift_transactions`, so the report totalled 2 transactions while the
+# itemised log under it listed 1. Standing rule 6 exists for exactly that, and the cheapest way
+# to obey it is to make there be only one place to get this wrong.
+_DEPT_PRICE_CEILING = Decimal("999.00")      # SPEC §4.4 fat-finger ceiling
+_DEPT_CONFIRM_ABOVE = Decimal("200.00")      # SPEC §4.4 second-confirm threshold (client-side)
+
+
+def _resolve_custom_line(ln) -> tuple[str, str | None]:
+    """(product_class, notes) for a line with NO catalog product — custom line or department key.
+
+    A department line is not a product, so its VAT cannot come from `product.product_class`. It
+    comes from the department, and it runs through the SAME `vat_resolver.line_vat` every catalog
+    line uses — so the fridge-drink rate can never drift from the rest of the till, and a rate
+    change stays data rather than code.
+
+    The receipt text is resolved HERE from the code, never taken from the client: the till sends
+    four characters and cannot influence what is printed or what tax is charged.
+    """
+    from src.services.departments import get_department, receipt_text, vat_class
+
+    code = (getattr(ln, "department_code", None) or "").strip().upper()
+    if not code:
+        # plain custom line (manual entry, product-as-change treat) — unchanged behaviour
+        return "standard", (ln.name or ln.notes)
+
+    if get_department(code) is None:
+        raise HTTPException(status_code=422, detail=f"Unknown department key: {code}")
+    if ln.is_giveaway:
+        # A treat is a real product handed over free and is tracked for COGS. A department line
+        # has no product and no cost, so "free department sale" would be a line that records
+        # nothing at all — refuse it rather than write an empty row.
+        raise HTTPException(status_code=422,
+                            detail="A department line cannot be a giveaway — it has no product to give.")
+    if ln.unit_price is None or Decimal(str(ln.unit_price)) <= 0:
+        raise HTTPException(status_code=422,
+                            detail="A department line needs a price greater than zero.")
+    if Decimal(str(ln.unit_price)) > _DEPT_PRICE_CEILING:
+        raise HTTPException(
+            status_code=422,
+            detail=(f"CHF {ln.unit_price} is above the department ceiling of "
+                    f"{_DEPT_PRICE_CEILING}. Ring an item this expensive from the catalogue so it "
+                    f"is recorded properly."))
+
+    # The department name leads on the receipt; anything the cashier typed rides behind it, so a
+    # note can never replace the bucket the customer is being charged under.
+    label = receipt_text(code)
+    note = (ln.notes or "").strip()
+    return vat_class(code), (f"{label} — {note}" if note else label)
+
+
+async def _record_catalog_miss(db, barcode: str | None, department_code: str | None,
+                               price) -> None:
+    """Count an unresolved barcode. SPEC §6 — the self-prioritising enrichment backlog.
+
+    Never raises: a bookkeeping row must not be able to fail a sale. If this write breaks, the
+    shop still sells and we lose one data point.
+    """
+    import json
+    from sqlalchemy import select as _select
+    from src.db.models.catalog_miss_model import CatalogMissModel
+
+    code = (barcode or "").strip()
+    if not code:
+        return
+    try:
+        row = (await db.execute(
+            _select(CatalogMissModel).where(CatalogMissModel.barcode == code))).scalar_one_or_none()
+        now = datetime.now(timezone.utc)
+        if row is None:
+            db.add(CatalogMissModel(
+                barcode=code, hit_count=1, first_seen=now, last_seen=now,
+                department_code=department_code, last_price=price,
+                prices_seen=json.dumps([str(price)] if price is not None else [])))
+            return
+        if row.resolved_ean:
+            return                      # SPEC §6: counting stops once it became a real product
+        row.hit_count = (row.hit_count or 0) + 1
+        row.last_seen = now
+        row.department_code = department_code or row.department_code
+        row.last_price = price
+        try:
+            seen = json.loads(row.prices_seen or "[]")
+        except Exception:               # noqa: BLE001 — a corrupt blob must not stop the till
+            seen = []
+        if price is not None:
+            seen.append(str(price))
+        row.prices_seen = json.dumps(seen[-20:])     # capped: the ranking is hit_count, not history
+    except Exception as e:              # noqa: BLE001
+        logger.warning(f"catalog_miss not recorded for {code!r}: {type(e).__name__}: {e}")
+
 
 # BL-98 gap FILTER (Angel: "most are just cost — let me filter when a photo/description is missing").
 # The SAME single-gap expression drives the list AND that gap's count chip, so a "📷 Photo (800)"

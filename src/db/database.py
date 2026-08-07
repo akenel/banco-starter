@@ -245,6 +245,14 @@ _ADDITIVE_COLUMNS: list[str] = [
     # ~20mm on a label. short_code minted lazily on first postcard render, unique among non-nulls
     # (Postgres counts NULLs distinct → backfill is a no-op). qr_scan_count/qr_last_scanned_at make the
     # QR trackable (a scan bumps the counter) — free analytics off every label.
+    # DEPARTMENT KEYS (2026-08-07, docs onboarding/ai-coach/SPEC-department-keys.md). Selling the
+    # ~30% of stock with no barcode: a line with product_id NULL + a department bucket. Both are
+    # NULLABLE with no default, so every existing line item and every catalog line rung after this
+    # is byte-identical -- the columns simply stay NULL. `catalog_miss` itself is a NEW table and
+    # so is made by create_all(); only these two columns need an ALTER.
+    "ALTER TABLE line_items ADD COLUMN IF NOT EXISTS department_code VARCHAR(8)",
+    "ALTER TABLE line_items ADD COLUMN IF NOT EXISTS unresolved_barcode VARCHAR(64)",
+    "CREATE INDEX IF NOT EXISTS ix_line_items_department_code ON line_items (department_code)",
     "ALTER TABLE products ADD COLUMN IF NOT EXISTS short_code VARCHAR(16)",
     "ALTER TABLE products ADD COLUMN IF NOT EXISTS qr_scan_count INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE products ADD COLUMN IF NOT EXISTS qr_last_scanned_at TIMESTAMPTZ",

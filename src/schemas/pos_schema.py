@@ -230,6 +230,17 @@ class LineItemCreate(BaseModel):
     # Only used for custom lines (product_id is None):
     name: Optional[str] = None
     unit_price: Optional[Decimal] = Field(default=None, ge=0)
+    # DEPARTMENT KEY (2026-08-07) — a line for stock that has no barcode and never will.
+    # Set together with unit_price and WITHOUT product_id. Not a product: it never enters the
+    # catalog. The code resolves the receipt text and the VAT class server-side, so the till
+    # sends four characters and cannot influence either. See services/departments.py.
+    department_code: Optional[str] = Field(
+        default=None, max_length=8,
+        description="GLAS|GRIP|ZUBE|VAPE|TABA|CBD|DEKO|GROW|GETR|DIV — non-catalog sale")
+    # The barcode that was scanned and did NOT resolve, immediately before this line. Recorded
+    # to catalog_miss so the back office gets a backlog ranked by how often a code is really
+    # scanned. Optional: most department items (bongs, grinders) have nothing to scan at all.
+    unresolved_barcode: Optional[str] = Field(default=None, max_length=64)
     # A free promotional treat: real product, zero revenue, stock still leaves.
     is_giveaway: bool = False
     # Cafe multi-line VAT: dine-in (8.1%) vs takeaway (2.6%). Defaults to the safe,

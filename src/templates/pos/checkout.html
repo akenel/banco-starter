@@ -1155,14 +1155,20 @@
                     const lines = this.cartData.cart.map(item => {
                         const isGiveaway = !!item.isGiveaway;
                         const isCustom = !isGiveaway && (item.isCatalogItem === true
-                            || /^(catalog|change_|otf)/.test(item.id.toString()));
+                            || /^(catalog|change_|otf|dept_)/.test(item.id.toString()));
                         return {
                             product_id: isCustom ? null : (item.product_id || item.id),
                             quantity: item.quantity,
                             unit_price: item.price.toString(),
                             name: isCustom ? item.name : null,
                             is_giveaway: isGiveaway,
-                            consumption: this.consumption   // dine_in | takeaway -> server snapshots per-line VAT
+                            consumption: this.consumption,  // dine_in | takeaway -> server snapshots per-line VAT
+                            // DEPARTMENT KEY (2026-08-07): a non-catalog bucket for stock with no
+                            // barcode. Four characters — the server resolves the receipt text AND
+                            // the VAT class from the code, so a tampered client cannot ring CHF 95
+                            // of glass as café food. `unresolved_barcode` feeds the miss log.
+                            department_code: item.departmentCode || null,
+                            unresolved_barcode: item.unresolvedBarcode || null
                         };
                     });
 

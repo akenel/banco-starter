@@ -18,6 +18,7 @@ from .reference_product_model import ReferenceProductModel  # BL-97 reference ca
 from .pos_stock_movement_model import PosStockMovementModel
 from .transaction_model import TransactionModel, TransactionStatus, PaymentMethod
 from .line_item_model import LineItemModel
+from .catalog_miss_model import CatalogMissModel  # department keys — unresolved-scan backlog
 from .store_settings_model import StoreSettingsModel
 from .payment_model import PaymentModel  # 🌍-1 terminal settlements (Worldline TIM first)
 from .kiosk_cart_model import KioskCartModel  # banco kiosk v2 — guest held orders
