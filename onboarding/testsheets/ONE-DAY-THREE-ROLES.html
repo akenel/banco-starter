@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>One day, three roles — Pam → Ralph → Felix</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --mute:#555; --line:#bbb; --rule:#888;
+    --green:#1f8a4c; --greenbg:#eaf7ef;
+    --amber:#9a6b00; --amberbg:#fdf4de;
+    --red:#b8321f;   --redbg:#fbecea;
+    --blue:#1a5f9c;  --bluebg:#e9f2fa;
+    --shade:#f2f4f6;
+  }
+  *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  html,body{margin:0}
+  body{font-family:"Helvetica Neue",Arial,sans-serif;color:var(--ink);
+       line-height:1.35;padding:12mm 10mm;font-size:10pt}
+
+  header{display:flex;justify-content:space-between;align-items:flex-end;
+         border-bottom:3px solid var(--ink);padding-bottom:6px;margin-bottom:9px}
+  h1{font-size:19pt;margin:0}
+  .sub{font-size:10pt;color:var(--mute);margin-top:2px}
+  .badge{font-size:8.5pt;color:var(--mute);text-align:right;font-family:monospace;line-height:1.6}
+
+  h2{font-size:12pt;margin:12px 0 5px;padding-bottom:3px;border-bottom:2px solid var(--ink);
+     break-after:avoid}
+  h2 .who{font-weight:400;color:var(--mute);font-size:9.5pt}
+
+  .lead{background:var(--bluebg);border:1px solid #b9d4ea;border-radius:7px;
+        padding:8px 11px;margin-bottom:9px;break-inside:avoid}
+  .lead p{margin:0 0 5px} .lead p:last-child{margin-bottom:0}
+
+  .why{border-left:4px solid var(--green);background:var(--greenbg);padding:6px 10px;
+       margin:7px 0;font-size:9pt;border-radius:0 5px 5px 0;break-inside:avoid}
+  .warn{border-left:4px solid var(--red);background:var(--redbg);padding:6px 10px;
+        margin:7px 0;font-size:9pt;border-radius:0 5px 5px 0;break-inside:avoid}
+  .amber{border-left:4px solid var(--amber);background:var(--amberbg);padding:6px 10px;
+        margin:7px 0;font-size:9pt;border-radius:0 5px 5px 0;break-inside:avoid}
+
+  table{width:100%;border-collapse:collapse;font-size:9pt}
+  th{background:var(--shade);text-align:left;padding:4px 5px;border:1px solid var(--rule);
+     font-size:8pt;text-transform:uppercase;letter-spacing:.03em}
+  td{padding:5px 5px;border:1px solid var(--line);vertical-align:top}
+  tr{break-inside:avoid}
+  .n{width:22px;text-align:center;color:var(--mute);font-weight:700}
+  .pf{width:56px;text-align:center;font-size:8pt;color:var(--mute)}
+  .note{width:24%;background:#fffdf3}
+
+  .role{display:inline-block;border-radius:5px;padding:1px 8px;font-size:9pt;font-weight:700;
+        color:#fff;margin-right:5px}
+  .pam{background:#7c3aed} .ralph{background:#0e7490} .felix{background:#b45309}
+
+  code{background:var(--shade);padding:0 3px;border-radius:3px;font-size:9pt}
+  .rule{border-bottom:1px solid var(--rule);height:18px;margin-top:6px}
+
+  footer{margin-top:8px;padding-top:4px;border-top:1px solid var(--line);
+         font-size:8pt;color:var(--mute);display:flex;justify-content:space-between;
+         break-before:avoid}
+  .pagebreak{break-before:page}
+
+  @page{ size:A4; margin:10mm }
+  @media print{ body{padding:0} }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>One day, three roles</h1>
+    <div class="sub">Pam opens and sells &middot; Ralph takes over and closes &middot; Felix reads
+      the numbers the next morning</div>
+  </div>
+  <div class="badge">
+    banco.wolfhold.app<br>
+    Date: ______________<br>
+    Build: 590c390
+  </div>
+</header>
+
+<div class="lead">
+  <p><strong>What this actually tests, and nothing else does:</strong> the handovers. Each role
+     works fine alone — the failures live where one person's day becomes another's. On
+     <strong>2026-08-03</strong> the shift report totalled 2 transactions while the itemised log
+     underneath it listed 1, because a filter was fixed in one place and not in its twin.</p>
+  <p><strong>Department keys are new and untouched by a human.</strong> Ring them like you mean it.
+     Angel's read: <em>"now the users can actually fall back in a way they did before — it
+     simulates it almost exactly."</em> Her day-book line <code>Grips 15.–</code> and a department
+     line <code>Grips 15.00</code> are the same information. This is the day that proves it.</p>
+</div>
+
+<h2>Before you start <span class="who">— five minutes, and it saves the run</span></h2>
+
+<table>
+  <tbody>
+    <tr><td class="n">0a</td>
+        <td>Sign <strong>out</strong> and back in on the tablet. Existing sessions keep the OLD
+            30-minute idle timeout; a fresh login gets the hour.</td><td class="pf">☐</td></tr>
+    <tr><td class="n">0b</td>
+        <td><strong>Hard-refresh</strong> (Ctrl+Shift+R) or use a private window, once, on each
+            device. There is a service worker.</td><td class="pf">☐</td></tr>
+    <tr><td class="n">0c</td>
+        <td>Have <strong>two real products that scan</strong> in your hand — papers and filters
+            are the safest bet (55% and 9% bound).</td><td class="pf">☐</td></tr>
+    <tr><td class="n">0d</td>
+        <td>Have <strong>one thing with no barcode</strong> — a bong or a grinder off the shelf.
+            This is the whole point.</td><td class="pf">☐</td></tr>
+  </tbody>
+</table>
+
+<h2><span class="role pam">PAM</span> opens the day <span class="who">— cashier</span></h2>
+
+<table>
+  <thead><tr><th class="n">#</th><th>Do this</th><th>Expect</th><th class="pf">P / F</th><th class="note">What happened</th></tr></thead>
+  <tbody>
+    <tr><td class="n">1</td><td>Sign in as <strong>pam</strong>. Open the cash box and count the float in.</td>
+        <td>The float field is <strong>on the screen</strong> — not something only <code>curl</code> can set.
+            This was a hard FAIL on 08-03.</td><td class="pf">☐</td><td class="note"></td></tr>
+    <tr><td class="n">2</td><td>Ring a normal scan sale: scan two real products, take <strong>cash</strong>.</td>
+        <td>Nothing has changed. No new friction, no new prompt. <strong>This is the regression
+            risk of the whole feature.</strong></td><td class="pf">☐</td><td class="note"></td></tr>
+  </tbody>
+</table>
+
+<h2><span class="role pam">PAM</span> sells the things that cannot scan</h2>
+
+<table>
+  <thead><tr><th class="n">#</th><th>Do this</th><th>Expect</th><th class="pf">P / F</th><th class="note">What happened</th></tr></thead>
+  <tbody>
+    <tr><td class="n">3</td><td><strong>Scan the bong / grinder</strong> that has no barcode.</td>
+        <td>A calm amber banner, <em>not</em> a pop-up: “Nicht gefunden — Abteilung wählen”.
+            Nothing to dismiss. The scan box keeps the cursor.</td><td class="pf">☐</td><td class="note"></td></tr>
+    <tr><td class="n">4</td><td>Tap <strong>Glas</strong> (or Grips). Type the price. Add.</td>
+        <td>Price field is its own full-width line with a label. “✓ No name needed.”
+            Goes in the cart as <code>Glas</code>.</td><td class="pf">☐</td><td class="note"></td></tr>
+    <tr><td class="n">5</td><td>🎯 <strong>MIXED CART.</strong> In the SAME sale, also scan a real
+        product. Take <strong>cash</strong>.</td>
+        <td>Both lines on one ticket. <strong>5-rappen rounding applies to the tender, not to the
+            department line.</strong> Nothing else on the day has exercised this.</td><td class="pf">☐</td><td class="note"></td></tr>
+    <tr><td class="n">6</td><td>Ring <strong>Grips</strong> twice more at different prices (say 9.– and 35.–).</td>
+        <td>A real day repeats a bucket. This is what makes the close block worth reading.</td><td class="pf">☐</td><td class="note"></td></tr>
+    <tr><td class="n">7</td><td>⚠️ Type <strong>250.00</strong> against Glas and press Add.</td>
+        <td>The button turns red and says <strong>Confirm</strong>. It does NOT ring on the first
+            press. Press again → it rings. (Never pressed by a human before.)</td><td class="pf">☐</td><td class="note"></td></tr>
+    <tr><td class="n">8</td><td>Try <strong>1500.00</strong> against any button.</td>
+        <td>Refused — above the 999.00 ceiling, with a message telling you to use the catalogue.</td><td class="pf">☐</td><td class="note"></td></tr>
+    <tr><td class="n">9</td><td>🧪 <strong>THE SILENT DROP.</strong> Scan an unknown barcode, then
+        instead of picking a department, <strong>scan a real product</strong>.</td>
+        <td>The banner just goes away. No nag, no error, no leftover code attached to the next
+            line. Designed behaviour (§4.2) that nobody has verified.</td><td class="pf">☐</td><td class="note"></td></tr>
+    <tr><td class="n">10</td><td>Pick a department, then tap <em>“…or create a real product
+        instead”</em>.</td>
+        <td>The full create form comes back <strong>and keeps the price you typed</strong>.
+            Pressing ✕ instead should NOT keep it.</td><td class="pf">☐</td><td class="note"></td></tr>
+  </tbody>
+</table>
+
+<div class="amber">
+  ⏱️ <strong>Time step 4 against step 2.</strong> How many seconds does a department sale take
+  versus a scan? Write it down — doc 10 says <em>two seconds or it is broken</em>, and if the
+  fallback is slower than paper nobody will use it.
+  &nbsp;&nbsp;scan: ________ s &nbsp;&nbsp; department: ________ s
+</div>
+
+<footer><span>onboarding/testsheets/ONE-DAY-THREE-ROLES.html</span><span>page 1</span></footer>
+
+<div class="pagebreak"></div>
+
+<h2><span class="role pam">PAM</span> hands over <span class="who">— the seam that broke on 08-03</span></h2>
+
+<table>
+  <thead><tr><th class="n">#</th><th>Do this</th><th>Expect</th><th class="pf">P / F</th><th class="note">What happened</th></tr></thead>
+  <tbody>
+    <tr><td class="n">11</td><td>Pam closes her <strong>shift</strong> and counts the drawer.</td>
+        <td>Her total includes the department sales. The itemised list underneath shows the SAME
+            number of transactions as the header. <strong>Check both numbers agree.</strong></td><td class="pf">☐</td><td class="note"></td></tr>
+    <tr><td class="n">12</td><td>Look at what the drawer says versus what is in it.</td>
+        <td>If it says <em>“✅ Balanced”</em> over a box nobody counted, that is the exact lie
+            §5 exists to prevent — FAIL it.</td><td class="pf">☐</td><td class="note"></td></tr>
+    <tr><td class="n">13</td><td>Sign out. Sign in as <strong>ralph</strong>.</td>
+        <td>Ralph sees the shop's day, not an empty one. The cash box is <strong>the shop's</strong>,
+            not Pam's — one box, everybody sells into it.</td><td class="pf">☐</td><td class="note"></td></tr>
+  </tbody>
+</table>
+
+<h2><span class="role ralph">RALPH</span> works and closes the day <span class="who">— manager</span></h2>
+
+<table>
+  <thead><tr><th class="n">#</th><th>Do this</th><th>Expect</th><th class="pf">P / F</th><th class="note">What happened</th></tr></thead>
+  <tbody>
+    <tr><td class="n">14</td><td>Ring one more sale as Ralph — one department line, one scan.</td>
+        <td>Same behaviour as Pam. A manager should not get a different till.</td><td class="pf">☐</td><td class="note"></td></tr>
+    <tr><td class="n">15</td><td>🎯 <strong>Open Reports.</strong> Find the
+        <strong>🏷️ Departments</strong> block.</td>
+        <td>All ten buttons listed <strong>in strip order, including the ones that took nothing</strong>
+            (greyed). Glas and Grips carry today's money.</td><td class="pf">☐</td><td class="note"></td></tr>
+    <tr><td class="n">16</td><td>Read the <strong>“Rung from the catalogue”</strong> percentage.</td>
+        <td>A share of <strong>lines</strong>, not of money. Amber under 80% is expected and
+            correct today — read it as a trend, not a grade.</td><td class="pf">☐</td><td class="note"></td></tr>
+    <tr><td class="n">17</td><td>Add up the department block by hand and compare to the day total.</td>
+        <td>🎯 <strong>The department revenue + catalogue revenue must equal the day.</strong> If
+            they do not, stop — that is money going somewhere unnamed.</td><td class="pf">☐</td><td class="note"></td></tr>
+    <tr><td class="n">18</td><td>Check the <strong>VAT split</strong> on the day.</td>
+        <td>Department lines are in it. If you rang a <code>Getränke</code>, it should sit at the
+            reduced rate, not the standard one.</td><td class="pf">☐</td><td class="note"></td></tr>
+    <tr><td class="n">19</td><td>Ralph <strong>closes the day</strong> (Z-report / closeout).</td>
+        <td>It completes. The department block appears on the closeout too, or you can say plainly
+            that it does not.</td><td class="pf">☐</td><td class="note"></td></tr>
+    <tr><td class="n">20</td><td>Hover a department button on a <strong>desktop</strong>.</td>
+        <td>A tooltip explaining why to pick it, in your language. On the tablet the same text
+            appears in the panel after you tap.</td><td class="pf">☐</td><td class="note"></td></tr>
+    <tr><td class="n">21</td><td>Switch the language picker to <strong>DE</strong>, then back to EN.</td>
+        <td>Buttons follow: <code>Glas · Grips · Zubehör</code> ↔ <code>Glass · Grinders ·
+            Accessories</code>. <strong>The receipt stays German either way.</strong></td><td class="pf">☐</td><td class="note"></td></tr>
+  </tbody>
+</table>
+
+<div class="warn">
+  🧾 <strong>Print or preview ONE receipt with a department line on it</strong> and read it as a
+  customer would. It must say <code>Glas 95.00</code> — the shop's word — even if the till was in
+  English when it was rung. A tourist cashier must not produce an English receipt in Luzern.
+  &nbsp; Receipt reads: ______________________________
+</div>
+
+<footer><span>One day, three roles</span><span>page 2</span></footer>
+
+<div class="pagebreak"></div>
+
+<h2><span class="role felix">FELIX</span> reads it the next morning <span class="who">— owner, was not there</span></h2>
+
+<div class="lead">
+  <p><strong>This is the only part I cannot judge at all.</strong> Everything above is a fact that
+     can be checked. This is a question about whether the numbers mean anything to the person who
+     pays for them — and Felix is the only one who can answer it.</p>
+</div>
+
+<table>
+  <thead><tr><th class="n">#</th><th>Ask Felix</th><th class="note" style="width:auto">His answer, in his words</th></tr></thead>
+  <tbody>
+    <tr><td class="n">22</td><td>Open the dashboard / reports for yesterday. <strong>Without any
+        explanation from you</strong> — what does he think the Departments block is?</td><td class="note"></td></tr>
+    <tr><td class="n">23</td><td>“Does <em>Glas 95.–, Grips 44.–</em> tell you anything useful, or
+        do you need to know which bong?”</td><td class="note"></td></tr>
+    <tr><td class="n">24</td><td>“If a third of your sales looked like this every day, is that a
+        problem or is that fine?”</td><td class="note"></td></tr>
+    <tr><td class="n">25</td><td>“Would you rather the cashier spent 30 seconds finding the real
+        product, or 5 seconds pressing Glas?”</td><td class="note"></td></tr>
+    <tr><td class="n">26</td><td>Show him the <strong>“Rung from the catalogue %”</strong>. “Is
+        that a number you would look at every week?”</td><td class="note"></td></tr>
+  </tbody>
+</table>
+
+<div class="why">
+  <strong>Why ask 25 at all.</strong> The whole design bets that a fast bucket beats a slow lookup.
+  If Felix says he would rather have the 30 seconds, the bet is wrong for his shop and it is much
+  cheaper to hear that now than after a month of data.
+</div>
+
+<h2>Anything that stopped you <span class="who">— write it in the moment, not at the end</span></h2>
+<div class="rule"></div><div class="rule"></div><div class="rule"></div><div class="rule"></div>
+<div class="rule"></div>
+
+<h2>Verdict</h2>
+<table>
+  <thead><tr><th style="width:44%">Pass</th><th style="width:44%">Fail</th><th class="pf">✓</th></tr></thead>
+  <tbody>
+    <tr><td>Step 2 felt exactly as before</td><td>any new friction on an ordinary scan sale</td><td class="pf">☐</td></tr>
+    <tr><td>Departments + catalogue = the day total</td><td>any gap at all — stop and report it</td><td class="pf">☐</td></tr>
+    <tr><td>Pam's header count = her itemised count</td><td>they disagree (the 08-03 shape, again)</td><td class="pf">☐</td></tr>
+    <tr><td>Receipt reads <code>Glas</code> in any UI language</td><td>an English receipt in a German shop</td><td class="pf">☐</td></tr>
+    <tr><td>Department sale ≤ a few seconds</td><td>slower than paper → nobody adopts it</td><td class="pf">☐</td></tr>
+  </tbody>
+</table>
+
+<div class="amber">
+  <strong>Failing this is a successful run.</strong> Four of the eleven shipped commits — the
+  day-close block, the localised labels, the tooltips and the session fix — have never been
+  touched by a human. The thing to fear is a run staged so carefully that it passes and teaches
+  nothing.
+</div>
+
+<footer>
+  <span>Rollback target if it goes wrong: <strong>4497da5</strong></span>
+  <span>page 3 &middot; signed: __________________</span>
+</footer>
+
+</body>
+</html>
