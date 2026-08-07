@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Abteilungstasten — Sitzung mit Ralph</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --mute:#555; --line:#bbb; --rule:#888;
+    --green:#1f8a4c; --greenbg:#eaf7ef;
+    --amber:#9a6b00; --amberbg:#fdf4de;
+    --red:#b8321f;   --redbg:#fbecea;
+    --shade:#f2f4f6;
+  }
+  *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  html,body{margin:0}
+  body{font-family:"Helvetica Neue",Arial,sans-serif;color:var(--ink);
+       line-height:1.35;padding:13mm 11mm;font-size:10.5pt}
+
+  header{display:flex;justify-content:space-between;align-items:flex-end;
+         border-bottom:3px solid var(--ink);padding-bottom:6px;margin-bottom:10px}
+  h1{font-size:20pt;margin:0;letter-spacing:.2px}
+  .sub{font-size:10.5pt;color:var(--mute);margin-top:3px}
+  .badge{font-size:8.5pt;color:var(--mute);text-align:right;font-family:monospace;line-height:1.5}
+
+  h2{font-size:12.5pt;margin:16px 0 6px;padding-bottom:3px;border-bottom:2px solid var(--ink)}
+  h2 .en{font-weight:400;color:var(--mute);font-size:10pt}
+
+  .lead{background:var(--shade);border:1px solid var(--line);border-radius:7px;
+        padding:9px 11px;margin-bottom:10px}
+  .lead p{margin:0 0 5px}
+  .lead p:last-child{margin-bottom:0}
+  .lead .de{font-weight:600}
+  .lead .en{color:var(--mute);font-size:9.5pt}
+
+  table{width:100%;border-collapse:collapse;font-size:9.5pt}
+  th{background:var(--shade);text-align:left;padding:5px 6px;border:1px solid var(--rule);
+     font-size:8.5pt;text-transform:uppercase;letter-spacing:.04em}
+  td{padding:5px 6px;border:1px solid var(--line);vertical-align:top}
+  td.num{text-align:center;color:var(--mute);width:20px}
+  .key{font-weight:700;font-size:11pt;white-space:nowrap}
+  .cnt{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--mute)}
+  .fix{width:22%;background:#fffdf3}
+  tr.last td{background:var(--shade);font-style:italic}
+
+  .note{font-size:9pt;color:var(--mute);margin:6px 0 0}
+  .why{border-left:4px solid var(--green);background:var(--greenbg);padding:7px 10px;
+       margin:8px 0;font-size:9.5pt;border-radius:0 5px 5px 0}
+  .warn{border-left:4px solid var(--red);background:var(--redbg);padding:7px 10px;
+        margin:8px 0;font-size:9.5pt;border-radius:0 5px 5px 0}
+
+  .q{border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin-bottom:7px;
+     break-inside:avoid}
+  .q .n{display:inline-block;background:var(--ink);color:#fff;font-weight:700;font-size:8.5pt;
+        border-radius:50%;width:17px;height:17px;text-align:center;line-height:17px;margin-right:6px}
+  .q .de{font-weight:700;font-size:10.5pt}
+  .q .en{color:var(--mute);font-size:9pt;margin:2px 0 0 23px}
+  .q .why2{font-size:8.5pt;color:var(--amber);margin:3px 0 0 23px;font-style:italic}
+  .ans{margin:7px 0 0 23px;border-bottom:1px solid var(--rule);height:19px}
+  .ans2{margin-top:9px}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;break-inside:avoid}
+  .box{border:1px solid var(--line);border-radius:6px;padding:8px 10px;font-size:9.5pt;
+       break-inside:avoid}
+  .box h3{margin:0 0 4px;font-size:10pt}
+
+  /* Print pagination. Without these the two Erlaubt/Nicht-erlaubt boxes split across the
+     page boundary and left a near-empty page 2 — found by rendering to PDF and LOOKING at
+     it, not by reading the CSS (2026-07-28: pdfinfo shows what the browser actually did). */
+  h2{break-after:avoid}
+  table, .why, .warn, .lead{break-inside:avoid}
+  tr{break-inside:avoid}
+
+  footer{margin-top:14px;padding-top:6px;border-top:1px solid var(--line);
+         font-size:8pt;color:var(--mute);display:flex;justify-content:space-between}
+
+  @page{ size:A4; margin:11mm }
+  @media print{ body{padding:0} }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Abteilungstasten</h1>
+    <div class="sub">Was tun, wenn ein Artikel keinen Strichcode hat &middot;
+      <span style="color:#888">What to do when an item has no barcode</span></div>
+  </div>
+  <div class="badge">
+    Banco POS &middot; Artemis Luzern<br>
+    Sitzung: Angel + Ralph<br>
+    Datum: ____________
+  </div>
+</header>
+
+<div class="lead">
+  <p class="de">Rund ein Drittel der Ware im Laden hat keinen Strichcode — und wird nie einen bekommen.
+     Gläser, Grinder, Pfeifen, Dünger.</p>
+  <p class="en">About a third of the stock has no barcode and never will — glass, grinders, pipes, fertiliser.</p>
+  <p class="de" style="margin-top:7px">Heute erfindet die Kassiererin dafür einen neuen Artikel. Das
+     verschmutzt den Katalog und erzeugt jedes Mal ein Duplikat.</p>
+  <p class="en">Today the cashier invents a new product for these. That pollutes the catalogue and
+     creates a duplicate every single time.</p>
+  <p class="de" style="margin-top:7px"><strong>Neu: Sie drückt eine Taste und tippt den Preis. Fertig.</strong>
+     Kein Suchen, kein Anlegen, kein Fenster das man wegklicken muss.</p>
+  <p class="en"><strong>New: she presses one button and types the price. Done.</strong>
+     No searching, no creating, no pop-up to dismiss.</p>
+</div>
+
+<h2>1. Die zehn Tasten <span class="en">— The ten buttons</span></h2>
+
+<p class="note"><strong>Wichtig:</strong> Auf der Taste steht das Wort, das ihr im Kassenbuch schreibt —
+nicht das englische Wort aus dem System. Ihr schreibt <em>Grips</em>, also heisst die Taste <em>Grips</em>.
+<span style="color:#888">The button shows the word you write in the day book, not the English one from the system.</span></p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="width:20px">#</th>
+      <th style="width:88px">Taste</th>
+      <th>Was kommt drauf &middot; <span style="text-transform:none;font-weight:400">what goes on it</span></th>
+      <th style="width:52px">Artikel</th>
+      <th style="width:52px">scannt</th>
+      <th class="fix">Ralph korrigiert</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td class="num">1</td><td class="key">Glas</td>
+        <td>Bongs, Glas, Bubbler, Bong-Ersatzteile</td><td class="cnt">178</td><td class="cnt">0</td><td class="fix"></td></tr>
+    <tr><td class="num">2</td><td class="key">Grips</td>
+        <td>Alle Grinder — Plastik, Metall, Holz, egal welche</td><td class="cnt">200</td><td class="cnt">8</td><td class="fix"></td></tr>
+    <tr><td class="num">3</td><td class="key">Zubeh&ouml;r</td>
+        <td>Pfeifen, Aschenbecher, Dosen, Waagen, Schnupf, Pressen</td><td class="cnt">~1150</td><td class="cnt">14</td><td class="fix"></td></tr>
+    <tr><td class="num">4</td><td class="key">Vape</td>
+        <td>E-Liquid, Pods, Elfbar, Einweg, Verdampfer</td><td class="cnt">1885</td><td class="cnt">6</td><td class="fix"></td></tr>
+    <tr><td class="num">5</td><td class="key">Tabak</td>
+        <td>Blau, Shisha, Kohle, Schl&auml;uche, <strong>Zigi einzeln</strong></td><td class="cnt">424</td><td class="cnt">53</td><td class="fix"></td></tr>
+    <tr><td class="num">6</td><td class="key">CBD</td>
+        <td>Blow, Local Mary, Local Weed, &Ouml;le, <strong>Hasch</strong></td><td class="cnt">235</td><td class="cnt">24</td><td class="fix"></td></tr>
+    <tr><td class="num">7</td><td class="key">Deko</td>
+        <td>R&auml;ucherst&auml;bchen, Deko, T&uuml;ten, Textilien, Karten</td><td class="cnt">300</td><td class="cnt">0</td><td class="fix"></td></tr>
+    <tr><td class="num">8</td><td class="key">D&uuml;nger</td>
+        <td>D&uuml;nger, Substrat, Drogentests</td><td class="cnt">61</td><td class="cnt">21</td><td class="fix"></td></tr>
+    <tr><td class="num">9</td><td class="key">Getr&auml;nke</td>
+        <td>K&uuml;hlschrank, Snacks &nbsp;<span style="color:#b8321f">(andere MwSt — siehe Frage 5)</span></td><td class="cnt">46</td><td class="cnt">1</td><td class="fix"></td></tr>
+    <tr class="last"><td class="num">10</td><td class="key">Diverses</td>
+        <td>Alles andere. <strong>Steht ganz unten auf dem Streifen</strong> — sonst landet alles hier drin.</td><td class="cnt">—</td><td class="cnt">—</td><td class="fix"></td></tr>
+  </tbody>
+</table>
+
+<div class="why">
+  <strong>Warum <em>Glas</em> und <em>Grips</em> getrennt sind:</strong> Eine Bong kostet ~100 Franken,
+  ein Grinder ~15. In einem Topf sieht man am Jahresende nicht, ob der Bong-Monat oder der
+  Grinder-Monat gut war.
+  <span style="color:#888">Why Glas and Grips are separate: a bong is ~100 francs, a grinder ~15.
+  In one bucket you can't tell a good bong month from a good grinder month.</span>
+</div>
+
+<div class="warn">
+  <strong>Keine Taste f&uuml;r Papers/Filter — mit Absicht.</strong> Das ist euer bester Regal:
+  653 Artikel, davon scannen 120 schon heute, und es ist die Nummer 1 im Kassenbuch. Eine Taste
+  daf&uuml;r w&uuml;rde die einzigen guten Daten wegwerfen, die wir haben.
+  <span style="color:#888">No button for papers/filters on purpose — best shelf, 120 already scan,
+  rank 1 in the book. A button there would throw away the only good data there is.</span>
+</div>
+
+<h2>2. Was danach passiert <span class="en">— What happens afterwards</span></h2>
+
+<div class="grid2">
+  <div class="box">
+    <h3>✅ Erlaubt &middot; <span style="font-weight:400;color:#888">Allowed</span></h3>
+    <p style="margin:0">Sp&auml;ter in Ruhe die Bong im Katalog suchen und den Strichcode drankleben —
+    dann scannt <strong>die n&auml;chste</strong>.</p>
+    <p class="note" style="margin-top:4px">Later, calmly find the bong in the catalogue and bind its
+    barcode — then the <strong>next</strong> one scans.</p>
+  </div>
+  <div class="box">
+    <h3>🚫 Nicht erlaubt &middot; <span style="font-weight:400;color:#888">Not allowed</span></h3>
+    <p style="margin:0">Einen bereits abgeschlossenen Verkauf nachtr&auml;glich umschreiben. Der bleibt
+    f&uuml;r immer <em>Glas 95.00</em>.</p>
+    <p class="note" style="margin-top:4px">Rewriting a sale that already closed. It stays
+    <em>Glas 95.00</em> forever — otherwise the daily close can't be proven.</p>
+  </div>
+</div>
+
+<h2>3. Fragen an Ralph <span class="en">— Questions for Ralph (please write the answer on the line)</span></h2>
+
+<div class="q">
+  <div class="de"><span class="n">1</span>Sind das die W&ouml;rter, die ihr im Kassenbuch wirklich schreibt?</div>
+  <div class="en">Are these the words you actually write in the day book?
+    <em>Glas &middot; Grips &middot; Zubeh&ouml;r &middot; Vape &middot; Tabak &middot; CBD &middot; Deko &middot; D&uuml;nger &middot; Getr&auml;nke &middot; Diverses</em></div>
+  <div class="why2">Wenn Leila oder Leandra ein anderes Wort schreibt, gilt ihr Wort. / If they write something else, their word wins.</div>
+  <div class="ans"></div>
+</div>
+
+<div class="q">
+  <div class="de"><span class="n">2</span>Hasch / Medusa — soll das auf die Taste <em>CBD</em>?</div>
+  <div class="en">Hash / Medusa — should that go on the <em>CBD</em> button?</div>
+  <div class="why2">Daf&uuml;r gibt es heute <strong>gar keine</strong> Kategorie im System, und verkauft wird es fast jeden Tag. Das ist Ralphs Entscheid, nicht unserer.</div>
+  <div class="ans"></div>
+</div>
+
+<div class="q">
+  <div class="de"><span class="n">3</span>Wird Hasch / Local Mary <strong>abgewogen</strong> oder fertig abgepackt verkauft?</div>
+  <div class="en">Is hash / Local Mary <strong>weighed on a scale</strong>, or sold pre-packed?</div>
+  <div class="why2">Beim Abwiegen gibt es keinen St&uuml;ckpreis zum Tippen — das w&auml;re ein deutlich gr&ouml;sserer Umbau.</div>
+  <div class="ans"></div>
+</div>
+
+<div class="q">
+  <div class="de"><span class="n">4</span>Blow (CBD-Joints) — kommen die <strong>versiegelt mit Strichcode</strong> vom Lieferanten, oder packt ihr die selber ab?</div>
+  <div class="en">Blow (CBD joints) — sealed from the supplier with a barcode, or packed in-house?</div>
+  <div class="why2">Blow ist Nummer 3 im Kassenbuch. Mit Strichcode geh&ouml;rt es in den Katalog, nicht auf eine Taste.</div>
+  <div class="ans"></div>
+</div>
+
+<div class="q">
+  <div class="de"><span class="n">5</span>Getr&auml;nke: verrechnet ihr heute <strong>2.6%</strong> oder <strong>8.1%</strong> MwSt?</div>
+  <div class="en">Drinks: do you charge 2.6% or 8.1% VAT today?</div>
+  <div class="why2">Die MwSt h&auml;ngt an der Taste, nie an der Kassiererin. Wichtiger ist, dass es zur heutigen Praxis passt, als dass es theoretisch richtig ist.</div>
+  <div class="ans"></div>
+</div>
+
+<div class="q">
+  <div class="de"><span class="n">6</span>Wer darf eine solche Zeile <strong>stornieren</strong> — die Kassiererin, oder nur der Chef?</div>
+  <div class="en">Who may <strong>void</strong> such a line — the cashier, or only a manager?</div>
+  <div class="why2">Freier Preis plus einfaches Storno ist die weichste Stelle im ganzen Konzept.</div>
+  <div class="ans"></div>
+</div>
+
+<div class="q">
+  <div class="de"><span class="n">7</span>Im Katalog stehen <strong>1885 Vape-Artikel</strong> — ein Drittel von allem. Im Kassenbuch verkauft ihr fast keine. Stimmt das?</div>
+  <div class="en">The catalogue holds 1,885 vape items — a third of everything — yet the day book sells almost none. Is that right?</div>
+  <div class="why2">Entweder haben wir das Kassenbuch falsch gelesen, oder ein Drittel des Katalogs wurde hier noch nie verkauft.</div>
+  <div class="ans"></div>
+</div>
+
+<div class="q">
+  <div class="de"><span class="n">8</span>Soll auf dem <strong>Kundenbeleg</strong> der Tastenname stehen (z.B. „Glas 95.00")?</div>
+  <div class="en">Should the customer receipt show the button name (e.g. "Glas 95.00")?</div>
+  <div class="ans"></div>
+</div>
+
+<h2>4. Was im System fehlt <span class="en">— What is missing in the system</span></h2>
+
+<table>
+  <thead><tr><th style="width:150px">Fehlt</th><th>Warum das ein Problem ist &middot; <span style="text-transform:none;font-weight:400">why it matters</span></th><th class="fix">Ralph</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Hasch</strong></td>
+        <td>Gibt es als Kategorie <strong>nirgends</strong> im System, wird aber fast t&auml;glich verkauft.
+        <span style="color:#888">No category anywhere, sold most days.</span></td><td class="fix"></td></tr>
+    <tr><td><strong>Zigi einzeln</strong></td>
+        <td>Einzelne Zigarette aus der offenen Packung. Kann per Definition nie einen Strichcode haben.
+        <span style="color:#888">A single out of an open pack — can never have a barcode.</span></td><td class="fix"></td></tr>
+    <tr><td><strong>Getr&auml;nke</strong></td>
+        <td>Nur 46 Artikel im Katalog, davon scannt <strong>1</strong> — obwohl Bier und Red Bull t&auml;glich &uuml;ber die Theke gehen.
+        <span style="color:#888">46 items, 1 scans, yet drinks sell daily.</span></td><td class="fix"></td></tr>
+  </tbody>
+</table>
+
+<footer>
+  <span>onboarding/ai-coach/SPEC-department-keys.md &middot; Stand 2026-08-07 &middot; Entwurf, noch nichts gebaut</span>
+  <span>Unterschrift Ralph: ______________________</span>
+</footer>
+
+</body>
+</html>
