@@ -5095,18 +5095,29 @@ async def list_transactions(
     user_roles = current_user.get("user_roles", [])
     is_manager = any("pos-manager" in r or "pos-admin" in r or "pos-auditor" in r for r in user_roles)
 
-    # Date filter — cashiers are pinned to today; managers may pick a single date OR a range
-    # (date_from..date_to, for "last 2 weeks" style reporting). An open bound collapses to
-    # the other; a reversed range is swapped so from<=to always holds.
+    # Date filter — ANY pos role may pick a single date or a range (date_from..date_to). An
+    # open bound collapses to the other; a reversed range is swapped so from<=to always holds.
+    # Defaults to today when nothing is asked for, which is the right landing page for a till.
+    #
+    # 2026-08-07 — this used to honour the range for managers ONLY, so a cashier's date pickers
+    # were live on screen and silently discarded by the server. Angel, as pam: "bro i wanted to
+    # see all cash sales that is the point so if they want to go and look at last week they
+    # can." His call, and it costs nothing: this endpoint is READ-ONLY, cashiers already see
+    # every one of TODAY's sales by every cashier (BL-95 small-shop transparency), and refund /
+    # void / edit live on separate manager-gated endpoints. Extending that same visibility
+    # backwards in time exposes no category of data they cannot already see.
+    #
+    # `is_manager` is deliberately left computed above — it is what a larger shop would re-gate
+    # on, together with the `where(cashier_id == sub)` note there.
     def _parse(d):
         return datetime.strptime(d, "%Y-%m-%d").date()
 
-    if is_manager and (date_from or date_to):
+    if date_from or date_to:
         lo = _parse(date_from) if date_from else _parse(date_to)
         hi = _parse(date_to) if date_to else _parse(date_from)
         if lo > hi:
             lo, hi = hi, lo
-    elif date and is_manager:
+    elif date:
         lo = hi = _parse(date)
     else:
         lo = hi = datetime.now(SHOP_TZ).date()

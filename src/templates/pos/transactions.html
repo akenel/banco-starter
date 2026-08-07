@@ -66,13 +66,11 @@
             <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 <div>
                     <label class="text-sm font-semibold text-gray-700" data-i18n="transactions.filter_from">From:</label>
-                    <input type="date" x-model="filterFrom" @change="onRangeChange()"
-                           :disabled="pinnedToToday" :class="pinnedToToday ? 'input-field opacity-50 cursor-not-allowed' : 'input-field'">
+                    <input type="date" x-model="filterFrom" @change="onRangeChange()" class="input-field">
                 </div>
                 <div>
                     <label class="text-sm font-semibold text-gray-700" data-i18n="transactions.filter_to">To:</label>
-                    <input type="date" x-model="filterTo" @change="onRangeChange()"
-                           :disabled="pinnedToToday" :class="pinnedToToday ? 'input-field opacity-50 cursor-not-allowed' : 'input-field'">
+                    <input type="date" x-model="filterTo" @change="onRangeChange()" class="input-field">
                 </div>
                 <div>
                     <label class="text-sm font-semibold text-gray-700" data-i18n="transactions.filter_status">Status:</label>
@@ -138,10 +136,8 @@
         <p class="text-sm text-gray-600 mb-3">
             <span data-i18n="transactions.showing">Showing</span>
             <span class="font-semibold text-gray-900" x-text="rangeLabel()"></span><span
-                x-show="isSingleDay() && !pinnedToToday" x-cloak class="text-gray-500"> — <span
-                data-i18n="transactions.widen_hint">change the dates above to see more</span></span><span
-                x-show="pinnedToToday" x-cloak class="text-gray-500"> — <span
-                data-i18n="transactions.cashier_today_only">cashiers see today only; ask a manager for other days</span></span>
+                x-show="isSingleDay()" x-cloak class="text-gray-500"> — <span
+                data-i18n="transactions.widen_hint">change the dates above to see more</span></span>
         </p>
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
             <div class="card">
@@ -329,15 +325,10 @@
                                 .toISOString().split('T')[0])(new Date()),
             filterTo:   (d => new Date(d.getTime() - d.getTimezoneOffset() * 60000)
                                 .toISOString().split('T')[0])(new Date()),
-            // 2026-08-07 — the server PINS a cashier to today (list_transactions: the date range
-            // is only honoured for a manager/admin/auditor). The page offered the date pickers
-            // to everyone anyway, so Angel widened the range as `pam`, got FEWER rows, and the
-            // screen cheerfully announced "Showing 01.05.2026 – 07.08.2026" over today-only
-            // data — a claim my own scope label had just made confident.
-            //
-            // Controls that do nothing are worse than absent controls, and a label that states
-            // a range the server discarded is the same bug it was written to fix.
-            pinnedToToday: false,
+            // 2026-08-07 — the date pickers used to be live on screen and silently
+            // discarded by the server for a cashier. Angel opened the range to every pos role
+            // instead ("if they want to go and look at last week they can"), so there is no
+            // client-side pinning any more: what the pickers say is what the server does.
             filterStatus: '',
             filterPayment: '',
             filterCashier: '',   // client-side facet
@@ -363,15 +354,6 @@
                 this.user = userInfo;
                 this.generatedAt = formatDateTime(new Date());
 
-                // Roles decide this, not preference — mirror of the server rule.
-                try { this.pinnedToToday = !(AuthHelper.isManager() || AuthHelper.isAdmin?.()); }
-                catch (e) { this.pinnedToToday = false; }
-                if (this.pinnedToToday) {
-                    const today = (d => new Date(d.getTime() - d.getTimezoneOffset() * 60000)
-                                          .toISOString().split('T')[0])(new Date());
-                    this.filterFrom = today; this.filterTo = today;   // say what will happen
-                }
-
                 await this.loadTransactions();
             },
 
@@ -381,8 +363,6 @@
                 return !!this.filterFrom && this.filterFrom === this.filterTo;
             },
             rangeLabel() {
-                // A cashier is pinned server-side; never print a range that was discarded.
-                if (this.pinnedToToday) return t('transactions.range_today');
                 const f = this.filterFrom, u = this.filterTo;
                 if (!f && !u) return t('transactions.range_all');
                 const today = (d => new Date(d.getTime() - d.getTimezoneOffset() * 60000)
