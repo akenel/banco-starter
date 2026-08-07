@@ -44,8 +44,26 @@ one a screen, none reachable from the API.** So this is the work now, in this or
    - The 7 photo drafts `ITEM-0235..0241` are **inactive** with no price and no barcode. Price
      them to make them sellable, or leave them parked.
 
+**▶️ D · THE PARALLEL RUN — [`onboarding/PARALLEL-RUN.md`](onboarding/PARALLEL-RUN.md).**
+   *Set 2026-08-07: "i have coded enough and it needs a real one week test running parallel with
+   his paper or at least one day and see if it performs."* **A, B and C above are now pre-flight
+   for this**, not ends in themselves. The plan holds:
+   - **The two questions for Felix** — *turnover or profit?* and *is a 30% catalogue a win or a
+     fail?* Five minutes, and between them they halve or double this project. Blank lines are in
+     the file to write his answers on.
+   - **Run 1 = Angel shadows a real day. Paper stays the record; Felix risks nothing and types
+     nothing.** The number nobody has: **how many sales hit a product that will not scan or has no
+     price.** Under 10% → the till is ready. Over 25% → stop coding, start scanning.
+   - **Run 2 = a cashier drives** (`Leila` · `Raphi` · `Lele` — not Felix, he owns the alternative).
+   - **A simulation cannot replace this** and the rehearsal is not it: ring the paper book's real
+     **477.– day** on the tablet first, alone, so the shop day does not die on a free defect.
+   - ⚠️ **The ~30 names in tiers 1–2 of `19-what-actually-sells.md` are the real prep** — not 5,389
+     rows. Drinks were never checked and `Zigi einzeln 1.–` has no EAN by definition.
+
 **🔴 STILL THE GO-LIVE BLOCKER:** prod authenticates against the **DEMO realm** — those passwords
 are in a public GitHub repo. Nothing else on this list matters if the shop goes live on it.
+A shadow day puts real sales on it — close it first, or shadow on a local instance, and **do not
+let the parallel run quietly become go-live.**
 
 *The catalogue-enrichment work below is still valid and still unrun; it just is not the top of the
 deck any more. Counts in it are from 2026-08-03 (5,173); prod now holds **5,389**.*
