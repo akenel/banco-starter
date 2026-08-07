@@ -245,3 +245,53 @@ knows both what gets written down and what actually gets sold.*
 | 12 | **Interaction with the till guard + first-price panel (shipped 08-07).** | A *catalogued* product with a `999.99` placeholder still needs the price panel. The risk is that Pam rings a known product as `Glas` because it is two taps faster. §7's catalog-line percentage is the detector — so it has to be **on a screen**, not merely computed. |
 | 13 | **§7's "catalog lines ≥ 80%" is a guess.** | Measured 2026-08-07: the catalogue is **7% scannable** overall (Papers 55%, Filters 9%, Grinders 4%, Bongs 0%). Department lines may be well over 20% at first. Track the trend; do not read a missed target as failure. |
 | 14 | **§6's miss log cannot see the items that motivated this spec.** | It fires only when a barcode is scanned *and fails*. Bongs and grinders have no barcode to scan, so nothing is logged. It will do real work on drinks, cigarettes and new stock. For glass, the button total is the only signal there will ever be. |
+
+---
+
+## 11. Making the buttons configurable — phase 2, deliberately not phase 1
+
+*Angel, 2026-08-07: "these departments are all hard coded should we have them as part of the
+config settings so the admin can add or remove some button labels?"*
+
+**Yes, eventually.** Banco is meant to be cloned, and a bakery's buttons are not a headshop's.
+Hard-coding ten German-Swiss smoking-shop buckets into a product other people are supposed to
+stand up is a temporary state, not a design.
+
+### 11.1 Why it waits for the shadow day
+
+**We do not yet know whether these ten are the right ten.** §3.2 reserves the tenth slot on
+purpose — *"the first thing the parallel run will find is a bucket she keeps reaching for that
+nobody predicted"* — and the shadow-day tally
+([`testsheets/SHADOW-DAY-TALLY.html`](../testsheets/SHADOW-DAY-TALLY.html)) exists to produce
+exactly that answer, in one day, on paper, for free.
+
+Building a settings screen first means building the tool for changing an answer before knowing
+what the answer is. Run the day, read the Key column, then decide whether config is *how you fix
+a wrong list* or merely *a nicety for the next shop*.
+
+### 11.2 The four guardrails — cheap to write now, expensive to retrofit
+
+*Recorded so whoever builds it does not have to rediscover them.*
+
+1. 🔴 **A department with revenue against it can never be deleted — only retired.** Past sales
+   reference the code, and §5 forbids rewriting a closed sale. Retiring hides it from the strip
+   and keeps it in the reports. **The day-close block already handles this** — an unknown code
+   that took money still appears, flagged `retired`, so the block reconciles to the till rather
+   than to today's configuration.
+2. 🔴 **`vat_class` is a tax decision, not a UI preference.** It must be a fixed picklist of real
+   `PRODUCT_CLASSES` values, admin-only, with the consequence spelled out on screen. Free text
+   here misfiles a whole shelf's VAT silently and in the shop's favour — the kind an auditor
+   finds, not a test.
+3. ⚠️ **The shipped ten are translated into four languages; a custom one will not be.** Config
+   labels override the built-in `dept.*` strings, and a shop-added button shows the same word in
+   every language. That is acceptable — it is the shop's own word, which is the whole point —
+   but it must be a stated behaviour, not a surprise.
+4. ⚠️ **The cap of ten and `Diverses` last must be enforced BY the config screen**, not left to
+   convention. Both exist for reasons that are invisible from a settings page: every extra button
+   is a decision at the till with a customer waiting, and a catch-all that is easy to reach eats
+   everything (§3.5).
+
+### 11.3 What it is not
+
+Not a per-cashier preference, and not a way to reorganise the shop's reporting after the fact.
+Changing the buttons changes what tomorrow's sales are filed under; it never re-files yesterday's.
