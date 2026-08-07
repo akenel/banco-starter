@@ -44,6 +44,15 @@ one a screen, none reachable from the API.** So this is the work now, in this or
    - The 7 photo drafts `ITEM-0235..0241` are **inactive** with no price and no barcode. Price
      them to make them sellable, or leave them parked.
 
+**✅ DEPARTMENT KEYS ARE LIVE ON PROD (2026-08-07, `590c390`).** Ten buttons, the till, the
+   day-close block, the miss log. Rollback target if needed: **`4497da5`**.
+   ⚠️ **This makes the shadow day BETTER, and changes the tally sheet.** It was designed for a
+   world without department keys — Pam writes a two-letter code guessing which button it would
+   have been. Now she presses the actual button and the day-close block counts it. The paper
+   `Key` column becomes a **cross-check**, not the primary record.
+   ⚠️ **Never touched by a human:** the day-close block, the localised labels, the tooltips, and
+   the session fix. Four of eleven commits. Ring two or three department lines and open Reports.
+
 **▶️ D · THE PARALLEL RUN — [`onboarding/PARALLEL-RUN.md`](onboarding/PARALLEL-RUN.md).**
    *Set 2026-08-07: "i have coded enough and it needs a real one week test running parallel with
    his paper or at least one day and see if it performs."* **A, B and C above are now pre-flight
