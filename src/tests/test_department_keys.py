@@ -623,3 +623,36 @@ def test_the_templates_never_render_the_raw_server_word():
         for bad in ('x-text="d.receipt"', 'x-text="deptChosen && deptChosen.receipt"',
                     'x-text="deptChosen && deptChosen.covers"'):
             assert bad not in s, f"{name} renders the untranslated server word: {bad}"
+
+
+def test_no_department_string_names_a_person():
+    """2026-08-07, the SECOND time. Angel on the first: "should that be hard code or like role
+    like manager or admin ... or did you pull that from the kc" — it was hardcoded, I typed it,
+    and I wrote `test_the_cashier_panel_names_a_ROLE_not_a_person` to stop it happening again.
+
+    Then I did it again, in the Diverses tooltip: "tell Ralph which button is missing." The
+    guard existed and did not fire, because it only read scan.html — and the new text lives in
+    the string bundle. A guard is only as wide as the surface it looks at.
+
+    Banco is meant to be cloned. A shop that stands it up should not find the previous owner's
+    staff in their till. A ROLE is true in every deployment; a name is true in exactly one.
+    (Comments and docstrings naming people are provenance and stay — this is about text a
+    cashier reads on a screen.)
+    """
+    import pathlib as _p
+    import re as _re
+    js = (_p.Path(__file__).resolve().parents[1]
+          / "static" / "pos" / "pos-i18n.js").read_text(encoding="utf-8")
+    from src.services.departments import DEPARTMENTS
+
+    codes = [d["code"] for d in DEPARTMENTS]
+    offenders = []
+    for line in js.splitlines():
+        m = _re.match(r'\s*"([A-Z]+)(_covers|_help)?":\s*"(.*)",?$', line.strip())
+        if not m or m.group(1) not in codes:
+            continue
+        for name in ("Ralph", "Rafi", "Felix", "Pam", "Leila", "Leandra", "Angel"):
+            if _re.search(rf"\b{name}\b", m.group(3)):
+                offenders.append(f"{m.group(1)}{m.group(2) or ''}: …{name}…")
+    assert not offenders, (
+        "a department string names a person — use a role instead:\n  " + "\n  ".join(offenders))
