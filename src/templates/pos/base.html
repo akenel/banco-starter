@@ -609,6 +609,41 @@
             } catch (e) {}
         })();
 
+        // ── Department buttons, in the operator's language ──────────────────────────────
+        // 2026-08-07, Angel signed in as EN: "the key names are all german when i log in as
+        // english ... can we do that or do we need to normalize as one language or make it
+        // generic like dept-glass".
+        //
+        // Localised, not generic. `dept-glass` would be worse for everyone including the German
+        // cashier, whose whole reason for `Grips` was that it is the word she already writes.
+        // Three separate things, kept separate on purpose:
+        //
+        //   the CODE      GLAS   — language-neutral, stored, reported on, never shown
+        //   the BUTTON    Glass / Glas / Verre / Vetro — follows the OPERATOR's language
+        //   the RECEIPT   Glas   — follows the SHOP's language, snapshotted server-side at
+        //                          sale time into line_items.notes and never re-resolved.
+        //
+        // That last one is the important one: a tourist cashier working the till in English must
+        // not hand a customer in Luzern an English receipt, and a button renamed next year must
+        // not rewrite a receipt printed today.
+        //
+        // Falls back to whatever the server sent (`receipt`) if a code has no translation yet —
+        // t() returns the KEY on a miss, so a new department added to departments.py before its
+        // strings exist shows the German word rather than the literal text "dept.XXXX".
+        function deptLabel(d) {
+            if (!d) return '';
+            var v = t('dept.' + d.code);
+            return (v && v !== 'dept.' + d.code) ? v : (d.receipt || d.code);
+        }
+        function deptCovers(d) {
+            if (!d) return '';
+            var k = 'dept.' + d.code + '_covers';
+            var v = t(k);
+            return (v && v !== k) ? v : (d.covers || '');
+        }
+        window.deptLabel = deptLabel;
+        window.deptCovers = deptCovers;
+
         // ── Renew the session the moment the till comes back to the front ──────────────
         // 2026-08-07, Angel: "for some bizarre reason i get logged out for no reason."
         //

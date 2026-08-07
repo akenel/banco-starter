@@ -569,3 +569,57 @@ def test_a_day_with_no_department_sales_still_shows_the_whole_strip():
     assert s.department_revenue == Decimal("0.00")
     assert s.department_lines == 0
     assert all(d["lines"] == 0 for d in s.departments)
+
+
+# ------------------------------------------------------------------ language
+
+def test_the_receipt_text_stays_in_the_shops_language_whoever_is_on_the_till():
+    """2026-08-07, Angel signed in as EN: "the key names are all german when i log in as english".
+
+    The BUTTON is now localised. The RECEIPT deliberately is not — it is resolved server-side
+    from the code and snapshotted onto the line, so a tourist cashier working the till in
+    English cannot hand a customer in Luzern an English receipt, and renaming a button next
+    year cannot rewrite a receipt printed today.
+
+    This test is the guard on that separation: the server must keep answering in the shop's
+    language regardless of any client locale.
+    """
+    from src.services.departments import receipt_text
+    assert receipt_text("GRIP") == "Grips"
+    assert receipt_text("GETR") == "Getränke"
+
+
+def test_every_department_has_a_label_in_every_language():
+    """A missing string shows the literal key ("dept.GLAS") on the button — t() returns the key
+    on a miss. Cheap to check here, expensive to notice at a counter."""
+    import json
+    import pathlib
+    import re as _re
+    js = (pathlib.Path(__file__).resolve().parents[1]
+          / "static" / "pos" / "pos-i18n.js").read_text(encoding="utf-8")
+    from src.services.departments import DEPARTMENTS
+
+    missing = []
+    for loc in ("en", "de", "fr", "it"):
+        # the locale's dept block, as literal text — no JS engine needed
+        m = _re.search(rf'^  "{loc}": \{{.*?^    "dept": \{{(.*?)^    \}},',
+                       js, _re.S | _re.M)
+        assert m, f"no dept block for locale {loc}"
+        block = m.group(1)
+        for d in DEPARTMENTS:
+            for key in (d["code"], d["code"] + "_covers"):
+                if f'"{key}":' not in block:
+                    missing.append(f"{loc}.{key}")
+    assert not missing, f"untranslated department strings: {missing}"
+
+
+def test_the_templates_never_render_the_raw_server_word():
+    """If a template reads `d.receipt` directly it bypasses the translation and the German leaks
+    back onto an English till — which is exactly the bug this fixes."""
+    import pathlib
+    tpl = pathlib.Path(__file__).resolve().parents[1] / "templates" / "pos"
+    for name in ("scan.html", "reports.html"):
+        s = (tpl / name).read_text(encoding="utf-8")
+        for bad in ('x-text="d.receipt"', 'x-text="deptChosen && deptChosen.receipt"',
+                    'x-text="deptChosen && deptChosen.covers"'):
+            assert bad not in s, f"{name} renders the untranslated server word: {bad}"

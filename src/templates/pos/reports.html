@@ -128,7 +128,7 @@
                 <tbody>
                     <template x-for="d in (summary.departments || [])" :key="d.code">
                         <tr class="border-b last:border-0" :class="d.lines ? '' : 'text-gray-300'">
-                            <td class="py-1 font-semibold" x-text="d.receipt"></td>
+                            <td class="py-1 font-semibold" x-text="deptLabel(d)"></td>
                             <td class="py-1 text-right text-gray-500" x-text="d.lines"></td>
                             <td class="py-1 text-right" x-text="formatPrice(d.revenue)"></td>
                         </tr>

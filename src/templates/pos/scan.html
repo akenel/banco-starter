@@ -138,7 +138,7 @@
                                     :class="d.code === 'DIV'
                                        ? 'bg-gray-100 border-gray-300 text-gray-600 italic'
                                        : 'bg-white border-slate-400 text-slate-800 hover:bg-slate-100'"
-                                    x-text="d.receipt"></button>
+                                    x-text="deptLabel(d)"></button>
                           </template>
                         </div>
 
@@ -150,9 +150,9 @@
                              arrows in it. Widths now live on the WRAPPERS, never on the inputs. -->
                         <div x-show="deptOpen" x-cloak class="mt-3 pt-3 border-t-2 border-slate-300">
                           <p class="font-bold text-lg text-slate-900">
-                            <span x-text="deptChosen && deptChosen.receipt"></span>
+                            <span x-text="deptLabel(deptChosen)"></span>
                           </p>
-                          <p class="text-xs text-slate-600 mb-2" x-text="deptChosen && deptChosen.covers"></p>
+                          <p class="text-xs text-slate-600 mb-2" x-text="deptCovers(deptChosen)"></p>
 
                           <!-- The reassurance Angel needed and did not get: "it looks like if i
                                select vape i still need a name for the product". He does not. -->
@@ -2056,7 +2056,10 @@
                     // `dept_` prefix is what checkout.html keys on to send it as a department
                     // line rather than a catalog product. Keep the two in step.
                     id: 'dept_' + this.deptChosen.code + '_' + Date.now(),
-                    name: this.deptChosen.receipt,
+                    // On-screen only. The server resolves the RECEIPT text from the code
+                    // itself (services/departments.py), so what the customer is handed stays
+                    // in the shop's language no matter who is on the till.
+                    name: deptLabel(this.deptChosen),
                     price: price,
                     quantity: qty,
                     isCatalogItem: true,          // → product_id null at checkout
@@ -2065,7 +2068,7 @@
                     unresolvedBarcode: this.pendingBarcode || null,
                     product_class: (this.deptChosen.vat_class || 'standard'),
                 });
-                showToast(`${this.deptChosen.receipt} ${formatPrice(price * qty)}`, 'success');
+                showToast(`${deptLabel(this.deptChosen)} ${formatPrice(price * qty)}`, 'success');
                 this.deptOpen = false;
                 this.deptChosen = null;
                 this.deptPrice = '';
