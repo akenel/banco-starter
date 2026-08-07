@@ -205,7 +205,13 @@
                          So: while a department is open the create form COLLAPSES to a single
                          line, and the choice between them is written down instead of implied. -->
                     <div x-show="searchMode === 'catalog' && deptOpen" x-cloak class="my-3">
-                      <button @click="deptOpen=false; deptChosen=null"
+                      <!-- SWITCHING keeps the price she already typed; the ✕ beside Add does not,
+                           because that one means cancel. Retyping a number to change your mind is
+                           how a cashier learns to stop changing her mind.
+                           `|| otfPrice` guard: never overwrite something she has already put in
+                           the create form — a stale price landing one tap from a Save button is
+                           the worst failure mode this repo has. -->
+                      <button @click="otfPrice = otfPrice || deptPrice; deptOpen=false; deptChosen=null"
                               class="w-full text-left text-sm text-gray-500 border border-dashed border-gray-300 rounded-lg px-3 py-2 hover:bg-gray-50">
                         <span data-i18n="scan.dept_or_create">…or create a real product instead — for something you will sell again</span> ›
                       </button>
