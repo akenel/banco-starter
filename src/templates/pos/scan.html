@@ -134,6 +134,7 @@
                         <div class="grid grid-cols-3 sm:grid-cols-5 gap-2">
                           <template x-for="d in departments" :key="d.code">
                             <button @click="openDepartment(d)"
+                                    :title="deptLabel(d) + ' — ' + deptHelp(d)"
                                     class="py-3 px-2 rounded-lg border-2 font-bold text-sm active:scale-95 transition"
                                     :class="d.code === 'DIV'
                                        ? 'bg-gray-100 border-gray-300 text-gray-600 italic'
@@ -152,7 +153,9 @@
                           <p class="font-bold text-lg text-slate-900">
                             <span x-text="deptLabel(deptChosen)"></span>
                           </p>
-                          <p class="text-xs text-slate-600 mb-2" x-text="deptCovers(deptChosen)"></p>
+                          <!-- Hover shows this on a desktop; a tablet has no hover, so the same
+                               guidance is printed here the moment the button is pressed. -->
+                          <p class="text-xs text-slate-600 mb-2 leading-snug" x-text="deptHelp(deptChosen)"></p>
 
                           <!-- The reassurance Angel needed and did not get: "it looks like if i
                                select vape i still need a name for the product". He does not. -->

@@ -607,7 +607,7 @@ def test_every_department_has_a_label_in_every_language():
         assert m, f"no dept block for locale {loc}"
         block = m.group(1)
         for d in DEPARTMENTS:
-            for key in (d["code"], d["code"] + "_covers"):
+            for key in (d["code"], d["code"] + "_covers", d["code"] + "_help"):
                 if f'"{key}":' not in block:
                     missing.append(f"{loc}.{key}")
     assert not missing, f"untranslated department strings: {missing}"

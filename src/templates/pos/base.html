@@ -635,6 +635,15 @@
             var v = t('dept.' + d.code);
             return (v && v !== 'dept.' + d.code) ? v : (d.receipt || d.code);
         }
+        // Why you would pick this button, with examples — the judgement calls a strip cannot
+        // show. `Zubehör` vs `Diverses` is a real decision at a counter, and the honest answer
+        // ("if you reach for Diverses often, tell Ralph which button is missing") only fits here.
+        function deptHelp(d) {
+            if (!d) return '';
+            var k = 'dept.' + d.code + '_help';
+            var v = t(k);
+            return (v && v !== k) ? v : deptCovers(d);   // fall back to the short covers line
+        }
         function deptCovers(d) {
             if (!d) return '';
             var k = 'dept.' + d.code + '_covers';
@@ -643,6 +652,7 @@
         }
         window.deptLabel = deptLabel;
         window.deptCovers = deptCovers;
+        window.deptHelp = deptHelp;
 
         // ── Renew the session the moment the till comes back to the front ──────────────
         // 2026-08-07, Angel: "for some bizarre reason i get logged out for no reason."
