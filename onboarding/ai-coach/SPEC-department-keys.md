@@ -26,77 +26,82 @@ master, never appear in Artemis, and are never enriched after the fact.
 A department line records: department, price, quantity, VAT rate, timestamp, and (if a
 scan preceded it) the unresolved barcode.
 
-## 3. Department list
+## 3. The buttons
 
-*Rewritten 2026-08-07 from two things that already exist, rather than invented: the shop's own
-handwriting in [`19-what-actually-sells.md`](../19-what-actually-sells.md) (25 of 31 photographed
-day-book pages, 4 July – 5 August), and the measured scannability of every shelf on prod.*
+*Rewritten 2026-08-07. The first draft invented nine German names. Angel killed it — the shop
+already HAS a category list, it is already on the catalogue screen, and Ralph and the girls
+already use it. Inventing a second, parallel list would have been a second thing to learn.*
 
-> ⚠️ **The day-book photos are NOT in this repo** — only the transcription, and that document
-> calls itself *"a ranking, not an audit"* with 6 pages too blurred to read. Angel must check
-> this list against the photos he still holds before it is built. Names below are her words as
-> transcribed; if she writes something else, her spelling wins.
+### 3.1 The idea, in one line
 
-### 3.1 The rule that decides what is a department
+> **A button = one of the bold headings the catalogue already has.**
 
-**Not "does it scan today" — "does a barcode exist in the physical world at all?"** That single
-question splits the day book cleanly in two, and getting it wrong in either direction is expensive.
+Nothing new to learn, nothing new to name. And the payoff is the part that matters:
 
-| | Pile A — **a real EAN exists, it is merely unbound** | Pile B — **no EAN exists, ever** |
-|---|---|---|
-| Examples | `Pape` · `Purize`/`Filter` · `Clipper` · `Blau` · `Zigi` packs · `Getränke` · `Elfbar` · `Mighty` · `CBD Öl` | `Glas`/bongs · `Pfeifen` · `Grips` · `Hasch`/`Local Mary` by weight · `Zigi einzeln` · `Dünger` · knick-knacks |
-| Right answer | **Bind it once.** Finite work, and it is most of the volume. | **Department key.** No amount of work makes these scan. |
-| Wrong answer | Making it a department — it cannibalises catalogue sales that would have worked, and destroys the velocity data permanently | Waiting for an EAN that is never coming |
+- A **scanned** grinder and a **bucketed** grinder land in **the same bucket**. So "Grinders did
+  2,400 this month" is one honest number, not two half-numbers that have to be added up.
+- Someone can fix it later without a migration. Angel: *"no, I know that bong. That's the one you
+  sold. It takes me fifteen minutes, but I'll find it and barcode it."* The sale already sits in
+  Bongs; binding the EAN just makes the next one scan.
+- Most of the time nobody will bother, **and that is fine.** *"You sell plastic grinders, metal
+  grinders, whatever grinders. It's all grinders as far as I'm concerned."*
 
-> 🎯 **Rolling Papers is 55% scannable and is rank 1 in the book. `Pape` must NOT be a department.**
-> Filters (rank 2) sit at 9%, but Purize packets carry real retail EANs — that is a *binding*
-> backlog, not a department. Meanwhile **Bongs and Bong-Zubehör are 0% and 431 rows**, and Angel
-> confirmed on 05-08: *"None of the grinders have EAN numbers."* That is Pile B, permanently.
+### 3.2 The buttons
 
-### 3.2 The list
+Ten. `Diverses` is last. Receipt text is the word SHE writes in the day book, not the English
+heading and not the correct German noun — she writes `Grips`, so the button says `Grips`.
 
-**Receipt text is HER word from the day book**, not the correct German noun. `Grips` is what she
-writes for a grinder; a strip that says `Grinder` is a strip she has to translate mid-sale.
+| # | Button (her word) | English heading behind it | What goes in it | Things in it | Scan today | VAT |
+|---|---|---|---|---|---|---|
+| 1 | **Glas** | Smoking Gear → Bongs | Bongs, glass, bubblers, `Bong-Ersatz` | 178 | **0** | 8.1% |
+| 2 | **Grips** | Smoking Gear → Grinders | Every grinder — plastic, metal, wood, all of them | 200 | 8 | 8.1% |
+| 3 | **Zubehör** | Smoking Gear (the rest) | Pipes, ashtrays, `Dose`, scales, snuff, dab, presses | ~1,150 | 14 | 8.1% |
+| 4 | **Vape** | Vape | E-liquid, pods, disposables, `Elfbar`, vaporizers | 1,885 | 6 | 8.1% |
+| 5 | **Tabak** | Tobacco & Shisha | `Blau`, shisha, coal, hoses, **`Zigi einzeln`** | 424 | 53 | 8.1% |
+| 6 | **CBD** | CBD & Hemp | `Blow`, `Local Mary`, `Local Weed`, oils, **`Hasch`** | 235 | 24 | 8.1% |
+| 7 | **Deko** | Lifestyle & Gifts | `Räucherstäbchen`, decor, bags, textiles, `Karten` | 300 | **0** | 8.1% |
+| 8 | **Dünger** | Grow & Lab | Fertiliser, substrate, drug tests | 61 | 21 | 8.1% |
+| 9 | **Getränke** | Cafe & Food | Fridge drinks, snacks | 46 | 1 | **2.6%?** ⚠️ |
+| 10 | **Diverses** | — | Everything else. **Last on the strip.** | — | — | 8.1% |
 
-| Code | Receipt (her word) | Proper German | English | Covers — day-book terms | VAT |
-|---|---|---|---|---|---|
-| `DEPT-GLAS` | **Glas** | Glaswaren | Glass | Bongs, `Bong-Ersatz`, `Glas-Pipe`, bubblers, downstems, adapters | 8.1% |
-| `DEPT-PFEI` | **Pfeife** | Pfeifen | Pipes | `HD-Pipe`, `Holzpfeife`, metal/one-hitters | 8.1% |
-| `DEPT-GRIP` | **Grips** | Grinder | Grinders | `Grips`, `Grinder` — rank 4 in the book, 4% scannable | 8.1% |
-| `DEPT-HASH` | **Hasch** | Hasch / Blüten | Hash & flower by weight | `Medusa`, `GP Hasch`, `Local Mary`, `Local Weed`, `Amnesia` | 8.1% |
-| `DEPT-ZIGI` | **Zigi einzeln** | Einzelzigarette | Loose cigarette | `Zigi einzeln 1.–` — a single out of an opened pack | 8.1% |
-| `DEPT-GETR` | **Getränke** | Getränke | Drinks | `Bio Bier`, `Red Bull`, fridge — ⚠️ see §10, VAT unconfirmed | 2.6%? |
-| `DEPT-GROW` | **Dünger** | Growbedarf | Grow supplies | `Dünger`, substrate, `Root Juice`, `Wildkraut` | 8.1% |
-| `DEPT-ZUBE` | **Zubehör** | Zubehör | Accessories | `Dose`, `J-Hülle`, `Ashtray`, `Löffel`, `Stahlwolle`, `Schnitz-Set`, `Karten` | 8.1% |
-| `DEPT-DIV` | **Diverses** | Diverses | Misc | Everything else — **last on the strip** | 8.1% |
+**Why `Glas` and `Grips` are split out of Smoking Gear:** a bong is ~100 francs, a grinder is ~15.
+In one bucket you cannot tell a good bong month from a good grinder month, and bongs are where the
+money is. Everything else in Smoking Gear stays together as `Zubehör` — she does not need to
+decide between an ashtray and a stash tin mid-sale.
 
-**Nine, not ten.** The tenth slot stays empty on purpose: the first thing the parallel run will
-find is one bucket she keeps reaching for that is not here. Leave room for it.
+### 3.3 NOT buttons, on purpose
 
-### 3.3 Deliberately NOT departments — and why
-
-*Each of these was a candidate and was rejected. Recorded so the decision is not silently redone.*
-
-| Day-book term | Why not a department |
+| Heading | Why not |
 |---|---|
-| `Pape` / `Papes` | **55% already scannable, rank 1 by volume.** A department here would delete the shop's best data. |
-| `Purize` / `Filter` / `Tips` | Real retail EANs exist (9% bound). This is a **binding backlog**, and it is rank 2 — worth the work. |
-| `Clipper` / `Feuer` | Branded lighters carry EANs. Binding work, not a bucket. |
-| `Blau` / `Zigi` packs | Tobacco packs carry EANs (32% bound). Also the shelf with the tightest legal traceability. |
-| `Mighty` / `Vaporizer` / `Elfbar` / `E-Liquid` | **`Mighty` is 398.– — one is worth eighty packets of papers.** The book's own conclusion: *hardware needs the price and the product to be exactly right.* Never bucket the expensive end. |
-| `CBD Öl` (69–138.–) · `Hanfsalbe` (300.–) | Same reason. High value, real packaging, real EANs. |
-| `Blow` (CBD joints, rank 3) | ⚠️ **Undecided — Felix question.** If they are shop-packed with no barcode it belongs in `DEPT-HASH`; if they come sealed from a supplier with an EAN it is Pile A. See §10. |
+| **Papers & Rolling** (653 things, **120 scan**) | The best shelf in the shop and rank 1 in the day book. `Pape` and `Purize` already scan. A button here would throw away the only good data there is. |
+| **Unsorted / System** (222 things) | A junk drawer, not a shelf. Nothing is "sold from Unsorted". |
 
-### 3.4 Hard rules
+### 3.4 The four holes this exercise found
 
-- Maximum 10. Every extra one is a decision at the till. Nine used, one held in reserve.
-- `DEPT-DIV` is **last** on the printed strip and last in the tap list. If the catch-all
-  is the easiest key to reach, everything becomes `DIV` and the data is worthless.
-- VAT rate is a property of the department. It is never typed or chosen by the cashier.
-- Codes are **Code128 alphanumeric**, not numeric. This makes barcode collision with a
-  real EAN structurally impossible.
-- **A department is a confession that identity is gone.** Adding one is cheap; removing one after
-  it has revenue against it is not. When unsure, use `DEPT-DIV` and read the miss log.
+*Recorded because each one is a real sale with nowhere to go.*
+
+1. 🔴 **`Hasch` / `Medusa` / `GP Hasch` has no category anywhere in the system.** It sells most
+   days. Parked under `CBD` above — **Ralph must confirm that is where he wants it**, because it
+   is the one bucket with a legal dimension.
+2. 🔴 **`Zigi einzeln 1.–`** — a single cigarette out of an opened pack. Can never have a barcode.
+   Parked under `Tabak`.
+3. 🔴 **Drinks.** Cafe & Food holds 46 things and **1** scans, yet `Getränke` / `Bio Bier` /
+   `Red Bull` sell daily. They are probably not in the catalogue at all.
+4. ⚠️ **Vape is 1,885 things — a third of the whole catalogue — and the day book barely sells
+   any.** Either the book reading is wrong or a third of the catalogue is supplier data that has
+   never sold in this shop. Worth knowing before anyone "cleans up the catalogue".
+
+### 3.5 Hard rules
+
+- Maximum 10, and 10 are used. **Adding an 11th means removing one**, because every extra button
+  is a decision at the till.
+- `Diverses` is **last** on the printed strip and last in the tap list. If the catch-all is the
+  easiest key to reach, everything becomes `Diverses` and the data is worthless.
+- VAT is a property of the button. It is never typed or chosen by the cashier.
+- Codes are **Code128 alphanumeric**, not numeric, so a collision with a real EAN is impossible.
+- **A button is a confession that we do not know what was sold.** Adding one is cheap; removing
+  one after it has revenue against it is not.
+
 
 ## 4. Till flow
 
@@ -143,6 +148,18 @@ Steps 4–6 only. Department line with no attached barcode.
 - No editing a department line after the sale closes. Corrections are a void plus re-ring,
   same as any other line.
 - No department line ever reaches the master catalog or the Artemis storefront.
+
+> ### ✅ What IS allowed — do not read the above as "never improve anything"
+>
+> Angel, 2026-08-07: *"no, I know that bong. That's the one you sold. It takes me fifteen minutes,
+> but I'll figure it out and find it and barcode those bongs, because we want to track them."*
+>
+> **That is encouraged.** Go to the catalogue, find the bong, bind its barcode — and the NEXT one
+> scans. What stays frozen is the line that already sold: it remains `Glas 95.00`, forever.
+>
+> The distinction is the whole discipline. **Improving the catalogue going forward: yes, always.
+> Rewriting what a past sale was: never.** The moment a closed sale can be re-described, the
+> journal stops being a record and the daily close stops being provable.
 
 ## 6. Miss log
 
@@ -199,26 +216,32 @@ Ordered by expected frequency, `Diverses` last.
 
 ## 10. Open items
 
-*Split on purpose: a question only Felix or the shop can answer must not sit in a build queue
-waiting for a developer, and vice versa. §3 is now derived and no longer blocks.*
+*Split on purpose. A question only the shop can answer must not sit in a build queue waiting for
+a developer, and a build decision must not sit waiting for Felix.*
 
-### 10.1 🔴 Felix / the shop — nobody else can answer these
+### 10.1 🔴 Ralph (Rafi, the manager) and Felix — nobody else can answer these
+
+*Ralph runs the floor and also appears as a cashier tab in the day book, so he is the one who
+knows both what gets written down and what actually gets sold.*
 
 | # | Question | Why it blocks |
 |---|---|---|
-| 1 | **Is the 2.6% reduced rate actually charged on fridge drinks today?** Or is everything rung at 8.1%? | VAT is a property of the department and is never chosen at the till. Getting it wrong misfiles every drink sale, and it is the one department with a different rate. Drop `DEPT-GETR` to 8.1% if that matches current practice — matching the shop beats being technically right. |
-| 2 | **`Blow` (CBD joints) — sealed supplier packaging with an EAN, or shop-packed?** | Decides whether rank 3 by volume is Pile A (bind it) or Pile B (`DEPT-HASH`). Getting this wrong either deletes the velocity data for a top-3 line, or leaves the cashier searching for something that cannot be found. |
-| 3 | **Does `Hasch` / `Local Mary` sell by weight off a scale, or as pre-packed units?** | A weighed sale has no unit price to type. If it is weighed, `DEPT-HASH` needs a price-per-gram flow, which is a materially different build. |
-| 4 | **Should department revenue be broken out on the customer receipt, or shown only as the line name?** | Receipt layout + what the customer sees. A tourist reading `DIVERSES 45.00` may query it. |
-| 5 | **Confirm the nine names against the day-book photos.** Angel holds them; they are not in this repo. | §3 is derived from a transcription that calls itself *"a ranking, not an audit"*, with 6 of 31 pages unreadable. If she writes a bucket that is not here, it is missing from the strip. |
-| 6 | **Who is allowed to void a department line?** Cashier, or manager only? | §5 says corrections are void + re-ring. A free-typed price with an easy void is the softest spot in the whole design for cash to leak. |
+| 1 | **Are the ten button words the words the girls actually use?** `Glas · Grips · Zubehör · Vape · Tabak · CBD · Deko · Dünger · Getränke · Diverses` | The whole design rests on her not having to translate mid-sale. If Leila or Leandra writes something else, her word wins. Check against the day-book photos — they are not in this repo. |
+| 2 | **`Hasch` / `Medusa` — is `CBD` the right button for it?** | It has no category anywhere in the system today and it sells most days. It is also the one bucket with a legal dimension, so this is Ralph's call, not a developer's. |
+| 3 | **Is `Hasch` / `Local Mary` weighed on a scale, or sold as pre-packed units?** | A weighed sale has no unit price to type. If it is weighed, that button needs a price-per-gram flow — a materially bigger build. |
+| 4 | **`Blow` (CBD joints, rank 3 by volume) — sealed supplier packs with an EAN, or shop-packed?** | If sealed, it belongs in the catalogue and should be bound, not bucketed. Bucketing a top-3 seller would throw away real data. |
+| 5 | **Is the reduced 2.6% rate actually charged on fridge drinks today, or is everything rung at 8.1%?** | VAT belongs to the button and is never chosen at the till. `Getränke` is the only button with a different rate. **Matching current shop practice beats being technically right** — if they charge 8.1% today, set it to 8.1%. |
+| 6 | **Who may void a department line — cashier, or manager only?** | §5 says corrections are void + re-ring. A free-typed price with an easy void is the softest spot in this whole design for cash to walk. |
+| 7 | **Vape is 1,885 things — a third of the catalogue — and the day book barely sells any.** Is that real? | Either the book reading is wrong, or a third of the catalogue is supplier data that has never sold in this shop. Worth knowing before anyone spends a week "cleaning up the catalogue". |
+| 8 | **Should the customer receipt show the button name, or something plainer?** | A tourist reading `DIVERSES 45.00` may well ask what it was. |
 
 ### 10.2 🔧 Build decisions — Angel and the copilot, no shop input needed
 
 | # | Question | Notes |
 |---|---|---|
-| 7 | **Where does `department_code` live on the line?** | `line_items.product_id` is **already nullable** (comment: *"name lives in notes, price is sent by the till"*) and the report path already renders those lines from `notes`. A real `department_code` column is still worth it — reporting on a free-text note is the mistake this spec exists to avoid. |
-| 8 | **Does the till strip print from Banco, or is it a one-off design?** | Code128 + the Bluetooth QL-820NWB already works. A shop that clones Banco needs to print its own strip, so this should be a route, not a PDF Angel made once. |
-| 9 | **Interaction with the till guard + first-price panel (shipped 08-07).** | A *catalogued* product with a `999.99` placeholder still needs the price panel. Risk: Pam rings a known product as `DEPT-GLAS` because it is two taps faster. §7's catalog-line percentage is the detector — make sure it is on a screen, not just computed. |
-| 10 | **§7's "catalog lines ≥ 80%" target is a guess.** | Measured 2026-08-07: the catalogue is **7% scannable** overall (Papers 55%, Filters 9%, Grinders 4%, Bongs 0%). Department lines may be well over 20% at first. Track the trend, do not treat a missed target as failure. |
-| 11 | **§6's miss log is blind to Pile B.** | It fires only when a barcode is scanned *and fails*. Bongs and grinders have no barcode to scan, so nothing is logged. The miss log will do real work on drinks, cigarettes and new stock; for glass the department total is the only signal there will ever be. Consistent with §5 — but do not expect it to solve the problem that motivated the spec. |
+| 9 | **Where does the button live on the line?** | `line_items.product_id` is **already nullable** (its own comment: *"name lives in notes, price is sent by the till"*) and the report path already renders such lines from `notes`. So this is additive, not a rewrite. A real `department_code` column is still worth it — reporting off a free-text note is the mistake this spec exists to prevent. |
+| 10 | **Does the button map to `product_group`, or to its own list?** | Mapping to the existing `product_group` is the entire point of §3 — it is what makes a scanned grinder and a bucketed grinder add up to one number. `Glas` and `Grips` are the two exceptions: they map to a *sub*category (Bongs, Grinders) rather than the heading. |
+| 11 | **Does the till strip print from Banco, or is it a one-off Angel designs once?** | Code128 + the Bluetooth QL-820NWB already works. A shop that clones Banco needs to print its own strip, so this should be a route — not a PDF that exists on one laptop. |
+| 12 | **Interaction with the till guard + first-price panel (shipped 08-07).** | A *catalogued* product with a `999.99` placeholder still needs the price panel. The risk is that Pam rings a known product as `Glas` because it is two taps faster. §7's catalog-line percentage is the detector — so it has to be **on a screen**, not merely computed. |
+| 13 | **§7's "catalog lines ≥ 80%" is a guess.** | Measured 2026-08-07: the catalogue is **7% scannable** overall (Papers 55%, Filters 9%, Grinders 4%, Bongs 0%). Department lines may be well over 20% at first. Track the trend; do not read a missed target as failure. |
+| 14 | **§6's miss log cannot see the items that motivated this spec.** | It fires only when a barcode is scanned *and fails*. Bongs and grinders have no barcode to scan, so nothing is logged. It will do real work on drinks, cigarettes and new stock. For glass, the button total is the only signal there will ever be. |
