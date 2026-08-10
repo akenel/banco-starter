@@ -7,7 +7,34 @@ and waiting on Angel's hands.*
 
 ---
 
-## ▶️ START HERE — put a human on the till, then price the 79
+## 🚪 GATE ZERO — ANSWERED 2026-08-10
+
+*`GO-LIVE-PLAN-felix.md` §0 refuses to let anything proceed until this is written
+down, because the whole plan inverts on it. Here it is, in Felix's own words.*
+
+> *"I just want to scan stuff and know what I sold. Today it's paper and pen."*
+> — Felix, 2026-08-10
+
+**Q: Is Felix already trading on BANCO in production? → NO.** He is on paper.
+Corroborated below: the parallel run (D) has not happened, and prod still
+authenticates against the DEMO realm.
+
+**The good half.** The untested restore is *not* a live emergency. No shop is
+running on an unproven recovery path. That was the nightmare branch and we are
+not on it.
+
+**The half that costs.** Per §0, a NO means there is a **data-migration
+milestone — existing stock and till state → BANCO — that appears in none of the
+source plans.** It is Phase 0, task zero.
+
+- [ ] **Scope the data migration before any go-live date is spoken.** What is in
+      the paper system today, what has to come across, and what is allowed to
+      start empty. Perpetual inventory is deliberately zero, so this is smaller
+      than it sounds — but it is not nothing, and it has never been sized.
+
+**And the sentence that should govern the sequencing:** *"I just want to scan
+stuff and know what I sold."* Scan → sell → know what left the shop. Anything on
+this board that does not serve that is not go-live work.
 
 *Set 2026-08-07 after four days that were not in this file: the X1 tablet + Bluetooth label
 printing (08-04), the shop-model audit and papers/filters shelf intake (08-05), catalogue search
