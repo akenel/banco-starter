@@ -5612,10 +5612,16 @@ def _log_age_clearance(txn_ref: str, method: str, subject: str,
         f"verified_by={actor} · at={datetime.now(timezone.utc).isoformat()}")
 
 
-async def _record_age_refusal(txn_ref: str, current_user: dict, cashier_uid,
+async def _record_age_refusal(txn_ref: str | None, current_user: dict, cashier_uid,
                               product_class: str | None = None,
-                              note: str | None = None) -> None:
+                              note: str | None = None,
+                              cart_ref: str | None = None) -> None:
     """Persist a REFUSED 18+ sale, in its own short-lived session.
+
+    txn_ref must be passed ONLY when a transaction already exists (the checkout
+    path). On /sales it is None: the number is not allocated until commit, so a
+    refused attempt's number is handed to the next sale — see the model docstring.
+    cart_ref (the cart's client_uuid) is the honest identifier for an attempt.
 
     Why a separate session: the caller raises 400 immediately after this, and
     get_db_session() does not roll back explicitly — it just closes, which
@@ -5636,7 +5642,7 @@ async def _record_age_refusal(txn_ref: str, current_user: dict, cashier_uid,
                  or (current_user or {}).get("sub") or str(cashier_uid))
         async with AsyncSessionLocal() as s:
             s.add(AgeCheckEventModel(
-                outcome="refused", txn_ref=txn_ref, cashier=actor,
+                outcome="refused", txn_ref=txn_ref, cart_ref=cart_ref, cashier=actor,
                 product_class=product_class, note=note,
             ))
             await s.commit()
@@ -5645,8 +5651,10 @@ async def _record_age_refusal(txn_ref: str, current_user: dict, cashier_uid,
 
 
 async def _assert_age_cleared(cart_age_restricted: bool, customer, age_verified: bool,
-                              current_user: dict, cashier_uid, txn_ref: str,
-                              product_class: str | None = None) -> str:
+                              current_user: dict, cashier_uid, txn_ref: str | None,
+                              product_class: str | None = None,
+                              cart_ref: str | None = None,
+                              refusal_txn_ref: str | None = "") -> str:
     """Server-side 18+ age gate for the sale path (the client 🔞 alert is bypassable, this is not).
     The sale is REJECTED (400) when the cart holds an age-restricted line unless:
       • an OF-AGE loyalty member is attached  -> 'member_dob' or 'member_confirmed', OR
@@ -5669,11 +5677,19 @@ async def _assert_age_cleared(cart_age_restricted: bool, customer, age_verified:
     if not cart_age_restricted:
         return "not_required"
 
+    # txn_ref is for the LOG line, which only runs on a clearance — and a cleared sale
+    # does commit, so the number is real there. What gets PERSISTED on a refusal is a
+    # different question, because a refused sale never commits and never owns its
+    # number. Callers that cannot promise the row exists pass refusal_txn_ref=None.
+    # Default "" means "not specified" -> fall back to txn_ref (the checkout path,
+    # where the transaction is already persisted and the reference is true).
+    _refusal_ref = txn_ref if refusal_txn_ref == "" else refusal_txn_ref
+
     if customer is not None:
         # DOB is authoritative when present: a proven minor can't be overridden by attestation.
         if customer.birthdate is not None and not customer.is_of_age:
-            await _record_age_refusal(txn_ref, current_user, cashier_uid, product_class,
-                                      note="member under 18 by DOB")
+            await _record_age_refusal(_refusal_ref, current_user, cashier_uid, product_class,
+                                      note="member under 18 by DOB", cart_ref=cart_ref)
             raise HTTPException(
                 status_code=400,
                 detail="This loyalty member is under 18 — age-restricted (18+) items cannot be sold to them.")
@@ -5687,8 +5703,9 @@ async def _assert_age_cleared(cart_age_restricted: bool, customer, age_verified:
         _log_age_clearance(txn_ref, "cashier_attest", "walk-in", current_user, cashier_uid)
         return "cashier_attest"
 
-    await _record_age_refusal(txn_ref, current_user, cashier_uid, product_class,
-                              note="no of-age member attached and no cashier attestation")
+    await _record_age_refusal(_refusal_ref, current_user, cashier_uid, product_class,
+                              note="no of-age member attached and no cashier attestation",
+                              cart_ref=cart_ref)
     raise HTTPException(
         status_code=400,
         detail="Age-restricted (18+) item — verify age first: confirm the customer is 18+ "
@@ -5776,7 +5793,14 @@ async def checkout_transaction(
     _age_basis = await _assert_age_cleared(
         cart_age_restricted, customer, checkout.age_verified, current_user,
         await _resolve_cashier_uid(db, current_user), transaction.transaction_number,
-        product_class=_first_class)
+        product_class=_first_class,
+        # Here transaction_number is REAL — this row is already persisted — so txn_ref
+        # above is a true reference. cart_ref rides along so both paths answer the same
+        # "was this cart sold after a refusal?" query. str() because client_uuid is a
+        # UUID column and cart_ref is VARCHAR: keep the text form canonical on both
+        # sides or the join silently matches nothing.
+        cart_ref=(str(transaction.client_uuid)
+                  if getattr(transaction, "client_uuid", None) else None))
     # Evidence, not behaviour: the gate already decided: this only remembers it.
     transaction.age_check_outcome = _age_basis
     if _restricted_ids:
@@ -6101,9 +6125,20 @@ async def create_sale(
 
     # --- Age gate (18+): reject the sale unless an of-age member is attached OR the cashier
     # attested a walk-in. cart_age_restricted was set from each line's class in the loop above. ---
+    # refusal_txn_ref=None ON PURPOSE. `transaction_number` above is TXN-{today}-{count+1}
+    # derived from COMMITTED transactions, and this sale has not committed. A refusal
+    # raises 400 and never consumes the number, so the next sale — any sale, any
+    # cashier — takes it, and the refusal would point at a stranger's purchase.
+    # It is still passed as txn_ref because the CLEARANCE log line runs only when the
+    # sale goes through, and by then the number is real. Only the persisted row lies.
+    # Measured 2026-08-12: 12 of 13 refusals falsely "belonged" to a completed sale.
+    # The cart's client_uuid is the true handle on an attempt; it survives the error
+    # in sessionStorage, so the retry that follows carries the same one.
     txn.age_check_outcome = await _assert_age_cleared(
         cart_age_restricted, customer, sale.age_verified, current_user,
-        cashier_uid, transaction_number, product_class=age_trigger_class)
+        cashier_uid, transaction_number, product_class=age_trigger_class,
+        cart_ref=str(sale.client_uuid) if sale.client_uuid else None,
+        refusal_txn_ref=None)
 
     # --- Cash drawer gate + cent-precision tender (identical rules to legacy checkout). ---
     home_tendered = sale.amount_tendered

@@ -72,12 +72,47 @@ class AgeCheckEventModel(Base):
         comment="refused | member_dob | member_confirmed | cashier_attest"
     )
 
-    # Which sale attempt this was, when there was one. For a refusal the
-    # transaction may never be completed, so this is a reference string
-    # (transaction_number), not a foreign key that could block or cascade.
+    # Which sale attempt this was, when a transaction ACTUALLY EXISTED. Not an FK
+    # by design — a refused attempt may never become a sale, and a reference that
+    # could block or cascade would make evidence a liability.
+    #
+    # ⚠️ NULL ON THE /sales PATH, DELIBERATELY — corrected 2026-08-12 after Angel's
+    # sandbox run. The first version stored transaction_number here from BOTH sale
+    # paths, and on `create_sale` that number does not exist yet: it is
+    # `TXN-{today}-{count+1}` computed from the count of COMMITTED transactions
+    # (pos_router.py). A refusal raises 400 and never commits, so it never consumes
+    # its number — and the NEXT sale, any sale, by any cashier, takes it.
+    #
+    # Measured: 12 of 13 refusals "belonged" to a completed sale, 3 of those with no
+    # 18+ line at all. Proven end to end — refuse an 18+ sale, ring a lollipop for
+    # the next customer, and the record read "18+ refusal on TXN-0027" where
+    # TXN-0027 was a CHF 0.50 lollipop.
+    #
+    # That is worse than storing nothing. A missing link reads as missing; a FALSE
+    # link reads as authoritative, and this is a record meant for an inspector.
+    # `checkout_transaction` still sets it, because there the transaction is already
+    # persisted and the reference is true.
     txn_ref: Mapped[str | None] = mapped_column(
         String(64), nullable=True,
-        comment="transaction_number of the attempt, if one existed. Not an FK by design."
+        comment="transaction_number — ONLY when a transaction already exists (checkout path). "
+                "NULL on /sales: the number is not allocated until commit and the next sale takes it."
+    )
+
+    # The cart's idempotency key — the honest handle on an ATTEMPT, which is what a
+    # refusal actually is. Better than txn_ref rather than merely safer: the till
+    # persists this uuid in sessionStorage and CLEARS IT ONLY ON SUCCESS, keeping it
+    # across an error so a retry reuses it (checkout.html). So a cashier who is
+    # refused, ticks the 18+ box and completes the sale produces a refusal and a
+    # transaction carrying the SAME cart_ref — while the next customer, on a fresh
+    # uuid, cannot be falsely joined to it.
+    #
+    # That makes the most audit-relevant pattern in the whole gate queryable for the
+    # first time: refused, then sold anyway, on the same cart, seconds apart.
+    # Joins to transactions.client_uuid.
+    cart_ref: Mapped[str | None] = mapped_column(
+        String(64), nullable=True,
+        comment="client_uuid of the cart attempt — joins to transactions.client_uuid. "
+                "Identifies the ATTEMPT, which is the thing a refusal is about."
     )
 
     store_number: Mapped[int | None] = mapped_column(
@@ -107,6 +142,9 @@ class AgeCheckEventModel(Base):
     __table_args__ = (
         Index("ix_age_check_event_outcome_at", "outcome", "occurred_at"),
         Index("ix_age_check_event_at", "occurred_at"),
+        # "was this refusal followed by a sale of the same cart?" is the question an
+        # inspector actually asks. It should not be a table scan.
+        Index("ix_age_check_event_cart", "cart_ref"),
     )
 
     def __repr__(self):

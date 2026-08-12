@@ -36,6 +36,144 @@ source plans.** It is Phase 0, task zero.
 stuff and know what I sold."* Scan → sell → know what left the shop. Anything on
 this board that does not serve that is not go-live work.
 
+---
+
+## ✅ THE 18+ EVIDENCE WORK IS SANDBOX-PROVEN — 2026-08-12
+
+*`d4144d4` ended with "NOT yet exercised against a live database — sandbox next."
+That run has now happened, locally, on build `caaab67`.*
+
+**Machine-green, 17/17.** `scripts/prove-age-evidence.py` (new) walks the whole gate
+against the live stack: a clean cart records `not_required` (never NULL) · an attested
+walk-in records `cashier_attest` and snapshots the line · a refusal returns 400 **and
+the evidence row outlives it** · `member_dob` and `member_confirmed` are recorded apart
+· a member proven 15 by DOB is refused **even with the cashier attesting** · no buyer
+identity is stored · UPDATE and DELETE are refused on both evidence tables.
+
+**Sabotaged on purpose first** (08-07 rule). Deleted the `commit` from
+`_record_age_refusal` and rebuilt — the refusal check went red, then green again on
+restore. The guard is real, not decoration.
+
+> ⚠️ **And the sabotage taught the local-testing rule:** the app image **bakes `src/`
+> in — there is no bind mount.** `docker compose restart app` restarts the OLD code and
+> says nothing. My first sabotage run "passed" because the container never saw it.
+> **Any change under `src/` needs `./scripts/rebuild.sh`.**
+
+**🔴 THE FINDING — the evidence has no screen. Sixth instance of this repo's most
+repeated bug** (`cash_box_float`, the force-close, `/catalog/merge`, honest confidence,
+`best_match_score`). `grep` src/ for `age_check_outcome`, `was_age_restricted`,
+`age_check_event` or any `compliance_*` table: **every hit is a WRITE.** No endpoint, no
+template, no report. Every check in the probe had to read it with `psql`.
+
+And it lands harder here than in any of the five, because **the entire point of this
+work is that a person can be SHOWN the record.** The seed SQL itself calls "records
+stored in editable folders" a standing nonconformity — records reachable only from a
+database prompt are not obviously better. **Felix cannot run `psql`.** Ask where the
+person is standing when they need it.
+
+Also still missing: **nothing produces a verdict.** `compliance_check_run` is written by
+no code — the schema, the append-only guarantee and the 13 seeded rules are real; the
+engine is not. All 13 ship `is_active = false` deliberately, pending a human reading each
+authority (`authority_checked_at`).
+
+### 🔴 THE HUMAN RUN FOUND TWO THINGS THE PROBE COULD NOT — 2026-08-12, Angel
+
+*He marked B, C and D all PASS. Both findings below are hiding inside a PASS, which is
+why they needed a person: the screen answered correctly and the record still lies.*
+
+**1 · ✅ FIXED SAME DAY — `age_check_event.txn_ref` POINTED AT THE WRONG SALE.**
+Not a missing link: a **false** one, in a compliance record, which is worse than NULL
+because it reads as authoritative. *(Fix and re-test below.)*
+
+`create_sale` (`pos_router.py:5957`) computes `TXN-{today}-{count+1:04d}` from the count
+of **committed** transactions. A refusal raises 400 and never commits — so it never
+consumes its number, and **the next sale takes it.** Proven end to end:
+
+```
+A · an 18+ sale is refused        -> refusal filed against TXN-20260812-0027
+B · next customer buys a Lollipop -> completes as        TXN-20260812-0027
+C · the evidence now reads: "18+ refusal on TXN-0027" — and TXN-0027 is a 0.50 lollipop
+```
+
+Across the whole sandbox: **12 of 13 refusals "belong" to a completed sale, and 3 of
+those sales have no 18+ line at all.** Only 1 was a genuine turn-away.
+
+⚠️ **Same column, two meanings.** On `checkout_transaction` the transaction is already
+persisted, so `txn_ref` is real and correct. On `create_sale` — the modern till path —
+it was a number destined for somebody else's purchase.
+
+**THE FIX (2026-08-12, re-tested):** `refusal_txn_ref=None` on `/sales`, and a new
+`age_check_event.cart_ref` carrying the cart's **`client_uuid`**. The checkout path is
+untouched — there the reference is true.
+
+`client_uuid` turned out to be **better than merely safer**, not just honest. The till
+persists it in `sessionStorage` and **clears it only on success, keeping it across an
+error so a retry reuses it** (`checkout.html:1141`). So a cashier who is refused, ticks
+the 18+ box and completes the sale writes a refusal and a transaction carrying the
+**same `cart_ref`** — while the next customer, on a fresh uuid, cannot be falsely joined
+to it. **"Turned away, then sold anyway, same cart, seconds apart" is queryable for the
+first time** — the single most audit-relevant pattern in the whole gate.
+
+One subtlety worth keeping: `txn_ref` fed **two** things — the refusal row *and* the
+clearance log line. Blanking it wholesale would have blanked the log too, where the
+number IS real (a cleared sale commits). So they are split now: `txn_ref` for the log,
+`refusal_txn_ref` for what gets persisted.
+
+**Re-tested — probe now 24 checks, all green**, including two new ones that replay
+Angel's exact finding (refuse, then ring a lollipop for the next customer → that sale
+must carry no refusal). **Sabotaged on purpose:** restored `refusal_txn_ref=transaction_number`,
+rebuilt, and the refusal landed on `TXN-0036` — the next customer's lollipop — with both
+new checks red. Restored, green again.
+
+⚠️ The four false rows from before the fix **cannot be corrected — the table is
+append-only, by design.** They stay visible as history. Nothing shipped to prod, so
+there is no bad shop data anywhere.
+
+**2 · "Remove member & continue" is a one-click path around the DOB block.** Verified
+over HTTP: minor attached + attestation → **400 refused**; remove the member, attest as
+a walk-in → **201, recorded `cashier_attest`.** The server keeps no memory that a proven
+minor was on this cart three seconds earlier.
+
+The button must exist — Pam scans the wrong loyalty card and the person really is an
+adult. **But it is the FIRST button, worded "continue", sitting directly under
+*"rook is under 18"*** — the path of least resistance is the one that sells to the minor,
+and the completed sale looks like any other attested walk-in. This is a decision for
+Angel + Felix, not obviously a bug: at minimum the refusal and the retry should be
+joinable (see finding 1 — today they are not).
+
+**3 · And one flaw in the sheet, mine.** E2 said "read the six critical statements" but
+E1 only ever printed the `authority` column — the legal source, not the claim. Angel
+answered from the authority list because the sentences were never on screen. Fixed: E2
+now has its own command. The statements are plain English and perfectly answerable
+(*"Every completed sale containing an age-restricted line carries a recorded basis on
+which the buyer's age was cleared"*). **The step answered a question nobody asked — the
+exact shape this sheet exists to catch, in the sheet itself.**
+
+**Angel's answers that change the design:**
+- **D6 · Felix will NOT be in the shop when the inspector arrives.** So the
+  inspector-facing view must be operable by **Pam, a cashier** — not a manager-only
+  report. *"lets write the process in docs and test it via PAM."*
+- **E4 · "we need some reports for pam and felix IMHO"** — agrees with the no-screen
+  finding above.
+- **E3 · "not sure what this means — do we need more code?"** No. `CBD-INGESTIBLE` and
+  `THC-LAB-PAPER` cannot be proven by any query because **the evidence lives outside
+  Banco** (a lab certificate, a supplier declaration). They need a document + a dated
+  human attestation, or they stay a permanent human sign-off. That is a design answer,
+  not a coding one.
+
+**▶️ NEXT, and it needs Angel's hands:**
+[`onboarding/testsheets/AGE-EVIDENCE-TESTSHEET.html`](onboarding/testsheets/AGE-EVIDENCE-TESTSHEET.html)
+— 25 steps, every command in it run verbatim before it shipped (one wrong column name
+caught that way). Parts B and C are the tablet: **does the till feel unchanged**, does the
+refusal message help a cashier with a customer waiting, and **read the German**. Part D is
+the gap above. Part F is five decisions for you and Felix — including whether missing
+*evidence* blocks the parallel run, or is a fast-follow.
+
+*Sandbox stand-up, in order:* `./scripts/rebuild.sh` → `./scripts/standup.sh` →
+seed the pack → `BANCO_ALLOW_FAKE_SALES=1 python3 scripts/prove-age-evidence.py`.
+
+---
+
 *Set 2026-08-07 after four days that were not in this file: the X1 tablet + Bluetooth label
 printing (08-04), the shop-model audit and papers/filters shelf intake (08-05), catalogue search
 and the no-barcode workflow (08-06), and a money-safety run (08-06→07). All shipped to prod. None

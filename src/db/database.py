@@ -372,6 +372,15 @@ _ADDITIVE_COLUMNS: list[str] = [
     "ALTER TABLE line_items ADD COLUMN IF NOT EXISTS was_age_restricted BOOLEAN",
     "CREATE INDEX IF NOT EXISTS ix_transactions_age_check ON transactions (age_check_outcome)",
     "CREATE INDEX IF NOT EXISTS ix_line_items_age_restricted ON line_items (was_age_restricted) WHERE was_age_restricted",
+    # 18+ REFUSALS point at the CART, not a transaction number (2026-08-12, after the
+    # sandbox run). age_check_event.txn_ref was being filled from /sales with a number
+    # that is only allocated at COMMIT — a refused attempt never commits, so the next
+    # sale took the number and the refusal appeared to belong to a stranger's purchase
+    # (12 of 13, three of them with no 18+ line at all). client_uuid is the true handle
+    # on an attempt and survives the error in the till's sessionStorage, so a refusal
+    # and the retry that follows it carry the same one. Joins transactions.client_uuid.
+    "ALTER TABLE age_check_event ADD COLUMN IF NOT EXISTS cart_ref VARCHAR(64)",
+    "CREATE INDEX IF NOT EXISTS ix_age_check_event_cart ON age_check_event (cart_ref)",
 ]
 
 

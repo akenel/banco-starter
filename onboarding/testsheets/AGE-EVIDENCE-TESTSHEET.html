@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The 18+ gate leaves a record — sandbox run</title>
+<style>
+  :root{ --red:#157F52; --dark:#0f5c3b; --ink:#1f2937; --mut:#6b7280; --line:#e5e7eb;
+         --ok:#059669; --iss:#d97706; --fail:#C0392B; --bg:#f6f8f7; --gold:#b0862f; }
+  *{ box-sizing:border-box; }
+  body{ font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; color:var(--ink);
+        background:var(--bg); margin:0; line-height:1.5; }
+  a{ color:var(--dark); }
+  header{ position:sticky; top:0; z-index:10; background:#fff; border-bottom:2px solid var(--red);
+          padding:12px 20px; box-shadow:0 2px 8px rgba(0,0,0,.06); }
+  .htop{ display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+  h1{ font-size:18px; margin:0; }
+  h1 small{ color:var(--mut); font-weight:500; font-size:13px; display:block; margin-top:2px; }
+  .meters{ display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
+  .meter{ text-align:center; } .meter b{ font-size:20px; display:block; }
+  .meter.ok b{ color:var(--ok); } .meter.iss b{ color:var(--iss); } .meter.fail b{ color:var(--fail); }
+  .meter span{ font-size:11px; color:var(--mut); text-transform:uppercase; letter-spacing:.04em; }
+  .timer{ font-variant-numeric:tabular-nums; font-size:22px; font-weight:700; color:var(--ink); }
+  .btn{ border:1px solid var(--line); background:#fff; border-radius:8px; padding:6px 12px;
+        font-size:13px; cursor:pointer; } .btn:hover{ background:#f0f0f0; }
+  .btn.red{ background:var(--red); color:#fff; border-color:var(--red); }
+  main{ max-width:920px; margin:0 auto; padding:22px 20px 80px; }
+  .lead{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin-bottom:20px; }
+  .phase{ font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.06em;
+          color:var(--red); margin:26px 0 10px; padding-bottom:6px; border-bottom:2px solid var(--red); }
+  section{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin-bottom:14px; }
+  section h2{ font-size:15px; margin:0 0 4px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  section .why{ color:var(--mut); font-size:13px; margin:0 0 12px; }
+  code{ font-family:ui-monospace,Menlo,monospace; font-size:12px; background:#f3f4f6;
+        border:1px solid var(--line); border-radius:5px; padding:1px 5px; }
+  .cmd{ display:block; font-family:ui-monospace,Menlo,monospace; font-size:12.5px; background:#0f172a;
+        color:#e2e8f0; border-radius:8px; padding:9px 12px; margin:6px 0; white-space:pre-wrap; word-break:break-word; }
+  ol.steps{ margin:0; padding:0; list-style:none; }
+  ol.steps li{ display:flex; gap:10px; padding:9px 0; border-top:1px dashed var(--line); align-items:flex-start; }
+  ol.steps li:first-child{ border-top:none; }
+  .verdict{ display:flex; gap:4px; flex:none; margin-top:1px; }
+  .vbtn{ border:1px solid var(--line); background:#fff; border-radius:7px; padding:4px 8px; font-size:11px;
+         font-weight:700; cursor:pointer; color:var(--mut); white-space:nowrap; }
+  .vbtn:hover{ background:#f6f6f6; }
+  .vbtn.v-pass.on{ background:var(--ok); border-color:var(--ok); color:#fff; }
+  .vbtn.v-fail.on{ background:var(--fail); border-color:var(--fail); color:#fff; }
+  .vbtn.v-issue.on{ background:var(--iss); border-color:var(--iss); color:#fff; }
+  @media (max-width:600px){ .vbtn{ padding:4px 6px; font-size:10px; } ol.steps li{ flex-wrap:wrap; } }
+  .step-body{ flex:1; min-width:220px; font-size:14px; }
+  .exp{ display:block; color:var(--ok); font-size:12.5px; margin-top:4px; }
+  .exp::before{ content:"✓ expect: "; font-weight:600; }
+  textarea{ width:100%; border:1px solid var(--line); border-radius:8px; padding:8px 10px; font:inherit;
+            font-size:13px; margin-top:10px; resize:vertical; min-height:54px; }
+  textarea.step-cm{ margin-top:0; min-height:32px; font-size:12.5px; background:#fcfcfd; flex:1; }
+  .step-extra{ margin-top:8px; }
+  .cm-row{ display:flex; gap:6px; align-items:flex-start; }
+  .mic-btn{ border:1px solid var(--line); background:#fff; border-radius:8px; padding:4px 9px; cursor:pointer;
+            font-size:15px; flex:none; }
+  .mic-btn.on{ background:#e6f6ee; border-color:var(--red); color:var(--red); animation:pulse 1s infinite; }
+  @keyframes pulse{ 50%{ opacity:.45 } }
+  .shot-zone{ margin-top:6px; border:1.5px dashed var(--line); border-radius:8px; padding:6px 10px; font-size:12px;
+              color:var(--mut); cursor:pointer; background:#fafafa; }
+  .shot-zone:focus,.shot-zone.drag{ outline:none; border-color:var(--red); background:#f2fbf6; color:var(--ink); }
+  .thumbs{ display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; }
+  .thumbs .sh{ position:relative; }
+  .thumbs img{ height:66px; border-radius:6px; border:1px solid var(--line); cursor:zoom-in; display:block; }
+  .thumbs .rm{ position:absolute; top:-7px; right:-7px; background:var(--red); color:#fff; border:none;
+               border-radius:99px; width:19px; height:19px; font-size:11px; cursor:pointer; line-height:1; }
+  .hidden{ display:none; }
+  label.cm{ font-size:11px; color:var(--mut); text-transform:uppercase; letter-spacing:.04em; }
+  .safety{ border:1px solid var(--line); border-left:4px solid var(--gold); background:#fffdf5;
+           border-radius:8px; padding:10px 12px; margin:10px 0; font-size:13.5px; }
+  .danger{ border-left-color:var(--fail); background:#fdf2f0; }
+  .tag{ font-size:11px; font-weight:700; padding:2px 8px; border-radius:99px; background:#dcfce7; color:#065f46; }
+  .tag.gap{ background:#fef3c7; color:#92400e; }
+  .tag.t{ background:#e0e7ff; color:#3730a3; font-variant-numeric:tabular-nums; }
+  table{ border-collapse:collapse; width:100%; font-size:13px; margin:8px 0; }
+  th,td{ border:1px solid var(--line); padding:6px 9px; text-align:left; vertical-align:top; }
+  th{ background:#f6f8f7; }
+  .card{ font-family:ui-monospace,Menlo,monospace; font-size:12.5px; background:#0f172a; color:#e2e8f0;
+         border-radius:10px; padding:14px 16px; white-space:pre-wrap; }
+</style>
+</head>
+<body>
+
+<header><div class="htop">
+  <h1>🔞 The 18+ gate leaves a record — sandbox run
+    <small>The control always worked. This asks the other question: can you <b>show</b> it worked?</small></h1>
+  <div class="meters">
+    <div class="meter"><span class="timer" id="clock">00:00</span><span>elapsed</span></div>
+    <div class="meter"><b id="prog">0/0</b><span>marked</span></div>
+    <div class="meter ok"><b id="mOk">0</b><span>ok</span></div>
+    <div class="meter iss"><b id="mIss">0</b><span>issue</span></div>
+    <div class="meter fail"><b id="mFail">0</b><span>fail</span></div>
+    <button class="btn red" id="startBtn" onclick="toggleTimer()">▶ Start</button>
+    <button class="btn" onclick="copyFindings()">📋 findings</button>
+    <button class="btn" onclick="if(confirm('Clear everything — marks, notes and screenshots?')){localStorage.removeItem(KEY);location.reload()}">reset</button>
+  </div>
+</div></header>
+
+<main>
+  <div class="lead">
+    <strong>What this is.</strong> Commits <code>60691f1</code> · <code>d4144d4</code> · <code>caaab67</code>
+    (2026-08-12) shipped the compliance rule pack and turned the 18+ age gate from a control into
+    <em>evidence</em>. The last of them ended with an honest line in its own commit message:
+    <b>"NOT yet exercised against a live database — sandbox next."</b> This is that sandbox run.
+
+    <div class="safety">
+      <b>The distinction the whole thing rests on.</b> Banco has <em>always</em> refused an
+      unverified 18+ sale — server-side, on both sale paths, un-clickable-past. What it could not do
+      was <b>prove</b> it: the gate returned the method it used and both callers threw it away, so the
+      only trace was an app log line that rotates and dies on restart. Refusals left nothing at all.
+      <div style="margin-top:6px">So the claim under test is not <i>"does it check?"</i> — it is
+      <i>"a year from now, can Felix answer an inspector?"</i> Those fail in completely different ways.</div>
+    </div>
+
+    <div class="safety danger">
+      <b>⛔ Sandbox only.</b> Part A rings real completed sales. A completed transaction is a line in
+      the Kassenbuch. <b>Never run any of this against the shop's books</b> — the probe is guarded
+      behind <code>BANCO_ALLOW_FAKE_SALES=1</code> so it cannot happen by accident, and it refunds its
+      own sales, but the audit trail will still have seen them.
+      <div style="margin-top:6px">Evidence rows are <b>append-only by design and cannot be cleaned
+      up</b>. That is the feature working. The ones this run makes are labelled so a later reader can
+      see what caused them.</div>
+    </div>
+
+    <div class="safety">
+      <b>Already machine-green when this sheet was written (2026-08-12, local sandbox, build
+      <code>caaab67</code>).</b> <code>scripts/prove-age-evidence.py</code> — <b>17 checks, all
+      pass</b>, and it was sabotaged on purpose first (the refusal's <code>commit</code> deleted, image
+      rebuilt) to confirm it actually fails when the thing breaks.
+      <b>So Parts C and D below should pass.</b> If one does not, that is a real find — the probe
+      speaks HTTP and psql, and you are about to use a screen.
+    </div>
+  </div>
+
+  <div class="phase">Part A — Stand the sandbox up · about 6 minutes</div>
+  <section>
+    <h2>A · The commands, in this order <span class="tag">✅ ALREADY DONE 2026-08-12</span></h2>
+    <div class="safety">
+      <b>Skip to Part B — all five ran clean and the stack is up.</b> A5 was
+      <b>17/17</b>. These are here so the run is repeatable after a reboot or on another
+      machine, and so a failure later has something to check against.
+    </div>
+    <p class="why"><b>The one that catches everybody:</b> the app image <b>bakes the source in</b> —
+      there is no bind mount on <code>src/</code>. <code>docker compose restart app</code> will
+      cheerfully restart the <em>old</em> code and tell you nothing. Any change to <code>src/</code>
+      needs <code>rebuild.sh</code>. This cost a wasted sabotage run on 2026-08-12.</p>
+    <ol class="steps">
+      <li><div class="step-body"><b>A1 · Build at HEAD and boot.</b> Safe to re-run; it does not touch
+        the Postgres volume.
+        <span class="cmd">./scripts/rebuild.sh</span>
+        <span class="exp">ends with <i>"The login screen should now show caaab67"</i>.</span></div></li>
+      <li><div class="step-body"><b>A2 · Audit machine + the readiness verdict.</b>
+        <span class="cmd">./scripts/standup.sh</span>
+        <span class="exp"><i>"👉 SAFE TO TEST — open http://localhost:3000/pos"</i>. A B2-backup
+        warning is expected and fine locally.</span></div></li>
+      <li><div class="step-body"><b>A3 · Confirm the schema actually landed.</b> Three new tables and
+        two new columns, all created by the app itself on boot — no migration to run.
+        <span class="cmd">docker compose exec -T postgres psql -U helix_user -d helix_db -c "\dt" | grep -E 'compliance|age_check'</span>
+        <span class="exp"><code>age_check_event</code> · <code>compliance_check_run</code> ·
+        <code>compliance_rule</code>.</span></div></li>
+      <li><div class="step-body"><b>A4 · Seed the rule pack.</b> Idempotent — safe to re-run.
+        <span class="cmd">docker compose exec -T postgres psql -U helix_user -d helix_db -v ON_ERROR_STOP=1 &lt; scripts/db/compliance_rulepack_seed.sql</span>
+        <span class="exp"><i>NOTICE: rule pack: 13 rules, 11 with a check defined, <b>0 active (by
+        design)</b></i>.</span></div></li>
+      <li><div class="step-body"><b>A5 · Run the machine proof.</b> ~30 s. It rings real sales and
+        refunds them.
+        <span class="cmd">BANCO_ALLOW_FAKE_SALES=1 python3 scripts/prove-age-evidence.py</span>
+        <span class="exp"><i>✅ ALL CHECKS PASSED — the gate refuses AND can prove it.</i>
+        Anything less, stop here and fix it before touching the tablet.</span></div></li>
+    </ol>
+  </section>
+
+  <div class="phase">Part B — The till · the regression risk, and the whole point</div>
+  <section>
+    <h2>B · "Nothing changes at the till" <span class="tag t">⏱ &lt; 10 min</span></h2>
+    <p class="why">The commit's promise is <b>same popup, same click — the till just remembers what it
+      already knew</b>. That promise is the risk: this touched the checkout path and the sale-creation
+      path, which is every sale the shop makes. <b>Log in as a cashier</b> (<code>pam</code> /
+      <code>pam</code>) at <code>http://localhost:3000/pos</code>, not as an admin.</p>
+    <div class="safety">
+      <b>Two sandbox facts, so you do not lose a minute to either.</b>
+      <ul style="margin:6px 0 0 18px; padding:0">
+        <li><b>Nothing has a barcode.</b> The six seeded treats carry none, so <b>type the name — do
+          not reach for the gun.</b> A failed scan here is the sandbox being empty, not a bug.
+          Searching <code>gummy</code> or <code>cbd</code> returns <b>CBD Gummy</b> (verified).</li>
+        <li><b>There is no open drawer.</b> Checkout refuses a CASH sale without one (correct — that
+          is G3, and it was confirmed working in the 08-03 role-play). Either open it first at
+          <code>/pos/shift</code>, or <b>pay by TWINT</b> and skip the drawer entirely. Only B1 and B2
+          care; the age gate itself is independent of payment.</li>
+      </ul>
+    </div>
+    <p class="why">The sandbox 18+ product is <b>CBD Gummy</b> (<code>TREAT-GUMMY</code>, CHF 0.45,
+      class <code>cbd_hemp</code>); <b>Lollipop</b> and <b>Lighter</b> are the normal ones.</p>
+    <ol class="steps">
+      <li><div class="step-body"><b>B1 · Ring a normal sale</b> — Lollipop, any payment method.
+        <span class="exp">completes exactly as before. <b>No new question, no new friction, no extra
+        tap.</b> This is the regression that would matter.</span></div></li>
+      <li><div class="step-body"><b>B2 · Ring the CBD Gummy and clear it the walk-in way</b> — tick the
+        cashier's 18+ attestation.
+        <span class="exp">the same 🔞 popup you have always had; sale completes.</span></div></li>
+      <li><div class="step-body"><b>B3 · Ring the CBD Gummy and refuse to attest.</b>
+        <span class="exp">refused — and <b>read the message as a cashier with a customer waiting</b>.
+        Does it tell you what to do, or only what went wrong? The wording is the finding here, not
+        the refusal.</span></div></li>
+      <li><div class="step-body"><b>B4 · A mixed cart</b> — Lollipop <i>and</i> CBD Gummy together.
+        <span class="exp">the whole sale is gated by the one 18+ line. One restricted item locks the
+        basket, which is correct.</span></div></li>
+      <li><div class="step-body"><b>B5 · Read the German.</b> Run B2 and B3 again with the UI in
+        German, as a shopkeeper and not a developer.
+        <span class="exp">a cashier who reads only German understands what to do. Never checked by a
+        native speaker.</span></div></li>
+    </ol>
+  </section>
+
+  <div class="phase">Part C — The member paths · two ways to be 18, and they are not equal</div>
+  <section>
+    <h2>C · Where the basis comes from</h2>
+    <p class="why">Four bases exist and they are split <b>on purpose</b>:
+      <code>not_required</code> · <code>member_dob</code> · <code>member_confirmed</code> ·
+      <code>cashier_attest</code>. An inspector asking <i>"how do you know she was 18"</i> gets a very
+      different answer for a <b>date of birth</b> than for <b>a box someone once ticked</b> — and you
+      cannot fix a weakness you cannot count. All four are proven over HTTP by A5; here you are
+      driving the screens a person actually uses.</p>
+    <ol class="steps">
+      <li><div class="step-body"><b>C1 · Enrol a member with a real date of birth</b> (adult) and sell
+        them the Gummy.
+        <span class="exp">clears with no attestation popup at all — the DOB is the answer. Records
+        <code>member_dob</code>, the strongest basis.</span></div></li>
+      <li><div class="step-body"><b>C2 · Enrol a member with NO date of birth</b>, 18+ box ticked, and
+        sell them the Gummy.
+        <span class="exp">also clears — <code>member_confirmed</code>. Correct, and deliberately
+        counted apart from C1 because it rests on nothing but the tick.</span></div></li>
+      <li><div class="step-body"><b>C3 · Enrol a member whose DOB makes them 15</b>, then try the
+        Gummy <b>and tick the cashier attestation anyway.</b>
+        <span class="exp"><b>refused.</b> A date of birth beats a cashier's word — there is no
+        override and that is the point. This is the single most important behaviour on the sheet.</span></div></li>
+      <li><div class="step-body"><b>C4 · Save a member with the contact boxes left blank.</b> Not new
+        work — this 500'd on 2026-08-03 and looked like the age gate. Re-check it here, because it is
+        the same screen.
+        <span class="exp">saves. No 500.</span></div></li>
+    </ol>
+  </section>
+
+  <div class="phase">Part D — The evidence · and the gap this run found</div>
+  <section>
+    <h2>D · Can you show it to somebody? <span class="tag gap">GAP</span></h2>
+    <p class="why"><b>Read this before you mark anything.</b> Every one of these steps is a database
+      command, and that is not a convenience — <b>it is the finding</b>. Nothing in <code>src/</code>
+      reads any of it: <code>grep</code> for <code>age_check_outcome</code>,
+      <code>was_age_restricted</code>, <code>age_check_event</code> or any
+      <code>compliance_*</code> table and <b>every single hit is a write</b>. No endpoint, no template,
+      no report, no screen.</p>
+    <div class="safety danger">
+      <b>This is the repo's most repeated bug, for the sixth time</b> — after
+      <code>cash_box_float</code>, the force-close, <code>POST /catalog/merge</code>, honest
+      confidence, and <code>best_match_score</code>. <b>Built on every layer a test can reach, and on
+      no screen.</b>
+      <div style="margin-top:6px">And it bites harder here than in any of those, because the entire
+      <em>purpose</em> of this work is that a person can be <b>shown</b> the record. The seed SQL calls
+      "records stored in editable folders" a standing nonconformity — records reachable only from a
+      <code>psql</code> prompt are not obviously better. <b>Felix cannot run these commands.</b></div>
+    </div>
+    <ol class="steps">
+      <li><div class="step-body"><b>D1 · Every sale you rang in Parts B and C carries its basis.</b>
+        <span class="cmd">docker compose exec -T postgres psql -U helix_user -d helix_db -c "select transaction_number, age_check_outcome, total from transactions order by created_at desc limit 10"</span>
+        <span class="exp">your B1 shows <code>not_required</code>, B2 <code>cashier_attest</code>, C1
+        <code>member_dob</code>, C2 <code>member_confirmed</code>. <b>Never blank</b> — silence cannot
+        tell "no 18+ line" from "nobody checked". Old sales from before today stay NULL, correctly:
+        no historical sale gets retro-labelled with a check nobody performed.</span></div></li>
+      <li><div class="step-body"><b>D2 · The refusals — the proof the gate actually bites.</b>
+        <span class="cmd">docker compose exec -T postgres psql -U helix_user -d helix_db -c "select occurred_at, outcome, product_class, cashier, note from age_check_event order by occurred_at desc limit 10"</span>
+        <span class="exp">your B3 and C3 are both here. <b>A shop with thousands of 18+ sales and zero
+        refusals reads exactly like a shop that never checks</b> — the refusal log is what makes the
+        clearances believable.</span></div></li>
+      <li><div class="step-body"><b>D3 · No buyer identity is stored.</b> Look at what D2 printed.
+        <span class="exp">product class, cashier, timestamp — <b>and nothing about the person turned
+        away</b>. FADP: the shop must prove the gate bit, not build a file on whoever it bit. Mark FAIL
+        if you can see who anybody was.</span></div></li>
+      <li><div class="step-body"><b>D4 · Try to rewrite the evidence.</b> Be the dishonest shopkeeper.
+        <span class="cmd">docker compose exec -T postgres psql -U helix_user -d helix_db -c "update age_check_event set outcome='cleared'"</span>
+        <span class="exp"><b>ERROR: compliance evidence is append-only.</b> Then try
+        <code>delete from age_check_event</code> — refused too. <b>This is the one that was silently
+        broken:</b> the first version used <code>REVOKE</code>, and a PostgreSQL table <em>owner</em>
+        always keeps full rights on its own table, so the protection was a comforting no-op that
+        tested green. Found by going to look. <code>caaab67</code> replaced it with a trigger, which
+        holds regardless of ownership.</span></div></li>
+      <li><div class="step-body"><b>D5 · The line-level snapshot.</b>
+        <span class="cmd">docker compose exec -T postgres psql -U helix_user -d helix_db -c "select li.was_age_restricted, p.name from line_items li join products p on p.id=li.product_id order by li.created_at desc limit 8"</span>
+        <span class="exp"><code>t</code> on the Gummy lines. Same rule as the VAT rate and the
+        department key: re-classifying a product next year must not rewrite what a sale meant
+        today.</span></div></li>
+      <li><div class="step-body"><b>D6 · Now answer the real question.</b> Forget the commands. It is
+        March 2027, an inspector is standing at the counter, and asks Felix to show how he handles 18+.
+        <span class="exp"><b>There is no answer that does not involve Angel and a laptop.</b> Mark this
+        FAIL — it is not a defect in what was built, it is the missing half. Write in the note what the
+        smallest useful screen would be, and where it lives.</span></div></li>
+    </ol>
+  </section>
+
+  <div class="phase">Part E — The rule pack · 13 sentences, none of them switched on</div>
+  <section>
+    <h2>E · Research is not compliance <span class="tag gap">GAP</span></h2>
+    <p class="why">Every rule ships <code>is_active = FALSE</code>, deliberately. Two things must
+      happen first, <b>by a human</b>: somebody reads the actual authority and confirms it still says
+      this (<code>authority_checked_at</code>), and somebody binds the check to real columns and
+      confirms the query is right. <b>Activating a rule nobody has verified would be the exact failure
+      this whole system exists to catch.</b></p>
+    <ol class="steps">
+      <li><div class="step-body"><b>E1 · Read the pack — the shape of it.</b>
+        <span class="cmd">docker compose exec -T postgres psql -U helix_user -d helix_db -c "select code, severity, is_active, authority from compliance_rule order by severity, code"</span>
+        <span class="exp">13 rows, all <code>is_active = f</code>. Six are <b>critical</b>:
+        AGE-18-TABAK · AGE-FLAG-COVERAGE · CBD-INGESTIBLE · NO-HEALTH-CLAIM · THC-1PCT ·
+        THC-LAB-PAPER.</span></div></li>
+      <li><div class="step-body"><b>E2 · Now read the six SENTENCES</b> — this is the different
+        command, and it is the one that matters. <span class="tag gap">fixed 2026-08-12</span>
+        <b>E1 prints the legal source; it does not print the claim.</b> Angel answered E2 from the
+        authority column on the first run because this step did not exist — my error in writing the
+        sheet, and exactly the shape it is meant to catch: <em>the screen answered a question nobody
+        asked.</em>
+        <span class="cmd">docker compose exec -T postgres psql -U helix_user -d helix_db -c "select code, statement from compliance_rule where severity='critical' order by code"</span>
+        <span class="exp">six plain English sentences — no German, no legal text. For each, ask
+        <i>is this actually true of Artemis today?</i> You will not know for all six.
+        <b>That is the correct outcome</b>, and it is the list Felix has to answer. Note which ones
+        you cannot answer and who can.</span></div></li>
+      <li><div class="step-body"><b>E3 · Two rules have no check at all</b> —
+        <code>CBD-INGESTIBLE</code> and <code>THC-LAB-PAPER</code>.
+        <span class="exp">both critical, both unprovable by query today. Note whether they can ever be
+        automated or whether they are permanently a human attestation.</span></div></li>
+      <li><div class="step-body"><b>E4 · Nobody can run a check.</b> There is no engine and no screen —
+        <code>compliance_check_run</code> is written by nothing yet.
+        <span class="exp">the schema, the append-only guarantee and the seed are real; the thing that
+        <em>produces</em> a verdict is not built. Confirm that is understood and intended as the next
+        step, not assumed done.</span></div></li>
+    </ol>
+  </section>
+
+  <div class="phase">Part F — What this run decided</div>
+  <section>
+    <h2>F · Write it down while it is fresh</h2>
+    <p class="why">A finding that stays in a browser tab is a finding nobody acts on. Hit
+      <b>📋 findings</b> at the top when you are done and paste it into <code>WORKLIST.md</code>.</p>
+
+    <label class="cm">F1 · The evidence has no screen. What is the smallest thing that fixes it?</label>
+    <textarea data-cm="f1" placeholder="A read-only 18+ page under Reports? A row on the day-close? A printable month summary Felix can hand over? Where is the person STANDING when they need it?"></textarea>
+
+    <label class="cm">F2 · Who activates a rule, and what do they have to have done first?</label>
+    <textarea data-cm="f2" placeholder="authority_checked_at means somebody READ the source. Is that Angel? A lawyer? Felix? What is the evidence that the reading happened?"></textarea>
+
+    <label class="cm">F3 · The two critical rules with no possible check — CBD-INGESTIBLE, THC-LAB-PAPER.</label>
+    <textarea data-cm="f3" placeholder="Permanent human attestation, or is there a document trail that could be automated later?"></textarea>
+
+    <label class="cm">F4 · Does any of this block the parallel run (WORKLIST ▶️ D), or is it parallel work?</label>
+    <textarea data-cm="f4" placeholder="Felix is on paper today. The gate already bites. Is missing EVIDENCE a go-live blocker or a fast-follow?"></textarea>
+
+    <label class="cm">F5 · The B3 refusal wording — what should it actually say to a cashier?</label>
+    <textarea data-cm="f5" placeholder="Write the sentence you would put on the screen. This is the only place a cashier can personally create a legal problem for Felix."></textarea>
+  </section>
+
+  <div class="phase">The one-line summary</div>
+  <section>
+    <h2>What this work is, in a sentence</h2>
+    <div class="card">BEFORE   the gate refuses  ·  and you cannot prove it
+AFTER    the gate refuses  ·  and the database can prove it
+MISSING  the gate refuses  ·  and a PERSON can show it to an inspector
+
+Felix is protected operationally today and has no evidence.
+That is a much better starting position than the reverse.</div>
+    <ol class="steps">
+      <li><div class="step-body">After the run: is that summary still accurate?
+        <span class="exp">if line 3 got shorter today, say what closed it.</span></div></li>
+    </ol>
+  </section>
+</main>
+<script>
+  const KEY='banco-age-evidence-v1';
+  const STEPS=[];
+  const VDEFS=[['pass','OK','✓'],['fail','FAIL','✗'],['issue','ISSUE','⚠']];
+
+  function verdictControl(i){
+    const box=document.createElement('div'); box.className='verdict';
+    VDEFS.forEach(([v,lbl,ic])=>{ const b=document.createElement('button'); b.type='button';
+      b.className='vbtn v-'+v; b.innerHTML=ic+' '+lbl; b.title=lbl;
+      b.addEventListener('click', ()=>setVerdict(i, STEPS[i].verdict===v ? '' : v));
+      box.appendChild(b); STEPS[i]._btns[v]=b; });
+    return box;
+  }
+  function paintVerdict(i){ const s=STEPS[i]; VDEFS.forEach(([v])=>{ const b=s._btns[v];
+    if(b) b.classList.toggle('on', s.verdict===v); }); }
+  function setVerdict(i,v){ STEPS[i].verdict=v; paintVerdict(i); save(); progress(); }
+
+  function buildSteps(){
+    document.querySelectorAll('ol.steps li').forEach((li,i)=>{
+      const bodyEl = li.querySelector('.step-body');
+      const label = (bodyEl?.textContent||'').trim().replace(/\s+/g,' ').slice(0,120);
+      STEPS[i]={ li, label, verdict:'', ta:null, thumbs:null, shots:[], _btns:{} };
+      li.insertBefore(verdictControl(i), li.firstChild);
+      const wrap=document.createElement('div'); wrap.className='step-extra';
+      const row=document.createElement('div'); row.className='cm-row';
+      const ta=document.createElement('textarea'); ta.className='step-cm'; ta.rows=1;
+      ta.placeholder='note… what happened, how long, what you had to invent (type or 🎤 speak)';
+      ta.addEventListener('input', save);
+      const mic=document.createElement('button'); mic.className='mic-btn'; mic.type='button';
+      mic.textContent='🎤'; mic.title='Dictate this note';
+      mic.addEventListener('click', ()=>micToggle(mic, ta));
+      row.appendChild(ta); row.appendChild(mic); wrap.appendChild(row);
+      const zone=document.createElement('div'); zone.className='shot-zone'; zone.tabIndex=0;
+      zone.textContent='📋 click & paste a screenshot (Ctrl+V) · drop an image · or 📷 pick a file';
+      const fin=document.createElement('input'); fin.type='file'; fin.accept='image/*';
+      fin.capture='environment'; fin.className='hidden';
+      zone.addEventListener('click', ()=>{ activeIdx=i; fin.click(); });
+      zone.addEventListener('focus', ()=>{ activeIdx=i; });
+      zone.addEventListener('dragover', e=>{ e.preventDefault(); zone.classList.add('drag'); });
+      zone.addEventListener('dragleave', ()=>zone.classList.remove('drag'));
+      zone.addEventListener('drop', e=>{ e.preventDefault(); zone.classList.remove('drag'); activeIdx=i;
+        [...(e.dataTransfer.files||[])].forEach(f=>{ if(f.type.startsWith('image/')) addShot(i,f); }); });
+      fin.addEventListener('change', e=>{ [...(e.target.files||[])].forEach(f=>addShot(i,f)); e.target.value=''; });
+      const thumbs=document.createElement('div'); thumbs.className='thumbs';
+      wrap.appendChild(zone); wrap.appendChild(fin); wrap.appendChild(thumbs);
+      bodyEl.appendChild(wrap);
+      STEPS[i].ta=ta; STEPS[i].thumbs=thumbs;
+    });
+  }
+
+  let activeIdx=null;
+  document.addEventListener('paste', e=>{ if(activeIdx==null) return;
+    const items=(e.clipboardData||{}).items||[];
+    for(const it of items){ if(it.type && it.type.startsWith('image/')){ const f=it.getAsFile();
+      if(f){ addShot(activeIdx,f); e.preventDefault(); } } } });
+  function downscale(file, cb){ const url=URL.createObjectURL(file); const img=new Image();
+    img.onload=()=>{ const max=1000; let w=img.width,h=img.height; if(w>max){ h=Math.round(h*max/w); w=max; }
+      const c=document.createElement('canvas'); c.width=w; c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h); URL.revokeObjectURL(url);
+      try{ cb(c.toDataURL('image/jpeg',0.6)); }catch(e){ cb(null); } };
+    img.onerror=()=>{ URL.revokeObjectURL(url); cb(null); }; img.src=url; }
+  function addShot(i,file){ downscale(file, data=>{ if(!data) return;
+    STEPS[i].shots.push({name:file.name||'screenshot.png', data}); renderThumbs(i); save(); }); }
+  function renderThumbs(i){ const t=STEPS[i].thumbs; t.innerHTML='';
+    STEPS[i].shots.forEach((sh,si)=>{ const d=document.createElement('div'); d.className='sh';
+      const im=document.createElement('img'); im.src=sh.data; im.title=sh.name;
+      im.onclick=()=>{ const w=window.open(); if(w) w.document.write('<img src="'+sh.data+'" style="max-width:100%">'); };
+      const rm=document.createElement('button'); rm.className='rm'; rm.textContent='✕'; rm.title='remove';
+      rm.onclick=()=>{ STEPS[i].shots.splice(si,1); renderThumbs(i); save(); };
+      d.appendChild(im); d.appendChild(rm); t.appendChild(d); }); }
+
+  function save(){ const d={verdict:[],note:[],shots:[],cm:{},seconds};
+    STEPS.forEach((s,i)=>{ d.verdict[i]=s.verdict||''; d.note[i]=s.ta.value; d.shots[i]=s.shots; });
+    document.querySelectorAll('textarea[data-cm]').forEach(t=>d.cm[t.dataset.cm]=t.value);
+    try{ localStorage.setItem(KEY,JSON.stringify(d)); }catch(e){ console.warn('storage full', e); } }
+  function restore(){ try{ const d=JSON.parse(localStorage.getItem(KEY)||'{}');
+    STEPS.forEach((s,i)=>{ if(d.verdict&&d.verdict[i]){ s.verdict=d.verdict[i]; paintVerdict(i); }
+      if(d.note&&d.note[i]!=null) s.ta.value=d.note[i];
+      if(d.shots&&Array.isArray(d.shots[i])){ s.shots=d.shots[i]; renderThumbs(i); } });
+    if(d.cm) document.querySelectorAll('textarea[data-cm]').forEach(t=>{ if(d.cm[t.dataset.cm]!=null) t.value=d.cm[t.dataset.cm]; });
+    if(typeof d.seconds==='number'){ seconds=d.seconds; paintClock(); } }catch(e){} }
+
+  function progress(){ let p=0,f=0,iss=0,dec=0;
+    STEPS.forEach(s=>{ if(s.verdict){ dec++; if(s.verdict==='pass')p++; else if(s.verdict==='fail')f++; else iss++; } });
+    document.getElementById('prog').textContent=dec+'/'+STEPS.length;
+    mOk.textContent=p; mIss.textContent=iss; mFail.textContent=f; }
+
+  // Turn the run into something that can be pasted straight into WORKLIST.md. A finding that
+  // stays in a browser tab is a finding nobody acts on.
+  function copyFindings(){
+    const L=['# 18+ evidence sandbox run — findings','', 'elapsed: '+document.getElementById('clock').textContent, ''];
+    STEPS.forEach(s=>{ if(s.verdict==='fail'||s.verdict==='issue'||(s.ta.value||'').trim()){
+      L.push('- ['+(s.verdict||'note').toUpperCase()+'] '+s.label + ((s.ta.value||'').trim()? '\n      → '+s.ta.value.trim() : '')); } });
+    L.push('', '## Decisions for Angel + Felix');
+    document.querySelectorAll('textarea[data-cm]').forEach(t=>{ const v=(t.value||'').trim();
+      if(v) L.push('- **'+t.dataset.cm.toUpperCase()+'** — '+v); });
+    const txt=L.join('\n');
+    navigator.clipboard?.writeText(txt).then(
+      ()=>alert('Findings copied — paste into WORKLIST.md'),
+      ()=>{ const w=window.open(); if(w) w.document.write('<pre>'+txt.replace(/</g,'&lt;')+'</pre>'); });
+  }
+
+  let seconds=0, timer=null;
+  function paintClock(){ const m=String(Math.floor(seconds/60)).padStart(2,'0'),
+    s=String(seconds%60).padStart(2,'0'); document.getElementById('clock').textContent=m+':'+s; }
+  function toggleTimer(){ const b=document.getElementById('startBtn');
+    if(timer){ clearInterval(timer); timer=null; b.textContent='▶ Resume'; }
+    else { timer=setInterval(()=>{ seconds++; paintClock(); if(seconds%10===0) save(); },1000);
+      b.textContent='⏸ Pause'; } }
+
+  let rec=null;
+  function micToggle(btn, ta){
+    if(rec){ rec.stop(); return; }
+    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    if(!SR){ alert('This browser has no speech recognition — type the note instead.'); return; }
+    rec=new SR(); rec.lang='en-GB'; rec.interimResults=false; rec.continuous=true;
+    rec.onresult=e=>{ let t=''; for(let i=e.resultIndex;i<e.results.length;i++) t+=e.results[i][0].transcript;
+      ta.value=(ta.value?ta.value+' ':'')+t.trim(); save(); };
+    rec.onend=()=>{ btn.classList.remove('on'); rec=null; };
+    rec.onerror=()=>{ btn.classList.remove('on'); rec=null; };
+    btn.classList.add('on'); rec.start();
+  }
+
+  buildSteps(); restore(); progress(); paintClock();
+</script>
+</body></html>
