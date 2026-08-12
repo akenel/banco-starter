@@ -252,6 +252,17 @@
       <code>was_age_restricted</code>, <code>age_check_event</code> or any
       <code>compliance_*</code> table and <b>every single hit is a write</b>. No endpoint, no template,
       no report, no screen.</p>
+    <div class="safety">
+      <b>Every query below filters <code>cashier = 'pam'</code> — read that before you run one.</b>
+      The probe writes refusals too, and <b>append-only means nothing can tidy them away
+      afterwards.</b> Angel hit this on the first run: he checked the log mid-test and saw twelve
+      refusals that were all the machine's, four minutes old, filed under <b>the same account he
+      was testing on</b>. Nothing distinguished them and nothing could delete them.
+      <div style="margin-top:6px">Fixed at the source: <b>the probe now rings as
+      <code>ralph</code></b>, so <code>pam</code> means a person actually stood at a till. If you
+      test under a different login, change the filter to match — otherwise you are reading my
+      noise and calling it your result.</div>
+    </div>
     <div class="safety danger">
       <b>This is the repo's most repeated bug, for the sixth time</b> — after
       <code>cash_box_float</code>, the force-close, <code>POST /catalog/merge</code>, honest
@@ -270,7 +281,7 @@
         tell "no 18+ line" from "nobody checked". Old sales from before today stay NULL, correctly:
         no historical sale gets retro-labelled with a check nobody performed.</span></div></li>
       <li><div class="step-body"><b>D2 · The refusals — the proof the gate actually bites.</b>
-        <span class="cmd">docker compose exec -T postgres psql -U helix_user -d helix_db -c "select occurred_at, outcome, product_class, cashier, note from age_check_event order by occurred_at desc limit 10"</span>
+        <span class="cmd">docker compose exec -T postgres psql -U helix_user -d helix_db -c "select occurred_at, outcome, product_class, cashier, note from age_check_event where cashier='pam' order by occurred_at desc limit 10"</span>
         <span class="exp">your B3 and C3 are both here. <b>A shop with thousands of 18+ sales and zero
         refusals reads exactly like a shop that never checks</b> — the refusal log is what makes the
         clearances believable.</span></div></li>
@@ -279,7 +290,7 @@
         Do it as two customers in a row, at the till: <b>(1)</b> ring the CBD Gummy and refuse
         to attest — turned away. <b>(2)</b> serve the next customer a <b>Lollipop</b> and complete it.
         Note that lollipop's <code>TXN-</code> number off the receipt, then:
-        <span class="cmd">docker compose exec -T postgres psql -U helix_user -d helix_db -c "select occurred_at::time(0), coalesce(txn_ref,'NULL — correct') as txn_ref, coalesce(cart_ref,'none') as cart_ref, note from age_check_event order by occurred_at desc limit 3"</span>
+        <span class="cmd">docker compose exec -T postgres psql -U helix_user -d helix_db -c "select occurred_at::time(0), coalesce(txn_ref,'NULL — correct') as txn_ref, coalesce(cart_ref,'none') as cart_ref, note from age_check_event where cashier='pam' order by occurred_at desc limit 3"</span>
         <span class="exp">the newest refusal shows <b><code>NULL — correct</code></b> for
         <code>txn_ref</code> and a real <code>cart_ref</code>. <b>The lollipop's number must appear
         nowhere.</b>
@@ -290,7 +301,7 @@
         authoritative — and this record is for an inspector.</div></span></div></li>
       <li><div class="step-body"><b>D2c · And the join that SHOULD work.</b> Ring the Gummy, get
         refused, then <b>tick the 18+ box on the same cart</b> and complete it.
-        <span class="cmd">docker compose exec -T postgres psql -U helix_user -d helix_db -c "select e.occurred_at::time(0) as refused_at, t.transaction_number as then_sold_as, t.age_check_outcome from age_check_event e join transactions t on t.client_uuid::text = e.cart_ref order by e.occurred_at desc limit 5"</span>
+        <span class="cmd">docker compose exec -T postgres psql -U helix_user -d helix_db -c "select e.occurred_at::time(0) as refused_at, t.transaction_number as then_sold_as, t.age_check_outcome from age_check_event e join transactions t on t.client_uuid::text = e.cart_ref where e.cashier='pam' order by e.occurred_at desc limit 5"</span>
         <span class="exp">one row: refused, then sold seconds later on the same cart. <b>"Turned
         away, then sold anyway" is queryable for the first time</b> — the till keeps the cart's id
         across the error, so the retry carries it. That is the pattern an inspector actually hunts

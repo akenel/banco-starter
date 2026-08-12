@@ -28,13 +28,19 @@ What it walks:
     1. a clean cart               -> 'not_required', never NULL
     2. an attested walk-in        -> 'cashier_attest' + the line snapshot
     3. a refusal                  -> 400 AND a row that outlives the 400
+    3b. a refusal                 -> does NOT get filed against the next customer's sale
+    3c. refused, then sold        -> the two records JOIN on the cart
     4. a member with a DOB        -> 'member_dob'
     5. a legacy member, no DOB    -> 'member_confirmed' (the weaker basis, counted separately)
     6. a member under 18 by DOB   -> refused even WITH cashier attestation
     7. the evidence is append-only -> UPDATE and DELETE both bite
 
-Self-cleaning for SALES. The evidence rows it writes are append-only by design and
-stay — they are labelled 'prove-age-evidence' so a human can see what made them.
+Self-cleaning for SALES only. THE EVIDENCE ROWS IT WRITES ARE PERMANENT — append-only
+is the whole point, so nothing can tidy them away afterwards. It therefore rings as
+'ralph', never 'pam', so a human reading the log can always tell the machine's noise
+from their own testing:
+
+    select ... from age_check_event where cashier = 'pam'   -- what a PERSON did
 """
 import os
 import subprocess
@@ -101,11 +107,20 @@ def main():
     print("  18+ EVIDENCE PROBE — the gate always refused; can it PROVE it?")
     print("=" * 74)
 
-    pam = login(os.environ.get("BANCO_USER", "pam"), os.environ.get("BANCO_PASS", "pam"))
+    # RINGS AS 'ralph', NOT 'pam' — deliberately, and it is not cosmetic.
+    # age_check_event is append-only, so every refusal this probe writes is PERMANENT
+    # and sits in the same list a human is reading. Angel hit this immediately: he ran
+    # the D2 query mid-test and saw twelve refusals that were all mine, timestamped
+    # four minutes earlier, attributed to 'pam' — the account he was testing on. There
+    # is no way to tell them apart and no way to delete them.
+    # So the machine rings as ralph (manager + cashier in the demo realm) and leaves
+    # 'pam' to mean a person actually stood at a till. `cashier` becomes the filter:
+    #     ... where cashier = 'pam'   -> what a HUMAN did
+    till = login(os.environ.get("BANCO_USER", "ralph"), os.environ.get("BANCO_PASS", "ralph"))
     felix = login(os.environ.get("BANCO_USER2", "felix"), os.environ.get("BANCO_PASS2", "felix"))
 
     # --- the two products: one 18+, one not -------------------------------------
-    prods = pam.get(f"{BASE}/products", params={"limit": 200}).json()
+    prods = till.get(f"{BASE}/products", params={"limit": 200}).json()
     items = prods.get("items", prods) if isinstance(prods, dict) else prods
     gated = next((p for p in items if p.get("is_age_restricted")), None)
     plain = next((p for p in items if not p.get("is_age_restricted")), None)
@@ -140,7 +155,7 @@ def main():
 
     # --- 1 · a clean cart must say 'not_required', never NULL --------------------
     print("\n1 · A CLEAN CART — silence is not a record")
-    r = sell(pam, plain)
+    r = sell(till, plain)
     check("a normal sale completes", r.status_code in (200, 201), True)
     if r.status_code in (200, 201):
         check("clean cart records 'not_required' (NULL cannot tell 'no 18+ line' from "
@@ -148,7 +163,7 @@ def main():
 
     # --- 2 · attested walk-in ----------------------------------------------------
     print("\n2 · AN ATTESTED WALK-IN — the cashier's word, on the record")
-    r = sell(pam, gated, age_verified=True)
+    r = sell(till, gated, age_verified=True)
     check("18+ sale with attestation completes", r.status_code in (200, 201), True)
     if r.status_code in (200, 201):
         tid = r.json()["id"]
@@ -161,7 +176,7 @@ def main():
     # --- 3 · the refusal must OUTLIVE the 400 ------------------------------------
     print("\n3 · A REFUSAL — the separate session is the whole ballgame")
     before = refusals()
-    r = sell(pam, gated, age_verified=False)
+    r = sell(till, gated, age_verified=False)
     check("18+ sale with no attestation is REFUSED (400)", r.status_code, 400)
     after = refusals()
     check("the refusal SURVIVED the 400 (written in its own session — a shared one "
@@ -182,7 +197,7 @@ def main():
     # those with no 18+ line at all. A false link in a compliance record is worse
     # than no link: it reads as authoritative.
     print("\n3b · THE REFUSAL MUST NOT LAND ON THE NEXT CUSTOMER'S SALE")
-    r = sell(pam, gated, age_verified=False)
+    r = sell(till, gated, age_verified=False)
     check("an 18+ customer is turned away", r.status_code, 400)
     ref_txn, ref_cart = (sql(
         "select coalesce(txn_ref,'<NULL>')||'|'||coalesce(cart_ref,'<NULL>') "
@@ -192,7 +207,7 @@ def main():
     check("the refusal DOES identify the cart it happened on", ref_cart != "<NULL>", True)
 
     # now ring an unrelated sale — the one that used to inherit the refusal
-    r = sell(pam, plain)
+    r = sell(till, plain)
     if r.status_code in (200, 201):
         nxt = r.json()["transaction_number"]
         print(f"       next customer's unrelated sale: {nxt}")
@@ -205,9 +220,9 @@ def main():
     body = {"client_uuid": same_cart,
             "lines": [{"product_id": gated["id"], "quantity": 1}],
             "payment_method": "twint", "amount_tendered": "50.00", "age_verified": False}
-    check("cart is refused", pam.post(f"{BASE}/sales", json=body).status_code, 400)
+    check("cart is refused", till.post(f"{BASE}/sales", json=body).status_code, 400)
     body["age_verified"] = True          # the cashier ticks the box and retries
-    r = pam.post(f"{BASE}/sales", json=body)   # the till REUSES the uuid on a retry
+    r = till.post(f"{BASE}/sales", json=body)   # the till REUSES the uuid on a retry
     if r.status_code in (200, 201):
         made_txns.append(r.json()["id"])
         check("the same cart then completes", True, True)
@@ -236,13 +251,13 @@ def main():
             people[label] = rr.json()["id"]
 
     if "adult_dob" in people:
-        r = sell(pam, gated, customer_id=people["adult_dob"])
+        r = sell(till, gated, customer_id=people["adult_dob"])
         check("member with a DOB clears", r.status_code in (200, 201), True)
         if r.status_code in (200, 201):
             check("basis is 'member_dob' — rests on a date", outcome_of(r.json()["id"]), "member_dob")
 
     if "legacy" in people:
-        r = sell(pam, gated, customer_id=people["legacy"])
+        r = sell(till, gated, customer_id=people["legacy"])
         check("legacy member (no DOB, box ticked) clears", r.status_code in (200, 201), True)
         if r.status_code in (200, 201):
             check("basis is 'member_confirmed' — the WEAKER basis, kept separate so it "
@@ -252,7 +267,7 @@ def main():
     print("\n6 · A PROVEN MINOR — no attestation may override a date of birth")
     if "minor_dob" in people:
         before = refusals()
-        r = sell(pam, gated, age_verified=True, customer_id=people["minor_dob"])
+        r = sell(till, gated, age_verified=True, customer_id=people["minor_dob"])
         check("under-18 member REFUSED even with the cashier attesting", r.status_code, 400)
         check("and that refusal is on the record too", refusals() - before, 1)
 
