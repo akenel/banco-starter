@@ -24,17 +24,44 @@
 -- 1) Harden the evidence table. A record that can be edited is not a record.
 --    "Records stored in editable folders" is itself a standing nonconformity.
 -- ---------------------------------------------------------------------------
+--    ⚠️ CORRECTED 2026-08-12 — after testing it. The first version used
+--    REVOKE UPDATE, DELETE, and REVOKE DOES NOTHING HERE: the app role
+--    (helix_user) OWNS these tables, and a PostgreSQL table owner always keeps
+--    full rights on it, so a REVOKE against the owner is silently a no-op.
+--    Verified — after the REVOKE, `UPDATE compliance_check_run SET verdict=…`
+--    still succeeded. The protection was a comforting lie: exactly the failure
+--    this system exists to catch, found in the system itself by going to look.
+--
+--    A trigger holds regardless of ownership. The REVOKE stays underneath it as
+--    defence in depth for any future non-owner role.
+CREATE OR REPLACE FUNCTION compliance_evidence_is_append_only() RETURNS trigger AS $fn$
+BEGIN
+  RAISE EXCEPTION
+    'compliance evidence is append-only: % is not permitted on %. A verdict that '
+    'can be edited is not evidence — to correct a wrong one, run the check again. '
+    'The newer row supersedes it by timestamp and the mistake stays visible.',
+    TG_OP, TG_TABLE_NAME;
+END;
+$fn$ LANGUAGE plpgsql;
+
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM information_schema.tables
              WHERE table_name = 'compliance_check_run') THEN
+    DROP TRIGGER IF EXISTS trg_ccr_append_only ON compliance_check_run;
+    CREATE TRIGGER trg_ccr_append_only
+      BEFORE UPDATE OR DELETE ON compliance_check_run
+      FOR EACH ROW EXECUTE FUNCTION compliance_evidence_is_append_only();
     EXECUTE 'REVOKE UPDATE, DELETE ON compliance_check_run FROM PUBLIC';
-    -- Adjust the role name per environment if the app user differs.
-    BEGIN
-      EXECUTE 'REVOKE UPDATE, DELETE ON compliance_check_run FROM helix_user';
-    EXCEPTION WHEN undefined_object THEN
-      RAISE NOTICE 'role helix_user not present — skipping targeted revoke';
-    END;
+  END IF;
+  -- age_check_event is evidence too: a refusal that can be deleted proves nothing.
+  IF EXISTS (SELECT 1 FROM information_schema.tables
+             WHERE table_name = 'age_check_event') THEN
+    DROP TRIGGER IF EXISTS trg_ace_append_only ON age_check_event;
+    CREATE TRIGGER trg_ace_append_only
+      BEFORE UPDATE OR DELETE ON age_check_event
+      FOR EACH ROW EXECUTE FUNCTION compliance_evidence_is_append_only();
+    EXECUTE 'REVOKE UPDATE, DELETE ON age_check_event FROM PUBLIC';
   END IF;
 END $$;
 

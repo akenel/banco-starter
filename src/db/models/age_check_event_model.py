@@ -41,7 +41,7 @@ that answers the question, and this table answers it with a count and a time.
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from sqlalchemy import String, DateTime, Integer, Text, Index
+from sqlalchemy import String, DateTime, Integer, Text, Index, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -59,8 +59,9 @@ class AgeCheckEventModel(Base):
 
     occurred_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc), nullable=False,
-        comment="When the gate made this decision"
+        default=lambda: datetime.now(timezone.utc),
+        server_default=func.now(), nullable=False,
+        comment="When the gate made this decision (server_default: a non-ORM writer must not fail on it)"
     )
 
     # 'refused' is the reason the table exists. The cleared outcomes are recorded

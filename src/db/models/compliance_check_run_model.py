@@ -9,9 +9,19 @@ APPEND-ONLY. NEVER UPDATED. NEVER DELETED.
 ------------------------------------------
 "Records stored in an editable folder" is itself a standing audit
 nonconformity. A record that can be revised is not a record. So this table has
-NO updated_at, and production should revoke UPDATE/DELETE on it:
+NO updated_at, and scripts/db/compliance_rulepack_seed.sql installs a BEFORE
+UPDATE OR DELETE trigger that refuses both.
+
+⚠️ It is a TRIGGER and not a REVOKE, and that distinction was learned the hard
+way on 2026-08-12. The first version used:
 
     REVOKE UPDATE, DELETE ON compliance_check_run FROM helix_user;
+
+which does NOTHING — helix_user OWNS the table, and a PostgreSQL owner always
+retains full rights on what it owns, so a REVOKE against it is silently a no-op.
+Tested: the UPDATE still went through. The guarantee in this docstring was false
+for as long as it took someone to check it, which is the entire reason this
+table exists.
 
 If a run was wrong, you do not fix it — you run the check again and the newer
 row supersedes it by timestamp. The wrong verdict stays visible, because "we
@@ -43,7 +53,7 @@ a green board produced by a check that never ran is how machine-green lies.
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from sqlalchemy import String, DateTime, Integer, Text, Index
+from sqlalchemy import String, DateTime, Integer, Text, Index, func
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -120,16 +130,21 @@ class ComplianceCheckRunModel(Base):
     )
 
     # --- Who and when --------------------------------------------------------
+    # server_default as well as the Python default: this table is evidence, and a
+    # writer that is not the ORM (a psql insert, a scheduled job, a restore) must
+    # not be able to fail on a timestamp the database can fill itself. Found by
+    # testing — a raw INSERT hit "null value in ran_at violates not-null".
     ran_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc), nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        server_default=func.now(), nullable=False,
         comment="When this verdict was produced"
     )
     duration_ms: Mapped[int | None] = mapped_column(
         Integer, nullable=True
     )
     actor: Mapped[str] = mapped_column(
-        String(128), nullable=False, default="system",
+        String(128), nullable=False, default="system", server_default="system",
         comment="'system' for scheduled runs; a username for a manual attestation"
     )
     # For check_kind='manual': a human walked and looked. That is legitimate
