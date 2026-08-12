@@ -51,19 +51,61 @@ which rule they are breaking.
 
 ### AGE-18-TABAK — *critical*
 
-> **Statement:** No tobacco, nicotine or age-restricted product leaves this
-> shop without the buyer's age being checked and recorded as 18 or over.
+> **Statement:** Every completed sale containing an age-restricted line carries
+> a recorded basis on which the buyer's age was cleared.
 
 - **Authority:** Tobacco Products Act (TabPG), in force 1 October 2024.
   National minimum age 18, replacing the old cantonal patchwork where some
   cantons allowed 16. Enforced by cantonal test purchases usable in
   proceedings.
-- **check_kind:** `sql`
-- **check_spec:** transactions joined to products where the product class is
-  age-restricted and no age-check flag is recorded on the line
+- **check_kind:** `sql` — needs `transactions.age_check_outcome`
 - **expectation:** `0 rows`
 - **Why critical:** this is the one an inspector can test directly, at will,
   by sending someone through the door.
+
+**Corrected 2026-08-12 after tracing the router.** An earlier draft of this
+document said the shop does not check ages. That was wrong, and the distinction
+is the whole point of the exercise:
+
+| | Before the trace | After |
+|---|---|---|
+| The control | "doesn't exist" | **Exists and is enforced.** `_assert_age_cleared()` (`pos_router.py:5615`) runs server-side on both sale paths and rejects with 400 |
+| DOB handling | unknown | **Authoritative** — a member proven under 18 cannot be overridden by cashier attestation |
+| The record | "missing" | **Missing** — the function returns the method and both call sites discarded it; clearance went to the app log, which rotates |
+| Refusals | not considered | **Silent.** The raise path left nothing behind at all |
+
+So it was never *"we don't check."* It was *"we check, and cannot prove it."*
+Felix is protected operationally today; he just has no evidence. That is a much
+better position than the first draft claimed, and it is exactly the kind of
+error the pack's own `AUTHORITY-FRESH` rule exists to catch — a written claim
+that nobody had gone and verified.
+
+### AGE-18-BASIS-QUALITY — *minor, report-only*
+
+> **Statement:** The shop knows what share of its age-restricted sales were
+> cleared on a legacy tick rather than a recorded date of birth, and that share
+> is falling.
+
+`member_of_age()` deliberately lets a legacy member (`age_confirmed=true`, no
+`birthdate`) through, so that no existing member or sale breaks. Correct
+operationally, weak evidentially — *"somebody ticked a box at some point"* is
+not a document. Measuring the share is how it gets fixed. A single boolean would
+hide precisely the weakness worth finding first.
+
+### AGE-18-REFUSALS — *minor, report-only*
+
+> **Statement:** Refused age-restricted sales are recorded, and the shop can
+> show that the age gate has actually turned someone away.
+
+The most valuable evidence in the pack, and the only rule that proves a control
+**bites** rather than merely exists. Thousands of 18+ sales and zero refusals
+reads exactly like a shop that never checks.
+
+Same instinct already written into `store_settings.cash_tolerance`: *"a box
+balancing to 0.00 every day for a year is a red flag, not a gold star."*
+
+Deliberately not a hard fail — a small shop can genuinely have a quiet month.
+It asks a question; a human answers it.
 
 ### THC-1PCT — *critical*
 

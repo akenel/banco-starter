@@ -23,6 +23,13 @@ from .store_settings_model import StoreSettingsModel
 from .payment_model import PaymentModel  # 🌍-1 terminal settlements (Worldline TIM first)
 from .kiosk_cart_model import KioskCartModel  # banco kiosk v2 — guest held orders
 
+# Compliance (2026-08-12) — the rule pack: a sentence, a way to prove it, a dated
+# verdict (docs/RULE-PACK.md). age_check_event holds REFUSED 18+ sales, which have
+# no transaction row to live on and are the proof the gate actually bites.
+from .compliance_rule_model import ComplianceRuleModel
+from .compliance_check_run_model import ComplianceCheckRunModel
+from .age_check_event_model import AgeCheckEventModel
+
 # CRACK Loyalty Models (Customer + KB Gamification)
 from .customer_model import CustomerModel, CrackLevel, LoyaltyTier, PreferredContact
 from .kb_contribution_model import KBContributionModel, KBStatus, KBCategory
@@ -282,4 +289,8 @@ __all__ = [
     "BottegaProfileModel",
     "BottegaProfileHistoryModel",
     "BottegaTaskModel",
+    # Compliance rule pack + 18+ evidence
+    "ComplianceRuleModel",
+    "ComplianceCheckRunModel",
+    "AgeCheckEventModel",
 ]

@@ -33,6 +33,13 @@ saw, not what the law says.
 7. **Does the trade talk about inspections?** Do you know of other shops —
    Tamar's, say — that have been through one?
 
+8. **The code and notes for all of this live in a public repository on GitHub —
+   anyone can read them.** Right now that includes your shop being named as the
+   partner, and honest notes about where the system does not yet keep proof
+   (for example, the till doesn't currently record that an ID was checked).
+   Are you comfortable with that being public, or would you rather we take the
+   shop's name out or close the repo? It's your exposure, so it's your call.
+
 ---
 
 ## Deutsch
@@ -59,6 +66,14 @@ saw, not what the law says.
 
 7. **Redet man in der Branche über Kontrollen?** Weisst du von anderen Läden —
    z.B. bei Tamar — ob die schon mal dran waren?
+
+8. **Der Code und alle Notizen dazu liegen in einem öffentlichen Repository auf
+   GitHub — jeder kann das lesen.** Im Moment steht da dein Laden als Partner
+   drin, und auch ehrliche Notizen dazu, wo das System noch keinen Nachweis
+   führt (z.B. dass die Kasse aktuell nicht festhält, dass der Ausweis
+   kontrolliert wurde). Ist das für dich so in Ordnung, oder sollen wir den
+   Namen rausnehmen bzw. das Repo schliessen? Es ist dein Risiko, also
+   entscheidest du.
 
 ---
 

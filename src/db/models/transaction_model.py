@@ -92,6 +92,38 @@ class TransactionModel(Base):
         nullable=False
     )
 
+    # --- 18+ evidence (2026-08-12) ------------------------------------------
+    # WHY: the age gate (_assert_age_cleared in pos_router) has always been real
+    # and enforced server-side on BOTH sale paths — it REJECTS the sale with 400
+    # unless an of-age member is attached or the cashier attests. What it never
+    # did was leave a record: the function returned the method used and both call
+    # sites discarded it, so the only trace was a log line that rotates away and
+    # does not survive a restart. An inspector asking "prove you checked" six
+    # months later got nothing, for a control that had worked perfectly every time.
+    #
+    # This column is that proof. It changes NOTHING at the till — same popup,
+    # same click — it only makes the till remember what it already knew.
+    #
+    #   not_required     no age-restricted line in this basket
+    #   member_dob       customer on file whose birthdate proves 18+  (strongest)
+    #   member_confirmed customer on file, age_confirmed ticked, NO birthdate —
+    #                    the deliberate back-compat path in member_of_age().
+    #                    Intended and correct operationally, but it is a tick, not
+    #                    a document. Recorded distinctly instead of folded into
+    #                    "member" because you cannot fix a weakness you cannot count.
+    #   cashier_attest   cashier confirmed ID at the counter (walk-in)
+    #
+    # NULL = a row written before this column existed. Deliberately nullable: no
+    # historical transaction gets retro-labelled with a check nobody performed.
+    #
+    # Plain String, not a DB Enum — the value set grows with the rule pack, and
+    # ALTER TYPE ... ADD VALUE does not fit the additive-migration mechanism.
+    age_check_outcome: Mapped[str | None] = mapped_column(
+        String(24),
+        nullable=True,
+        comment="18+ clearance basis: not_required | member_dob | member_confirmed | cashier_attest. NULL = legacy row."
+    )
+
     # Payment Details
     payment_method: Mapped[PaymentMethod | None] = mapped_column(
         Enum(PaymentMethod),

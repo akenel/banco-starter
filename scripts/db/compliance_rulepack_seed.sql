@@ -72,18 +72,71 @@ INSERT INTO compliance_rule
 VALUES
 
 -- === AGE-18-TABAK ==========================================================
--- The single most testable rule an inspector has: they send a young person in.
--- We currently CANNOT prove it — transactions record no age check at all
--- (transaction_model.py has cashier_id but nothing about the buyer's age).
--- So it ships as UNSOURCED, which is the honest answer, and it is the number
--- one thing to build. A green board here would be a lie.
+-- CORRECTED 2026-08-12 after tracing pos_router.py. An earlier draft of this
+-- seed said "no age check exists". That was wrong, and the correction matters:
+--
+--   The CONTROL exists and is enforced. _assert_age_cleared() (pos_router.py
+--   :5615) runs server-side on BOTH sale paths (checkout :5721, quick-sale
+--   :6033), reads product_class through the taxonomy, and REJECTS the sale with
+--   400 unless an of-age member is attached or the cashier attests. A member
+--   proven under 18 by DOB cannot be overridden by attestation.
+--
+--   What was missing was the RECORD. The function returns the method used and
+--   both call sites discarded it; clearance went to the application log only,
+--   which rotates and does not survive a restart. Refusals produced nothing at
+--   all — the raise path was silent.
+--
+-- So this was never "we don't check". It was "we check, and cannot prove it".
+-- Fixed by transactions.age_check_outcome. Stays inactive until that column
+-- exists AND authority_checked_at is set by a human.
 (gen_random_uuid(), NULL, 'AGE-18-TABAK', 1,
- 'No tobacco, nicotine or age-restricted product leaves this shop without the buyer''s age being checked and recorded as 18 or over.',
- 'Testable by cantonal test purchase at any time. Since 1 Oct 2024 a failed test purchase can be used as evidence in administrative and criminal proceedings. GAP: no age-check field exists on transactions or line_items yet — this is the first thing to build.',
+ 'Every completed sale containing an age-restricted line carries a recorded basis on which the buyer''s age was cleared.',
+ 'Testable by cantonal test purchase at any time; since 2024-10-01 a failed test purchase is usable in administrative and criminal proceedings. The control is already enforced server-side on both sale paths — this rule proves the record exists, not that the check happens. Requires transactions.age_check_outcome and line_items.was_age_restricted.',
  'Tabakproduktegesetz (TabPG), in force 2024-10-01 — national Abgabealter 18',
  'https://www.bag.admin.ch/de/faq-zur-umsetzung-des-tabakproduktegesetzes', NULL,
- 'none', NULL, '0 sales of an age-restricted line without a recorded age check',
- 'critical', 24, FALSE, now(), 'seed'),
+ 'sql',
+ 'SELECT t.transaction_number, t.completed_at, t.age_check_outcome FROM transactions t JOIN line_items li ON li.transaction_id = t.id WHERE t.status = ''COMPLETED'' AND li.was_age_restricted = true AND (t.age_check_outcome IS NULL OR t.age_check_outcome IN (''not_required'')) GROUP BY t.transaction_number, t.completed_at, t.age_check_outcome;',
+ '0 rows', 'critical', 24, FALSE, now(), 'seed'),
+
+-- === AGE-18-BASIS-QUALITY ==================================================
+-- Not every clearance is equal evidence. 'member_dob' rests on a date of birth
+-- on file. 'member_confirmed' rests on someone having ticked a box at some
+-- point, with no DOB behind it — the documented back-compat path in
+-- customer_schema.member_of_age(). Both let the sale through, and should. But
+-- an inspector asking "how do you know she was 18" gets a very different answer
+-- for each, so the shop should be able to SEE how much of its trade rests on a
+-- tick and go convert those members to a real DOB.
+-- This rule reports rather than polices: a rising share is the signal.
+(gen_random_uuid(), NULL, 'AGE-18-BASIS-QUALITY', 1,
+ 'The shop knows what share of its age-restricted sales were cleared on a legacy tick rather than a recorded date of birth, and that share is falling.',
+ 'member_of_age() lets a legacy member (age_confirmed=true, no birthdate) through on purpose, so no member or sale breaks. That is correct operationally and weak evidentially. Measuring it is how it gets fixed; hiding it behind a single boolean is how it never does.',
+ 'House control derived from TabPG; ISO 9001 cl. 7.5 evidence quality',
+ NULL, NULL,
+ 'sql',
+ 'SELECT count(*) FILTER (WHERE age_check_outcome = ''member_confirmed'') AS on_a_tick, count(*) FILTER (WHERE age_check_outcome IN (''member_dob'',''member_confirmed'',''cashier_attest'')) AS age_gated FROM transactions WHERE status = ''COMPLETED'' AND completed_at > now() - interval ''90 days'';',
+ 'on_a_tick trending down; report only, never a hard fail',
+ 'minor', 720, FALSE, now(), 'seed'),
+
+-- === AGE-18-REFUSALS =======================================================
+-- The most valuable evidence in the whole pack, and the only one that proves a
+-- control BITES rather than merely exists. A shop with thousands of 18+ sales
+-- and zero refusals reads exactly like a shop that never checks.
+--
+-- This is the same instinct already written into store_settings.cash_tolerance:
+-- "a box balancing to 0.00 every day for a year is a red flag, not a gold star."
+-- Same principle, different control.
+--
+-- Deliberately NOT a hard fail — a small shop can genuinely go a quiet month.
+-- It asks a question; a human answers it.
+(gen_random_uuid(), NULL, 'AGE-18-REFUSALS', 1,
+ 'Refused age-restricted sales are recorded, and the shop can show that the age gate has actually turned someone away.',
+ 'Proof that a control works is the record of the times it said no. Before the age_check_event table the refusal path raised a 400 and left nothing behind — the single most useful piece of evidence was the one thing not kept.',
+ 'House control; evidential support for TabPG compliance',
+ NULL, NULL,
+ 'sql',
+ 'SELECT count(*) AS refusals_90d FROM age_check_event WHERE outcome = ''refused'' AND occurred_at > now() - interval ''90 days'';',
+ 'at least 1 over 90 days; zero is a question for a human, not an automatic fail',
+ 'minor', 720, FALSE, now(), 'seed'),
 
 -- === AGE-FLAG-COVERAGE =====================================================
 -- Checkable TODAY. Before you can prove the age check happened, you must know

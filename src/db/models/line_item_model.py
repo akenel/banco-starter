@@ -6,7 +6,7 @@ Similar to TaskModel - represents one product added to a sale.
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import String, DateTime, Numeric, Integer, ForeignKey, Text
+from sqlalchemy import String, DateTime, Numeric, Integer, ForeignKey, Text, Boolean
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 
 from .base import Base
@@ -126,6 +126,26 @@ class LineItemModel(Base):
         Numeric(10, 2),
         nullable=True,
         comment="VAT contained in this line's gross at vat_rate; null on legacy lines"
+    )
+
+    # --- 18+ evidence (2026-08-12) ------------------------------------------
+    # Was THIS line age-restricted at the moment it was sold? Snapshotted for the
+    # same reason vat_rate and department_code are: products.product_class is
+    # mutable, and re-classifying an item next year must not rewrite what a sale
+    # meant today. Without it, a product later un-flagged as 18+ makes every old
+    # transaction unexplainable — "why did this need an ID check?" has no answer,
+    # and worse, "why didn't it?" has the wrong one.
+    #
+    # It is also what makes transactions.age_check_outcome checkable: the rule
+    # AGE-18-TABAK joins the two to find any completed sale with a restricted
+    # line and no recorded basis.
+    #
+    # NULL on legacy lines — never backfilled from today's classes, because that
+    # would invent a fact about a sale nobody observed.
+    was_age_restricted: Mapped[bool | None] = mapped_column(
+        Boolean,
+        nullable=True,
+        comment="Was this line 18+ at the time of sale? Snapshot; NULL on legacy lines"
     )
 
     # Timestamps

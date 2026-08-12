@@ -361,6 +361,17 @@ _ADDITIVE_COLUMNS: list[str] = [
     # — the Ecolution deal (pay 70% of Sylvie's Etsy shelf price). Nullable = no deal set.
     "ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS trade_discount_pct DOUBLE PRECISION",
     "CREATE UNIQUE INDEX IF NOT EXISTS ix_suppliers_prefix ON suppliers (prefix)",
+    # 18+ EVIDENCE (2026-08-12) — the age gate always worked; it just never left a
+    # record. _assert_age_cleared() rejects an unverified 18+ sale with 400 on both
+    # sale paths, returns the method it used, and both call sites threw that away —
+    # so the only trace was an app log line that rotates and dies on restart.
+    # These two columns turn a control into evidence. Both NULLABLE with no default:
+    # a legacy row must stay NULL rather than be retro-labelled with a check nobody
+    # performed. (age_check_event is a new table, so create_all() makes it.)
+    "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS age_check_outcome VARCHAR(24)",
+    "ALTER TABLE line_items ADD COLUMN IF NOT EXISTS was_age_restricted BOOLEAN",
+    "CREATE INDEX IF NOT EXISTS ix_transactions_age_check ON transactions (age_check_outcome)",
+    "CREATE INDEX IF NOT EXISTS ix_line_items_age_restricted ON line_items (was_age_restricted) WHERE was_age_restricted",
 ]
 
 

@@ -5612,33 +5612,83 @@ def _log_age_clearance(txn_ref: str, method: str, subject: str,
         f"verified_by={actor} · at={datetime.now(timezone.utc).isoformat()}")
 
 
-def _assert_age_cleared(cart_age_restricted: bool, customer, age_verified: bool,
-                        current_user: dict, cashier_uid, txn_ref: str) -> str | None:
+async def _record_age_refusal(txn_ref: str, current_user: dict, cashier_uid,
+                              product_class: str | None = None,
+                              note: str | None = None) -> None:
+    """Persist a REFUSED 18+ sale, in its own short-lived session.
+
+    Why a separate session: the caller raises 400 immediately after this, and
+    get_db_session() does not roll back explicitly — it just closes, which
+    discards an uncommitted transaction. Writing the refusal into the request's
+    session would therefore lose it, which is how the most valuable evidence in
+    the age gate came to be the one thing never kept.
+
+    The isolation cuts both ways on purpose: recording a refusal must never
+    commit a half-built cart, and a half-built cart must never erase a refusal.
+
+    NEVER raises. A logging failure must not turn a correct refusal into a 500 —
+    the customer has already been turned away, which is the part that matters.
+    """
+    from src.db.database import AsyncSessionLocal
+    from src.db.models.age_check_event_model import AgeCheckEventModel
+    try:
+        actor = ((current_user or {}).get("preferred_username")
+                 or (current_user or {}).get("sub") or str(cashier_uid))
+        async with AsyncSessionLocal() as s:
+            s.add(AgeCheckEventModel(
+                outcome="refused", txn_ref=txn_ref, cashier=actor,
+                product_class=product_class, note=note,
+            ))
+            await s.commit()
+    except Exception as e:  # pragma: no cover - evidence must never break the till
+        logger.warning(f"age refusal not recorded (txn={txn_ref}): {e}")
+
+
+async def _assert_age_cleared(cart_age_restricted: bool, customer, age_verified: bool,
+                              current_user: dict, cashier_uid, txn_ref: str,
+                              product_class: str | None = None) -> str:
     """Server-side 18+ age gate for the sale path (the client 🔞 alert is bypassable, this is not).
-    No-op when the cart holds no age-restricted line. Otherwise the sale is REJECTED (400) unless:
-      • an OF-AGE loyalty member is attached  -> method 'member', OR
-      • the cashier explicitly attested a walk-in is 18+ (age_verified) -> method 'cashier_attest'.
+    The sale is REJECTED (400) when the cart holds an age-restricted line unless:
+      • an OF-AGE loyalty member is attached  -> 'member_dob' or 'member_confirmed', OR
+      • the cashier explicitly attested a walk-in is 18+ (age_verified) -> 'cashier_attest'.
     A member PROVEN under 18 by DOB is authoritative — blocked even if age_verified is set.
-    Existing members (no DOB, age_confirmed=True) clear as of-age (back-compat). Emits a
-    compliance log line on clearance. Returns the method used, or None for a clean cart."""
+    Existing members (no DOB, age_confirmed=True) clear as of-age (back-compat).
+
+    Returns the BASIS, which the caller stores on transactions.age_check_outcome.
+    A clean cart returns 'not_required' rather than None: the record must never be
+    silent, because NULL cannot distinguish "no 18+ line" from "nobody checked".
+
+    member_dob vs member_confirmed are split deliberately. Both clear the sale and
+    both are correct. But one rests on a date of birth and the other on a box
+    someone ticked, and an inspector asking "how do you know she was 18" gets a
+    very different answer for each. Folding them into one value would hide exactly
+    the weakness worth measuring (rule AGE-18-BASIS-QUALITY).
+
+    Refusals are persisted before the 400 — proof that a control WORKS is the
+    record of the times it said no."""
     if not cart_age_restricted:
-        return None
+        return "not_required"
 
     if customer is not None:
         # DOB is authoritative when present: a proven minor can't be overridden by attestation.
         if customer.birthdate is not None and not customer.is_of_age:
+            await _record_age_refusal(txn_ref, current_user, cashier_uid, product_class,
+                                      note="member under 18 by DOB")
             raise HTTPException(
                 status_code=400,
                 detail="This loyalty member is under 18 — age-restricted (18+) items cannot be sold to them.")
         if customer.is_of_age:
-            _log_age_clearance(txn_ref, "member", f"member:{customer.handle}", current_user, cashier_uid)
-            return "member"
+            basis = "member_dob" if customer.birthdate is not None else "member_confirmed"
+            _log_age_clearance(txn_ref, basis, f"member:{customer.handle}", current_user, cashier_uid)
+            return basis
         # Legacy member with neither DOB nor age_confirmed: fall through to cashier attestation.
 
     if age_verified:
         _log_age_clearance(txn_ref, "cashier_attest", "walk-in", current_user, cashier_uid)
         return "cashier_attest"
 
+    await _record_age_refusal(txn_ref, current_user, cashier_uid, product_class,
+                              note="no of-age member attached and no cashier attestation")
     raise HTTPException(
         status_code=400,
         detail="Age-restricted (18+) item — verify age first: confirm the customer is 18+ "
@@ -5712,15 +5762,28 @@ async def checkout_transaction(
     # of truth (products.product_class -> taxonomy), joined via the staged line items. Reject
     # (400) an 18+ sale unless an of-age member is attached OR the cashier attested a walk-in. ---
     from src.services.catalog_taxonomy import class_is_age_restricted
-    _age_classes = (await db.execute(
-        select(ProductModel.product_class)
-        .join(LineItemModel, LineItemModel.product_id == ProductModel.id)
+    # Fetch the line ids alongside the classes so the 18+ flag can be SNAPSHOTTED onto
+    # each line (products.product_class is mutable — re-classifying an item next year
+    # must not rewrite what a sale meant today, same rule as the VAT snapshot).
+    _age_rows = (await db.execute(
+        select(LineItemModel.id, ProductModel.product_class)
+        .join(ProductModel, LineItemModel.product_id == ProductModel.id)
         .where(LineItemModel.transaction_id == transaction_id)
-    )).scalars().all()
-    cart_age_restricted = any(class_is_age_restricted(c) for c in _age_classes)
-    _assert_age_cleared(
+    )).all()
+    _restricted_ids = [lid for lid, cls in _age_rows if class_is_age_restricted(cls)]
+    _first_class = next((cls for lid, cls in _age_rows if class_is_age_restricted(cls)), None)
+    cart_age_restricted = bool(_restricted_ids)
+    _age_basis = await _assert_age_cleared(
         cart_age_restricted, customer, checkout.age_verified, current_user,
-        await _resolve_cashier_uid(db, current_user), transaction.transaction_number)
+        await _resolve_cashier_uid(db, current_user), transaction.transaction_number,
+        product_class=_first_class)
+    # Evidence, not behaviour: the gate already decided: this only remembers it.
+    transaction.age_check_outcome = _age_basis
+    if _restricted_ids:
+        await db.execute(
+            update(LineItemModel)
+            .where(LineItemModel.id.in_(_restricted_ids))
+            .values(was_age_restricted=True))
 
     # amount_tendered defaults to the home currency; the cash branch converts a FOREIGN tender to the
     # home equivalent (Block 1) so the gate, change, and stored amount are all in the home currency.
@@ -5913,6 +5976,7 @@ async def create_sale(
     subtotal = Decimal("0.00")
     eligible_subtotal = Decimal("0.00")  # non-promo-restricted lines only -> the member tier discount base
     cart_age_restricted = False  # set True by any 18+ line -> triggers the age gate below
+    age_trigger_class = None     # first 18+ class seen -> reported on a refusal, no product identity
     for ln in sale.lines:
         tier_final = False  # BL-26: True once a volume break (min_qty>=2) sets the price → discount-final
         if ln.product_id is not None:
@@ -5937,8 +6001,11 @@ async def create_sale(
             # Custom line OR department key — one helper, shared with the legacy /items path.
             prod_class, line_notes = _resolve_custom_line(ln)
 
-        if class_is_age_restricted(prod_class):
+        line_age_restricted = class_is_age_restricted(prod_class)
+        if line_age_restricted:
             cart_age_restricted = True
+            if age_trigger_class is None:
+                age_trigger_class = prod_class
 
         # Compliance note: a promo-restricted class (tobacco/alcohol) simply never enters the
         # discount base (eligible_subtotal, below) — the manual discount, like the member tier,
@@ -5955,6 +6022,10 @@ async def create_sale(
             discount_amount=Decimal("0.00"), line_total=line_total, notes=line_notes,
             is_giveaway=ln.is_giveaway, consumption=ln.consumption.value,
             vat_rate=line_rate, vat_amount=line_vat_amount,
+            # 18+ SNAPSHOT, for the same reason as the VAT rate and the department key
+            # below: re-classifying a product next year must not rewrite what this sale
+            # meant today. This is what makes age_check_outcome checkable.
+            was_age_restricted=line_age_restricted,
             # Department key: SNAPSHOTTED onto the line, never looked up again. Renaming a
             # button next year must not rewrite a receipt printed today.
             department_code=(ln.department_code or None) and ln.department_code.strip().upper(),
@@ -6030,9 +6101,9 @@ async def create_sale(
 
     # --- Age gate (18+): reject the sale unless an of-age member is attached OR the cashier
     # attested a walk-in. cart_age_restricted was set from each line's class in the loop above. ---
-    _assert_age_cleared(
+    txn.age_check_outcome = await _assert_age_cleared(
         cart_age_restricted, customer, sale.age_verified, current_user,
-        cashier_uid, transaction_number)
+        cashier_uid, transaction_number, product_class=age_trigger_class)
 
     # --- Cash drawer gate + cent-precision tender (identical rules to legacy checkout). ---
     home_tendered = sale.amount_tendered
