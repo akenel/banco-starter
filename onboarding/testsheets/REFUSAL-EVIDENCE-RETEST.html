@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The refusal that was filed against the next sale — retest</title>
+<style>
+  :root{ --red:#157F52; --dark:#0f5c3b; --ink:#1f2937; --mut:#6b7280; --line:#e5e7eb;
+         --ok:#059669; --iss:#d97706; --fail:#C0392B; --bg:#f6f8f7; --gold:#b0862f; }
+  *{ box-sizing:border-box; }
+  body{ font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; color:var(--ink);
+        background:var(--bg); margin:0; line-height:1.5; }
+  a{ color:var(--dark); }
+  header{ position:sticky; top:0; z-index:10; background:#fff; border-bottom:2px solid var(--red);
+          padding:12px 20px; box-shadow:0 2px 8px rgba(0,0,0,.06); }
+  .htop{ display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+  h1{ font-size:18px; margin:0; }
+  h1 small{ color:var(--mut); font-weight:500; font-size:13px; display:block; margin-top:2px; }
+  .meters{ display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
+  .meter{ text-align:center; } .meter b{ font-size:20px; display:block; }
+  .meter.ok b{ color:var(--ok); } .meter.iss b{ color:var(--iss); } .meter.fail b{ color:var(--fail); }
+  .meter span{ font-size:11px; color:var(--mut); text-transform:uppercase; letter-spacing:.04em; }
+  .timer{ font-variant-numeric:tabular-nums; font-size:22px; font-weight:700; color:var(--ink); }
+  .btn{ border:1px solid var(--line); background:#fff; border-radius:8px; padding:6px 12px;
+        font-size:13px; cursor:pointer; } .btn:hover{ background:#f0f0f0; }
+  .btn.red{ background:var(--red); color:#fff; border-color:var(--red); }
+  main{ max-width:920px; margin:0 auto; padding:22px 20px 80px; }
+  .lead{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin-bottom:20px; }
+  .phase{ font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.06em;
+          color:var(--red); margin:26px 0 10px; padding-bottom:6px; border-bottom:2px solid var(--red); }
+  section{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin-bottom:14px; }
+  section h2{ font-size:15px; margin:0 0 4px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  section .why{ color:var(--mut); font-size:13px; margin:0 0 12px; }
+  code{ font-family:ui-monospace,Menlo,monospace; font-size:12px; background:#f3f4f6;
+        border:1px solid var(--line); border-radius:5px; padding:1px 5px; }
+  .cmd{ display:block; font-family:ui-monospace,Menlo,monospace; font-size:12.5px; background:#0f172a;
+        color:#e2e8f0; border-radius:8px; padding:9px 12px; margin:6px 0; white-space:pre-wrap; word-break:break-word; }
+  ol.steps{ margin:0; padding:0; list-style:none; }
+  ol.steps li{ display:flex; gap:10px; padding:9px 0; border-top:1px dashed var(--line); align-items:flex-start; }
+  ol.steps li:first-child{ border-top:none; }
+  .verdict{ display:flex; gap:4px; flex:none; margin-top:1px; }
+  .vbtn{ border:1px solid var(--line); background:#fff; border-radius:7px; padding:4px 8px; font-size:11px;
+         font-weight:700; cursor:pointer; color:var(--mut); white-space:nowrap; }
+  .vbtn:hover{ background:#f6f6f6; }
+  .vbtn.v-pass.on{ background:var(--ok); border-color:var(--ok); color:#fff; }
+  .vbtn.v-fail.on{ background:var(--fail); border-color:var(--fail); color:#fff; }
+  .vbtn.v-issue.on{ background:var(--iss); border-color:var(--iss); color:#fff; }
+  @media (max-width:600px){ .vbtn{ padding:4px 6px; font-size:10px; } ol.steps li{ flex-wrap:wrap; } }
+  .step-body{ flex:1; min-width:220px; font-size:14px; }
+  .exp{ display:block; color:var(--ok); font-size:12.5px; margin-top:4px; }
+  .exp::before{ content:"✓ expect: "; font-weight:600; }
+  textarea{ width:100%; border:1px solid var(--line); border-radius:8px; padding:8px 10px; font:inherit;
+            font-size:13px; margin-top:10px; resize:vertical; min-height:54px; }
+  textarea.step-cm{ margin-top:0; min-height:32px; font-size:12.5px; background:#fcfcfd; flex:1; }
+  .step-extra{ margin-top:8px; }
+  .cm-row{ display:flex; gap:6px; align-items:flex-start; }
+  .mic-btn{ border:1px solid var(--line); background:#fff; border-radius:8px; padding:4px 9px; cursor:pointer;
+            font-size:15px; flex:none; }
+  .mic-btn.on{ background:#e6f6ee; border-color:var(--red); color:var(--red); animation:pulse 1s infinite; }
+  @keyframes pulse{ 50%{ opacity:.45 } }
+  .shot-zone{ margin-top:6px; border:1.5px dashed var(--line); border-radius:8px; padding:6px 10px; font-size:12px;
+              color:var(--mut); cursor:pointer; background:#fafafa; }
+  .shot-zone:focus,.shot-zone.drag{ outline:none; border-color:var(--red); background:#f2fbf6; color:var(--ink); }
+  .thumbs{ display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; }
+  .thumbs .sh{ position:relative; }
+  .thumbs img{ height:66px; border-radius:6px; border:1px solid var(--line); cursor:zoom-in; display:block; }
+  .thumbs .rm{ position:absolute; top:-7px; right:-7px; background:var(--red); color:#fff; border:none;
+               border-radius:99px; width:19px; height:19px; font-size:11px; cursor:pointer; line-height:1; }
+  .hidden{ display:none; }
+  label.cm{ font-size:11px; color:var(--mut); text-transform:uppercase; letter-spacing:.04em; }
+  .safety{ border:1px solid var(--line); border-left:4px solid var(--gold); background:#fffdf5;
+           border-radius:8px; padding:10px 12px; margin:10px 0; font-size:13.5px; }
+  .danger{ border-left-color:var(--fail); background:#fdf2f0; }
+  .tag{ font-size:11px; font-weight:700; padding:2px 8px; border-radius:99px; background:#dcfce7; color:#065f46; }
+  .tag.gap{ background:#fef3c7; color:#92400e; }
+  .tag.t{ background:#e0e7ff; color:#3730a3; font-variant-numeric:tabular-nums; }
+  table{ border-collapse:collapse; width:100%; font-size:13px; margin:8px 0; }
+  th,td{ border:1px solid var(--line); padding:6px 9px; text-align:left; vertical-align:top; }
+  th{ background:#f6f8f7; }
+  .card{ font-family:ui-monospace,Menlo,monospace; font-size:12.5px; background:#0f172a; color:#e2e8f0;
+         border-radius:10px; padding:14px 16px; white-space:pre-wrap; }
+</style>
+</head>
+<body>
+
+<header><div class="htop">
+  <h1>🔞 The refusal that was filed against the <i>next</i> customer's sale — retest
+    <small>One defect, one fix, one focused run. About 15 minutes.</small></h1>
+  <div class="meters">
+    <div class="meter"><span class="timer" id="clock">00:00</span><span>elapsed</span></div>
+    <div class="meter"><b id="prog">0/0</b><span>marked</span></div>
+    <div class="meter ok"><b id="mOk">0</b><span>ok</span></div>
+    <div class="meter iss"><b id="mIss">0</b><span>issue</span></div>
+    <div class="meter fail"><b id="mFail">0</b><span>fail</span></div>
+    <button class="btn red" id="startBtn" onclick="toggleTimer()">▶ Start</button>
+    <button class="btn" onclick="copyFindings()">📋 findings</button>
+    <button class="btn" onclick="if(confirm('Clear everything — marks, notes and screenshots?')){localStorage.removeItem(KEY);location.reload()}">reset</button>
+  </div>
+</div></header>
+
+<main>
+  <div class="lead">
+    <strong>What this is.</strong> The full 27-step sheet
+    (<code>AGE-EVIDENCE-TESTSHEET.html</code>) is <b>done</b> — you ran it on 2026-08-12 and it found
+    two things the machine probe could not. This sheet retests <b>one</b> of them: commit
+    <code>efbc056</code>, <i>"a refusal was filed against the NEXT customer's sale"</i>. Everything
+    else on that sheet stays passed; do not re-run it.
+
+    <div class="safety danger">
+      <b>The defect, in one paragraph.</b> Both sale paths stamped the refusal with
+      <code>TXN-{today}-{count+1}</code> — a number derived by <em>counting committed transactions</em>.
+      A refusal raises a 400 and never commits, so it never consumes its number. <b>The next customer's
+      sale takes it.</b> Measured on this database: <b>17 of 52 refusals</b> "belong" to a completed
+      sale, and <b>7 of those sales have no 18+ line at all</b>. A compliance record pointing at the
+      wrong transaction is <em>worse than no record</em> — it is a document that lies under its own
+      letterhead.
+    </div>
+
+    <div class="safety">
+      <b>The fix.</b> A refusal's <code>txn_ref</code> is now <b><code>NULL</code> on the
+      <code>/sales</code> path — on purpose</b>, because at refusal time no transaction exists. What
+      identifies a refusal is the thing it is actually about: <b>the cart attempt</b>. New column
+      <code>age_check_event.cart_ref</code> carries the checkout screen's <code>client_uuid</code>,
+      which joins to <code>transactions.client_uuid</code>. So a customer who is refused and then
+      cleared properly leaves <b>both</b> rows on one thread — and a customer who walks out leaves a
+      refusal that points at no sale, which is the truth.
+      <div style="margin-top:6px">The checkout path still fills <code>txn_ref</code>, because there a
+      transaction genuinely already exists.</div>
+    </div>
+
+    <div class="safety danger">
+      <b>⛔ Sandbox only.</b> You will ring real completed sales. A completed transaction is a line in
+      the Kassenbuch. <b>Never run this against the shop's books.</b> Evidence rows are
+      <b>append-only by design and cannot be cleaned up</b> — that is the feature working, and it is
+      also why Part L exists.
+    </div>
+  </div>
+
+  <div class="phase">Part P — Pre-flight · 2 minutes · one terminal, keep it open</div>
+  <section>
+    <h2>P · Prove the running image has the fix, then drop a marker</h2>
+    <p class="why"><b>The one that catches everybody:</b> the app image <b>bakes <code>src/</code>
+      in</b> — there is no bind mount. <code>docker compose restart app</code> cheerfully restarts the
+      <em>old</em> code and tells you nothing. P1 asks the container what it is actually running, not
+      what git says.</p>
+    <div class="safety">
+      <b>Why a marker and not "the last few rows".</b> The database already holds <b>52 refusals</b>,
+      most of them mine — the probe and a dry run, both logged as <code>pam</code>, and append-only
+      means they can never be removed. A 30-minute time window still returned 32 of them. So P3 stamps
+      the clock <em>before you touch the till</em> and every query below filters on it.
+      <b>Run everything from Part P and Part R in the SAME terminal window</b> — <code>$RUN_START</code>
+      is a shell variable and it dies with the tab.
+    </div>
+    <ol class="steps">
+      <li><div class="step-body"><b>P1 · Ask the container what code it is running.</b>
+        <span class="cmd">docker compose exec -T app grep -c cart_ref /app/src/routes/pos_router.py</span>
+        <span class="exp"><b>10</b>. A <b>0</b> means you are testing the old image — run
+        <code>./scripts/rebuild.sh</code> and start again. Anything else, say what you got.</span></div></li>
+      <li><div class="step-body"><b>P2 · Confirm the column landed.</b> The app creates it itself on
+        boot — there is no migration to run.
+        <span class="cmd">docker compose exec -T postgres psql -U helix_user -d helix_db -c "\d age_check_event" | grep -E 'cart_ref|append_only'</span>
+        <span class="exp">a <code>cart_ref | character varying(64)</code> line <b>and</b> the
+        <code>trg_ace_append_only</code> trigger. Both, or stop.</span></div></li>
+      <li><div class="step-body"><b>P3 · Drop the marker, and prove it is clean.</b> Two commands,
+        same terminal.
+        <span class="cmd">RUN_START=$(docker compose exec -T postgres psql -U helix_user -d helix_db -tAc "select now()")</span>
+        <span class="cmd">docker compose exec -T postgres psql -U helix_user -d helix_db -c "select (occurred_at at time zone 'Europe/Zurich')::time(0) as shop_time, outcome, coalesce(txn_ref,'NULL — correct') as txn_ref, coalesce(left(cart_ref,8),'none') as cart, note from age_check_event where cashier='pam' and occurred_at &gt; '$RUN_START' order by occurred_at desc"</span>
+        <span class="exp"><b>(0 rows)</b> — you have not rung anything yet. If it prints rows, the
+        variable did not take; check <code>echo $RUN_START</code> shows a timestamp.
+        <div style="margin-top:4px">Times below print as <b>Europe/Zurich</b>, so they match the clock
+        on the wall. The database stores UTC, and that two-hour gap is exactly what made my probe rows
+        look like yours last night.</div></span></div></li>
+    </ol>
+  </section>
+
+  <div class="phase">Part R — The retest · two customers, then the evidence</div>
+  <section>
+    <h2>R · The exact sequence that produced the false link</h2>
+    <p class="why">Log in at <code>http://localhost:3000/pos</code> as <b><code>pam</code> /
+      <code>pam</code></b> — a cashier, not an admin. The 18+ product is <b>CBD Gummy</b>
+      (<code>TREAT-GUMMY</code>, CHF 0.45, class <code>cbd_hemp</code>); <b>Lollipop</b> is the normal
+      one. <b>Nothing has a barcode</b> — type the name, do not reach for the gun. <b>Pay by TWINT</b>
+      to skip the cash-drawer requirement.</p>
+    <div class="safety">
+      <b>R1 and R2 must be back to back, with nothing in between.</b> That adjacency <em>is</em> the
+      test — the old code handed the refused customer's number to whoever rang next.
+    </div>
+    <ol class="steps">
+      <li><div class="step-body"><b>R1 · Customer one is refused.</b> Ring <b>CBD Gummy</b>, no member
+        attached, and <b>decline the cashier attestation</b> at the 🔞 popup.
+        <span class="exp">refused, sale does not complete. Nothing new on screen — this is the same
+        refusal you have always had.</span></div></li>
+      <li><div class="step-body"><b>R2 · Customer two, immediately.</b> Clear the cart, ring a
+        <b>Lollipop</b>, complete on <b>TWINT</b>.
+        <span class="exp">completes normally. <b>Write the transaction number down</b> —
+        <code>TXN-YYYYMMDD-NNNN</code>, off the receipt or the confirmation. You need it in R4.</span>
+        <div class="cmd" style="background:#fff;border-style:dashed">TXN-________________ ← write it here</div></div></li>
+      <li><div class="step-body"><b>R3 · Read the refusal row.</b> Same terminal as P3.
+        <span class="cmd">docker compose exec -T postgres psql -U helix_user -d helix_db -c "select (occurred_at at time zone 'Europe/Zurich')::time(0) as shop_time, outcome, coalesce(txn_ref,'NULL — correct') as txn_ref, coalesce(left(cart_ref,8),'none') as cart, note from age_check_event where cashier='pam' and occurred_at &gt; '$RUN_START' order by occurred_at desc"</span>
+        <span class="exp"><b>exactly one row</b>: <code>refused</code> · <code>txn_ref</code> reading
+        <b>NULL — correct</b> · <code>cart</code> showing <b>8 hex characters</b>, not
+        <code>none</code>.
+        <div style="margin-top:4px"><b>A transaction number in that <code>txn_ref</code> column is the
+        defect still live.</b> A <code>cart</code> of <code>none</code> is a different failure — the
+        row is honest but unjoinable, and R5 will have nothing to find.</div></span></div></li>
+      <li><div class="step-body"><b>R4 · The lollipop must appear nowhere.</b> Paste <b>your</b> number
+        from R2 in place of the one below.
+        <span class="cmd">docker compose exec -T postgres psql -U helix_user -d helix_db -c "select count(*) as must_be_zero from age_check_event where txn_ref = 'TXN-20260813-0001'"</span>
+        <span class="exp"><b>0</b>. This is the whole fix in one number: customer two's sale carries no
+        18+ record, because customer two was never asked. <b>A 1 here is a FAIL and the fix did not
+        hold.</b></span></div></li>
+      <li><div class="step-body"><b>R5 · Refused, then cleared properly — one thread.</b> Ring the
+        <b>CBD Gummy</b> again, <b>decline</b> at the popup, then <b>without clearing the cart</b> ring
+        it through again and <b>tick the attestation</b>. Complete on TWINT.
+        <span class="exp">the sale completes. The refusal and the sale are the same customer, and the
+        database should be able to say so.</span></div></li>
+      <li><div class="step-body"><b>R6 · The join that replaces the false link.</b>
+        <span class="cmd">docker compose exec -T postgres psql -U helix_user -d helix_db -c "select (a.occurred_at at time zone 'Europe/Zurich')::time(0) as refused_at, left(a.cart_ref,8) as cart, t.transaction_number as sold_as, t.age_check_outcome as cleared_by, t.total from age_check_event a join transactions t on t.client_uuid::text = a.cart_ref where a.outcome='refused' and a.occurred_at &gt; '$RUN_START' order by a.occurred_at desc"</span>
+        <span class="exp"><b>one row</b> — the R5 refusal joined to the R5 sale, <code>cleared_by</code>
+        = <b><code>cashier_attest</code></b>, total <b>0.45</b>.
+        <div style="margin-top:4px"><b>The R1 refusal must NOT appear here</b>, because customer one
+        walked out and there is no sale to join to. Two rows means R1 got attached to something.
+        Zero rows means the cart thread is broken — that is the R3 <code>none</code> case, and it is a
+        FAIL.</div></span></div></li>
+    </ol>
+  </section>
+
+  <div class="phase">Part L — The 17 rows the fix cannot repair</div>
+  <section>
+    <h2>L · Append-only cuts both ways</h2>
+    <p class="why">Every refusal recorded before <code>efbc056</code> is still in there, still pointing
+      at somebody else's sale, and <b>the append-only trigger means it can never be corrected or
+      deleted</b>. That is the guarantee doing its job. It is also a real question with no obvious
+      answer, which is why it is a decision and not a step.</p>
+    <ol class="steps">
+      <li><div class="step-body"><b>L1 · Look at the damage once, with your own eyes.</b>
+        <span class="cmd">docker compose exec -T postgres psql -U helix_user -d helix_db -c "select a.txn_ref as refusal_points_at, t.age_check_outcome as but_that_sale_was, t.total from age_check_event a join transactions t on t.transaction_number = a.txn_ref where a.outcome='refused' order by a.occurred_at limit 10"</span>
+        <span class="exp">rows where <code>but_that_sale_was</code> reads <b><code>not_required</code></b>
+        are the ugly ones: a refusal filed against a sale that contained <b>no 18+ item at all</b>.
+        There are <b>7</b> of those, out of <b>17</b> false links in <b>52</b> refusals.
+        <div style="margin-top:4px">This is a sandbox, so these are throwaway. Note it anyway — the
+        same thing would be permanent in the shop.</div></span></div></li>
+      <li><div class="step-body"><b>L2 · Does this sandbox need wiping before UAT?</b> Consider whether
+        you would rather promote onto a clean evidence table than carry 52 mixed-quality rows into the
+        next environment.
+        <span class="exp">your call. The rows here are all machine and test rows; nothing of Felix's is
+        in them. Write the decision down so the promote step is not improvised.</span></div></li>
+    </ol>
+  </section>
+
+  <div class="phase">Part T — Then promote</div>
+  <section>
+    <h2>T · What "promote" means for this change</h2>
+    <p class="why">The change is three files and one additive column. There is no Alembic step — the app
+      creates the column itself on boot, from the <code>_ADDITIVE_COLUMNS</code> list in
+      <code>src/db/database.py</code>. So the promote is a build and a boot, and then the <em>same two
+      checks</em> you just ran.</p>
+    <ol class="steps">
+      <li><div class="step-body"><b>T1 · Only after R1–R6 are green.</b> If anything in Part R is red,
+        stop here — do not promote a compliance fix on a partial pass.
+        <span class="exp">tick this to record that you checked, not to skip it.</span></div></li>
+      <li><div class="step-body"><b>T2 · On UAT: rebuild, then confirm the column exists.</b> Same P1
+        and P2 commands, run there.
+        <span class="exp"><code>cart_ref</code> present and <code>trg_ace_append_only</code> present.
+        The column is additive and nullable, so existing rows are untouched.</span></div></li>
+      <li><div class="step-body"><b>T3 · On UAT: R1–R4 only</b> — refuse one, sell the next, read the
+        two queries. Skip R5/R6 if you are short on time; R4 is the one that proves the defect is
+        gone.
+        <span class="exp">a <code>must_be_zero</code> of <b>0</b> on UAT and this is promoted.
+        <b>Do not run the probe script on UAT unless you want its sales in that ledger.</b></span></div></li>
+    </ol>
+  </section>
+
+  <div class="phase">Part F — The decisions this run is waiting on</div>
+  <section>
+    <h2>F · Write it down while it is fresh</h2>
+    <p class="why">Hit <b>📋 findings</b> at the top when you are done and paste it into
+      <code>WORKLIST.md</code>. A finding that stays in a browser tab is a finding nobody acts on.</p>
+
+    <label class="cm">F1 · "👤 Remove member & continue" still bypasses the DOB block. Keep, gate, or change?</label>
+    <textarea data-cm="f1" placeholder="Verified: minor + attest → 400. Remove the member, attest → 201 cashier_attest. The button must exist (a mis-scanned loyalty card on a real adult), but right now it turns a hard block into a soft one. Gate it to a manager? Log it louder? Leave it and rely on the cart_ref thread now linking the refusal to the retry?"></textarea>
+
+    <label class="cm">F2 · The pre-fix rows — leave them, or wipe the sandbox before promoting?</label>
+    <textarea data-cm="f2" placeholder="17 false links, 7 pointing at sales with no 18+ line, all un-editable by design. Sandbox only — but decide the rule now for the day it happens somewhere real."></textarea>
+
+    <label class="cm">F3 · Still open from the full sheet: Pam has no screen for any of this.</label>
+    <textarea data-cm="f3" placeholder="Your D6 answer was 'felix will not be in the shop when the inspector shows up'. So the view has to be operable by a cashier. What is the smallest thing — a read-only 18+ page under Reports? a line on the day-close? Where is Pam STANDING when she needs it?"></textarea>
+  </section>
+
+  <div class="phase">The one-line summary</div>
+  <section>
+    <h2>What this retest is, in a sentence</h2>
+    <div class="card">BEFORE   a refusal was stamped with the number the NEXT sale would take
+AFTER    a refusal carries NULL and a cart thread — the truth, or nothing
+LEFT     17 old rows that still lie, and cannot be corrected, by design
+
+The gate always bit. This is about whether the record of the bite
+points at the right customer.</div>
+    <ol class="steps">
+      <li><div class="step-body">After the run: is that summary still accurate?
+        <span class="exp">if a line changed today, say which.</span></div></li>
+    </ol>
+  </section>
+</main>
+<script>
+  const KEY='banco-refusal-retest-v1';
+  const STEPS=[];
+  const VDEFS=[['pass','OK','✓'],['fail','FAIL','✗'],['issue','ISSUE','⚠']];
+
+  function verdictControl(i){
+    const box=document.createElement('div'); box.className='verdict';
+    VDEFS.forEach(([v,lbl,ic])=>{ const b=document.createElement('button'); b.type='button';
+      b.className='vbtn v-'+v; b.innerHTML=ic+' '+lbl; b.title=lbl;
+      b.addEventListener('click', ()=>setVerdict(i, STEPS[i].verdict===v ? '' : v));
+      box.appendChild(b); STEPS[i]._btns[v]=b; });
+    return box;
+  }
+  function paintVerdict(i){ const s=STEPS[i]; VDEFS.forEach(([v])=>{ const b=s._btns[v];
+    if(b) b.classList.toggle('on', s.verdict===v); }); }
+  function setVerdict(i,v){ STEPS[i].verdict=v; paintVerdict(i); save(); progress(); }
+
+  function buildSteps(){
+    document.querySelectorAll('ol.steps li').forEach((li,i)=>{
+      const bodyEl = li.querySelector('.step-body');
+      const label = (bodyEl?.textContent||'').trim().replace(/\s+/g,' ').slice(0,120);
+      STEPS[i]={ li, label, verdict:'', ta:null, thumbs:null, shots:[], _btns:{} };
+      li.insertBefore(verdictControl(i), li.firstChild);
+      const wrap=document.createElement('div'); wrap.className='step-extra';
+      const row=document.createElement('div'); row.className='cm-row';
+      const ta=document.createElement('textarea'); ta.className='step-cm'; ta.rows=1;
+      ta.placeholder='note… what happened, how long, what you had to invent (type or 🎤 speak)';
+      ta.addEventListener('input', save);
+      const mic=document.createElement('button'); mic.className='mic-btn'; mic.type='button';
+      mic.textContent='🎤'; mic.title='Dictate this note';
+      mic.addEventListener('click', ()=>micToggle(mic, ta));
+      row.appendChild(ta); row.appendChild(mic); wrap.appendChild(row);
+      const zone=document.createElement('div'); zone.className='shot-zone'; zone.tabIndex=0;
+      zone.textContent='📋 click & paste a screenshot (Ctrl+V) · drop an image · or 📷 pick a file';
+      const fin=document.createElement('input'); fin.type='file'; fin.accept='image/*';
+      fin.capture='environment'; fin.className='hidden';
+      zone.addEventListener('click', ()=>{ activeIdx=i; fin.click(); });
+      zone.addEventListener('focus', ()=>{ activeIdx=i; });
+      zone.addEventListener('dragover', e=>{ e.preventDefault(); zone.classList.add('drag'); });
+      zone.addEventListener('dragleave', ()=>zone.classList.remove('drag'));
+      zone.addEventListener('drop', e=>{ e.preventDefault(); zone.classList.remove('drag'); activeIdx=i;
+        [...(e.dataTransfer.files||[])].forEach(f=>{ if(f.type.startsWith('image/')) addShot(i,f); }); });
+      fin.addEventListener('change', e=>{ [...(e.target.files||[])].forEach(f=>addShot(i,f)); e.target.value=''; });
+      const thumbs=document.createElement('div'); thumbs.className='thumbs';
+      wrap.appendChild(zone); wrap.appendChild(fin); wrap.appendChild(thumbs);
+      bodyEl.appendChild(wrap);
+      STEPS[i].ta=ta; STEPS[i].thumbs=thumbs;
+    });
+  }
+
+  let activeIdx=null;
+  document.addEventListener('paste', e=>{ if(activeIdx==null) return;
+    const items=(e.clipboardData||{}).items||[];
+    for(const it of items){ if(it.type && it.type.startsWith('image/')){ const f=it.getAsFile();
+      if(f){ addShot(activeIdx,f); e.preventDefault(); } } } });
+  function downscale(file, cb){ const url=URL.createObjectURL(file); const img=new Image();
+    img.onload=()=>{ const max=1000; let w=img.width,h=img.height; if(w>max){ h=Math.round(h*max/w); w=max; }
+      const c=document.createElement('canvas'); c.width=w; c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h); URL.revokeObjectURL(url);
+      try{ cb(c.toDataURL('image/jpeg',0.6)); }catch(e){ cb(null); } };
+    img.onerror=()=>{ URL.revokeObjectURL(url); cb(null); }; img.src=url; }
+  function addShot(i,file){ downscale(file, data=>{ if(!data) return;
+    STEPS[i].shots.push({name:file.name||'screenshot.png', data}); renderThumbs(i); save(); }); }
+  function renderThumbs(i){ const t=STEPS[i].thumbs; t.innerHTML='';
+    STEPS[i].shots.forEach((sh,si)=>{ const d=document.createElement('div'); d.className='sh';
+      const im=document.createElement('img'); im.src=sh.data; im.title=sh.name;
+      im.onclick=()=>{ const w=window.open(); if(w) w.document.write('<img src="'+sh.data+'" style="max-width:100%">'); };
+      const rm=document.createElement('button'); rm.className='rm'; rm.textContent='✕'; rm.title='remove';
+      rm.onclick=()=>{ STEPS[i].shots.splice(si,1); renderThumbs(i); save(); };
+      d.appendChild(im); d.appendChild(rm); t.appendChild(d); }); }
+
+  function save(){ const d={verdict:[],note:[],shots:[],cm:{},seconds};
+    STEPS.forEach((s,i)=>{ d.verdict[i]=s.verdict||''; d.note[i]=s.ta.value; d.shots[i]=s.shots; });
+    document.querySelectorAll('textarea[data-cm]').forEach(t=>d.cm[t.dataset.cm]=t.value);
+    try{ localStorage.setItem(KEY,JSON.stringify(d)); }catch(e){ console.warn('storage full', e); } }
+  function restore(){ try{ const d=JSON.parse(localStorage.getItem(KEY)||'{}');
+    STEPS.forEach((s,i)=>{ if(d.verdict&&d.verdict[i]){ s.verdict=d.verdict[i]; paintVerdict(i); }
+      if(d.note&&d.note[i]!=null) s.ta.value=d.note[i];
+      if(d.shots&&Array.isArray(d.shots[i])){ s.shots=d.shots[i]; renderThumbs(i); } });
+    if(d.cm) document.querySelectorAll('textarea[data-cm]').forEach(t=>{ if(d.cm[t.dataset.cm]!=null) t.value=d.cm[t.dataset.cm]; });
+    if(typeof d.seconds==='number'){ seconds=d.seconds; paintClock(); } }catch(e){} }
+
+  function progress(){ let p=0,f=0,iss=0,dec=0;
+    STEPS.forEach(s=>{ if(s.verdict){ dec++; if(s.verdict==='pass')p++; else if(s.verdict==='fail')f++; else iss++; } });
+    document.getElementById('prog').textContent=dec+'/'+STEPS.length;
+    mOk.textContent=p; mIss.textContent=iss; mFail.textContent=f; }
+
+  // Turn the run into something that can be pasted straight into WORKLIST.md. A finding that
+  // stays in a browser tab is a finding nobody acts on.
+  function copyFindings(){
+    const L=['# refusal evidence retest (efbc056) — findings','', 'elapsed: '+document.getElementById('clock').textContent, ''];
+    STEPS.forEach(s=>{ if(s.verdict==='fail'||s.verdict==='issue'||(s.ta.value||'').trim()){
+      L.push('- ['+(s.verdict||'note').toUpperCase()+'] '+s.label + ((s.ta.value||'').trim()? '\n      → '+s.ta.value.trim() : '')); } });
+    L.push('', '## Decisions for Angel + Felix');
+    document.querySelectorAll('textarea[data-cm]').forEach(t=>{ const v=(t.value||'').trim();
+      if(v) L.push('- **'+t.dataset.cm.toUpperCase()+'** — '+v); });
+    const txt=L.join('\n');
+    navigator.clipboard?.writeText(txt).then(
+      ()=>alert('Findings copied — paste into WORKLIST.md'),
+      ()=>{ const w=window.open(); if(w) w.document.write('<pre>'+txt.replace(/</g,'&lt;')+'</pre>'); });
+  }
+
+  let seconds=0, timer=null;
+  function paintClock(){ const m=String(Math.floor(seconds/60)).padStart(2,'0'),
+    s=String(seconds%60).padStart(2,'0'); document.getElementById('clock').textContent=m+':'+s; }
+  function toggleTimer(){ const b=document.getElementById('startBtn');
+    if(timer){ clearInterval(timer); timer=null; b.textContent='▶ Resume'; }
+    else { timer=setInterval(()=>{ seconds++; paintClock(); if(seconds%10===0) save(); },1000);
+      b.textContent='⏸ Pause'; } }
+
+  let rec=null;
+  function micToggle(btn, ta){
+    if(rec){ rec.stop(); return; }
+    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    if(!SR){ alert('This browser has no speech recognition — type the note instead.'); return; }
+    rec=new SR(); rec.lang='en-GB'; rec.interimResults=false; rec.continuous=true;
+    rec.onresult=e=>{ let t=''; for(let i=e.resultIndex;i<e.results.length;i++) t+=e.results[i][0].transcript;
+      ta.value=(ta.value?ta.value+' ':'')+t.trim(); save(); };
+    rec.onend=()=>{ btn.classList.remove('on'); rec=null; };
+    rec.onerror=()=>{ btn.classList.remove('on'); rec=null; };
+    btn.classList.add('on'); rec.start();
+  }
+
+  buildSteps(); restore(); progress(); paintClock();
+</script>
+</body></html>

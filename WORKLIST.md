@@ -125,9 +125,11 @@ must carry no refusal). **Sabotaged on purpose:** restored `refusal_txn_ref=tran
 rebuilt, and the refusal landed on `TXN-0036` — the next customer's lollipop — with both
 new checks red. Restored, green again.
 
-⚠️ The four false rows from before the fix **cannot be corrected — the table is
-append-only, by design.** They stay visible as history. Nothing shipped to prod, so
-there is no bad shop data anywhere.
+⚠️ The false rows from before the fix **cannot be corrected — the table is append-only,
+by design.** As of 2026-08-13 the sandbox holds **17 false links across 52 refusals, 7 of
+them pointing at a sale with no 18+ line at all** (the count grew with each probe run
+before the fix landed). They stay visible as history. Nothing shipped to prod, so there
+is no bad shop data anywhere — but decide before promoting whether UAT starts clean.
 
 **2 · "Remove member & continue" is a one-click path around the DOB block.** Verified
 over HTTP: minor attached + attestation → **400 refused**; remove the member, attest as
@@ -161,13 +163,18 @@ exact shape this sheet exists to catch, in the sheet itself.**
   human attestation, or they stay a permanent human sign-off. That is a design answer,
   not a coding one.
 
-**▶️ NEXT, and it needs Angel's hands:**
-[`onboarding/testsheets/AGE-EVIDENCE-TESTSHEET.html`](onboarding/testsheets/AGE-EVIDENCE-TESTSHEET.html)
-— 25 steps, every command in it run verbatim before it shipped (one wrong column name
-caught that way). Parts B and C are the tablet: **does the till feel unchanged**, does the
-refusal message help a cashier with a customer waiting, and **read the German**. Part D is
-the gap above. Part F is five decisions for you and Felix — including whether missing
-*evidence* blocks the parallel run, or is a fast-follow.
+**▶️ NEXT, and it needs Angel's hands — TEST LOCALLY, THEN PROMOTE:**
+[`onboarding/testsheets/REFUSAL-EVIDENCE-RETEST.html`](onboarding/testsheets/REFUSAL-EVIDENCE-RETEST.html)
+— **15 steps, ~15 minutes**, the focused retest of `efbc056` alone. The 27-step
+`AGE-EVIDENCE-TESTSHEET.html` is **done**; do not re-run it. This one is Part P (prove the
+running image actually has the fix — the image bakes `src/` in), Part R (refuse one
+customer, sell the next, and confirm the lollipop's number appears **nowhere** in the
+evidence), Part L (the 17 pre-fix rows that lie and cannot be corrected), **Part T (what
+promote means: a build, a boot, and the same two checks on UAT)**, and three decisions.
+
+*Every one of its eight commands was run verbatim against the live sandbox before it
+shipped.* It uses a `$RUN_START` marker rather than a time window, because the table
+already holds 52 refusals — most of them mine, logged as `pam`, and unremovable.
 
 *Sandbox stand-up, in order:* `./scripts/rebuild.sh` → `./scripts/standup.sh` →
 seed the pack → `BANCO_ALLOW_FAKE_SALES=1 python3 scripts/prove-age-evidence.py`.
