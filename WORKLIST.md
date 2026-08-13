@@ -163,6 +163,65 @@ exact shape this sheet exists to catch, in the sheet itself.**
   human attestation, or they stay a permanent human sign-off. That is a design answer,
   not a coding one.
 
+### 🔴🔴 NO PATH THROUGH THE TILL CAN PRODUCE A REFUSAL RECORD — 2026-08-13, v2 run
+
+**`age_check_event` holds 52 rows. All 52 say `refused`. All 52 were written by my
+probe over raw HTTP. Not one was ever created by a person at the till, and none can be.**
+
+The v2 sheet told Angel to press **"✅ Confirm 18+ walk-in"** with a DOB-proven minor
+attached — the one case where client and server disagree. **That button is not rendered
+in that state.** `checkout.html:505` says so in its own comment: *"hidden when a
+KNOWN-minor member is attached (it can't clear the server gate; would just loop)"*. It was
+also visible in his 08-12 screenshot, which showed exactly two buttons. **I wrote an
+instruction for a button I had already been shown does not exist.**
+
+Every route to a server refusal is closed client-side:
+
+| cashier does | POST? | server sees | evidence row |
+|---|---|---|---|
+| no member → 🚫 remove 18+ item | **no** | nothing | **none** |
+| no member → ✅ confirm walk-in | 201 | cleared | none (by design) |
+| minor member → 👤 remove member → ✅ confirm | 201 | cleared | none |
+| minor member → 🚫 remove 18+ item | **no** | nothing | **none** |
+| minor member → ✅ confirm walk-in | **button not rendered** | — | — |
+
+**The half that DOES work:** clearances land on `transactions.age_check_outcome`, and
+that is real and correct — his v2 run produced `TXN-20260813-0005` and `-0006` both
+reading `cashier_attest`. That is the durable, sale-joined record `d4144d4` promised.
+`age_check_event` is refusals-only by design (a refusal has no transaction to hang on) —
+there is exactly one writer in the codebase, `_record_age_refusal`, and the till never
+reaches it.
+
+**Is `efbc056` still a real fix?** Yes — the 17 false links prove the defect was real, and
+the probe proves it is gone. But it can only ever be exercised by the probe. From where
+Angel stands, nothing improved, and he is right to say so.
+
+**The fix is code, not another testsheet:** `ageRefuse()` must tell the server. Blocked on
+one decision (F1) — record every refuse-tap on an append-only table, or only some.
+
+### ⚠️ SUSPECTED, NOT PROVEN — THE PREVIOUS CUSTOMER'S CART COMES BACK
+
+Every one of his six receipts today carried the previous sale's items:
+
+```
+TXN-0001 papers + sticker
+TXN-0002 lollipop + sticker + papers          <- 0001's items again
+TXN-0003 grindercard x2 + papers + sticker + lollipop
+TXN-0004 grindercard + lighter + lollipop + papers + sticker
+TXN-0005 CBD Gummy + all five of 0004's items  <- CHF 5.15 for one gummy
+```
+
+**Mechanism (code-level, unproven at the screen):** `pos_cart` IS cleared on success
+(`checkout.html:1207`). But **`scan.html` has no `pageshow`/bfcache guard** — checkout has
+one and its comment names this exact hazard. Press **Back** from a receipt onto the scan
+page and the browser can restore it from bfcache with the previous cart still in Alpine's
+in-memory state. Add one item, check out, and the last customer's goods are rung again.
+
+I could not verify this — the Chrome extension is not connected, and this is a screen.
+**20-second repro for Angel:** ring anything → complete → press the browser **Back**
+button (not 🛒 New Sale) → does the old cart reappear? If yes this is a money bug and it
+outranks everything else on this list.
+
 ### 🔴 THE RETEST FOUND SOMETHING BIGGER THAN THE THING IT WAS RETESTING — 2026-08-13
 
 **THE REFUSAL A CASHIER ACTUALLY PERFORMS IS NEVER SENT TO THE SERVER.**
