@@ -199,28 +199,58 @@ Angel stands, nothing improved, and he is right to say so.
 **The fix is code, not another testsheet:** `ageRefuse()` must tell the server. Blocked on
 one decision (F1) — record every refuse-tap on an append-only table, or only some.
 
-### ⚠️ SUSPECTED, NOT PROVEN — THE PREVIOUS CUSTOMER'S CART COMES BACK
+### ✅ THE "CART COMES BACK" SCARE — WRONG, AND CHECKED TWICE
 
-Every one of his six receipts today carried the previous sale's items:
+I saw the previous sale's items on each of his receipts, found that `scan.html` has no
+`pageshow`/bfcache guard while `checkout.html` has one whose comment names that exact
+hazard, and called it a probable money bug. **It is not.**
+
+Angel checked at the screen — *"the back button goes to a clean new sale, works fine"* —
+and the browser suite now asserts it on every run: **Back from a receipt lands on
+`/pos/scan` with an empty cart**, and a fresh New Sale is empty too. The accumulating
+receipts were him re-adding items, not the till re-serving them.
+
+**A code smell is a hypothesis.** Same lesson as the spec parser that was "backwards for
+three days" and the Brother driver that had been fixed upstream: the missing guard is
+real, the consequence I predicted from it is not.
+
+*What IS real, and Angel found it:* the scan header shows the **previous** transaction
+number at the top of a new sale until you refresh. Cosmetic — and worth noting that it is
+the same fiction that caused `efbc056`: **the "next number" is a prediction, and a
+prediction is not an identifier.**
+
+### 🧪 NEW — `scripts/prove-till-18plus.js`: THE PROBE THAT CAN SEE A BUTTON
+
+The Python probe was 25/25 green on a feature no cashier could reach. **A probe that posts
+JSON cannot see an `x-show`.** So there is now a Playwright suite that drives the real
+screens as `pam` — **19 checks, 0 failed, 2 pinned KNOWN GAPS** — and it asserts the
+things that actually bit us:
+
+- the 🔞 modal fires and **no POST is made** (the client stops it)
+- **the modal's buttons, enumerated in both states** — with a minor attached, "✅ Confirm
+  18+ walk-in" is *absent*. That is the assertion that would have stopped me writing two
+  bad testsheet steps.
+- 🚫 Refuse → no POST, no evidence row → **KNOWN GAP (F1)**
+- ✅ attest → `cashier_attest`; of-age member → `member_dob` (both recorded, both correct)
+- minor → remove member → attest → sale completes → **KNOWN GAP (F2)**
+- `efbc056` from the UI: no sale rung carries another cart's refusal
+- cart hygiene after a completed sale (the scare above, now a permanent guard)
+
+**Sabotaged twice before being believed** (the 08-07 rule): pointed the age item at a
+non-gated product → 5 red; and removed the `x-show` guard on the walk-in button, rebuilt,
+and check 4 went red on exactly that line. Reverted, rebuilt, green again.
+
+It **refunds its own sales** (as manager — `pam` cannot refund, and should not be able to)
+and never touches the evidence rows, which are append-only.
 
 ```
-TXN-0001 papers + sticker
-TXN-0002 lollipop + sticker + papers          <- 0001's items again
-TXN-0003 grindercard x2 + papers + sticker + lollipop
-TXN-0004 grindercard + lighter + lollipop + papers + sticker
-TXN-0005 CBD Gummy + all five of 0004's items  <- CHF 5.15 for one gummy
+BANCO_ALLOW_FAKE_SALES=1 NODE_PATH=/home/angel/repos/helixnet/node_modules \
+  node scripts/prove-till-18plus.js
 ```
 
-**Mechanism (code-level, unproven at the screen):** `pos_cart` IS cleared on success
-(`checkout.html:1207`). But **`scan.html` has no `pageshow`/bfcache guard** — checkout has
-one and its comment names this exact hazard. Press **Back** from a receipt onto the scan
-page and the browser can restore it from bfcache with the previous cart still in Alpine's
-in-memory state. Add one item, check out, and the last customer's goods are rung again.
-
-I could not verify this — the Chrome extension is not connected, and this is a screen.
-**20-second repro for Angel:** ring anything → complete → press the browser **Back**
-button (not 🛒 New Sale) → does the old cart reappear? If yes this is a money bug and it
-outranks everything else on this list.
+⚠️ Playwright is **borrowed, not vendored** — this repo has no node build on purpose, so
+the suite reads it from a sibling repo via `NODE_PATH`. If that repo moves, point
+`NODE_PATH` somewhere else; the script exits 2 with instructions rather than failing oddly.
 
 ### 🔴 THE RETEST FOUND SOMETHING BIGGER THAN THE THING IT WAS RETESTING — 2026-08-13
 
