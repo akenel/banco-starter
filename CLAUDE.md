@@ -116,18 +116,24 @@ pattern below, bump the count here. A pattern at ×7 is telling you something a 
    proof, and the partial prod copy that manufactured a 24-product compliance scare. *Get the
    reference figure FROM the system, and copy the columns that make a row TRUE, not the ones your
    task reads.*
-6. **Anything a person touches is verified by a human or a browser — never by reading the template.**
+6. **×2 · A test that finishes inside five minutes cannot see a five-minute timeout.** Silent
+   token refresh had NEVER worked in the sandbox — issuer mismatch, `localhost:8090` vs
+   `keycloak:8080` — so every session hard-logged-out the moment the access token expired. Every
+   probe I write runs in 90 seconds with a fresh token, so nothing I could build would have found
+   it. **Angel found it in ten minutes of ordinary use, and lost a compliance record to it.**
+   *Ask what your harness is structurally blind to: time, idleness, a second tab, a real day.*
+7. **Anything a person touches is verified by a human or a browser — never by reading the template.**
    For server work, reading the code IS the verification. For a screen it is a guess with citations.
    `scripts/prove-till-18plus.js` exists because I got this wrong twice in one day.
-7. **Verification against REALITY finds a class of error that verification against the database
+8. **Verification against REALITY finds a class of error that verification against the database
    cannot.** A wrong barcode bind looks exactly like a right one; only re-scanning the packet tells
    them apart. Same for anything physical — "CUPS drained the job" is not "a label came out".
-8. **Never invent an identifier that exists in the physical world.** 5,103 minted EANs made an
+9. **Never invent an identifier that exists in the physical world.** 5,103 minted EANs made an
    otherwise excellent catalogue unusable at a till. Leave it blank; let the first scan bind it.
-9. **Before filling an empty field, grep for its name in the comments.** A design that rejected
+10. **Before filling an empty field, grep for its name in the comments.** A design that rejected
    something usually left a note saying so — `stock_quantity = 1` is the zero-perpetual design, not
    missing data.
-10. **A validation nobody can see is a silent failure, and a green summary over an unchecked box is
+11. **A validation nobody can see is a silent failure, and a green summary over an unchecked box is
     a lie.** Put the outcome where the button is, and never demand words a dropdown already said.
 
 ---

@@ -23,6 +23,8 @@ import os
 import subprocess
 import sys
 import urllib.request
+import urllib.error
+import urllib.parse
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ENV_PATH = os.path.join(ROOT, ".env")
@@ -196,6 +198,49 @@ def main():
         else:
             warn(f"only {p} products with HX_SEED_DEMO=true — expected ≥6 (the Treats)",
                  "if this is a restored DB, ignore; else check `docker compose logs app`")
+
+    # 5b) SILENT TOKEN REFRESH ACTUALLY WORKS ------------------------------
+    # A CRITICAL check, because when this is broken nothing looks broken: login
+    # succeeds, every screen works, and then the cashier is hard-logged-out the moment
+    # the 5-minute access token expires — mid-sale, mid-anything.
+    #
+    # 2026-08-13: it had NEVER worked in the sandbox. The browser logs in at
+    # localhost:8090 so its token says `iss = http://localhost:8090/...`; the app's
+    # /pos/refresh presented that token to `http://keycloak:8080/...` and Keycloak
+    # answered "Invalid token issuer". Angel lost a testsheet run to it, and a refusal
+    # he made was never recorded. Prod was always right (KC_HOSTNAME + strict), which is
+    # exactly why nobody caught it: the environment where we DECIDE whether things work
+    # was the broken one.
+    #
+    # This does the real thing rather than reading config: log in as the browser does,
+    # then refresh through the app exactly as the till does.
+    try:
+        import urllib.parse
+        body = urllib.parse.urlencode({
+            "client_id": "helix_pos_web", "username": "pam", "password": "pam",
+            "grant_type": "password"}).encode()
+        req = urllib.request.Request(
+            f"http://localhost:{kc_port}/realms/{realm}/protocol/openid-connect/token",
+            data=body, headers={"Content-Type": "application/x-www-form-urlencoded"})
+        with urllib.request.urlopen(req, timeout=8) as r:
+            tok = json.loads(r.read())
+        rr = urllib.request.Request(
+            f"http://localhost:{app_port}/pos/refresh",
+            data=json.dumps({"refresh_token": tok["refresh_token"]}).encode(),
+            headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(rr, timeout=8) as r2:
+            got = json.loads(r2.read())
+        if got.get("access_token"):
+            ok("silent token refresh works — a session survives past the 5-min access token")
+        else:
+            fail("POST /pos/refresh returned no access_token — sessions will hard-log-out")
+    except urllib.error.HTTPError as e:
+        fail(f"silent token refresh is BROKEN (/pos/refresh -> {e.code}) — "
+             "cashiers will be logged out every ~5 minutes, mid-sale",
+             "issuer mismatch: pin KC_HOSTNAME_URL on the keycloak service in compose.yml "
+             "so the token's `iss` matches what Keycloak expects internally")
+    except Exception as e:
+        warn(f"could not test token refresh ({type(e).__name__}) — check it by hand")
 
     # 6) B2 backups configured (info only — never prints the key) -----------
     b2_set = all(env.get(k) for k in ("B2_KEY_ID", "B2_APP_KEY", "B2_BUCKET"))

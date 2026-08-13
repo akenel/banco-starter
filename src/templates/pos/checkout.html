@@ -537,6 +537,28 @@
                 <p class="text-xs text-gray-600 mt-2" data-i18n="checkout.refuse_note">
                     The first three leave a permanent record that the gate was applied. The last one does not.
                 </p>
+
+                <!-- The write failed. This is NOT a toast on purpose: a lost compliance record
+                     must be acknowledged by the person, in the place they are already looking. -->
+                <div x-show="ageRefuseFailed" x-cloak
+                     class="mt-3 border-2 border-red-500 bg-white rounded-lg p-3">
+                    <p class="font-bold text-red-700" data-i18n="checkout.refuse_fail_title">
+                        ⚠️ The refusal was NOT recorded
+                    </p>
+                    <p class="text-sm text-gray-800 mt-1" data-i18n="checkout.refuse_fail_body">
+                        The 18+ item has been taken off the sale, so the customer is correctly
+                        turned away — but nothing was written down. Try again; if it still fails,
+                        note it in the day book.
+                    </p>
+                    <button @click="ageRefuseRetry()" :disabled="ageProcessing"
+                            class="btn-primary w-full mt-2" data-i18n="checkout.refuse_retry">
+                        ↻ Try again
+                    </button>
+                    <button @click="ageRefuseGiveUp()" class="btn-secondary w-full mt-2"
+                            data-i18n="checkout.refuse_giveup">
+                        I have noted it by hand — continue
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -558,6 +580,8 @@
             ageVerified: false,        // cashier attested a walk-in is 18+ (ID checked)
             ageProcessing: false,      // signup / refusal write in flight
             ageRefuseWhy: false,       // the one question the 🚫 button asks before it acts
+            ageRefuseFailed: false,    // the write failed — say so where the button is
+            ageRefuseLast: null,       // the reason picked, so Retry can re-send it
             ageForm: { handle: '', birthdate: '', marketing_consent: false },
             paymentMethod: 'visa',
             processing: false,
@@ -1100,37 +1124,91 @@
             // (a server-side rejection, which almost never happens at a till) and missed
             // the rule.
             //
-            // The record is written BEFORE the cart is touched, and a failure to write it
-            // does NOT block the refusal: the customer has already been turned away, and
-            // holding up the counter over a logging error would be the wrong trade. It is
-            // surfaced as a toast so it is not silent.
+            // WRITE-AHEAD, THEN POST. The refusal is parked in localStorage BEFORE the
+            // request goes out, and only cleared once the server has it.
+            //
+            // Why not just POST and toast on failure: because the most likely failure is a
+            // dead session, and a 401 makes the API helper log the cashier out — the page
+            // navigates and any panel or toast goes with it. That is exactly what happened
+            // to Angel on 2026-08-13: he pressed "Clearly under 18", was logged out, and
+            // the refusal was never recorded. A compliance record that a logout can delete
+            // is not a record.
+            //
+            // So the queue survives the logout, and `flushPendingRefusals()` (base.html)
+            // sends it on the next successful login. A late row is honest and says so;
+            // a missing row is not.
+            //
+            // A failure to write NEVER blocks the refusal itself — the customer has already
+            // been turned away, and holding the counter over a logging error is the wrong
+            // trade. But it is said out loud, where the button is (2026-08-03).
             async ageRefuse(reason) {
+                this.ageRefuseFailed = false;
                 if (reason) {
+                    this.ageRefuseLast = reason;
+                    const item = this.cartData.cart.find(i => this.isAgeLine(i)) || {};
+                    const entry = {
+                        cart_ref: this.saleUuid(),
+                        product_class: item.product_class || null,
+                        reason,
+                        at: new Date().toISOString(),      // for the "recorded late" note
+                    };
+                    queueRefusal(entry);                    // parked FIRST — survives a logout
                     this.ageProcessing = true;
                     try {
-                        await API.post('/api/v1/pos/age-refusal', {
-                            cart_ref: this.saleUuid(),
-                            product_class: (this.cartData.cart.find(i => this.isAgeLine(i)) || {}).product_class || null,
-                            reason,
-                        });
+                        await API.post('/api/v1/pos/age-refusal', entry);
+                        unqueueRefusal(entry);              // the server has it; drop the copy
                     } catch (e) {
-                        showToast(t('checkout.toast_refusal_not_recorded'), 'warning');
+                        // Stays queued. If this was a 401 the page is already navigating to
+                        // the login screen and nothing below will be seen — which is the
+                        // whole reason the queue exists.
+                        this.ageRefuseFailed = true;
                     } finally {
                         this.ageProcessing = false;
                     }
                 }
-                this.ageRefuseWhy = false;
                 this.cartData.cart = this.cartData.cart.filter(i => !this.isAgeLine(i));
-                this.showAgeModal = false;
                 this.recalculateTotals();
                 this.calculateChange();
                 sessionStorage.setItem('pos_cart', JSON.stringify(this.cartData));
+
+                if (this.ageRefuseFailed) return;          // modal stays; nothing navigates
+
+                this.ageRefuseWhy = false;
+                this.showAgeModal = false;
                 if (this.cartData.cart.length === 0) {
                     showToast(t('checkout.toast_age_removed_empty'), 'warning');
                     setTimeout(() => window.location.href = '/pos/scan', 900);
                 } else {
                     showToast(t('checkout.toast_age_removed'), 'success');
                 }
+            },
+
+            // Retry the write only — the item is already off the sale.
+            async ageRefuseRetry() {
+                if (!this.ageRefuseLast) return;
+                this.ageProcessing = true;
+                try {
+                    await flushPendingRefusals(true);
+                    this.ageRefuseFailed = false;
+                    this.ageRefuseWhy = false;
+                    this.showAgeModal = false;
+                    showToast(t('checkout.toast_refusal_recorded'), 'success');
+                    if (this.cartData.cart.length === 0) setTimeout(() => window.location.href = '/pos/scan', 900);
+                } catch (e) {
+                    this.ageRefuseFailed = true;
+                } finally {
+                    this.ageProcessing = false;
+                }
+            },
+
+            // Acknowledge a record that could not be written now. It STAYS QUEUED — this
+            // only dismisses the panel so the counter can move; the next successful login
+            // still sends it.
+            ageRefuseGiveUp() {
+                this.ageRefuseFailed = false;
+                this.ageRefuseWhy = false;
+                this.showAgeModal = false;
+                if (this.cartData.cart.length === 0) setTimeout(() => window.location.href = '/pos/scan', 900);
             },
 
             async completeTransaction() {

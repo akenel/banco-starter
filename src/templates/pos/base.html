@@ -686,6 +686,49 @@
             } catch (e) {}
         });
 
+        // ---- 🔞 PENDING REFUSALS ------------------------------------------------
+        // An 18+ refusal is a compliance record, and the most likely way to lose one is a
+        // dead session: the POST 401s, the API helper logs the cashier out, the page
+        // navigates, and whatever the screen was about to say goes with it. Angel lost one
+        // exactly that way on 2026-08-13.
+        //
+        // So the till parks the refusal locally BEFORE it posts, and this flushes the queue
+        // on the next successful login. localStorage, not sessionStorage — it has to
+        // outlive the tab.
+        const PENDING_REFUSALS = 'pos_pending_refusals';
+        function _readQueue() {
+            try { return JSON.parse(localStorage.getItem(PENDING_REFUSALS) || '[]'); } catch (e) { return []; }
+        }
+        function _writeQueue(q) {
+            try { localStorage.setItem(PENDING_REFUSALS, JSON.stringify(q)); } catch (e) {}
+        }
+        function queueRefusal(entry) { const q = _readQueue(); q.push(entry); _writeQueue(q); }
+        function unqueueRefusal(entry) {
+            _writeQueue(_readQueue().filter(e => !(e.cart_ref === entry.cart_ref && e.at === entry.at)));
+        }
+        // Send everything parked. `strict` rethrows so a Retry button can show the failure;
+        // the boot-time call swallows errors — a queue that cannot flush yet must never
+        // stop someone logging in.
+        async function flushPendingRefusals(strict) {
+            const q = _readQueue();
+            if (!q.length) return 0;
+            let sent = 0;
+            for (const e of q) {
+                try {
+                    await API.post('/api/v1/pos/age-refusal', e);
+                    unqueueRefusal(e);
+                    sent++;
+                } catch (err) {
+                    if (strict) throw err;
+                    return sent;   // stop on the first failure; order is kept
+                }
+            }
+            if (sent) {
+                try { showToast(t('checkout.toast_refusal_flushed', { n: sent }), 'success'); } catch (e) {}
+            }
+            return sent;
+        }
+
         // API helper with automatic auth + silent token refresh
         const API = {
             _buildConfig(options) {
@@ -1271,6 +1314,11 @@
         sweepI18n(document);
         document.addEventListener('DOMContentLoaded', function () {
             sweepI18n(document);
+            // Flush any 18+ refusal that a dead session stranded here. Best-effort and
+            // silent on failure: a queue that cannot send yet must never block the till.
+            try {
+                if (AuthHelper.getToken()) flushPendingRefusals(false).catch(function () {});
+            } catch (e) {}
             var sel = document.getElementById('pos-lang-switch');
             if (sel) sel.value = window._posLang || 'en';
             // Key-parity self-check (dev aid, cheap, once): en/it/de must share one key set.

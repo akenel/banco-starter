@@ -49,6 +49,24 @@ services:
       KC_HTTP_ENABLED: "true"
       KC_HOSTNAME_STRICT: "false"
       KC_HEALTH_ENABLED: "true"
+      # ONE ISSUER, EVERYWHERE — or silent token refresh cannot work. 2026-08-13.
+      #
+      # Without this, Keycloak derives the issuer from whatever host the request arrived
+      # on. The browser logs in at localhost:8090, so its token says
+      # `iss = http://localhost:8090/...`; `/pos/refresh` then presents that token to
+      # `http://keycloak:8080/...` from inside the network, and Keycloak rejects it —
+      #   invalid_grant · "Invalid token issuer. Expected 'http://keycloak:8080/...'"
+      # — so EVERY refresh 401s, and the till hard-logs-out the cashier the moment the
+      # 5-minute access token expires. The refresh endpoint's own docstring promises the
+      # opposite ("NEVER hard-logged-out mid-sale"), and it had never worked here.
+      #
+      # Angel hit it mid-testsheet: he pressed a refusal button, was logged out, and the
+      # refusal was NOT recorded — the one thing that feature exists to prevent.
+      #
+      # compose.prod.yml already gets this right (KC_HOSTNAME + KC_HOSTNAME_STRICT=true),
+      # so this was a SANDBOX-ONLY defect — which is worse than it sounds, because the
+      # sandbox is where we decide whether things work.
+      KC_HOSTNAME_URL: ${KC_PUBLIC_URL:-http://localhost:8090}
     volumes:
       - ./keycloak/import:/opt/keycloak/data/import:ro
     ports:

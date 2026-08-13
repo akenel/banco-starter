@@ -25,6 +25,8 @@
  *   4  the modal's buttons, MINOR attached    -> remove member · refuse  (NO walk-in)
  *   5  🚫 Refuse -> asks WHY, then records a real refusal / records nothing on
  *         "just taking it off". Checks the row's outcome, txn_ref, cashier and cart_ref.
+ *         5c fails the write on purpose: the modal must STAY with a red panel and a
+ *         retry, never navigate away from the news.
  *   6  ✅ Confirm walk-in -> 201 + transactions.age_check_outcome = cashier_attest
  *   7  an of-age member -> no modal at all, outcome = member_dob
  *   8  minor -> remove member -> attest -> 201                      [KNOWN BYPASS]
@@ -382,6 +384,80 @@ async function attachMember(p, handle) {
       check(threaded === '1', 'it carries the cart_ref, so a later sale on this cart threads to it',
         `cart_ref=${cartUuid.slice(0, 8)} rows=${threaded}`);
     }
+
+    head('5c · a write that fails must not lose the record — two ways it can fail');
+    // Angel, 2026-08-13: he pressed a refusal, his session had died, the POST 401'd, and
+    // the refusal was never recorded. Two distinct failures hide in that sentence and they
+    // behave differently, so both are tested.
+
+    // (i) A SERVER BLIP (5xx). The page stays, so the cashier can be told where they are
+    //     looking rather than by a toast that scrolls away (2026-08-03).
+    await gotoScan(p);
+    await addItem(p, AGE_ITEM);
+    await addItem(p, SECOND_ITEM);
+    await toCheckout(p);
+    r = await pay(p);
+    check(r === 'age-modal', 'the modal fires', `result=${r}`);
+    await p.route('**/api/v1/pos/age-refusal', route =>
+      route.fulfill({ status: 500, contentType: 'application/json', body: '{"detail":"boom"}' }));
+    let ev5 = evidenceCount();
+    await p.click('button:has-text("Refuse — remove")');
+    await p.waitForTimeout(400);
+    await p.click('button:has-text("No ID shown")');
+    await p.waitForTimeout(2500);
+    const blip = await p.evaluate(() => {
+      const txt = document.body.innerText;
+      let d = null; try { d = Alpine.$data(document.querySelector('[x-data]')); } catch (e) {}
+      return {
+        told: /NOT recorded|NICHT protokolliert/.test(txt),
+        modalOpen: !!(d && d.showAgeModal),
+        retry: /Try again|Nochmals versuchen/.test(txt),
+        removed: !!(d && !d.cartData.cart.some(i => d.isAgeLine(i))),
+        queued: (() => { try { return JSON.parse(localStorage.getItem('pos_pending_refusals') || '[]').length; } catch (e) { return -1; } })(),
+      };
+    });
+    check(blip.told, 'it says plainly that the refusal was NOT recorded');
+    check(blip.modalOpen, 'the modal STAYS OPEN — it does not navigate away from the news');
+    check(blip.retry, 'and offers a retry');
+    check(blip.removed, 'the 18+ item still comes off the sale — the customer is turned away');
+    check(evidenceCount() === ev5, 'nothing reached the server, as simulated', `${ev5}`);
+    check(blip.queued === 1, 'and it is PARKED locally', `queued=${blip.queued}`);
+
+    await p.unroute('**/api/v1/pos/age-refusal');
+    await p.click('button:has-text("Try again")');
+    await p.waitForTimeout(2500);
+    check(evidenceCount() === ev5 + 1, 'the retry records it', `${ev5} -> ${evidenceCount()}`);
+
+    // (ii) A DEAD SESSION (401). The API helper logs the cashier out and the browser leaves
+    //      for Keycloak, so no panel can survive — which is exactly why the queue exists.
+    //      This is Angel's case: logged out, came back as pam, and the record must arrive.
+    await gotoScan(p);
+    await addItem(p, AGE_ITEM);
+    await toCheckout(p);
+    r = await pay(p);
+    await p.route('**/api/v1/pos/age-refusal', route =>
+      route.fulfill({ status: 401, contentType: 'application/json', body: '{"detail":"expired"}' }));
+    ev5 = evidenceCount();
+    await p.click('button:has-text("Refuse — remove")');
+    await p.waitForTimeout(400);
+    await p.click('button:has-text("No ID shown")');
+    await p.waitForTimeout(3000);
+    await p.unroute('**/api/v1/pos/age-refusal');
+    check(evidenceCount() === ev5, 'a dead session loses the request, as simulated', `${ev5}`);
+    await login(p);                      // "…and when I came back in as PAM"
+    await p.goto(`${ROOT}/pos/dashboard`);
+    await p.waitForLoadState('networkidle');
+    await p.waitForTimeout(3000);
+    check(evidenceCount() === ev5 + 1, 'logging back in FLUSHES it — the logout could not delete it',
+      `${ev5} -> ${evidenceCount()}`);
+    const drained = await p.evaluate(() => {
+      try { return JSON.parse(localStorage.getItem('pos_pending_refusals') || '[]').length; }
+      catch (e) { return -1; }
+    });
+    check(drained === 0, 'the queue drains, so it cannot double-write', `queued=${drained}`);
+    const late = psql("select note from age_check_event order by occurred_at desc limit 1");
+    check(/recorded late/.test(late), 'and the row SAYS it was recorded late rather than pretending',
+      late.slice(0, 120));
 
     // ---- 6 ----------------------------------------------------------------
     head('6 · ✅ Confirm 18+ walk-in — the attested clearance');

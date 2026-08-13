@@ -5657,6 +5657,10 @@ class AgeRefusalIn(BaseModel):
     product_class: str | None = Field(None, max_length=40)
     reason: str = Field(..., max_length=40,
                         description="one of the counter reasons; free text is deliberately not accepted")
+    at: str | None = Field(None, max_length=40,
+                           description="when the cashier actually refused, ISO-8601. Only used to "
+                                       "NOTE a late write — occurred_at is always the server's clock, "
+                                       "because a client must not be able to backdate evidence.")
 
 
 # The reasons a refusal can carry. A CLOSED list, not free text: 2026-08-03 cost a CHF 500
@@ -5708,10 +5712,23 @@ async def record_age_refusal(
             detail=f"unknown refusal reason '{body.reason}' "
                    f"(expected one of: {', '.join(sorted(_AGE_REFUSAL_REASONS))})",
         )
+    note = f"refused at the counter — {_AGE_REFUSAL_REASONS[body.reason]}"
+    # A refusal parked by the till and sent later (dead session, blip). occurred_at stays
+    # the SERVER's clock — a client that can backdate evidence is not evidence — so the
+    # delay is recorded in the note instead, where a reader can see it.
+    if body.at:
+        try:
+            when = datetime.fromisoformat(body.at.replace("Z", "+00:00"))
+            lag = (datetime.now(timezone.utc) - when).total_seconds()
+            if lag > 90:
+                note += (f" [recorded late — the till could not reach the server at "
+                         f"{when.astimezone(SHOP_TZ):%Y-%m-%d %H:%M}]")
+        except (ValueError, TypeError):
+            pass
     await _record_age_refusal(
         None, current_user, await _resolve_cashier_uid(db, current_user),
         product_class=body.product_class,
-        note=f"refused at the counter — {_AGE_REFUSAL_REASONS[body.reason]}",
+        note=note,
         cart_ref=body.cart_ref,
     )
     return {"recorded": True}
