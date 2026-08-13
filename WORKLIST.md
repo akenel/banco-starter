@@ -30,6 +30,9 @@ refused. **Every session hard-logged-out ~5 min after login.** `compose.prod.yml
 `KC_HOSTNAME` and was always right — so the *broken* environment was the one where we
 decide whether things work.
 
+**Suite is 44 checks now** — Angel's exact sequence (refuse → dead session → log back in →
+the record arrives, marked late) runs in 90 seconds.
+
 **Fixed (`9f34f85`):** `KC_HOSTNAME_URL` pinned in `compose.yml`; `postboot-check.py` now
 logs in and refreshes **for real** as a critical check (sabotaged → NOT READY, restored →
 green); and the till **parks a refusal in `localStorage` before it posts**, flushing on

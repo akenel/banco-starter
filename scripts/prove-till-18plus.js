@@ -117,10 +117,14 @@ async function login(p) {
     // Either the Keycloak form appeared, or an existing SSO session bounced us straight
     // back with a token. Do NOT test the path: an SSO bounce can land on "/pos" itself,
     // which `startsWith('/pos/')` misses, and the whole run then dies at step one.
-    () => {
-      if (document.querySelector('#username')) return true;
-      try { return !!(window.AuthHelper && AuthHelper.getToken()); } catch (e) { return false; }
-    }, null, { timeout: 20000 });
+    // Read the token out of STORAGE, not via AuthHelper: base.html declares it as a
+    // top-level `const`, so it is never a window property and `window.AuthHelper` is
+    // always undefined here. With an active SSO session the Keycloak form is skipped
+    // entirely, so that branch was the only one left — and it could never be true.
+    () => !!(document.querySelector('#username')
+             || sessionStorage.getItem('pos_token')
+             || localStorage.getItem('pos_token')),
+    null, { timeout: 20000 });
   if (await p.$('#username')) {
     await p.fill('#username', USER);
     await p.fill('#password', PASS);
@@ -128,7 +132,8 @@ async function login(p) {
     await p.waitForURL('**/pos/**', { timeout: 20000 });
   }
   await p.waitForLoadState('networkidle');
-  const authed = await p.evaluate(() => { try { return !!AuthHelper.getToken(); } catch (e) { return false; } });
+  const authed = await p.evaluate(() =>
+    !!(sessionStorage.getItem('pos_token') || localStorage.getItem('pos_token')));
   if (!authed) throw new Error(`login did not produce a token: ${p.url()}`);
 }
 
