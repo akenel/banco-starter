@@ -39,6 +39,41 @@ else
   case "${ans:-n}" in y|Y|yes) ;; *) echo "Stopped. Wire B2 first: python3 scripts/init-banco.py"; exit 1;; esac
 fi
 
+# PREFLIGHT — a sandbox default must never reach production.
+# 2026-08-13: compose.yml gained KC_HOSTNAME_URL for the sandbox, compose.prod.yml is an
+# OVERLAY on it, and KC_HOSTNAME_URL takes precedence over KC_HOSTNAME in Keycloak. For one
+# commit, deploying would have made production issue every token for http://localhost:8090
+# and broken every login — silently, because the containers start fine.
+#
+# Checks the REAL merged config, and rejects EMPTY as well as local. The first version of
+# this guard only grepped for "localhost" and passed happily on `https://` with the host
+# unset — found by running it with KC_PUBLIC_HOST deliberately missing, which is the only
+# reason it is written this way.
+echo "🔎 1b/4 — Preflight: Keycloak's public URL is real"
+docker compose -f compose.yml -f compose.prod.yml config 2>/dev/null | python3 -c '
+import sys, yaml
+try:
+    env = yaml.safe_load(sys.stdin)["services"]["keycloak"].get("environment", {}) or {}
+except Exception as e:
+    print(f"   could not resolve the compose config: {e}"); sys.exit(1)
+bad = []
+for key in ("KC_HOSTNAME", "KC_HOSTNAME_URL"):
+    val = (env.get(key) or "").strip()
+    host = val.split("://", 1)[-1].strip("/")
+    if not host:
+        bad.append(f"{key} is EMPTY ({val!r}) — set KC_PUBLIC_HOST in .env")
+    elif any(x in host.lower() for x in ("localhost", "127.0.0.1", ".local")):
+        bad.append(f"{key} points at a sandbox address: {val}")
+for b in bad:
+    print("   " + b)
+sys.exit(1 if bad else 0)
+' || {
+  echo "❌ Production would issue tokens for that address and EVERY login would fail." >&2
+  echo "   → python3 scripts/go-live.py   (writes KC_PUBLIC_HOST + POS_KC_PUBLIC_URL)" >&2
+  exit 1
+}
+echo "   ✅ Keycloak's public URL is a real host."
+
 echo "🔖 2/4 — Build (stamped) + start the production stack"
 if git rev-parse --git-dir >/dev/null 2>&1; then
   export GIT_SHA="$(git rev-parse --short HEAD)"
@@ -47,6 +82,13 @@ if git rev-parse --git-dir >/dev/null 2>&1; then
   echo "   commit ${GIT_SHA} (b${GIT_COUNT})"
 fi
 docker compose -f compose.yml -f compose.prod.yml up -d --build
+
+echo "🧱 2a/4 — Apply the audit log + the compliance append-only guarantee"
+./scripts/standup.sh || {
+  echo "❌ standup.sh failed — the append-only trigger on age_check_event may be missing." >&2
+  echo "   Do not call the 18+ evidence permanent until this is green." >&2
+  exit 1
+}
 
 echo "🔑 2b/4 — Teach Keycloak your production URL (or login gets 'Invalid redirect_uri')"
 ./scripts/kc-set-redirect.py || {

@@ -35,6 +35,11 @@ services:
     command: ["start", "--import-realm", "--http-port=8080"]
     environment:
       KC_HOSTNAME: ${KC_PUBLIC_HOST}
+      # Pinned EXPLICITLY, belt and braces. compose.yml sets KC_HOSTNAME_URL for the
+      # sandbox, this file is an overlay, and KC_HOSTNAME_URL takes PRECEDENCE over
+      # KC_HOSTNAME in Keycloak — so a sandbox default reaching this stack would make
+      # production issue tokens for localhost and break every login, silently.
+      KC_HOSTNAME_URL: https://${KC_PUBLIC_HOST}
       KC_HOSTNAME_STRICT: "true"
       KC_PROXY_HEADERS: xforwarded
       KC_HTTP_ENABLED: "true"

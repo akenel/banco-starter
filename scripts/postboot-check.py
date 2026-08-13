@@ -242,6 +242,19 @@ def main():
     except Exception as e:
         warn(f"could not test token refresh ({type(e).__name__}) — check it by hand")
 
+    # 5c) THE APPEND-ONLY GUARANTEE IS ACTUALLY INSTALLED -------------------
+    # CRITICAL. age_check_event is created by the app on boot, but the trigger that makes
+    # it append-only lives in scripts/db/compliance_rulepack_seed.sql — and until
+    # 2026-08-13 nothing ran that file automatically. The table would exist, every screen
+    # would call the record permanent, and an UPDATE or DELETE would quietly succeed.
+    trg = psql(env, """select count(*) from pg_trigger
+                       where tgname = 'trg_ace_append_only' and not tgisinternal""")
+    if trg.strip() == "1":
+        ok("18+ evidence is append-only (trg_ace_append_only installed)")
+    else:
+        fail("age_check_event is NOT append-only — the trigger is missing",
+             "./scripts/standup.sh   (applies scripts/db/compliance_rulepack_seed.sql)")
+
     # 6) B2 backups configured (info only — never prints the key) -----------
     b2_set = all(env.get(k) for k in ("B2_KEY_ID", "B2_APP_KEY", "B2_BUCKET"))
     if b2_set:

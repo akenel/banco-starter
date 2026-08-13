@@ -66,7 +66,12 @@ services:
       # compose.prod.yml already gets this right (KC_HOSTNAME + KC_HOSTNAME_STRICT=true),
       # so this was a SANDBOX-ONLY defect — which is worse than it sounds, because the
       # sandbox is where we decide whether things work.
-      KC_HOSTNAME_URL: ${KC_PUBLIC_URL:-http://localhost:8090}
+      # POS_KC_PUBLIC_URL is the BROWSER-facing Keycloak URL. It already exists in .env
+      # and go-live.py already writes the https://<kc-host> form for production, so the
+      # same line is correct in both environments. (Do not invent a new variable here —
+      # a dev default that leaks into the prod overlay is a broken login on prod, which
+      # is exactly what this line did for one commit.)
+      KC_HOSTNAME_URL: ${POS_KC_PUBLIC_URL:-http://localhost:8090}
     volumes:
       - ./keycloak/import:/opt/keycloak/data/import:ro
     ports:

@@ -35,6 +35,17 @@ docker compose exec -T postgres \
 
 echo "✅ Audit log installed. Change-log cockpit: http://localhost:${APP_HOST_PORT}/pos/audit"
 
+# The compliance rule pack AND — the part that matters — the append-only trigger on
+# age_check_event. Both live in this one file, and until 2026-08-13 NOTHING ran it: the
+# sandbox only had the guarantee because I typed the command by hand during testing.
+# Promoting like that would have given production an 18+ evidence table that any UPDATE or
+# DELETE could quietly rewrite, while every screen said the record was permanent.
+# Idempotent (ON CONFLICT DO NOTHING + CREATE OR REPLACE) — safe on every deploy.
+echo "🔒 Applying the compliance rule pack + the append-only guarantee ..."
+docker compose exec -T postgres \
+  psql -U "${PGUSER}" -d "${PGDB}" -v ON_ERROR_STOP=1 \
+  < scripts/db/compliance_rulepack_seed.sql
+
 # Final gate: the post-boot smoke test pokes the LIVE stack (containers, app health,
 # Keycloak realm, seeded catalog) and prints one plain verdict — "✅ SAFE TO TEST →
 # open <url>, log in pam/pam" or "❌ NOT READY → fix this". Non-fatal (|| true) so the
