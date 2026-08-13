@@ -13,7 +13,40 @@
 
 ---
 
+## 🔴 FIXED TODAY, FOUND BY ANGEL IN TEN MINUTES OF ORDINARY USE — 2026-08-13
+
+**Silent token refresh had NEVER worked in the sandbox.** He pressed a refusal button
+mid-testsheet, was logged out, and **the refusal was never recorded** — the exact failure
+that feature exists to prevent. Keycloak's own log:
+
+```
+REFRESH_TOKEN_ERROR  reason="Invalid token issuer.
+                      Expected 'http://keycloak:8080/realms/kc-pos-realm-dev'"
+```
+
+The browser logs in at `localhost:8090` so its token says `iss=http://localhost:8090/…`;
+`/pos/refresh` presented it to `keycloak:8080` from inside the network and Keycloak
+refused. **Every session hard-logged-out ~5 min after login.** `compose.prod.yml` pins
+`KC_HOSTNAME` and was always right — so the *broken* environment was the one where we
+decide whether things work.
+
+**Fixed (`9f34f85`):** `KC_HOSTNAME_URL` pinned in `compose.yml`; `postboot-check.py` now
+logs in and refreshes **for real** as a critical check (sabotaged → NOT READY, restored →
+green); and the till **parks a refusal in `localStorage` before it posts**, flushing on
+next login, with the row saying `[recorded late …]`. `occurred_at` stays the server's
+clock — a client that can backdate evidence is not evidence.
+
+⚠️ **No probe of mine could have found this.** They all finish in ~90 s with a fresh
+token, and a harness that finishes inside five minutes cannot see a five-minute timeout.
+Now pattern 6 in `CLAUDE.md`.
+
+---
+
 ## ▶️ NOW — needs Angel's hands
+
+0. **Log out and back in first** — Keycloak was restarted for the fix above, so any open
+   session is dead. Then `./scripts/standup.sh` must say **SAFE TO TEST** *including* the
+   new "silent token refresh works" line.
 
 1. **🔞 The 18+ gate — the human-green run.**
    → [`onboarding/testsheets/AGE-GATE-HUMAN-HALF.html`](onboarding/testsheets/AGE-GATE-HUMAN-HALF.html)

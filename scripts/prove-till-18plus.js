@@ -104,14 +104,23 @@ async function newPage(b) {
 }
 
 async function login(p) {
-  await p.goto(`${ROOT}/pos`);
+  await p.goto(`${ROOT}/pos`, { waitUntil: 'domcontentloaded' });
+  // Wait for the button rather than racing it: arriving here straight off a Keycloak
+  // logout redirect, the click can land before the login page has rendered and the whole
+  // run then dies at step one with a bare timeout.
+  await p.waitForSelector('button:has-text("Login")', { timeout: 20000 });
   await p.click('button:has-text("Login")');
   // Wait for whichever arrives: the Keycloak form, or a straight bounce back on an
   // existing SSO session. networkidle alone returns while still sitting on /pos, and
   // every later step then fails as though the page were broken.
   await p.waitForFunction(
-    () => !!document.querySelector('#username') || location.pathname.startsWith('/pos/'),
-    null, { timeout: 20000 });
+    // Either the Keycloak form appeared, or an existing SSO session bounced us straight
+    // back with a token. Do NOT test the path: an SSO bounce can land on "/pos" itself,
+    // which `startsWith('/pos/')` misses, and the whole run then dies at step one.
+    () => {
+      if (document.querySelector('#username')) return true;
+      try { return !!(window.AuthHelper && AuthHelper.getToken()); } catch (e) { return false; }
+    }, null, { timeout: 20000 });
   if (await p.$('#username')) {
     await p.fill('#username', USER);
     await p.fill('#password', PASS);
@@ -119,7 +128,8 @@ async function login(p) {
     await p.waitForURL('**/pos/**', { timeout: 20000 });
   }
   await p.waitForLoadState('networkidle');
-  if (!p.url().includes('/pos/')) throw new Error(`login did not land in the POS: ${p.url()}`);
+  const authed = await p.evaluate(() => { try { return !!AuthHelper.getToken(); } catch (e) { return false; } });
+  if (!authed) throw new Error(`login did not produce a token: ${p.url()}`);
 }
 
 // Alpine mounts asynchronously. Every evaluate() must wait for it or it throws
@@ -444,6 +454,10 @@ async function attachMember(p, handle) {
     await p.waitForTimeout(3000);
     await p.unroute('**/api/v1/pos/age-refusal');
     check(evidenceCount() === ev5, 'a dead session loses the request, as simulated', `${ev5}`);
+    // The 401 sends the browser to Keycloak's logout endpoint and back. Let that finish
+    // before trying to log in again, or the click races the redirect.
+    await p.waitForLoadState('networkidle').catch(() => {});
+    await p.waitForTimeout(2000);
     await login(p);                      // "…and when I came back in as PAM"
     await p.goto(`${ROOT}/pos/dashboard`);
     await p.waitForLoadState('networkidle');
@@ -455,9 +469,20 @@ async function attachMember(p, handle) {
       catch (e) { return -1; }
     });
     check(drained === 0, 'the queue drains, so it cannot double-write', `queued=${drained}`);
-    const late = psql("select note from age_check_event order by occurred_at desc limit 1");
-    check(/recorded late/.test(late), 'and the row SAYS it was recorded late rather than pretending',
-      late.slice(0, 120));
+    // The "recorded late" note only appears past 90 s of lag, which this test cannot reach
+    // in ten seconds — so prove that separately and deterministically, by posting with an
+    // `at` from an hour ago. (Asserting the note here would have been a check that could
+    // never pass, dressed up as one that does.)
+    const oldAt = psql("select to_char(now() - interval '1 hour', 'YYYY-MM-DD\"T\"HH24:MI:SS+00:00')");
+    const lateNote = await p.evaluate(async at => {
+      await API.post('/api/v1/pos/age-refusal',
+        { cart_ref: 'late-write-check', product_class: 'cbd_hemp', reason: 'no_id', at });
+      return true;
+    }, oldAt);
+    const late = psql("select note from age_check_event where cart_ref='late-write-check' order by occurred_at desc limit 1");
+    check(lateNote && /recorded late/.test(late),
+      'a delayed write SAYS it was recorded late rather than pretending it was live',
+      late.slice(0, 130));
 
     // ---- 6 ----------------------------------------------------------------
     head('6 · ✅ Confirm 18+ walk-in — the attested clearance');
