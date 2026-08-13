@@ -509,10 +509,35 @@
                 ✅ <span data-i18n="checkout.confirm_walkin">Confirm 18+ walk-in — ID checked</span>
             </button>
 
-            <!-- Move 3: REFUSE — drop the 18+ line(s) and cancel the gate -->
-            <button @click="ageRefuse()" class="btn-danger w-full">
+            <!-- Move 3: REFUSE — drop the 18+ line(s) and cancel the gate.
+                 It now asks ONE question first (see the ageRefuseWhy panel below), because
+                 until 2026-08-13 this button was the only refusal a cashier ever performed
+                 and it told the server nothing: age_check_event held 52 rows, every one
+                 written by a test probe. The shop could not prove the refusal it actually
+                 makes a hundred times a week. -->
+            <button x-show="!ageRefuseWhy" @click="ageRefuseWhy = true" class="btn-danger w-full">
                 🚫 <span data-i18n="checkout.refuse_remove">Refuse — remove 18+ item(s)</span>
             </button>
+
+            <!-- The one question. A CLOSED list and an explicit way out: age_check_event is
+                 append-only, so a row written by a mis-tap is permanent. The cashier decides
+                 whether what just happened was a refusal — the software must not guess. -->
+            <div x-show="ageRefuseWhy" class="border border-red-300 rounded-lg p-3 bg-red-50">
+                <p class="font-semibold text-red-800 mb-2 text-sm">
+                    🚫 <span data-i18n="checkout.refuse_why">Why? This is recorded.</span>
+                </p>
+                <button @click="ageRefuse('no_id')" :disabled="ageProcessing" class="btn-danger w-full mb-2"
+                        data-i18n="checkout.refuse_no_id">No ID shown</button>
+                <button @click="ageRefuse('declined')" :disabled="ageProcessing" class="btn-danger w-full mb-2"
+                        data-i18n="checkout.refuse_declined">Refused to show ID</button>
+                <button @click="ageRefuse('underage')" :disabled="ageProcessing" class="btn-danger w-full mb-2"
+                        data-i18n="checkout.refuse_underage">Clearly under 18</button>
+                <button @click="ageRefuse(null)" :disabled="ageProcessing" class="btn-secondary w-full"
+                        data-i18n="checkout.refuse_not_a_refusal">↩︎ Just taking it off — not a refusal</button>
+                <p class="text-xs text-gray-600 mt-2" data-i18n="checkout.refuse_note">
+                    The first three leave a permanent record that the gate was applied. The last one does not.
+                </p>
+            </div>
         </div>
     </div>
 </div>
@@ -531,7 +556,8 @@
             // 🔞 Age gate (18+). The server is the real gate; this is the counter UX.
             showAgeModal: false,       // cashier STOP modal for an unverified 18+ sale
             ageVerified: false,        // cashier attested a walk-in is 18+ (ID checked)
-            ageProcessing: false,      // signup in flight
+            ageProcessing: false,      // signup / refusal write in flight
+            ageRefuseWhy: false,       // the one question the 🚫 button asks before it acts
             ageForm: { handle: '', birthdate: '', marketing_consent: false },
             paymentMethod: 'visa',
             processing: false,
@@ -1044,8 +1070,56 @@
                 // gone and the walk-in / sign-up moves show. If the cart no longer needs a gate, close.
                 if (!this.needsAgeGate()) this.showAgeModal = false;
             },
-            // Move 3: refuse -> strip the 18+ line(s) from the sale.
-            ageRefuse() {
+            // The id for THIS cart attempt — get-or-create, in one place.
+            //
+            // Used by two callers on purpose. completeTransaction() needs it as the
+            // idempotency key. ageRefuse() needs it as the refusal's cart_ref, and it must
+            // be the SAME value: a customer who is turned away, produces ID, and is then
+            // sold to leaves a refusal and a transaction carrying one cart_ref, which makes
+            // "refused, then sold anyway, seconds apart" queryable. Allocating a fresh uuid
+            // at sale time would silently break that thread — and a broken thread looks
+            // exactly like two unrelated customers.
+            saleUuid() {
+                let u = sessionStorage.getItem('pos_sale_uuid');
+                if (!u) {
+                    u = (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
+                        : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+                            const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+                        });
+                    sessionStorage.setItem('pos_sale_uuid', u);
+                }
+                return u;
+            },
+
+            // Move 3: refuse -> RECORD IT, then strip the 18+ line(s) from the sale.
+            //
+            // `reason` is one of no_id | declined | underage, or null for "just taking it
+            // off". Only a real reason is POSTed. Until 2026-08-13 this function was pure
+            // client-side JavaScript and the server never heard about the one refusal a
+            // cashier actually performs — so the evidence table recorded the exception
+            // (a server-side rejection, which almost never happens at a till) and missed
+            // the rule.
+            //
+            // The record is written BEFORE the cart is touched, and a failure to write it
+            // does NOT block the refusal: the customer has already been turned away, and
+            // holding up the counter over a logging error would be the wrong trade. It is
+            // surfaced as a toast so it is not silent.
+            async ageRefuse(reason) {
+                if (reason) {
+                    this.ageProcessing = true;
+                    try {
+                        await API.post('/api/v1/pos/age-refusal', {
+                            cart_ref: this.saleUuid(),
+                            product_class: (this.cartData.cart.find(i => this.isAgeLine(i)) || {}).product_class || null,
+                            reason,
+                        });
+                    } catch (e) {
+                        showToast(t('checkout.toast_refusal_not_recorded'), 'warning');
+                    } finally {
+                        this.ageProcessing = false;
+                    }
+                }
+                this.ageRefuseWhy = false;
                 this.cartData.cart = this.cartData.cart.filter(i => !this.isAgeLine(i));
                 this.showAgeModal = false;
                 this.recalculateTotals();
@@ -1140,14 +1214,7 @@
                     // timed-out retry rings the SAME sale exactly once (the server adopts it on
                     // the client_uuid) — never twice. Cleared only on success; kept on error so
                     // a retry reuses it.
-                    let clientUuid = sessionStorage.getItem('pos_sale_uuid');
-                    if (!clientUuid) {
-                        clientUuid = (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
-                            : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-                                const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
-                            });
-                        sessionStorage.setItem('pos_sale_uuid', clientUuid);
-                    }
+                    const clientUuid = this.saleUuid();
 
                     // Build the cart lines. Custom lines (manual catalog 'catalog…' + change
                     // 'change_…') have no product_id: send name + unit_price instead. Treats are

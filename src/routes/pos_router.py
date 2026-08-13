@@ -5650,6 +5650,73 @@ async def _record_age_refusal(txn_ref: str | None, current_user: dict, cashier_u
         logger.warning(f"age refusal not recorded (txn={txn_ref}): {e}")
 
 
+class AgeRefusalIn(BaseModel):
+    """A refusal the CASHIER made at the counter, before any sale was attempted."""
+    cart_ref: str | None = Field(None, max_length=64,
+                                 description="the cart's client_uuid — the attempt this is about")
+    product_class: str | None = Field(None, max_length=40)
+    reason: str = Field(..., max_length=40,
+                        description="one of the counter reasons; free text is deliberately not accepted")
+
+
+# The reasons a refusal can carry. A CLOSED list, not free text: 2026-08-03 cost a CHF 500
+# skim because a dropdown's answer was rejected for lacking a sentence after it, and
+# "friction is where money quietly goes missing". Two taps, no typing, at a counter.
+_AGE_REFUSAL_REASONS = {
+    "no_id": "customer could not show ID",
+    "underage": "customer is visibly/known under 18",
+    "declined": "customer declined to show ID",
+}
+
+
+@router.post("/age-refusal", status_code=status.HTTP_201_CREATED)
+async def record_age_refusal(
+    body: AgeRefusalIn,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(require_any_pos_role()),
+):
+    """Record a refusal the cashier made AT THE COUNTER. No sale is attempted.
+
+    WHY THIS ENDPOINT HAS TO EXIST
+    ------------------------------
+    Every other refusal path in this file runs server-side, inside _assert_age_cleared,
+    on a sale the client already decided to send. But the refusal a cashier actually
+    performs never gets that far: `ageRefuse()` strips the 18+ line in JavaScript and
+    `completeTransaction()` returns before the POST, so the server is never told.
+
+    Measured 2026-08-13: age_check_event held 52 rows, every one of them written by a
+    test probe over raw HTTP. **No person had ever created one, and none could.** The
+    table recorded the exception and missed the rule — which makes "we can prove our
+    refusals" a much smaller claim than it sounds, and a shop with thousands of 18+
+    sales and zero refusals reads exactly like a shop that never checks.
+
+    ONE TAP, A CLOSED LIST, AND AN EXPLICIT WAY OUT
+    -----------------------------------------------
+    The till asks one short question before calling this, and offers a "just taking it
+    off the sale" answer that calls NOTHING. That matters: age_check_event is
+    append-only, so a row written by a mis-tap is permanent. The cashier decides whether
+    what just happened was a refusal; the software does not guess for them.
+
+    Reasons are a closed set. No free-text field — see _AGE_REFUSAL_REASONS.
+
+    NEVER 500s on a logging failure: _record_age_refusal swallows its own errors, because
+    the customer has already been turned away and that is the part that matters.
+    """
+    if body.reason not in _AGE_REFUSAL_REASONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"unknown refusal reason '{body.reason}' "
+                   f"(expected one of: {', '.join(sorted(_AGE_REFUSAL_REASONS))})",
+        )
+    await _record_age_refusal(
+        None, current_user, await _resolve_cashier_uid(db, current_user),
+        product_class=body.product_class,
+        note=f"refused at the counter — {_AGE_REFUSAL_REASONS[body.reason]}",
+        cart_ref=body.cart_ref,
+    )
+    return {"recorded": True}
+
+
 async def _assert_age_cleared(cart_age_restricted: bool, customer, age_verified: bool,
                               current_user: dict, cashier_uid, txn_ref: str | None,
                               product_class: str | None = None,

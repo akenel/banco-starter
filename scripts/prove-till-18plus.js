@@ -23,16 +23,20 @@
  *   2  an 18+ line with no member raises the 🔞 modal instead of POSTing
  *   3  the modal's buttons, no member         -> sign up · confirm walk-in · refuse
  *   4  the modal's buttons, MINOR attached    -> remove member · refuse  (NO walk-in)
- *   5  🚫 Refuse -> no POST at all, and no age_check_event row      [KNOWN GAP]
+ *   5  🚫 Refuse -> asks WHY, then records a real refusal / records nothing on
+ *         "just taking it off". Checks the row's outcome, txn_ref, cashier and cart_ref.
  *   6  ✅ Confirm walk-in -> 201 + transactions.age_check_outcome = cashier_attest
  *   7  an of-age member -> no modal at all, outcome = member_dob
  *   8  minor -> remove member -> attest -> 201                      [KNOWN BYPASS]
  *   9  efbc056 from the UI: no completed sale ever carries another cart's refusal
  *
- * 5 and 8 assert the CURRENT, KNOWN-IMPERFECT behaviour on purpose. They are pinned so
+ * 8 asserts the CURRENT, KNOWN-IMPERFECT behaviour on purpose. It is pinned so
  * that the day someone changes it, this script says so out loud rather than staying
  * green. (2026-07-31: "a test that pins a known-dangerous behaviour is worse than no
- * test" — the difference is that these say KNOWN GAP in the output and in WORKLIST.)
+ * test" — the difference is that it says KNOWN GAP in the output and in WORKLIST.)
+ *
+ * Check 5 USED to be a pinned gap too. It is now a real assertion, because the till
+ * records the refusal — that is what the pin was for.
  *
  * ⛔ IT RINGS REAL COMPLETED SALES. A completed transaction is a line in the Kassenbuch.
  *    Never point it at a shop's books. Guarded behind BANCO_ALLOW_FAKE_SALES=1.
@@ -322,22 +326,53 @@ async function attachMember(p, handle) {
     check(!!btns && btns.some(t => /Refuse/i.test(t)), '"🚫 Refuse" IS offered');
 
     // ---- 5 ----------------------------------------------------------------
-    head('5 · 🚫 Refuse — what the cashier actually presses');
-    const evBefore = evidenceCount();
+    // Until 2026-08-13 this whole section was a KNOWN GAP: the button was client-side only
+    // and every one of the 52 rows in age_check_event had been written by a probe. It now
+    // asks one question first, and only a real reason is recorded.
+    head('5 · 🚫 Refuse — the refusal a cashier actually performs');
     const postsBefore2 = p.sales.length;
-    await p.click('button:has-text("Refuse")');
+    await p.click('button:has-text("Refuse — remove")');
+    await p.waitForTimeout(400);
+    let why = await ageModalButtons(p);
+    console.log('   the one question:', JSON.stringify(why));
+    check(!!why && why.some(t => /No ID shown/i.test(t)), 'it asks WHY before it acts');
+    check(!!why && why.some(t => /not a refusal/i.test(t)),
+      'and offers an explicit way out — the table is append-only, so a mis-tap is permanent');
+
+    head('5a · "just taking it off" records NOTHING');
+    let ev = evidenceCount();
+    await p.click('button:has-text("not a refusal")');
     await p.waitForTimeout(1200);
     c = await cartNames(p);
-    check(Array.isArray(c) && !c.includes(AGE_ITEM), 'the 18+ line is removed from the cart',
-      JSON.stringify(c));
-    check(p.sales.length === postsBefore2, 'no POST /sales — the server is never told',
-      `posts=[${p.sales}]`);
-    const evAfter = evidenceCount();
-    if (evAfter === evBefore) {
-      gap('the everyday refusal leaves NO evidence row',
-        `age_check_event still ${evAfter}. WORKLIST F1 — decide whether the till should POST it.`);
-    } else {
-      bad('UNEXPECTED: a refusal row appeared', `${evBefore} -> ${evAfter} (did someone fix F1? update this script)`);
+    check(Array.isArray(c) && !c.includes(AGE_ITEM), 'the 18+ line is removed', JSON.stringify(c));
+    check(evidenceCount() === ev, 'no evidence row was written', `age_check_event still ${ev}`);
+    check(p.sales.length === postsBefore2, 'and no sale was posted', `posts=[${p.sales}]`);
+
+    head('5b · a real refusal IS recorded, from the till, by a person');
+    await gotoScan(p);
+    await addItem(p, AGE_ITEM);
+    await toCheckout(p);
+    r = await pay(p);
+    check(r === 'age-modal', 'the modal fires', `result=${r}`);
+    ev = evidenceCount();
+    const cartUuid = await p.evaluate(() => sessionStorage.getItem('pos_sale_uuid'));
+    await p.click('button:has-text("Refuse — remove")');
+    await p.waitForTimeout(400);
+    await p.click('button:has-text("No ID shown")');
+    await p.waitForTimeout(1500);
+    check(evidenceCount() === ev + 1, 'ONE evidence row was written', `${ev} -> ${evidenceCount()}`);
+    const row = psql(`select outcome || ' | ' || coalesce(txn_ref,'NULL') || ' | ' ||
+                             coalesce(cashier,'?') || ' | ' || coalesce(note,'')
+                      from age_check_event order by occurred_at desc limit 1`);
+    console.log('   the row:', row);
+    check(/^refused \| NULL \| /.test(row),
+      'outcome=refused and txn_ref is NULL — no sale existed to point at', row);
+    check(new RegExp(`\\| ${USER} \\|`).test(row), `it is attributed to the CASHIER (${USER})`, row);
+    check(/could not show ID/.test(row), 'and it carries the reason the cashier gave', row);
+    if (cartUuid) {
+      const threaded = psql(`select count(*) from age_check_event where cart_ref='${cartUuid}'`);
+      check(threaded === '1', 'it carries the cart_ref, so a later sale on this cart threads to it',
+        `cart_ref=${cartUuid.slice(0, 8)} rows=${threaded}`);
     }
 
     // ---- 6 ----------------------------------------------------------------
@@ -414,7 +449,8 @@ async function attachMember(p, handle) {
       } else {
         ok('removing the member did NOT let the sale through', `result=${r}`);
       }
-      check(evidenceCount() === ev8, 'and it left no refusal record either',
+      check(evidenceCount() === ev8,
+        'the bypass itself writes no refusal row (nothing was refused — that is the point of F2)',
         `age_check_event ${ev8} -> ${evidenceCount()}`);
     }
 
