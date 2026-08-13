@@ -128,6 +128,20 @@
     </div>
 
     <div class="safety danger">
+      <b>⚠️ What changed under you since you started this sheet — 2026-08-13 afternoon.</b>
+      You were right that the logout was real, and it was not the button.
+      <b>Silent token refresh had never worked in the sandbox</b> (issuer mismatch:
+      the browser logs in at <code>localhost:8090</code>, the app refreshed against
+      <code>keycloak:8080</code>), so every session hard-logged-out about five minutes after
+      login. <b>Your 12:37 refusal was never recorded.</b> The three at 12:27, 12:29 and 12:30
+      are in the table and still stand.
+      <div style="margin-top:6px"><b>Fixed, and the till now parks a refusal locally before it
+      posts</b> — so a logout can no longer delete one; it arrives on your next login marked
+      <i>[recorded late]</i>. <b>Re-run M1 and H2–H3b</b> (they were against the old build);
+      <b>H1 and H4–H6 are unaffected</b> — keep those marks if you made them.</div>
+    </div>
+
+    <div class="safety danger">
       <b>Two things it found that are NOT bugs — they are your decisions.</b> Both are printed as
       <code>⚠️ KNOWN GAP</code> so nobody reads green and assumes otherwise.
       <div style="margin-top:6px"><b>1 · FIXED THIS MORNING, and it needs your eyes.</b> The
@@ -148,9 +162,16 @@
     <p class="why">If this is not green, stop — there is no point spending your eyes on a build that
       is already broken. It rings four real sales and <b>refunds them itself</b>.</p>
     <ol class="steps">
-      <li><div class="step-body"><b>M1 · Run the browser suite.</b> ~90 seconds.
+      <li><div class="step-body"><b>M1 · Log in fresh, then run the browser suite.</b> ~90 seconds.
+        <div class="safety danger" style="margin:6px 0">
+          <b>⚠️ Do this first: log out and log back in.</b> Keycloak was restarted this
+          afternoon to fix the defect you found, so any session older than that is dead.
+          Then check <code>./scripts/standup.sh</code> says <b>SAFE TO TEST</b> <i>including</i>
+          the new line <b>"silent token refresh works"</b>. If that line is missing or red,
+          stop — that is the bug that logged you out, and the sheet is meaningless without it.
+        </div>
         <span class="cmd">BANCO_ALLOW_FAKE_SALES=1 NODE_PATH=/home/angel/repos/helixnet/node_modules node scripts/prove-till-18plus.js</span>
-        <span class="exp"><b>27 passed · 0 failed · 1 known gap</b>, then
+        <span class="exp"><b>44 passed · 0 failed · 1 known gap</b>, then
         <i>"4/4 test sale(s) refunded"</i>. Any ❌ and this sheet is off until it is fixed.
         <div style="margin-top:4px">Playwright is <b>borrowed</b> from the helixnet repo — this
         repo has no node build on purpose. If that path is gone the script exits with
