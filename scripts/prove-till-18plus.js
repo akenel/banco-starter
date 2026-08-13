@@ -29,6 +29,8 @@
  *   7  an of-age member -> no modal at all, outcome = member_dob
  *   8  minor -> remove member -> attest -> 201                      [KNOWN BYPASS]
  *   9  efbc056 from the UI: no completed sale ever carries another cart's refusal
+ *  10  the 18+ RECORD page: a CASHIER can reach it, it renders real numbers, and no
+ *      schema value (cbd_hemp, cashier_attest…) reaches the reader — in EN and DE
  *
  * 8 asserts the CURRENT, KNOWN-IMPERFECT behaviour on purpose. It is pinned so
  * that the day someone changes it, this script says so out loud rather than staying
@@ -102,13 +104,19 @@ async function newPage(b) {
 async function login(p) {
   await p.goto(`${ROOT}/pos`);
   await p.click('button:has-text("Login")');
-  await p.waitForLoadState('networkidle');
-  if (!p.url().startsWith(ROOT)) {
+  // Wait for whichever arrives: the Keycloak form, or a straight bounce back on an
+  // existing SSO session. networkidle alone returns while still sitting on /pos, and
+  // every later step then fails as though the page were broken.
+  await p.waitForFunction(
+    () => !!document.querySelector('#username') || location.pathname.startsWith('/pos/'),
+    null, { timeout: 20000 });
+  if (await p.$('#username')) {
     await p.fill('#username', USER);
     await p.fill('#password', PASS);
     await p.click('#kc-login, input[type=submit]');
-    await p.waitForLoadState('networkidle');
+    await p.waitForURL('**/pos/**', { timeout: 20000 });
   }
+  await p.waitForLoadState('networkidle');
   if (!p.url().includes('/pos/')) throw new Error(`login did not land in the POS: ${p.url()}`);
 }
 
@@ -452,6 +460,46 @@ async function attachMember(p, handle) {
       check(evidenceCount() === ev8,
         'the bypass itself writes no refusal row (nothing was refused — that is the point of F2)',
         `age_check_event ${ev8} -> ${evidenceCount()}`);
+    }
+
+    // ---- 10 ---------------------------------------------------------------
+    // The evidence existed only in psql until 2026-08-13, which by this shop's own
+    // standard is not shipped. The requirement is not "a report exists" — it is that
+    // PAM can reach it, because Felix will not be in the shop when an inspector is.
+    head('10 · the 18+ record — reachable by a cashier, readable by a person');
+    await p.goto(`${ROOT}/pos/dashboard`);
+    await p.waitForLoadState('networkidle');
+    await p.waitForTimeout(1500);
+    const tile = p.locator('div.card', { hasText: /18\+ Record|18\+ Nachweis/ }).first();
+    check(await tile.count() > 0, `"${USER}" can SEE the 18+ record from the dashboard`);
+    if (await tile.count()) {
+      await tile.click();
+      await p.waitForURL('**/pos/age-report', { timeout: 15000 });
+      await waitAlpine(p);
+      await p.waitForTimeout(1500);
+      const view = await p.evaluate(() => {
+        const txt = document.body.innerText.replace(/\s+/g, ' ');
+        const num = re => { const m = txt.match(re); return m ? parseInt(m[1], 10) : null; };
+        return {
+          failed: /Could not load|konnte nicht geladen/.test(txt),
+          gated: num(/(?:18\+ sales cleared|18\+ Verk\u00e4ufe freigegeben)\s+(\d+)/),
+          refused: num(/(?:Refused at the counter|An der Kasse abgelehnt)\s+(\d+)/),
+          // A compliance page must never show a column name to an inspector.
+          leaks: ['cbd_hemp', 'tobacco_nicotine', 'cashier_attest', 'member_dob',
+                  'member_confirmed', 'product_class', 'age_check'].filter(k => txt.includes(k)),
+        };
+      });
+      check(!view.failed, 'it loads without an error banner');
+      const dbGated = parseInt(psql(`select count(*) from transactions
+        where status='COMPLETED' and age_check_outcome in
+        ('member_dob','member_confirmed','cashier_attest')
+        and completed_at >= now() - interval '30 days'`), 10);
+      check(view.gated === dbGated, 'the cleared-sales figure matches the database',
+        `screen=${view.gated} db=${dbGated}`);
+      check(view.refused !== null && view.refused > 0,
+        'the refusals figure is rendered', `screen=${view.refused}`);
+      check(view.leaks.length === 0,
+        'no schema value reaches the reader — plain words only', view.leaks.join(', ') || 'clean');
     }
 
     // ---- 9 ----------------------------------------------------------------

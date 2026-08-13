@@ -6394,6 +6394,102 @@ async def refund_transaction(
 # REPORTING ENDPOINTS
 # ================================================================
 
+@router.get("/reports/age-gate")
+async def age_gate_report(
+    days: int = 30,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(require_any_pos_role()),
+):
+    """The 18+ evidence, in a form a PERSON can read. Any POS role — deliberately.
+
+    WHY A CASHIER, NOT A MANAGER
+    ----------------------------
+    Angel, 2026-08-12, asked what happens when an inspector walks in:
+    *"felix will not be in the shop when the inspector shows up."* So the one view that
+    answers an inspector cannot be manager-only. Pam is who is standing there. This is
+    read-only and contains no buyer identity, so there is nothing here a cashier should
+    not see — she performed most of it.
+
+    WHY IT EXISTS AT ALL
+    --------------------
+    Everything below was already in Postgres and readable ONLY by `psql`. That made it,
+    by the shop's own standard, not shipped — the seventh time in this repo a feature has
+    existed on every layer a test can reach and on no screen (`cash_box_float`, the
+    force-close, `POST /catalog/merge`, honest confidence, `best_match_score`, the
+    refusals themselves).
+
+    THE TWO HALVES ARE STORED DIFFERENTLY, ON PURPOSE
+    -------------------------------------------------
+    A CLEARED sale has a transaction to hang off, so the basis lives on
+    `transactions.age_check_outcome`. A REFUSED one does not exist as a sale at all, so it
+    needs its own home — `age_check_event`, append-only.
+
+    THE NUMBER THAT MATTERS MOST IS A ZERO
+    --------------------------------------
+    From `age_check_event`'s own docstring: *"A shop with thousands of 18+ sales and zero
+    refusals reads exactly like a shop that never checks."* So this report says that out
+    loud rather than leaving a reader to notice an absence. Same instinct as
+    `store_settings.cash_tolerance`: a drawer that balances perfectly every day for a year
+    is a red flag, not a gold star.
+    """
+    days = max(1, min(days, 366))
+    since = datetime.now(SHOP_TZ) - timedelta(days=days)
+
+    # --- the cleared half: on the sale itself ---------------------------------
+    rows = (await db.execute(
+        select(TransactionModel.age_check_outcome, func.count())
+        .where(and_(TransactionModel.status == TransactionStatus.COMPLETED,
+                    TransactionModel.completed_at >= since))
+        .group_by(TransactionModel.age_check_outcome)
+    )).all()
+    cleared = {k or "unrecorded": n for k, n in rows}
+    # 'not_required' is a clean cart, not a check — count it apart from the gated sales.
+    # It is deliberately never NULL: NULL cannot tell "no 18+ line" from "nobody checked",
+    # which is why legacy rows land in 'unrecorded' and are shown as their own number.
+    gated = {k: v for k, v in cleared.items() if k not in ("not_required", "unrecorded")}
+
+    # --- the refused half: its own table --------------------------------------
+    from src.db.models.age_check_event_model import AgeCheckEventModel
+    events = (await db.execute(
+        select(AgeCheckEventModel)
+        .where(AgeCheckEventModel.occurred_at >= since)
+        .order_by(AgeCheckEventModel.occurred_at.desc())
+        .limit(200)
+    )).scalars().all()
+    refusals_total = (await db.execute(
+        select(func.count()).select_from(AgeCheckEventModel)
+        .where(AgeCheckEventModel.occurred_at >= since)
+    )).scalar_one()
+
+    gated_sales = sum(gated.values())
+    return {
+        "from": since.date().isoformat(),
+        "to": datetime.now(SHOP_TZ).date().isoformat(),
+        "days": days,
+        "gated_sales": gated_sales,
+        "cleared_by": gated,
+        "clean_carts": cleared.get("not_required", 0),
+        "unrecorded": cleared.get("unrecorded", 0),
+        "refusals_total": refusals_total,
+        "refusals": [{
+            "at": e.occurred_at.astimezone(SHOP_TZ).isoformat(),
+            "cashier": e.cashier,
+            "product_class": e.product_class,
+            # The stored note is the RECORD and is never rewritten — the table is
+            # append-only and its text is the evidence. `reason` is the closed-list code
+            # recovered from it so the screen can show a German inspector German words
+            # without touching what was written. Unrecognised notes (older rows, and the
+            # ones the HTTP probe wrote) fall through to the raw note.
+            "reason": next((k for k, v in _AGE_REFUSAL_REASONS.items()
+                            if e.note and e.note.endswith(v)), None),
+            "note": e.note,
+            "txn_ref": e.txn_ref,
+        } for e in events],
+        # Said out loud so nobody has to notice an absence. See the docstring.
+        "zero_refusal_warning": bool(gated_sales and not refusals_total),
+    }
+
+
 @router.get("/reports/daily-summary", response_model=DailySummary)
 async def get_daily_summary(
     report_date: Optional[str] = None,
@@ -12131,6 +12227,16 @@ async def pos_reports(request: Request):
     - Category analysis
     """
     return templates.TemplateResponse("pos/reports.html", {"request": request})
+
+
+@html_router.get("/pos/age-report", response_class=HTMLResponse, name="pos_age_report")
+async def pos_age_report(request: Request):
+    """The 18+ record — the page a cashier shows an inspector.
+
+    Any POS role on purpose: Angel, 2026-08-12, on who is actually in the shop —
+    *"felix will not be in the shop when the inspector shows up."* The API endpoint
+    (`/reports/age-gate`) enforces the role; this just serves the shell."""
+    return templates.TemplateResponse("pos/age_report.html", {"request": request})
 
 
 @html_router.get("/pos/reports/products", response_class=HTMLResponse, name="pos_product_sales")

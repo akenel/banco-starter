@@ -16,6 +16,7 @@
                 <button @click="goProductSales()" class="btn-secondary" data-i18n="reports.product_sales">📦 Product Sales</button>
                 <button @click="goCleanup()" class="btn-secondary" data-i18n="reports.cleanup">🧹 Cleanup</button>
                 <button @click="goTransactions()" class="btn-secondary" data-i18n="reports.all_transactions">💳 All Transactions</button>
+                <button @click="window.location.href='/pos/age-report'" class="btn-secondary" data-i18n="reports.age_report">🔞 18+ Record</button>
             </div>
         </div>
         <p class="text-gray-600 mb-6"><span data-i18n="reports.today_dash">Today &mdash;</span> <span class="font-semibold" x-text="summary.date"></span></p>

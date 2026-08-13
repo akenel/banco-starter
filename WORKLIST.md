@@ -29,12 +29,18 @@
    *first* button under *"rook is under 18"*, where a thumb lands. Move it below Refuse? Require a
    manager? Reword it? Not obviously a bug; genuinely a decision.
 
-3. **🖥️ The compliance evidence has no screen, and Pam is the one who needs it.**
-   *(Angel's D6, 2026-08-12: "felix will not be in the shop when the inspector shows up.")*
-   Every read is `psql` today. **Seventh instance of this shape in this repo** — after
-   `cash_box_float`, the force-close, `POST /catalog/merge`, honest confidence, `best_match_score`
-   and the refusals themselves. Smallest thing that works: a read-only 18+ page under Reports? a
-   line on the day-close? something printable? **Ask where Pam is standing when she needs it.**
+3. **✅ BUILT 2026-08-13 — the 18+ record has a screen, and Pam can open it.** Needs your eyes.
+   `/pos/age-report`, a **cashier tile on the dashboard** (not manager-only — your D6: *"felix will
+   not be in the shop when the inspector shows up"*), printable, EN + DE.
+   Shows how each 18+ sale was cleared (the three bases in plain words, with **why one is weaker**),
+   the refusals with reasons, and — first on the page — a **warning when refusals are zero**,
+   because that is the reading an inspector makes on his own.
+   **No schema value reaches the reader** and no buyer identity is in the payload (FADP).
+   Proven by driving it as `pam` in both languages; suite is now **32 checks**, and the
+   plain-words guarantee was sabotaged (`cbd_hemp` leaked → red) before being believed.
+   ⚠️ **One thing I did not decide for you:** stored refusal notes are English — the row is the
+   record and I will not rewrite an append-only table. The screen shows German for the three known
+   reasons and the raw note otherwise. Say if you want it differently *before* many rows exist.
 
 4. **📊 Nothing produces a compliance VERDICT.** `compliance_check_run` is written by no code, and
    all 13 rules ship `is_active = false` pending a human reading each authority

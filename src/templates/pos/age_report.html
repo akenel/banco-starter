@@ -1,0 +1,242 @@
+{% extends "pos/base.html" %}
+
+{% block title %}18+ Age Gate Record - HelixPOS - Artemis Store{% endblock %}
+
+{#
+  🔞 THE 18+ RECORD — the page Pam shows an inspector.
+
+  Angel, 2026-08-12: "felix will not be in the shop when the inspector shows up."
+  So this is deliberately NOT manager-only. It is read-only, it holds no buyer identity
+  (Swiss FADP: prove the gate bit, do not build a file on whoever it bit), and the person
+  who performed most of what is on it is the one who can open it.
+
+  Everything here was already in Postgres and readable only with psql, which by this
+  shop's own standard means it was not shipped.
+#}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50" x-data="ageReportData()" x-init="load()">
+  <div class="max-w-4xl mx-auto px-4 py-8">
+
+    <div class="flex justify-between items-center mb-6 flex-wrap gap-2 no-print">
+      <div class="flex items-center gap-3">
+        <button @click="window.location.href='/pos/dashboard'" class="btn-secondary flex-none"
+                title="Dashboard" aria-label="Dashboard">🏠</button>
+        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900"
+            data-i18n="agerep.title">🔞 18+ Age Gate — the record</h1>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <select x-model.number="days" @change="load()" class="input-field">
+          <option value="1" data-i18n="agerep.d1">Today</option>
+          <option value="7" data-i18n="agerep.d7">Last 7 days</option>
+          <option value="30" data-i18n="agerep.d30">Last 30 days</option>
+          <option value="90" data-i18n="agerep.d90">Last 90 days</option>
+          <option value="365" data-i18n="agerep.d365">Last 12 months</option>
+        </select>
+        <button @click="window.print()" class="btn-primary" data-i18n="agerep.print">🖨️ Print</button>
+      </div>
+    </div>
+
+    <div class="mb-6">
+      <h2 class="text-xl font-bold text-gray-900 print-only" style="display:none">
+        🔞 18+ Age Gate — the record
+      </h2>
+      <p class="text-gray-600">
+        <span data-i18n="agerep.period">Period</span>:
+        <span class="font-semibold" x-text="data.from"></span> —
+        <span class="font-semibold" x-text="data.to"></span>
+      </p>
+    </div>
+
+    <div x-show="loading" class="card text-center text-gray-500" data-i18n="agerep.loading">Loading…</div>
+    <div x-show="error" x-cloak class="card border-2 border-red-300 bg-red-50 text-red-800">
+      <span data-i18n="agerep.error">Could not load the record.</span>
+      <span x-text="error"></span>
+    </div>
+
+    <template x-if="!loading && !error">
+      <div>
+        <!-- The zero-refusal warning. It is FIRST because it is the reading an inspector
+             makes on his own, and a shop is better off having noticed it already. -->
+        <div x-show="data.zero_refusal_warning" x-cloak
+             class="card border-2 border-amber-400 bg-amber-50 mb-6">
+          <p class="font-bold text-amber-900 text-lg">
+            ⚠️ <span data-i18n="agerep.zero_title">No refusals recorded in this period</span>
+          </p>
+          <p class="text-amber-900 mt-1" data-i18n="agerep.zero_body">
+            <b x-text="data.gated_sales"></b> age-restricted sales were cleared and none were
+            turned away. That can be true — but a shop that never refuses reads exactly like a
+            shop that never checks. If a customer was turned away, the record only shows it when
+            the cashier presses <b>🚫 Refuse</b> and picks a reason.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+          <div class="card text-center">
+            <p class="text-gray-600 text-sm" data-i18n="agerep.gated">18+ sales cleared</p>
+            <p class="text-3xl font-bold text-gray-900" x-text="data.gated_sales"></p>
+          </div>
+          <div class="card text-center">
+            <p class="text-gray-600 text-sm" data-i18n="agerep.refused">Refused at the counter</p>
+            <p class="text-3xl font-bold" :class="data.refusals_total ? 'text-red-700' : 'text-amber-600'"
+               x-text="data.refusals_total"></p>
+          </div>
+          <div class="card text-center">
+            <p class="text-gray-600 text-sm" data-i18n="agerep.clean">Sales with no 18+ line</p>
+            <p class="text-3xl font-bold text-gray-500" x-text="data.clean_carts"></p>
+          </div>
+        </div>
+
+        <!-- HOW each sale was cleared. member_dob and member_confirmed are split on purpose:
+             both clear the sale and both are correct, but one rests on a date of birth and
+             the other on a box someone ticked, and an inspector asking "how do you know she
+             was 18" gets a very different answer for each. -->
+        <div class="card mb-6">
+          <h2 class="text-xl font-semibold text-gray-900 mb-1" data-i18n="agerep.how_title">
+            ✅ How each 18+ sale was cleared
+          </h2>
+          <p class="text-sm text-gray-500 mb-4" data-i18n="agerep.how_sub">
+            Recorded on the sale itself, at the moment it was rung.
+          </p>
+          <div x-show="data.gated_sales === 0" class="text-gray-500"
+               data-i18n="agerep.how_none">No age-restricted sales in this period.</div>
+          <table x-show="data.gated_sales > 0" class="w-full text-sm">
+            <tbody>
+              <template x-for="(n, basis) in data.cleared_by" :key="basis">
+                <tr class="border-b last:border-0">
+                  <td class="py-2 font-medium" x-text="basisLabel(basis)"></td>
+                  <td class="py-2 text-gray-500" x-text="basisWhy(basis)"></td>
+                  <td class="py-2 text-right font-bold" x-text="n"></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+          <p x-show="data.unrecorded > 0" x-cloak class="text-xs text-gray-500 mt-3">
+            <span data-i18n="agerep.unrecorded">Plus</span>
+            <b x-text="data.unrecorded"></b>
+            <span data-i18n="agerep.unrecorded_tail">older sales carrying no basis — they predate
+            this record. No historical sale is retro-labelled with a check nobody performed.</span>
+          </p>
+        </div>
+
+        <div class="card mb-6">
+          <h2 class="text-xl font-semibold text-gray-900 mb-1" data-i18n="agerep.refusals_title">
+            🚫 Refusals
+          </h2>
+          <p class="text-sm text-gray-500 mb-4" data-i18n="agerep.refusals_sub">
+            A refused sale never happens, so it has no receipt to sit on — it is kept here instead.
+            These records cannot be edited or deleted by anyone, including an administrator.
+          </p>
+          <div x-show="data.refusals.length === 0" class="text-gray-500"
+               data-i18n="agerep.refusals_none">Nothing recorded in this period.</div>
+          <table x-show="data.refusals.length > 0" class="w-full text-sm">
+            <thead class="text-left text-gray-500 border-b">
+              <tr>
+                <th class="py-2" data-i18n="agerep.col_when">When</th>
+                <th class="py-2" data-i18n="agerep.col_who">Cashier</th>
+                <th class="py-2" data-i18n="agerep.col_what">Item type</th>
+                <th class="py-2" data-i18n="agerep.col_why">Reason</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="r in data.refusals" :key="r.at + (r.cashier || '')">
+                <tr class="border-b last:border-0">
+                  <td class="py-2 whitespace-nowrap" x-text="when(r.at)"></td>
+                  <td class="py-2" x-text="r.cashier || '—'"></td>
+                  <td class="py-2 text-gray-600" x-text="classLabel(r.product_class)"></td>
+                  <td class="py-2 text-gray-600" x-text="reasonLabel(r)"></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+          <p x-show="data.refusals_total > data.refusals.length" x-cloak
+             class="text-xs text-gray-500 mt-3">
+            <span data-i18n="agerep.capped">Showing the most recent</span>
+            <b x-text="data.refusals.length"></b>
+            <span data-i18n="agerep.capped_of">of</span>
+            <b x-text="data.refusals_total"></b>.
+          </p>
+        </div>
+
+        <div class="card text-sm text-gray-600">
+          <p class="font-semibold text-gray-800 mb-1" data-i18n="agerep.note_title">What this is</p>
+          <p data-i18n="agerep.note_body">
+            Every sale containing an age-restricted item is blocked by the till until the buyer's
+            age is cleared, and the way it was cleared is recorded on that sale. A buyer proven
+            under 18 by date of birth cannot be cleared by a cashier's word. <b>No personal data
+            about any customer is stored in this record</b> — it shows that the check happened,
+            not who it happened to.
+          </p>
+        </div>
+      </div>
+    </template>
+  </div>
+</div>
+
+<style>
+  @media print {
+    .no-print { display: none !important; }
+    .print-only { display: block !important; }
+    .card { break-inside: avoid; border: 1px solid #ccc; }
+  }
+</style>
+
+<script>
+  function ageReportData() {
+    return {
+      days: 30, loading: true, error: '',
+      data: { from: '', to: '', gated_sales: 0, cleared_by: {}, clean_carts: 0,
+              unrecorded: 0, refusals: [], refusals_total: 0, zero_refusal_warning: false },
+
+      async load() {
+        this.loading = true; this.error = '';
+        try {
+          this.data = await API.get('/api/v1/pos/reports/age-gate?days=' + this.days);
+        } catch (e) {
+          this.error = (e && e.message) || 'error';
+        } finally {
+          this.loading = false;
+        }
+      },
+
+      // Plain words, not column names — an inspector is not reading a schema. These go
+      // through t() because they are the ROWS: hardcoding them in JS left a German page
+      // with English rows inside it, which only showed up on loading the page in German.
+      basisLabel(b) {
+        const k = { member_dob: '📅 ', member_confirmed: '👤 ', cashier_attest: '🪪 ' }[b];
+        return k ? k + t('agerep.basis_' + b) : b;
+      },
+      // The distinction that actually matters if anyone asks how you know.
+      basisWhy(b) {
+        return ['member_dob', 'member_confirmed', 'cashier_attest'].includes(b)
+          ? t('agerep.why_' + b) : '';
+      },
+      // product_class is a schema value (cbd_hemp, tobacco_nicotine…). An inspector should
+      // never be shown a column name.
+      classLabel(c) {
+        if (!c) return '—';
+        // Only the CANONICAL classes get translated. Anything else is shown verbatim —
+        // there is one row on the sandbox carrying `tobacco`, written by the append-only
+        // trigger test, and inventing a label for a value the product model never emits
+        // would be a small lie on a compliance page.
+        const known = ['cbd_hemp', 'tobacco_nicotine', 'alcohol', 'cbd_open', 'standard'];
+        return known.includes(c) ? t('agerep.class_' + c) : c;
+      },
+      // The stored note IS the record and the server never rewrites it. When it matches the
+      // closed reason list the screen shows that reason in the reader's language; anything
+      // else (older rows, probe rows) shows verbatim, because inventing a translation for
+      // an unknown note would be worse than showing what was written.
+      reasonLabel(r) {
+        return r.reason ? t('agerep.reason_' + r.reason) : (r.note || '—');
+      },
+      when(iso) {
+        try {
+          const d = new Date(iso);
+          return d.toLocaleString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric',
+                                               hour: '2-digit', minute: '2-digit' });
+        } catch (e) { return iso; }
+      },
+    };
+  }
+</script>
+{% endblock %}

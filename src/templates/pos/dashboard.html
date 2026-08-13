@@ -197,6 +197,20 @@
                 </div>
             </template>
 
+            <!-- 🔞 The 18+ record. On the CASHIER's dashboard on purpose — Angel, 2026-08-12:
+                 "felix will not be in the shop when the inspector shows up." A manager-only
+                 report answers nobody at the moment it is asked for. Read-only, no buyer
+                 identity, and Pam performed most of what is on it. -->
+            <template x-if="user.isCashier">
+                <div class="card hover:shadow-xl transition cursor-pointer" onclick="window.location.href='/pos/age-report'">
+                    <div class="text-center py-8">
+                        <span class="text-6xl mb-4 block">🔞</span>
+                        <h3 class="text-2xl font-bold text-gray-900 mb-2" data-i18n="dashboard.age_report">18+ Record</h3>
+                        <p class="text-gray-600" data-i18n="dashboard.age_report_desc">Proof the age check happened &mdash; printable</p>
+                    </div>
+                </div>
+            </template>
+
             <!-- Guest kiosk — a FRONT-COUNTER tool: launch the self-service scan & shop screen on a
                  guest-facing device. Gated isCashier (true for cashier/manager/admin) so Pam can open
                  it at the counter too — the /pos/kiosk route is public (no login), so this is safe. -->
