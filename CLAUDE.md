@@ -133,7 +133,13 @@ pattern below, bump the count here. A pattern at ×7 is telling you something a 
 10. **Before filling an empty field, grep for its name in the comments.** A design that rejected
    something usually left a note saying so — `stock_quantity = 1` is the zero-perpetual design, not
    missing data.
-11. **A validation nobody can see is a silent failure, and a green summary over an unchecked box is
+11. **When the human says it works, it works — that is the finish line, not a new lap.** On
+    2026-08-13 Angel ran the sheet, marked it PASS and asked *"do you agree?"*. I came back with
+    three more findings, **two of which were my own mess** — my test rows sitting in his evidence,
+    and a step whose question his flow never reached. He said: *"I don't know what you're looking
+    for anymore."* Fair. Standing rule 5 cuts both ways: a human confirming it is DONE. Report
+    what genuinely blocks a promote; log the rest and move on.
+12. **A validation nobody can see is a silent failure, and a green summary over an unchecked box is
     a lie.** Put the outcome where the button is, and never demand words a dropdown already said.
 
 ---

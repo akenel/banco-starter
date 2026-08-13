@@ -70,59 +70,49 @@ every keystroke and every cart change, and a live Elements panel re-renders on e
 
 ## ▶️ NOW — needs Angel's hands
 
-0. **Log out and back in first** — Keycloak was restarted for the fix above, so any open
-   session is dead. Then `./scripts/standup.sh` must say **SAFE TO TEST** *including* the
-   new "silent token refresh works" line.
-
-1. **🔞 The 18+ gate — the human-green run.**
-   → [`onboarding/testsheets/AGE-GATE-HUMAN-HALF.html`](onboarding/testsheets/AGE-GATE-HUMAN-HALF.html)
-   · 12 steps, ~20 min.
-   Machine side is done: `prove-till-18plus.js` is **27 checks, 0 failed, 1 known gap**, sabotaged
-   three times. The sheet carries only what a machine cannot judge — **wording, feel, and the
-   German** (H5, open since 08-12 and explicitly not passable on a shrug). Then P1–P3 promote it.
-
-2. **⚖️ F2 — "👤 Remove member & continue" turns the hard DOB block into a soft one.**
-   *(Angel + Felix. Pinned as a KNOWN GAP in the test output so it cannot rot quietly.)*
-   Verified: minor + attest → 400; remove the member, attest → 201 `cashier_attest`. The button
-   **must** exist — Pam scans the wrong loyalty card and the person really is 40 — but it is the
-   *first* button under *"rook is under 18"*, where a thumb lands. Move it below Refuse? Require a
-   manager? Reword it? Not obviously a bug; genuinely a decision.
-
-3. **✅ BUILT 2026-08-13 — the 18+ record has a screen, and Pam can open it.** Needs your eyes.
-   `/pos/age-report`, a **cashier tile on the dashboard** (not manager-only — your D6: *"felix will
-   not be in the shop when the inspector shows up"*), printable, EN + DE.
-   Shows how each 18+ sale was cleared (the three bases in plain words, with **why one is weaker**),
-   the refusals with reasons, and — first on the page — a **warning when refusals are zero**,
-   because that is the reading an inspector makes on his own.
-   **No schema value reaches the reader** and no buyer identity is in the payload (FADP).
-   Proven by driving it as `pam` in both languages; suite is now **32 checks**, and the
-   plain-words guarantee was sabotaged (`cbd_hemp` leaked → red) before being believed.
-   ⚠️ **One thing I did not decide for you:** stored refusal notes are English — the row is the
-   record and I will not rewrite an append-only table. The screen shows German for the three known
-   reasons and the raw note otherwise. Say if you want it differently *before* many rows exist.
-
-4. **📊 Nothing produces a compliance VERDICT.** `compliance_check_run` is written by no code, and
-   all 13 rules ship `is_active = false` pending a human reading each authority
-   (`authority_checked_at`). Who does that reading, and what is the evidence it happened?
-   Two rules — `CBD-INGESTIBLE`, `THC-LAB-PAPER` — **can never be proven by query**: the evidence
-   is a lab certificate and a supplier declaration, i.e. a document plus a dated human attestation.
-
----
-
-## 🔜 NEXT
-
-5. **⛔ The two bulk catalogue scripts are blocked on WHERE they run, not on code.**
+1. **⛔ The two bulk catalogue scripts are blocked on WHERE they run, not on code.**
    Local dev has **6 products**; the 5,111 live on the prod/UAT box, and `deploy-prod.sh` is
    written to run *on* that server. Decide: a shell on prod, or a dump pulled down here. Then
    `enrich-from-source.py --apply` (~90 min) and `adopt-images.py --apply` (~137 min).
    → detail in [`worklist-archive/catalogue-and-till.md`](worklist-archive/catalogue-and-till.md)
 
-6. **🔫 The gun's inventory-mode dump is still unproven** — the last unknown in shelf intake, and
-   the whole 10× path. Everything so far was one code at a time. Does a 20–30 code burst survive a
-   browser textarea? ⚠️ And the gun roles are **the reverse** of what the old deck assumed: the
-   Netum has store mode, the Inateck does single scans. Re-test before planning around either.
+2. **🔫 The gun's inventory-mode dump is still unproven** — the last unknown in shelf intake, and
+   the whole 10× path. Does a 20–30 code burst survive a browser textarea? ⚠️ The gun roles are
+   **the reverse** of what the old deck assumed: the Netum has store mode, the Inateck does single
+   scans. Re-test before planning around either.
 
-7. **🔐 Go-live hardening** — DNS preflight + a default-secret gate in `deploy-prod.sh`; and the DR
+---
+
+## ✅ THE 18+ EVIDENCE WORK IS DONE — HUMAN-GREEN 2026-08-13, Angel
+
+**He ran it, and he called it: *"it's working fine."*** Closed. Do not reopen it for another pass.
+
+Proven by his own hands, at the till, in German: **three real refusals made by a person and
+recorded** — 16:10:10 *no ID*, 16:11:39 and 16:14:20 *clearly under 18*. That was impossible
+two weeks ago and still impossible this morning.
+
+**His decisions, taken as final:**
+- **F2 · "Mitglied entfernen & weiter" stays as it is.** *"If the guy doesn't want the person's
+  name on there or the member, then they delete it, and they remove it."* The button is the
+  feature, not a hole. **Un-pin it** — the suite should stop printing it as a KNOWN GAP.
+- **H6 · the receipt is fine as it is.** It carries the 🔞 18+ chip per line
+  (`receipt.html:149`); it does not carry the basis, and it does not need to.
+
+*What survived from the machine side:* `scripts/prove-till-18plus.js` — 44 checks, runs in
+90 seconds, rings as `ralph` so its rows never masquerade as a person's. Keep running it before
+a promote; it is not a reason to run another human pass.
+
+⚠️ **My mistake to not repeat.** After he marked the sheet PASS and asked whether I agreed, I
+came back with three more findings — two of which were my own mess (my test rows sitting in his
+evidence, a step whose question his flow never reached). That is how a finished piece of work
+starts feeling unfinished. **When the human says it works, it works.** Standing rule 5 cuts both
+ways: a human confirming it is the finish line, not the start of another lap.
+
+---
+
+## 🔜 NEXT
+
+3. **🔐 Go-live hardening** — DNS preflight + a default-secret gate in `deploy-prod.sh`; and the DR
    restore (Move B), still **blocked on read-only B2 credentials**. The backup has never been
    restored, so it is a belief, not a capability.
 

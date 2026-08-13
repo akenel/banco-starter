@@ -29,18 +29,15 @@
  *         retry, never navigate away from the news.
  *   6  ✅ Confirm walk-in -> 201 + transactions.age_check_outcome = cashier_attest
  *   7  an of-age member -> no modal at all, outcome = member_dob
- *   8  minor -> remove member -> attest -> 201                      [KNOWN BYPASS]
+ *   8  minor -> remove member -> attest -> 201 (DECIDED 2026-08-13: the button stays)
  *   9  efbc056 from the UI: no completed sale ever carries another cart's refusal
  *  10  the 18+ RECORD page: a CASHIER can reach it, it renders real numbers, and no
  *      schema value (cbd_hemp, cashier_attest…) reaches the reader — in EN and DE
  *
- * 8 asserts the CURRENT, KNOWN-IMPERFECT behaviour on purpose. It is pinned so
- * that the day someone changes it, this script says so out loud rather than staying
- * green. (2026-07-31: "a test that pins a known-dangerous behaviour is worse than no
- * test" — the difference is that it says KNOWN GAP in the output and in WORKLIST.)
- *
- * Check 5 USED to be a pinned gap too. It is now a real assertion, because the till
- * records the refusal — that is what the pin was for.
+ * Checks 5 and 8 were both pinned KNOWN GAPS once. Neither is now: 5 became a real
+ * assertion when the till started recording refusals, and 8 became one when Angel decided
+ * the remove-member button stays. That is what pinning is for — it holds a question open
+ * until a person answers it, then gets out of the way.
  *
  * ⛔ IT RINGS REAL COMPLETED SALES. A completed transaction is a line in the Kassenbuch.
  *    Never point it at a shop's books. Guarded behind BANCO_ALLOW_FAKE_SALES=1.
@@ -569,8 +566,10 @@ async function attachMember(p, handle) {
       }
       const txn4 = await receiptTxn(p); if (txn4) soldTxns.push(txn4); { const i = receiptId(p); if (i) soldIds.push(i); }
       if (r === 'receipt') {
-        gap('a DOB-proven minor was on this cart seconds ago and the sale went through',
-          `${txn4} -> ${txn4 ? outcomeOf(txn4) : '?'}. WORKLIST F2 — the button must exist (wrong loyalty card), but it is the FIRST one offered.`);
+        // DECIDED by Angel, 2026-08-13: the button stays. "If the guy doesn't want the
+        // person's name on there or the member, then they delete it, and they remove it."
+        // So this is the feature working, not a gap — asserted, not pinned.
+        ok(`removing the member lets the sale through, as decided — ${txn4} -> ${txn4 ? outcomeOf(txn4) : '?'}`);
       } else {
         ok('removing the member did NOT let the sale through', `result=${r}`);
       }
