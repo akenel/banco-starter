@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The 18+ gate — the human half</title>
+<style>
+  :root{ --red:#157F52; --dark:#0f5c3b; --ink:#1f2937; --mut:#6b7280; --line:#e5e7eb;
+         --ok:#059669; --iss:#d97706; --fail:#C0392B; --bg:#f6f8f7; --gold:#b0862f; }
+  *{ box-sizing:border-box; }
+  body{ font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; color:var(--ink);
+        background:var(--bg); margin:0; line-height:1.5; }
+  a{ color:var(--dark); }
+  header{ position:sticky; top:0; z-index:10; background:#fff; border-bottom:2px solid var(--red);
+          padding:12px 20px; box-shadow:0 2px 8px rgba(0,0,0,.06); }
+  .htop{ display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+  h1{ font-size:18px; margin:0; }
+  h1 small{ color:var(--mut); font-weight:500; font-size:13px; display:block; margin-top:2px; }
+  .meters{ display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
+  .meter{ text-align:center; } .meter b{ font-size:20px; display:block; }
+  .meter.ok b{ color:var(--ok); } .meter.iss b{ color:var(--iss); } .meter.fail b{ color:var(--fail); }
+  .meter span{ font-size:11px; color:var(--mut); text-transform:uppercase; letter-spacing:.04em; }
+  .timer{ font-variant-numeric:tabular-nums; font-size:22px; font-weight:700; color:var(--ink); }
+  .btn{ border:1px solid var(--line); background:#fff; border-radius:8px; padding:6px 12px;
+        font-size:13px; cursor:pointer; } .btn:hover{ background:#f0f0f0; }
+  .btn.red{ background:var(--red); color:#fff; border-color:var(--red); }
+  main{ max-width:920px; margin:0 auto; padding:22px 20px 80px; }
+  .lead{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin-bottom:20px; }
+  .phase{ font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.06em;
+          color:var(--red); margin:26px 0 10px; padding-bottom:6px; border-bottom:2px solid var(--red); }
+  section{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin-bottom:14px; }
+  section h2{ font-size:15px; margin:0 0 4px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  section .why{ color:var(--mut); font-size:13px; margin:0 0 12px; }
+  code{ font-family:ui-monospace,Menlo,monospace; font-size:12px; background:#f3f4f6;
+        border:1px solid var(--line); border-radius:5px; padding:1px 5px; }
+  .cmd{ display:block; font-family:ui-monospace,Menlo,monospace; font-size:12.5px; background:#0f172a;
+        color:#e2e8f0; border-radius:8px; padding:9px 12px; margin:6px 0; white-space:pre-wrap; word-break:break-word; }
+  ol.steps{ margin:0; padding:0; list-style:none; }
+  ol.steps li{ display:flex; gap:10px; padding:9px 0; border-top:1px dashed var(--line); align-items:flex-start; }
+  ol.steps li:first-child{ border-top:none; }
+  .verdict{ display:flex; gap:4px; flex:none; margin-top:1px; }
+  .vbtn{ border:1px solid var(--line); background:#fff; border-radius:7px; padding:4px 8px; font-size:11px;
+         font-weight:700; cursor:pointer; color:var(--mut); white-space:nowrap; }
+  .vbtn:hover{ background:#f6f6f6; }
+  .vbtn.v-pass.on{ background:var(--ok); border-color:var(--ok); color:#fff; }
+  .vbtn.v-fail.on{ background:var(--fail); border-color:var(--fail); color:#fff; }
+  .vbtn.v-issue.on{ background:var(--iss); border-color:var(--iss); color:#fff; }
+  @media (max-width:600px){ .vbtn{ padding:4px 6px; font-size:10px; } ol.steps li{ flex-wrap:wrap; } }
+  .step-body{ flex:1; min-width:220px; font-size:14px; }
+  .exp{ display:block; color:var(--ok); font-size:12.5px; margin-top:4px; }
+  .exp::before{ content:"✓ expect: "; font-weight:600; }
+  textarea{ width:100%; border:1px solid var(--line); border-radius:8px; padding:8px 10px; font:inherit;
+            font-size:13px; margin-top:10px; resize:vertical; min-height:54px; }
+  textarea.step-cm{ margin-top:0; min-height:32px; font-size:12.5px; background:#fcfcfd; flex:1; }
+  .step-extra{ margin-top:8px; }
+  .cm-row{ display:flex; gap:6px; align-items:flex-start; }
+  .mic-btn{ border:1px solid var(--line); background:#fff; border-radius:8px; padding:4px 9px; cursor:pointer;
+            font-size:15px; flex:none; }
+  .mic-btn.on{ background:#e6f6ee; border-color:var(--red); color:var(--red); animation:pulse 1s infinite; }
+  @keyframes pulse{ 50%{ opacity:.45 } }
+  .shot-zone{ margin-top:6px; border:1.5px dashed var(--line); border-radius:8px; padding:6px 10px; font-size:12px;
+              color:var(--mut); cursor:pointer; background:#fafafa; }
+  .shot-zone:focus,.shot-zone.drag{ outline:none; border-color:var(--red); background:#f2fbf6; color:var(--ink); }
+  .thumbs{ display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; }
+  .thumbs .sh{ position:relative; }
+  .thumbs img{ height:66px; border-radius:6px; border:1px solid var(--line); cursor:zoom-in; display:block; }
+  .thumbs .rm{ position:absolute; top:-7px; right:-7px; background:var(--red); color:#fff; border:none;
+               border-radius:99px; width:19px; height:19px; font-size:11px; cursor:pointer; line-height:1; }
+  .hidden{ display:none; }
+  label.cm{ font-size:11px; color:var(--mut); text-transform:uppercase; letter-spacing:.04em; }
+  .safety{ border:1px solid var(--line); border-left:4px solid var(--gold); background:#fffdf5;
+           border-radius:8px; padding:10px 12px; margin:10px 0; font-size:13.5px; }
+  .danger{ border-left-color:var(--fail); background:#fdf2f0; }
+  .tag{ font-size:11px; font-weight:700; padding:2px 8px; border-radius:99px; background:#dcfce7; color:#065f46; }
+  .tag.gap{ background:#fef3c7; color:#92400e; }
+  .tag.t{ background:#e0e7ff; color:#3730a3; font-variant-numeric:tabular-nums; }
+  table{ border-collapse:collapse; width:100%; font-size:13px; margin:8px 0; }
+  th,td{ border:1px solid var(--line); padding:6px 9px; text-align:left; vertical-align:top; }
+  th{ background:#f6f8f7; }
+  .card{ font-family:ui-monospace,Menlo,monospace; font-size:12.5px; background:#0f172a; color:#e2e8f0;
+         border-radius:10px; padding:14px 16px; white-space:pre-wrap; }
+</style>
+</head>
+<body>
+
+<header><div class="htop">
+  <h1>🔞 The 18+ gate — the human half
+    <small>The machine now checks 19 things. This sheet is only what a machine cannot judge.</small></h1>
+  <div class="meters">
+    <div class="meter"><span class="timer" id="clock">00:00</span><span>elapsed</span></div>
+    <div class="meter"><b id="prog">0/0</b><span>marked</span></div>
+    <div class="meter ok"><b id="mOk">0</b><span>ok</span></div>
+    <div class="meter iss"><b id="mIss">0</b><span>issue</span></div>
+    <div class="meter fail"><b id="mFail">0</b><span>fail</span></div>
+    <button class="btn red" id="startBtn" onclick="toggleTimer()">▶ Start</button>
+    <button class="btn" onclick="copyFindings()">📋 findings</button>
+    <button class="btn" onclick="if(confirm('Clear everything — marks, notes and screenshots?')){localStorage.removeItem(KEY);location.reload()}">reset</button>
+  </div>
+</div></header>
+
+<main>
+  <div class="lead">
+    <strong>Why this sheet is short.</strong> The last two sheets sent you after things a
+    machine should have caught — twice I described a button that is not rendered in the state I
+    described it in, and you spent the time proving me wrong. There is now a browser suite that
+    drives the real screens (<code>scripts/prove-till-18plus.js</code>, <b>19 checks</b>), so
+    <b>everything a machine can judge has been judged.</b> What is left is the part that needs a
+    person: <b>wording, feel, and two decisions.</b>
+
+    <div class="safety">
+      <b>What the machine already proved on this build</b> — you do not need to re-check any of it:
+      <ul style="margin:6px 0 0 18px; padding:0">
+        <li>a normal sale completes; <b>Back gives a clean empty cart</b> (your finding, now a
+          permanent guard)</li>
+        <li>an 18+ line raises the 🔞 modal and <b>no POST is made</b> — the client stops it</li>
+        <li>the modal's buttons, listed, <b>in both states</b> — with a minor attached,
+          "✅ Confirm 18+ walk-in" is genuinely absent</li>
+        <li>attest → <code>cashier_attest</code>; of-age member → <code>member_dob</code>, both
+          recorded on the transaction</li>
+        <li><code>efbc056</code>: no sale carries another cart's refusal</li>
+      </ul>
+      <div style="margin-top:6px">It was <b>sabotaged twice</b> before I believed it: once by
+      pointing it at a non-gated product, once by deleting the guard that hides the walk-in button
+      and rebuilding. Both times it went red on the right line.</div>
+    </div>
+
+    <div class="safety danger">
+      <b>Two things it found that are NOT bugs — they are your decisions.</b> Both are printed as
+      <code>⚠️ KNOWN GAP</code> so nobody reads green and assumes otherwise.
+      <div style="margin-top:6px"><b>1 · The refusal a cashier actually performs writes nothing.</b>
+      "🚫 Refuse — remove 18+ item(s)" strips the line in JavaScript and never calls the server.
+      All 52 rows in <code>age_check_event</code> were written by a machine over HTTP; no person has
+      ever created one, and none can.</div>
+      <div style="margin-top:6px"><b>2 · "👤 Remove member & continue"</b> turns the hard DOB block
+      into a soft one, and it is the <em>first</em> button under <i>"rook is under 18"</i>.</div>
+    </div>
+  </div>
+
+  <div class="phase">Part M — Let the machine go first · 2 minutes</div>
+  <section>
+    <h2>M · One command, then read the last ten lines</h2>
+    <p class="why">If this is not green, stop — there is no point spending your eyes on a build that
+      is already broken. It rings four real sales and <b>refunds them itself</b>.</p>
+    <ol class="steps">
+      <li><div class="step-body"><b>M1 · Run the browser suite.</b> ~90 seconds.
+        <span class="cmd">BANCO_ALLOW_FAKE_SALES=1 NODE_PATH=/home/angel/repos/helixnet/node_modules node scripts/prove-till-18plus.js</span>
+        <span class="exp"><b>19 passed · 0 failed · 2 known gap(s)</b>, then
+        <i>"4/4 test sale(s) refunded"</i>. Any ❌ and this sheet is off until it is fixed.
+        <div style="margin-top:4px">Playwright is <b>borrowed</b> from the helixnet repo — this
+        repo has no node build on purpose. If that path is gone the script exits with
+        instructions rather than a strange failure.</div></span></div></li>
+    </ol>
+  </section>
+
+  <div class="phase">Part H — The part only you can do · about 15 minutes</div>
+  <section>
+    <h2>H · Wording, feel, and the German</h2>
+    <p class="why">Log in at <code>http://localhost:3000/pos</code> as <b><code>pam</code> /
+      <code>pam</code></b>. 18+ item: type <b><code>gummy</code></b> — <b>CBD Gummy</b> is the only
+      hit. Normal item: <b>Lollipop</b>. Pay by <b>TWINT</b> (no drawer needed). Nothing has a
+      barcode; type the name.</p>
+    <div class="safety">
+      <b>Judge these as a shopkeeper with a customer waiting</b>, not as the person who built it.
+      Every one of these is a sentence or a feeling, which is exactly why no test can mark it.
+    </div>
+    <ol class="steps">
+      <li><div class="step-body"><b>H1 · Does the till feel unchanged?</b> Ring a Lollipop, TWINT,
+        done.
+        <span class="exp">the commit promised <i>"same popup, same click"</i>. <b>No new question,
+        no extra tap.</b> If anything feels slower or noisier than a week ago, that is the
+        regression that matters most — every sale goes through this path.</span></div></li>
+      <li><div class="step-body"><b>H2 · Read the refusal, out loud.</b> Ring the CBD Gummy, press
+        Pay, and <b>read the 🔞 modal as if a customer is standing there.</b>
+        <span class="exp">does it tell you <b>what to do</b>, or only what went wrong? Three buttons
+        is three decisions. <b>Write the sentence you would rather it said</b> in the note — that
+        wording goes straight into the fix.</span></div></li>
+      <li><div class="step-body"><b>H3 · Is "🚫 Refuse" the honest word?</b> Press it and watch what
+        happens to the cart.
+        <span class="exp">it says <i>Refuse</i>, and what it does is <b>remove the item and let the
+        rest of the sale go through</b>. Nothing is refused, nothing is recorded. <b>Is that the
+        right word on the button?</b> Your answer here shapes decision F1 below.</span></div></li>
+      <li><div class="step-body"><b>H4 · The minor, and the first button.</b> Attach member
+        <b><code>rook</code></b>, ring the CBD Gummy, press Pay.
+        <span class="exp">you get the red banner and <b>two</b> buttons. The first one — the one a
+        thumb lands on — is <b>"👤 Remove member &amp; continue"</b>. <b>Would Pam, at 17:55 on a
+        Friday, press it without thinking?</b> That is the whole of decision F2.</span></div></li>
+      <li><div class="step-body"><b>H5 · Read the German.</b> Switch the UI to German (EN toggle,
+        bottom bar) and run H2 and H4 again.
+        <span class="exp">a cashier who reads <b>only</b> German understands what to do.
+        <b>Never checked by a native speaker</b> — you marked this ISSUE on 08-12 with
+        <i>"not sure my german not that good"</i>, and it is still open. If you cannot judge it,
+        say so and we find someone who can; do not pass it on a shrug.</span></div></li>
+      <li><div class="step-body"><b>H6 · The receipt.</b> Ring the Gummy, attest, complete, and look
+        at the printed receipt.
+        <span class="exp">the 18+ line shows a <b>🔞 18+</b> chip. <b>Should the receipt also say
+        the age was checked, and how?</b> An inspector reads receipts, not databases — and today
+        the basis exists only in Postgres.</span></div></li>
+    </ol>
+  </section>
+
+  <div class="phase">Part P — Then promote</div>
+  <section>
+    <h2>P · What promoting this actually involves</h2>
+    <p class="why">The change is additive — the app creates <code>cart_ref</code> itself on boot
+      from <code>_ADDITIVE_COLUMNS</code>. No migration step. So promote = build, boot, re-run the
+      machine suite there.</p>
+    <ol class="steps">
+      <li><div class="step-body"><b>P1 · Only if M1 is green and no H step is a FAIL.</b>
+        <span class="exp">tick to record that you checked. A wording ISSUE does not block; a broken
+        till does.</span></div></li>
+      <li><div class="step-body"><b>P2 · On UAT: rebuild, then confirm the schema.</b>
+        <span class="cmd">docker compose exec -T postgres psql -U helix_user -d helix_db -c "\d age_check_event" | grep -E 'cart_ref|append_only'</span>
+        <span class="exp">a <code>cart_ref</code> column <b>and</b> the
+        <code>trg_ace_append_only</code> trigger. Both, or stop.</span></div></li>
+      <li><div class="step-body"><b>P3 · On UAT: run the suite against it.</b>
+        <span class="cmd">BANCO_ALLOW_FAKE_SALES=1 BANCO_URL=&lt;uat-url&gt; BANCO_KC_URL=&lt;uat-kc&gt; NODE_PATH=/home/angel/repos/helixnet/node_modules node scripts/prove-till-18plus.js</span>
+        <span class="exp">19 green and 4 sales refunded. <b>It rings real sales — check you are
+        pointed at UAT and not at anything Felix is using.</b> The <code>psql</code> checks inside
+        it run against the LOCAL compose stack, so on a remote UAT expect those specific lines to
+        need the DB env pointed at the right place.</span></div></li>
+    </ol>
+  </section>
+
+  <div class="phase">Part F — The two decisions, and the one that is still open from 08-12</div>
+  <section>
+    <h2>F · Write it down while it is fresh</h2>
+    <p class="why">Hit <b>📋 findings</b> and paste into <code>WORKLIST.md</code>. Both gaps are
+      pinned in the test output, so nothing rots quietly — but pinned is not decided.</p>
+
+    <label class="cm">F1 · Should "🚫 Refuse" tell the server, so the refusal leaves a record?</label>
+    <textarea data-cm="f1" placeholder="For: 'we can prove our refusals' is only true if refusals exist, and a shop with thousands of 18+ sales and zero refusals reads like a shop that never checks. Against: age_check_event is append-only, so every mis-tap becomes a permanent compliance row forever. Middle: record only when the cashier confirms 'customer had no ID' rather than on every tap? Your call — it is your shop's record."></textarea>
+
+    <label class="cm">F2 · "👤 Remove member & continue" — keep, re-order, gate, or reword?</label>
+    <textarea data-cm="f2" placeholder="It must exist (Pam scans the wrong loyalty card and the person really is 40). But it is the FIRST button under 'rook is under 18', and the finished sale looks like any other attested walk-in. Move it below Refuse? Require a manager? Make it say 'this is not that person'? Note what you would do."></textarea>
+
+    <label class="cm">F3 · Still open from 08-12: Pam has no screen for any of this.</label>
+    <textarea data-cm="f3" placeholder="Your D6 answer: 'felix will not be in the shop when the inspector shows up'. So it must be operable by a cashier. Smallest thing that works — a read-only 18+ page under Reports? a line on the day-close? something printable? Where is Pam STANDING when she needs it?"></textarea>
+  </section>
+
+  <div class="phase">Where this stands</div>
+  <section>
+    <h2>In four lines</h2>
+    <div class="card">THE GATE      always bit, still bits, on both sale paths
+CLEARANCES    recorded on the sale — cashier_attest / member_dob — and correct
+REFUSALS      recorded only when a machine posts JSON; no cashier can make one
+THE SCREEN    still none — psql is the only way to read any of it
+
+efbc056 fixed a real defect. It is just downstream of a door
+nobody at the counter can open.</div>
+    <ol class="steps">
+      <li><div class="step-body">After the run: is that still accurate?
+        <span class="exp">if a line changed today, say which.</span></div></li>
+    </ol>
+  </section>
+</main>
+<script>
+  const KEY='banco-age-human-half-v1';
+  const STEPS=[];
+  const VDEFS=[['pass','OK','✓'],['fail','FAIL','✗'],['issue','ISSUE','⚠']];
+
+  function verdictControl(i){
+    const box=document.createElement('div'); box.className='verdict';
+    VDEFS.forEach(([v,lbl,ic])=>{ const b=document.createElement('button'); b.type='button';
+      b.className='vbtn v-'+v; b.innerHTML=ic+' '+lbl; b.title=lbl;
+      b.addEventListener('click', ()=>setVerdict(i, STEPS[i].verdict===v ? '' : v));
+      box.appendChild(b); STEPS[i]._btns[v]=b; });
+    return box;
+  }
+  function paintVerdict(i){ const s=STEPS[i]; VDEFS.forEach(([v])=>{ const b=s._btns[v];
+    if(b) b.classList.toggle('on', s.verdict===v); }); }
+  function setVerdict(i,v){ STEPS[i].verdict=v; paintVerdict(i); save(); progress(); }
+
+  function buildSteps(){
+    document.querySelectorAll('ol.steps li').forEach((li,i)=>{
+      const bodyEl = li.querySelector('.step-body');
+      const label = (bodyEl?.textContent||'').trim().replace(/\s+/g,' ').slice(0,120);
+      STEPS[i]={ li, label, verdict:'', ta:null, thumbs:null, shots:[], _btns:{} };
+      li.insertBefore(verdictControl(i), li.firstChild);
+      const wrap=document.createElement('div'); wrap.className='step-extra';
+      const row=document.createElement('div'); row.className='cm-row';
+      const ta=document.createElement('textarea'); ta.className='step-cm'; ta.rows=1;
+      ta.placeholder='note… what happened, how long, what you had to invent (type or 🎤 speak)';
+      ta.addEventListener('input', save);
+      const mic=document.createElement('button'); mic.className='mic-btn'; mic.type='button';
+      mic.textContent='🎤'; mic.title='Dictate this note';
+      mic.addEventListener('click', ()=>micToggle(mic, ta));
+      row.appendChild(ta); row.appendChild(mic); wrap.appendChild(row);
+      const zone=document.createElement('div'); zone.className='shot-zone'; zone.tabIndex=0;
+      zone.textContent='📋 click & paste a screenshot (Ctrl+V) · drop an image · or 📷 pick a file';
+      const fin=document.createElement('input'); fin.type='file'; fin.accept='image/*';
+      fin.capture='environment'; fin.className='hidden';
+      zone.addEventListener('click', ()=>{ activeIdx=i; fin.click(); });
+      zone.addEventListener('focus', ()=>{ activeIdx=i; });
+      zone.addEventListener('dragover', e=>{ e.preventDefault(); zone.classList.add('drag'); });
+      zone.addEventListener('dragleave', ()=>zone.classList.remove('drag'));
+      zone.addEventListener('drop', e=>{ e.preventDefault(); zone.classList.remove('drag'); activeIdx=i;
+        [...(e.dataTransfer.files||[])].forEach(f=>{ if(f.type.startsWith('image/')) addShot(i,f); }); });
+      fin.addEventListener('change', e=>{ [...(e.target.files||[])].forEach(f=>addShot(i,f)); e.target.value=''; });
+      const thumbs=document.createElement('div'); thumbs.className='thumbs';
+      wrap.appendChild(zone); wrap.appendChild(fin); wrap.appendChild(thumbs);
+      bodyEl.appendChild(wrap);
+      STEPS[i].ta=ta; STEPS[i].thumbs=thumbs;
+    });
+  }
+
+  let activeIdx=null;
+  document.addEventListener('paste', e=>{ if(activeIdx==null) return;
+    const items=(e.clipboardData||{}).items||[];
+    for(const it of items){ if(it.type && it.type.startsWith('image/')){ const f=it.getAsFile();
+      if(f){ addShot(activeIdx,f); e.preventDefault(); } } } });
+  function downscale(file, cb){ const url=URL.createObjectURL(file); const img=new Image();
+    img.onload=()=>{ const max=1000; let w=img.width,h=img.height; if(w>max){ h=Math.round(h*max/w); w=max; }
+      const c=document.createElement('canvas'); c.width=w; c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h); URL.revokeObjectURL(url);
+      try{ cb(c.toDataURL('image/jpeg',0.6)); }catch(e){ cb(null); } };
+    img.onerror=()=>{ URL.revokeObjectURL(url); cb(null); }; img.src=url; }
+  function addShot(i,file){ downscale(file, data=>{ if(!data) return;
+    STEPS[i].shots.push({name:file.name||'screenshot.png', data}); renderThumbs(i); save(); }); }
+  function renderThumbs(i){ const t=STEPS[i].thumbs; t.innerHTML='';
+    STEPS[i].shots.forEach((sh,si)=>{ const d=document.createElement('div'); d.className='sh';
+      const im=document.createElement('img'); im.src=sh.data; im.title=sh.name;
+      im.onclick=()=>{ const w=window.open(); if(w) w.document.write('<img src="'+sh.data+'" style="max-width:100%">'); };
+      const rm=document.createElement('button'); rm.className='rm'; rm.textContent='✕'; rm.title='remove';
+      rm.onclick=()=>{ STEPS[i].shots.splice(si,1); renderThumbs(i); save(); };
+      d.appendChild(im); d.appendChild(rm); t.appendChild(d); }); }
+
+  function save(){ const d={verdict:[],note:[],shots:[],cm:{},seconds};
+    STEPS.forEach((s,i)=>{ d.verdict[i]=s.verdict||''; d.note[i]=s.ta.value; d.shots[i]=s.shots; });
+    document.querySelectorAll('textarea[data-cm]').forEach(t=>d.cm[t.dataset.cm]=t.value);
+    try{ localStorage.setItem(KEY,JSON.stringify(d)); }catch(e){ console.warn('storage full', e); } }
+  function restore(){ try{ const d=JSON.parse(localStorage.getItem(KEY)||'{}');
+    STEPS.forEach((s,i)=>{ if(d.verdict&&d.verdict[i]){ s.verdict=d.verdict[i]; paintVerdict(i); }
+      if(d.note&&d.note[i]!=null) s.ta.value=d.note[i];
+      if(d.shots&&Array.isArray(d.shots[i])){ s.shots=d.shots[i]; renderThumbs(i); } });
+    if(d.cm) document.querySelectorAll('textarea[data-cm]').forEach(t=>{ if(d.cm[t.dataset.cm]!=null) t.value=d.cm[t.dataset.cm]; });
+    if(typeof d.seconds==='number'){ seconds=d.seconds; paintClock(); } }catch(e){} }
+
+  function progress(){ let p=0,f=0,iss=0,dec=0;
+    STEPS.forEach(s=>{ if(s.verdict){ dec++; if(s.verdict==='pass')p++; else if(s.verdict==='fail')f++; else iss++; } });
+    document.getElementById('prog').textContent=dec+'/'+STEPS.length;
+    mOk.textContent=p; mIss.textContent=iss; mFail.textContent=f; }
+
+  // Turn the run into something that can be pasted straight into WORKLIST.md. A finding that
+  // stays in a browser tab is a finding nobody acts on.
+  function copyFindings(){
+    const L=['# 18+ gate, the human half — findings','', 'elapsed: '+document.getElementById('clock').textContent, ''];
+    STEPS.forEach(s=>{ if(s.verdict==='fail'||s.verdict==='issue'||(s.ta.value||'').trim()){
+      L.push('- ['+(s.verdict||'note').toUpperCase()+'] '+s.label + ((s.ta.value||'').trim()? '\n      → '+s.ta.value.trim() : '')); } });
+    L.push('', '## Decisions for Angel + Felix');
+    document.querySelectorAll('textarea[data-cm]').forEach(t=>{ const v=(t.value||'').trim();
+      if(v) L.push('- **'+t.dataset.cm.toUpperCase()+'** — '+v); });
+    const txt=L.join('\n');
+    navigator.clipboard?.writeText(txt).then(
+      ()=>alert('Findings copied — paste into WORKLIST.md'),
+      ()=>{ const w=window.open(); if(w) w.document.write('<pre>'+txt.replace(/</g,'&lt;')+'</pre>'); });
+  }
+
+  let seconds=0, timer=null;
+  function paintClock(){ const m=String(Math.floor(seconds/60)).padStart(2,'0'),
+    s=String(seconds%60).padStart(2,'0'); document.getElementById('clock').textContent=m+':'+s; }
+  function toggleTimer(){ const b=document.getElementById('startBtn');
+    if(timer){ clearInterval(timer); timer=null; b.textContent='▶ Resume'; }
+    else { timer=setInterval(()=>{ seconds++; paintClock(); if(seconds%10===0) save(); },1000);
+      b.textContent='⏸ Pause'; } }
+
+  let rec=null;
+  function micToggle(btn, ta){
+    if(rec){ rec.stop(); return; }
+    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    if(!SR){ alert('This browser has no speech recognition — type the note instead.'); return; }
+    rec=new SR(); rec.lang='en-GB'; rec.interimResults=false; rec.continuous=true;
+    rec.onresult=e=>{ let t=''; for(let i=e.resultIndex;i<e.results.length;i++) t+=e.results[i][0].transcript;
+      ta.value=(ta.value?ta.value+' ':'')+t.trim(); save(); };
+    rec.onend=()=>{ btn.classList.remove('on'); rec=null; };
+    rec.onerror=()=>{ btn.classList.remove('on'); rec=null; };
+    btn.classList.add('on'); rec.start();
+  }
+
+  buildSteps(); restore(); progress(); paintClock();
+</script>
+</body></html>

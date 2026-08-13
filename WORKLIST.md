@@ -294,23 +294,24 @@ along (`TXN-0001` papers+sticker → `TXN-0002` +lollipop → `TXN-0003` +grinde
 `pos_cart` **is** cleared on success (`checkout.html:1207`) and kept on a 4xx (correct).
 Most likely he re-added by hand; worth one look, not yet a finding.
 
-**▶️ NEXT, and it needs Angel's hands — TEST LOCALLY, THEN PROMOTE:**
-[`onboarding/testsheets/REFUSAL-EVIDENCE-RETEST.html`](onboarding/testsheets/REFUSAL-EVIDENCE-RETEST.html)
-— **v2 (2026-08-13), 15 steps, ~15 minutes**, the focused retest of `efbc056` alone. The
-`localStorage` key was bumped to `banco-refusal-retest-v2`, so the v1 marks are gone
-deliberately — that run tested nothing. The 27-step
-`AGE-EVIDENCE-TESTSHEET.html` is **done**; do not re-run it. This one is Part P (prove the
-running image actually has the fix — the image bakes `src/` in), Part R (refuse one
-customer, sell the next, and confirm the lollipop's number appears **nowhere** in the
-evidence), Part L (the 17 pre-fix rows that lie and cannot be corrected), **Part T (what
-promote means: a build, a boot, and the same two checks on UAT)**, and three decisions.
+**▶️ NEXT, and it needs Angel's hands — HUMAN-GREEN, THEN PROMOTE:**
+[`onboarding/testsheets/AGE-GATE-HUMAN-HALF.html`](onboarding/testsheets/AGE-GATE-HUMAN-HALF.html)
+— **11 steps, ~20 minutes.** One command to let the machine go first, then only what a
+machine cannot judge: **wording, feel, and the German.** H2 asks him to read the refusal
+out loud with a customer waiting; H3 asks whether "Refuse" is the honest word for a button
+that removes an item and lets the rest of the sale through; H5 is the German, still open
+from 08-12 (*"not sure my german not that good"*) and explicitly not passable on a shrug.
+Then P1–P3 for promote, and the two decisions.
 
-*Every one of its eight commands was run verbatim against the live sandbox before it
-shipped.* It uses a `$RUN_START` marker rather than a time window, because the table
-already holds 52 refusals — most of them mine, logged as `pam`, and unremovable.
+**The two earlier sheets are retired, both because of me:**
+`REFUSAL-EVIDENCE-RETEST.html` — v1 and v2 each sent him to press a button that does not
+exist in the state described. `AGE-EVIDENCE-TESTSHEET.html` (27 steps) is **done**, passed
+08-12; do not re-run it. Everything either of them could still usefully assert is now in
+`prove-till-18plus.js`, which runs in 90 seconds and cannot mis-remember a screen.
 
-*Sandbox stand-up, in order:* `./scripts/rebuild.sh` → `./scripts/standup.sh` →
-seed the pack → `BANCO_ALLOW_FAKE_SALES=1 python3 scripts/prove-age-evidence.py`.
+*Sandbox stand-up, in order:* `./scripts/rebuild.sh` → `./scripts/standup.sh` → seed the
+pack → `BANCO_ALLOW_FAKE_SALES=1 python3 scripts/prove-age-evidence.py` (server) →
+`BANCO_ALLOW_FAKE_SALES=1 NODE_PATH=… node scripts/prove-till-18plus.js` (screens).
 
 ---
 
