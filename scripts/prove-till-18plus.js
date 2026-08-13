@@ -56,8 +56,19 @@ const { execFileSync } = require('child_process');
 const path = require('path');
 
 const ROOT = (process.env.BANCO_URL || 'http://localhost:3000').replace(/\/$/, '');
-const USER = process.env.BANCO_USER || 'pam';
-const PASS = process.env.BANCO_PASS || 'pam';
+// RINGS AS 'ralph', NOT 'pam' — deliberately, and it is not cosmetic.
+//
+// age_check_event is append-only, so every refusal this suite writes is PERMANENT and
+// lands in the same list a human is reading. This bit twice. 2026-08-12 the Python probe
+// rang as pam and its rows masqueraded as Angel's; I fixed that one and then rebuilt the
+// same trap here. On 2026-08-13 he read three refusals back off his own testsheet and one
+// of them was mine (cart_ref 'late-write-check'), sitting between two of his.
+//
+// ralph is a cashier too, so the screens under test are identical — but the evidence
+// stays separable:
+//     select ... from age_check_event where cashier = 'pam'   -- what a PERSON did
+const USER = process.env.BANCO_USER || 'ralph';
+const PASS = process.env.BANCO_PASS || 'ralph';
 const REPO = path.resolve(__dirname, '..');
 const AGE_ITEM = process.env.BANCO_AGE_ITEM || 'CBD Gummy';
 const PLAIN_ITEM = process.env.BANCO_PLAIN_ITEM || 'Lollipop';

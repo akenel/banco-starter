@@ -227,11 +227,17 @@
         <b>Never checked by a native speaker</b> — you marked this ISSUE on 08-12 with
         <i>"not sure my german not that good"</i>, and it is still open. If you cannot judge it,
         say so and we find someone who can; do not pass it on a shrug.</span></div></li>
-      <li><div class="step-body"><b>H6 · The receipt.</b> Ring the Gummy, attest, complete, and look
-        at the printed receipt.
-        <span class="exp">the 18+ line shows a <b>🔞 18+</b> chip. <b>Should the receipt also say
-        the age was checked, and how?</b> An inspector reads receipts, not databases — and today
-        the basis exists only in Postgres.</span></div></li>
+      <li><div class="step-body"><b>H6 · The receipt.</b> ⚠️ <b>This one did not run on 2026-08-13
+        and is still open.</b> All three receipts from that pass — <code>TXN-…-0100</code>,
+        <code>-0101</code>, <code>-0102</code> — carry <code>age_check_outcome = not_required</code>
+        and <b>no 18+ line at all</b>, because the Gummy had been refused off the cart each time.
+        So the question below was never reached. <b>Ring the Gummy and CLEAR it (attest, or attach
+        an of-age member) so it is still on the sale</b>, complete, and look at the receipt.
+        <span class="exp">the 18+ line shows a <b>🔞 18+</b> chip (<code>receipt.html:149</code>) —
+        that much is confirmed in the code. <b>What the receipt does NOT carry is the basis</b>:
+        <code>age_check_outcome</code> appears nowhere on it, so a receipt says an 18+ item was
+        sold and never how the age was cleared. <b>Should it?</b> An inspector reads receipts, not
+        databases.</span></div></li>
     </ol>
   </section>
 
