@@ -8,3 +8,4 @@
 - [Use the Ground Control method](memory/use-ground-control-method.md) — how to operate in this repo: files over chat, code word, memory loop.
 - [No pivot — prove & harden](memory/no-pivot-prove-and-harden.md) — strategic call: direction is settled; the work is proof + hardening. North star + phases in ROADMAP.md.
 - [Seed vs bootstrap](memory/catalog-seed-vs-bootstrap.md) — demo seed (throwaway) ≠ real-catalog bootstrap (load-once); HX_SEED_DEMO=false leaks 9 of 11 seeders.
+- [Browser tests borrow Playwright](memory/browser-tests-borrow-playwright.md) — no node build here on purpose; `prove-till-18plus.js` runs via `NODE_PATH` to a sibling repo.
