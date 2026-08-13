@@ -45,6 +45,29 @@ Now pattern 6 in `CLAUDE.md`.
 
 ---
 
+## 🔍 OPEN, NOT REPRODUCED — the till felt slow in Angel's browser
+
+`[Violation] 'click' handler took 1144–2077ms`, seven times between 13:05 and 13:14 on
+2026-08-13. **Measured here and could not reproduce it:** Add-to-cart, quantity, payment
+select all run **80–100 ms**, and Checkout 500 ms (a page navigation), with zero
+violations — in headless *and* in a fully rendered browser under Xvfb. One "Add" click
+fires **no** network at all.
+
+Two theories ruled out by checking rather than guessing: no rebuild was running during
+that window (the app container last started 12:52, his violations begin 13:05), and the
+i18n MutationObserver is already scoped to `childList`+`subtree` on *added* nodes only,
+with a comment naming this exact hazard.
+
+**What is left, and it is testable in 30 seconds:** his screenshot shows **DevTools open**
+with the Elements panel live, plus several browser extensions. Alpine mutates the DOM on
+every keystroke and every cart change, and a live Elements panel re-renders on each one.
+→ Close DevTools, ring the same cart, and see whether it still lags. If it does,
+`scratchpad/click-probe.js` names the offending handler in his own browser.
+
+*Not a defect until it reproduces without DevTools — but not closed either.*
+
+---
+
 ## ▶️ NOW — needs Angel's hands
 
 0. **Log out and back in first** — Keycloak was restarted for the fix above, so any open
@@ -116,6 +139,17 @@ not re-verified when they were archived**, and at least one was already wrong:
 
 **So: check the code before acting on anything in there.** Promoting the still-live ones up to NOW
 is a 20-minute job worth doing once, not a thing to re-derive every session.
+
+---
+
+## ⏲️ A decision the logs raised — how long may a till sit idle?
+
+Angel's 15:46 logout was **correct**: 152 minutes idle against a 60-minute
+`ssoSessionIdleTimeout`. Not the refresh bug returning — refresh verified 200 at the time
+of writing. But it is worth deciding deliberately for the shop rather than inheriting it:
+**60 minutes of a backgrounded tab and the cashier is logged out.** In the foreground the
+till polls and the session stays warm; a tablet asleep over lunch does not. Overnight
+logout is *desirable*; a quiet Tuesday afternoon one is not.
 
 ---
 
