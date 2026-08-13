@@ -85,7 +85,7 @@
 
 <header><div class="htop">
   <h1>🔞 The 18+ gate — the human half
-    <small>The machine now checks 19 things. This sheet is only what a machine cannot judge.</small></h1>
+    <small>The machine now checks 27 things. This sheet is only what a machine cannot judge.</small></h1>
   <div class="meters">
     <div class="meter"><span class="timer" id="clock">00:00</span><span>elapsed</span></div>
     <div class="meter"><b id="prog">0/0</b><span>marked</span></div>
@@ -103,7 +103,7 @@
     <strong>Why this sheet is short.</strong> The last two sheets sent you after things a
     machine should have caught — twice I described a button that is not rendered in the state I
     described it in, and you spent the time proving me wrong. There is now a browser suite that
-    drives the real screens (<code>scripts/prove-till-18plus.js</code>, <b>19 checks</b>), so
+    drives the real screens (<code>scripts/prove-till-18plus.js</code>, <b>27 checks</b>), so
     <b>everything a machine can judge has been judged.</b> What is left is the part that needs a
     person: <b>wording, feel, and two decisions.</b>
 
@@ -115,24 +115,30 @@
         <li>an 18+ line raises the 🔞 modal and <b>no POST is made</b> — the client stops it</li>
         <li>the modal's buttons, listed, <b>in both states</b> — with a minor attached,
           "✅ Confirm 18+ walk-in" is genuinely absent</li>
+        <li>🚫 Refuse asks why, then <b>writes a real refusal row</b> — read back and checked
+          for outcome, a NULL <code>txn_ref</code>, <b>your</b> username, the reason, and the
+          cart thread. "Just taking it off" writes nothing.</li>
         <li>attest → <code>cashier_attest</code>; of-age member → <code>member_dob</code>, both
           recorded on the transaction</li>
         <li><code>efbc056</code>: no sale carries another cart's refusal</li>
       </ul>
-      <div style="margin-top:6px">It was <b>sabotaged twice</b> before I believed it: once by
-      pointing it at a non-gated product, once by deleting the guard that hides the walk-in button
-      and rebuilding. Both times it went red on the right line.</div>
+      <div style="margin-top:6px">It was <b>sabotaged three times</b> before I believed it: pointing it at a non-gated
+      product, deleting the guard that hides the walk-in button, and disabling the new refusal
+      POST. Each time it went red on exactly the right line.</div>
     </div>
 
     <div class="safety danger">
       <b>Two things it found that are NOT bugs — they are your decisions.</b> Both are printed as
       <code>⚠️ KNOWN GAP</code> so nobody reads green and assumes otherwise.
-      <div style="margin-top:6px"><b>1 · The refusal a cashier actually performs writes nothing.</b>
-      "🚫 Refuse — remove 18+ item(s)" strips the line in JavaScript and never calls the server.
-      All 52 rows in <code>age_check_event</code> were written by a machine over HTTP; no person has
-      ever created one, and none can.</div>
+      <div style="margin-top:6px"><b>1 · FIXED THIS MORNING, and it needs your eyes.</b> The
+      refusal a cashier actually performs used to write nothing — all 52 rows in
+      <code>age_check_event</code> had been written by a machine over HTTP, and no person could
+      create one. You chose the <b>confirm step</b>, so 🚫 Refuse now asks <i>"Why? This is
+      recorded."</i> with four answers, the last of which records nothing.
+      <b>H3 is you judging whether that question is worth the tap.</b></div>
       <div style="margin-top:6px"><b>2 · "👤 Remove member & continue"</b> turns the hard DOB block
-      into a soft one, and it is the <em>first</em> button under <i>"rook is under 18"</i>.</div>
+      into a soft one, and it is the <em>first</em> button under <i>"rook is under 18"</i>. Still
+      open — F2.</div>
     </div>
   </div>
 
@@ -144,7 +150,7 @@
     <ol class="steps">
       <li><div class="step-body"><b>M1 · Run the browser suite.</b> ~90 seconds.
         <span class="cmd">BANCO_ALLOW_FAKE_SALES=1 NODE_PATH=/home/angel/repos/helixnet/node_modules node scripts/prove-till-18plus.js</span>
-        <span class="exp"><b>19 passed · 0 failed · 2 known gap(s)</b>, then
+        <span class="exp"><b>27 passed · 0 failed · 1 known gap</b>, then
         <i>"4/4 test sale(s) refunded"</i>. Any ❌ and this sheet is off until it is fixed.
         <div style="margin-top:4px">Playwright is <b>borrowed</b> from the helixnet repo — this
         repo has no node build on purpose. If that path is gone the script exits with
@@ -174,11 +180,21 @@
         <span class="exp">does it tell you <b>what to do</b>, or only what went wrong? Three buttons
         is three decisions. <b>Write the sentence you would rather it said</b> in the note — that
         wording goes straight into the fix.</span></div></li>
-      <li><div class="step-body"><b>H3 · Is "🚫 Refuse" the honest word?</b> Press it and watch what
-        happens to the cart.
-        <span class="exp">it says <i>Refuse</i>, and what it does is <b>remove the item and let the
-        rest of the sale go through</b>. Nothing is refused, nothing is recorded. <b>Is that the
-        right word on the button?</b> Your answer here shapes decision F1 below.</span></div></li>
+      <li><div class="step-body"><b>H3 · The new question — one tap, or one tap too many?</b> Press
+        <b>🚫 Refuse</b>. It no longer acts immediately; it asks <i>"Why? This is recorded."</i> with
+        four answers.
+        <span class="exp"><b>Time it with a customer standing there.</b> Three real reasons plus
+        <i>"↩︎ Just taking it off — not a refusal"</i>, which writes nothing. Two questions for you:
+        <b>are those the right three reasons</b> for your shop, and <b>is the wording of the
+        opt-out clear enough</b> that Pam will use it instead of picking a reason to make the
+        panel go away? A wrong reason is permanent — the table cannot be edited.</span></div></li>
+      <li><div class="step-body"><b>H3b · Prove your own refusal landed.</b> After pressing
+        <b>No ID shown</b>, read the row back. <b>This is the first thing in this project that
+        records a refusal a person made.</b>
+        <span class="cmd">docker compose exec -T postgres psql -U helix_user -d helix_db -c "select (occurred_at at time zone 'Europe/Zurich')::time(0) as shop_time, cashier, coalesce(txn_ref,'NULL — correct') as txn_ref, note from age_check_event where note like 'refused at the counter%' order by occurred_at desc limit 3"</span>
+        <span class="exp">the top row is <b>yours</b>: your local time, <code>pam</code>,
+        <code>NULL — correct</code> (no sale existed to point at), and the reason you picked.
+        <b>Is that the sentence you would want an inspector to read?</b></span></div></li>
       <li><div class="step-body"><b>H4 · The minor, and the first button.</b> Attach member
         <b><code>rook</code></b>, ring the CBD Gummy, press Pay.
         <span class="exp">you get the red banner and <b>two</b> buttons. The first one — the one a
@@ -227,8 +243,8 @@
     <p class="why">Hit <b>📋 findings</b> and paste into <code>WORKLIST.md</code>. Both gaps are
       pinned in the test output, so nothing rots quietly — but pinned is not decided.</p>
 
-    <label class="cm">F1 · Should "🚫 Refuse" tell the server, so the refusal leaves a record?</label>
-    <textarea data-cm="f1" placeholder="For: 'we can prove our refusals' is only true if refusals exist, and a shop with thousands of 18+ sales and zero refusals reads like a shop that never checks. Against: age_check_event is append-only, so every mis-tap becomes a permanent compliance row forever. Middle: record only when the cashier confirms 'customer had no ID' rather than on every tap? Your call — it is your shop's record."></textarea>
+    <label class="cm">F1 · The confirm step shipped — does it survive contact with a real counter?</label>
+    <textarea data-cm="f1" placeholder="You chose 'record on a confirm step' and it is built. Now that you have pressed it: are three reasons right (no ID / refused to show / clearly under 18)? Is any of them missing? Is the opt-out worded so Pam actually uses it? And the one I cannot answer: should Felix be told when refusals for a day is ZERO — which is the reading that looks worst to an inspector?"></textarea>
 
     <label class="cm">F2 · "👤 Remove member & continue" — keep, re-order, gate, or reword?</label>
     <textarea data-cm="f2" placeholder="It must exist (Pam scans the wrong loyalty card and the person really is 40). But it is the FIRST button under 'rook is under 18', and the finished sale looks like any other attested walk-in. Move it below Refuse? Require a manager? Make it say 'this is not that person'? Note what you would do."></textarea>

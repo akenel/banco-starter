@@ -196,8 +196,14 @@ reaches it.
 the probe proves it is gone. But it can only ever be exercised by the probe. From where
 Angel stands, nothing improved, and he is right to say so.
 
-**The fix is code, not another testsheet:** `ageRefuse()` must tell the server. Blocked on
-one decision (F1) — record every refuse-tap on an append-only table, or only some.
+**✅ FIXED 2026-08-13 (`f0a15fc`) — Angel chose the confirm step.** 🚫 Refuse now asks
+*"Why? This is recorded."* with four answers; the fourth, *"↩︎ Just taking it off — not a
+refusal"*, writes nothing. Reasons are a **closed list, validated server-side** (`400` on
+anything else) — no free text, because 08-03 cost a CHF 500 skim by demanding a sentence
+after a dropdown. `saleUuid()` was extracted so the refusal and any later sale on the same
+cart share one `cart_ref`; minting a fresh uuid at sale time would have silently turned
+*"turned away, produced ID, sold anyway"* into two unrelated customers.
+**Three human-made refusal rows now exist — the first in this project's history.**
 
 ### ✅ THE "CART COMES BACK" SCARE — WRONG, AND CHECKED TWICE
 
@@ -223,22 +229,26 @@ prediction is not an identifier.**
 
 The Python probe was 25/25 green on a feature no cashier could reach. **A probe that posts
 JSON cannot see an `x-show`.** So there is now a Playwright suite that drives the real
-screens as `pam` — **19 checks, 0 failed, 2 pinned KNOWN GAPS** — and it asserts the
+screens as `pam` — **27 checks, 0 failed, 1 pinned KNOWN GAP** — and it asserts the
 things that actually bit us:
 
 - the 🔞 modal fires and **no POST is made** (the client stops it)
 - **the modal's buttons, enumerated in both states** — with a minor attached, "✅ Confirm
   18+ walk-in" is *absent*. That is the assertion that would have stopped me writing two
   bad testsheet steps.
-- 🚫 Refuse → no POST, no evidence row → **KNOWN GAP (F1)**
+- 🚫 Refuse asks why, writes the row, and the row is **read back and checked**: outcome,
+  a NULL `txn_ref`, the cashier's own username, the reason, the cart thread. "Just taking
+  it off" writes nothing. *(This check used to BE a pinned gap — that is what pins are for.)*
 - ✅ attest → `cashier_attest`; of-age member → `member_dob` (both recorded, both correct)
 - minor → remove member → attest → sale completes → **KNOWN GAP (F2)**
 - `efbc056` from the UI: no sale rung carries another cart's refusal
 - cart hygiene after a completed sale (the scare above, now a permanent guard)
 
-**Sabotaged twice before being believed** (the 08-07 rule): pointed the age item at a
-non-gated product → 5 red; and removed the `x-show` guard on the walk-in button, rebuilt,
-and check 4 went red on exactly that line. Reverted, rebuilt, green again.
+**Sabotaged three times before being believed** (the 08-07 rule): the age item pointed at
+a non-gated product → 5 red; the `x-show` guard removed from the walk-in button → check 4
+red; `if (false)` around the new refusal POST → 5b red. Each on exactly the right line,
+each reverted and rebuilt green. Plus the endpoint's own guards over HTTP:
+`reason=whatever` → 400, empty → 400, no auth → 403.
 
 It **refunds its own sales** (as manager — `pam` cannot refund, and should not be able to)
 and never touches the evidence rows, which are append-only.
