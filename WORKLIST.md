@@ -163,9 +163,53 @@ exact shape this sheet exists to catch, in the sheet itself.**
   human attestation, or they stay a permanent human sign-off. That is a design answer,
   not a coding one.
 
+### 🔴 THE RETEST FOUND SOMETHING BIGGER THAN THE THING IT WAS RETESTING — 2026-08-13
+
+**THE REFUSAL A CASHIER ACTUALLY PERFORMS IS NEVER SENT TO THE SERVER.**
+
+Angel ran the v1 retest, got `(0 rows)` where a refusal row should have been, and marked
+it ISSUE with *"not sure if i am doing the tests right"*. He was doing them exactly right.
+**The sheet was wrong, and being wrong is what exposed this.**
+
+`ageRefuse()` (`checkout.html:1048`) is pure client-side JavaScript: it filters the 18+
+line out of the cart, closes the modal, and **never calls the server**. And
+`completeTransaction()` returns *before* the POST whenever `needsAgeGate()` is true. The
+client mirrors the server's rule faithfully — so the client always wins first and **the
+server is never troubled at all**.
+
+**Proven from the app log, not inferred:** across his entire 14-minute run there were
+exactly **three** `POST /api/v1/pos/sales`, all **201 Created**. Not one 400. His 0-row
+readings were correct readings of a test that never happened.
+
+```
+what a cashier does 100×/week   no ID -> take the item off  -> NO RECORD
+what the probe tested           HTTP POST with age_verified false -> 400 -> row
+```
+
+The only till path that reaches a server refusal is the **disagreement** case: a member
+proven under 18 by DOB *plus* a cashier attestation — client allows, server refuses. That
+is rare. **So `age_check_event` captures the exception and misses the rule**, and "we can
+prove our refusals" is a far smaller claim than it sounded yesterday.
+
+⚠️ **This is the repo's own lesson biting again** (2026-08-03, and again on 08-06): the
+probe proved the *server* path, which is machine-reachable, and no test could reach the
+button a human presses. It took a human pressing it, on a sheet whose expectation was
+wrong, to surface it. **Not a regression** — it has been this way since the gate shipped.
+
+**Not fixed — it is a decision, not a bug.** Recording every counter refusal means every
+mis-tap becomes a permanent, un-deletable compliance row (the table is append-only by
+design). That trade is F1 on the v2 sheet.
+
+*Also observed, unexplained:* his three receipts each carried the previous cart's items
+along (`TXN-0001` papers+sticker → `TXN-0002` +lollipop → `TXN-0003` +grinder cards).
+`pos_cart` **is** cleared on success (`checkout.html:1207`) and kept on a 4xx (correct).
+Most likely he re-added by hand; worth one look, not yet a finding.
+
 **▶️ NEXT, and it needs Angel's hands — TEST LOCALLY, THEN PROMOTE:**
 [`onboarding/testsheets/REFUSAL-EVIDENCE-RETEST.html`](onboarding/testsheets/REFUSAL-EVIDENCE-RETEST.html)
-— **15 steps, ~15 minutes**, the focused retest of `efbc056` alone. The 27-step
+— **v2 (2026-08-13), 15 steps, ~15 minutes**, the focused retest of `efbc056` alone. The
+`localStorage` key was bumped to `banco-refusal-retest-v2`, so the v1 marks are gone
+deliberately — that run tested nothing. The 27-step
 `AGE-EVIDENCE-TESTSHEET.html` is **done**; do not re-run it. This one is Part P (prove the
 running image actually has the fix — the image bakes `src/` in), Part R (refuse one
 customer, sell the next, and confirm the lollipop's number appears **nowhere** in the

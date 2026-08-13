@@ -173,55 +173,91 @@
     </ol>
   </section>
 
-  <div class="phase">Part R — The retest · two customers, then the evidence</div>
+  <div class="phase">Part R — The retest · v2, rewritten 2026-08-13 after the first run</div>
   <section>
-    <h2>R · The exact sequence that produced the false link</h2>
-    <p class="why">Log in at <code>http://localhost:3000/pos</code> as <b><code>pam</code> /
-      <code>pam</code></b> — a cashier, not an admin. The 18+ product is <b>CBD Gummy</b>
-      (<code>TREAT-GUMMY</code>, CHF 0.45, class <code>cbd_hemp</code>); <b>Lollipop</b> is the normal
-      one. <b>Nothing has a barcode</b> — type the name, do not reach for the gun. <b>Pay by TWINT</b>
-      to skip the cash-drawer requirement.</p>
-    <div class="safety">
-      <b>R1 and R2 must be back to back, with nothing in between.</b> That adjacency <em>is</em> the
-      test — the old code handed the refused customer's number to whoever rang next.
+    <h2>R · The till has TWO refusals, and only one of them reaches the server</h2>
+    <div class="safety danger">
+      <b>⚠️ v1 of this sheet was wrong and cost you 14 minutes. Here is what it got wrong.</b>
+      R1 said <i>"decline the cashier attestation at the 🔞 popup"</i> and expected a refusal row.
+      But the popup's decline button is <b>"🚫 Refuse — remove 18+ item(s)"</b>, and that button is
+      <b>pure client-side JavaScript</b> (<code>checkout.html:1048</code>): it strips the 18+ line out
+      of the cart, closes the modal, and <b>never calls the server</b>. Nothing is refused, because
+      nothing was ever asked. Your remaining items then completed normally — which is exactly what
+      your <code>TXN-20260813-0001</code> receipt shows.
+      <div style="margin-top:6px"><b>Proof, from the app log across your whole run:</b> three
+      <code>POST /api/v1/pos/sales</code>, all <b>201 Created</b>. Not one 400. The browser never
+      asked the server to refuse anything, so there was nothing for the evidence table to record.
+      Your 0-row results were correct readings of a test that never happened.</div>
     </div>
+    <div class="safety">
+      <b>So which button DOES reach the server?</b> <code>completeTransaction()</code> checks
+      <code>needsAgeGate()</code> and <b>returns before the POST</b> whenever the cart holds an 18+
+      line with no of-age member and no attestation. The client mirrors the server, so the client
+      wins first and the server is never troubled. The one path that gets through is the one where
+      the client and server <em>disagree</em>: <b>a member proven under 18 by DOB, plus a cashier
+      attestation.</b> The client lets it go (the cashier attested); the server refuses (the DOB is
+      authoritative). That is R2.
+    </div>
+    <p class="why">Log in at <code>http://localhost:3000/pos</code> as <b><code>pam</code> /
+      <code>pam</code></b> — a cashier, not an admin. The 18+ product is <b>CBD Gummy</b> — type
+      <b><code>gummy</code></b> in the search box and it is the only hit (verified over the API:
+      <code>is_age_restricted: true</code>, <code>age_total: 1</code>). <b>Nothing has a barcode</b> —
+      type the name, do not reach for the gun. <b>Pay by TWINT</b> to skip the cash-drawer
+      requirement. <b>Check the cart is empty before each step</b> — your three receipts each carried
+      the previous one's items along.</p>
     <ol class="steps">
-      <li><div class="step-body"><b>R1 · Customer one is refused.</b> Ring <b>CBD Gummy</b>, no member
-        attached, and <b>decline the cashier attestation</b> at the 🔞 popup.
-        <span class="exp">refused, sale does not complete. Nothing new on screen — this is the same
-        refusal you have always had.</span></div></li>
-      <li><div class="step-body"><b>R2 · Customer two, immediately.</b> Clear the cart, ring a
-        <b>Lollipop</b>, complete on <b>TWINT</b>.
-        <span class="exp">completes normally. <b>Write the transaction number down</b> —
-        <code>TXN-YYYYMMDD-NNNN</code>, off the receipt or the confirmation. You need it in R4.</span>
-        <div class="cmd" style="background:#fff;border-style:dashed">TXN-________________ ← write it here</div></div></li>
+      <li><div class="step-body"><b>R1 · The everyday refusal, and what it leaves behind.</b> Empty
+        cart, no member. Ring <b>CBD Gummy</b> alone, press Pay, and at the 🔞 modal press
+        <b>"🚫 Refuse — remove 18+ item(s)"</b>. The cart empties and you land back on the scan
+        screen. Then run the query from P3 again.
+        <span class="cmd">docker compose exec -T postgres psql -U helix_user -d helix_db -c "select (occurred_at at time zone 'Europe/Zurich')::time(0) as shop_time, outcome, coalesce(txn_ref,'NULL — correct') as txn_ref, coalesce(left(cart_ref,8),'none') as cart, note from age_check_event where cashier='pam' and occurred_at &gt; '$RUN_START' order by occurred_at desc"</span>
+        <span class="exp"><b>(0 rows) — and I believe that is WRONG.</b> This is the refusal a real
+        cashier performs a hundred times: customer has no ID, you take the item off, they buy the
+        rest or leave. <b>It writes nothing.</b> The evidence table only ever captures the rare
+        disagreement in R2.
+        <div style="margin-top:4px"><b>Mark this step FAIL if you agree it should leave a record.</b>
+        It is not a regression — it has been like this since the gate shipped — but it means
+        "we can prove our refusals" is a much smaller claim than it sounds.</div></span></div></li>
+      <li><div class="step-body"><b>R2 · The refusal the server actually sees.</b> Attach member
+        <b><code>rook</code></b> (DOB 2026-05-12 — a proven minor). Ring the <b>CBD Gummy</b>. Press
+        Pay. You will get the banner <i>"rook is under 18 — 18+ items can't be sold to them"</i>. Now
+        press <b>"✅ Confirm 18+ walk-in — ID checked"</b>.
+        <span class="exp">the sale is <b>refused by the server</b> (400) and the modal comes back. This
+        is the only till path that produces a refusal record. <b>Do not clear the cart</b> — R5 needs
+        it.</span></div></li>
       <li><div class="step-body"><b>R3 · Read the refusal row.</b> Same terminal as P3.
         <span class="cmd">docker compose exec -T postgres psql -U helix_user -d helix_db -c "select (occurred_at at time zone 'Europe/Zurich')::time(0) as shop_time, outcome, coalesce(txn_ref,'NULL — correct') as txn_ref, coalesce(left(cart_ref,8),'none') as cart, note from age_check_event where cashier='pam' and occurred_at &gt; '$RUN_START' order by occurred_at desc"</span>
-        <span class="exp"><b>exactly one row</b>: <code>refused</code> · <code>txn_ref</code> reading
-        <b>NULL — correct</b> · <code>cart</code> showing <b>8 hex characters</b>, not
-        <code>none</code>.
-        <div style="margin-top:4px"><b>A transaction number in that <code>txn_ref</code> column is the
-        defect still live.</b> A <code>cart</code> of <code>none</code> is a different failure — the
-        row is honest but unjoinable, and R5 will have nothing to find.</div></span></div></li>
-      <li><div class="step-body"><b>R4 · The lollipop must appear nowhere.</b> Paste <b>your</b> number
-        from R2 in place of the one below.
-        <span class="cmd">docker compose exec -T postgres psql -U helix_user -d helix_db -c "select count(*) as must_be_zero from age_check_event where txn_ref = 'TXN-20260813-0001'"</span>
-        <span class="exp"><b>0</b>. This is the whole fix in one number: customer two's sale carries no
-        18+ record, because customer two was never asked. <b>A 1 here is a FAIL and the fix did not
-        hold.</b></span></div></li>
-      <li><div class="step-body"><b>R5 · Refused, then cleared properly — one thread.</b> Ring the
-        <b>CBD Gummy</b> again, <b>decline</b> at the popup, then <b>without clearing the cart</b> ring
-        it through again and <b>tick the attestation</b>. Complete on TWINT.
-        <span class="exp">the sale completes. The refusal and the sale are the same customer, and the
-        database should be able to say so.</span></div></li>
+        <span class="exp"><b>one row</b>: <code>refused</code> · <code>txn_ref</code> reading
+        <b>NULL — correct</b> · <code>cart</code> showing <b>8 hex characters</b>, not <code>none</code>.
+        <div style="margin-top:4px"><b>A transaction number in <code>txn_ref</code> is the defect still
+        live — FAIL.</b> A <code>cart</code> of <code>none</code> is a different failure: the row is
+        honest but unjoinable, and R6 will find nothing.</div></span></div></li>
+      <li><div class="step-body"><b>R4 · Customer two, immediately — the whole point.</b> Open a new
+        tab or press 🛒 New Sale so the cart is <b>empty</b>, ring a <b>Lollipop</b> on its own,
+        complete on <b>TWINT</b>. Then check that sale's number appears nowhere in the evidence —
+        <b>paste your number</b> in place of the one below.
+        <span class="cmd">docker compose exec -T postgres psql -U helix_user -d helix_db -c "select count(*) as must_be_zero from age_check_event where txn_ref = 'TXN-20260813-0004'"</span>
+        <span class="exp"><b>0</b>. This is the fix in one number: customer two's sale carries no 18+
+        record, because customer two was never asked. <b>A 1 here is a FAIL and <code>efbc056</code>
+        did not hold.</b>
+        <div style="margin-top:4px">Note this only means something <em>after R2 produced a row</em>.
+        A 0 with nothing refused proves nothing — that is what happened in the v1 run.</div></span></div></li>
+      <li><div class="step-body"><b>R5 · Refused, then sold anyway — one thread.</b> Go back to the
+        R2 cart (still holding the Gummy and <code>rook</code>). In the modal press
+        <b>"👤 Remove member &amp; continue"</b>, then <b>"✅ Confirm 18+ walk-in"</b>, and complete on
+        TWINT.
+        <span class="exp">it completes as <code>cashier_attest</code>. <b>This is also finding 2 from
+        the 08-12 run happening in front of you</b> — a DOB-proven minor was on that cart four seconds
+        ago and the finished sale looks like any other attested walk-in. Note how many taps it
+        took.</span></div></li>
       <li><div class="step-body"><b>R6 · The join that replaces the false link.</b>
         <span class="cmd">docker compose exec -T postgres psql -U helix_user -d helix_db -c "select (a.occurred_at at time zone 'Europe/Zurich')::time(0) as refused_at, left(a.cart_ref,8) as cart, t.transaction_number as sold_as, t.age_check_outcome as cleared_by, t.total from age_check_event a join transactions t on t.client_uuid::text = a.cart_ref where a.outcome='refused' and a.occurred_at &gt; '$RUN_START' order by a.occurred_at desc"</span>
-        <span class="exp"><b>one row</b> — the R5 refusal joined to the R5 sale, <code>cleared_by</code>
-        = <b><code>cashier_attest</code></b>, total <b>0.45</b>.
-        <div style="margin-top:4px"><b>The R1 refusal must NOT appear here</b>, because customer one
-        walked out and there is no sale to join to. Two rows means R1 got attached to something.
-        Zero rows means the cart thread is broken — that is the R3 <code>none</code> case, and it is a
-        FAIL.</div></span></div></li>
+        <span class="exp"><b>one row</b> — the R2 refusal joined to the R5 sale,
+        <code>cleared_by</code> = <b><code>cashier_attest</code></b>, total <b>0.45</b>. That is
+        "turned away, then sold anyway, same cart, seconds apart" — queryable for the first time, and
+        the single most audit-relevant pattern in the whole gate.
+        <div style="margin-top:4px"><b>The R4 lollipop must not appear here.</b> Zero rows means the
+        cart thread is broken — FAIL.</div></span></div></li>
     </ol>
   </section>
 
@@ -277,14 +313,17 @@
     <p class="why">Hit <b>📋 findings</b> at the top when you are done and paste it into
       <code>WORKLIST.md</code>. A finding that stays in a browser tab is a finding nobody acts on.</p>
 
-    <label class="cm">F1 · "👤 Remove member & continue" still bypasses the DOB block. Keep, gate, or change?</label>
-    <textarea data-cm="f1" placeholder="Verified: minor + attest → 400. Remove the member, attest → 201 cashier_attest. The button must exist (a mis-scanned loyalty card on a real adult), but right now it turns a hard block into a soft one. Gate it to a manager? Log it louder? Leave it and rely on the cart_ref thread now linking the refusal to the retry?"></textarea>
+    <label class="cm">F1 · THE BIG ONE — the everyday refusal (R1) writes nothing. Should it?</label>
+    <textarea data-cm="f1" placeholder="'🚫 Refuse — remove 18+ item(s)' is client-side only; the server is never told, so the evidence table never hears about the refusal a cashier actually performs. Fixing it means the till POSTs a 'we refused' event — cheap. But it also means every mis-tap and every 'oh wait, it's for my husband' becomes a permanent, un-deletable compliance row. Record all of them? Only when the cart is abandoned? Not at all, and shrink the claim instead?"></textarea>
 
-    <label class="cm">F2 · The pre-fix rows — leave them, or wipe the sandbox before promoting?</label>
-    <textarea data-cm="f2" placeholder="17 false links, 7 pointing at sales with no 18+ line, all un-editable by design. Sandbox only — but decide the rule now for the day it happens somewhere real."></textarea>
+    <label class="cm">F2 · "👤 Remove member & continue" still bypasses the DOB block. Keep, gate, or change?</label>
+    <textarea data-cm="f2" placeholder="Verified: minor + attest → 400. Remove the member, attest → 201 cashier_attest. The button must exist (a mis-scanned loyalty card on a real adult), but right now it turns a hard block into a soft one. Gate it to a manager? Log it louder? Leave it and rely on the cart_ref thread now linking the refusal to the retry?"></textarea>
 
-    <label class="cm">F3 · Still open from the full sheet: Pam has no screen for any of this.</label>
-    <textarea data-cm="f3" placeholder="Your D6 answer was 'felix will not be in the shop when the inspector shows up'. So the view has to be operable by a cashier. What is the smallest thing — a read-only 18+ page under Reports? a line on the day-close? Where is Pam STANDING when she needs it?"></textarea>
+    <label class="cm">F3 · The pre-fix rows — leave them, or wipe the sandbox before promoting?</label>
+    <textarea data-cm="f3" placeholder="17 false links, 7 pointing at sales with no 18+ line, all un-editable by design. Sandbox only — but decide the rule now for the day it happens somewhere real."></textarea>
+
+    <label class="cm">F4 · Still open from the full sheet: Pam has no screen for any of this.</label>
+    <textarea data-cm="f4" placeholder="Your D6 answer was 'felix will not be in the shop when the inspector shows up'. So the view has to be operable by a cashier. What is the smallest thing — a read-only 18+ page under Reports? a line on the day-close? Where is Pam STANDING when she needs it?"></textarea>
   </section>
 
   <div class="phase">The one-line summary</div>
@@ -293,9 +332,12 @@
     <div class="card">BEFORE   a refusal was stamped with the number the NEXT sale would take
 AFTER    a refusal carries NULL and a cart thread — the truth, or nothing
 LEFT     17 old rows that still lie, and cannot be corrected, by design
+NEW      the refusal a cashier ACTUALLY performs is never sent to the
+         server at all, so the evidence table never hears about it
 
-The gate always bit. This is about whether the record of the bite
-points at the right customer.</div>
+The gate always bit. This was about whether the record of the bite
+points at the right customer. The v1 run found something bigger:
+for the common refusal, there is no record of a bite.</div>
     <ol class="steps">
       <li><div class="step-body">After the run: is that summary still accurate?
         <span class="exp">if a line changed today, say which.</span></div></li>
@@ -303,7 +345,7 @@ points at the right customer.</div>
   </section>
 </main>
 <script>
-  const KEY='banco-refusal-retest-v1';
+  const KEY='banco-refusal-retest-v2';
   const STEPS=[];
   const VDEFS=[['pass','OK','✓'],['fail','FAIL','✗'],['issue','ISSUE','⚠']];
 
@@ -392,7 +434,7 @@ points at the right customer.</div>
   // Turn the run into something that can be pasted straight into WORKLIST.md. A finding that
   // stays in a browser tab is a finding nobody acts on.
   function copyFindings(){
-    const L=['# refusal evidence retest (efbc056) — findings','', 'elapsed: '+document.getElementById('clock').textContent, ''];
+    const L=['# refusal evidence retest (efbc056) v2 — findings','', 'elapsed: '+document.getElementById('clock').textContent, ''];
     STEPS.forEach(s=>{ if(s.verdict==='fail'||s.verdict==='issue'||(s.ta.value||'').trim()){
       L.push('- ['+(s.verdict||'note').toUpperCase()+'] '+s.label + ((s.ta.value||'').trim()? '\n      → '+s.ta.value.trim() : '')); } });
     L.push('', '## Decisions for Angel + Felix');
