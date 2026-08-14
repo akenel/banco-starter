@@ -68,6 +68,39 @@ every keystroke and every cart change, and a live Elements panel re-renders on e
 
 ---
 
+## 🚩 PROD IS HALF-DEPLOYED — SAFE, BUT UNFINISHED (2026-08-14)
+
+**Nothing is broken. Nothing has changed for Felix.** The `git pull` landed on the box; the
+deploy did not run — the command was typed as `deploy-prod.sh` instead of
+`./scripts/deploy-prod.sh`, so the shell said *command not found*.
+
+```
+/root/banco-starter   git  999800d   ← today's code, ON DISK
+banco-app             Up 6 days      ← still the OLD image, build 2f71b2e
+```
+
+So the till is serving ~2026-08-08 code and will keep doing so until someone runs the script.
+That is a **safe** state, not a stuck one.
+
+**To finish — and pick the moment, because it RESTARTS THE TILL:**
+
+```
+ssh banco
+cd /root/banco-starter
+./scripts/deploy-prod.sh          # note the ./scripts/ — that was the whole problem
+```
+
+⚠️ **Do it when the shop is closed or quiet.** It backs up to B2 first and aborts if that
+fails, then rebuilds every container — the till is down for a minute or two. It also now runs
+two new gates: the Keycloak public-URL preflight, and `standup.sh` (which installs the
+append-only trigger — without it the 18+ evidence would be editable on prod).
+
+**Afterwards, the sanity check:** the login screen's build stamp should read `999800d`, and
+`./scripts/standup.sh` should print **SAFE TO TEST** including *"18+ evidence is append-only"*
+and *"silent token refresh works"*.
+
+---
+
 ## ▶️ NOW — needs Angel's hands
 
 1. **⛔ The two bulk catalogue scripts are blocked on WHERE they run, not on code.**
