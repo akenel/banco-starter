@@ -68,36 +68,38 @@ every keystroke and every cart change, and a live Elements panel re-renders on e
 
 ---
 
-## 🚩 PROD IS HALF-DEPLOYED — SAFE, BUT UNFINISHED (2026-08-14)
+## ✅ PROD IS LIVE ON TODAY'S CODE — 2026-08-14, ALL GREEN
 
-**Nothing is broken. Nothing has changed for Felix.** The `git pull` landed on the box; the
-deploy did not run — the command was typed as `deploy-prod.sh` instead of
-`./scripts/deploy-prod.sh`, so the shell said *command not found*.
+Felix's shop is deployed and every readiness check passes:
 
 ```
-/root/banco-starter   git  999800d   ← today's code, ON DISK
-banco-app             Up 6 days      ← still the OLD image, build 2f71b2e
+✅ silent token refresh works — a session survives past the 5-min access token
+✅ 18+ evidence is append-only (trg_ace_append_only installed)
+✅ ALL GREEN.        banco.wolfhold.app 200 · banco-auth.wolfhold.app 200
 ```
 
-So the till is serving ~2026-08-08 code and will keep doing so until someone runs the script.
-That is a **safe** state, not a stuck one.
+**The 18+ evidence is now genuinely permanent on prod** — that trigger had never been
+installed there, and until this deploy the table any screen called "append-only" could have
+been rewritten by a single UPDATE. 13 compliance rules seeded, 0 active by design.
+Felix rang a sale immediately afterwards; the audit cockpit caught it.
 
-**To finish — and pick the moment, because it RESTARTS THE TILL:**
+**Two things went wrong on the way, both mine, both now guarded:**
 
-```
-ssh banco
-cd /root/banco-starter
-./scripts/deploy-prod.sh          # note the ./scripts/ — that was the whole problem
-```
+1. **The deploy silently did not run the first time.** `deploy-prod.sh` was typed without
+   `./scripts/`, and the *command not found* scrolled past under 37 files of successful pull.
+2. **I crash-looped Keycloak** — `You can not set both 'hostname' and 'hostname-url' options`.
+   My own preflight, written that morning, **passed the broken config**, because it validated
+   each value alone and never the pair. The app served 200 throughout, so **the shop looked
+   alive while nobody could log in** — the nastier failure shape. Fixed, and the preflight now
+   refuses the combination (proven by restoring the exact broken file).
 
-⚠️ **Do it when the shop is closed or quiet.** It backs up to B2 first and aborts if that
-fails, then rebuilds every container — the till is down for a minute or two. It also now runs
-two new gates: the Keycloak public-URL preflight, and `standup.sh` (which installs the
-append-only trigger — without it the 18+ evidence would be editable on prod).
+⚠️ **The box is on `999800d`.** The two commits since — `250053f`, `b0cf512` — are compose and
+script changes only, no app code. A `git pull` picks them up; **nothing needs redeploying.**
 
-**Afterwards, the sanity check:** the login screen's build stamp should read `999800d`, and
-`./scripts/standup.sh` should print **SAFE TO TEST** including *"18+ evidence is append-only"*
-and *"silent token refresh works"*.
+**Left over from the B2 detour:** the storage cap is lifted (31 GB, no cap, ~13¢/month). Still
+worth doing when convenient — a lifecycle rule on `wolfhold-banco-backups` (229 dumps since
+20 July, "keep all versions", nothing ages out), and a look at
+`wolfhold-freehold-backups` (35 files, **30.7 GB** — that was what blew the cap, not Banco).
 
 ---
 
