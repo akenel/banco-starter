@@ -32,3 +32,6 @@ src/static/build-sha.txt
 
 # Generated prod reverse-proxy config (from scripts/go-live.py; Caddyfile.example is the reference)
 /Caddyfile
+
+# Local pre-deploy dumps (--local-only). Encrypted, but never in git.
+backups/

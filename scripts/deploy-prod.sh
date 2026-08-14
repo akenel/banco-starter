@@ -30,8 +30,28 @@ fi
 echo "🛟 1/4 — Backup first (before touching anything)"
 if [ -n "$(_env B2_KEY_ID)" ] && [ -n "$(_env B2_APP_KEY)" ] && [ -n "$(_env BACKUP_GPG_PASSPHRASE)" ]; then
   if ! ./scripts/backup-to-b2.sh; then
-    echo "❌ Backup failed — ABORTING the deploy. Nothing was changed." >&2
-    exit 1
+    # OFFSITE FAILED. Until 2026-08-14 that was the end of the story — exit 1, no way past.
+    # Correct instinct, wrong ending: a BILLING problem then freezes the shop's ability to
+    # deploy anything, including a security fix. Angel hit exactly this — a storage cap on a
+    # free B2 account, with the backup bucket itself holding only 343 MB of a 10 GB tier.
+    #
+    # So: fall back to a LOCAL encrypted dump on this box, and make the operator say yes out
+    # loud. A local copy is weaker than offsite — same machine, so it dies with the machine —
+    # but "weaker than offsite" and "nothing at all" are not the same thing, and only one of
+    # them lets you roll back a bad deploy ten minutes later.
+    echo ""
+    echo "⚠️  OFFSITE BACKUP FAILED (see the error above — often a storage cap, not a bug)."
+    echo "   Falling back to a LOCAL encrypted dump on this server."
+    if ./scripts/backup-to-b2.sh --local-only; then
+      echo ""
+      echo "   ⚠️  This copy lives on THIS MACHINE. If the machine dies, so does it."
+      echo "      Fix the offsite problem soon: https://secure.backblaze.com → Buckets / Caps & Alerts"
+      read -r -p "   Deploy with a LOCAL-ONLY backup? [y/N] " ans
+      case "${ans:-n}" in y|Y|yes) ;; *) echo "Stopped. Nothing was changed."; exit 1;; esac
+    else
+      echo "❌ Even the local dump failed — ABORTING. Nothing was changed." >&2
+      exit 1
+    fi
   fi
 else
   echo "⚠️  B2 not configured — skipping backup. STRONGLY recommended before prod (guide 06)."

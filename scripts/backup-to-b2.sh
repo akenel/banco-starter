@@ -34,6 +34,14 @@ PGDB="$(_env POSTGRES_DB)"; PGDB="${PGDB:-helix_db}"
 : "${BACKUP_GPG_PASSPHRASE:?set BACKUP_GPG_PASSPHRASE in .env}"
 command -v gpg >/dev/null || { echo "❌ gpg not found"; exit 1; }
 
+# --local-only: make the encrypted dumps and keep them ON THIS BOX, no upload.
+# Added 2026-08-14, for the day the offsite leg is down for a reason that has nothing to do
+# with the data — a storage cap, an expired key, Backblaze having a bad afternoon. Without it,
+# a BILLING problem stops the shop deploying a security fix, which is the wrong trade.
+# A local copy dies with the machine. It is still the difference between rolling a bad deploy
+# back in ten minutes and not being able to.
+if [ "${1:-}" = "--local-only" ]; then SKIP_B2=1; LOCAL_ONLY=1; fi
+
 # SKIP_B2=1 makes + verifies the encrypted dumps locally but does NOT upload —
 # for testing the chain in a sandbox without real B2 credentials.
 if [ "${SKIP_B2:-0}" != 1 ]; then
@@ -78,8 +86,16 @@ dump_and_ship() {
   [ -s "$file" ] || { echo "❌ dump of ${db} produced nothing"; return 1; }
   echo "   made ${name} ($(du -h "$file" | cut -f1), encrypted)"
   if [ "${SKIP_B2:-0}" = 1 ]; then
-    cp "$file" "/tmp/${name}"
-    echo "   ⏭️  SKIP_B2=1 — kept at /tmp/${name}, not uploaded"
+    # NOT /tmp for a real local backup — /tmp is cleared on reboot, and the reboot is
+    # exactly when you want the file. ./backups is gitignored and survives.
+    if [ "${LOCAL_ONLY:-0}" = 1 ]; then
+      mkdir -p ./backups
+      cp "$file" "./backups/${name}"
+      echo "   💾 kept LOCALLY at ./backups/${name} — this box only, NOT offsite"
+    else
+      cp "$file" "/tmp/${name}"
+      echo "   ⏭️  SKIP_B2=1 — kept at /tmp/${name}, not uploaded"
+    fi
   else
     echo "⬆️  Uploading to b2://${B2_BUCKET}/banco/${name} ..."
     b2 file upload "$B2_BUCKET" "$file" "banco/${name}" >/dev/null
@@ -92,5 +108,11 @@ dump_and_ship keycloak      # staff logins — NEW: was silently missing
 
 _ping "$HC"        # tell the dead-man's switch this run succeeded
 DONE=1
-echo "✅ Backups complete: ${PGDB} + keycloak."
+if [ "${LOCAL_ONLY:-0}" = 1 ]; then
+  echo "✅ LOCAL backups complete: ${PGDB} + keycloak, in ./backups/"
+  echo "   ⚠️  On this machine only. Get the offsite leg working again:"
+  echo "      https://secure.backblaze.com  →  Buckets / Caps & Alerts"
+else
+  echo "✅ Backups complete: ${PGDB} + keycloak."
+fi
 echo "   Restore any time with:  ./scripts/restore-from-b2.sh"
