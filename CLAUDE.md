@@ -109,7 +109,13 @@ pattern below, bump the count here. A pattern at ×7 is telling you something a 
    been fixed upstream; the spec-parser note that was backwards for three days; the bfcache cart bug
    I predicted from a missing guard and Angel disproved in ten seconds. *Re-measure before repeating
    a verdict — and before acting on a note you wrote last week.*
-4. **×3 · Break the guard on purpose before claiming it holds.** A test that counted occurrences
+4. **×4 · Break the guard on purpose before claiming it holds — and break the COMBINATION,
+   not just the fields.** A test that counted occurrences matched its own `def` line. A deploy
+   preflight that rejected "localhost" passed happily on `https://` with the host unset. And on
+   2026-08-14 that same preflight passed a config that **could not boot** — because it checked
+   each value alone and never whether setting *both* was legal. Keycloak crash-looped and the
+   shop could not log in. *A guard that validates fields but not their relationship is half a
+   guard, and it is the more confident half.* A test that counted occurrences
    matched its own `def` line. Reverting each guard one at a time has caught something every time it
    has been done. *If you did not watch it go red, you do not know it works.*
 5. **×2 · A script that recomputes what the server computes will accuse working code.** The rounding

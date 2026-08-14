@@ -77,13 +77,28 @@ try:
 except Exception as e:
     print(f"   could not resolve the compose config: {e}"); sys.exit(1)
 bad = []
+# Keycloak 24 refuses to START with both of these set:
+#   ERROR: You can not set both "hostname" and "hostname-url" options
+# On 2026-08-14 this preflight passed a config that could not boot, because it checked each
+# value on its own and never the COMBINATION — production crash-looped and the shop could
+# not log in for ten minutes. A guard that validates fields but not their relationship is
+# half a guard.
+_set = [k for k in ("KC_HOSTNAME", "KC_HOSTNAME_URL") if (env.get(k) or "").strip()]
+if len(_set) > 1:
+    bad.append("BOTH " + " and ".join(_set) + " are set — Keycloak 24 will refuse to start. "
+               "Keep hostname-url only (it carries the https scheme).")
 for key in ("KC_HOSTNAME", "KC_HOSTNAME_URL"):
     val = (env.get(key) or "").strip()
+    if not val:
+        continue                      # absent is fine; the check below is that ONE is right
     host = val.split("://", 1)[-1].strip("/")
     if not host:
         bad.append(f"{key} is EMPTY ({val!r}) — set KC_PUBLIC_HOST in .env")
     elif any(x in host.lower() for x in ("localhost", "127.0.0.1", ".local")):
         bad.append(f"{key} points at a sandbox address: {val}")
+if not _set:
+    bad.append("NEITHER KC_HOSTNAME nor KC_HOSTNAME_URL is set — Keycloak would guess the "
+               "issuer from whatever host a request arrived on, and refresh would break")
 for b in bad:
     print("   " + b)
 sys.exit(1 if bad else 0)
