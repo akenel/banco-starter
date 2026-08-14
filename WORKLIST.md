@@ -151,6 +151,25 @@ ways: a human confirming it is the finish line, not the start of another lap.
    restore (Move B), still **blocked on read-only B2 credentials**. The backup has never been
    restored, so it is a belief, not a capability.
 
+4. **🌱 Seeded realm users are published — DEFERRED ON PURPOSE 2026-08-14, not forgotten.**
+   `keycloak/import/realm-export.json` carries **six users with plaintext, non-hashed
+   passwords**, and `github.com/akenel/banco-starter` is **public** (HTTP 200 unauthenticated):
+   `felix` (`pos-admin`), `ralph` (`pos-manager`), `michael`, `pam`, `pos-developer`,
+   `pos-auditor`. Both `compose.yml:39` and `compose.prod.yml:35` boot Keycloak with
+   `--import-realm` from that same file — prod and dev seed from one export.
+   **Angel's call, 2026-08-14: leave them.** The usernames aren't the secret, these are seeded
+   demo accounts, and **he rotated `felix`'s password on the live box**, so the published one is
+   dead for the account that actually has privilege. Reasonable.
+   ⚠️ **The one mechanism that could quietly undo that:** Keycloak's `--import-realm` only seeds
+   when the realm doesn't already exist. So today's rotation holds — *until the Keycloak DB
+   volume is ever recreated* (`down -v`, a fresh box, a restore drill onto a clean box). Then the
+   export re-imports and **`felix`'s password silently reverts to the published one**. The
+   DR restore in item 3 is exactly that scenario. Whoever drills it: check `felix` afterwards.
+   When it comes up the list: strip the six users from the export (freehold did this in
+   `a202c32` — `kc-prd` ships `"users": []` and the first admin is made by hand), and treat all
+   six published passwords as burned regardless. The other five still have live published
+   passwords today.
+
 ---
 
 ## 🧹 NEEDS TRIAGE — read before trusting
