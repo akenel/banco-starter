@@ -34,11 +34,15 @@ services:
     # `start` (not start-dev) is the prod entrypoint; it auto-builds on first boot.
     command: ["start", "--import-realm", "--http-port=8080"]
     environment:
-      KC_HOSTNAME: ${KC_PUBLIC_HOST}
-      # Pinned EXPLICITLY, belt and braces. compose.yml sets KC_HOSTNAME_URL for the
-      # sandbox, this file is an overlay, and KC_HOSTNAME_URL takes PRECEDENCE over
-      # KC_HOSTNAME in Keycloak — so a sandbox default reaching this stack would make
-      # production issue tokens for localhost and break every login, silently.
+      # EXACTLY ONE hostname option. Keycloak 24 refuses to start with both:
+      #   ERROR: You can not set both 'hostname' and 'hostname-url' options
+      # It crash-looped production for ~10 minutes on 2026-08-14 because this file set
+      # KC_HOSTNAME while compose.yml (the base this overlays) set KC_HOSTNAME_URL, and I
+      # then added KC_HOSTNAME_URL here too as "belt and braces". Belt AND braces was the bug.
+      #
+      # hostname-url is the one that survives, because it carries the SCHEME — https, which
+      # is what the browser sees through Caddy — and because it is what the base already sets,
+      # so overriding it here is a true override rather than a second, conflicting option.
       KC_HOSTNAME_URL: https://${KC_PUBLIC_HOST}
       KC_HOSTNAME_STRICT: "true"
       KC_PROXY_HEADERS: xforwarded
