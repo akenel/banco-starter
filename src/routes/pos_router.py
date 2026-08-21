@@ -2482,6 +2482,34 @@ async def update_product(
     # The first-row rule is mode-aware: per_unit needs a qty-1 base row; bundle ("N for X")
     # starts at qty>=2 (base = the product's own price). Use the incoming tier_mode if the edit
     # sets one, else the product's current mode.
+    # THE HONEST "NO COST" ANSWER — guarded so it cannot become a second free-text note, and
+    # cannot sit beside a real cost pretending both are true.
+    #
+    # The point of the field is that a report can EXCLUDE these rows honestly. That only works
+    # if the values are a closed set and if "we have a cost" and "there is no cost" are mutually
+    # exclusive. A row saying `cost=4.50, no_cost_reason='gift'` answers the question twice and
+    # a report would have to guess which half to believe.
+    if "no_cost_reason" in update_data:
+        reason = (update_data.get("no_cost_reason") or "").strip().lower() or None
+        if reason and reason not in NO_COST_REASONS:
+            raise HTTPException(
+                status_code=422,
+                detail="no_cost_reason must be one of: " + ", ".join(sorted(NO_COST_REASONS)))
+        update_data["no_cost_reason"] = reason
+    # A REAL COST WINS. If a caller sends both, the cost is a FACT and the reason is only an
+    # explanation for its absence — so the fact supersedes and the excuse is retired.
+    #
+    # The first cut had this the other way round: reason-first cleared the cost, and a request
+    # carrying `cost=9.90, no_cost_reason='gift'` silently threw the 9.90 away. Caught by
+    # testing the contradiction rather than only the happy path. Losing a real number a person
+    # typed is the worse of the two failures, and it is silent, which makes it worse again.
+    if update_data.get("cost") is not None:
+        update_data["no_cost_reason"] = None
+    elif update_data.get("no_cost_reason"):
+        # Answering "there is no cost" CLEARS the cost. Never zero — zero is a number and would
+        # land in margin as a 100% markup. NULL plus a reason is the truth.
+        update_data["cost"] = None
+
     if "price_tiers" in update_data:
         from src.services.pricing import validate_price_tiers
         tier_mode = update_data.get("tier_mode") or product.tier_mode or "per_unit"
@@ -7237,6 +7265,21 @@ def _bench_category_expr():
     return func.coalesce(func.trim(ProductModel.category), "")
 
 
+# The closed vocabulary lives in catalog_taxonomy (pure, importable, testable — importing THIS
+# module needs a database). Re-exported so existing call sites read naturally.
+from src.services.catalog_taxonomy import NO_COST_REASONS   # noqa: E402
+
+
+def _cost_unanswered():
+    """The cost question is OPEN — no cost, and nobody has said why.
+
+    ONE definition, used by the gap filter, the four-gap clause, the counts and the chips, so
+    the list and the number can never disagree. A row with a reason is DONE for cost: the cost
+    itself stays NULL (never zero, never a guess) and a person has answered."""
+    return and_(ProductModel.cost.is_(None),
+                func.coalesce(func.trim(ProductModel.no_cost_reason), "") == "")
+
+
 def _bench_gap_clause():
     """A product is UNFINISHED (on the bench) if it's missing any of the four. One definition,
     reused by the item query AND the counts — so the counter can never drift from the list."""
@@ -7247,7 +7290,7 @@ def _bench_gap_clause():
                                                                          # (invisible chars count as blank)
         cat == "",                                                       # no category
         func.lower(cat).in_([c.lower() for c in _HALFBAKED_CATEGORIES]),  # placeholder category
-        ProductModel.cost.is_(None),                                     # margin-blind
+        _cost_unanswered(),                                              # margin-blind, unanswered
     )
 
 
@@ -7455,7 +7498,7 @@ def _bench_gap_expr(kind):
     if kind == "category":
         return or_(cat == "", func.lower(cat).in_([c.lower() for c in _HALFBAKED_CATEGORIES]))
     if kind == "cost":
-        return ProductModel.cost.is_(None)
+        return _cost_unanswered()
     if kind == "price":
         return ProductModel.price.in_(UNVERIFIED_PRICES)
     if kind == "till_priced":
@@ -8160,6 +8203,7 @@ async def get_cleanup_queue(
             "category": p.category,
             "price": float(p.price) if p.price is not None else None,
             "cost": float(p.cost) if p.cost is not None else None,
+            "no_cost_reason": (p.no_cost_reason or None),
             "is_age_restricted": bool(p.is_age_restricted),
             "product_class": p.product_class,
             "image_url": p.image_url,
@@ -8342,6 +8386,7 @@ async def _bench_queue(db: AsyncSession, *, limit: int, offset: int,
             "description": p.description,
             "price": float(p.price) if p.price is not None else None,
             "cost": float(p.cost) if p.cost is not None else None,
+            "no_cost_reason": (p.no_cost_reason or None),
             "is_age_restricted": bool(p.is_age_restricted),
             "product_class": p.product_class,
             "image_url": p.image_url,
@@ -8354,7 +8399,7 @@ async def _bench_queue(db: AsyncSession, *, limit: int, offset: int,
             "last_sold": None,
             "gaps": {
                 "category": (cat == "") or (cat in _HALFBAKED_CATEGORIES),
-                "cost": p.cost is None,
+                "cost": p.cost is None and not (p.no_cost_reason or "").strip(),
                 "photo": not (p.image_url or "").strip(),
                 "description": not (p.description or "").strip(),
             },

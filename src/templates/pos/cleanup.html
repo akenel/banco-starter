@@ -506,7 +506,8 @@
                                         </span>
                                     </label>
                                     <div class="flex gap-1">
-                                        <input type="number" step="0.05" min="0" x-model="p._cost" placeholder="0.00" class="input-field">
+                                        <input type="number" step="0.05" min="0" x-model="p._cost" placeholder="0.00" class="input-field"
+                                               :disabled="!!p._noCost" :class="p._noCost ? 'bg-gray-100 text-gray-400' : ''">
                                         <!-- BL-047b: the EYEBALL is no longer a hardcoded ½. Pick a markup and it
                                              fills the cost box (cost = price × (1 − markup%)) — a defensible GUESS the
                                              manager keeps or replaces with the real slip. Default is the product's
@@ -524,6 +525,40 @@
                                         </select>
                                     </div>
                                     <p x-show="p._costEyeballed" style="display:none;" class="text-[10px] text-amber-600 mt-0.5" data-i18n="cleanup.cost_estimated">≈ estimated from markup — verify against a delivery slip</p>
+
+                                    <!-- 🚫 THE HONEST "NO".
+                                         Cost is the done-flag for the whole catalogue and it is the right
+                                         one — it is the only field here a machine cannot honestly supply,
+                                         so its presence proves a person engaged with the item. But a flag
+                                         with no honest "no" is a flag people clear with a lie: a gift, a
+                                         sample, consignment or old stock with no invoice had NO way off
+                                         this bench except typing a number that was not true. A fabricated
+                                         cost is worse than a missing one — afterwards nobody can tell a
+                                         made-up 1.00 from a real one, and it poisons every margin figure
+                                         quietly. That is the minted-EAN disease, and this catalogue is
+                                         still carrying 4,998 rows of what it costs.
+                                         The cost stays NULL. Never zero — zero is a number, and it would
+                                         land in margin as a 100% markup. -->
+                                    <div class="mt-1.5">
+                                        <label class="inline-flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer select-none">
+                                            <input type="checkbox" class="w-4 h-4 accent-slate-600"
+                                                   :checked="!!p._noCost"
+                                                   @change="p._noCost = $event.target.checked ? 'unknown' : ''">
+                                            <span data-i18n="cleanup.no_cost_q">There is no cost for this</span>
+                                        </label>
+                                        <select x-show="p._noCost" x-cloak style="display:none"
+                                                x-model="p._noCost" class="input-field text-xs mt-1">
+                                            <option value="gift" data-i18n="cleanup.nc_gift">🎁 a gift / freebie — nothing was paid</option>
+                                            <option value="sample" data-i18n="cleanup.nc_sample">🧪 a supplier sample</option>
+                                            <option value="consignment" data-i18n="cleanup.nc_consignment">🤝 on consignment — paid only when it sells</option>
+                                            <option value="unknown" data-i18n="cleanup.nc_unknown">🤷 cost genuinely not known (old stock, invoice gone)</option>
+                                        </select>
+                                        <p x-show="p._noCost" x-cloak style="display:none"
+                                           class="text-[10px] text-slate-500 mt-0.5" data-i18n="cleanup.no_cost_help">
+                                            The cost stays empty — not zero. Margin reports leave this row out
+                                            instead of averaging in a guess.
+                                        </p>
+                                    </div>
                                 </div>
 
                                 <!-- Description + photo — in BOTH modes. They used to be bench-only, but
@@ -910,6 +945,7 @@
                         _name: (p.name || ''),          // editable in place — see the card comment
                         _barcode: (p.barcode || ''),
                         _cost: (p.cost != null ? p.cost : ''),
+                        _noCost: (p.no_cost_reason || ''),
                         _price: (p.price != null && p.price > 0 ? p.price : ''),   // BL-142: settable here
                         _costEyeballed: false,   // BL-047b: true once the eyeball fills the cost
                         _imgUrl: '',
@@ -1091,7 +1127,12 @@
             async save(p) {
                 const cat = (p._category || '').trim();
                 const desc = (p._description || '').trim();
-                const costRaw = (p._cost === '' || p._cost === null) ? null : parseFloat(p._cost);
+                // "There is no cost" WINS over whatever is in the box: the box is disabled while it
+                // is ticked, so a stale number left behind it must not be what gets saved. The server
+                // enforces the same exclusivity — this just keeps the screen from lying first.
+                const noCost = (p._noCost || '').trim() || null;
+                const costRaw = noCost ? null
+                              : ((p._cost === '' || p._cost === null) ? null : parseFloat(p._cost));
                 if (costRaw !== null && (isNaN(costRaw) || costRaw < 0)) {
                     showToast(t('cleanup.toast_bad_cost') || 'Enter a valid cost', 'warning'); return;
                 }
@@ -1123,6 +1164,10 @@
                 if (bc !== (p.barcode || '')) payload.barcode = bc || null;
                 if (cat) payload.category = cat;
                 if (costRaw !== null) payload.cost = costRaw;
+                // Send the answer BOTH ways: setting it clears the cost server-side, and clearing
+                // it (unticking) must actually reach the server as null or the row would keep an
+                // excuse it no longer has. Only on the bench — the sold tab does not ask this.
+                if (this.mode === 'bench') payload.no_cost_reason = noCost;
                 if (priceRaw !== null) payload.price = priceRaw;
                 if (desc) payload.description = desc;   // editable in both modes now
                 // Rookie note travels with every save (incl. clearing) so "why parked / next step" sticks.
@@ -1133,7 +1178,11 @@
                     // Recompute the objective gaps; an item leaves the queue only when they're ALL filled.
                     // Bench gates on four (category, cost, description, photo); sold gates on two.
                     const stillCat = !cat && p.gaps.category;
-                    const stillCost = (costRaw === null) && p.gaps.cost;
+                    // ONE definition of "the cost question is answered", matching the server's
+                    // _cost_unanswered(): a real cost, OR an honest reason there is none. Left as
+                    // `costRaw === null` alone, a row answered "it was a gift" would be saved and
+                    // then stay on the bench forever — the screen contradicting the list it feeds.
+                    const stillCost = (costRaw === null) && !noCost && p.gaps.cost;
                     let cleared = !stillCat && !stillCost;
                     if (this.mode === 'bench') {
                         const stillDesc = !desc;

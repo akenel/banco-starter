@@ -387,6 +387,31 @@ def classify(title: str | None, ref_category: str | None = None, raw=None,
     return cat, cls, class_meta(cls)["age_restricted"]
 
 
+# ============================================================================
+# THE HONEST "NO COST" — a closed vocabulary, kept here and not in the router.
+#
+# A filled-in COST is the shop's done-flag for a catalogue row, and it is the right one: it is
+# the only field on the cleanup form a machine cannot honestly supply. A name, a description, a
+# photo, a category, even the EAN can all come from a supplier feed or a model, and a row that
+# was auto-filled LOOKS finished. Cost can only come from a person holding an invoice.
+#
+# But a flag with no honest "no" is a flag people clear with a lie. A gift, a sample, consignment
+# or old stock with a lost invoice had no way off the bench except typing a number that was not
+# true — and a fabricated cost is WORSE than a missing one, because nobody can later tell a
+# made-up 1.00 from a real one and it poisons every margin figure quietly. Same disease as the
+# minted EANs, and this catalogue still carries 4,998 rows of what that costs.
+#
+# Lives in this module so it can be TESTED: importing pos_router needs a live database, which is
+# why thirty test files error without one. A vocabulary nobody can import is a rule nobody can
+# check. (Pure data — no DB, no network.)
+NO_COST_REASONS = {
+    "gift":        "a gift / freebie — nothing was paid",
+    "sample":      "a supplier sample",
+    "consignment": "on consignment — paid only when it sells",
+    "unknown":     "cost genuinely not known (old stock, invoice gone)",
+}
+
+
 def resolve_class_on_create(name: str | None, product_class: str | None,
                             is_age_restricted: bool | None,
                             description: str | None = None) -> tuple[str, bool]:

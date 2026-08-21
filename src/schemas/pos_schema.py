@@ -97,6 +97,11 @@ class ProductBase(BaseModel):
     description: Optional[str] = Field(None, description="Full description")
     price: Decimal = Field(..., ge=0, description="Sale price in CHF")
     cost: Optional[Decimal] = Field(None, ge=0, description="Cost price")
+    # Why there is no cost. See ProductModel.no_cost_reason: the cost stays NULL, a person
+    # answers, and the row leaves the bench without anyone typing a number that is not true.
+    no_cost_reason: Optional[str] = Field(
+        None, max_length=32,
+        description="gift | sample | consignment | unknown — only when cost is not known")
     stock_quantity: int = Field(default=0, ge=0, description="Current stock")
     stock_alert_threshold: Optional[int] = Field(None, ge=0, description="Low stock alert level")
     category: Optional[str] = Field(None, max_length=100)
@@ -145,6 +150,7 @@ class ProductUpdate(BaseModel):
     description: Optional[str] = None
     price: Optional[Decimal] = Field(None, ge=0)
     cost: Optional[Decimal] = Field(None, ge=0)
+    no_cost_reason: Optional[str] = Field(None, max_length=32)
     stock_quantity: Optional[int] = Field(None, ge=0)
     stock_alert_threshold: Optional[int] = Field(None, ge=0)
     category: Optional[str] = Field(None, max_length=100)

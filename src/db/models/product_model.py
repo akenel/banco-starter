@@ -76,6 +76,30 @@ class ProductModel(Base):
         nullable=True,
         comment="Cost price for margin calculations (optional)"
     )
+    # WHY there is no cost — the honest "no" that stops people typing a fake one.
+    #
+    # Angel made cost the done-flag for the whole catalogue, and he is right to: it is the only
+    # field on that form a machine cannot honestly supply. A name, a description, a photo, a
+    # category, even the EAN can all be filled by a supplier feed or a model, and a row that was
+    # auto-filled LOOKS finished. Cost can only come from a person holding an invoice, so its
+    # presence proves somebody actually engaged with the item.
+    #
+    # But a flag with no honest "no" is a flag people clear with a lie. Some items genuinely have
+    # no cost — a gift, a sample, consignment, old stock whose invoice is long gone — and until
+    # now the only way to get such a row off the bench was to type a number that was not true.
+    # A fabricated cost is WORSE than a missing one: afterwards nobody can tell a made-up 1.00
+    # from a real one, and it silently poisons every margin figure the shop ever reads. That is
+    # the minted-EAN disease exactly — inventing a value to satisfy a required field — and this
+    # catalogue is still carrying 4,998 rows of what that costs.
+    #
+    # So: cost STAYS NULL. Never zero, never a guess. The reason is recorded beside it, the row
+    # leaves the bench because a person ANSWERED, and margin reports can exclude it honestly
+    # instead of averaging in a fiction.
+    no_cost_reason: Mapped[str | None] = mapped_column(
+        String(32),
+        nullable=True,
+        comment="Why this product has no cost (gift/sample/consignment/unknown) — cost stays NULL",
+    )
 
     # Inventory
     stock_quantity: Mapped[int] = mapped_column(

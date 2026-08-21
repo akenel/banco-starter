@@ -253,6 +253,9 @@ _ADDITIVE_COLUMNS: list[str] = [
     "ALTER TABLE line_items ADD COLUMN IF NOT EXISTS department_code VARCHAR(8)",
     "ALTER TABLE line_items ADD COLUMN IF NOT EXISTS unresolved_barcode VARCHAR(64)",
     "CREATE INDEX IF NOT EXISTS ix_line_items_department_code ON line_items (department_code)",
+    # The honest "no" for the cost done-flag (2026-08-21). Nullable, no default: every existing
+    # row stays byte-identical and simply carries NULL, which reads as "nobody has answered yet".
+    "ALTER TABLE products ADD COLUMN IF NOT EXISTS no_cost_reason VARCHAR(32)",
     "ALTER TABLE products ADD COLUMN IF NOT EXISTS short_code VARCHAR(16)",
     "ALTER TABLE products ADD COLUMN IF NOT EXISTS qr_scan_count INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE products ADD COLUMN IF NOT EXISTS qr_last_scanned_at TIMESTAMPTZ",
