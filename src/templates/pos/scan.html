@@ -669,6 +669,25 @@
                                     <input type="checkbox" x-model="priceEdit.bundle"> price is for the whole pack
                                 </label>
                             </div>
+                            <!-- WHAT THE CUSTOMER WILL ACTUALLY PAY, before anything is saved.
+                                 The tick box is the whole difference between "3 for 5.00 total"
+                                 and "buy 3+ and they cost 5.00 EACH", and nothing on this panel
+                                 said so. Angel meant the first and typed the second — on a CHF
+                                 2.00 paper, which made it a price RISE, which is why the server
+                                 refused it. Uses tierLineTotal(), the same function the cart and
+                                 the till use, so this preview is not a second opinion. -->
+                            <div x-show="pricePreview().length" style="display:none"
+                                 class="text-xs bg-white border border-amber-200 rounded p-2 mb-2">
+                                <p class="font-semibold text-gray-700 mb-1">A customer pays:</p>
+                                <template x-for="r in pricePreview()" :key="r.qty">
+                                    <span class="inline-block mr-3 font-mono" :class="r.deal && 'text-emerald-700 font-bold'"
+                                          x-text="r.qty + ' → ' + r.total"></span>
+                                </template>
+                                <p x-show="priceEditRise()" style="display:none" class="text-red-700 font-semibold mt-1">
+                                    ⚠️ That is a price RISE, not a deal. Did you mean
+                                    “price is for the whole pack”? Tick the box.
+                                </p>
+                            </div>
                             <p class="text-xs text-amber-800 mb-2">
                                 ⚠️ This changes the product for everyone, not just this sale.
                             </p>
@@ -2254,8 +2273,42 @@
                     showToast('Price updated — carry on with the sale', 'success');
                 } catch (e) {
                     console.warn('price edit', e);
-                    this.priceEditNote = "Couldn't save that — you may not have permission.";
+                    // SAY WHAT THE SERVER SAID. 2026-08-21: Angel typed "buy 3 for 5" on a CHF 2.00
+                    // paper with the pack box unticked. The server refused it with a precise,
+                    // useful sentence — "the first tier must start at min_qty 1 (the base price)"
+                    // — and this line threw it away and told him he lacked permission. He is the
+                    // owner. He went looking for a rights problem that did not exist.
+                    // A generic error is worse than no error: it sends the person somewhere else.
+                    this.priceEditNote = (e && e.status === 403)
+                        ? "Only a manager can change a price that is already set."
+                        : ((e && e.message) || "Couldn't save that — try again.");
                 } finally { this.priceEditBusy = false; }
+            },
+
+            // The ladder as a shopper meets it. Same tierLineTotal() as the cart and the till.
+            pricePreview() {
+                const price = Number(this.priceEdit && this.priceEdit.price);
+                if (!(price > 0)) return [];
+                const tiers = (this.priceEdit.tiers || [])
+                    .filter(t => Number(t.min_qty) >= 2 && Number(t.unit_price) > 0)
+                    .map(t => ({ min_qty: Number(t.min_qty), unit_price: String(t.unit_price) }));
+                if (!tiers.length) return [];
+                const mode = this.priceEdit.bundle ? 'bundle' : 'per_unit';
+                const smallest = Math.min(...tiers.map(t => t.min_qty));
+                const out = [];
+                for (const qty of [1, smallest, smallest + 1]) {
+                    const total = tierLineTotal({ quantity: qty, price, price_tiers: tiers, tier_mode: mode });
+                    out.push({ qty, total: formatPrice(total), deal: qty >= smallest });
+                }
+                return out;
+            },
+            // True when the ladder would make a customer pay MORE than the flat price — the exact
+            // shape of the mistake, and the one the tick box fixes.
+            priceEditRise() {
+                const price = Number(this.priceEdit && this.priceEdit.price);
+                if (!(price > 0) || this.priceEdit.bundle) return false;
+                return (this.priceEdit.tiers || []).some(
+                    t => Number(t.min_qty) >= 2 && Number(t.unit_price) > price);
             },
 
             async openDetail(p) {
