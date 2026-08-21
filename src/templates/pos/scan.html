@@ -146,7 +146,10 @@
                              a flavour or size selector. Angel, holding a Vaal pod: "this is peach
                              ice, not the blueberry." Saying nothing here is how three flavours end
                              up sharing one name. -->
-                        <p x-show="pendingWeb && pendingWeb.exact === false" x-cloak style="display:none"
+                        <p x-show="pendingWeb && pendingWeb.crowd_sourced" x-cloak style="display:none"
+                           class="text-[11px] font-semibold text-slate-700 bg-slate-100 border border-slate-300 rounded px-2 py-1 mt-2"
+                           data-i18n="scan.web_crowd">📇 This name comes from a public barcode database, not a shop — it is often somebody's marketplace listing. Read it before you keep it.</p>
+                        <p x-show="pendingWeb && pendingWeb.exact === false && !pendingWeb.crowd_sourced" x-cloak style="display:none"
                            class="text-[11px] font-semibold text-rose-800 bg-rose-50 border border-rose-300 rounded px-2 py-1 mt-2"
                            data-i18n="scan.web_family">🎯 This is the product RANGE, not this exact one — the flavour / size / colour is not identified. Read it off the packet.</p>
                         <p x-show="pendingWeb && pendingWeb.wholesale" x-cloak style="display:none"
@@ -993,7 +996,10 @@
                                                      CHF 99.00, while the single is CHF 9.90 on the same page. The
                                                      lookup never returns a price, but the operator has that page open
                                                      in another tab, so say it where they are standing. -->
-                                                <p x-show="web.exact === false" x-cloak style="display:none"
+                                                <p x-show="web.crowd_sourced" x-cloak style="display:none"
+                                                   class="text-[11px] font-semibold text-slate-700 bg-slate-100 border border-slate-300 rounded px-2 py-1 mt-1"
+                                                   data-i18n="scan.web_crowd">📇 This name comes from a public barcode database, not a shop — it is often somebody's marketplace listing. Read it before you keep it.</p>
+                                                <p x-show="web.exact === false && !web.crowd_sourced" x-cloak style="display:none"
                                                    class="text-[11px] font-semibold text-rose-800 bg-rose-50 border border-rose-300 rounded px-2 py-1 mt-1"
                                                    data-i18n="scan.web_family">🎯 This is the product RANGE, not this exact one — the flavour / size / colour is not identified. Read it off the packet.</p>
                                                 <p x-show="web.wholesale" x-cloak style="display:none"

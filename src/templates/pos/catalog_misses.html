@@ -141,7 +141,16 @@
               <p x-show="m.lookup && m.lookup.price !== null && m.lookup.price !== undefined"
                  class="text-xs text-gray-500 mt-0.5">
                 supplier price <span x-text="m.lookup && m.lookup.price"></span></p>
-              <p x-show="m.lookup && m.lookup.title && m.lookup.exact === false" x-cloak style="display:none"
+              <!-- A public barcode database aggregates marketplace listings. 6943498644650 came
+                   back "2 Renova Zero & A Kanger U-boat With Pods Three Devices-one Bid" — an eBay
+                   auction title. The CODE is right and the words are somebody's advert, so the hit
+                   is kept and the wording is never presented as a supplier's. -->
+              <p x-show="m.lookup && m.lookup.title && m.lookup.crowd" x-cloak style="display:none"
+                 class="text-[11px] font-semibold text-slate-700 bg-slate-100 border border-slate-300 rounded px-2 py-1 mt-1">
+                📇 This name comes from a <b>public barcode database</b>, not a shop — often
+                somebody's marketplace listing. <b>Rewrite it below</b> before you create it.
+              </p>
+              <p x-show="m.lookup && m.lookup.title && m.lookup.exact === false && !m.lookup.crowd" x-cloak style="display:none"
                  class="text-[11px] font-semibold text-rose-800 bg-rose-50 border border-rose-300 rounded px-2 py-1 mt-1">
                 🎯 This is the product RANGE, not this exact one — the supplier page never printed
                 this code. The flavour / size / colour is <b>not identified</b>. Read it off the
@@ -224,11 +233,13 @@
               <div class="mb-2">
                 <label class="block text-xs text-gray-600 mb-1">
                   Name
-                  <span x-show="m.lookup && m.lookup.exact === false" class="text-rose-700 font-semibold">
+                  <span x-show="m.lookup && m.lookup.exact === false && !m.lookup.crowd" class="text-rose-700 font-semibold">
                     — add the flavour / size from the packet</span>
+                  <span x-show="m.lookup && m.lookup.crowd" class="text-slate-700 font-semibold">
+                    — rewrite it: this came from a barcode database</span>
                 </label>
                 <input type="text" x-model="m.newName" class="input-field"
-                       :class="m.lookup && m.lookup.exact === false ? 'border-rose-400' : ''"
+                       :class="m.lookup && (m.lookup.exact === false || m.lookup.crowd) ? 'border-rose-400' : ''"
                        placeholder="what is on the packet">
               </div>
               <div class="flex items-end gap-2 flex-wrap">
@@ -296,7 +307,7 @@
                     // The reference row's own id — with it, creating goes through the TESTED
                     // adopt path (canonical title, description, photo, class, idempotent) instead
                     // of a hand-rolled create that would quietly lose three of those four.
-                    refId: r0.id, wholesale: false, exact: true };
+                    refId: r0.id, wholesale: false, exact: true, crowd: false };
           } else {
             const w = await API.get('/api/v1/pos/products/web-lookup?barcode='
                                     + encodeURIComponent(m.barcode));
@@ -305,7 +316,7 @@
                       image: (w.images || [])[0], price: null, wholesale: !!w.wholesale,
                       // false = we landed on the product FAMILY, not this item (see
                       // parse_shop_page). The name is missing the flavour/size/colour.
-                      exact: w.exact !== false };
+                      exact: w.exact !== false, crowd: !!w.crowd_sourced };
             }
           }
           // An empty object, not null: `x-show="m.lookup"` must open the panel even when the
@@ -364,9 +375,16 @@
         const name = (m.newName || '').trim() || (m.lookup && m.lookup.title) || ('Item ' + m.barcode);
         // A family name must not be saved unchanged. The operator has the packet; make them put
         // the variant on it, or the row is a guess wearing a supplier's wording.
-        if (m.lookup && m.lookup.exact === false && name === (m.lookup.title || '')) {
+        if (m.lookup && m.lookup.exact === false && !m.lookup.crowd && name === (m.lookup.title || '')) {
           m.ok = false;
           m.msg = 'That is the range name. Add the flavour / size from the packet before creating it.';
+          return;
+        }
+        // A marketplace listing title is not a product name. Refuse it unchanged for the same
+        // reason: the create button must not launder somebody's advert into your catalogue.
+        if (m.lookup && m.lookup.crowd && name === (m.lookup.title || '')) {
+          m.ok = false;
+          m.msg = 'That name came from a barcode database and reads like an advert. Write what is on the packet.';
           return;
         }
         m.busy = true; m.msg = '';

@@ -222,3 +222,45 @@ def test_exactness_is_about_THIS_code_not_any_code():
     # peach pod would inherit the blueberry's confidence.
     out = parse_shop_page(EXACT_HTML, HIT_URL, "6941908339899", KC)
     assert out["exact"] is False
+
+
+# ---- a barcode DATABASE is not a shop (2026-08-21) ----------------------------------
+#
+# Angel scanned 6943498644650. Kings Castle did not have it, so the chain fell through to
+# UPCitemdb, which answered:
+#
+#     "2 Renova Zero & A Kanger U-boat With Pods Three Devices-one Bid"
+#
+# — an eBay auction title, "one Bid" and all. The CODE is right; the words are somebody's
+# advert. These databases aggregate marketplace listings, which is exactly why they can answer
+# codes no shop carries and exactly why their wording must never be presented as a supplier's.
+#
+# It also caught a hole in the `exact` flag added an hour earlier: only the shop tier computed
+# it, so every generic-database hit inherited False and would have been labelled "this is the
+# product RANGE" — which is not true and not the problem. Different failures need different
+# words, or the operator learns to ignore both.
+
+def test_the_two_warnings_are_different_states():
+    kc = next(s for s in RESOLVABLE_SHOPS if s["key"] == "kingscastle")
+    # A shop page that carries the code: exact, and nobody's advert.
+    exact = parse_shop_page(EXACT_HTML, HIT_URL, "4260748412268", kc)
+    assert exact["exact"] is True
+    assert exact.get("crowd_sourced", False) is False
+
+    # A shop FAMILY page: not exact — but still a shop, so not crowd-sourced either.
+    family = parse_shop_page(FAMILY_HTML, HIT_URL, "6941908339899", kc)
+    assert family["exact"] is False
+    assert family.get("crowd_sourced", False) is False
+    # The two states must be distinguishable, or one warning has to cover both and says
+    # the wrong thing about at least one of them.
+    assert (exact["exact"], exact.get("crowd_sourced", False)) != \
+           (family["exact"], family.get("crowd_sourced", False))
+
+
+def test_a_shop_hit_never_claims_to_be_crowd_sourced():
+    # `crowd_sourced` is set only by the generic-database branches of lookup_product. The shop
+    # parser must not set it at all, or a supplier's own page would carry a warning telling the
+    # operator to distrust it.
+    kc = next(s for s in RESOLVABLE_SHOPS if s["key"] == "kingscastle")
+    for html, code in ((EXACT_HTML, "4260748412268"), (FAMILY_HTML, "6941908339899")):
+        assert parse_shop_page(html, HIT_URL, code, kc).get("crowd_sourced", False) is False

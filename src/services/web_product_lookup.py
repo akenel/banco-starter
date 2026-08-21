@@ -230,8 +230,18 @@ async def lookup_product(barcode: str | None, name: str | None = None) -> dict:
     out: dict = {
         "found": False, "source": None, "source_label": None, "source_url": None,
         "wholesale": False,
-        # See parse_shop_page: False means "we landed on the family, not the item".
+        # Did the source answer about THIS code specifically? See parse_shop_page.
+        #   shop tier   - computed: does the page print the code? False = we hit the FAMILY page.
+        #   barcode DBs - always True: the API is keyed BY the code, so the RECORD is exact.
+        #                 (Its TITLE may still be rubbish - that is `crowd_sourced`, below.)
         "exact": False,
+        # The name came from a public barcode database that aggregates marketplace listings,
+        # not from a shop's own product page. Angel scanned 6943498644650 and UPCitemdb
+        # answered "2 Renova Zero & A Kanger U-boat With Pods Three Devices-one Bid" - an eBay
+        # auction title, "one Bid" and all. The code is right; the words are somebody's advert.
+        # Kept, because a bad name plus a real code still beats a bare number - but never
+        # presented as if a supplier had said it.
+        "crowd_sourced": False,
         "title": None, "brand": None, "category": None,
         "description": None, "images": [], "lang_hint": None, "quota": None,
         "google_url": _google_url(barcode, name), "note": None,
@@ -271,6 +281,7 @@ async def lookup_product(barcode: str | None, name: str | None = None) -> dict:
                     raw_imgs = [u for u in (it.get("images") or []) if u][:6]
                     out.update(
                         found=True, source="upcitemdb",
+                        exact=True, crowd_sourced=True,
                         title=it.get("title") or None, brand=it.get("brand") or None,
                         category=it.get("category") or None,
                         description=it.get("description") or None,
@@ -291,7 +302,8 @@ async def lookup_product(barcode: str | None, name: str | None = None) -> dict:
                     p = d2.get("product") or {}
                     imgs = [p.get("image_url")] if p.get("image_url") else []
                     out.update(
-                        found=True, source=host.split(".")[1],   # 'openfoodfacts' | 'openproductsfacts'
+                        found=True, source=host.split(".")[1],
+                        exact=True, crowd_sourced=True,   # 'openfoodfacts' | 'openproductsfacts'
                         title=out["title"] or p.get("product_name") or None,
                         brand=out["brand"] or p.get("brands") or None,
                         category=out["category"] or p.get("categories") or None,
