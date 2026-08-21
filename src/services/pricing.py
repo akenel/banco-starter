@@ -149,9 +149,20 @@ def tier_unit_price(price_tiers, base_price, qty, mode="per_unit"):
         if as_bundle <= base and as_bundle >= base * _PLAUSIBLE_FLOOR:
             logger.warning(
                 "tier price %s for min_qty %s is ABOVE the base price %s — reading it as a pack "
-                "total (%s/unit). Set tier_mode='bundle' on this product to make it explicit.",
-                best_up, best_qty, base, as_bundle)
-            return as_bundle, best_qty >= 2
+                "total. Set tier_mode='bundle' on this product to make it explicit.",
+                best_up, best_qty, base)
+            # ...and price it the way a pack total IS priced: whole packs, then start again.
+            #
+            # 2026-08-21, Angel at the till. Two King Size papers stored as proper bundles rang
+            # 7.00 for four; an OCB row with the same "3 for 5" written as per_unit rang 6.67 in
+            # the same cart. Both are the same deal and a customer cannot see why one is cheaper.
+            # This branch had kept returning a flat pack RATE, which is what bundle mode itself
+            # used to do before Ralph's rule replaced it — the rescue was left behind on the old
+            # semantics. If we are going to read a tier as a pack total, we must charge it as one.
+            total = _bundle_total(price_tiers, base, qty)
+            if total > base * Decimal(qty):
+                total = base * Decimal(qty)
+            return total / Decimal(qty), best_qty >= 2
         logger.warning(
             "tier price %s for min_qty %s is above the base price %s, and reading it as a pack "
             "total gives %s/unit — too far below %s to be a real deal. The tier data is wrong; "

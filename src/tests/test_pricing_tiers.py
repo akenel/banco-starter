@@ -376,3 +376,25 @@ def test_the_same_basket_always_splits_the_same_way():
 def test_a_pool_is_never_worse_than_no_deal():
     bad = [{"min_qty": 3, "unit_price": "13.00"}]
     assert sum(allocate_pool(bad, Decimal("2.00"), [1, 1, 1])) == Decimal("6.00")
+
+
+def test_a_rescued_tier_is_priced_the_same_as_an_explicit_one():
+    """2026-08-21, Angel's cart: two King Size papers stored as proper bundles rang 7.00 for four,
+    while an OCB row with the SAME "3 for 5" written as per_unit rang 6.67 beside them. Both are
+    the same deal and no customer can be expected to see why one is cheaper.
+
+    The rescue had been left on the old semantics — it returned a flat pack RATE, which is what
+    bundle mode itself did before Ralph's rule replaced it. If a tier is read as a pack total it
+    must be charged as one."""
+    explicit = [{"min_qty": 3, "unit_price": "5.00"}]
+    rescued = [{"min_qty": 1, "unit_price": "2.00"}, {"min_qty": 3, "unit_price": "5.00"}]
+    for qty in range(1, 13):
+        assert tier_line_total(rescued, Decimal("2.00"), qty, mode="per_unit") == \
+               tier_line_total(explicit, Decimal("2.00"), qty, mode="bundle"), qty
+
+
+def test_a_real_per_unit_ladder_is_still_a_per_unit_ladder():
+    """The rescue only fires on a tier ABOVE base. A genuine ladder never reaches it, however deep."""
+    tiers = [{"min_qty": 1, "unit_price": "1.50"}, {"min_qty": 500, "unit_price": "0.60"}]
+    assert tier_line_total(tiers, Decimal("1.50"), 500, mode="per_unit") == Decimal("300.00")
+    assert tier_line_total(tiers, Decimal("1.50"), 499, mode="per_unit") == Decimal("748.50")

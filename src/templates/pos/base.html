@@ -1074,7 +1074,14 @@
             // used tier_mode 'bundle' — the one mode where this branch cannot run.
             if (eff > base) {
                 const asBundle = best.up / best.mq;
-                eff = (asBundle <= base && asBundle >= base * 0.5) ? asBundle : base;
+                if (asBundle <= base && asBundle >= base * 0.5) {
+                    // read as a pack total → price it as one: whole packs, then start again.
+                    // Anything else makes the same "3 for 5" cost 6.67 for four here and 7.00 on
+                    // the row beside it, which no customer can be expected to understand.
+                    const total = Math.min(_bundleTotal(tiers, base, qty), base * qty);
+                    return Math.round(total * 100) / 100;
+                }
+                eff = base;
             }
             return Math.round(eff * qty * 100) / 100;
         }
