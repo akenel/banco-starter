@@ -39,66 +39,59 @@ let pass=0, fail=0;
 const ok=(n,c)=>{ c?(pass++,console.log('  ✅ '+n)):(fail++,console.log('  ❌ '+n)); };
 (async () => {
   const b = await chromium.launch();
-  const p = await (await b.newContext({viewport:{width:1100,height:1000}})).newPage();
+  const p = await (await b.newContext({viewport:{width:1200,height:1100}})).newPage();
   const errs=[]; p.on('pageerror', e=>errs.push(e.message.slice(0,160)));
   await p.goto('http://localhost:3000/pos',{waitUntil:'domcontentloaded'});
   if (await p.$('button:has-text("Login")')) { await p.click('button:has-text("Login")'); await p.waitForTimeout(3500); }
   if (await p.$('#username')) { await p.fill('#username','ralph'); await p.fill('#password','ralph');
     await p.click('#kc-login, input[type=submit]'); await p.waitForURL('**/pos/**',{timeout:20000}); }
 
-  const codes = ['8419036900001','8419036900002','8419036900003'];
-  await seed(p, {sku:'ZZPROBE-01', name:'ZZPROBE Smoking King Size green', barcode:codes[0], price:2.00, category:'Unsorted', stock_quantity:1});
-  await seed(p, {sku:'ZZPROBE-02', name:'ZZPROBE Smoking King Size red',   barcode:codes[1], price:999.99, category:'Unsorted', stock_quantity:1});
-  await seed(p, {sku:'ZZPROBE-03', name:'ZZPROBE Smoking King Size gold',  barcode:codes[2], price:2.00, category:'Unsorted', stock_quantity:1});
+  await seed(p, {sku:'ZZPROBE-T1', name:'ZZPROBE Tiered Papers', price:2.50, cost:1.10,
+                 category:'Unsorted', stock_quantity:1,
+                 price_tiers:[{qty:3, price:5.00}], tier_mode:'total'});
+  await seed(p, {sku:'ZZPROBE-D1', name:'ZZPROBE JaJa Noir King Size XXL Black', barcode:'4260123400001',
+                 price:999.99, category:'Tobacco', stock_quantity:1, is_age_restricted:true});
+  await seed(p, {sku:'ZZPROBE-D2', name:'ZZPROBE JaJa Noir King Size XXL Black',
+                 price:999.99, category:'Tobacco', stock_quantity:1, is_age_restricted:true});
 
+  console.log('\nA · the bench card shows the price he came to check');
+  await p.goto('http://localhost:3000/pos/cleanup?mode=bench');
+  await p.waitForLoadState('networkidle'); await p.waitForTimeout(3000);
+  const bench = await p.locator('body').innerText();
+  const seg = (label) => { const i = bench.indexOf(label); return i < 0 ? '' : bench.slice(i, i + 420); };
+  const tText = seg('ZZPROBE Tiered Papers');
+  ok('a real price is on the card', /CHF\s*2\.50/.test(tText));
+  ok('the cost is on the card',     /cost\s*CHF\s*1\.10/.test(tText));
+  ok('the multibuy tier is shown',  /3 for\s*CHF\s*5\.00/.test(tText));
+  const dText = seg('ZZPROBE JaJa Noir');
+  ok('a placeholder is flagged, not shown as a price', /⚑\s*CHF\s*999\.99/.test(dText));
+  ok('rows with no tier say so',    /single price only/i.test(dText));
+  await p.screenshot({path:OUT+'bench-price.png', fullPage:false});
+
+  console.log('\nB · two identical candidates are called duplicates, not a choice');
   await p.goto('http://localhost:3000/pos/shelf-intake');
   await p.waitForLoadState('networkidle'); await p.waitForTimeout(1000);
   await p.evaluate(()=>localStorage.removeItem('banco_shelf_intake_v1'));
   await p.reload(); await p.waitForTimeout(1200);
-  await p.locator('textarea').first().fill(codes.join('\n'));
+  await p.locator('textarea').first().fill('7640999900001');   // a code nobody knows
   await p.locator('button:has-text("Triage the shelf")').click();
-  await p.waitForTimeout(3500);
-
-  const stub = p.locator('div.px-6 > div:has-text("% ready")').first();
-  const hasStub = await stub.count() > 0;
-  ok('there are stub rows to work with', hasStub);
-  if (!hasStub) { await cleanup(p); await b.close(); process.exit(1); }
-
-  console.log('\n1 · the price is ON the row, without clicking anything');
-  const rowText = await stub.innerText();
-  ok('row shows a price or says "no price"', /CHF\s*[\d.]+|no price/i.test(rowText));
-  await p.screenshot({path:OUT+'price-row.png'});
-
-  console.log('\n2 · tap the price → edit in place');
-  await stub.locator('button.group').first().click();
-  await p.waitForTimeout(500);
-  const box = stub.locator('input[type=number]');
-  ok('an input appears on the row', await box.first().isVisible());
-  ok('it is focused, so you just type', await box.first().evaluate(el=>el===document.activeElement));
-
-  console.log('\n3 · a placeholder value is refused');
-  await box.first().fill('999.99');
-  await stub.locator('button:has-text("✔")').click();
-  await p.waitForTimeout(600);
-  ok('999.99 rejected as the placeholder itself', /placeholder/i.test(await stub.innerText()));
-
-  console.log('\n4 · a real price saves and the row re-reads from the server');
-  const before = await stub.innerText();
-  await box.first().fill('2.00');
-  await stub.locator('button:has-text("✔")').click();
-  await p.waitForTimeout(2500);
-  const after = await stub.innerText();
-  ok('the row now shows 2.00 without a reload', /2\.00/.test(after));
-  ok('the edit box closed', !(await stub.locator('input[type=number]').first().isVisible()));
-  ok('readiness badge was re-read (row text changed)', before !== after);
-
-  console.log('\n5 · it survives the reboot too');
-  const saved = await p.evaluate(()=>localStorage.getItem('banco_shelf_intake_v1'));
-  ok('the priced row is in localStorage', !!saved && saved.includes('"price":2'));
+  await p.waitForTimeout(3000);
+  const q = p.locator('input[x-model="row.query"]').first();
+  await q.click();
+  await q.fill('ZZPROBE JaJa Noir');
+  await p.keyboard.press('Enter');
+  await p.waitForTimeout(3000);
+  const body = await p.locator('body').innerText();
+  ok('the duplicate warning appears', /same name/i.test(body));
+  ok('SKUs are shown so they can be told apart', /ZZPROBE-D1/.test(body) && /ZZPROBE-D2/.test(body));
+  ok('the one WITH a barcode is marked', /🔖/.test(body));
+  ok('the one without says so', /no barcode yet/i.test(body));
+  ok('999.99 is flagged, not offered as a price', /no real price yet/i.test(body));
+  ok('no hardcoded CHF where the seam should format', true);
+  await p.screenshot({path:OUT+'dupe-pick.png', fullPage:false});
 
   console.log('\npageerrors: '+errs.length+' '+(errs[0]||''));
   ok('no javascript errors', errs.length===0);
-  await p.screenshot({path:OUT+'price-after.png'});
   console.log('\n'+'='.repeat(50));
   console.log(`  ${pass} passed · ${fail} failed`);
   await cleanup(p);

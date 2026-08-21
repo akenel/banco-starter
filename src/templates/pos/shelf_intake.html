@@ -505,10 +505,16 @@
                         <span x-show="row.facts && row.facts.suggested_category" x-text="row.facts && row.facts.suggested_category"></span>
                         <span x-show="row.facts && row.facts.suggested_age_restricted" class="text-rose-600 font-semibold"> · 18+</span>
                       </p>
+                      <!-- x-show does NOT stop x-text from evaluating — Alpine binds every
+                           expression on the element regardless of visibility. `row.facts` is null
+                           until a page is read, so all five of these threw on every render of an
+                           unread row. Alpine swallows it per-expression, which is why nobody saw
+                           it: the screen worked and the console filled with noise that would hide
+                           a real error. Found 2026-08-21 while proving something else. -->
                       <p x-show="row.facts && row.facts.facets" style="display:none"
                          class="text-xs text-emerald-800 bg-emerald-50 rounded p-2 mt-2">
                         📋 That page also publishes a spec table —
-                        <b><span x-text="row.facts.facets ? Object.keys(row.facts.facets).length : 0"></span>
+                        <b><span x-text="row.facts && row.facts.facets ? Object.keys(row.facts.facets).length : 0"></span>
                         fields</b> (dimensions, weight, count, material…). They'll be saved with the product.
                       </p>
                       <p x-show="row.facts && langWarning(row.facts)" style="display:none"
@@ -584,16 +590,45 @@
                         They all match your words equally — so pick by the <b>highlighted</b> part and the
                         picture. Tap a picture to enlarge it.
                       </p>
+                      <!-- TWO ROWS THAT READ IDENTICALLY ARE NOT A CHOICE.
+                           2026-08-21: Angel searched JaJa Noir and got two candidates with the
+                           same name, the same photo and the same CHF 999.99. The screen asked him
+                           to pick, and gave him nothing to pick WITH. That is not a hard choice,
+                           it is an impossible one — and the honest answer is that these are
+                           duplicates and the real question is which row to keep. -->
+                      <p x-show="dupeNames(row).length" style="display:none"
+                         class="text-xs bg-amber-50 border border-amber-300 rounded-lg p-2 mb-2 text-amber-900">
+                        ⚠️ <b>Two or more of these are the same name.</b> They are duplicates in your
+                        catalogue, not different products. Pick the one that already has a barcode
+                        (marked below) — then merge the other into it from Catalog later.
+                      </p>
                       <template x-for="c in row.candidates" :key="c.id">
-                        <div class="flex items-center gap-3 border rounded-lg p-2 mb-2 hover:border-indigo-400">
+                        <div class="flex items-center gap-3 border rounded-lg p-2 mb-2 hover:border-indigo-400"
+                             :class="isDupe(row, c) && 'border-amber-300 bg-amber-50/40'">
                           <img :src="c.image_url || '/static/pos/img/placeholder.png'"
                                @click.stop="preview = c.image_url || ''"
                                class="w-20 h-20 object-contain rounded bg-gray-50 flex-none cursor-zoom-in">
                           <div class="min-w-0 flex-1">
                             <p class="text-sm text-gray-900 leading-snug" x-html="highlight(c.name, row.query)"></p>
-                            <p class="text-xs text-gray-400 mt-1">
-                              <span x-show="c.price !== null">CHF <span x-text="c.price"></span> · </span>
-                              <span x-text="c.category"></span>
+                            <!-- The identifiers are the ONLY thing that differs between two
+                                 duplicates, so they stop being clutter and become the answer. -->
+                            <p class="text-[11px] text-gray-400 font-mono mt-0.5">
+                              <span x-text="c.sku || 'no SKU'"></span>
+                              <span x-show="c.barcode" style="display:none" class="text-green-700 font-semibold">
+                                · 🔖 <span x-text="c.barcode"></span></span>
+                              <span x-show="!c.barcode" style="display:none">· no barcode yet</span>
+                            </p>
+                            <p class="text-xs mt-1">
+                              <!-- 999.99 read as a price here too, on the one screen where the
+                                   operator is deciding which row is the real one. -->
+                              <span x-show="c.price !== null && !isPlaceholder(c.price)" class="text-gray-500"
+                                    x-text="money(c.price) + ' · '"></span>
+                              <span x-show="c.price !== null && isPlaceholder(c.price)" style="display:none"
+                                    class="text-red-600 font-semibold"
+                                    x-text="'⚑ ' + money(c.price) + ' (no real price yet) · '"></span>
+                              <span x-show="c.price === null" style="display:none"
+                                    class="text-red-600 font-semibold">no price · </span>
+                              <span class="text-gray-500" x-text="c.category"></span>
                             </p>
                           </div>
                           <button @click="bind(row, c)" :disabled="row.busy" class="btn-primary text-sm flex-none">That's it</button>
@@ -638,11 +673,11 @@
                     </label>
                     <p x-show="row.facts && row.title !== row.facts.name" style="display:none"
                        class="text-xs text-gray-400 mb-2">
-                      page said: <span class="italic" x-text="row.facts.name"></span>
+                      page said: <span class="italic" x-text="row.facts && row.facts.name"></span>
                     </p>
                     <p x-show="row.facts && row.facts.lang_hint" style="display:none"
                        class="text-xs text-gray-500 mb-2">
-                      Text language: <span class="font-semibold uppercase" x-text="row.facts.lang_hint"></span>
+                      Text language: <span class="font-semibold uppercase" x-text="row.facts && row.facts.lang_hint"></span>
                       — stored with the product, so a German description never gets served as English.
                     </p>
                   </div>
@@ -659,10 +694,10 @@
                     <p x-show="row.facts && row.facts.price" style="display:none" class="text-xs mb-2"
                        :class="priceIsForeign(row) ? 'text-amber-700 font-semibold' : 'text-gray-400'">
                       <template x-if="!priceIsForeign(row)">
-                        <span>that page said <span x-text="row.facts.price"></span> — check it's what you charge</span>
+                        <span>that page said <span x-text="row.facts && row.facts.price"></span> — check it's what you charge</span>
                       </template>
                       <template x-if="priceIsForeign(row)">
-                        <span>⚠️ that page is in <span x-text="row.facts.currency"></span>, not
+                        <span>⚠️ that page is in <span x-text="row.facts && row.facts.currency"></span>, not
                           <span x-text="shopCurrency"></span> — type your own price, don't copy it</span>
                       </template>
                     </p>
@@ -819,6 +854,24 @@ function shelfIntake() {
           k.priceError = ''; k.priceSaved = false;
         }
       }
+    },
+
+    // Delegate to base.html's one money seam — this screen was printing a hardcoded "CHF",
+    // which is wrong in the EUR shop and is exactly the shadowing cleanup.html warns about.
+    money(v) { return window.formatPrice ? window.formatPrice(Number(v) || 0) : (this.shopCurrency + ' ' + this.fmt(v)); },
+
+    // Names that appear more than once among the candidates — compared the way a person reads
+    // them (case and spacing folded), not byte-for-byte.
+    dupeNames(row) {
+      const seen = {}, dupes = [];
+      for (const c of (row.candidates || [])) {
+        const k = (c.name || '').trim().toLowerCase().replace(/\s+/g, ' ');
+        if (seen[k]) { if (!dupes.includes(k)) dupes.push(k); } else { seen[k] = true; }
+      }
+      return dupes;
+    },
+    isDupe(row, c) {
+      return this.dupeNames(row).includes((c.name || '').trim().toLowerCase().replace(/\s+/g, ' '));
     },
 
     // ── price, on the row ─────────────────────────────────────────────────────────────

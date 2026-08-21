@@ -8434,6 +8434,11 @@ async def _bench_queue(db: AsyncSession, *, limit: int, offset: int,
             "price": float(p.price) if p.price is not None else None,
             "cost": float(p.cost) if p.cost is not None else None,
             "no_cost_reason": (p.no_cost_reason or None),
+            # Multibuy, on the card. Angel prices JaJa papers "2.50, or 3 for 5" — a row whose
+            # single price is right and whose tier is missing is WRONG at the till in the only
+            # direction that costs money, and nothing on this card said which was which.
+            "price_tiers": (p.price_tiers or None),
+            "tier_mode": (p.tier_mode or None),
             "is_age_restricted": bool(p.is_age_restricted),
             "product_class": p.product_class,
             "image_url": p.image_url,

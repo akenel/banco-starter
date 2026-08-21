@@ -354,6 +354,38 @@
                                         <span x-show="p.last_sold" class="text-gray-400"> · <span data-i18n="cleanup.last"> last</span> <span x-text="shortDate(p.last_sold)"></span></span>
                                     </p>
                                     <p x-show="mode === 'bench' && p.category" style="display:none;" class="text-sm text-gray-500 mt-1" x-text="p.category"></p>
+
+                                    <!-- 💰 THE PRICE, ON THE CARD.
+                                         2026-08-21, Angel, working this exact bench with a shop
+                                         to run: "another place we should show the price IMHO —
+                                         I need now to click on the details again to confirm price
+                                         and tier pricing correct."
+                                         Same gap the shelf list had, and the same answer: this
+                                         card lists everything that is MISSING and stayed silent
+                                         about the number you are actually here to check. A
+                                         placeholder is called out in red, because 999.99 is a
+                                         flag wearing a price and it reads as done. -->
+                                    <p class="mt-1 flex items-baseline gap-2 flex-wrap">
+                                        <span x-show="p.price !== null && !isPlaceholderPrice(p.price)"
+                                              class="text-base font-bold text-gray-900"
+                                              x-text="formatPrice(p.price)"></span>
+                                        <span x-show="p.price !== null && isPlaceholderPrice(p.price)" style="display:none;"
+                                              class="text-base font-bold text-red-600"
+                                              title="This is the not-known-yet flag, not a real price."
+                                              x-text="'⚑ ' + formatPrice(p.price)"></span>
+                                        <span x-show="p.price === null" style="display:none;"
+                                              class="text-sm font-bold text-red-600" data-i18n="cleanup.no_price">no price</span>
+                                        <span x-show="p.cost !== null && p.cost !== undefined" style="display:none;"
+                                              class="text-xs text-gray-400"
+                                              x-text="'cost ' + formatPrice(p.cost)"></span>
+                                        <!-- Tier pricing is invisible everywhere else on this screen, so its
+                                             ABSENCE and its presence look identical. Say both. -->
+                                        <span x-show="tierLabel(p)" style="display:none;"
+                                              class="text-xs px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 font-semibold"
+                                              x-text="tierLabel(p)"></span>
+                                        <span x-show="!tierLabel(p)" style="display:none;"
+                                              class="text-xs text-gray-400" data-i18n="cleanup.no_tier">single price only</span>
+                                    </p>
                                     <!-- Gap chips -->
                                     <div class="flex flex-wrap gap-1 mt-2 items-center">
                                         <!-- Readiness (bench): catches the lazy "done" — Unsorted / weak
@@ -1222,6 +1254,31 @@
             // "sells for CHF 4.95" one line away from a label reading "Cost (EUR)" in an EUR shop
             // (Artemis Roma). Delegate, so the currency follows /config like everywhere else.
             formatPrice(v) { return window.formatPrice(Number(v) || 0); },
+
+            // The sentinels a human types when the price is not known yet. Same pair the server
+            // enforces in UNVERIFIED_PRICES — 999.99 is the one to type, 99.00 is the legacy one
+            // still sitting in rows. On a card that lists what is MISSING, a placeholder is the
+            // one gap that renders as if it were filled.
+            isPlaceholderPrice(v) { return v !== null && (Number(v) === 99 || Number(v) === 999.99); },
+
+            // "3 for 5" in words. Reads whatever shape price_tiers is stored in rather than
+            // assuming one: a wrong summary here would be worse than no summary, because the
+            // whole point of the chip is to save opening Details to check.
+            tierLabel(p) {
+                const t = p.price_tiers;
+                if (!t || (Array.isArray(t) && !t.length)) return '';
+                const rows = Array.isArray(t) ? t : (t.tiers || []);
+                if (!rows.length) return '';
+                const parts = [];
+                for (const r of rows.slice(0, 3)) {
+                    const q = r.qty ?? r.quantity ?? r.min_qty ?? r.min;
+                    const pr = r.price ?? r.unit_price ?? r.total;
+                    if (q && pr !== undefined && pr !== null) parts.push(`${q} for ${this.formatPrice(pr)}`);
+                }
+                // A tier that exists but that this code cannot read must still be VISIBLE — saying
+                // nothing would claim "single price only", which is the false half of the answer.
+                return parts.length ? ('🏷️ ' + parts.join(' · ')) : `🏷️ ${rows.length} tier(s) — open Details`;
+            },
             goDashboard() { window.location.href = '/pos/dashboard'; },
             goCatalog() { window.location.href = '/pos/catalog'; },
             goReports() { window.location.href = '/pos/reports'; },
