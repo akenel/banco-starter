@@ -378,6 +378,27 @@
                                         <span x-show="p.is_age_restricted" class="text-xs px-2 py-0.5 rounded-full bg-red-50 text-red-800">🔞 18+</span>
                                     </div>
                                 </div>
+
+                                <!-- 📂 OPEN ONE AT A TIME.
+                                     Angel, opening the bench on 38 rows: "this is also scary at
+                                     first glance — 38 items. It should be maybe a one-liner per
+                                     item, and when they click it goes to the edit view."
+                                     He is right. Every card rendered its FULL form, so 38 rows was
+                                     a 25,000-pixel wall of identical boxes. The work was never that
+                                     big — most rows need one number — but the screen said it was,
+                                     and a screen that looks like a week gets closed.
+                                     Same doctrine shelf intake already runs on: "ten at a time, on
+                                     purpose — it keeps context". One open at a time here. -->
+                                <button type="button" @click="openRow = (openRow === p.product_id ? null : p.product_id)"
+                                        class="flex-none self-start px-3 py-2 rounded-lg border-2 font-bold text-sm active:scale-95"
+                                        :class="openRow === p.product_id
+                                                ? 'bg-indigo-600 border-indigo-600 text-white'
+                                                : 'bg-white border-slate-300 text-slate-700'"
+                                        :aria-expanded="openRow === p.product_id"
+                                        :title="openRow === p.product_id ? 'Close' : 'Fix this one'">
+                                    <span x-show="openRow !== p.product_id" data-i18n="cleanup.fix_this">✏️ Fix</span>
+                                    <span x-show="openRow === p.product_id" style="display:none">✕</span>
+                                </button>
                             </div>
 
                             <!-- ══ FILL IT FROM THE PAGE ══
@@ -391,6 +412,7 @@
                                  everything after the pick, and NOTHING is written until Save. The
                                  page is evidence, not truth: the person holding the packet outranks
                                  it, which is why this fills the boxes instead of saving them. -->
+                            <div x-show="openRow === p.product_id" x-cloak style="display:none">
                             <div class="mt-3 pt-3 border-t">
                                 <label class="block text-xs font-medium text-gray-500 mb-1">
                                     🔗 <span data-i18n="cleanup.f_fill">Fill it from the product's own page</span>
@@ -580,6 +602,7 @@
                                     <span x-show="p._saving" style="display:none;" data-i18n="cleanup.saving">Saving…</span>
                                 </button>
                             </div>
+                            </div>
                         </div>
                     </template>
                 </div>
@@ -614,7 +637,10 @@
             offset: 0,
             limit: 20,
             catFilter: '',
-            zoom: null,            // BL-141: the product being previewed big (stop squinting)
+            zoom: null,               // BL-141: the product being previewed big (stop squinting)
+            // Which row's form is open. ONE at a time: the whole point of collapsing was that
+            // 38 open forms read as 38 jobs. Two open would already be a third of the way back.
+            openRow: null,
             exporting: false,      // BL-131: xlsx worklist download in flight
             importing: false,      // BL-131 step 2: dry-run in flight
             impSaving: false,      // …and the apply
