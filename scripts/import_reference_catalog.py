@@ -8,9 +8,11 @@
 #
 #   docker exec banco-app mkdir -p /app/scripts
 #   docker cp scripts/import_reference_catalog.py banco-app:/app/scripts/
-#   docker cp /path/to/fourtwenty                 banco-app:/tmp/ft
-#   docker exec banco-app python3 /app/scripts/import_reference_catalog.py /tmp/ft
-#   docker exec banco-app python3 /app/scripts/import_reference_catalog.py /tmp/ft --apply
+#   docker exec banco-app python3 /app/scripts/import_reference_catalog.py /tmp/ft --fetch
+#   docker exec banco-app python3 /app/scripts/import_reference_catalog.py /tmp/ft --fetch --apply
+#
+# --fetch downloads the supplier's CURRENT feed first (see FEED_URLS). Without it, point the
+# script at a directory of CSVs you already have.
 #
 # DRY RUN unless --apply. The dry run walks identical code, so what it reports is what the
 # apply does.
@@ -44,11 +46,12 @@
 # live catalogue. `reference_products` is a clipboard beside the catalogue: the counter
 # reads it, a human adopts from it. Loading it cannot break a till.
 #
-# It also does not, on its own, fix the shelf. Two things still stand in the way and
-# both are named in worklist-archive/2026-08-21-fourtwenty-reference.md:
-#   - shelf-intake triage refuses to match unknowns ("a bare EAN carries no name") —
-#     reasoning that was only ever true BECAUSE this table was empty;
-#   - _find_catalog_matches searches this table by TITLE only, never by barcode.
+# What it does NOT do is decide coverage. Measured against Felix's 432 real-EAN packets:
+# a fresh feed answers 174 of them (40%). The rest are products FourTwenty does not sell —
+# Swiss CBD houses, US paper brands, BIC, American Spirit — and no amount of matching will
+# conjure them. 13 of those misses were checked against fourtwenty.ch by hand and the site
+# agreed with the feed 13 times out of 13, so the feed is not the weak link: their RANGE is.
+# The lever for the rest is a SECOND supplier feed — --supplier and --map take one.
 #
 # IDEMPOTENT. Upserts on (supplier, ref_key), so re-running a fresh dump updates in
 # place. Run it again whenever the supplier sends a new one.
@@ -107,6 +110,59 @@ SPEC_ORDER = [
     ("einsatzbereich", "Einsatzbereich"),
     ("certificates", "Zertifikate"),
 ]
+
+
+# FourTwenty publishes its dropship feeds at fixed public URLs. Found 2026-08-21 in
+# helixnet/scripts/modules/tools/fourtwenty-sync.py (KB-038) — the tool that produced the
+# CSVs sitting in helixnet/debllm/feeds/fourtwenty, dated 2025-11-30.
+#
+# THE STALE COPY COST REAL COVERAGE. Measured that day against Felix's 432 real-EAN packets:
+# the nine-month-old snapshot matched 153 (35%); the same feed downloaded fresh matched 174
+# (40%) — 1,254 codes added, 275 gone. Nothing was wrong with the lookup; the data had aged.
+# So the download lives HERE now, not in the monster repo Banco left, and refreshing is one
+# command a shop owner can run.
+FEED_URLS = {
+    "FourTwenty": {
+        "products_latest.csv": "https://fourtwenty.ch/Dropship/Data/dropship_productfeed_v2.csv",
+        "specifications_latest.csv": "https://fourtwenty.ch/Dropship/Data/dropship_specificationfeed_v1.csv",
+        "stock_latest.csv": "https://fourtwenty.ch/Dropship/Data/dropship_stockfeed_v1.csv",
+    },
+}
+
+
+def fetch_feed(supplier, dest):
+    """Download the supplier's current feed files into `dest`.
+
+    Writes to a .part file and renames only on success, so an interrupted download can never
+    leave a half CSV that imports as a mysteriously short catalogue.
+    """
+    import urllib.request
+
+    urls = FEED_URLS.get(supplier)
+    if not urls:
+        sys.exit(f"{C['red']}no feed URL known for supplier '{supplier}'. "
+                 f"Known: {', '.join(FEED_URLS)}{C['x']}\n"
+                 f"Point the script at a directory of CSVs instead.")
+    os.makedirs(dest, exist_ok=True)
+    for name, url in urls.items():
+        target = os.path.join(dest, name)
+        part = target + ".part"
+        print(f"  {C['dim']}↓ {name} …{C['x']}", end="\r", flush=True)
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "banco-pos/1.0 (shop catalogue sync)"})
+            with urllib.request.urlopen(req, timeout=120) as r, open(part, "wb") as fh:
+                fh.write(r.read())
+        except Exception as e:
+            if os.path.exists(part):
+                os.remove(part)
+            # A missing OPTIONAL file is survivable; the products feed is not.
+            if name.startswith("products"):
+                sys.exit(f"{C['red']}could not download {name}: {e}{C['x']}")
+            print(f"  {C['yel']}could not download {name}: {e} — continuing without it{C['x']}")
+            continue
+        os.replace(part, target)
+        print(f"  {C['grn']}✓{C['x']} {name}  {C['dim']}{os.path.getsize(target):,} bytes{C['x']}")
+    return dest
 
 
 # ---------------------------------------------------------------- small helpers
@@ -445,6 +501,35 @@ async def write_rows(rows, batch=500):
     return before, after, written
 
 
+# "Not in this feed" == "not touched by this run". write_rows() stamps imported_at = now() on
+# every row it writes, so anything for this supplier still carrying an older stamp was absent.
+# The cutoff is the newest stamp minus a small window, so a long import (11k rows, several
+# minutes) does not accuse its own early batches.
+_STALE_SQL = """
+  FROM reference_products
+ WHERE supplier = :s
+   AND imported_at < (SELECT max(imported_at) FROM reference_products WHERE supplier = :s)
+                     - interval '30 minutes'
+"""
+
+
+async def count_stale(supplier, _n):
+    from sqlalchemy import text
+    from src.db.database import AsyncSessionLocal as async_session_maker
+    async with async_session_maker() as db:
+        return (await db.execute(text("SELECT count(*) " + _STALE_SQL), {"s": supplier})).scalar_one()
+
+
+async def prune_stale(supplier, _n):
+    from sqlalchemy import text
+    from src.db.database import AsyncSessionLocal as async_session_maker
+    async with async_session_maker() as db:
+        n = (await db.execute(text("SELECT count(*) " + _STALE_SQL), {"s": supplier})).scalar_one()
+        await db.execute(text("DELETE " + _STALE_SQL), {"s": supplier})
+        await db.commit()
+        return n
+
+
 async def verify(supplier):
     """Ask the DATABASE what it now holds — never report the numbers this script computed.
     A script that reports its own arithmetic can be wrong in exactly the way that matters
@@ -484,6 +569,11 @@ def find_feed(target):
 
 
 async def main(args):
+    if args.fetch:
+        print(f"{C['b']}Downloading the current {args.supplier} feed{C['x']}  "
+              f"{C['dim']}-> {args.feed}{C['x']}")
+        fetch_feed(args.supplier, args.feed)
+        print()
     products_csv, specs_csv = find_feed(args.feed)
     mapping = dict(DEFAULT_MAP)
     if args.map:
@@ -575,6 +665,27 @@ async def main(args):
         return
 
     before, after, written = await write_rows(rows)
+
+    # ROWS THE SUPPLIER NO LONGER SELLS. The upsert only ever adds and updates, so a product
+    # dropped between dumps lingers forever and can still name a code at the till. Spotted on
+    # the first refresh: 10,082 -> 11,223 rows from an 11,035-row feed, so 188 were leftovers.
+    # Reported always, removed only on --prune, and NEVER when the feed looks truncated — a
+    # half-downloaded CSV must not be able to empty the shop's lookup table.
+    stale = await count_stale(args.supplier, len(rows))
+    if stale:
+        print(f"  {C['yel']}{stale} row(s) in the table were NOT in this feed{C['x']}  "
+              f"{C['dim']}— products the supplier has dropped since the last import{C['x']}")
+        if args.prune:
+            if len(rows) < before * 0.5:
+                print(f"  {C['red']}NOT pruning: this feed ({len(rows)}) is less than half of what "
+                      f"was already loaded ({before}). That looks like a truncated download, "
+                      f"not a shrinking range.{C['x']}")
+            else:
+                removed = await prune_stale(args.supplier, len(rows))
+                print(f"  {C['grn']}pruned {removed} stale row(s){C['x']}")
+        else:
+            print(f"  {C['dim']}re-run with --prune to remove them{C['x']}")
+
     v = await verify(args.supplier)
     print(f"{C['grn']}✅ upserted {written} row(s){C['x']}  "
           f"{C['dim']}({args.supplier}: {before} -> {after} rows){C['x']}\n")
@@ -584,9 +695,9 @@ async def main(args):
     print(f"    with photo      {v['with_image']}")
     print(f"    with price      {v['with_price']}")
     print(f"    18+             {v['age_gated']}")
-    print(f"\n{C['dim']}Next: an EAN miss still does not CONSULT this table by barcode "
-          f"(_find_catalog_matches searches it by title only).\n"
-          f"See worklist-archive/2026-08-21-fourtwenty-reference.md.{C['x']}")
+    print(f"\n{C['dim']}A scan miss and shelf-intake triage both consult this table by barcode "
+          f"now (e66acb3).\nRe-run with --fetch whenever the supplier's range moves; the shipped "
+          f"copy goes stale.{C['x']}")
 
 
 if __name__ == "__main__":
@@ -599,6 +710,12 @@ if __name__ == "__main__":
     ap.add_argument("--no-specs", action="store_true",
                     help="ignore specifications_latest.csv (no descriptions, no supplier 18+ flag)")
     ap.add_argument("--limit", type=int, default=0, help="only build the first N rows (testing)")
+    ap.add_argument("--fetch", action="store_true",
+                    help="download the supplier's CURRENT feed into <feed> first "
+                         "(the shipped copy goes stale — 35%% -> 40%% coverage when refreshed)")
+    ap.add_argument("--prune", action="store_true",
+                    help="after --apply, delete rows for this supplier that were NOT in this "
+                         "feed (products they have dropped). Refuses if the feed looks truncated.")
     ap.add_argument("--apply", action="store_true", help="actually write to the database")
     a = ap.parse_args()
 
