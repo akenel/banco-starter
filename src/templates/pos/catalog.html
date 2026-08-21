@@ -602,7 +602,11 @@
                             <input type="text" x-model="form.barcode" class="input-field font-mono flex-1" placeholder="Scan or leave blank" data-i18n-placeholder="catalog.barcode_placeholder">
                             <button type="button" @click="startBarcodeScan()" class="btn-secondary flex-none px-3" title="Scan barcode">📷</button>
                         </div>
-                        <p class="text-xs text-gray-500 mt-1" data-i18n="catalog.barcode_hint">No barcode? Leave it blank — a code is generated automatically.</p>
+                        <!-- The old wording here read "No barcode? Leave it blank — a code is
+                             generated automatically", which invited exactly the thing that made
+                             4,998 of 5,446 live products unscannable. Leaving it blank is right for
+                             a thing with NO code on it and wrong for everything else. Say which. -->
+                        <p class="text-xs text-gray-500 mt-1" data-i18n="catalog.barcode_hint">If the packet has a barcode, scan or type it here — that is what makes it findable at the till. Leave it blank only when there is no code on the item.</p>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="catalog.form_price">Price (CHF) *</label>
@@ -1306,6 +1310,17 @@
                 this.form = this._blankForm();
                 this.gallery = []; this.pendingPhotos = []; this.pendingImageUrl = ''; this._aiTail = ''; this.uploadingPhoto = false;
                 this.aiBusy = false; this.aiNote = '';
+
+                // 🔖 SEED THE BARCODE FROM WHAT SHE JUST LOOKED FOR. The search box takes "Name,
+                // SKU or barcode" and the 📷 button scans straight into it — so when the search
+                // that found nothing WAS a barcode, that is the code off the packet and it belongs
+                // on the row being created. It used to start blank while the number sat on screen
+                // in the box above (BL-10, 2026-08-20: search `4260641140046`, Barcode empty), and
+                // the row was then saved under an invented 2xxxxxxxxxxxx that scans nowhere.
+                // Digits only — a NAME in the search box is a name, not a code.
+                const qq = (this.q || '').trim();
+                if (/^[0-9]{8,14}$/.test(qq)) this.form.barcode = qq;
+
                 this.modalOpen = true;
                 this._formSnapshot = this._formSig();   // baseline for the unsaved-changes guard
             },

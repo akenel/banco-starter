@@ -228,7 +228,35 @@
                          the better answer. The strip above is for everything else. -->
                     <div x-show="searchMode === 'catalog' && !deptOpen" class="space-y-4">
                         <div class="bg-yellow-50 border-2 border-yellow-400 rounded-lg p-4">
-                            <p class="text-sm font-semibold text-yellow-800 mb-2">🆕 <span data-i18n="scan.new_item_title">New item — no barcode</span></p>
+                            <p class="text-sm font-semibold text-yellow-800 mb-2">🆕
+                                <span x-show="!pendingBarcode" data-i18n="scan.new_item_title">New item — no barcode</span>
+                                <span x-show="pendingBarcode" x-cloak style="display:none"
+                                      data-i18n="scan.new_item_title_coded">New item — with the code you scanned</span>
+                            </p>
+
+                            <!-- 🔖 THE CODE WE ARE ABOUT TO SAVE, AND THE ✕ THAT KILLS IT.
+                                 Angel chose to SHOW it rather than bind silently (2026-08-21):
+                                 "a wrong barcode bind looks exactly like a right one; only
+                                 re-scanning the packet tells them apart" (LESSONS.md 2026-08-04).
+                                 A gun that grabbed the shelf label instead of the packet must be
+                                 catchable HERE, before the code is on the row for good. -->
+                            <div x-show="pendingBarcode" x-cloak style="display:none"
+                                 class="flex items-center justify-between gap-3 bg-white border-2 border-yellow-500 rounded-lg px-3 py-2 mb-2">
+                                <div class="min-w-0">
+                                    <p class="text-xs font-semibold text-yellow-900"
+                                       data-i18n="scan.bind_this_code">This code gets saved on the new item</p>
+                                    <p class="font-mono font-bold text-yellow-900 truncate" x-text="pendingBarcode"></p>
+                                </div>
+                                <button type="button" @click="pendingBarcode = ''"
+                                        :aria-label="t('scan.bind_clear_aria')" :title="t('scan.bind_clear_aria')"
+                                        class="flex-none px-3 py-1.5 rounded border-2 border-yellow-500 text-yellow-800 text-sm font-bold active:scale-95">✕</button>
+                            </div>
+                            <p x-show="pendingBarcode" x-cloak style="display:none"
+                               class="text-xs text-yellow-700 mb-2" data-i18n="scan.bind_clear_help">
+                                Not the code on this packet? Press ✕ — a code saved on the wrong item
+                                looks exactly like a right one, and only re-scanning tells them apart.
+                            </p>
+
                             <p class="text-sm text-yellow-700" data-i18n-html="scan.new_item_help">
                                 Name + price, photo if you've got a second. It's <b>saved</b> (filed under
                                 <b>“On the fly”</b>) and added to the cart — so you can <b>find it by name and sell it
@@ -1377,12 +1405,33 @@
                 const description = (this.otfDescription || '').trim() || null;
                 const category = (this.otfCategory || '').trim() || 'On the fly';
 
+                // 🔖 THE CODE IN OUR HAND. If a scan just missed, `pendingBarcode` is holding the
+                // number off the packet — and the panel above is SHOWING it, with an ✕ if it is
+                // wrong. Bind it.
+                //
+                // Until 2026-08-21 this minted UNCONDITIONALLY, with the real code on screen three
+                // inches above the button. So every item captured at the till was filed under a
+                // 2xxxxxxxxxxxx that exists on no packet anywhere, and that packet could never be
+                // scanned in this shop again — findable by name only, forever, and a fresh
+                // duplicate every time somebody tried. 4,998 of 5,446 live products, 92%. Felix:
+                // "too complicated, too many buttons" — he was describing a scanner that misses
+                // three times in four, and the department strip + this form are what he gets
+                // INSTEAD. LESSONS.md 2026-07-30 said it in July; the till kept leaking until now.
+                //
+                // The department line already did this right (`unresolvedBarcode`, addDepartmentLine
+                // below). This path was simply never told. Pattern 2 — the consumer downstream of
+                // the field you added.
+                const scanned = (this.pendingBarcode || '').trim();
+
                 // Create the product, regenerating the auto code on the rare collision.
-                let product = null, blocked = false;
-                for (let attempt = 0; attempt < 3 && !product; attempt++) {
+                // A SCANNED code has nothing to regenerate — retrying the same number gets the same
+                // answer — so it gets one attempt and an honest message instead of three spins.
+                let product = null, blocked = false, taken = false;
+                const attempts = scanned ? 1 : 3;
+                for (let attempt = 0; attempt < attempts && !product; attempt++) {
                     const stamp = Date.now() + '-' + Math.floor(Math.random() * 1000);
                     const payload = {
-                        sku: 'OTF-' + stamp, barcode: this.genInternalBarcode(),
+                        sku: 'OTF-' + stamp, barcode: scanned || this.genInternalBarcode(),
                         name, price, description, category,
                         is_age_restricted: !!this.otfAgeRestricted,   // 18+ → server gates the sale
                     };
@@ -1390,7 +1439,17 @@
                         // Cashier-safe quick create (cashiers can make on-the-fly items).
                         product = await API.post('/api/v1/pos/products/quick', payload);
                     } catch (err) {
-                        if (/already exists/i.test(String(err.message || err))) continue;  // collision → retry
+                        if (/already exists/i.test(String(err.message || err))) {
+                            // A MINTED collision is bad luck — spin again.
+                            if (!scanned) continue;
+                            // A SCANNED collision is information: that code is already on a row the
+                            // lookup could not hand back. `/products/barcode/{code}` answers 400 for
+                            // a switched-off product (line 2001) and searchByBarcode treats every
+                            // error alike, so a DISCONTINUED item lands here looking like a miss.
+                            // Minting over it would put the same packet on two rows — the exact
+                            // duplicate this fix exists to stop. Say so instead.
+                            taken = true; break;
+                        }
                         blocked = true; break;   // hard failure → one-off fallback below
                     }
                 }
@@ -1415,7 +1474,22 @@
                         }
                     }
                     this.addToCart(product, 1);
-                    showToast(t('scan.toast_saved_otf'), 'success');
+                    // Consumed — it is on the row now. Say WHICH outcome she got: bound means that
+                    // packet scans from here on, and that is the whole point of the change.
+                    if (scanned) {
+                        this.pendingBarcode = '';
+                        showToast(t('scan.toast_saved_otf_bound', { code: scanned }), 'success');
+                    } else {
+                        showToast(t('scan.toast_saved_otf'), 'success');
+                    }
+                } else if (taken) {
+                    // The code is already on file. Do NOT invent a second row for the same packet —
+                    // send her to the thing that already exists, with the code still in the banner
+                    // so nothing is lost if she wants to look at it.
+                    showToast(t('scan.toast_code_on_file', { code: scanned }), 'warning');
+                    this.searchMode = 'search';
+                    this.searchInput = name;
+                    this.searchProducts();
                 } else {
                     // No create rights (cashier) or a hard failure → one-off line so the sale never blocks.
                     if (blocked) console.warn('On-the-fly create blocked; using one-off line');
