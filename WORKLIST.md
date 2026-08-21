@@ -57,12 +57,35 @@ Three things its first dry run caught, each of which would have shipped:
   and **all 5** of "Bier, Wein & Champagner" would have loaded **un-gated**. Fixed; measured
   across all 10,082 rows: **22 newly gated, 0 un-gated.** 4 new tests.
 
-**Still to do:** ② make an EAN miss CONSULT the reference by barcode — the scan miss and
-shelf-intake triage; the endpoint exists, the flow does not use it. ③ then reverse-lookup
-feed-title → live catalogue, human confirms, bind. ④ copy the feed out of `helixnet`.
+**② AN EAN MISS NOW ASKS THE REFERENCE — BY BARCODE** (`e66acb3`). Neither half needed a new
+endpoint; both were already built around an empty table.
+- **The till:** a miss that the supplier knows opens the find-and-bind panel **with the real
+  title already in the search box** — which is what lets her find the Tamar row under a minted
+  code and bind THIS code to it. A miss nobody knows still gets 2026-08-07's quiet department
+  strip. No modal for nothing.
+- **Shelf intake:** unknown rows now carry title, price, photo, category and 18+.
+  **Exact barcode only — never a name guess.** *"It says, well, of course, it doesn't find
+  it… so then I have to do basically a web search."* Now it answers first.
 
-*Reverse-matching by name is weak and now measured: "Tabak Beutel Sasso Tobaccos Hash 25gr."
-does not reach "Sasso Tabaccos Brazil Hash BIO" at the 0.5 threshold. **Scan-time beats bulk.***
+Two hazards found by scanning a **made-up** control code and getting a confident answer:
+- **GS1 980–999 (coupons) and 20–29 (someone else's in-store code) are not packet codes** —
+  the feed uses them as filler. Refused. 9,977 → 9,953. **977–979 KEPT**: those are ISBNs and
+  the shop really sells the books.
+- **145 codes sit on more than one product** — a Clipper 4-pack at CHF 75 and its singles at
+  CHF 7.50 share a GTIN. The screen now says *"the supplier lists N under this code"* instead
+  of naming one confidently.
+
+`scripts/prove-barcode-binding.js` — **29 checks, 29/29**, real browser. Sabotaged both halves
+→ 7 red. Skips **loudly** when the reference is empty, because a silent skip is the exact
+shape that hid this for the project's whole life.
+
+**Still to do:** ③ reverse-lookup feed-title → live catalogue as a one-tap bind (the button is
+there — "Is it already in my catalogue?" — measure how often it hits). ④ copy the feed out of
+`helixnet`. ⑤ **run the importer on prod** — Angel's call; it cannot change a price or a live
+product.
+
+*Bulk name-matching stays weak and measured: "Tabak Beutel Sasso Tobaccos Hash 25gr." does not
+reach "Sasso Tabaccos Brazil Hash BIO" at the 0.5 threshold. **Scan-time beats bulk.***
 
 ---
 
