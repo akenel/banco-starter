@@ -31,6 +31,9 @@
  *   6  a NAME typed in the catalogue search never lands in the Barcode field
  *   7  a CODE typed in the catalogue search does
  *   8  a code already on a switched-off row makes no duplicate
+ *   9  an EAN miss CONSULTS the supplier reference by barcode — the panel opens with the
+ *      real name in it, a filler code is not answered, and one code on many products says so
+ *      (skipped, loudly, when reference_products is empty)
  *
  * ⚠️  IT WRITES PRODUCTS. It rings NO sales — nothing here reaches the Kassenbuch — but
  *     it does create catalogue rows, and it deletes its own at the end (SKU/name prefix
@@ -269,6 +272,80 @@ async function fillNewItem(p, name, price) {
     await fillNewItem(p, NAME_A + ' again', 4.5);
     check(rowsNamed(NAME_A + ' again') === 0, 'no second row was created for that packet');
     check(barcodeOf(NAME_A) === CODE_A, 'and the original still owns its code', barcodeOf(NAME_A));
+
+    // ---------------------------------------------------------------------
+    head('9 · an EAN miss CONSULTS the supplier reference by barcode');
+    const refRows = parseInt(psql('select count(*) from reference_products'), 10) || 0;
+    if (!refRows) {
+      // NOT a silent skip. An empty reference table is exactly the condition that hid this
+      // hole for the whole life of the project — the importer named in the model's docstring
+      // had never been written, so every FourTwenty path queried nothing and looked fine.
+      console.log('  ⏭️  SKIPPED — reference_products is EMPTY. Load it first:');
+      console.log('        docker cp scripts/import_reference_catalog.py banco-app:/app/scripts/');
+      console.log('        docker exec banco-app python3 /app/scripts/import_reference_catalog.py <feed> --apply');
+      console.log('      (this is the state that hid the bug: an empty table answers "not found"');
+      console.log('       for every code, and nothing anywhere looks broken.)');
+    } else {
+      // Pick the fixtures FROM THE TABLE rather than hardcoding EANs — the feed is the
+      // shop's data, not the test's, and a hardcoded code rots the day a dump changes.
+      const known = psql(`select barcode || '|' || title from reference_products
+                          where barcode is not null
+                            and barcode not in (select barcode from products where barcode is not null)
+                            and barcode in (select barcode from reference_products
+                                            group by barcode having count(*) = 1)
+                          order by barcode limit 1`).split('|');
+      const multi = psql(`select barcode from reference_products where barcode is not null
+                          group by barcode having count(*) > 1 order by count(*) desc limit 1`);
+
+      const tri = await p.evaluate(async ([a, b]) => {
+        const r = await API.post('/api/v1/pos/catalog/shelf-intake/triage',
+          { raw: [a, b, '9999999999994'].join('\n') });
+        return (r.unknown || []).map(u => ({ barcode: u.barcode, ref: u.reference || null }));
+      }, [known[0], multi]);
+
+      const hit = tri.find(t => t.barcode === known[0]);
+      check(hit && hit.ref && hit.ref.title === known[1],
+        'shelf intake names an unknown code instead of leaving it blank',
+        hit && hit.ref ? hit.ref.title : '(no reference)');
+      check(hit && hit.ref && hit.ref.price !== undefined,
+        'and carries the supplier price, so the web trip is not needed');
+
+      const amb = tri.find(t => t.barcode === multi);
+      check(amb && amb.ref && amb.ref.ambiguous > 1,
+        'one code on several products SAYS SO rather than naming one',
+        amb && amb.ref ? `ambiguous=${amb.ref.ambiguous}` : '(none)');
+
+      const filler = tri.find(t => t.barcode === '9999999999994');
+      check(filler && !filler.ref,
+        'a GS1 coupon-range filler code is not answered at all',
+        filler && filler.ref ? 'ANSWERED: ' + filler.ref.title : 'no answer, correct');
+
+      // And the till itself: a miss on a code the reference knows must open the find-and-bind
+      // panel WITH THE NAME IN IT — that is the whole point, because the name is what lets her
+      // search the live catalogue and bind this code to a row already sitting under a minted one.
+      await goto(p, '/pos/scan');
+      await scan(p, known[0]);
+      const lazy = await p.evaluate(() => {
+        const d = Alpine.$data(document.querySelector('[x-data]'));
+        return { open: d.lazyOpen, code: d.lazyBarcode, query: d.lazyLinkQuery, refs: (d.refResults || []).length };
+      });
+      check(lazy.open === true, 'the till opens the find-and-bind panel on a known-to-supplier miss');
+      check(lazy.code === known[0], 'holding the scanned code', lazy.code);
+      check(lazy.query === known[1], 'pre-filled with the supplier name — no typing, no web',
+        lazy.query || '(empty)');
+      check(lazy.refs > 0, 'and the reference hits are on screen', String(lazy.refs));
+
+      // The other half of 2026-08-07's decision must survive: a code NOBODY knows still gets
+      // the quiet department strip, never a modal. Nothing is shoved at anyone for nothing.
+      await goto(p, '/pos/scan');
+      await scan(p, '76409' + stamp);
+      const quiet = await p.evaluate(() => {
+        const d = Alpine.$data(document.querySelector('[x-data]'));
+        return { open: d.lazyOpen, pending: d.pendingBarcode, mode: d.searchMode };
+      });
+      check(quiet.open === false && quiet.pending === '76409' + stamp && quiet.mode === 'catalog',
+        'an unknown-to-everyone code still gets the quiet department strip, no modal');
+    }
 
   } catch (e) {
     bad('the run threw', e.message);

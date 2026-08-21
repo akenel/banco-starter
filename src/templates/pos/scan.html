@@ -1289,6 +1289,40 @@
                     this.pendingBarcode = code;
                     this.searchMode = 'catalog';
                     this.barcodeInput = '';
+
+                    // 📚 ASK THE REFERENCE BY BARCODE BEFORE GIVING UP.
+                    //
+                    // The find-and-bind panel has always done this (openLazyCapture below), under
+                    // a comment reading "cheap — it usually misses too, per the doctrine". That
+                    // doctrine was formed against an EMPTY TABLE: `reference_products` held 0 rows
+                    // on every machine until 2026-08-21, because the importer its own model
+                    // docstring named had never been written. With the FourTwenty feed loaded it
+                    // answers for 9,977 codes, so "it usually misses" is simply no longer true.
+                    //
+                    // Angel, at the shelf: "if you're using the shelf intake, it says, well, of
+                    // course, it doesn't find it… so then I have to do basically a web search."
+                    //
+                    // A HIT changes what the right screen is. With a real title we can search the
+                    // LIVE catalogue for it — which is how a Tamar row sitting under a minted
+                    // 2xxxxxxxxxxxx gets THIS code bound to it — so open the panel with the answer
+                    // already in it. A MISS changes nothing: keep 2026-08-07's non-blocking
+                    // department strip exactly as it is. No modal is shoved at anybody for nothing.
+                    let ref = null;
+                    try {
+                        ref = (await API.get('/api/v1/pos/reference/search?limit=1&barcode='
+                                             + encodeURIComponent(code)))?.items?.[0] || null;
+                    } catch (e) {
+                        // The reference is a helper, never a gate. If it is down, the till behaves
+                        // exactly as it did before it existed.
+                        console.warn('reference lookup failed', e);
+                    }
+                    if (ref && (ref.name || ref.title)) {
+                        this.pendingBarcode = '';     // openLazyCapture owns the code from here
+                        this.openLazyCapture(code, ref.name || ref.title);
+                        showToast(t('scan.toast_ref_knows', { title: (ref.name || ref.title) }), 'success');
+                        return;
+                    }
+
                     showToast(t('scan.toast_dept_prompt'), 'warning');
                     // Cursor stays in the scan box — she may just scan the next thing instead.
                     this.$nextTick(() => this.$refs.barcodeInput && this.$refs.barcodeInput.focus());

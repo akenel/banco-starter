@@ -942,14 +942,25 @@ async def catalog_shelf_intake_triage(
     That is the whole point of a re-scan: standing at the shelf holding the packet is the ONE
     moment the operator can see what the row should say.
 
-    This endpoint answers exactly one question per code — *does this resolve to a product
-    today?* — and deliberately stops there. It is tempting to also propose catalogue matches
-    for the unknowns, but a bare EAN carries no name, so there is nothing to match ON. The
-    match needs a title, and a title only exists once the operator has looked the code up
-    (`POST /catalog/page-facts`) — which is what the next step does.
+    UNKNOWN ROWS NOW CARRY WHAT THE SUPPLIER REFERENCE KNOWS. Until 2026-08-21 this said:
 
-    Saying so plainly here because the alternative is a screen that LOOKS like it triaged the
-    unknowns and actually guessed.
+        "It is tempting to also propose catalogue matches for the unknowns, but a bare EAN
+         carries no name, so there is nothing to match ON."
+
+    That was true, and it was true for one reason: `reference_products` held **0 rows on every
+    machine** — the importer this project's own model docstring named had never been written.
+    With the FourTwenty feed loaded, a bare EAN carries a name for 9,977 codes, and the whole
+    argument evaporates.
+
+    It is still NOT a guess. `reference` is filled only by an EXACT barcode match against the
+    supplier master (`how == "barcode"`), never by similarity — so a row either carries the
+    supplier's own record of that code or carries nothing. Angel, at the shelf: *"if you're
+    using the shelf intake, it says, well, of course, it doesn't find it… so then I have to do
+    basically a web search."* Now it can answer before he opens a browser.
+
+    Still deliberately absent: any name-similarity proposal. A title-match against the live
+    catalogue belongs on the screen, next to a person who can say yes — not in a triage
+    response that LOOKS like it triaged the unknowns and actually guessed.
 
     Expect roughly 15–25% of a shelf to bind to existing rows — measured 2026-07-31 against
     the 59 codes captured by hand, not estimated. The rest is real work.
@@ -967,6 +978,24 @@ async def catalog_shelf_intake_triage(
             "checksum_ok": entry.checksum_ok,
         }
         if product is None:
+            # What the supplier master knows about this exact code. Exact barcode only —
+            # `_reference_best_match` also does name similarity, and that is NOT wanted here
+            # (there is no name to match with, and a plausible sibling is worse than a blank).
+            ref = await _reference_best_match(db, "", entry.code)
+            if ref and ref.get("how") == "barcode":
+                row["reference"] = {
+                    "title": ref.get("title"),
+                    "supplier": ref.get("supplier"),
+                    "price": float(ref["price"]) if ref.get("price") is not None else None,
+                    "image_url": ref.get("image_url"),
+                    "description": ref.get("description"),
+                    "category": ref.get("category"),
+                    "product_class": ref.get("our_class"),
+                    "age_restricted": bool(ref.get("age_restricted")),
+                    # >1 means the supplier files several products under this one code and
+                    # the title above is only one of them. The screen must say so.
+                    "ambiguous": int(ref.get("ambiguous") or 1),
+                }
             unknown.append(row)
             continue
         score, gripes = _readiness(product)
@@ -3206,11 +3235,25 @@ async def _reference_best_match(db: AsyncSession, name: str, barcode: str = "") 
     code = _clean_barcode(barcode)
     if code:
         r = (await db.execute(text("""
-            SELECT title, barcode, description, image_url, suggested_price, our_category, supplier
+            SELECT title, barcode, description, image_url, suggested_price, our_category,
+                   our_class, age_restricted, supplier,
+                   -- HOW MANY rows the supplier files under this one code. 145 codes in the
+                   -- FourTwenty feed are on more than one row: a Clipper 4-pack and each of
+                   -- its four designs share the manufacturer's GTIN, at CHF 75.00 and CHF
+                   -- 7.50. LIMIT 1 picks one arbitrarily, so without this the till would
+                   -- name a 4-pack with total confidence while the customer holds a single.
+                   -- Counted before LIMIT (window functions run first), and handed to the
+                   -- caller so a screen can say "the supplier lists N under this code".
+                   count(*) OVER() AS n_matches
             FROM reference_products WHERE barcode = :b LIMIT 1"""), {"b": code})).fetchone()
         if r:
-            return {"title": r.title, "barcode": r.barcode, "description": r.description,
+            return {"ambiguous": int(r.n_matches or 1),
+                    "title": r.title, "barcode": r.barcode, "description": r.description,
                     "image_url": r.image_url, "price": r.suggested_price, "category": r.our_category,
+                    # Carried so a shelf-intake create starts from the class the reference was
+                    # imported with instead of re-deriving it from a title. Additive — the two
+                    # older callers ignore the extra keys.
+                    "our_class": r.our_class, "age_restricted": bool(r.age_restricted),
                     "supplier": r.supplier, "score": 1.0, "how": "barcode"}
     nm = (name or "").strip()
     if len(nm) < 4:

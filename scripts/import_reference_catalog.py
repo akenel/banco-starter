@@ -148,17 +148,37 @@ def txt(raw):
 
 _BARCODE_JUNK = re.compile(r"[\x00-\x20\x7f]+")
 
+# EAN-13 prefixes reserved for restricted distribution — a shop's own in-store codes.
+_INSTORE_PREFIXES = {str(n) for n in range(20, 30)}
+
 
 def clean_barcode(raw):
-    """A code is contiguous digits. Anything else is not a barcode and must not be stored
-    as one — a junk 'code' in this table would resolve a scan to the wrong product, and
-    Lesson 8 says a wrong bind looks exactly like a right one."""
+    """A code is contiguous digits, and it has to be a code that exists on a PACKET.
+
+    A junk 'code' stored here resolves a scan to the wrong product, and Lesson 8 says a wrong
+    bind looks exactly like a right one. Two families in this feed are not packet codes, found
+    by scanning a made-up control code (`9999999999994`) and getting a confident answer back:
+
+      GS1 980-999  coupons and refund receipts. The feed uses them as filler — nine
+                   "Lao Vapes - Mekong Juice" liquids share `9999999999xxx`, and OVK uses
+                   `99785685540xx`. 13 rows.
+      GS1 20-29    restricted distribution, i.e. somebody's IN-STORE code. Same disease as
+                   our own minted 2xxxxxxxxxxxx: real on their shelf, on no packet anywhere.
+                   3 rows (Sennenquöll Glacier Water). 13-digit only — on a GTIN-14 the
+                   leading digit is a packaging indicator and a 2 there is perfectly normal.
+
+    KEPT on purpose: 977-979. Those are ISSN/ISBN, and this shop really does sell the books —
+    "Jointdrehbuch", "LSD mein Sorgenkind". 85 rows with genuine, scannable codes. Dropping a
+    whole prefix range because it looks unusual would have cost every one of them.
+    """
     code = _BARCODE_JUNK.sub("", (raw or "").strip())
     if not code or not code.isdigit():
         return None
     if not (8 <= len(code) <= 14):
         return None
     if code.strip("0") == "":
+        return None
+    if len(code) == 13 and (code[:3] >= "980" or code[:2] in _INSTORE_PREFIXES):
         return None
     return code
 
@@ -531,7 +551,8 @@ async def main(args):
         print(f"  {C['yel']}skipped, no key           {stats['no_key']}{C['x']}")
     if stats["bad_barcode"]:
         print(f"  {C['yel']}barcode dropped as junk   {stats['bad_barcode']}{C['x']}  "
-              f"{C['dim']}(non-numeric or wrong length — never stored as a code){C['x']}")
+              f"{C['dim']}(non-numeric, wrong length, or a GS1 coupon/in-store prefix\n"
+              f"                            — never stored as a code){C['x']}")
     if collisions:
         print(f"  {C['yel']}duplicate ref_key in file {len(collisions)}{C['x']}  "
               f"{C['dim']}(last one wins){C['x']}")

@@ -258,6 +258,61 @@
                 </div>
               </div>
 
+              <!-- 📚 WHAT THE SUPPLIER MASTER KNOWS ABOUT THIS EXACT CODE.
+                   Until 2026-08-21 this row was a bare number and the only way forward was a
+                   web search — Angel: "it says, well, of course, it doesn't find it… so then I
+                   have to do basically a web search. Most of the time, the search based on four
+                   twenty does not find that EAN." It never could: reference_products held ZERO
+                   rows on every machine, because the importer had never been written.
+                   Now an exact GTIN match answers for 9,977 codes.
+
+                   EXACT BARCODE ONLY — never a name-similarity guess. The row either carries the
+                   supplier's own record of this code or carries nothing. -->
+              <div x-show="row.reference" style="display:none"
+                   class="bg-indigo-50 border-2 border-indigo-300 rounded-lg p-3 mb-3">
+                <div class="flex items-start gap-3">
+                  <img x-show="row.reference && row.reference.image_url" :src="row.reference && row.reference.image_url"
+                       alt="" class="w-16 h-16 object-cover rounded-lg border border-indigo-200 flex-none bg-white">
+                  <div class="min-w-0 flex-1">
+                    <p class="text-xs font-semibold text-indigo-900">
+                      📚 <span x-text="(row.reference && row.reference.supplier) || 'Supplier'"></span> knows this code
+                    </p>
+                    <p class="font-bold text-gray-900 leading-snug" x-text="row.reference && row.reference.title"></p>
+                    <p class="text-xs text-gray-600 mt-0.5">
+                      <span x-show="row.reference && row.reference.price !== null">
+                        CHF <span x-text="row.reference && row.reference.price"></span> ·
+                      </span>
+                      <span x-text="(row.reference && row.reference.category) || ''"></span>
+                      <span x-show="row.reference && row.reference.age_restricted" class="text-rose-600 font-semibold"> · 🔞 18+</span>
+                    </p>
+                  </div>
+                </div>
+                <!-- The loop Angel described, closed without the browser: the reference gives the
+                     PROPER name, and with that name the catalogue often DOES have it already —
+                     under a minted 2xxxxxxxxxxxx. Binding beats creating every time. -->
+                <div class="flex gap-2 flex-wrap mt-3" x-show="row.status === 'todo'">
+                  <button @click="useReference(row)" class="btn-primary text-sm">
+                    🔎 Is it already in my catalogue?
+                  </button>
+                  <button @click="fillFromReference(row)" class="btn-secondary text-sm">
+                    ⬇️ Use this name &amp; price
+                  </button>
+                </div>
+                <!-- One code, several products. 145 codes in the FourTwenty feed are on more
+                     than one row — a Clipper 4-pack at CHF 75.00 and each single at CHF 7.50
+                     carry the SAME manufacturer GTIN. Naming one of them confidently would be
+                     the wrong-picture failure this shop keeps paying for, so say it out loud. -->
+                <p x-show="row.reference && row.reference.ambiguous > 1" style="display:none"
+                   class="text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-300 rounded px-2 py-1 mt-2">
+                  ⚠️ The supplier lists <b x-text="row.reference && row.reference.ambiguous"></b>
+                  products under this one code (a multipack and its singles usually).
+                  <b>This is only one of them</b> — check the pack size and the price.
+                </p>
+                <p class="text-xs text-indigo-800 mt-2">
+                  The supplier's record of this code — <b>check it is the same packet</b> before you use it.
+                </p>
+              </div>
+
               <!-- resolved states -->
               <div x-show="row.status === 'bound'" style="display:none"
                    class="bg-emerald-50 border border-emerald-300 rounded-lg p-3 text-sm text-emerald-800">
@@ -764,6 +819,36 @@ function shelfIntake() {
       } catch (e) {
         row.error = (e && e.message) || 'Could not read that page.';
       } finally { row.busy = false; this.save(); }
+    },
+
+    // Take the supplier's title and ask the CATALOGUE about it. This is the exact loop the
+    // lookupName() comment below describes — "you went to the web and learned its PROPER name,
+    // and with that name the catalogue does have it after all" — minus the web.
+    useReference(row) {
+      const t = (row.reference && row.reference.title || '').trim();
+      if (!t) return;
+      row.query = t;
+      return this.lookupName(row);
+    },
+
+    // Fill the create form from the supplier's record. Shaped like a page-facts result because
+    // that is what createRow() already reads, so there is one create path and not two.
+    fillFromReference(row) {
+      const r = row.reference || {};
+      row.title = (r.title || '').trim();
+      if (r.price !== null && r.price !== undefined && !(row.price > 0)) row.price = r.price;
+      row.facts = {
+        name: r.title || '',
+        description: r.description || null,
+        image: r.image_url || null,
+        suggested_category: r.category || null,
+        suggested_class: r.product_class || 'standard',
+        suggested_age_restricted: !!r.age_restricted,
+        // The supplier feed is German. Saying so beats letting it land NULL and read as English.
+        lang_hint: 'de',
+        facets: null,
+      };
+      this.save();
     },
 
     async lookupName(row) {
