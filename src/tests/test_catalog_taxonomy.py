@@ -350,3 +350,58 @@ def test_safety_net_never_ungate_or_downgrade_an_operator_choice():
     # an explicit 18+ toggle stays gated; an explicit specific class is never clobbered
     assert resolve_class_on_create("Mystery Item", "standard", True) == ("age_restricted", True)
     assert resolve_class_on_create("House CBD Flower 3g", "cbd_hemp", None) == ("cbd_hemp", True)
+
+
+# ---- Alcohol by SUPPLIER CATEGORY (2026-08-21) ------------------------------------
+#
+# Layer 2 exists to "close the leaks the title can't see" and had branches for tobacco
+# and CBD but NONE for alcohol. A bottle's title is usually a brand — "Bacardi Carta
+# Blanca 70cl", "Arehucas Ron Anejo 7 Jahre" — and says nothing about what it is, so 17
+# of the 44 rows in FourTwenty's "Spirituosen" bucket and ALL 5 of "Bier, Wein &
+# Champagner" classified `standard`. Found while writing the reference importer: they
+# would have been loaded un-gated, and /reference/{id}/adopt copies age_restricted
+# straight onto the live product.
+
+def test_bottle_gates_on_the_supplier_category_when_the_title_is_only_a_brand():
+    for title, cat in (
+        ("Arehucas Ron Anejo 7 Jahre 70cl 40", "Spirituosen"),
+        ("Agwa de Bolivia Coca Blue 70cl  55,5%", "Spirituosen"),
+        ("Sulzer Vin Mousseux Brut Methode Traditionelle AOC", "Bier, Wein & Champagner"),
+        ("Appenzeller Hanfblüte Naturtrüb 33cl", "Bier, Wein & Champagner"),
+    ):
+        cat_out, cls, age = classify(title, ref_category=cat)
+        assert cls == "alcohol", (title, cls)
+        assert age is True, title
+
+
+def test_a_spirit_name_hiding_inside_an_ordinary_word_is_not_a_bottle():
+    # The first cut of the rule gated "Brandywine (Solanum lycopersicum)" — a TOMATO
+    # variety in the Indoorgrowing bucket — because "brandy" is a substring of it.
+    # One confident wrong answer in 10,082 rows is still a confident wrong answer.
+    _, cls, age = classify("Brandywine (Solanum lycopersicum)", ref_category="Indoorgrowing")
+    assert cls != "alcohol"
+    assert age is False
+
+
+def test_the_category_rule_keeps_the_alkoholfrei_veto():
+    # Layer 2 must not be a softer path to the same class: _AGE_NEG still wins.
+    _, _, age = classify("Bier alkoholfrei 33cl", ref_category="Bier, Wein & Champagner")
+    assert age is False
+
+    # NOT asserted here: that a drinking glass filed under "Spirituosen" stays open. I wrote
+    # that case, watched it fail, and then checked the feed — all 44 rows in Spirituosen and
+    # all 5 in "Bier, Wein & Champagner" are bottles. There is no glassware in either bucket,
+    # so the test was asserting my invention rather than the shop's data. The obvious fix
+    # (add "glas" to _SUBSTANCE_ACCESSORY) would have been worse than the problem: it would
+    # also match "CBD Blüten - Glashaus" and UN-gate CBD flower, which is the one direction
+    # where a wrong rule is a compliance failure.
+
+
+def test_the_alcohol_category_rule_only_ever_tightens():
+    # Measured against the real 10,082-row FourTwenty feed when the rule was added:
+    # 22 rows newly gated, ZERO un-gated. Loosening an age gate is the one direction
+    # where a wrong rule is a compliance failure, so assert the direction here too.
+    for title in ("Smoking Deluxe King Size", "Clipper Feuerzeug Classic",
+                  "USB Wall Plug Adapter 5V 1A Output"):
+        _, _, age = classify(title, ref_category="Papers")
+        assert age is False, title

@@ -152,7 +152,17 @@ _CIG = re.compile(r"\bmarlboro\b|\bparisienne\b|\bcamel\b|\bwinston\b|gauloises|
 # over-gating a tobacco wrap is the safe error; Felix/Treuhänder can confirm the CH line. 0mg/herbal
 # still veto via _AGE_NEG.
 _CIGAR = re.compile(r"\bswisher\b|backwoods|cigarillo|zigarillo|\bcigars?\b|\bzigarre\b|\bzigarren\b|stumpen|\bcheroot\b|black\s*&?\s*mild|smock\s*woods|blunt\s*wraps?", re.I)
-_ALCOHOL = re.compile(r"alkohol|alcohol|vodka|\brum\b|whisky|whiskey|\bgin\b|liqueur|likör|absinth|\bbier\b|\bwein\b", re.I)
+# 2026-08-21: the Swiss/German words were missing, so a bottle in FourTwenty's "Spirituosen"
+# bucket classified `standard` — 17 of 44 spirits and ALL 5 of "Bier, Wein & Champagner"
+# would have been imported un-gated. Substance words only, never brand names: "Bacardi" in a
+# title is a rum, but "Bacardi" on a flavoured paper is not, and _FLAVOUR_PAPER already has
+# to veto that. `alkoholfrei` stays vetoed by _AGE_NEG.
+# Word-bounded where a spirit's name hides inside an ordinary word: the first cut gated
+# **"Brandywine (Solanum lycopersicum)"** — a TOMATO variety in FourTwenty's Indoorgrowing
+# bucket — as alcohol. One confident wrong answer in 10,082 is still a confident wrong answer.
+_ALCOHOL = re.compile(r"alkohol|alcohol|vodka|wodka|\brum\b|whisky|whiskey|\bgin\b|liqueur|likör"
+                      r"|absinth|\bbier\b|\bwein\b|spirituos|schnaps|\btequila\b|\bcognac\b|\bbrandy\b"
+                      r"|\bgrappa\b|champagner|prosecco|\bsekt\b|aperitif|vermouth", re.I)
 # Shisha bucket is MIXED: molasses tobacco (18+) sits beside hoses/charcoal/foil/adapters (open).
 # These markers make a shisha line the actual 18+ substance — the brands are ALWAYS molasses
 # tobacco, so they gate off the title alone even when the supplier category is a generic dump.
@@ -332,6 +342,13 @@ def classify(title: str | None, ref_category: str | None = None, raw=None,
             cls = "tobacco_nicotine"               # the tobacco/cigarette group, minus machines/filters
         elif "shisha" in tags and _SHISHA_TOBACCO.search(t) and tobacco_ok:
             cls = "tobacco_nicotine"               # shisha molasses tobacco only (not hoses/charcoal)
+        elif _ALCOHOL.search(tags) and not neg and not _SUBSTANCE_ACCESSORY.search(t) \
+                and not _FLAVOUR_PAPER.search(t):
+            # The leak layer 2 exists to close, and it had no alcohol branch at all. A bottle's
+            # title is usually a BRAND ("Bacardi Carta Blanca 70cl") and says nothing about what
+            # it is; the supplier's bucket ("Spirituosen", "Bier, Wein & Champagner") says it
+            # outright. Same guards as the title path — a rum-flavoured paper is still a paper.
+            cls = "alcohol"
         elif ref_category == "CBD" or _CBD_TOKEN.search(t):
             cls = "cbd_open" if _CBD_OPEN.search(t) else "cbd_hemp"
     # (3) TITLE-CBD fallback (no supplier tags) — the path EVERY hand-captured product takes,
