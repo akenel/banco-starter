@@ -1096,6 +1096,29 @@
                 <p class="text-lg font-bold text-gray-900" x-text="previewItem && previewItem.name"></p>
                 <p x-show="previewItem && previewItem.sub" class="text-sm text-gray-500" x-text="previewItem && previewItem.sub"></p>
                 <p x-show="previewItem && previewItem.price" class="text-base font-semibold text-gray-700" x-text="previewItem && previewItem.price"></p>
+
+                <!-- 🔴 THE ROW HAS ITS OWN CODE, AND IT IS NOT THE ONE IN YOUR HAND.
+                     Angel, holding a SILVER Vaporesso Zero 2, was one tap from picking
+                     "Zero 2 Pod Kit Black Top Fill Pod". FourTwenty lists that family as three
+                     SEPARATE products with three SEPARATE codes — Carbon …619054, Black …619078,
+                     Black Green …619139 — and the code he scanned (…644650) is none of them.
+                     Adopting would have bound HIS code onto a row the supplier says is a
+                     different article, with a black photo, for a silver kit.
+                     The screen showed a name, a supplier and a price, and never the one field
+                     that says these are different things. Different codes = different products,
+                     nearly always.
+                     A WARNING, not a block: a product can legitimately carry two codes (retail +
+                     case), which is what the alias bind exists for. The person holding the packet
+                     outranks the data — but they have to be told what the data says first. -->
+                <p x-show="previewItem && previewItem.code && lazyBarcode
+                           && previewItem.code !== lazyBarcode"
+                   x-cloak style="display:none"
+                   class="text-xs font-semibold text-rose-800 bg-rose-50 border border-rose-300 rounded px-2 py-1.5 mt-2 leading-snug">
+                    🔴 <span data-i18n="scan.code_mismatch">Different barcode.</span><br>
+                    <span class="font-mono" x-text="'this row:  ' + (previewItem && previewItem.code)"></span><br>
+                    <span class="font-mono" x-text="'you scanned: ' + lazyBarcode"></span><br>
+                    <span class="font-normal" data-i18n="scan.code_mismatch_help">Usually that means a different colour, size or flavour — not the same thing. Only pick it if the packet in your hand really is this one.</span>
+                </p>
             </div>
             <div class="flex gap-2 p-4 pt-0">
                 <button @click="previewOpen=false" class="btn-secondary flex-1" data-i18n="scan.preview_back">Back to list</button>
@@ -1942,11 +1965,12 @@
                         sub: [item.supplier, item.category].filter(Boolean).join(' · '),
                         price: (item.suggested_price !== null && item.suggested_price !== undefined)
                             ? this.formatPrice(item.suggested_price) : '',
-                        raw: item, kind };
+                        code: (item.barcode || ''), raw: item, kind };
                 } else {
                     this.previewItem = {
                         name: item.name, image: item.image_url || '', sub: item.category || '',
-                        price: this.formatPrice(item.price), raw: item, kind: 'catalog' };
+                        price: this.formatPrice(item.price),
+                        code: (item.barcode || ''), raw: item, kind: 'catalog' };
                 }
                 this.previewOpen = true;
             },
