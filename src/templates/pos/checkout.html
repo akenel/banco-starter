@@ -117,7 +117,7 @@
                                 <span x-show="isAgeLine(item)" class="chip chip-age">🔞 18+</span>
                             </span>
                             <span>
-                                <span x-text="formatPrice(tierLineTotal(item))"></span>
+                                <span x-text="formatPrice(cartLineTotal(cartData.cart, index))"></span>
                                 <span x-show="tierApplied(item)" class="text-xs text-green-600 font-semibold ml-1" data-i18n="scan.tier_badge">pack ✓</span>
                             </span>
                         </div>
@@ -567,6 +567,7 @@
 <script>
     function checkoutData() {
         return {
+            _pools: {},   // {cart index -> pooled line total}, rebuilt by recalculateTotals()
             cartData: {cart: [], totals: {}, discount: 0, transactionId: ''},
             showDiscountModal: false,  // custom-discount modal (replaces native prompt)
             showVatInfo: false,        // tap the "incl. VAT" line → net/VAT/total breakdown tooltip
@@ -892,17 +893,21 @@
                     ['tobacco_nicotine', 'alcohol'].includes(it.product_class)));
             },
             recalculateTotals() {
+                // Mix and match first: lines that share a bundle deal are priced as ONE basket,
+                // so the split has to exist before anything is summed. Recomputed on every
+                // recalculate because adding a third paper changes what the first two cost.
+                this._pools = cartPools(this.cartData.cart);
                 // Sum the lines, then split the contained VAT by each line's Swiss rate so the
                 // breakdown shows 8.1% vs 2.6% live as the cashier flips dine-in/takeaway.
                 const lineSum = this.cartData.cart.reduce(
-                    (s, it) => s + tierLineTotal(it), 0);
+                    (s, it, i) => s + (i in this._pools ? this._pools[i] : tierLineTotal(it)), 0);
                 const subtotal = lineSum || this.cartData.totals.subtotal || 0;
                 // BOTH the manual and the member discount apply to the ELIGIBLE (non-promo-restricted)
                 // portion only — tobacco/alcohol never get a promo discount (Swiss law). Mirrors the
                 // server so the Dry Run Preview total matches the charge. Manual & member STACK off the
                 // same eligible base as separate lanes (member tier auto + cashier manual = summed).
                 const eligibleSum = this.cartData.cart.reduce(
-                    (s, it) => s + ((this.isPromoRestricted(it) || tierApplied(it)) ? 0 : tierLineTotal(it)), 0);
+                    (s, it, i) => s + ((this.isPromoRestricted(it) || tierApplied(it) || (i in this._pools)) ? 0 : tierLineTotal(it)), 0);
                 this.discountAmount = eligibleSum * (this.discount / 100);   // manual, eligible items only
                 const afterDiscount = subtotal - this.discountAmount;
                 const memberPct = (this.member && this.member.tier_discount_percent) || 0;

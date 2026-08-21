@@ -308,3 +308,71 @@ def test_a_bundle_is_never_worse_than_having_no_deal():
     tiers = [{"min_qty": 3, "unit_price": "10.00"}, {"min_qty": 10, "unit_price": "24.00"}]
     for q in range(1, 40):
         assert tier_line_total(tiers, Decimal("4.00"), q, mode="bundle") <= Decimal("4.00") * q
+
+
+# ── MIX AND MATCH ────────────────────────────────────────────────────────────────────────
+#
+# 2026-08-21, Angel: "if they buy 2 Gizeh rolls and 1 other roll, at checkout they would end up
+# paying 12 — this is a nasty issue and affects all the papers, rolls and others with tier
+# pricing." Proved in a real cart that evening: three DIFFERENT King Size papers rang 6.00 where
+# three of one ring 5.00.
+#
+# His own rule is the design — "if the paper has tier pricing then they can mix" — so the deal
+# terms ARE the group. No roll list, no paper list, nothing to maintain.
+
+from src.services.pricing import pool_key, allocate_pool
+
+PAPERS = [{"min_qty": 3, "unit_price": "5.00"}]
+
+
+def test_only_an_explicit_bundle_pools():
+    """A per_unit ladder is about ONE product's own quantity. Pooling it across products would
+    invent a deal nobody offered."""
+    assert pool_key(PAPERS, "bundle") is not None
+    assert pool_key(PAPERS, "per_unit") is None
+    assert pool_key(None, "bundle") is None
+    assert pool_key([], "bundle") is None
+
+
+def test_identical_terms_pool_and_different_terms_do_not():
+    rolls = [{"min_qty": 3, "unit_price": "10.00"}]
+    assert pool_key(PAPERS, "bundle") == pool_key([{"min_qty": 3, "unit_price": "5.00"}], "bundle")
+    assert pool_key(PAPERS, "bundle") != pool_key(rolls, "bundle")
+
+
+def test_three_different_papers_are_one_deal():
+    """The basket that started it: a Smoking, a Raw and an OCB."""
+    assert sum(allocate_pool(PAPERS, Decimal("2.00"), [1, 1, 1])) == Decimal("5.00")
+
+
+def test_ralphs_rule_holds_across_a_mix():
+    """Four mixed papers are one deal and one single — the same 7.00 as four of one."""
+    assert sum(allocate_pool(PAPERS, Decimal("2.00"), [2, 1, 1])) == Decimal("7.00")
+    assert sum(allocate_pool(PAPERS, Decimal("2.00"), [1, 1, 1, 1])) == Decimal("7.00")
+
+
+def test_below_the_deal_nothing_changes():
+    assert sum(allocate_pool(PAPERS, Decimal("2.00"), [1, 1])) == Decimal("4.00")
+
+
+def test_every_line_gets_its_own_money_and_the_cents_sum_exactly():
+    """The receipt, the VAT split and the Kassenbuch are all PER LINE — a pooled price that only
+    existed as a basket total would be untraceable on paper."""
+    for qtys in ([1, 1, 1], [2, 1], [5, 1, 1], [1, 2, 3, 4], [9, 1], [3, 3]):
+        lines = allocate_pool(PAPERS, Decimal("2.00"), qtys)
+        assert len(lines) == len(qtys)
+        assert all(x == x.quantize(Decimal("0.01")) for x in lines), qtys
+        assert sum(lines) == tier_line_total(PAPERS, Decimal("2.00"), sum(qtys), mode="bundle"), qtys
+
+
+def test_the_same_basket_always_splits_the_same_way():
+    """A receipt has to be reproducible — ties go to the earliest line, never to chance."""
+    a = allocate_pool(PAPERS, Decimal("2.00"), [1, 1, 1])
+    for _ in range(20):
+        assert allocate_pool(PAPERS, Decimal("2.00"), [1, 1, 1]) == a
+    assert a == [Decimal("1.67"), Decimal("1.67"), Decimal("1.66")]
+
+
+def test_a_pool_is_never_worse_than_no_deal():
+    bad = [{"min_qty": 3, "unit_price": "13.00"}]
+    assert sum(allocate_pool(bad, Decimal("2.00"), [1, 1, 1])) == Decimal("6.00")

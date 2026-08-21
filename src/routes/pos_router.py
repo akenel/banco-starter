@@ -937,6 +937,53 @@ class ShelfIntakeRequest(BaseModel):
     expected: Optional[int] = Field(None, ge=0, le=100_000)   # the gun's own reported count
 
 
+def _q_money(v):
+    return Decimal(str(v)).quantize(Decimal("0.01"))
+
+
+async def _pool_bundle_prices(db, lines):
+    """Mix-and-match: price every poolable line as ONE basket, before any line is built.
+
+    2026-08-21, Angel: "if they buy 2 Gizeh rolls and 1 other roll, at checkout they would end up
+    paying 12." Proved in a real cart that evening — three different King Size papers rang 6.00
+    where three of ONE ring 5.00.
+
+    His own rule is the whole design: *"if the paper has tier pricing then they can mix."* The
+    deal terms ARE the group, so there is no roll list and no paper list to maintain — two lines
+    pool when they carry identical bundle terms AND the same base price. Same base matters: "any
+    3 for 10" across a 4.00 and a 6.00 product is not one deal, it is a loss dressed as one.
+
+    Returns {index in `lines`: Decimal line total}. Only indexes that actually POOL with another
+    line appear — a lone line keeps the ordinary per-line path, so nothing changes for a basket
+    that has no mix in it.
+    """
+    from src.services.pricing import pool_key, allocate_pool
+
+    groups = {}
+    for i, ln in enumerate(lines):
+        if ln.product_id is None or getattr(ln, "is_giveaway", False):
+            continue
+        product = (await db.execute(
+            select(ProductModel).where(ProductModel.id == ln.product_id))).scalar_one_or_none()
+        if product is None or product.price is None:
+            continue
+        key = pool_key(product.price_tiers, product.tier_mode)
+        if key is None:
+            continue
+        groups.setdefault((key, str(_q_money(product.price))), []).append((i, ln.quantity, product))
+
+    out = {}
+    for (key, _base), members in groups.items():
+        if len(members) < 2:
+            continue                       # one line only — the ordinary path already handles it
+        tiers = members[0][2].price_tiers
+        base = members[0][2].price
+        totals = allocate_pool(tiers, base, [qty for _i, qty, _p in members])
+        for (i, _qty, _p), total in zip(members, totals):
+            out[i] = total
+    return out
+
+
 @router.post("/catalog/shelf-intake/triage")
 async def catalog_shelf_intake_triage(
     req: ShelfIntakeRequest,
@@ -6293,7 +6340,10 @@ async def create_sale(
     eligible_subtotal = Decimal("0.00")  # non-promo-restricted lines only -> the member tier discount base
     cart_age_restricted = False  # set True by any 18+ line -> triggers the age gate below
     age_trigger_class = None     # first 18+ class seen -> reported on a refusal, no product identity
-    for ln in sale.lines:
+    # MIX AND MATCH, before any line is built: two Gizeh papers and one Raw are three of the same
+    # deal, and must be priced as one basket. Only lines that pool with another line appear here.
+    pooled = await _pool_bundle_prices(db, list(sale.lines))
+    for _idx, ln in enumerate(sale.lines):
         tier_final = False  # BL-26: True once a volume break (min_qty>=2) sets the price → discount-final
         if ln.product_id is not None:
             product = (await db.execute(
@@ -6305,9 +6355,15 @@ async def create_sale(
             _guard_unverified_price(product, ln.is_giveaway)
             unit_price = Decimal("0.00") if ln.is_giveaway else product.price
             if not ln.is_giveaway:
-                # BL-26: a quantity-break tier price wins over the flat price for this qty.
-                unit_price, tier_final = tier_unit_price(
-                    product.price_tiers, unit_price, ln.quantity, mode=product.tier_mode or "per_unit")
+                if _idx in pooled:
+                    # This line is part of a mix. Its share of the pooled basket is already money;
+                    # carry it as a unit rate at full precision so line_gross lands back on it.
+                    unit_price = pooled[_idx] / Decimal(ln.quantity or 1)
+                    tier_final = True      # a volume break set this price — no discount stacks
+                else:
+                    # BL-26: a quantity-break tier price wins over the flat price for this qty.
+                    unit_price, tier_final = tier_unit_price(
+                        product.price_tiers, unit_price, ln.quantity, mode=product.tier_mode or "per_unit")
             line_notes = ("🎁 Treat — on the house" if ln.is_giveaway else ln.notes)
             prod_class = product.product_class
         else:

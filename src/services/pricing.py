@@ -12,7 +12,7 @@ unit_price is stored as a STRING in JSON (e.g. "4.90") to keep money exact throu
 JSON round-trip; everything quantizes to cents on read.
 """
 import logging
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal, ROUND_HALF_UP, ROUND_DOWN
 
 _CENT = Decimal("0.01")
 
@@ -160,6 +160,74 @@ def tier_unit_price(price_tiers, base_price, qty, mode="per_unit"):
         return base, False
 
     return eff, best_qty >= 2
+
+
+# ── MIX AND MATCH ─────────────────────────────────────────────────────────────────────────
+#
+# 2026-08-21. Angel: "if they buy 2 Gizeh rolls and 1 other roll, at checkout they would end up
+# paying 12 — this is a nasty issue and affects all the papers, rolls and others with tier
+# pricing." A customer does not buy three of one paper; they buy a Smoking, a Raw and an OCB.
+#
+# His own rule turned out to be the whole design: *"if the paper has tier pricing then they can
+# mix."* So the DEAL ITSELF is the group — there is no roll table and no paper table, and none is
+# wanted. Two products pool when they carry identical bundle terms, which on the live shop sorts
+# itself into exactly two groups (48 rolls at "3 for 10", 38 papers at "3 for 5") with nothing to
+# configure and no way for a roll to pool with a paper, because 10.00 ≠ 5.00.
+#
+# The pool is priced with _bundle_total, so Ralph's rule holds across the mix exactly as it does
+# within one line: four mixed papers are one deal and one single, 7.00.
+
+def pool_key(price_tiers, tier_mode):
+    """What makes two cart lines poolable, or None if this line pools with nothing.
+
+    Only explicit bundles pool. A per_unit ladder is a statement about ONE product's own
+    quantity ("buy 10 of THIS and they are 2.40 each") and pooling it across products would
+    invent a deal nobody offered.
+    """
+    if tier_mode != "bundle" or not price_tiers:
+        return None
+    rows = []
+    for t in price_tiers:
+        try:
+            rows.append((int(t["min_qty"]), str(_q(t["unit_price"]))))
+        except (TypeError, ValueError, KeyError):
+            return None
+    if not rows:
+        return None
+    return tuple(sorted(rows))
+
+
+def allocate_pool(price_tiers, base_price, quantities):
+    """Price pooled quantities as one basket, then split the money back across the lines.
+
+    Returns a list of LINE TOTALS, one per entry in ``quantities``, quantized to cents and
+    guaranteed to sum to the pool total. Every line must get its own figure because the receipt,
+    the VAT split and the Kassenbuch are all per line — a pooled price that exists only as a
+    basket total would be untraceable on paper.
+
+    Split proportionally by quantity, with the leftover cents going to the largest remainders
+    (and ties to the earliest line, so the same basket always allocates the same way — a receipt
+    must be reproducible).
+    """
+    base = _q(base_price)
+    qtys = [int(q) for q in quantities]
+    total_qty = sum(qtys)
+    if total_qty <= 0:
+        return [Decimal("0.00") for _ in qtys]
+    pool = _bundle_total(price_tiers, base, total_qty)
+    flat = base * Decimal(total_qty)
+    if pool > flat:                      # a bundle is never worse than having no deal
+        pool = flat
+    pool = _q(pool)
+
+    exact = [pool * Decimal(q) / Decimal(total_qty) for q in qtys]
+    out = [e.quantize(_CENT, rounding=ROUND_DOWN) for e in exact]
+    short = int(((pool - sum(out)) / _CENT).to_integral_value())
+    if short:
+        order = sorted(range(len(qtys)), key=lambda i: (-(exact[i] - out[i]), i))
+        for i in range(short):
+            out[order[i % len(order)]] += _CENT
+    return out
 
 
 def tier_line_total(price_tiers, base_price, qty, mode="per_unit"):

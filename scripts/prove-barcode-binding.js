@@ -445,7 +445,14 @@ async function fillNewItem(p, name, price) {
     // ("DELETE 0"), so counting output lines reported 1 cleaned row when it had cleaned
     // none — a cleanup that lies about what it cleaned is worse than no message.
     const n = parseInt(psql(`select count(*) from products where name like '${PROBE}%'`), 10) || 0;
-    psql(`delete from products where name like '${PROBE}%'`);
+    // A fixture that has SOLD cannot be hard-deleted — line_items references it, and that FK is
+    // the books protecting themselves. Until 2026-08-21 nothing here ever sold, so this delete
+    // was safe by accident; then prove-mix-and-match.js started ringing real sales against
+    // ZZPROBE rows and this line began throwing. Deactivate and release the barcode instead,
+    // which is what "clean" means for a row that is now part of a transaction.
+    psql(`update products set is_active = false, barcode = null where name like '${PROBE}%'`);
+    psql(`delete from products where name like '${PROBE}%'
+          and id not in (select distinct product_id from line_items where product_id is not null)`);
     console.log(`\n🧹 removed ${n} ${PROBE} row(s) from the catalogue`);
     await browser.close();
   }

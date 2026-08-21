@@ -483,8 +483,8 @@
                                         <button @click="increaseQuantity(index)" class="bg-gray-200 hover:bg-gray-300 active:bg-gray-400 w-12 h-12 rounded-full text-2xl font-bold leading-none flex items-center justify-center" aria-label="Increase quantity">+</button>
                                     </div>
                                     <p class="text-lg font-bold text-indigo-600">
-                                        <span x-text="formatPrice(tierLineTotal(item))"></span>
-                                        <span x-show="tierApplied(item)" class="text-xs text-green-600 font-semibold ml-1" data-i18n="scan.tier_badge">pack ✓</span>
+                                        <span x-text="formatPrice(cartLineTotal(cart, index))"></span>
+                                        <span x-show="cartTierApplied(cart, index)" class="text-xs text-green-600 font-semibold ml-1" data-i18n="scan.tier_badge">pack ✓</span>
                                     </p>
                                 </div>
                             </div>
@@ -2520,7 +2520,8 @@
                 this.discountError = '';
 
                 // Get subtotal from cart
-                const subtotal = this.cart.reduce((sum, item) => sum + tierLineTotal(item), 0);
+                const _pools = cartPools(this.cart);
+                const subtotal = this.cart.reduce((sum, item, i) => sum + (i in _pools ? _pools[i] : tierLineTotal(item)), 0);
 
                 if (subtotal <= 0) {
                     this.discount = 0;
@@ -2572,7 +2573,8 @@
             },
 
             get totals() {
-                const subtotal = this.cart.reduce((sum, item) => sum + tierLineTotal(item), 0);
+                const _pools = cartPools(this.cart);
+                const subtotal = this.cart.reduce((sum, item, i) => sum + (i in _pools ? _pools[i] : tierLineTotal(item)), 0);
                 return calculateTotal(subtotal, this.discount);
             },
 

@@ -45,5 +45,35 @@ print(json.dumps({nm: [str(tier_line_total(t, Decimal(b), q, mode='bundle')) for
       if (bad<=6) console.log(`  ❌ ${k} qty ${i+1}: till ${server[k][i]} · cart ${client[k][i]}`); }
   }
   console.log(bad? `\n  ${bad} of ${n} disagree` : `\n  ✅ cart and till agree on all ${n} quantities`);
-  await b.close(); process.exit(bad?1:0);
+
+  // ── MIXED BASKETS ────────────────────────────────────────────────────────────────────
+  // Pooling is implemented TWICE — allocate_pool() in Python, cartPools() in JavaScript — so
+  // only a comparison keeps them level. Same shape as above: ask the server's own function.
+  const mixCases = [[1,1,1],[2,1],[1,1,1,1],[2,2,1],[3,3],[1,1],[5,1,1],[1,2,3,4],[9,1]];
+  const srvMix = JSON.parse(execFileSync('python3', ['-c', `
+import sys, logging, json
+sys.path.insert(0, '${process.env.BANCO_REPO || '/home/angel/repos/banco-starter'}')
+logging.disable(logging.WARNING)
+from decimal import Decimal
+from src.services.pricing import allocate_pool
+T = [{"min_qty": 3, "unit_price": "5.00"}]
+CASES = ${JSON.stringify(mixCases)}
+print(json.dumps([[str(x) for x in allocate_pool(T, Decimal("2.00"), q)] for q in CASES]))
+`], { encoding: 'utf8' }));
+  const cliMix = await p.evaluate((cases) => cases.map(qtys => {
+    const cart = qtys.map(q => ({ quantity: q, price: 2.00, tier_mode: 'bundle',
+                                  price_tiers: [{ min_qty: 3, unit_price: '5.00' }] }));
+    const pools = cartPools(cart);
+    return cart.map((_, i) => (i in pools ? pools[i] : tierLineTotal(cart[i])).toFixed(2));
+  }), mixCases);
+  let mbad = 0;
+  mixCases.forEach((q, i) => {
+    if (JSON.stringify(srvMix[i]) !== JSON.stringify(cliMix[i])) {
+      mbad++;
+      console.log(`  ❌ mix ${JSON.stringify(q)}: till ${JSON.stringify(srvMix[i])} · cart ${JSON.stringify(cliMix[i])}`);
+    }
+  });
+  console.log(mbad ? `  ${mbad} of ${mixCases.length} mixed baskets disagree`
+                   : `  ✅ cart and till agree on all ${mixCases.length} mixed baskets, line by line`);
+  await b.close(); process.exit((bad + mbad) ? 1 : 0);
 })();

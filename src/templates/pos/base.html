@@ -987,6 +987,67 @@
             if (bestQ === null) return base * qty;
             return bestUp + _bundleTotal(tiers, base, qty - bestQ);
         }
+        // ── MIX AND MATCH, on the screen ──────────────────────────────────────────────────
+        // MIRRORS pricing.pool_key() + allocate_pool(). Two cart lines pool when they carry
+        // identical BUNDLE terms and the same base price — Angel's rule, "if the paper has tier
+        // pricing then they can mix", which makes the deal itself the group and leaves nothing
+        // to configure. Same base matters: "any 3 for 10" across a 4.00 and a 6.00 product is
+        // not one deal, it is a loss dressed as one.
+        function _poolKey(item) {
+            if (!item || item.tier_mode !== 'bundle') return null;
+            const t = item.price_tiers;
+            if (!Array.isArray(t) || !t.length) return null;
+            const rows = [];
+            for (const r of t) {
+                const q = parseInt(r.min_qty, 10), v = parseFloat(r.unit_price);
+                if (!(q >= 1) || isNaN(v)) return null;
+                rows.push(q + ':' + v.toFixed(2));
+            }
+            rows.sort();
+            return rows.join('|') + '@' + (Number(item.price) || 0).toFixed(2);
+        }
+        // {cart index -> line total} for every line that pools with at least one OTHER line.
+        // A lone line is left alone so a basket with no mix in it behaves exactly as before.
+        function cartPools(cart) {
+            const groups = {}, out = {};
+            (cart || []).forEach((it, i) => {
+                const k = _poolKey(it);
+                if (k) (groups[k] = groups[k] || []).push(i);
+            });
+            for (const k of Object.keys(groups)) {
+                const idx = groups[k];
+                if (idx.length < 2) continue;
+                const first = cart[idx[0]];
+                const base = Number(first.price) || 0;
+                const qtys = idx.map(i => Number(cart[i].quantity) || 0);
+                const totalQty = qtys.reduce((a, b) => a + b, 0);
+                if (totalQty <= 0) continue;
+                let pool = Math.min(_bundleTotal(first.price_tiers, base, totalQty), base * totalQty);
+                pool = Math.round(pool * 100);                       // work in whole cents
+                const exact = qtys.map(q => pool * q / totalQty);
+                const cents = exact.map(e => Math.floor(e));
+                let short = pool - cents.reduce((a, b) => a + b, 0);
+                const order = exact.map((e, j) => [e - cents[j], j])
+                                   .sort((a, b) => b[0] - a[0] || a[1] - b[1]);
+                for (let n = 0; n < short; n++) cents[order[n % order.length][1]] += 1;
+                idx.forEach((i, j) => { out[i] = cents[j] / 100; });
+            }
+            return out;
+        }
+
+        // THE one line-total to display anywhere a cart line is shown. Takes the whole cart
+        // because a line's price now depends on its NEIGHBOURS: adding a third paper changes
+        // what the first two cost. Recomputes the pools per call — a cart is a handful of lines
+        // and a stale cached split is the kind of bug that shows 2.00 beside a charge of 1.67.
+        function cartLineTotal(cart, i) {
+            const pools = cartPools(cart);
+            return (i in pools) ? pools[i] : tierLineTotal(cart[i]);
+        }
+        // True when this line's price came from a deal — for the "pack ✓" badge.
+        function cartTierApplied(cart, i) {
+            return (i in cartPools(cart)) || tierApplied(cart[i]);
+        }
+
         function tierLineTotal(item) {
             const qty = Number(item.quantity) || 0;
             const base = Number(item.price) || 0;
