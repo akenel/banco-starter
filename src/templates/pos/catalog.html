@@ -222,6 +222,16 @@
                             </div>
                             <div class="cat-meta" style="margin-top:auto">
                                 <span class="cat-price" x-text="formatPrice(p.price)"></span>
+                                <!-- 🏷️ THE DEAL, ON THE CATALOG ROW.
+                                     Angel, 2026-08-21, after the same fix landed on the shelf list:
+                                     "I am in the catalog view and here too would be nice to show
+                                     the bundle pricing."
+                                     Third screen with the same hole. The price was never the whole
+                                     price once a product carries a deal — and on a shelf of 45
+                                     papers the ones MISSING their deal are the work, and they
+                                     looked exactly like the ones that were finished. -->
+                                <span x-show="dealLabel(p)" style="display:none" class="chip chip-deal"
+                                      x-text="dealLabel(p)"></span>
                                 <span class="cat-hint" data-i18n="catalog.tap_for_details_hint">Tap for details ›</span>
                             </div>
                         </div>
@@ -2265,6 +2275,24 @@
             // Is there a renderable photo for this product? (cover OR uploaded gallery photo,
             // and the load hasn't permanently failed).
             hasImg(p) { return !!(p && (p.image_url || p.fallback_image_url) && !p._imgerr); },
+
+            // The deal in a shopkeeper's words, or '' when there is none. Mirrors rowDeal() in
+            // shelf_intake.html deliberately: the same product must not read one way on the shelf
+            // list and another way here. per_unit reads "10+ @ 2.40 ea" so a tier saved in the
+            // wrong mode is VISIBLE as the wrong shape rather than hiding behind a right-looking
+            // number — that is the mistake that rings correctly at three and wrongly at four.
+            dealLabel(p) {
+                const t = p && p.price_tiers;
+                if (!Array.isArray(t) || !t.length) return '';
+                const bundle = p.tier_mode === 'bundle';
+                const parts = [];
+                for (const r of t.slice(0, 2)) {
+                    const q = r.min_qty, v = Number(r.unit_price);
+                    if (q == null || !isFinite(v)) continue;
+                    parts.push(bundle ? `${q} for ${v.toFixed(2)}` : `${q}+ @ ${v.toFixed(2)} ea`);
+                }
+                return parts.length ? '🏷️ ' + parts.join(' · ') : '';
+            },
 
             // Build a product image src with a cache-buster on OUR serve URLs (keyed on
             // updated_at, else id) so a freshly-(re)uploaded photo shows without a hard
