@@ -272,7 +272,24 @@
                         🎯 <span class="font-semibold" data-i18n="cleanup.focus_one">Showing the one product you scanned.</span>
                         <span data-i18n="cleanup.focus_hint">Finish it here, then go back to the shelf.</span>
                     </p>
-                    <button @click="clearFocus()" class="btn-secondary text-sm flex-none" data-i18n="cleanup.focus_clear">Show the whole bench</button>
+                    <div class="flex gap-2 flex-none flex-wrap">
+                        <!-- The sentence above has promised "then go back to the shelf" since this
+                             banner was written, and there was no button that did it. Angel had to
+                             go Home → Shelf on every single row. -->
+                        <a x-show="returnTo" style="display:none;" :href="returnTo"
+                           class="px-3 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700"
+                           x-text="returnLabel()"></a>
+                        <button @click="clearFocus()" class="btn-secondary text-sm flex-none" data-i18n="cleanup.focus_clear">Show the whole bench</button>
+                    </div>
+                </div>
+
+                <!-- Came from somewhere with a way home, but not focused on one row: still offer it.
+                     The back button is not it — this screen loads its list with JS, so history
+                     lands you on an empty bench. That is why Angel said "back does not work well". -->
+                <div x-show="returnTo && !pidFilter" style="display:none;" class="mb-3">
+                    <a :href="returnTo"
+                       class="inline-block px-3 py-2 rounded-lg bg-white border-2 border-indigo-300 text-indigo-700 text-sm font-semibold hover:bg-indigo-50"
+                       x-text="returnLabel()"></a>
                 </div>
 
                 <!-- Bulk cleanup bar — mass delete / discontinue the junk (test rows, dupes) -->
@@ -806,11 +823,22 @@
                 if (qs.get('gap')) this.gapFilter = qs.get('gap');
                 if (qs.get('category')) this.catFilter = qs.get('category');
                 if (qs.get('offset')) this.offset = parseInt(qs.get('offset'), 10) || 0;
+                // Only ever an in-app path. An absolute URL here would be an open redirect,
+                // and this value arrives in a query string anyone can write.
+                const back = qs.get('return') || '';
+                this.returnTo = /^\/[A-Za-z0-9/_?=&%.\-]*$/.test(back) ? back : '';
                 await this.loadCategories();
                 await this.load();
             },
 
             // The bench view as a URL — so Details can send us back to the same spot after save.
+            returnTo: '',
+            returnLabel() {
+                if (!this.returnTo) return '';
+                if (this.returnTo.startsWith('/pos/shelf-intake')) return '🛒 Back to the shelf';
+                return '← Back';
+            },
+
             benchUrl() {
                 const p = new URLSearchParams({ mode: 'bench' });
                 if (this.pidFilter) p.set('pid', this.pidFilter);   // come back to the same one card

@@ -562,6 +562,7 @@ async def _apply_supplier_mode_identity(db: AsyncSession, data: dict) -> dict:
 async def create_product(
     product: ProductCreate,
     allow_duplicate: bool = False,
+    allow_nonstandard: bool = False,
     db: AsyncSession = Depends(get_db_session),
     current_user: dict = Depends(require_any_pos_role()),
 ):
@@ -582,6 +583,13 @@ async def create_product(
     # cleaned 2-level tree can NEVER regrow into the German-slug mess. Unknown/blank -> Unsorted.
     from src.services.catalog_taxonomy import canonicalize_category
     data["category"], data["product_group"] = canonicalize_category(data.get("category"))
+
+    # Before the name check, because a bad barcode is the more expensive mistake: a duplicate
+    # name is untidy, a lot number bound as an EAN is a product that can never be scanned again.
+    if not allow_nonstandard and (data.get("barcode") or "").strip():
+        objection = _barcode_objection(str(data["barcode"]).strip())
+        if objection:
+            raise HTTPException(status_code=422, detail=objection)
 
     # BL-128 #3 — same-size name-dedup guard (skipped on an explicit create-anyway).
     if not allow_duplicate:
@@ -2112,10 +2120,45 @@ class AddBarcodeRequest(BaseModel):
     barcode: str
 
 
+# ── IS THAT ACTUALLY A BARCODE? ───────────────────────────────────────────────────────────
+#
+# 2026-08-21. Angel scanned a JaJa Noir packet and Banco bound `2024VL099B` as its barcode.
+# That is the LOT NUMBER printed on the box, not an EAN. His gun reads Code-128 as happily as
+# EAN-13, and a packet carries several stripes — EAN, lot, sometimes a customs code. He scanned
+# the wrong one and nothing said a word. It would never have scanned again: the next box of the
+# same product carries a different lot number.
+#
+# Measured before writing this, on the live shop: 5,412 of 5,413 bound barcodes pass the GTIN
+# check digit and ONE does not — the row above. So this guard's entire blast radius is the bug
+# it exists to catch. The minted 2000000… codes pass too; Banco mints them correctly.
+#
+# It objects, it does not forbid. `allow_nonstandard=true` is there because a shop may genuinely
+# need an odd code, and a guard with no way past it is a trap — the operator would just put the
+# code in the name field instead, where nothing can ever scan it.
+def _barcode_objection(code: str) -> Optional[str]:
+    """A plain-words reason this string is probably not a product barcode, or None."""
+    code = (code or "").strip()
+    if not code:
+        return None
+    if not code.isdigit():
+        return (f"“{code}” has letters in it, so it is not an EAN — it is most likely the "
+                f"LOT or BATCH number printed next to the real barcode. Scan the stripe under "
+                f"the EAN digits instead, or leave the barcode blank and bind it later.")
+    if len(code) not in (8, 12, 13, 14):
+        return (f"“{code}” is {len(code)} digits. A product barcode is 8, 12, 13 or 14 — this "
+                f"looks like a lot number, a weight or a partial read.")
+    from src.services.shelf_intake import gtin_check_digit_ok
+    if gtin_check_digit_ok(code) is False:
+        return (f"“{code}” fails its own check digit, which almost always means a misread. "
+                f"Scan it again — if it reads the same twice, it is genuinely an odd code.")
+    return None
+
+
 @router.post("/products/{product_id}/barcodes", status_code=status.HTTP_201_CREATED)
 async def add_product_barcode(
     product_id: UUID,
     body: AddBarcodeRequest,
+    allow_nonstandard: bool = False,
     db: AsyncSession = Depends(get_db_session),
     current_user: dict = Depends(require_any_pos_role()),  # cashiers capture: link a scanned code
 ):
@@ -2131,6 +2174,10 @@ async def add_product_barcode(
     barcode = _clean_barcode(body.barcode)   # BL-129: never store a gun-polluted code as an alias
     if not barcode:
         raise HTTPException(status_code=400, detail="Barcode is required")
+    if not allow_nonstandard:
+        objection = _barcode_objection(barcode)
+        if objection:
+            raise HTTPException(status_code=422, detail=objection)
 
     result = await db.execute(select(ProductModel).where(ProductModel.id == product_id))
     product = result.scalar_one_or_none()
@@ -2512,6 +2559,7 @@ async def set_first_price(
 async def update_product(
     product_id: UUID,
     product_update: ProductUpdate,
+    allow_nonstandard: bool = False,
     db: AsyncSession = Depends(get_db_session),
     current_user: dict = Depends(require_manager_or_admin()),
 ):
@@ -2525,6 +2573,13 @@ async def update_product(
 
     # Update only provided fields
     update_data = product_update.model_dump(exclude_unset=True)
+
+    # A wrong barcode on an EXISTING row is worse than on a new one: the row already works, and
+    # rebinding it to a lot number silently breaks a product that scanned fine yesterday.
+    if not allow_nonstandard and (update_data.get("barcode") or "").strip():
+        objection = _barcode_objection(str(update_data["barcode"]).strip())
+        if objection:
+            raise HTTPException(status_code=422, detail=objection)
     # BL-26: validate + normalize quantity-break tiers before they land (ascending, unique).
     # The first-row rule is mode-aware: per_unit needs a qty-1 base row; bundle ("N for X")
     # starts at qty>=2 (base = the product's own price). Use the incoming tier_mode if the edit

@@ -31,9 +31,23 @@ async function seed(page, body) {
 async function cleanup(page) {
   for (const id of made) {
     await page.evaluate(async (i) => {
+      // release the barcode first: a soft-deleted row keeps it and would collide next run
+      try { await API.put('/api/v1/pos/products/' + i + '?allow_nonstandard=true', { barcode: null }); } catch (e) {}
       try { await API.delete('/api/v1/pos/products/' + i); } catch (e) {}
     }, id).catch(() => {});
   }
+}
+// Valid GTINs, unique per run. Invented codes like "8419036900001" do not pass a check digit —
+// the barcode guard added on 2026-08-21 rejected them, correctly, and broke this script. That
+// was the guard doing its job: my fixtures were never real barcodes.
+let _seq = 0;
+function gtin(prefix, length) {
+  const need = length - 1 - prefix.length;
+  const uniq = (String(Date.now()) + String(_seq++)).slice(-need).padStart(need, '0');
+  const body = prefix + uniq;
+  const total = [...body].map(Number).reverse()
+    .reduce((a, x, i) => a + x * (i % 2 === 0 ? 3 : 1), 0);
+  return body + String((10 - total % 10) % 10);
 }
 let pass=0, fail=0;
 const ok=(n,c)=>{ c?(pass++,console.log('  ✅ '+n)):(fail++,console.log('  ❌ '+n)); };
@@ -46,12 +60,12 @@ const ok=(n,c)=>{ c?(pass++,console.log('  ✅ '+n)):(fail++,console.log('  ❌ 
   if (await p.$('#username')) { await p.fill('#username','ralph'); await p.fill('#password','ralph');
     await p.click('#kc-login, input[type=submit]'); await p.waitForURL('**/pos/**',{timeout:20000}); }
 
-  await seed(p, {sku:'ZZPROBE-T1', name:'ZZPROBE Tiered Papers', price:2.50, cost:1.10,
+  await seed(p, {sku:'ZZPROBE-T1-'+Date.now(), name:'ZZPROBE Tiered Papers', price:2.50, cost:1.10,
                  category:'Unsorted', stock_quantity:1,
                  price_tiers:[{qty:3, price:5.00}], tier_mode:'total'});
-  await seed(p, {sku:'ZZPROBE-D1', name:'ZZPROBE JaJa Noir King Size XXL Black', barcode:'4260123400001',
+  await seed(p, {sku:'ZZPROBE-D1-'+Date.now(), name:'ZZPROBE JaJa Noir King Size XXL Black', barcode:gtin('426012', 13),
                  price:999.99, category:'Tobacco', stock_quantity:1, is_age_restricted:true});
-  await seed(p, {sku:'ZZPROBE-D2', name:'ZZPROBE JaJa Noir King Size XXL Black',
+  await seed(p, {sku:'ZZPROBE-D2-'+Date.now(), name:'ZZPROBE JaJa Noir King Size XXL Black',
                  price:999.99, category:'Tobacco', stock_quantity:1, is_age_restricted:true});
 
   console.log('\nA · the bench card shows the price he came to check');

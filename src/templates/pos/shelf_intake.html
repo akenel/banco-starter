@@ -232,7 +232,12 @@
                      target="_blank" rel="noopener"
                      class="px-3 py-2 rounded-lg bg-white border border-indigo-300 text-indigo-700 text-sm font-semibold hover:bg-indigo-50">🔎 Look it up</a>
                   <!-- Straight to the ONE card that can fix all of it without a search box. -->
-                  <a :href="'/pos/cleanup?pid=' + k.product_id"
+                  <!-- Carry a way home. Angel, mid-shelf: "when in shelf intake mode and you go
+                       for finish there is no easy way back — the back button does not work well,
+                       so I click home and then go to shelf and I can continue."
+                       cleanup already understood ?return= for its own Details link; this is the
+                       same seam, not a second one. -->
+                  <a :href="'/pos/cleanup?mode=bench&pid=' + k.product_id + '&return=' + encodeURIComponent('/pos/shelf-intake')"
                      class="px-3 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700">✏️ Finish it</a>
                 </div>
               </div>
