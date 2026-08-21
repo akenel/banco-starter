@@ -78,15 +78,39 @@ def tier_unit_price(price_tiers, base_price, qty, mode="per_unit"):
     # ever move money toward the customer, which is the only safe direction for a guess.
     if eff > base:
         as_bundle = Decimal(str(best_up)) / Decimal(best_qty)
-        if as_bundle <= base:
+
+        # ── HOW FAR A GUESS IS ALLOWED TO GO ──────────────────────────────────────────────
+        #
+        # The re-read above was written to protect the customer, and its comment said both
+        # branches "can only ever move money toward the customer, which is the only safe
+        # direction for a guess." That reasoning was wrong, and on 2026-08-21 the live shop
+        # showed how wrong:
+        #
+        #   Gizeh Rolls Slim Pink — base CHF 2.90, tier {min_qty 10, unit_price "3.10"}
+        #   3.10 > 2.90, so it was re-read as "10 for 3.10" = CHF 0.31 each.
+        #   TEN packs rang up at CHF 3.10. Nineteen rang up at CHF 5.89.
+        #
+        # Moving money toward the customer WITHOUT LIMIT is not safety, it is just the other
+        # loss. A guess is only worth making while it stays plausible: "3 for 5.00" against a
+        # base of 2.00 is a believable 17% deal, "10 for 3.10" against 2.90 is a 89% collapse
+        # and no shop has ever offered it. Past that line the honest reading is that the data
+        # is simply wrong, and the safe answer is the price on the shelf label.
+        #
+        # This bounds ONLY the guess. A tier written properly — at or below base, or with
+        # tier_mode='bundle' — never reaches here, so genuine deep discounts (Purize 500 for
+        # 0.60 against a base of 1.50) are untouched.
+        _PLAUSIBLE_FLOOR = Decimal("0.5")
+        if as_bundle <= base and as_bundle >= base * _PLAUSIBLE_FLOOR:
             logger.warning(
                 "tier price %s for min_qty %s is ABOVE the base price %s — reading it as a pack "
                 "total (%s/unit). Set tier_mode='bundle' on this product to make it explicit.",
                 best_up, best_qty, base, as_bundle)
             return as_bundle, best_qty >= 2
         logger.warning(
-            "tier price %s for min_qty %s exceeds the base price %s any way it is read — "
-            "ignoring the tier and charging the flat price.", best_up, best_qty, base)
+            "tier price %s for min_qty %s is above the base price %s, and reading it as a pack "
+            "total gives %s/unit — too far below %s to be a real deal. The tier data is wrong; "
+            "charging the flat price. FIX THIS PRODUCT.",
+            best_up, best_qty, base, as_bundle, base)
         return base, False
 
     return eff, best_qty >= 2

@@ -211,3 +211,45 @@ def test_nonsense_in_either_reading_falls_back_to_the_flat_price():
 def test_below_the_first_break_nothing_changes():
     assert tier_line_total(_GIZEH, "1.40", 1, "per_unit") == Decimal("1.40")
     assert tier_line_total(_GIZEH, "1.40", 2, "per_unit") == Decimal("2.80")
+
+
+# ── A GUESS MAY ONLY GO SO FAR ───────────────────────────────────────────────────────────
+#
+# 2026-08-21, found on the live shop while auditing every tiered product with the till's own
+# pricing function. `Gizeh Rolls Slim Pink` — base CHF 2.90, tier {min_qty 10, "3.10"},
+# tier_mode per_unit. 3.10 is above base, so the bundle-rescue re-read it as "10 for 3.10"
+# and charged CHF 0.31 each. Ten packs rang up at 3.10; nineteen at 5.89.
+#
+# The rescue exists for good reason and stays. What was wrong was the claim in its comment
+# that moving money toward the customer is "the only safe direction for a guess" — without a
+# bound it is simply the other loss.
+
+def test_a_slightly_high_per_unit_tier_is_not_read_as_a_giveaway():
+    """The live bug: base 2.90 with a 3.10 tier must NOT become 0.31 each."""
+    tiers = [{"min_qty": 1, "unit_price": "3.50"}, {"min_qty": 10, "unit_price": "3.10"},
+             {"min_qty": 20, "unit_price": "2.50"}, {"min_qty": 60, "unit_price": "2.40"}]
+    base = Decimal("2.90")
+    assert tier_line_total(tiers, base, 10, mode="per_unit") == Decimal("29.00")
+    assert tier_line_total(tiers, base, 19, mode="per_unit") == Decimal("55.10")
+    # and buying more must still never cost less in total than buying fewer at that rung
+    assert tier_line_total(tiers, base, 10, mode="per_unit") > \
+           tier_line_total(tiers, base, 9, mode="per_unit")
+
+
+def test_the_believable_guess_still_happens():
+    """"3 for 5.00" written as per_unit against a base of 2.00 is a real deal — keep rescuing it."""
+    tiers = [{"min_qty": 1, "unit_price": "2.00"}, {"min_qty": 3, "unit_price": "5.00"}]
+    assert tier_line_total(tiers, Decimal("2.00"), 3, mode="per_unit") == Decimal("5.00")
+    assert tier_line_total(tiers, Decimal("2.00"), 6, mode="per_unit") == Decimal("10.00")
+
+
+def test_a_genuine_deep_discount_is_untouched():
+    """Tiers at or below base never reach the guess, however deep they go."""
+    tiers = [{"min_qty": 1, "unit_price": "1.50"}, {"min_qty": 500, "unit_price": "0.60"}]
+    assert tier_line_total(tiers, Decimal("1.50"), 500, mode="per_unit") == Decimal("300.00")
+
+
+def test_an_explicit_bundle_is_never_second_guessed():
+    """tier_mode='bundle' means what it says, however cheap — the operator was explicit."""
+    tiers = [{"min_qty": 10, "unit_price": "3.10"}]
+    assert tier_line_total(tiers, Decimal("2.90"), 10, mode="bundle") == Decimal("3.10")
