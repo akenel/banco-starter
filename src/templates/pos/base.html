@@ -1058,7 +1058,24 @@
                 return Math.round(total * 100) / 100;
             }
             const best = _tierBest(item);
-            const eff = best ? ((item.tier_mode === 'bundle') ? best.up / best.mq : best.up) : base;
+            if (!best) return Math.round(base * qty * 100) / 100;
+            let eff = (item.tier_mode === 'bundle') ? best.up / best.mq : best.up;
+            // ── MIRRORS THE SERVER'S RESCUE (services/pricing.py, tier_unit_price) ──────────
+            // A per_unit tier priced ABOVE the product's own price cannot mean "each" — buying
+            // more never costs more — so the server re-reads it as a PACK TOTAL, and refuses
+            // even that when the implied unit price collapses below half the base.
+            //
+            // This mirror did not have it. 2026-08-21, Angel at the till with three OCB papers:
+            // two rows stored per_unit with a "3 for 5.00" rung showed CHF 15.00 each while the
+            // server would have charged 5.00. Shown 15.00, charged 5.00 — the exact thing this
+            // whole ladder exists to prevent, on the screen a cashier reads to a customer.
+            //
+            // prove-cart-agrees-with-till.js missed it for a day because every ladder it compared
+            // used tier_mode 'bundle' — the one mode where this branch cannot run.
+            if (eff > base) {
+                const asBundle = best.up / best.mq;
+                eff = (asBundle <= base && asBundle >= base * 0.5) ? asBundle : base;
+            }
             return Math.round(eff * qty * 100) / 100;
         }
         // True when a genuine volume break (min_qty >= 2) set the line price — for the "pack ✓" badge.

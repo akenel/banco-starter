@@ -13,12 +13,18 @@ sys.path.insert(0, '${process.env.BANCO_REPO || '/home/angel/repos/banco-starter
 logging.disable(logging.WARNING)
 from decimal import Decimal
 from src.services.pricing import tier_line_total
-CASES = [("3 for 10", [{"min_qty":3,"unit_price":"10.00"}], "4.00"),
-         ("nested",   [{"min_qty":3,"unit_price":"10.00"},{"min_qty":10,"unit_price":"24.00"}], "4.00"),
-         ("gizeh",    [{"min_qty":1,"unit_price":"1.40"},{"min_qty":3,"unit_price":"4.00"},{"min_qty":10,"unit_price":"12.00"}], "1.40"),
-         ("3 for 5",  [{"min_qty":3,"unit_price":"5.00"}], "2.00")]
-print(json.dumps({nm: [str(tier_line_total(t, Decimal(b), q, mode='bundle')) for q in range(1,41)]
-                  for nm, t, b in CASES}))
+CASES = [("3 for 10", [{"min_qty":3,"unit_price":"10.00"}], "4.00", "bundle"),
+         ("nested",   [{"min_qty":3,"unit_price":"10.00"},{"min_qty":10,"unit_price":"24.00"}], "4.00", "bundle"),
+         ("gizeh",    [{"min_qty":1,"unit_price":"1.40"},{"min_qty":3,"unit_price":"4.00"},{"min_qty":10,"unit_price":"12.00"}], "1.40", "bundle"),
+         ("3 for 5",  [{"min_qty":3,"unit_price":"5.00"}], "2.00", "bundle"),
+         # PER_UNIT — the mode this suite never compared until 2026-08-21, which is the only
+         # mode where the server's above-base rescue can run. Angel's OCB rows are the 4th case.
+         ("pu ladder",[{"min_qty":1,"unit_price":"1.40"},{"min_qty":10,"unit_price":"1.30"},{"min_qty":50,"unit_price":"1.00"}], "1.40", "per_unit"),
+         ("pu deep",  [{"min_qty":1,"unit_price":"1.50"},{"min_qty":500,"unit_price":"0.60"}], "1.50", "per_unit"),
+         ("pu above", [{"min_qty":1,"unit_price":"3.50"},{"min_qty":10,"unit_price":"3.10"},{"min_qty":20,"unit_price":"2.50"}], "2.90", "per_unit"),
+         ("pu OCB",   [{"min_qty":1,"unit_price":"2.00"},{"min_qty":3,"unit_price":"5.00"}], "2.00", "per_unit")]
+print(json.dumps({nm: [str(tier_line_total(t, Decimal(b), q, mode=m)) for q in range(1,41)]
+                  for nm, t, b, m in CASES}))
 `], { encoding: 'utf8' }));
 (async()=>{
   const b=await chromium.launch(); const p=await (await b.newContext()).newPage();
@@ -27,14 +33,18 @@ print(json.dumps({nm: [str(tier_line_total(t, Decimal(b), q, mode='bundle')) for
   if (await p.$('#username')) { await p.fill('#username','ralph'); await p.fill('#password','ralph');
     await p.click('#kc-login, input[type=submit]'); await p.waitForURL('**/pos/**',{timeout:20000}); }
   const client = await p.evaluate(()=>{
-    const CASES={"3 for 10":[[{min_qty:3,unit_price:"10.00"}],4.00],
-                 "nested":[[{min_qty:3,unit_price:"10.00"},{min_qty:10,unit_price:"24.00"}],4.00],
-                 "gizeh":[[{min_qty:1,unit_price:"1.40"},{min_qty:3,unit_price:"4.00"},{min_qty:10,unit_price:"12.00"}],1.40],
-                 "3 for 5":[[{min_qty:3,unit_price:"5.00"}],2.00]};
+    const CASES={"3 for 10":[[{min_qty:3,unit_price:"10.00"}],4.00,'bundle'],
+                 "nested":[[{min_qty:3,unit_price:"10.00"},{min_qty:10,unit_price:"24.00"}],4.00,'bundle'],
+                 "gizeh":[[{min_qty:1,unit_price:"1.40"},{min_qty:3,unit_price:"4.00"},{min_qty:10,unit_price:"12.00"}],1.40,'bundle'],
+                 "3 for 5":[[{min_qty:3,unit_price:"5.00"}],2.00,'bundle'],
+                 "pu ladder":[[{min_qty:1,unit_price:"1.40"},{min_qty:10,unit_price:"1.30"},{min_qty:50,unit_price:"1.00"}],1.40,'per_unit'],
+                 "pu deep":[[{min_qty:1,unit_price:"1.50"},{min_qty:500,unit_price:"0.60"}],1.50,'per_unit'],
+                 "pu above":[[{min_qty:1,unit_price:"3.50"},{min_qty:10,unit_price:"3.10"},{min_qty:20,unit_price:"2.50"}],2.90,'per_unit'],
+                 "pu OCB":[[{min_qty:1,unit_price:"2.00"},{min_qty:3,unit_price:"5.00"}],2.00,'per_unit']};
     const out={};
     for (const k of Object.keys(CASES)) {
-      const [tiers,price]=CASES[k]; out[k]=[];
-      for (let q=1;q<=40;q++) out[k].push(tierLineTotal({quantity:q,price,price_tiers:tiers,tier_mode:'bundle'}).toFixed(2));
+      const [tiers,price,mode]=CASES[k]; out[k]=[];
+      for (let q=1;q<=40;q++) out[k].push(tierLineTotal({quantity:q,price,price_tiers:tiers,tier_mode:mode}).toFixed(2));
     }
     return out;
   });
