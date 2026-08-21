@@ -171,6 +171,45 @@
               already bound, so these are the cheapest wins on the shelf — you're holding the packet.
             </p>
           </div>
+
+          <!-- 🏷️ ONE SHELF, ONE RULE.
+               2026-08-21, Angel, before straightening 46 rolls: "if you give me the EANs I could
+               quickly go through them via the shelf intake and fix them all manually so each roll
+               is 4 CHF even, and I could set the 3 packs for 10 tier pricing."
+               The price was already two taps. The DEAL was six — Finish it, cleanup, Details, edit,
+               save, navigate back — times 46. So set the rule ONCE here, then it is one tap a row.
+               Deliberately NOT a bulk apply-to-all: he has to see each product and decide it really
+               is a roll, and a name is a label, not the thing. One tap per row IS the confirmation. -->
+          <div class="px-6 py-3 bg-indigo-50 border-b border-indigo-100">
+            <button @click="dealOpen = !dealOpen" class="text-sm font-semibold text-indigo-700">
+              🏷️ <span x-text="dealOpen ? 'Hide' : 'Set one rule for this whole shelf'"></span>
+            </button>
+            <div x-show="dealOpen" style="display:none" class="mt-2 flex flex-wrap items-end gap-3">
+              <label class="text-xs text-gray-600">Every one of these costs
+                <input type="number" step="0.05" min="0" x-model="dealPrice" placeholder="4.00"
+                       class="block mt-1 w-24 border-2 border-indigo-300 rounded-lg px-2 py-1 font-bold text-right"></label>
+              <label class="text-xs text-gray-600">Buy
+                <input type="number" step="1" min="2" x-model="dealQty" placeholder="3"
+                       class="block mt-1 w-16 border-2 border-indigo-300 rounded-lg px-2 py-1 font-bold text-right"></label>
+              <label class="text-xs text-gray-600">for a total of
+                <input type="number" step="0.05" min="0" x-model="dealTotal" placeholder="10.00"
+                       class="block mt-1 w-24 border-2 border-indigo-300 rounded-lg px-2 py-1 font-bold text-right"></label>
+              <p class="text-xs text-indigo-800 font-semibold" x-show="dealReady()" style="display:none">
+                → each row gets <span x-text="money(dealPrice)"></span> and
+                “<span x-text="dealQty"></span> for <span x-text="money(dealTotal)"></span>”, one tap at a time.
+              </p>
+              <p class="text-xs text-gray-500" x-show="!dealReady()">
+                Fill all three and an “apply” button appears on every row below.
+              </p>
+            </div>
+            <p x-show="dealReady() && Number(dealTotal) >= Number(dealPrice) * Number(dealQty)"
+               style="display:none" class="text-xs text-red-700 font-semibold mt-1">
+              ⚠️ <span x-text="dealQty"></span> × <span x-text="money(dealPrice)"></span> is
+              <span x-text="money(Number(dealPrice) * Number(dealQty))"></span> — your deal price is not a
+              discount. Check the numbers before you tap anything.
+            </p>
+          </div>
+
           <div class="px-6 py-2">
             <template x-for="k in unfinishedKnown()" :key="'u-' + k.barcode">
               <div class="flex items-center gap-3 py-3 border-b last:border-0 flex-wrap">
@@ -245,6 +284,12 @@
                        so I click home and then go to shelf and I can continue."
                        cleanup already understood ?return= for its own Details link; this is the
                        same seam, not a second one. -->
+                  <button x-show="dealReady()" style="display:none" @click="applyDeal(k)" :disabled="k.savingPrice"
+                          class="px-3 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50"
+                          :title="'Set ' + money(dealPrice) + ' and ' + dealQty + ' for ' + money(dealTotal)">
+                    <span x-show="!k.dealDone">🏷️ Apply</span>
+                    <span x-show="k.dealDone" style="display:none">✓ Done</span>
+                  </button>
                   <a :href="'/pos/cleanup?mode=bench&pid=' + k.product_id + '&return=' + encodeURIComponent('/pos/shelf-intake')"
                      class="px-3 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700">✏️ Finish it</a>
                 </div>
@@ -872,7 +917,7 @@ function shelfIntake() {
       for (const k of (this.result && this.result.known) || []) {
         if (k.editing === undefined) {
           k.editing = false; k.newPrice = ''; k.savingPrice = false;
-          k.priceError = ''; k.priceSaved = false;
+          k.priceError = ''; k.priceSaved = false; k.dealDone = false;
         }
       }
     },
@@ -931,6 +976,35 @@ function shelfIntake() {
         k.priceError = (e && e.status === 403)
           ? 'Only a manager can change a price that is already set'
           : ((e && e.message) || 'Could not save');
+      } finally { k.savingPrice = false; this.save(); }
+    },
+
+    // ── one rule for a whole shelf ────────────────────────────────────────────────────
+    dealOpen: false, dealPrice: '', dealQty: '', dealTotal: '',
+    dealReady() {
+      return Number(this.dealPrice) > 0 && Number(this.dealQty) >= 2 && Number(this.dealTotal) > 0;
+    },
+    async applyDeal(k) {
+      if (!this.dealReady()) return;
+      k.savingPrice = true; k.priceError = '';
+      try {
+        // tier_mode 'bundle' means the stored figure is the TOTAL for the pack, which is exactly
+        // how a shopkeeper says it: "3 for 10". Writing it as per_unit is the mistake five
+        // products on this shelf already carry, and it only rings correctly because the pricing
+        // service rescues it at the till. Say what is meant.
+        await API.put(`/api/v1/pos/products/${k.product_id}`, {
+          price: Number(this.dealPrice),
+          price_tiers: [{ min_qty: Number(this.dealQty), unit_price: Number(this.dealTotal).toFixed(2) }],
+          tier_mode: 'bundle',
+        });
+        k.dealDone = true;
+        // Apply to the TWINS too, or the second row still offers to do work already done.
+        for (const t of (this.result.known || []).filter(x => x.product_id === k.product_id)) t.dealDone = true;
+        await this.recheck([k.product_id]);
+      } catch (e) {
+        k.priceError = (e && e.status === 403)
+          ? 'Only a manager can change a price that is already set'
+          : ((e && e.message) || 'Could not apply');
       } finally { k.savingPrice = false; this.save(); }
     },
 
