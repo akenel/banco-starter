@@ -117,10 +117,21 @@ Two hazards found by scanning a **made-up** control code and getting a confident
 → 7 red. Skips **loudly** when the reference is empty, because a silent skip is the exact
 shape that hid this for the project's whole life.
 
-**Still to do:** ③ reverse-lookup feed-title → live catalogue as a one-tap bind (the button is
-there — "Is it already in my catalogue?" — measure how often it hits). ④ copy the feed out of
-`helixnet`. ⑤ **run the importer on prod** — Angel's call; it cannot change a price or a live
-product.
+**③ KINGS CASTLE IS TIER 3** (`cbc158d`). Order on a miss: live catalogue → our reference
+(local, instant) → a shop that answers an EAN. Measured on ten codes FourTwenty lacks, Kings
+Castle answered **3** — actiTube, Purize, LocalWeed — all of them codes nothing else could
+resolve. **Reach ~40% → ~56%.**
+- **Generalised, not hardcoded:** `RESOLVABLE_SHOPS` is a list of dicts; a shop cloning Banco
+  adds an entry with no code. The scoped-search buttons derive from the same list.
+- **The offer never takes over.** The department strip appears immediately; the lookup runs
+  unawaited and an offer appears *beside* it. 2026-08-07's decision stands.
+- ⚠️ **No price crosses, and it is load-bearing now.** Kings Castle is a wholesaler: EAN
+  `4260641140046` lands on *"actiTube Aktivkohlefilter - Slim (50Stk.)"* — the right name,
+  Angel's own BL-10 product — at **CHF 99.00**, while the single is CHF 9.90 on the same page.
+
+**Still to do:** ④ measure how often *"Is it already in my catalogue?"* actually binds to an
+existing minted row — the button exists, the hit rate does not. ⑤ deploy tier 3 to prod
+(sandbox only so far). ⑥ a SECOND wholesale feed is still the big lever; neardark needs creds.
 
 *Bulk name-matching stays weak and measured: "Tabak Beutel Sasso Tobaccos Hash 25gr." does not
 reach "Sasso Tabaccos Brazil Hash BIO" at the 0.5 threshold. **Scan-time beats bulk.***
