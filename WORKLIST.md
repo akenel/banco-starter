@@ -39,12 +39,30 @@ because *"a bare EAN carries no name"* — true only while the table was empty. 
 `_find_catalog_matches` searches the reference **by title only, never by barcode**, though the
 column is indexed and two other endpoints do use it.
 
-**Build, in order:** ① the importer ② make an EAN miss consult the reference BY BARCODE
-③ then reverse-lookup feed-title → live catalogue, human confirms, bind ④ copy the feed out of
-helixnet. *Bulk title-matching rescues ≥378 of 4,995 — a floor, and the wrong lever. Scan-time
-heals the catalogue at the speed of the shelf.*
+**① THE IMPORTER IS BUILT AND PROVEN** — `scripts/import_reference_catalog.py` (`a9dda04`).
+Sandbox: 0 → **10,082 rows**, idempotent on a second run, and `_reference_best_match` now
+answers `4002450223400 → Pueblo Classic Tabak Dose 100g CHF 26.50 how=barcode`. Dry run unless
+`--apply`. ⚠️ **Not run on prod — that is Angel's call.** It cannot change a price or a live
+product; `reference_products` is read-only at the counter.
 
-**Nothing built yet. This is the measurement.**
+Three things its first dry run caught, each of which would have shipped:
+- **FourTwenty's 18+ flag is their checkout policy, not the product** — they mark a USB wall
+  plug `mindestalter: 18`. Importing it would have gated 2,220 rows, and `adopt` copies
+  `age_restricted` straight onto the live product. **A till that IDs a phone charger teaches
+  the cashier to click through the age gate.** Our classifier decides (829); theirs is kept in
+  `raw` and printed as a disagreement.
+- **`classify()` was already written for this table and had no caller** — its docstring says
+  *"Map a REFERENCE ITEM to (our_category, our_class, age_restricted)"*.
+- **Layer 2 had no alcohol branch.** A bottle's title is a brand, so 17 of 44 "Spirituosen"
+  and **all 5** of "Bier, Wein & Champagner" would have loaded **un-gated**. Fixed; measured
+  across all 10,082 rows: **22 newly gated, 0 un-gated.** 4 new tests.
+
+**Still to do:** ② make an EAN miss CONSULT the reference by barcode — the scan miss and
+shelf-intake triage; the endpoint exists, the flow does not use it. ③ then reverse-lookup
+feed-title → live catalogue, human confirms, bind. ④ copy the feed out of `helixnet`.
+
+*Reverse-matching by name is weak and now measured: "Tabak Beutel Sasso Tobaccos Hash 25gr."
+does not reach "Sasso Tabaccos Brazil Hash BIO" at the 0.5 threshold. **Scan-time beats bulk.***
 
 ---
 
