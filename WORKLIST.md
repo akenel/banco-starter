@@ -13,6 +13,41 @@
 
 ---
 
+## 🔴 THE FOURTWENTY LOOKUP WAS NEVER LOADED — 2026-08-21 → [the measurement](worklist-archive/2026-08-21-fourtwenty-reference.md)
+
+Angel: *"FourTwenty has the items, we just don't get matches… I have the feeling that they are
+the proper numbers."* **Both halves are right, and he was doing nothing wrong.**
+
+```
+reference_products   Felix's shop 0 rows · sandbox 0 · lapiazza 0 · wolfhold: no table
+scripts/import_reference_catalog.py — the only writer, per the model's own docstring
+                     DOES NOT EXIST, and never has (git log --all finds nothing)
+```
+
+Every FourTwenty path in the app — `/reference/search`, `reference_matches`, `adopt`,
+`_reference_best_match` — has queried an **empty table on every machine, for its whole life.**
+Pattern 1 at its purest. And `web_product_lookup.py` (the thing he thinks is the FourTwenty
+search) hits UPCitemdb and OpenFoodFacts — **it never touches 420.ch.**
+
+**The data is real and it is in the monster repo:**
+`helixnet/debllm/feeds/fourtwenty/products_latest.csv` — 10,082 rows, **9,977 with a real GTIN
+(99.8%)**, prices and photos. Two of his three failed scans yesterday are in it with everything
+(`4002450223400` Pueblo · `7666563986873` Sasso Hash); the actiTube genuinely is not.
+
+⚠️ **Loading it is necessary, not sufficient.** Shelf-intake triage refuses to match unknowns
+because *"a bare EAN carries no name"* — true only while the table was empty. And
+`_find_catalog_matches` searches the reference **by title only, never by barcode**, though the
+column is indexed and two other endpoints do use it.
+
+**Build, in order:** ① the importer ② make an EAN miss consult the reference BY BARCODE
+③ then reverse-lookup feed-title → live catalogue, human confirms, bind ④ copy the feed out of
+helixnet. *Bulk title-matching rescues ≥378 of 4,995 — a floor, and the wrong lever. Scan-time
+heals the catalogue at the speed of the shelf.*
+
+**Nothing built yet. This is the measurement.**
+
+---
+
 ## 🔴 SIX REPORTS FROM THE TILL — 2026-08-20 (BL-9…BL-14) → [the evidence](worklist-archive/2026-08-20-till-reports.md)
 
 **All six tagged `annoying`. Not one `blocking`.** Read that before reading Felix's verdict.
@@ -41,7 +76,8 @@ appear because the scan missed.* Fewer buttons is the wrong fix; a scan that hit
 4. **The tablet** — no Chrome by default, Firefox search "no good". Not specified yet.
 
 The 4,998 already in there: bind-on-scan is built (BL-90); 18 real aliases bound so far.
-**No bulk source exists — Tamar publishes no EAN.**
+Tamar publishes no EAN — but **FourTwenty does**, and that feed was never loaded. See the item
+above; it is the same problem seen from the other end.
 
 ---
 
