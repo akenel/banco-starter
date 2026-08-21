@@ -63,3 +63,51 @@ When something bites you, write the lesson here in one line so it never bites tw
 - 2026-08-13 — **I TURNED A FINISHED PIECE OF WORK BACK INTO AN UNFINISHED ONE.** Angel ran the human half of the 18+ sheet, marked it PASS, and asked *"it seems to work fine IMHO — do you agree?"*. The honest answer was **yes**: he had just made three real refusals at a real till, in German, and they were recorded — a thing that was impossible that same morning. Instead I came back with three more findings. **Two of them were mine**: my test suite was ringing as `pam`, so one of the rows he read back was the machine's, and a step (H6) whose question his own correct flow never reached. His reply: *"I don't know what you're looking for and what I need to test anymore."* That is the cost, and it is not a small one — it makes a person distrust work that is actually good. **Standing rule 5 cuts both ways.** "Human-green beats machine-green" means a human confirming it is the FINISH LINE, not permission to start another lap. When the person who owns the thing says it works: say yes, close it, write down what is left as a decision rather than a defect, and go and do the next item.
 
 - 2026-08-14 — **"BELT AND BRACES" WAS THE BUG, AND I WROTE THOSE WORDS IN THE COMMENT ABOVE IT.** Deploying to Felix's shop crash-looped Keycloak: `ERROR: You can not set both 'hostname' and 'hostname-url' options`. `compose.prod.yml` is an OVERLAY on `compose.yml`; the base already set `KC_HOSTNAME_URL` and the overlay already set `KC_HOSTNAME`, and I added `KC_HOSTNAME_URL` to the overlay *as well*, calling it "pinned EXPLICITLY, belt and braces". Two correct-looking settings that are illegal together. **The app never went down — `banco.wolfhold.app` served 200 the whole time on the new build — only the login door died**, which is a failure mode worth knowing: the shop looks alive and nobody can get in. Worse, the preflight I had written that same morning *passed* the broken config, because it validated each value on its own and never the pair. **Defensive redundancy is not free: two settings that each look right can be forbidden together, and the guard must know that.** Fixed to keep `hostname-url` only (it carries the https scheme Caddy terminates), and the preflight now refuses when both are set — proven by restoring the exact broken file and watching it go red.
+
+---
+
+## 2026-08-21 — a day of prices, and four ways a number lies
+
+**The shop floor found three of the four money bugs. None of my tests would have.**
+
+**① A guard's second failure mode.** July's rescue — "a per-unit tier above the base price must
+mean a pack total" — was written after a 3× OVERcharge and it has been earning its keep. Its
+comment claimed both branches "can only ever move money toward the customer, which is the only
+safe direction for a guess." Unbounded, that is not safety, it is the other loss: Gizeh Rolls
+Slim Pink, base 2.90 with a 3.10 rung, re-read as "10 for 3.10" and rang **nineteen packs at
+CHF 5.89**. A guess is worth making only while it stays plausible — bounded at half of base now.
+
+**② The rule was never in the data.** "What does a customer pay for FOUR packs on a 3-for-10?"
+is not answerable from the catalogue, the code or the feed. Angel asked **Ralph**, who serves
+the counter: *"the pricing starts again — so 4 packs would be 14 total."* Banco charged 13.33.
+Two tests had to be REVISED against that answer, and one of them was mine and wrong in a way no
+amount of re-reading would have shown, because it was not bad arithmetic — it was the wrong rule.
+
+**③ ×8 · Green on the layer you can reach.** `prove-cart-agrees-with-till.js` compared four tier
+ladders and every one used `tier_mode: 'bundle'` — the single mode in which the rescue branch
+cannot run. So the suite was structurally blind to it, and the cart showed **CHF 15.00** where
+the drawer would take 5.00, on the screen a cashier reads aloud to a customer. Not an untested
+line: an untested MODE. *Ask what your harness cannot see, not what it has not covered.*
+
+**④ Changing a semantic leaves siblings behind.** Ralph's rule replaced bundle mode's pro-rata
+maths — and the rescue path kept returning the old flat rate. Result: the same "3 for 5" rang
+7.00 on one cart line and 6.67 on the next. Pattern 2 wearing new clothes: when you change what
+something MEANS, every place that reads it has to be re-read.
+
+**⑤ A prover that has never been dirty is not proved.** `prove-barcode-binding.js` hard-deleted
+its fixtures for weeks. That only ever worked because nothing it created had sold. The moment
+another prover rang real sales, the foreign key — the books protecting themselves — started
+throwing. Also: fixed barcodes collided with their own soft-deleted leftovers, and
+`performance.now()` restarts near the same value each run, so SKUs collided too and the suite
+failed about one run in two. **Green often enough to be believed is the worst state a test has.**
+
+**⑥ Absence and presence must look different.** Three screens showed a price and said nothing
+about whether a deal existed — so a row with the right price and a MISSING deal looked identical
+to a finished one, which is wrong at the till in the direction that costs money. Angel found it
+three separate times, once per screen. And a wrong-MODE tier now reads `3+ @ 5.00 ea` instead of
+`3 for 5.00`, because that mistake rings correctly at three and wrongly at four — it looks right
+exactly when you test it.
+
+**⑦ And the design was the shopkeeper's.** I was drafting a price-group table with membership to
+maintain. Angel said: *"if the paper has tier pricing then they can mix."* The deal IS the group.
+No table, nothing to configure, and a roll can never pool with a paper because 10.00 ≠ 5.00.

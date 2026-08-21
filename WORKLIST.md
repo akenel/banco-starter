@@ -13,6 +13,54 @@
 
 ---
 
+## ✅ BUNDLE PRICING — BUILT, PROVED, LIVE — 2026-08-21 evening → [the day](worklist-archive/2026-08-21-price-consistency/)
+
+A customer buys a Smoking, a Raw and an OCB — not three of one. Until tonight that rang **6.00**
+where three of one paper rang 5.00. It now rings **5.00**, and the rule that made it simple was
+Angel's own: *"if the paper has tier pricing then they can mix."* **The deal IS the group** — no
+roll table, no paper table, nothing to maintain. Two lines pool on identical bundle terms + the
+same base price, which sorts the live shop into exactly two groups with no configuration:
+
+```
+49 products · CHF 4.00 · 3 for 10.00     rolls
+38 products · CHF 2.00 · 3 for  5.00     King Size papers
+```
+
+**Four money bugs found and fixed today, three of them by Angel noticing a number looked odd:**
+
+| what rang | should have | how it was found |
+|---|---|---|
+| 19 Gizeh Rolls Slim Pink → **5.89** | 55.10 | auditing every tiered row with the till's own function |
+| 4 packs → **13.33** | 14.00 | Angel asked **Ralph**, who serves the counter |
+| cart showed **15.00**, drawer 5.00 | 5.00 | Angel testing the mix at the till |
+| same deal **7.00** and **6.67** in one cart | 7.00 | Angel testing again |
+
+**Ralph's rule** (whole packs, then the deal starts again) is now the semantics everywhere,
+including the above-base rescue, which had been left on the old pro-rata behaviour.
+
+**Provers** — `prove-mix-and-match.js` rings REAL sales (localhost + `BANCO_ALLOW_FAKE_SALES=1`),
+`prove-cart-agrees-with-till.js` compares 320 quantities and 9 mixed baskets line by line across
+BOTH tier modes. Every one was watched go red before being trusted. 53 pricing unit tests.
+
+### ▶️ Tomorrow — Angel's hands
+
+- [ ] **Test a spread of packs.** The maths is proved; the shop floor is not.
+- [ ] `30058569` **OCB Premium Slim black** — tick *"price is for the whole pack"*. Plain paper,
+      belongs in the deal; stored `per_unit` so it cannot pool.
+- [ ] `30104891` **OCB Virgin Slim + Filters** — has filters, so by Angel's rule **no deal at
+      all**. Remove its tiers, do not convert them.
+- [ ] 8 King Size papers still to decide · 6 Rips to price · Old School's box price.
+
+### 🔜 The piece that is missing
+
+**The till does not EXPLAIN the deal.** The money is right; nothing says "3 for 5 applied", nothing
+prompts *"add one more and save CHF 1"*, and nothing says **why a line did not join the pool** —
+Angel had to ask. A cashier sees `pack ✓` on one line and not the one beside it with no way to
+know one is a filtered paper and the other is misconfigured. Layla and Mark will have to trust a
+number they cannot check. That is the next real build.
+
+---
+
 ## ✅ PROD IS LIVE ON TODAY'S CODE AND THE REFERENCE IS LOADED — 2026-08-21
 
 Deployed `7559fa1`, **all readiness checks green** (incl. silent token refresh and the
