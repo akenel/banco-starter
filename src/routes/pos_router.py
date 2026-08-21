@@ -650,6 +650,11 @@ async def create_product(
                    "each hold up to 100 characters) and save again.")
     await db.refresh(new_product)
 
+    # Whatever route a code arrives by, the backlog stops counting it.
+    if new_product.barcode:
+        await _close_catalog_miss(db, new_product.barcode, new_product.name)
+        await db.commit()
+
     # OWN THE PICTURE, don't hotlink it. Angel: "we should grab that image at the time we bind
     # the EAN — and download it too."
     #
@@ -1304,6 +1309,9 @@ async def quick_create_product(
             detail="One of your fields is too long — shorten it (supplier, category, SKU and barcode "
                    "each hold up to 100 characters) and save again.")
     await db.refresh(new_product)
+    if new_product.barcode:
+        await _close_catalog_miss(db, new_product.barcode, new_product.name)
+        await db.commit()
     logger.info(f"Quick on-the-fly product: {new_product.sku} by {current_user['username']}")
     return new_product
 
@@ -2135,6 +2143,9 @@ async def add_product_barcode(
         )
 
     logger.info(f"Barcode '{barcode}' linked to product {product.sku} by {current_user['username']}")
+    # The backlog was waiting for exactly this. Close it before returning.
+    await _close_catalog_miss(db, barcode, product.name)
+    await db.commit()
     return {"status": "linked", "product_id": str(product.id), "barcode": barcode}
 
 
@@ -7338,6 +7349,38 @@ def _resolve_custom_line(ln) -> tuple[str, str | None]:
     return vat_class(code), (f"{label} — {note}" if note else label)
 
 
+async def _close_catalog_miss(db, barcode: str | None, product_name: str | None = None) -> None:
+    """The code became a real product — stop counting it. SPEC §6's other half.
+
+    Nothing set `resolved_ean` until 2026-08-21. The counter worked, so the backlog grew and
+    never shrank: a manager who FIXED something would still see it at the top of the list next
+    week, and a list that lies about what is left is one nobody opens twice.
+
+    Deliberately a CONSEQUENCE, not a button. A miss closes when the thing it was waiting for
+    happens — a code bound to a product, or a product created carrying it — so there is no
+    separate step anyone has to remember at 20:00 with the shop dark.
+
+    Never raises: bookkeeping must not be able to fail the bind that matters.
+    """
+    from sqlalchemy import select as _select
+    from src.db.models.catalog_miss_model import CatalogMissModel
+
+    code = _clean_barcode(barcode or "")
+    if not code:
+        return
+    try:
+        row = (await db.execute(
+            _select(CatalogMissModel).where(CatalogMissModel.barcode == code))).scalar_one_or_none()
+        if row is None or row.resolved_ean:
+            return
+        row.resolved_ean = code
+        row.resolved_at = datetime.now(timezone.utc)
+        logger.info("catalog_miss closed: %s -> %s (%d hits)", code, product_name or "?",
+                    row.hit_count or 0)
+    except Exception as e:      # noqa: BLE001
+        logger.warning("catalog_miss not closed for %r: %s: %s", code, type(e).__name__, e)
+
+
 async def _record_catalog_miss(db, barcode: str | None, department_code: str | None,
                                price) -> None:
     """Count an unresolved barcode. SPEC §6 — the self-prioritising enrichment backlog.
@@ -12456,6 +12499,28 @@ async def pos_shelf_intake(request: Request, db: AsyncSession = Depends(get_db_s
     (/catalog/shelf-intake/triage,
     /catalog/match-candidates) for what it calls — they enforce the role; this serves the shell."""
     return templates.TemplateResponse("pos/shelf_intake.html",
+                                      {"request": request, "ean_sites": await _ean_lookup_sites(db)})
+
+
+@html_router.get("/pos/catalog-misses", response_class=HTMLResponse, name="pos_catalog_misses")
+async def pos_catalog_misses(request: Request, db: AsyncSession = Depends(get_db_session)):
+    """🔎 What the till could not find — the after-hours worklist.
+
+    `catalog_miss` has counted unresolved barcodes since SPEC §6, and until 2026-08-21 nothing
+    rendered it: `GET /catalog-misses` existed, no template called it, and the only way to read
+    the shop's own highest-value backlog was psql. Pattern 1 in CLAUDE.md, again.
+
+    Angel described the job this serves before the screen existed: *"on the fly — forget it…
+    after hours or slow time do the look up manually and set it up, but that is via a product
+    owner or the manager."* So this is deliberately NOT a till screen. It is a desk screen, it
+    is manager-only at the API, and it works top-down by hit count.
+
+    It resolves LIVE and stores no guess — the model is explicit that a stored guess would make
+    the backlog look richer and be worth less. The reference and the shop tiers are asked when
+    a person presses the button, not when the miss was recorded.
+
+    The API enforces the role; this serves the shell."""
+    return templates.TemplateResponse("pos/catalog_misses.html",
                                       {"request": request, "ean_sites": await _ean_lookup_sites(db)})
 
 

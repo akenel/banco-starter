@@ -1,0 +1,266 @@
+{% extends "pos/base.html" %}
+
+{% block title %}What the till couldn't find - HelixPOS{% endblock %}
+
+{#
+  🔎 THE AFTER-HOURS WORKLIST.
+
+  `catalog_miss` has counted unresolved barcodes since SPEC §6 and nothing ever rendered it.
+  The API existed, no template called it, and the only way to read the shop's own
+  highest-value backlog was psql. Found 2026-08-21 while checking whether a button I had just
+  shipped was telling the truth — it said "the code is kept, tidy it up later", and there was
+  nowhere to tidy from.
+
+  Angel described the job before the screen existed: "on the fly — forget it. Soon as one is
+  stuck they need to say ok not found, pick the Misc department and move on, and after hours
+  or slow time do the look up manually and set it up — but that is via a product owner or the
+  manager." So: a DESK screen, not a till screen. Ranked by how often the code actually came
+  past the scanner, because that is what makes an hour worth spending.
+
+  NOTHING IS GUESSED AND STORED. The model is explicit: "if nobody knew what it was at the
+  till, nobody knows at 20:00. Storing a guess would make the backlog look richer and be worth
+  less." So the row holds only what the till observed. The name comes from asking the
+  reference and the supplier shops LIVE, when a person presses the button.
+#}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50" x-data="missList()" x-init="load()">
+  <div class="max-w-5xl mx-auto px-4 py-6">
+
+    <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
+      <div class="flex items-center gap-3">
+        <button @click="window.location.href='/pos/dashboard'" class="btn-secondary flex-none"
+                title="Dashboard" aria-label="Dashboard">🏠</button>
+        <div>
+          <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">🔎 What the till couldn't find</h1>
+          <p class="text-sm text-gray-600">Most-scanned first — that's the order worth working.</p>
+        </div>
+      </div>
+      <div class="flex gap-2 items-center">
+        <label class="text-sm text-gray-600 flex items-center gap-1.5">
+          <input type="checkbox" x-model="includeResolved" @change="load()" class="w-4 h-4">
+          show done
+        </label>
+        <button @click="load()" class="btn-secondary">↻ Refresh</button>
+      </div>
+    </div>
+
+    <!-- THE BLIND SPOT, ON THE SCREEN AND NOT ONLY IN THE MODEL'S DOCSTRING.
+         A manager who trusts this list needs to know what it structurally cannot see, or the
+         quiet half of the shop looks like it has no problems. -->
+    <div class="card border-2 border-amber-300 bg-amber-50 mb-4">
+      <p class="text-sm text-amber-900">
+        ⚠️ <b>This can only see codes that were SCANNED and failed.</b> Bongs, grinders and
+        most glass carry no barcode at all, so nothing here will ever be logged for them —
+        expect drinks, tobacco and new arrivals. For glass, the department totals on the
+        reports are the only signal there will ever be.
+      </p>
+    </div>
+
+    <div x-show="loading" class="card text-center text-gray-500">Loading…</div>
+    <div x-show="error" x-cloak style="display:none" class="card border-2 border-red-300 bg-red-50 text-red-800">
+      <span x-text="error"></span>
+    </div>
+
+    <div x-show="!loading && !error && items.length === 0" x-cloak style="display:none"
+         class="card text-center py-10">
+      <p class="text-4xl mb-2">✅</p>
+      <p class="font-semibold text-gray-800">Nothing outstanding.</p>
+      <p class="text-sm text-gray-500 mt-1">
+        Every code that missed at the till has been bound to a product — or nobody has hit a
+        department key with an unknown code yet.
+      </p>
+    </div>
+
+    <template x-for="m in items" :key="m.barcode">
+      <div class="card mb-3" :class="m.resolved_ean ? 'opacity-60' : ''">
+
+        <div class="flex items-start justify-between gap-3 flex-wrap">
+          <div class="min-w-0">
+            <p class="font-mono font-bold text-lg text-gray-900" x-text="m.barcode"></p>
+            <p class="text-xs text-gray-500 mt-0.5">
+              <span class="font-bold text-gray-700">×<span x-text="m.hit_count"></span></span>
+              scanned ·
+              <span x-show="m.department" x-text="m.department"></span>
+              <span x-show="!m.department">no department</span>
+              <span x-show="m.last_price !== null"> · last rung
+                <b x-text="formatPrice(m.last_price)"></b></span>
+              <!-- One product, or a shelf position? A code that always rings the same price is
+                   worth binding; 5 / 45 / 120 is a mis-scan or a code shared across a range. -->
+              <span x-show="m.prices_seen && m.prices_seen.length > 1 && !m.price_stable"
+                    class="text-amber-700 font-semibold"> · ⚠️ rang
+                <span x-text="m.prices_seen.length"></span> different prices — check it is one product</span>
+              <span x-show="m.last_seen"> · last seen <span x-text="when(m.last_seen)"></span></span>
+            </p>
+          </div>
+          <div class="flex gap-2 flex-wrap flex-none">
+            <span x-show="m.resolved_ean" x-cloak style="display:none"
+                  class="text-sm font-semibold text-emerald-700 self-center">✅ done</span>
+            <button x-show="!m.resolved_ean && !m.lookup" @click="lookup(m)" :disabled="m.busy"
+                    class="btn-primary text-sm">
+              <span x-show="!m.busy">🔎 What is it?</span>
+              <span x-show="m.busy" style="display:none">Looking…</span>
+            </button>
+            {% for site in ean_sites %}
+            <a :href="'https://www.google.com/search?q=' + encodeURIComponent(m.barcode + ' site:{{ site.domain }}')"
+               target="_blank" rel="noopener" class="btn-secondary text-sm"
+               title="{{ site.why }}">🎯 {{ site.label }}</a>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- WHAT IT IS, asked live. Reference first (ours, instant), then the supplier shops. -->
+        <div x-show="m.lookup" x-cloak style="display:none"
+             class="mt-3 pt-3 border-t border-gray-200">
+          <div class="flex items-start gap-3">
+            <img x-show="m.lookup && m.lookup.image" :src="m.lookup && m.lookup.image" alt=""
+                 class="w-24 h-24 rounded object-contain bg-white border flex-none">
+            <div class="min-w-0 flex-1">
+              <p class="text-xs font-semibold text-indigo-900"
+                 x-text="'📚 ' + (m.lookup && m.lookup.source || '')"></p>
+              <p class="font-bold text-gray-900 leading-snug" x-text="m.lookup && m.lookup.title"></p>
+              <p x-show="m.lookup && m.lookup.price !== null && m.lookup.price !== undefined"
+                 class="text-xs text-gray-500 mt-0.5">
+                supplier price <span x-text="m.lookup && m.lookup.price"></span></p>
+              <p x-show="m.lookup && m.lookup.wholesale" x-cloak style="display:none"
+                 class="text-[11px] font-semibold text-amber-800 bg-amber-50 border border-amber-300 rounded px-2 py-1 mt-1">
+                ⚠️ Wholesaler — that price is usually a whole case. Check the pack size.
+              </p>
+            </div>
+          </div>
+          <p x-show="m.lookup && !m.lookup.title" class="text-sm text-gray-500">
+            Nobody knows this code — not our reference, not the supplier shops. Try the
+            scoped searches above, or it may simply be a mis-scan.
+          </p>
+
+          <!-- …and now the point: is it ALREADY in the catalogue under a different code?
+               This is where a minted 2xxxxxxxxxxxx row gets the real EAN it never had. -->
+          <div x-show="m.lookup && m.lookup.title" class="mt-3">
+            <div class="flex items-center gap-2 mb-1">
+              <p class="text-sm font-semibold text-gray-800">Is it already in your catalogue?</p>
+              <button x-show="!m.matches" @click="findInCatalog(m)" :disabled="m.busy"
+                      class="btn-secondary text-xs">Look</button>
+            </div>
+            <p x-show="m.matches && m.matches.length === 0" x-cloak style="display:none"
+               class="text-sm text-gray-500">
+              No match by that name — this is a genuinely new product. Add it from the
+              <a href="/pos/catalog" class="text-indigo-600 underline">Catalogue</a>.
+            </p>
+            <div x-show="m.matches && m.matches.length" x-cloak style="display:none"
+                 class="max-h-96 overflow-y-auto divide-y border rounded-lg">
+              <template x-for="p in (m.matches || [])" :key="p.id">
+                <div class="px-3 py-2 flex items-center gap-3">
+                  <img x-show="p.image_url" :src="p.image_url" loading="lazy" alt=""
+                       class="w-20 h-20 rounded object-contain bg-white border flex-none">
+                  <span x-show="!p.image_url" class="w-20 h-20 rounded bg-gray-100 flex items-center justify-center text-gray-300 text-3xl flex-none">📦</span>
+                  <span class="flex-1 min-w-0">
+                    <span x-text="p.name" class="block text-sm font-medium text-gray-900 leading-snug break-words"></span>
+                    <span class="block text-xs text-gray-400 font-mono" x-text="(p.sku || '') + (p.barcode ? ' · ' + p.barcode : ' · no barcode')"></span>
+                  </span>
+                  <span x-text="formatPrice(p.price)" class="text-sm font-bold text-indigo-600 flex-none"></span>
+                  <button @click="bind(m, p)" :disabled="m.busy" class="btn-success text-sm flex-none">
+                    🔗 Bind
+                  </button>
+                </div>
+              </template>
+            </div>
+            <p x-show="m.matches && m.matches.length" class="text-xs text-gray-500 mt-1">
+              Binding puts <b x-text="m.barcode"></b> on that product. It scans at the till from
+              then on, and this row leaves the list.
+            </p>
+          </div>
+        </div>
+
+        <p x-show="m.msg" x-cloak style="display:none" class="text-sm mt-2 font-semibold"
+           :class="m.ok ? 'text-emerald-700' : 'text-red-700'" x-text="m.msg"></p>
+      </div>
+    </template>
+  </div>
+</div>
+
+<script>
+  function missList() {
+    return {
+      items: [], loading: true, error: '', includeResolved: false,
+
+      async load() {
+        this.loading = true; this.error = '';
+        try {
+          const r = await API.get('/api/v1/pos/catalog-misses?limit=200&include_resolved='
+                                  + (this.includeResolved ? 'true' : 'false'));
+          this.items = (r.items || []).map(i => ({
+            ...i, busy: false, lookup: null, matches: null, msg: '', ok: false,
+          }));
+        } catch (e) {
+          this.error = (e && e.message) || 'Could not load the list.';
+        } finally { this.loading = false; }
+      },
+
+      // Ask the same tiers the till asks, in the same order: OUR reference first (instant,
+      // local), then the supplier shops (one request each, only on a miss). Live — nothing is
+      // stored, because a stored guess makes this list look richer and be worth less.
+      async lookup(m) {
+        m.busy = true; m.msg = '';
+        try {
+          let hit = null;
+          const ref = await API.get('/api/v1/pos/reference/search?limit=1&barcode='
+                                    + encodeURIComponent(m.barcode));
+          const r0 = (ref && ref.items || [])[0];
+          if (r0) {
+            hit = { source: (r0.supplier || 'reference'), title: r0.name || r0.title,
+                    image: r0.image_url, price: r0.price != null ? r0.price : r0.suggested_price,
+                    wholesale: false };
+          } else {
+            const w = await API.get('/api/v1/pos/products/web-lookup?barcode='
+                                    + encodeURIComponent(m.barcode));
+            if (w && w.found) {
+              hit = { source: w.source_label || w.source, title: w.title,
+                      image: (w.images || [])[0], price: null, wholesale: !!w.wholesale };
+            }
+          }
+          // An empty object, not null: `x-show="m.lookup"` must open the panel even when the
+          // answer is "nobody knows", or pressing the button would look like nothing happened.
+          m.lookup = hit || {};
+          if (hit) this.findInCatalog(m);
+        } catch (e) {
+          m.msg = 'Lookup failed: ' + ((e && e.message) || e); m.ok = false;
+        } finally { m.busy = false; }
+      },
+
+      async findInCatalog(m) {
+        if (!m.lookup || !m.lookup.title) return;
+        m.busy = true;
+        try {
+          const r = await API.get('/api/v1/pos/products/find-matches?limit=6&q='
+                                  + encodeURIComponent(m.lookup.title));
+          m.matches = (r && r.product_matches) || [];
+        } catch (e) {
+          m.matches = [];
+        } finally { m.busy = false; }
+      },
+
+      // The whole point of the screen. BL-90's alias bind, from a desk instead of a queue —
+      // and the server closes the miss as a consequence, so the row leaves on its own.
+      async bind(m, p) {
+        m.busy = true; m.msg = '';
+        try {
+          await API.post(`/api/v1/pos/products/${p.id}/barcodes`, { barcode: m.barcode });
+          m.ok = true;
+          m.msg = '✅ Bound to ' + p.name + ' — it scans at the till now.';
+          m.resolved_ean = m.barcode;
+        } catch (e) {
+          m.ok = false;
+          m.msg = 'Could not bind: ' + ((e && e.message) || e);
+        } finally { m.busy = false; }
+      },
+
+      when(iso) {
+        try {
+          return new Date(iso).toLocaleString(undefined,
+            { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+        } catch (e) { return iso; }
+      },
+    };
+  }
+</script>
+{% endblock %}
