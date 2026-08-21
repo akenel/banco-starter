@@ -1010,6 +1010,7 @@ async def catalog_shelf_intake_triage(
             "name": product.name,
             "sku": product.sku,
             "price": float(product.price) if product.price is not None else None,
+            "cost": float(product.cost) if product.cost is not None else None,
             "image_url": product.image_url,
             "category": product.category,
             "is_active": bool(product.is_active),
@@ -1038,6 +1039,52 @@ async def catalog_shelf_intake_triage(
         "known": known,
         "unknown": unknown,
     }
+
+
+class ShelfRecheckRequest(BaseModel):
+    """Product ids whose rows are on screen and may have just been edited elsewhere."""
+    product_ids: list[UUID] = Field(..., max_length=300)
+
+
+@router.post("/catalog/shelf-intake/recheck")
+async def catalog_shelf_intake_recheck(
+    req: ShelfRecheckRequest,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(require_any_pos_role()),
+):
+    """Re-read the rows already on the shelf-intake screen, without re-triaging the shelf.
+
+    2026-08-21, Angel, mid-shelf with eight Smoking papers on screen: *"when I fix the price I
+    come back to this page and still don't know without clicking."* He was right, and the naive
+    fix — re-run triage — is the wrong one: triage rebuilds `pending` from scratch and would
+    throw away every unknown row he had part-solved. This reads ONLY the known rows he can see.
+
+    It returns the identical shape triage's `known` entries have, and computes readiness with the
+    same `_readiness` call, so the badge on a refreshed row can never disagree with the badge on
+    a triaged one. That equivalence is the whole reason this is a route and not a client guess.
+    """
+    if not req.product_ids:
+        return {"rows": []}
+    rows = (await db.execute(
+        select(ProductModel).where(ProductModel.id.in_(req.product_ids)))).scalars().all()
+    out = []
+    for product in rows:
+        score, gripes = _readiness(product)
+        out.append({
+            "product_id": str(product.id),
+            "barcode": product.barcode,
+            "name": product.name,
+            "sku": product.sku,
+            "price": float(product.price) if product.price is not None else None,
+            "cost": float(product.cost) if product.cost is not None else None,
+            "image_url": product.image_url,
+            "category": product.category,
+            "is_active": bool(product.is_active),
+            "ready_score": score,
+            "ready_gaps": gripes,
+            "is_finished": not gripes,
+        })
+    return {"rows": out}
 
 
 class ShelfMatchRequest(BaseModel):

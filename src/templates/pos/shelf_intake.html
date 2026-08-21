@@ -20,7 +20,10 @@
 #}
 
 {% block content %}
-<div class="min-h-screen bg-gray-50" x-data="shelfIntake()" x-init="restore()">
+<!-- @focus on window: "Finish it" leaves for /pos/cleanup and comes back. Refreshing on
+     return is what turns this list from a snapshot into the truth. -->
+<div class="min-h-screen bg-gray-50" x-data="shelfIntake()" x-init="restore()"
+     @focus.window="refreshVisible()">
   <div class="max-w-5xl mx-auto px-4 py-8">
 
     <!-- Header -->
@@ -183,6 +186,46 @@
                     <span class="text-gray-500 ml-1" x-text="gapWords(k)"></span>
                   </p>
                 </div>
+
+                <!-- 💰 THE PRICE, ON THE ROW.
+                     2026-08-21, Angel, eight Smoking papers on screen and every one of them
+                     2.00: "I know the price is 2 CHF per pack but I don't see this… I now need
+                     to click on each one just to see the prices, and when I fix the price I come
+                     back to this page and still don't know without clicking."
+                     The list was built to answer "what is unfinished?" and answered it well —
+                     while hiding the one number that decides whether a row is worth touching.
+                     Eight rows was the moment it stopped being tolerable. Type it here or don't
+                     open the row at all. -->
+                <div class="flex-none text-right w-36" @click.stop>
+                  <div x-show="!k.editing" style="display:none">
+                    <button @click="startPrice(k)" class="group">
+                      <span x-show="k.price !== null && !isPlaceholder(k.price)"
+                            class="text-lg font-bold text-gray-900 group-hover:text-indigo-700"
+                            x-text="shopCurrency + ' ' + fmt(k.price)"></span>
+                      <span x-show="k.price !== null && isPlaceholder(k.price)"
+                            class="text-lg font-bold text-red-600 group-hover:underline" style="display:none"
+                            title="This is the not-known-yet flag, not a real price — tap to set it."
+                            x-text="'⚑ ' + shopCurrency + ' ' + fmt(k.price)"></span>
+                      <span x-show="k.price === null" style="display:none"
+                            class="text-sm font-bold text-red-600 group-hover:underline">no price</span>
+                      <span class="block text-[11px] text-indigo-600 opacity-0 group-hover:opacity-100">✏️ tap to change</span>
+                    </button>
+                    <p x-show="k.cost !== null && k.cost !== undefined" style="display:none"
+                       class="text-[11px] text-gray-400" x-text="'cost ' + fmt(k.cost)"></p>
+                  </div>
+                  <div x-show="k.editing" style="display:none" class="flex items-center gap-1 justify-end">
+                    <input type="number" step="0.05" min="0" x-model="k.newPrice"
+                           @keydown.enter.prevent="savePrice(k)" @keydown.escape="k.editing=false"
+                           :data-price-for="k.barcode"
+                           class="w-20 border-2 border-indigo-400 rounded-lg px-2 py-1 text-right font-bold">
+                    <button @click="savePrice(k)" :disabled="k.savingPrice"
+                            class="px-2 py-1 rounded-lg bg-indigo-600 text-white font-bold disabled:opacity-50">✔</button>
+                    <button @click="k.editing=false" class="px-1 text-gray-400">✕</button>
+                  </div>
+                  <p x-show="k.priceError" style="display:none" class="text-[11px] text-red-600 mt-0.5" x-text="k.priceError"></p>
+                  <p x-show="k.priceSaved" style="display:none" class="text-[11px] text-green-700 font-semibold mt-0.5">✓ saved</p>
+                </div>
+
                 <div class="flex gap-2 flex-none">
                   <!-- The lookup that actually works: thirteen digits, plain web search. -->
                   <a :href="'https://www.google.com/search?q=' + encodeURIComponent(k.barcode)"
@@ -690,9 +733,21 @@
           </p>
         </div>
 
-        <div x-show="result.unknown_count === 0" style="display:none"
+        <!-- Lesson 12: a green summary over an unchecked box is a lie. This banner asked only
+             "is anything UNKNOWN?" and then said "nothing to do" — while the stub list directly
+             above it listed three rows to do. Seen on 2026-08-21 in Angel's own screenshot.
+             Every code scanning is worth saying; it is not the same sentence as nothing to do. -->
+        <div x-show="result.unknown_count === 0 && result.unfinished_count === 0" style="display:none"
              class="bg-emerald-50 border-2 border-emerald-300 rounded-2xl p-6 text-center">
           <p class="text-xl font-bold text-emerald-700">Every code on that shelf already scans. Nothing to do.</p>
+        </div>
+        <div x-show="result.unknown_count === 0 && result.unfinished_count > 0" style="display:none"
+             class="bg-amber-50 border-2 border-amber-300 rounded-2xl p-6 text-center">
+          <p class="text-lg font-bold text-amber-800">
+            Every code on that shelf scans — but
+            <span x-text="result.unfinished_count"></span> row(s) above are still stubs.
+          </p>
+          <p class="text-sm text-amber-700 mt-1">Nothing here will fail at the till. It is the bench work that is left.</p>
         </div>
       </div>
     </template>
@@ -745,6 +800,7 @@ function shelfIntake() {
         if (s && s.result) {
           this.raw = s.raw || ''; this.expected = s.expected ?? null;
           this.result = s.result; this.pending = s.pending || []; this.batchStart = s.batchStart || 0;
+          this.primeKnown();
           this.restored = true;
           // Land on the first batch that still has work, not wherever the tab happened to die.
           let i = 0;
@@ -752,6 +808,81 @@ function shelfIntake() {
           if (i < this.pending.length) this.batchStart = i;
         }
       } catch (e) {}
+    },
+
+    // Alpine tracks properties that exist when the object becomes reactive. Declaring them up
+    // front means a row's edit box cannot fail to appear the first time it is tapped.
+    primeKnown() {
+      for (const k of (this.result && this.result.known) || []) {
+        if (k.editing === undefined) {
+          k.editing = false; k.newPrice = ''; k.savingPrice = false;
+          k.priceError = ''; k.priceSaved = false;
+        }
+      }
+    },
+
+    // ── price, on the row ─────────────────────────────────────────────────────────────
+    fmt(n) { return (n === null || n === undefined) ? '' : Number(n).toFixed(2); },
+    // The sentinels a human types when the price is not known yet. See the PLACEHOLDER PRICES
+    // block in pos_router.py — 999.99 is the one to type; 99.00 is the legacy one still in rows.
+    isPlaceholder(n) { return n !== null && (Number(n) === 99 || Number(n) === 999.99); },
+
+    startPrice(k) {
+      k.priceError = ''; k.priceSaved = false;
+      k.newPrice = (k.price === null || this.isPlaceholder(k.price)) ? '' : this.fmt(k.price);
+      k.editing = true;
+      // NOT $refs: x-ref takes a literal name, so a bound :ref inside an x-for never registers
+      // and the focus silently did nothing. A data attribute is the honest handle here.
+      this.$nextTick(() => {
+        const el = document.querySelector(`[data-price-for="${k.barcode}"]`);
+        if (el) { el.focus(); el.select(); }
+      });
+    },
+
+    async savePrice(k) {
+      const v = Number(k.newPrice);
+      if (!k.newPrice || isNaN(v) || v <= 0) { k.priceError = 'Type a price above 0'; return; }
+      if (this.isPlaceholder(v)) { k.priceError = 'That is the placeholder — type the real price'; return; }
+      k.savingPrice = true; k.priceError = '';
+      try {
+        await API.put(`/api/v1/pos/products/${k.product_id}`, { price: v });
+        k.editing = false; k.priceSaved = true;
+        // Re-read from the server rather than trusting my own optimistic number: the readiness
+        // badge is computed there, and a price can move a row from 50% to 75% or out of this
+        // list entirely. Pattern 2 — do not let the screen and the server disagree about a row.
+        await this.recheck([k.product_id]);
+        setTimeout(() => { k.priceSaved = false; }, 2500);
+      } catch (e) {
+        // 403 is the honest, common one: changing a price that is already set is a manager's job.
+        k.priceError = (e && e.status === 403)
+          ? 'Only a manager can change a price that is already set'
+          : ((e && e.message) || 'Could not save');
+      } finally { k.savingPrice = false; this.save(); }
+    },
+
+    // ── keeping the list true ─────────────────────────────────────────────────────────
+    // Re-reads rows in place. NOT a re-triage: triage rebuilds `pending` from scratch and would
+    // throw away every unknown row that has been part-solved. This touches only known rows.
+    async recheck(ids) {
+      if (!this.result || !ids || !ids.length) return;
+      try {
+        const r = await API.post('/api/v1/pos/catalog/shelf-intake/recheck', { product_ids: ids });
+        for (const fresh of (r.rows || [])) {
+          const row = (this.result.known || []).find(x => x.product_id === fresh.product_id);
+          if (row) Object.assign(row, fresh);
+        }
+        this.result.unfinished_count = (this.result.known || []).filter(x => !x.is_finished).length;
+        this.save();
+      } catch (e) { /* a stale row is survivable; a thrown error mid-shelf is not */ }
+    },
+
+    // "I fix the price and come back to this page and still don't know without clicking."
+    // Finish it opens /pos/cleanup in the same tab, so coming back fires focus. Refresh exactly
+    // the rows he can see — bounded by what is on screen, not by the size of the shelf.
+    refreshVisible() {
+      if (!this.result) return;
+      const ids = this.unfinishedKnown().map(k => k.product_id).filter(Boolean);
+      if (ids.length) this.recheck(ids.slice(0, 300));
     },
 
     // Never be trapped. If anything about this screen goes wrong, the codes themselves are the
@@ -783,6 +914,7 @@ function shelfIntake() {
         const r = await API.post('/api/v1/pos/catalog/shelf-intake/triage',
                                  { raw: this.raw, expected: this.expected || null });
         this.result = r;
+        this.primeKnown();
         this.pending = (r.unknown || []).map(u => ({
           ...u, status: 'todo', query: '', url: '', facts: null, price: null, title: '',
           productId: '', redoId: '', foundAfterWeb: false,
