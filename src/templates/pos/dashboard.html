@@ -296,7 +296,8 @@
             <!-- The other half of the department key. The till says "not found, just sell it";
                  this is where a manager finds out WHAT kept not being found, ranked by how
                  often it actually came past the scanner. -->
-            <template x-if="user.isManager">
+            <!-- Visible to a cashier too — read-only. See the screen's own note. -->
+            <template x-if="true">
                 <div class="card hover:shadow-xl transition cursor-pointer" onclick="window.location.href='/pos/catalog-misses'">
                     <div class="text-center py-8">
                         <span class="text-6xl mb-4 block">🔎</span>

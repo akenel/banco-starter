@@ -4562,12 +4562,22 @@ async def list_catalog_misses(
     limit: int = 100,
     include_resolved: bool = False,
     db: AsyncSession = Depends(get_db_session),
-    current_user: dict = Depends(require_roles(["👔️ pos-manager", "👑️ pos-admin"])),
+    current_user: dict = Depends(require_any_pos_role()),
 ):
     """Unresolved barcodes, most-scanned first — the enrichment backlog (SPEC §6).
 
     Ranked by `hit_count` on purpose: a code scanned nine times is a real mover worth an hour;
-    one scanned once is noise. The back office works this top-down, never at the till.
+    one scanned once is noise. The back office WORKS this top-down, never at the till.
+
+    READABLE BY A CASHIER since 2026-08-21, and that is not a softening of the line above.
+    Angel: *"we could have Pam at least a preview of the stuff not found — that would be
+    better than nothing for the cashier."* He is right: seeing which codes keep failing is
+    not catalogue work, it is knowing your own shop. She is the one holding the packets, and
+    she may well recognise a row a manager cannot.
+
+    Nothing here is sensitive — a barcode and a price she rang herself. The DOING stays where
+    it was: the screen hides "What is it?" and "Bind" from a cashier, so a queue can never turn
+    into an enrichment session.
 
     ⚠️ It cannot see the stock that motivated department keys. A miss is only recorded when a
     barcode was SCANNED and failed — bongs and grinders have no barcode to scan at all. Expect

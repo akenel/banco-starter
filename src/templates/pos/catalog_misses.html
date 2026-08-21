@@ -25,6 +25,11 @@
 
 {% block content %}
 <div class="min-h-screen bg-gray-50" x-data="missList()" x-init="load()">
+  <!-- A CASHIER SEES THE LIST, NOT THE LEVERS. Angel: "we could have Pam at least a preview of
+       the stuff not found — better than nothing for the cashier." Seeing which codes keep
+       failing is knowing your own shop; she is the one holding the packets and may recognise a
+       row a manager cannot. But "What is it?" and "Bind" stay manager-only, so a queue can
+       never turn into an enrichment session — which is the whole reason this is a desk screen. -->
   <div class="max-w-5xl mx-auto px-4 py-6">
 
     <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
@@ -54,6 +59,14 @@
         most glass carry no barcode at all, so nothing here will ever be logged for them —
         expect drinks, tobacco and new arrivals. For glass, the department totals on the
         reports are the only signal there will ever be.
+      </p>
+    </div>
+
+    <div x-show="!user.isManager" x-cloak style="display:none"
+         class="card border-2 border-slate-300 bg-slate-50 mb-4">
+      <p class="text-sm text-slate-800">
+        👀 <b>You're looking, not fixing.</b> These are the codes the till couldn't find — if you
+        recognise one, tell the manager what it is. That's worth more than anything on this page.
       </p>
     </div>
 
@@ -96,7 +109,7 @@
           <div class="flex gap-2 flex-wrap flex-none">
             <span x-show="m.resolved_ean" x-cloak style="display:none"
                   class="text-sm font-semibold text-emerald-700 self-center">✅ done</span>
-            <button x-show="!m.resolved_ean && !m.lookup" @click="lookup(m)" :disabled="m.busy"
+            <button x-show="user.isManager && !m.resolved_ean && !m.lookup" @click="lookup(m)" :disabled="m.busy"
                     class="btn-primary text-sm">
               <span x-show="!m.busy">🔎 What is it?</span>
               <span x-show="m.busy" style="display:none">Looking…</span>
@@ -138,7 +151,7 @@
           <div x-show="m.lookup && m.lookup.title" class="mt-3">
             <div class="flex items-center gap-2 mb-1">
               <p class="text-sm font-semibold text-gray-800">Is it already in your catalogue?</p>
-              <button x-show="!m.matches" @click="findInCatalog(m)" :disabled="m.busy"
+              <button x-show="user.isManager && !m.matches" @click="findInCatalog(m)" :disabled="m.busy"
                       class="btn-secondary text-xs">Look</button>
             </div>
             <p x-show="m.matches && m.matches.length === 0" x-cloak style="display:none"
@@ -158,7 +171,7 @@
                     <span class="block text-xs text-gray-400 font-mono" x-text="(p.sku || '') + (p.barcode ? ' · ' + p.barcode : ' · no barcode')"></span>
                   </span>
                   <span x-text="formatPrice(p.price)" class="text-sm font-bold text-indigo-600 flex-none"></span>
-                  <button @click="bind(m, p)" :disabled="m.busy" class="btn-success text-sm flex-none">
+                  <button x-show="user.isManager" @click="bind(m, p)" :disabled="m.busy" class="btn-success text-sm flex-none">
                     🔗 Bind
                   </button>
                 </div>
@@ -182,8 +195,14 @@
   function missList() {
     return {
       items: [], loading: true, error: '', includeResolved: false,
+      // `user` is NOT ambient. dashboard.html carries its own copy on dashboardData(), so
+      // `x-show="user.isManager"` here would have thrown on every render and Alpine would have
+      // swallowed it — the cashier note invisible, the manager buttons invisible, and no error
+      // anyone would see. Read it the same way the dashboard does, from AuthHelper.
+      user: { isManager: false },
 
       async load() {
+        try { this.user.isManager = AuthHelper.isManager(); } catch (e) { this.user.isManager = false; }
         this.loading = true; this.error = '';
         try {
           const r = await API.get('/api/v1/pos/catalog-misses?limit=200&include_resolved='

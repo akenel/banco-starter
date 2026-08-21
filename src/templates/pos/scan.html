@@ -432,6 +432,22 @@
                                                 <span x-text="formatPrice(item.price)"></span> × <span x-text="item.quantity"></span>
                                                 <span class="text-indigo-400 text-xs"> · <span data-i18n="scan.tap_details">tap for details</span> →</span>
                                             </p>
+                                            <!-- THE CODE THAT RODE ALONG. Angel, live on the till
+                                                 2026-08-21, having sold an unknown packet on Misc:
+                                                 "where do you see the EAN now?"
+                                                 Nowhere — that was the honest answer. The scan is
+                                                 attached to the line (`unresolvedBarcode`) and goes
+                                                 to the miss list at checkout, but the row rendered
+                                                 name/price/qty and the detail modal showed SKU and
+                                                 Category, both blank for a department line. So the
+                                                 one field that mattered was the one field nobody
+                                                 could see, and "the code is kept" was something he
+                                                 had to take on trust. Show it. -->
+                                            <p x-show="item.unresolvedBarcode" x-cloak style="display:none"
+                                               class="text-xs font-mono text-amber-700 mt-0.5">
+                                                🔖 <span x-text="item.unresolvedBarcode"></span>
+                                                <span class="font-sans not-italic" data-i18n="scan.code_kept">— kept for the catalogue</span>
+                                            </p>
                                         </div>
                                     </div>
                                     <button @click="removeFromCart(index)" class="text-red-600 hover:text-red-800 text-xl px-3 py-2 rounded-lg hover:bg-red-50" aria-label="Remove item">
@@ -1433,6 +1449,28 @@
                 }
             },
 
+            // 🔁 EVERY CAPTURE ENDS THE SAME WAY: ready for the next scan.
+            //
+            // Angel, testing on the live till 2026-08-21: "after they have selected Misc it shows
+            // up fine, but now the screen sits in the new item / new product mode and it should
+            // flip now to enter the next barcode with the cursor at the input prompt."
+            //
+            // He is right, and the old code LOOKED like it did this — addDepartmentLine() called
+            // `$refs.barcodeInput.focus()` — but `searchMode` was still 'catalog', so that input
+            // was inside an `x-show` that is false. The element is in the DOM (x-show is
+            // display:none, not a removal) so nothing threw; focus() on a hidden field simply
+            // does nothing. A focus call that cannot fail and cannot work.
+            //
+            // Four paths end a capture and only one of them got even half of this right. At a
+            // queue that is a tap per customer, which is the kind of friction nobody reports as a
+            // bug — they just decide the till is slow.
+            readyForNextScan() {
+                this.searchMode = 'barcode';
+                this.barcodeInput = '';        // BL-129: never let the next scan concatenate
+                this.pendingWeb = null;
+                this.$nextTick(() => this.$refs.barcodeInput && this.$refs.barcodeInput.focus());
+            },
+
             // Leave the panel and go sell it. See the button's comment above: at a till with a
             // queue, the ability to give up in one tap is a feature, not a failure path.
             bailToDepartment() {
@@ -1644,6 +1682,7 @@
                     } else {
                         showToast(t('scan.toast_saved_otf'), 'success');
                     }
+                    this.readyForNextScan();
                 } else if (taken) {
                     // The code is already on file. Do NOT invent a second row for the same packet —
                     // send her to the thing that already exists, with the code still in the banner
@@ -1868,8 +1907,8 @@
                         { barcode: bc || null, price: String(price) });
                     this.addToCart(product, qty);
                     this.lazyOpen = false;
-                    this.barcodeInput = '';
                     showToast(t('scan.toast_added_reference', {n: product.name}), 'success');
+                    this.readyForNextScan();
                 } catch (err) {
                     console.warn('Adopt failed:', err);
                     showToast(t('scan.toast_reference_failed'), 'warning');
@@ -1913,8 +1952,8 @@
                     }
                     this.addToCart(product, qty);
                     this.lazyOpen = false;
-                    this.barcodeInput = '';
                     showToast(t('scan.toast_linked', {n: product.name}), 'success');
+                    this.readyForNextScan();
                 } catch (err) {
                     console.warn('Link to existing failed:', err);
                     showToast(t('scan.toast_link_failed'), 'warning');
@@ -2313,8 +2352,7 @@
                 this.deptPrice = '';
                 this.deptConfirmed = false;
                 this.pendingBarcode = '';        // consumed — one line only
-                this.pendingWeb = null;
-                this.$nextTick(() => this.$refs.barcodeInput && this.$refs.barcodeInput.focus());
+                this.readyForNextScan();
                 return true;
             },
 
