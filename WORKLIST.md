@@ -13,6 +13,44 @@
 
 ---
 
+## ✅ PROD IS LIVE ON TODAY'S CODE AND THE REFERENCE IS LOADED — 2026-08-21
+
+Deployed `7559fa1`, **all readiness checks green** (incl. silent token refresh and the
+append-only 18+ trigger), then imported the FourTwenty reference **from the live feed**.
+
+```
+reference_products        11,035 rows · 10,980 with a barcode · 10,384 distinct codes
+                          11,024 photos · 11,035 prices · 981 gated 18+
+alcohol rows              57 — and ZERO of them un-gated
+live products             5,446 — UNCHANGED. 4,998 minted — UNCHANGED.
+age_check_event           untouched
+```
+
+**The deploy had to come first, and that was the whole point.** A dry run on the old build
+classified **959** rows as 18+ against today's **981** — the 22-row gap was the alcohol fix, and
+importing without it would have loaded Absinthe, Agwa, the Arehucas rums and the Sulzer
+sparkling wine marked *not 18+*, which `/reference/{id}/adopt` copies onto a live product.
+That would have left prod **worse** than it was, because hand-creating an "Absinthe Mansinthe"
+already gated on the title. Verified on the box before importing: prod's `classify()` now
+returns `alcohol/True` for Spirituosen and still leaves *Brandywine (Solanum lycopersicum)* —
+a tomato — alone.
+
+Proven on the live box, by asking the database and the lookup rather than the script:
+
+```
+4002450223400 -> Pueblo Classic Tabak Dose 100g   CHF 26.50  18+  amb=1
+7666563986873 -> Sasso Tabaccos Brazil Hash BIO   CHF  7.50  18+  amb=1
+8718403231311 -> BioBizz Fish Mix 500ml           CHF  8.00       amb=1
+7640181330065 -> BudBouncy's V1 Indoor 3g         CHF 15.00  18+  amb=1
+9999999999994 -> no reference          (GS1 coupon-range filler, correctly refused)
+8412766066114 -> Clipper 1 Horn 654    CHF 3.00  amb=9  ← says "9 products share this code"
+```
+
+*Sasso is CHF 7.50 now, not the 6.90 in the nine-month-old copy — staleness cost prices too,
+not just coverage.* **Refresh with `--fetch --apply --prune` whenever the range moves.**
+
+---
+
 ## 🔴 THE FOURTWENTY LOOKUP WAS NEVER LOADED — 2026-08-21 → [the measurement](worklist-archive/2026-08-21-fourtwenty-reference.md)
 
 Angel: *"FourTwenty has the items, we just don't get matches… I have the feeling that they are
