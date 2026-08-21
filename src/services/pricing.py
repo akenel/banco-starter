@@ -25,16 +25,53 @@ def _q(v) -> Decimal:
 logger = logging.getLogger(__name__)
 
 
+def _bundle_total(price_tiers, base, qty):
+    """Total for ``qty`` under BUNDLE tiers: whole packs, then start again.
+
+    2026-08-21. Angel asked Ralph, who works the counter, what a customer pays for FOUR packs
+    when the deal is "3 for 10". Ralph: *"I would give the tier pricing for the first 3 packs,
+    but if the customer buys 4 then the pricing starts again — so 4 packs would be 14 total."*
+    Felix added that ~90% of customers buy exactly 3, or else a whole box.
+
+    That is not what Banco charged. Bundle mode divided the pack price into a UNIT rate and
+    applied it to everything past the threshold, so four packs rang up 13.33 and five 16.67 —
+    right on exact multiples, quietly generous everywhere in between. On 41 rolls, a 4-pack
+    basket is an ordinary Tuesday.
+
+    Greedy, one pack at a time, recursing on the remainder. That handles a nested ladder for
+    free: with "3 for 10" and "10 for 24", thirteen packs is one ten (24.00) and then the
+    remaining three fall to their own rung (10.00) — 34.00, not four threes and a single.
+    """
+    if qty <= 0:
+        return Decimal("0")
+    best_qty = None
+    best_up = None
+    for t in price_tiers or []:
+        try:
+            mq = int(t.get("min_qty"))
+            up = t.get("unit_price")
+        except (TypeError, ValueError, AttributeError):
+            continue
+        if up is None or mq < 1 or qty < mq:
+            continue
+        if best_qty is None or mq > best_qty:
+            best_qty, best_up = mq, up
+    if best_qty is None:
+        return base * Decimal(qty)
+    return Decimal(str(best_up)) + _bundle_total(price_tiers, base, qty - best_qty)
+
+
 def tier_unit_price(price_tiers, base_price, qty, mode="per_unit"):
     """Resolve the effective UNIT price for ``qty`` from ``price_tiers``.
 
     Returns ``(unit_price: Decimal, volume_break: bool)``. The winning tier is the one with
     the highest ``min_qty`` still ``<= qty``. ``mode`` decides what a tier's stored value means:
       - ``"per_unit"`` (default, Artemis style): the value is the price EACH at ``qty >= min_qty``.
-      - ``"bundle"`` ("N for X"): the value is the TOTAL for a pack of ``min_qty``; the per-unit
-        rate is ``X / min_qty``, returned FULL-PRECISION so the line total is exact at the pack
-        size (the caller quantizes the LINE — see ``tier_line_total``). "3 for 4.00" -> 1.3333…/u
-        -> at qty 3 the line is exactly 4.00.
+      - ``"bundle"`` ("N for X"): the value is the TOTAL for a pack of ``min_qty``. WHOLE PACKS
+        are taken, then the deal starts again on the remainder — "3 for 10" charges 14.00 for
+        four, not 13.33 (Ralph's rule, see ``_bundle_total``). The per-unit rate returned is
+        that total divided by qty, FULL-PRECISION, so a caller that multiplies by qty lands
+        exactly on it (the caller quantizes the LINE — see ``tier_line_total``).
     ``volume_break`` is True only for a genuine break (``min_qty >= 2``) — flags the line
     discount-final. Falls back to ``base_price`` when there are no tiers or none apply.
     """
@@ -56,7 +93,16 @@ def tier_unit_price(price_tiers, base_price, qty, mode="per_unit"):
     if best_qty is None:
         return base, False
     if mode == "bundle":
-        eff = Decimal(str(best_up)) / Decimal(best_qty)   # pack total / pack size, full precision
+        # Whole packs then start again (see _bundle_total). Returned as a per-unit RATE because
+        # both till callers store a unit price and multiply by qty — the rate carries full
+        # precision so that multiplication lands back on the exact pack total.
+        total = _bundle_total(price_tiers, base, qty)
+        # Never above the flat price. Same doctrine as the guard below, and it also stops a
+        # badly-ordered ladder (a bigger pack priced worse than a smaller one) from costing the
+        # customer more than having no deal at all.
+        if total > base * Decimal(qty):
+            total = base * Decimal(qty)
+        eff = total / Decimal(qty)
     else:
         eff = _q(best_up)
 

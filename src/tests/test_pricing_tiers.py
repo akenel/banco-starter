@@ -108,15 +108,21 @@ BUNDLE = [
 ]
 
 
+# REVISED 2026-08-21 against the shop, not against the code. These figures were the PRO-RATA
+# reading — once you passed 3, every unit got the pack rate — which made four packs 5.33.
+# Ralph, who serves the counter: "I would give the tier pricing for the first 3 packs, but if
+# the customer buys 4 then the pricing starts again." So four is a pack plus a single, 5.40.
+# The old numbers were not wrong arithmetic; they were the wrong rule, and only the shop could
+# say which rule it was.
 @pytest.mark.parametrize("qty,line,brk", [
     (1, "1.40", False),    # base
     (2, "2.80", False),    # still base tier (1)
-    (3, "4.00", True),     # the "3 for 4.00" pack — line is EXACTLY 4.00 (line-level rounding)
-    (4, "5.33", True),     # 4 × (4.00/3)=5.333 → 5.33
-    (5, "6.67", True),     # 5 × 1.333 → 6.67
-    (9, "12.00", True),    # 9 × 1.333 → 12.00
+    (3, "4.00", True),     # the "3 for 4.00" pack — exact
+    (4, "5.40", True),     # one pack (4.00) + one single (1.40)
+    (5, "6.80", True),     # one pack + two singles
+    (9, "12.00", True),    # three whole packs
     (10, "12.00", True),   # the "10 for 12.00" pack — exact
-    (20, "24.00", True),   # 20 × (12/10)=1.20 → 24.00
+    (20, "24.00", True),   # two of them
 ])
 def test_bundle_line_totals(qty, line, brk):
     assert tier_line_total(BUNDLE, Decimal("1.40"), qty, mode="bundle") == Decimal(line)
@@ -253,3 +259,52 @@ def test_an_explicit_bundle_is_never_second_guessed():
     """tier_mode='bundle' means what it says, however cheap — the operator was explicit."""
     tiers = [{"min_qty": 10, "unit_price": "3.10"}]
     assert tier_line_total(tiers, Decimal("2.90"), 10, mode="bundle") == Decimal("3.10")
+
+
+# ── RALPH'S RULE ─────────────────────────────────────────────────────────────────────────
+#
+# 2026-08-21. Angel asked the two people who work the counter what FOUR packs cost when the
+# deal is "3 for 10". Felix: ~90% buy exactly 3, or else a whole box. Ralph: "I would give the
+# tier pricing for the first 3 packs, but if the customer buys 4 then the pricing starts again
+# — so 4 packs would be 14 total."
+#
+# Banco charged 13.33. Bundle mode divided the pack price into a unit rate and applied it to
+# everything past the threshold: right on exact multiples, quietly generous in between. Across
+# the 41 rolls that now carry this deal, a 4-pack basket is an ordinary Tuesday.
+
+ROLL = [{"min_qty": 3, "unit_price": "10.00"}]
+
+
+def test_four_packs_is_fourteen_not_thirteen_thirty_three():
+    """The exact question Angel put to Ralph, and the exact answer."""
+    assert tier_line_total(ROLL, Decimal("4.00"), 4, mode="bundle") == Decimal("14.00")
+
+
+def test_the_deal_starts_again_on_every_whole_pack():
+    for qty, total in [(1, "4.00"), (2, "8.00"), (3, "10.00"), (4, "14.00"), (5, "18.00"),
+                       (6, "20.00"), (7, "24.00"), (9, "30.00")]:
+        assert tier_line_total(ROLL, Decimal("4.00"), qty, mode="bundle") == Decimal(total), qty
+
+
+def test_a_nested_ladder_takes_the_big_pack_first_then_the_small_one():
+    """3 for 10 and 10 for 24: thirteen is one ten and then a three, not four threes."""
+    tiers = [{"min_qty": 3, "unit_price": "10.00"}, {"min_qty": 10, "unit_price": "24.00"}]
+    assert tier_line_total(tiers, Decimal("4.00"), 10, mode="bundle") == Decimal("24.00")
+    assert tier_line_total(tiers, Decimal("4.00"), 13, mode="bundle") == Decimal("34.00")
+    assert tier_line_total(tiers, Decimal("4.00"), 11, mode="bundle") == Decimal("28.00")
+
+
+def test_a_bundle_never_costs_more_than_no_bundle_at_all():
+    """A badly ordered ladder must not punish the customer for taking the deal."""
+    tiers = [{"min_qty": 3, "unit_price": "13.00"}]      # worse than 3 × 4.00
+    assert tier_line_total(tiers, Decimal("4.00"), 3, mode="bundle") == Decimal("12.00")
+
+
+def test_a_bundle_is_never_worse_than_having_no_deal():
+    """The invariant that actually holds. My first version of this test asserted that the bill
+    never falls as quantity rises — which is FALSE by design: a bulk rung is meant to drop the
+    total at its boundary (nine packs 30.00, ten packs 24.00). That is the deal working, and a
+    customer buying nine should be told to take ten."""
+    tiers = [{"min_qty": 3, "unit_price": "10.00"}, {"min_qty": 10, "unit_price": "24.00"}]
+    for q in range(1, 40):
+        assert tier_line_total(tiers, Decimal("4.00"), q, mode="bundle") <= Decimal("4.00") * q

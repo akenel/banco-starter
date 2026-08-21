@@ -971,9 +971,31 @@
             }
             return bestQ === null ? null : { mq: bestQ, up: bestUp };
         }
+        // Whole packs, then the deal starts again. MIRRORS pricing._bundle_total().
+        // Ralph, asked at the counter what four packs cost on a "3 for 10": "I would give the
+        // tier pricing for the first 3 packs, but if the customer buys 4 then the pricing starts
+        // again — so 4 packs would be 14 total." This function and the server's must agree to the
+        // cent, because shown != charged is the one thing this whole ladder exists to prevent.
+        function _bundleTotal(tiers, base, qty) {
+            if (qty <= 0) return 0;
+            let bestQ = null, bestUp = null;
+            for (const t of tiers) {
+                const mq = parseInt(t.min_qty, 10), up = parseFloat(t.unit_price);
+                if (!(mq >= 1) || isNaN(up) || qty < mq) continue;
+                if (bestQ === null || mq > bestQ) { bestQ = mq; bestUp = up; }
+            }
+            if (bestQ === null) return base * qty;
+            return bestUp + _bundleTotal(tiers, base, qty - bestQ);
+        }
         function tierLineTotal(item) {
             const qty = Number(item.quantity) || 0;
             const base = Number(item.price) || 0;
+            const tiers = (item && Array.isArray(item.price_tiers)) ? item.price_tiers : [];
+            if (item.tier_mode === 'bundle' && tiers.length) {
+                // never above the flat price — same clamp as the server
+                const total = Math.min(_bundleTotal(tiers, base, qty), base * qty);
+                return Math.round(total * 100) / 100;
+            }
             const best = _tierBest(item);
             const eff = best ? ((item.tier_mode === 'bundle') ? best.up / best.mq : best.up) : base;
             return Math.round(eff * qty * 100) / 100;
