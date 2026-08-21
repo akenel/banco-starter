@@ -178,6 +178,14 @@
                 <div class="min-w-0 flex-1">
                   <p class="text-sm font-medium text-gray-900 truncate" x-text="k.name"></p>
                   <p class="text-xs text-gray-400 font-mono" x-text="k.barcode + ' · ' + (k.sku || '')"></p>
+                  <!-- Say it on the row. A product with two barcodes appears twice — correct, he
+                       scanned two packets — but nothing said so, and fixing one looked like the
+                       fix had failed on the other. Finishing either finishes both. -->
+                  <p x-show="twinCount(k) > 1" style="display:none"
+                     class="text-[11px] text-indigo-700 bg-indigo-50 border border-indigo-200 rounded px-1.5 py-0.5 mt-0.5 inline-block">
+                    🔗 same product as <span x-text="twinCount(k) - 1"></span> other row(s) here —
+                    it carries more than one barcode. Fix it once and both are done.
+                  </p>
                   <p class="text-xs mt-1">
                     <span class="px-2 py-0.5 rounded-full font-semibold"
                           :class="k.ready_score >= 75 ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-700'">
@@ -264,6 +272,14 @@
                 <div class="min-w-0 flex-1">
                   <p class="text-sm font-medium text-gray-900 truncate" x-text="k.name"></p>
                   <p class="text-xs text-gray-400 font-mono" x-text="k.barcode + ' · ' + (k.sku || '')"></p>
+                  <!-- Say it on the row. A product with two barcodes appears twice — correct, he
+                       scanned two packets — but nothing said so, and fixing one looked like the
+                       fix had failed on the other. Finishing either finishes both. -->
+                  <p x-show="twinCount(k) > 1" style="display:none"
+                     class="text-[11px] text-indigo-700 bg-indigo-50 border border-indigo-200 rounded px-1.5 py-0.5 mt-0.5 inline-block">
+                    🔗 same product as <span x-text="twinCount(k) - 1"></span> other row(s) here —
+                    it carries more than one barcode. Fix it once and both are done.
+                  </p>
                 </div>
                 <span x-show="k.count > 1" class="text-xs text-gray-400 flex-none">×<span x-text="k.count"></span></span>
                 <span x-show="k.matched_internal_row" style="display:none"
@@ -918,6 +934,14 @@ function shelfIntake() {
       } finally { k.savingPrice = false; this.save(); }
     },
 
+    // How many rows on this list are the SAME catalogue product. Counts across the whole
+    // known list, not just the visible bucket: a twin can sit in "already scan correctly"
+    // while its sibling is still a stub, which is precisely the pair that looks broken.
+    twinCount(k) {
+      if (!k.product_id || !this.result) return 1;
+      return (this.result.known || []).filter(x => x.product_id === k.product_id).length;
+    },
+
     // ── keeping the list true ─────────────────────────────────────────────────────────
     // Re-reads rows in place. NOT a re-triage: triage rebuilds `pending` from scratch and would
     // throw away every unknown row that has been part-solved. This touches only known rows.
@@ -926,8 +950,19 @@ function shelfIntake() {
       try {
         const r = await API.post('/api/v1/pos/catalog/shelf-intake/recheck', { product_ids: ids });
         for (const fresh of (r.rows || [])) {
-          const row = (this.result.known || []).find(x => x.product_id === fresh.product_id);
-          if (row) Object.assign(row, fresh);
+          // EVERY row for that product, not the first. One product can legitimately carry two
+          // barcodes, so scanning both puts it on this list twice — and .find() updated one twin
+          // and left the other showing the old price. Angel, 2026-08-21: "I change the price,
+          // save it, and it shows the old price… but I think it actually has the new price."
+          // He was right: the data was correct and the screen was stale.
+          for (const row of (this.result.known || []).filter(x => x.product_id === fresh.product_id)) {
+            // Keep the code THIS row was scanned as. `fresh.barcode` is the product's PRIMARY
+            // code, so copying it would rewrite the alias row to the primary — both twins would
+            // then claim the same code, and the x-for keys on `k.barcode` would collide.
+            const scanned = row.barcode;
+            Object.assign(row, fresh);
+            row.barcode = scanned;
+          }
         }
         this.result.unfinished_count = (this.result.known || []).filter(x => !x.is_finished).length;
         this.save();
