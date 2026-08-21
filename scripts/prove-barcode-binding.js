@@ -34,6 +34,8 @@
  *   9  an EAN miss CONSULTS the supplier reference by barcode — the panel opens with the
  *      real name in it, a filler code is not answered, and one code on many products says so
  *      (skipped, loudly, when reference_products is empty)
+ *  10  when the reference does NOT know it, a supplier's SHOP is asked by EAN and the answer
+ *      arrives as an OFFER under the department strip — never a takeover, never a price
  *
  * ⚠️  IT WRITES PRODUCTS. It rings NO sales — nothing here reaches the Kassenbuch — but
  *     it does create catalogue rows, and it deletes its own at the end (SKU/name prefix
@@ -345,6 +347,92 @@ async function fillNewItem(p, name, price) {
       });
       check(quiet.open === false && quiet.pending === '76409' + stamp && quiet.mode === 'catalog',
         'an unknown-to-everyone code still gets the quiet department strip, no modal');
+    }
+
+    // ---------------------------------------------------------------------
+    head('10 · tier 3 — a supplier shop answers what the reference could not');
+    // A code Kings Castle carries and FourTwenty does not. Not a random fixture: it is the
+    // EAN from Angel's own BL-10 report, the one nothing we had could resolve.
+    const KC_CODE = '4260641140046';
+    const probe = await p.evaluate(async c =>
+      await API.get('/api/v1/pos/products/web-lookup?barcode=' + c), KC_CODE);
+    if (!probe || !probe.found) {
+      // A SKIP MUST NOT BE ABLE TO IMPERSONATE A PASS.
+      //
+      // The first cut of this printed a loud skip and returned exit 0. Then the tier was
+      // sabotaged to prove the test could catch it — and NOTHING went red: 29 passed, 0
+      // failed, exit 0, feature completely dead. A loud message a human has to read is not a
+      // test result. This codebase's own words: a green that cannot turn red is a lie.
+      //
+      // So ask the SHOP DIRECTLY, from here, bypassing our app entirely. If kingscastle.ch
+      // answers and our endpoint did not, that is OUR bug and it FAILS. Only an unreachable
+      // site earns a skip.
+      let siteAlive = null;
+      try {
+        const r = await fetch(`https://www.kingscastle.ch/index.php?qs=${KC_CODE}&search=`,
+                              { redirect: 'follow', headers: { 'User-Agent': 'Banco/1.0' } });
+        siteAlive = r.ok && !/index\.php|qs=/.test(r.url);   // redirected to an article = alive
+      } catch (e) {
+        siteAlive = false;
+      }
+      if (siteAlive) {
+        bad('the shop tier is BROKEN — kingscastle.ch answers ' + KC_CODE +
+            ' directly, our /products/web-lookup does not');
+      } else {
+        console.log('  ⏭️  SKIPPED — kingscastle.ch is unreachable from this machine, so the');
+        console.log('      tier cannot be exercised. This is NOT proof that it works.');
+      }
+    } else {
+      check(probe.source === 'kingscastle', 'the shop tier answered, not a generic database',
+        String(probe.source));
+      check(probe.wholesale === true, 'and is flagged as a wholesaler');
+      check(probe.price === undefined,
+        'NO PRICE crosses the boundary — a case price is not this shop\'s price');
+      check(!/CHF|EUR/.test(probe.title || ''),
+        'and no price rode in on the product NAME either', probe.title);
+
+      // Now the screen. A miss the reference cannot answer must still show the quiet
+      // department strip FIRST, and the shop's answer must arrive as an offer beside it.
+      await goto(p, '/pos/scan');
+      await scan(p, KC_CODE);
+      const immediate = await p.evaluate(() => {
+        const d = Alpine.$data(document.querySelector('[x-data]'));
+        return { pending: d.pendingBarcode, mode: d.searchMode, lazy: d.lazyOpen };
+      });
+      check(immediate.mode === 'catalog' && immediate.lazy === false,
+        'the department strip leads — no modal is thrown at her');
+      check(immediate.pending === KC_CODE, 'and the code is held', immediate.pending);
+
+      await p.waitForFunction(() => {
+        try { return !!Alpine.$data(document.querySelector('[x-data]')).pendingWeb; }
+        catch (e) { return false; }
+      }, null, { timeout: 20000 }).catch(() => {});
+      const offer = await p.evaluate(() => {
+        const d = Alpine.$data(document.querySelector('[x-data]'));
+        return { pending: d.pendingBarcode, mode: d.searchMode,
+                 title: d.pendingWeb && d.pendingWeb.title,
+                 src: d.pendingWeb && d.pendingWeb.source,
+                 whsl: d.pendingWeb && d.pendingWeb.wholesale };
+      });
+      check(!!offer.title, 'the offer arrives with the real name', offer.title || '(none)');
+      check(offer.src === 'kingscastle', 'naming which shop it came from', String(offer.src));
+      check(offer.whsl === true, 'carrying the case-price warning');
+      check(offer.mode === 'catalog' && offer.pending === KC_CODE,
+        'and NOTHING moved under her fingers — same screen, same held code');
+
+      const useBtn = p.getByRole('button', { name: 'Use it' }).first();
+      check(await useBtn.isVisible(), 'the offer is takeable');
+      await useBtn.click();
+      await p.waitForTimeout(2500);
+      const taken = await p.evaluate(() => {
+        const d = Alpine.$data(document.querySelector('[x-data]'));
+        return { lazy: d.lazyOpen, code: d.lazyBarcode, q: d.lazyLinkQuery, pending: d.pendingBarcode };
+      });
+      check(taken.lazy === true && taken.code === KC_CODE,
+        'taking it opens find-and-bind holding the code', taken.code);
+      check((taken.q || '').length > 3 && !/^\d+$/.test(taken.q),
+        'pre-filled with the supplier NAME, not the number again', taken.q);
+      check(taken.pending === '', 'and the pending code is handed over, not duplicated');
     }
 
   } catch (e) {

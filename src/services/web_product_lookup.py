@@ -14,9 +14,134 @@ Cost note: a barcode is looked up ONCE ever (learn-back → cataloged forever), 
 """
 from __future__ import annotations
 
+import logging
+import re
 from urllib.parse import quote_plus
 
 import httpx
+
+logger = logging.getLogger("helix.web_product_lookup")
+
+# ---------------------------------------------------------------------------------------
+# TIER 1 — SHOPS THAT ANSWER AN EAN SEARCH DIRECTLY.
+#
+# Tried BEFORE the generic barcode databases, because for a Swiss headshop they hit far more
+# often. UPCitemdb and Open*Facts are food- and mass-market-heavy; a Purize mouthpiece or a
+# LocalWeed vape kit is not in either of them, and is on the shelf of a shop that sells them.
+#
+# Measured 2026-08-21 on ten EANs from Felix's catalogue that FourTwenty does NOT carry:
+# Kings Castle answered 3 — actiTube ActiveFilter, Purize Holzmundstück, LocalWeed VapeKit —
+# and all three were codes nothing else we had could resolve.
+#
+# `search` must be a URL that, on an EXACT code match, REDIRECTS to the product page. That
+# redirect is the hit signal: a miss stays on the search URL. Both were verified by hand.
+#
+# ⚠️ `wholesale: True` means the price on that page is a CASE price, not a shelf price. EAN
+# 4260641140046 returns "actiTube Aktivkohlefilter - Slim (50Stk.)" — the right NAME — at
+# CHF 99.00, while the single sits on the same page at CHF 9.90. That is why this function
+# has never returned a price and must not start: name, photo and description only.
+#
+# A shop cloning Banco edits this list. Adding an entry is one dict and no code.
+RESOLVABLE_SHOPS = [
+    {
+        "key": "kingscastle",
+        "label": "Kings Castle",
+        "domain": "kingscastle.ch",
+        "search": "https://www.kingscastle.ch/index.php?qs={ean}&search=",
+        "why": "JTL-Shop; an exact EAN redirects to the article. Carries Purize, actiTube and "
+               "Swiss CBD lines that FourTwenty does not.",
+        "wholesale": True,
+        "lang": "de",
+    },
+]
+
+# og: tags are what these pages publish; JTL ships them on every article and there is no
+# JSON-LD to read instead (checked). Kept deliberately dumb — one regex, no HTML parser
+# dependency, and anything unexpected simply yields None.
+_OG = {
+    "title": re.compile(r'<meta[^>]+property=["\']og:title["\'][^>]+content=["\']([^"\']*)', re.I),
+    "description": re.compile(r'<meta[^>]+property=["\']og:description["\'][^>]+content=["\']([^"\']*)', re.I),
+    "image": re.compile(r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']*)', re.I),
+}
+# JTL appends the price to the page title — "… kaufen, 2.90 CHF" / "…, 24.90 CHF". Strip it:
+# it is the CASE price on a wholesaler and putting it in the product NAME would carry the wrong
+# number into the catalogue by the back door.
+_TITLE_PRICE_TAIL = re.compile(r"[,\s]*(?:kaufen[,\s]*)?[\d'’.,]+\s*(?:CHF|EUR)\s*$", re.I)
+
+
+def looks_like_search_page(url: str) -> bool:
+    """A miss stays on the search URL; a hit lands on an article path.
+
+    Split out of the fetch so it can be tested without the network — and it is the whole hit
+    signal, so an untested version of it is an untested tier."""
+    return "index.php" in url or "qs=" in url or "search" in url.rsplit("/", 1)[-1]
+
+
+def parse_shop_page(html: str, final_url: str, barcode: str, shop: dict) -> dict | None:
+    """A fetched page -> the lookup dict, or None if this was a miss. PURE — no network.
+
+    Pure on purpose. The first version of this lived inside the fetch loop, and when the price
+    strip was sabotaged to prove the tests could catch it, NOTHING went red: the unit test
+    exercised the regex directly and the browser test could not reach the parser at all. A
+    parser you can only reach through somebody else's webserver is a parser you cannot test.
+    """
+    if looks_like_search_page(final_url):
+        return None
+    m = _OG["title"].search(html or "")
+    # STRIP THE PRICE OUT OF THE NAME. JTL puts it in the page title — "… kaufen, 99.00 CHF" —
+    # and on a wholesaler that is the CASE price. Left in, it rides into the catalogue as part
+    # of the product's name and no later screen would ever question it.
+    title = _TITLE_PRICE_TAIL.sub("", (m.group(1) if m else "")).strip()
+    if not title or title == barcode:
+        return None        # the echo case: a miss page titles itself with the code
+    desc = _OG["description"].search(html or "")
+    img = _OG["image"].search(html or "")
+    return {
+        "found": True,
+        "source": shop["key"],
+        "source_label": shop["label"],
+        "source_url": final_url,
+        # The caution the operator needs BEFORE they trust the number they can see on that
+        # page in the other tab. No price crosses this boundary, ever.
+        "wholesale": bool(shop.get("wholesale")),
+        "title": title,
+        "brand": None,
+        "category": None,
+        "description": (desc.group(1).strip() if desc else None) or None,
+        "images": [img.group(1)] if img else [],
+        "lang_hint": shop.get("lang"),
+    }
+
+
+async def _shop_lookup(client, barcode: str) -> dict | None:
+    """Ask each RESOLVABLE_SHOP for this exact code. First hit wins; None if nobody knows it.
+
+    One request per shop, sequential, stopping at the first answer — so the common case is a
+    single GET. These are suppliers' own sites, not ours: never loop, never retry, never bulk.
+    """
+    for shop in RESOLVABLE_SHOPS:
+        try:
+            r = await client.get(shop["search"].format(ean=barcode), follow_redirects=True)
+            if r.status_code != 200:
+                continue
+            # THE HIT SIGNAL IS THE REDIRECT. An exact match lands on the article path; a miss
+            # stays on the search URL and echoes the code back as the page title. Testing the
+            # URL rather than the body is what makes a miss unambiguous — the search page for
+            # "3086126789880" is a perfectly valid 200 with content on it.
+            final = str(r.url)
+            hit = parse_shop_page(r.text, final, barcode, shop)
+            if hit:
+                return hit
+        except (httpx.HTTPError, ValueError, KeyError) as e:
+            # A supplier's site being slow or down must never break a scan. NARROW on purpose:
+            # a bare `except Exception` here swallowed a NameError (`_og` for `_OG`) and the
+            # whole tier silently returned None while every part of it worked in isolation —
+            # found only by running the body without the guard. An except that can hide a typo
+            # is not error handling, it is a blindfold.
+            logger.debug("shop lookup failed for %s at %s: %s", barcode, shop["key"], e)
+            continue
+    return None
+
 
 _UPCITEMDB_TRIAL = "https://api.upcitemdb.com/prod/trial/lookup"
 # The "Open * Facts" family — free, keyless, unlimited. FOOD is the big one (3M+ products: drinks,
@@ -63,15 +188,29 @@ async def lookup_product(barcode: str | None, name: str | None = None) -> dict:
     barcode = (barcode or "").strip()
     name = (name or "").strip()
     out: dict = {
-        "found": False, "source": None, "title": None, "brand": None, "category": None,
+        "found": False, "source": None, "source_label": None, "source_url": None,
+        "wholesale": False,
+        "title": None, "brand": None, "category": None,
         "description": None, "images": [], "lang_hint": None, "quota": None,
         "google_url": _google_url(barcode, name), "note": None,
     }
+    # NOTE THE ABSENCE OF A PRICE, AND KEEP IT. Every source here quotes somebody else's
+    # price — a wholesaler's case price, a foreign retailer's shelf price — and none of them
+    # is what this shop charges. The operator types the price. That has always been true of
+    # this function; RESOLVABLE_SHOPS makes it load-bearing.
     if not barcode:
         out["note"] = "no_barcode"      # nothing to auto-resolve — hand back the Google (name) link
         return out
 
     async with httpx.AsyncClient(timeout=_TIMEOUT, headers={"User-Agent": "Banco/1.0"}) as c:
+        # 0) SHOPS THAT ANSWER AN EAN — first, because for this trade they hit far more often
+        #    than the generic databases below (see RESOLVABLE_SHOPS). Costs one GET.
+        shop_hit = await _shop_lookup(c, barcode)
+        if shop_hit:
+            out.update(shop_hit)
+            out["images"] = await _reachable_images(c, out["images"])
+            return out
+
         # 1) UPCitemdb trial — rich + rate-limited. Read the quota straight off the headers.
         try:
             r = await c.get(_UPCITEMDB_TRIAL, params={"upc": barcode})

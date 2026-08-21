@@ -1612,11 +1612,19 @@ async def web_lookup_product(
     name: str = "",
     current_user: dict = Depends(require_any_pos_role()),
 ):
-    """Tier-2 'search the web' — resolve an unknown product by BARCODE against free, keyless barcode
-    databases (UPCitemdb trial → Open Products Facts), so the till/receiving auto-fills
-    title/brand/category/description/images and the human confirms. Returns up to 6 images for a
-    pick-one picker (we store one). Quota-aware (how many free lookups are left today),
-    language-flagged, with a Google URL fallback. Any POS role — Pam uses it at the till."""
+    """Tier-2 'search the web' — resolve an unknown product by BARCODE, so the till/receiving
+    auto-fills title/description/images and the human confirms.
+
+    Order, best-first: SHOPS THAT ANSWER AN EAN (RESOLVABLE_SHOPS — Kings Castle today) →
+    UPCitemdb trial → Open Products Facts → a Google URL. The shop tier goes first because for
+    a Swiss headshop it hits far more often: the generic databases are food and mass-market
+    heavy, and a Purize mouthpiece or a LocalWeed vape kit is in neither.
+
+    Returns up to 6 images for a pick-one picker (we store one). Quota-aware, language-flagged.
+    Any POS role — Pam uses it at the till.
+
+    ⚠️ NEVER RETURNS A PRICE, from any tier. Every source here quotes somebody else's number —
+    a wholesaler's case price most of all — and none of them is what this shop charges."""
     from src.services.web_product_lookup import lookup_product
     return await lookup_product(barcode, name)
 
@@ -12382,7 +12390,14 @@ async def pos_hardware(request: Request):
 #
 # SWISS-SPECIFIC, and it should become a store setting — a shop in Italy needs its own list.
 # Kept here, named and commented, rather than buried in a template.
+# Sites that can be RESOLVED inline (an EAN search that redirects to the article) get a
+# scoped-search button too — a shop that answers our lookup is by definition worth a click.
+# Sourced from the service so the two lists cannot drift apart.
+from src.services.web_product_lookup import RESOLVABLE_SHOPS as _RESOLVABLE_SHOPS
+
 EAN_LOOKUP_SITES = [
+    {"label": s["label"], "domain": s["domain"], "why": s["why"]} for s in _RESOLVABLE_SHOPS
+] + [
     {"label": "420", "domain": "fourtwenty.ch",
      "why": "publishes EAN + a full spec table on every article (~10,000 items, DE + EN)"},
     # Added 2026-07-31 after Angel resolved a code here that 420 did not carry. Verified: its
