@@ -259,6 +259,17 @@
                     </button>
                     <p x-show="k.cost !== null && k.cost !== undefined" style="display:none"
                        class="text-[11px] text-gray-400" x-text="'cost ' + fmt(k.cost)"></p>
+                    <!-- 🏷️ THE DEAL, ON THE ROW.
+                         2026-08-21, Angel looking at nine rolls he was about to re-check:
+                         "wait these are rolls and they should be checked for tier pricing also."
+                         They all HAD it. He could not tell, because this row shows the price and
+                         says nothing about the deal — so the only way to know was to open each
+                         one, which is the exact complaint that put the price here this morning.
+                         Same gap, one level down. The bench card has said this for hours. -->
+                    <p x-show="rowDeal(k)" style="display:none"
+                       class="text-[11px] text-indigo-700 font-semibold" x-text="rowDeal(k)"></p>
+                    <p x-show="!rowDeal(k)" style="display:none"
+                       class="text-[11px] text-gray-400">no deal</p>
                   </div>
                   <div x-show="k.editing" style="display:none" class="flex items-center gap-1 justify-end">
                     <input type="number" step="0.05" min="0" x-model="k.newPrice"
@@ -1006,6 +1017,21 @@ function shelfIntake() {
           ? 'Only a manager can change a price that is already set'
           : ((e && e.message) || 'Could not apply');
       } finally { k.savingPrice = false; this.save(); }
+    },
+
+    // The deal in words, or '' when there is none. Absence and presence must LOOK different:
+    // a row with the right price and a missing deal is wrong at the till in the direction that
+    // costs money, and it looked identical to a finished one.
+    rowDeal(k) {
+      const t = k.price_tiers;
+      if (!t || !t.length) return '';
+      const parts = [];
+      for (const r of t.slice(0, 2)) {
+        const q = r.min_qty, p = r.unit_price;
+        if (q == null || p == null) continue;
+        parts.push(k.tier_mode === 'bundle' ? `${q} for ${this.fmt(p)}` : `${q}+ at ${this.fmt(p)} ea`);
+      }
+      return parts.length ? '🏷️ ' + parts.join(' · ') : '';
     },
 
     // How many rows on this list are the SAME catalogue product. Counts across the whole

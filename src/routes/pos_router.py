@@ -1019,6 +1019,9 @@ async def catalog_shelf_intake_triage(
             "sku": product.sku,
             "price": float(product.price) if product.price is not None else None,
             "cost": float(product.cost) if product.cost is not None else None,
+            # the deal, so the shelf row can show it — see rowDeal() in shelf_intake.html
+            "price_tiers": (product.price_tiers or None),
+            "tier_mode": (product.tier_mode or None),
             "image_url": product.image_url,
             "category": product.category,
             "is_active": bool(product.is_active),
@@ -1085,6 +1088,9 @@ async def catalog_shelf_intake_recheck(
             "sku": product.sku,
             "price": float(product.price) if product.price is not None else None,
             "cost": float(product.cost) if product.cost is not None else None,
+            # the deal, so the shelf row can show it — see rowDeal() in shelf_intake.html
+            "price_tiers": (product.price_tiers or None),
+            "tier_mode": (product.tier_mode or None),
             "image_url": product.image_url,
             "category": product.category,
             "is_active": bool(product.is_active),
