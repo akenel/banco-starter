@@ -25,11 +25,17 @@
 
 {% block content %}
 <div class="min-h-screen bg-gray-50" x-data="missList()" x-init="load()">
-  <!-- A CASHIER SEES THE LIST, NOT THE LEVERS. Angel: "we could have Pam at least a preview of
-       the stuff not found — better than nothing for the cashier." Seeing which codes keep
-       failing is knowing your own shop; she is the one holding the packets and may recognise a
-       row a manager cannot. But "What is it?" and "Bind" stay manager-only, so a queue can
-       never turn into an enrichment session — which is the whole reason this is a desk screen. -->
+  <!-- A CASHIER GETS THE LEVERS TOO. I gated "What is it?" and "Bind" to managers on first
+       build, reasoning that a queue must not become an enrichment session. Angel, testing it:
+       "Pam she could say 'you know that is right' to Ralph, but here we are stuck — we just
+       need the binder key."
+
+       He is right and so is the codebase, which already disagreed with me: `add_product_barcode`
+       is deliberately `require_any_pos_role()`, commented "cashiers capture: link a scanned
+       code" — Banco's born-once / sell-to-seed spirit, the person on the floor grows the
+       catalogue by selling. I had made this ONE screen stricter than the till it feeds.
+       The queue is kept out by this being a DESK screen nobody reaches mid-sale, not by
+       crippling the person most likely to recognise the packet. -->
   <div class="max-w-5xl mx-auto px-4 py-6">
 
     <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
@@ -65,8 +71,8 @@
     <div x-show="!user.isManager" x-cloak style="display:none"
          class="card border-2 border-slate-300 bg-slate-50 mb-4">
       <p class="text-sm text-slate-800">
-        👀 <b>You're looking, not fixing.</b> These are the codes the till couldn't find — if you
-        recognise one, tell the manager what it is. That's worth more than anything on this page.
+        👀 <b>You know the packets better than anyone.</b> These are the codes the till couldn't
+        find. If you recognise one, look it up and bind it — the next person to scan it gets a hit.
       </p>
     </div>
 
@@ -109,7 +115,7 @@
           <div class="flex gap-2 flex-wrap flex-none">
             <span x-show="m.resolved_ean" x-cloak style="display:none"
                   class="text-sm font-semibold text-emerald-700 self-center">✅ done</span>
-            <button x-show="user.isManager && !m.resolved_ean && !m.lookup" @click="lookup(m)" :disabled="m.busy"
+            <button x-show="!m.resolved_ean && !m.lookup" @click="lookup(m)" :disabled="m.busy"
                     class="btn-primary text-sm">
               <span x-show="!m.busy">🔎 What is it?</span>
               <span x-show="m.busy" style="display:none">Looking…</span>
@@ -151,13 +157,12 @@
           <div x-show="m.lookup && m.lookup.title" class="mt-3">
             <div class="flex items-center gap-2 mb-1">
               <p class="text-sm font-semibold text-gray-800">Is it already in your catalogue?</p>
-              <button x-show="user.isManager && !m.matches" @click="findInCatalog(m)" :disabled="m.busy"
+              <button x-show="!m.matches" @click="findInCatalog(m)" :disabled="m.busy"
                       class="btn-secondary text-xs">Look</button>
             </div>
             <p x-show="m.matches && m.matches.length === 0" x-cloak style="display:none"
                class="text-sm text-gray-500">
-              No match by that name — this is a genuinely new product. Add it from the
-              <a href="/pos/catalog" class="text-indigo-600 underline">Catalogue</a>.
+              No match by that name — this looks like a genuinely new product.
             </p>
             <div x-show="m.matches && m.matches.length" x-cloak style="display:none"
                  class="max-h-96 overflow-y-auto divide-y border rounded-lg">
@@ -171,7 +176,7 @@
                     <span class="block text-xs text-gray-400 font-mono" x-text="(p.sku || '') + (p.barcode ? ' · ' + p.barcode : ' · no barcode')"></span>
                   </span>
                   <span x-text="formatPrice(p.price)" class="text-sm font-bold text-indigo-600 flex-none"></span>
-                  <button x-show="user.isManager" @click="bind(m, p)" :disabled="m.busy" class="btn-success text-sm flex-none">
+                  <button @click="bind(m, p)" :disabled="m.busy" class="btn-success text-sm flex-none">
                     🔗 Bind
                   </button>
                 </div>
@@ -181,6 +186,44 @@
               Binding puts <b x-text="m.barcode"></b> on that product. It scans at the till from
               then on, and this row leaves the list.
             </p>
+
+            <!-- ⚠️ AND THE WAY OUT WHEN NONE OF THEM IS IT.
+                 Angel, 2026-08-21, looking at this exact screen: the code was "Purize Xtra Slim
+                 6mm im Glas — yellow, 100 Stk." and the four offered matches were 10stk, 50stk
+                 gelb, 50stk grün and 250stk blau. NOT ONE of them was the same product — so the
+                 screen was showing four Bind buttons and no way to say "it is none of these".
+                 That is not a dead end, it is an INVITATION to the wrong-pack-size bind this
+                 shop keeps paying for. A list of near-misses without a "none of these" is worse
+                 than an empty list.
+                 The old text here said "add it from the Catalogue", which meant retyping a name,
+                 a photo and a class we are already holding. -->
+            <div class="mt-3 pt-3 border-t border-gray-200">
+              <p class="text-sm font-semibold text-gray-800 mb-1">
+                <span x-show="m.matches && m.matches.length">None of them is it?</span>
+                <span x-show="m.matches && !m.matches.length">Add it to your catalogue</span>
+                — create it with this code
+              </p>
+              <p class="text-xs text-gray-500 mb-2">
+                Name, photo and category come from
+                <b x-text="(m.lookup && (m.lookup.source || '')) || 'the lookup'"></b>.
+                <b x-text="m.barcode"></b> goes on as its barcode, so it scans next time.
+                <span class="text-gray-700">Check the pack size against the packet first.</span>
+              </p>
+              <div class="flex items-end gap-2 flex-wrap">
+                <div>
+                  <label class="block text-xs text-gray-600 mb-1">Your price (CHF)</label>
+                  <input type="number" step="0.05" min="0" x-model="m.newPrice"
+                         @keyup.enter="createFromLookup(m)" placeholder="0.00"
+                         class="input-field text-lg font-bold" style="max-width:9rem">
+                </div>
+                <button @click="createFromLookup(m)" :disabled="m.busy || !(Number(m.newPrice) > 0)"
+                        class="btn-primary">➕ Create it</button>
+                <span x-show="m.lookup && m.lookup.wholesale" x-cloak style="display:none"
+                      class="text-[11px] text-amber-800">
+                  the supplier price is a case — type what YOU charge
+                </span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -208,7 +251,7 @@
           const r = await API.get('/api/v1/pos/catalog-misses?limit=200&include_resolved='
                                   + (this.includeResolved ? 'true' : 'false'));
           this.items = (r.items || []).map(i => ({
-            ...i, busy: false, lookup: null, matches: null, msg: '', ok: false,
+            ...i, busy: false, lookup: null, matches: null, msg: '', ok: false, newPrice: '',
           }));
         } catch (e) {
           this.error = (e && e.message) || 'Could not load the list.';
@@ -228,7 +271,10 @@
           if (r0) {
             hit = { source: (r0.supplier || 'reference'), title: r0.name || r0.title,
                     image: r0.image_url, price: r0.price != null ? r0.price : r0.suggested_price,
-                    wholesale: false };
+                    // The reference row's own id — with it, creating goes through the TESTED
+                    // adopt path (canonical title, description, photo, class, idempotent) instead
+                    // of a hand-rolled create that would quietly lose three of those four.
+                    refId: r0.id, wholesale: false };
           } else {
             const w = await API.get('/api/v1/pos/products/web-lookup?barcode='
                                     + encodeURIComponent(m.barcode));
@@ -240,6 +286,11 @@
           // An empty object, not null: `x-show="m.lookup"` must open the panel even when the
           // answer is "nobody knows", or pressing the button would look like nothing happened.
           m.lookup = hit || {};
+          // Prefill ONLY from our own reference. A wholesaler's number is a case price and
+          // prefilling it would put a 10x figure one Enter away from the shelf.
+          if (hit && !hit.wholesale && hit.price != null && !(Number(m.newPrice) > 0)) {
+            m.newPrice = hit.price;
+          }
           if (hit) this.findInCatalog(m);
         } catch (e) {
           m.msg = 'Lookup failed: ' + ((e && e.message) || e); m.ok = false;
@@ -270,6 +321,44 @@
         } catch (e) {
           m.ok = false;
           m.msg = 'Could not bind: ' + ((e && e.message) || e);
+        } finally { m.busy = false; }
+      },
+
+      // "It is none of these." Create the product from what the lookup already handed us and
+      // put the scanned code on it — the action that was missing entirely, and the only correct
+      // one when the offered matches are all different pack sizes.
+      //
+      // Two routes on purpose: a REFERENCE hit goes through /reference/{id}/adopt, which is
+      // tested, idempotent, and copies the canonical description, image, category and class.
+      // A shop-tier hit has no reference row, so it is a plain create carrying name, photo and
+      // the code. Never a price from the source — the operator types what this shop charges.
+      async createFromLookup(m) {
+        const price = Number(m.newPrice);
+        if (!(price > 0)) { m.ok = false; m.msg = 'Set your price first.'; return; }
+        m.busy = true; m.msg = '';
+        try {
+          let p;
+          if (m.lookup && m.lookup.refId) {
+            p = await API.post(`/api/v1/pos/reference/${m.lookup.refId}/adopt`,
+                               { barcode: m.barcode, price: String(price) });
+          } else {
+            p = await API.post('/api/v1/pos/products', {
+              sku: 'MISS-' + m.barcode,
+              barcode: m.barcode,
+              name: (m.lookup && m.lookup.title) || ('Item ' + m.barcode),
+              price: price,
+              image_url: (m.lookup && m.lookup.image) || null,
+              // The supplier shops we ask are German-language; saying so beats letting it land
+              // NULL, which every downstream screen reads as English.
+              source_lang: 'de',
+            });
+          }
+          m.ok = true;
+          m.msg = '✅ Created ' + (p && p.name ? p.name : '') + ' — ' + m.barcode + ' scans at the till now.';
+          m.resolved_ean = m.barcode;
+        } catch (e) {
+          m.ok = false;
+          m.msg = 'Could not create it: ' + ((e && e.message) || e);
         } finally { m.busy = false; }
       },
 

@@ -14,7 +14,8 @@ wrong when this was built, on 2026-08-21:
 import re
 
 from src.services.web_product_lookup import (
-    RESOLVABLE_SHOPS, _OG, _TITLE_PRICE_TAIL, looks_like_search_page, parse_shop_page,
+    RESOLVABLE_SHOPS, _OG, _TITLE_PRICE_TAIL, _TITLE_CUT_VERB,
+    looks_like_search_page, parse_shop_page,
 )
 
 KC = next(s for s in RESOLVABLE_SHOPS if s["key"] == "kingscastle")
@@ -145,3 +146,36 @@ def test_a_page_with_no_og_tags_is_a_miss_not_a_crash():
 def test_the_url_signal_on_its_own():
     assert looks_like_search_page(MISS_URL)
     assert not looks_like_search_page(HIT_URL)
+
+
+# ---- the source truncates its OWN title (2026-08-21) --------------------------------
+#
+# Kings Castle caps og:title at 80 chars. A long name arrives with "kaufen" chopped:
+#   "…Xtra Slim 6mm im Glas - yellow (100 Stk.) kau, 19.90 CHF"
+# The price strip is correct and STILL leaves "kau" welded to the product name. That went
+# into the sandbox catalogue before Angel read it in the success message and said so.
+
+TRUNC_HTML = (
+    '<meta property="og:title" content="Purize Aktivkohlefilter Xtra Slim 6mm im Glas'
+    ' - yellow (100 Stk.) kau, 19.90 CHF">\n'
+)
+
+
+def test_a_title_the_source_itself_truncated_does_not_keep_half_a_verb():
+    out = parse_shop_page(TRUNC_HTML, HIT_URL, "4260748411544", KC)
+    assert out["title"] == "Purize Aktivkohlefilter Xtra Slim 6mm im Glas - yellow (100 Stk.)"
+    assert not out["title"].endswith("kau")
+    assert "CHF" not in out["title"]
+
+
+def test_every_partial_of_kaufen_is_cut():
+    base = "Some Product 50Stk."
+    for tail in ("kaufen", "kaufe", "kauf", "kau"):
+        assert _TITLE_CUT_VERB.sub("", f"{base} {tail}").strip() == base, tail
+
+
+def test_a_real_name_ending_in_a_short_word_survives():
+    # Only 3+ characters are cut, so these must come through untouched. A rule that eats
+    # " K" or " Ka" would quietly rename real products.
+    for name in ("Vape Pod 2ml K", "Grinder Ka", "Blunt Wrap OK", "Papers Kb"):
+        assert _TITLE_CUT_VERB.sub("", name).strip() == name, name

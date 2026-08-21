@@ -68,6 +68,17 @@ _OG = {
 # number into the catalogue by the back door.
 _TITLE_PRICE_TAIL = re.compile(r"[,\s]*(?:kaufen[,\s]*)?[\d'’.,]+\s*(?:CHF|EUR)\s*$", re.I)
 
+# …AND THE VERB THE SOURCE ITSELF CHOPPED IN HALF.
+#
+# Kings Castle caps og:title at 80 characters, so a long name arrives as
+#   "Purize Aktivkohlefilter Xtra Slim 6mm im Glas - yellow (100 Stk.) kau, 19.90 CHF"
+# The price strip above is correct and still leaves "kau" welded to the product name — which
+# is what went into the sandbox catalogue on 2026-08-21 before Angel spotted it in the success
+# message. Stripping the price is not enough when the SOURCE is truncated.
+#
+# Only 3+ characters, so a real name ending in " Ka" or " K" survives untouched.
+_TITLE_CUT_VERB = re.compile(r"\s+(?:kaufen|kaufe|kauf|kau)$", re.I)
+
 
 def looks_like_search_page(url: str) -> bool:
     """A miss stays on the search URL; a hit lands on an article path.
@@ -92,6 +103,7 @@ def parse_shop_page(html: str, final_url: str, barcode: str, shop: dict) -> dict
     # and on a wholesaler that is the CASE price. Left in, it rides into the catalogue as part
     # of the product's name and no later screen would ever question it.
     title = _TITLE_PRICE_TAIL.sub("", (m.group(1) if m else "")).strip()
+    title = _TITLE_CUT_VERB.sub("", title).strip()
     if not title or title == barcode:
         return None        # the echo case: a miss page titles itself with the code
     desc = _OG["description"].search(html or "")
