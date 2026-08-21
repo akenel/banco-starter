@@ -680,11 +680,42 @@
                                                   x-text="(parseFloat(form.price) < parseFloat(m.suggested_price) ? '▼ −' : '▲ +') + formatPrice(Math.abs(parseFloat(form.price) - parseFloat(m.suggested_price)))"></span>
                                             <span class="text-gray-500" x-show="m.cost != null" x-text="t('catalog.cmp_cost') + ' ' + formatPrice(m.cost)"></span>
                                         </div>
-                                        <div class="flex gap-2 mt-1.5" x-show="m.image_url || m.description">
-                                            <img x-show="m.image_url" :src="m.image_url" @click="openLightbox(m.image_url, m.title || m.supplier)" loading="lazy" alt=""
-                                                 class="w-16 h-16 rounded object-cover border flex-none bg-white cursor-zoom-in hover:ring-2 hover:ring-blue-400" :title="t('catalog.cmp_enlarge')">
-                                            <p class="text-gray-500 flex-1 min-w-0 line-clamp-4" x-show="m.description" x-text="m.description"></p>
+                                        <!-- 👀 YOURS BESIDE THEIRS — the cheapest defence there is.
+                                             Angel, after the Coca-Cola bong: "the similar from 420 sort of
+                                             threw me off. We should have the original pic better displayed
+                                             on the edit page, and an option to look at it again if you want
+                                             to compare — that second look helps."
+                                             He is right, and it is the whole answer to this class of bug.
+                                             Every warning added today is WORDS about whether two things are
+                                             the same; two pictures side by side settle it in a glance, and a
+                                             glance is all anybody will spend. The edit screen was showing
+                                             only the supplier's photo — so the operator was comparing their
+                                             suggestion against a memory.
+                                             object-contain on white, not cover: cropping hides the shape and
+                                             the shape is the whole point of looking. Either one enlarges. -->
+                                        <div class="flex gap-2 mt-1.5 items-start" x-show="m.image_url || m.description || form.image_url">
+                                            <div x-show="form.image_url" class="flex-none text-center">
+                                                <img :src="form.image_url" @click="openLightbox(form.image_url, form.name || 'your photo')"
+                                                     loading="lazy" alt=""
+                                                     class="w-24 h-24 rounded object-contain bg-white border-2 border-indigo-300 cursor-zoom-in hover:ring-2 hover:ring-indigo-400"
+                                                     :title="t('catalog.cmp_yours')">
+                                                <p class="text-[10px] font-semibold text-indigo-700 mt-0.5" data-i18n="catalog.cmp_yours">👀 yours</p>
+                                            </div>
+                                            <div x-show="m.image_url" class="flex-none text-center">
+                                                <img :src="m.image_url" @click="openLightbox(m.image_url, m.title || m.supplier)" loading="lazy" alt=""
+                                                     class="w-24 h-24 rounded object-contain bg-white border flex-none cursor-zoom-in hover:ring-2 hover:ring-blue-400"
+                                                     :title="t('catalog.cmp_enlarge')">
+                                                <p class="text-[10px] text-gray-500 mt-0.5" x-text="m.supplier"></p>
+                                            </div>
+                                            <!-- description beside ONE photo, under TWO — at 96px each there is
+                                                 no column left, and a spec list five words wide is not read. -->
+                                            <p class="text-gray-500 flex-1 min-w-0 line-clamp-4"
+                                               x-show="m.description && !(m.image_url && form.image_url)" x-text="m.description"></p>
                                         </div>
+                                        <p class="text-gray-500 mt-1 line-clamp-3"
+                                           x-show="m.description && m.image_url && form.image_url" x-text="m.description"></p>
+                                        <p x-show="form.image_url && m.image_url" class="text-[10px] text-gray-400 mt-0.5"
+                                           data-i18n="catalog.cmp_look">🔍 Tap either picture to see it big — same shape? same size? same fitting?</p>
                                         <div class="flex items-center gap-2 mt-1.5 flex-wrap">
                                             <button type="button" @click="pullAll(m)"
                                                     :class="cmpWeak(m)
