@@ -626,21 +626,56 @@
                         <template x-if="form.compare && form.compare.matches && form.compare.matches.length">
                             <div class="mt-1.5 border-t border-gray-200 pt-1.5 space-y-2">
                                 <template x-for="m in form.compare.matches" :key="m.ref_id">
-                                    <div class="text-xs border border-gray-200 rounded-lg p-2 bg-gray-50">
+                                    <div class="text-xs border rounded-lg p-2"
+                                         :class="cmpWeak(m) ? 'border-amber-300 bg-amber-50' : 'border-gray-200 bg-gray-50'">
+
+                                        <!-- ⚠️ A WEAK NAME MATCH IS NOT A PRICE COMPARISON.
+                                             Angel, 2026-08-21: he photographed a Coca-Cola bottle bong, the
+                                             picker correctly found HIS row (Bong Cola Rasta 18mm, TAM-4690,
+                                             CHF 9.00) — and this panel then attached "Bong Rasta 18cm" from
+                                             FourTwenty at 54%, a Black Leaf GLASS bong, CHF 15.00, with
+                                             "✓ you beat it · ▼ −CHF 6.00" and a primary blue "Use all these
+                                             details". Different product, different barcode, different
+                                             material. He read it as the system overruling his pick.
+                                             Nothing was overwritten — but one tap and his bottle bong would
+                                             have worn a glass bong's photo, specs and supplier.
+                                             `_reference_best_match` already states the rule this screen was
+                                             ignoring: "Barcode is proof, so an exact code wins outright. A
+                                             name is evidence, so it must be STRONG (>=0.80) before we'd act
+                                             on it unattended ... binding the sibling is the wrong-picture
+                                             failure we keep paying for." The compare endpoint surfaces from
+                                             0.25 — fine for LOOKING, never for a one-tap overwrite.
+                                             So below the bar: no price comparison (it asserts they are the
+                                             same thing), the pull actions demoted out of primary, and the
+                                             caveat moved from a grey footnote to the top in amber. -->
+                                        <p x-show="cmpWeak(m)" x-cloak style="display:none"
+                                           class="text-amber-900 font-semibold mb-1 leading-snug">
+                                            ⚠️ <span data-i18n="catalog.cmp_weak">Only a
+                                            <span x-text="Math.round((m.similarity||0)*100)"></span>% name match —
+                                            probably a DIFFERENT product.</span>
+                                            <span class="font-normal" data-i18n="catalog.cmp_weak_help">Compare the
+                                            photo and the size before you take anything from it.</span>
+                                        </p>
+                                        <p x-show="cmpCodeClash(m)" x-cloak style="display:none"
+                                           class="text-rose-800 font-semibold mb-1 font-mono leading-snug">
+                                            🔴 <span x-text="'yours: ' + form.barcode"></span> ·
+                                            <span x-text="'theirs: ' + m.barcode"></span>
+                                        </p>
+
                                         <div class="flex items-center gap-2 flex-wrap"
-                                             :class="parseFloat(form.price) > 0 && m.suggested_price && parseFloat(form.price) < parseFloat(m.suggested_price) ? 'text-green-600 font-semibold' : 'text-gray-600'">
+                                             :class="!cmpWeak(m) && parseFloat(form.price) > 0 && m.suggested_price && parseFloat(form.price) < parseFloat(m.suggested_price) ? 'text-green-600 font-semibold' : 'text-gray-600'">
                                             <span class="text-gray-400" data-i18n="catalog.found_on">Found on</span>
                                             <span class="font-semibold" x-text="m.supplier"></span>
                                             <b x-text="formatPrice(m.suggested_price)"></b>
-                                            <span x-show="parseFloat(form.price) > 0 && m.suggested_price && parseFloat(form.price) < parseFloat(m.suggested_price)" data-i18n="catalog.beats_supplier">✓ you beat it</span>
-                                            <span x-show="parseFloat(form.price) > 0 && m.suggested_price && parseFloat(form.price) > parseFloat(m.suggested_price)" data-i18n="catalog.above_supplier">— above supplier price</span>
+                                            <span x-show="!cmpWeak(m) && parseFloat(form.price) > 0 && m.suggested_price && parseFloat(form.price) < parseFloat(m.suggested_price)" data-i18n="catalog.beats_supplier">✓ you beat it</span>
+                                            <span x-show="!cmpWeak(m) && parseFloat(form.price) > 0 && m.suggested_price && parseFloat(form.price) > parseFloat(m.suggested_price)" data-i18n="catalog.above_supplier">— above supplier price</span>
                                             <span class="text-gray-400" x-show="m.similarity != null"><span x-text="Math.round(m.similarity*100)"></span>%</span>
                                         </div>
                                         <!-- BL-32+: the reference's own NAME (confirm it's the same item) + quick stats
                                              (price delta vs your price · supplier cost); the photo enlarges on click. -->
                                         <div class="text-gray-700 font-medium mt-1 truncate" x-show="m.title" x-text="m.title"></div>
                                         <div class="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5" x-show="m.suggested_price != null || m.cost != null">
-                                            <span x-show="parseFloat(form.price) > 0 && m.suggested_price != null"
+                                            <span x-show="!cmpWeak(m) && parseFloat(form.price) > 0 && m.suggested_price != null"
                                                   :class="parseFloat(form.price) < parseFloat(m.suggested_price) ? 'text-green-600 font-semibold' : 'text-amber-600 font-semibold'"
                                                   x-text="(parseFloat(form.price) < parseFloat(m.suggested_price) ? '▼ −' : '▲ +') + formatPrice(Math.abs(parseFloat(form.price) - parseFloat(m.suggested_price)))"></span>
                                             <span class="text-gray-500" x-show="m.cost != null" x-text="t('catalog.cmp_cost') + ' ' + formatPrice(m.cost)"></span>
@@ -651,7 +686,10 @@
                                             <p class="text-gray-500 flex-1 min-w-0 line-clamp-4" x-show="m.description" x-text="m.description"></p>
                                         </div>
                                         <div class="flex items-center gap-2 mt-1.5 flex-wrap">
-                                            <button type="button" @click="pullAll(m)" class="px-2.5 py-1 rounded-md bg-blue-600 text-white font-semibold hover:bg-blue-700">
+                                            <button type="button" @click="pullAll(m)"
+                                                    :class="cmpWeak(m)
+                                                      ? 'px-2.5 py-1 rounded-md border border-gray-400 text-gray-600 font-normal hover:bg-gray-100'
+                                                      : 'px-2.5 py-1 rounded-md bg-blue-600 text-white font-semibold hover:bg-blue-700'">
                                                 ⤵ <span data-i18n="catalog.use_all">Use all these details</span>
                                             </button>
                                             <span class="text-gray-300">·</span>
@@ -1303,6 +1341,23 @@
                     category: '', product_class: 'standard', supplier_name: '', image_url: '',
                     is_age_restricted: false,
                 };
+            },
+
+            // The bar `_reference_best_match` already names: "a name is evidence, so it must be
+            // STRONG (>=0.80) before we'd act on it unattended". The compare endpoint surfaces
+            // matches from 0.25, which is right for LOOKING and wrong for a one-tap overwrite.
+            cmpWeak(m) {
+                const s = (m && m.similarity);
+                return s != null && s < 0.80;
+            },
+            // Two real barcodes that differ = two products, nearly always. A MINTED 2xxxxxxxxxxxx
+            // on our side is excluded: that means "we never knew the real one", and taking the
+            // supplier's code is the healing this catalogue needs on 4,998 rows.
+            cmpCodeClash(m) {
+                const mine = (this.form.barcode || '').trim();
+                const theirs = (m && m.barcode || '').trim();
+                if (!mine || !theirs || mine === theirs) return false;
+                return !/^2[0-9]{12}$/.test(mine);
             },
 
             openCreate() {
