@@ -9,39 +9,45 @@
 > [`worklist-archive/done.md`](worklist-archive/done.md) with its commit hashes; when a thread
 > grows a long write-up, the write-up goes to the archive and a one-line pointer stays here.
 
-*Last updated: 2026-08-13.*
+*Last updated: 2026-08-21.*
 
 ---
 
-## 🔴 FIXED TODAY, FOUND BY ANGEL IN TEN MINUTES OF ORDINARY USE — 2026-08-13
+## 🔴 SIX REPORTS FROM THE TILL — 2026-08-20 (BL-9…BL-14) → [the evidence](worklist-archive/2026-08-20-till-reports.md)
 
-**Silent token refresh had NEVER worked in the sandbox.** He pressed a refusal button
-mid-testsheet, was logged out, and **the refusal was never recorded** — the exact failure
-that feature exists to prevent. Keycloak's own log:
+**All six tagged `annoying`. Not one `blocking`.** Read that before reading Felix's verdict.
 
 ```
-REFRESH_TOKEN_ERROR  reason="Invalid token issuer.
-                      Expected 'http://keycloak:8080/realms/kc-pos-realm-dev'"
+5,446 products live · 4,998 carry a MINTED 2000000… barcode (92%)
+  414 findable by scanning the real packet (7.6%)
+   29 of 107 sold catalogue lines had a real EAN (27%)
 ```
 
-The browser logs in at `localhost:8090` so its token says `iss=http://localhost:8090/…`;
-`/pos/refresh` presented it to `keycloak:8080` from inside the network and Keycloak
-refused. **Every session hard-logged-out ~5 min after login.** `compose.prod.yml` pins
-`KC_HOSTNAME` and was always right — so the *broken* environment was the one where we
-decide whether things work.
+**Three of every four things Felix rings up cannot be scanned off the pack.** The buttons he
+hates — department strip + "new item" form + pending-code banner, stacked at once — *only
+appear because the scan missed.* Fewer buttons is the wrong fix; a scan that hits is the fix.
 
-**Suite is 44 checks now** — Angel's exact sequence (refuse → dead session → log back in →
-the record arrives, marked late) runs in 90 seconds.
+1. **🩸 THE LEAK — `scan.html:1385`.** `createNoCodeItem()` always mints, even when
+   `pendingBarcode` holds the code that just 404'd and the screen is *displaying* it. Every
+   item created today adds another unscannable row. = BL-9, BL-12, BL-13.
+   Sibling: `catalog.html:1297` never seeds Barcode from the search box, and its hint
+   *"leave it blank — a code is generated automatically"* is the bug written down as a feature.
+2. **📷 `catalog.html:1692`** — `if (!this.snapPreview)` plus an `openCreate()` that never
+   clears `snapPreview`/`snapName`/`pageUrl` ⇒ the panel shows the **previous** product's photo
+   under the words "read from this photo". = BL-10, BL-11.
+3. **BL-14 · the cursor** — title and body point opposite ways; needs 30 seconds of Angel
+   showing me. Plus two unlabelled buttons in his screenshot — **unverified**, could be an
+   html2canvas artifact, and a screen is checked in a browser.
+4. **The tablet** — no Chrome by default, Firefox search "no good". Not specified yet.
 
-**Fixed (`9f34f85`):** `KC_HOSTNAME_URL` pinned in `compose.yml`; `postboot-check.py` now
-logs in and refreshes **for real** as a critical check (sabotaged → NOT READY, restored →
-green); and the till **parks a refusal in `localStorage` before it posts**, flushing on
-next login, with the row saying `[recorded late …]`. `occurred_at` stays the server's
-clock — a client that can backdate evidence is not evidence.
+The 4,998 already in there: bind-on-scan is built (BL-90); 18 real aliases bound so far.
+**No bulk source exists — Tamar publishes no EAN.**
 
-⚠️ **No probe of mine could have found this.** They all finish in ~90 s with a fresh
-token, and a harness that finishes inside five minutes cannot see a five-minute timeout.
-Now pattern 6 in `CLAUDE.md`.
+---
+
+## 🔴 The silent-refresh bug — CLOSED 2026-08-13 → [`worklist-archive/2026-08-18plus-and-compliance.md`](worklist-archive/2026-08-18plus-and-compliance.md)
+
+Fixed in `9f34f85`; now pattern 6 in `CLAUDE.md` and a lesson in `LESSONS.md`.
 
 ---
 
@@ -118,30 +124,10 @@ worth doing when convenient — a lifecycle rule on `wolfhold-banco-backups` (22
 
 ---
 
-## ✅ THE 18+ EVIDENCE WORK IS DONE — HUMAN-GREEN 2026-08-13, Angel
+## ✅ The 18+ evidence work — DONE, human-green 2026-08-13 → [`worklist-archive/2026-08-18plus-and-compliance.md`](worklist-archive/2026-08-18plus-and-compliance.md)
 
-**He ran it, and he called it: *"it's working fine."*** Closed. Do not reopen it for another pass.
-
-Proven by his own hands, at the till, in German: **three real refusals made by a person and
-recorded** — 16:10:10 *no ID*, 16:11:39 and 16:14:20 *clearly under 18*. That was impossible
-two weeks ago and still impossible this morning.
-
-**His decisions, taken as final:**
-- **F2 · "Mitglied entfernen & weiter" stays as it is.** *"If the guy doesn't want the person's
-  name on there or the member, then they delete it, and they remove it."* The button is the
-  feature, not a hole. **Un-pin it** — the suite should stop printing it as a KNOWN GAP.
-- **H6 · the receipt is fine as it is.** It carries the 🔞 18+ chip per line
-  (`receipt.html:149`); it does not carry the basis, and it does not need to.
-
-*What survived from the machine side:* `scripts/prove-till-18plus.js` — 44 checks, runs in
-90 seconds, rings as `ralph` so its rows never masquerade as a person's. Keep running it before
-a promote; it is not a reason to run another human pass.
-
-⚠️ **My mistake to not repeat.** After he marked the sheet PASS and asked whether I agreed, I
-came back with three more findings — two of which were my own mess (my test rows sitting in his
-evidence, a step whose question his flow never reached). That is how a finished piece of work
-starts feeling unfinished. **When the human says it works, it works.** Standing rule 5 cuts both
-ways: a human confirming it is the finish line, not the start of another lap.
+Angel ran it and called it: *"it's working fine."* **Do not reopen it for another pass.**
+`scripts/prove-till-18plus.js` (45 checks, rings as `ralph`) still runs before a promote.
 
 ---
 
