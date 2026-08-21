@@ -764,6 +764,26 @@
                 </div>
                 <button @click="lazyOpen=false" class="text-gray-400 hover:text-gray-700 text-3xl leading-none flex-none">&times;</button>
             </div>
+
+            <!-- 🚪 THE WAY OUT, ABOVE EVERYTHING ELSE.
+                 Angel, 2026-08-21, on ~2,000 items and a queue: "on the fly — forget it. If it's
+                 super smooth fine, but soon as one is stuck they need to simply say ok not found,
+                 pick the Misc department and move on, and after hours do the look-up manually."
+                 He is right, and this panel had quietly made that HARDER: a tier-2/3 hit opens it
+                 OVER the department strip, so the escape was behind a ✕ that a cashier under
+                 pressure has to think about. One tap, top of the panel, before the search box.
+                 It hands the CODE BACK on the way out — the department line carries it
+                 (`unresolvedBarcode`, SPEC §4.2/§6), so the sale is clean AND the manager still
+                 has the breadcrumb for the after-hours pass. Bailing out loses nothing. -->
+            <div class="px-5 pt-4">
+                <button @click="bailToDepartment()"
+                        class="w-full py-3 rounded-lg border-2 border-slate-400 bg-slate-50 text-slate-800 font-bold text-base active:scale-95">
+                    ⏭️ <span data-i18n="scan.bail_to_dept">Not now — just sell it from a department</span>
+                </button>
+                <p class="text-xs text-gray-500 mt-1 text-center" data-i18n="scan.bail_help">
+                    The customer is waiting. The code is kept — tidy it up later.
+                </p>
+            </div>
             <div class="p-5 space-y-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="scan.scanned_barcode">Scanned barcode</label>
@@ -811,23 +831,30 @@
                         <span class="text-xs text-gray-500" data-i18n="scan.snap_help">No barcode? Photograph it — AI names it &amp; searches the catalog.</span>
                     </div>
                     <p x-show="aiNote" x-text="aiNote" class="text-xs text-indigo-700 font-medium mt-1" style="display:none;"></p>
-                    <div x-show="lazyLinkResults.length" class="mt-2 max-h-80 overflow-y-auto divide-y border rounded-lg" style="display:none;">
+                    <div x-show="lazyLinkResults.length" class="mt-2 max-h-96 overflow-y-auto divide-y border rounded-lg" style="display:none;">
                         <template x-for="p in lazyLinkResults" :key="p.id">
                             <!-- BL-102.1: row tap = bind (fast path). 👁 = preview WITHOUT binding
                                  (the bind is permanent). Bigger 64px thumbs so a match is easy to spot
-                                 on a phone — Angel's item was 4th and nearly missed at 48px. -->
+                                 on a phone — Angel's item was 4th and nearly missed at 48px.
+                                 2026-08-21, 96px and the WHOLE name: his own screenshot of four
+                                 actiTube rows read "Aktivkohlefilt…" four times at 8.50 / 6.90 /
+                                 8.90 / 10.90 — the truncation had eaten the only words that told
+                                 them apart, and the PICTURE was doing all the work. Angel: "what
+                                 is good is the eyeball — show it big and the real pic." So:
+                                 object-contain on white (cover was cropping the packaging that
+                                 identifies it), and the name wraps instead of being cut. -->
                             <div @click="linkToExisting(p)" class="px-3 py-2 hover:bg-blue-50 flex items-center gap-3 cursor-pointer"
                                  :class="lazySaving ? 'opacity-50 pointer-events-none' : ''">
                                 <img x-show="p.image_url" :src="p.image_url" loading="lazy" alt=""
                                      @click.stop="openPreview(p, 'catalog')"
-                                     class="w-16 h-16 rounded object-cover border flex-none">
-                                <span x-show="!p.image_url" class="w-16 h-16 rounded bg-gray-100 flex items-center justify-center text-gray-300 text-2xl flex-none">📦</span>
+                                     class="w-24 h-24 rounded object-contain bg-white border flex-none">
+                                <span x-show="!p.image_url" class="w-24 h-24 rounded bg-gray-100 flex items-center justify-center text-gray-300 text-3xl flex-none">📦</span>
                                 <span class="flex-1 min-w-0">
-                                    <span class="flex items-center gap-1.5">
+                                    <span class="flex items-start gap-1.5 flex-wrap">
                                         <!-- BL-128: SIZE badge leads the row so 2g vs 10g is a glance, not a read -->
                                         <span x-show="posProductSize(p.name)" x-text="posProductSize(p.name)"
                                               class="flex-none text-xs font-extrabold text-blue-800 bg-blue-100 rounded px-1.5 py-0.5"></span>
-                                        <span x-text="p.name" class="min-w-0 text-sm font-medium text-gray-900 truncate"></span>
+                                        <span x-text="p.name" class="min-w-0 text-sm font-medium text-gray-900 leading-snug break-words"></span>
                                         <!-- Why is a row with a DIFFERENT name being offered? Say so.
                                              A "schwarz" row answering a "black" search looks like a bug
                                              unless the screen explains itself. -->
@@ -850,16 +877,16 @@
                             <span class="inline-block px-1.5 py-0.5 rounded bg-purple-100 text-purple-700" data-i18n="scan.from_reference">From reference</span>
                             <span class="text-gray-500 font-normal" data-i18n="scan.from_reference_help">add to your shop — title &amp; photo come from the supplier</span>
                         </p>
-                        <div class="max-h-80 overflow-y-auto divide-y border border-purple-200 rounded-lg">
+                        <div class="max-h-96 overflow-y-auto divide-y border border-purple-200 rounded-lg">
                             <template x-for="r in refResults" :key="r.id">
                                 <div @click="selectReference(r)" class="px-3 py-2 hover:bg-purple-50 flex items-center gap-3 cursor-pointer"
                                      :class="(lazySaving ? 'opacity-50 pointer-events-none ' : '') + (refSelected && refSelected.id === r.id ? 'bg-purple-50' : '')">
                                     <img x-show="r.image_url" :src="r.image_url" loading="lazy" alt=""
                                          @click.stop="openPreview(r, 'ref')"
-                                         class="w-16 h-16 rounded object-cover border flex-none">
-                                    <span x-show="!r.image_url" class="w-16 h-16 rounded bg-gray-100 flex items-center justify-center text-gray-300 text-2xl flex-none">📦</span>
+                                         class="w-24 h-24 rounded object-contain bg-white border flex-none">
+                                    <span x-show="!r.image_url" class="w-24 h-24 rounded bg-gray-100 flex items-center justify-center text-gray-300 text-3xl flex-none">📦</span>
                                     <span class="flex-1 min-w-0">
-                                        <span x-text="r.title" class="block text-sm font-medium text-gray-900 truncate"></span>
+                                        <span x-text="r.title" class="block text-sm font-medium text-gray-900 leading-snug break-words"></span>
                                         <span class="block text-xs text-gray-400 truncate">
                                             <span x-text="r.supplier"></span><span x-show="r.category" x-text="' · ' + r.category"></span>
                                         </span>
@@ -1404,6 +1431,19 @@
                 } finally {
                     this.pendingWebBusy = false;
                 }
+            },
+
+            // Leave the panel and go sell it. See the button's comment above: at a till with a
+            // queue, the ability to give up in one tap is a feature, not a failure path.
+            bailToDepartment() {
+                const code = (this.lazyBarcode || '').trim();
+                this.lazyOpen = false;
+                this.pendingWeb = null;
+                // Hand the code BACK so the department line still carries it. Dropping it here
+                // would make bailing out cost the shop the one thing the scan produced.
+                this.pendingBarcode = code;
+                this.searchMode = 'catalog';
+                this.$nextTick(() => this.$refs.barcodeInput && this.$refs.barcodeInput.focus());
             },
 
             // Take the offer: open the find-and-bind panel with that name, exactly as a
