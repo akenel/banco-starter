@@ -110,3 +110,88 @@ siblings. Lesson 8: a wrong bind looks exactly like a right one.
    (`[[banco-left-the-monster-repo]]` — that IS the thesis.)
 
 ⚠️ Nothing here has been built. This file is the measurement, not the fix.
+
+---
+
+# Later the same day — the feed was stale, and a second source measured
+
+## The feed was nine months old, and that was most of my "35%"
+
+`fourtwenty-sync.py` (helixnet, KB-038) names three public URLs that still work:
+`fourtwenty.ch/Dropship/Data/dropship_{product feed_v2,specificationfeed_v1,stockfeed_v1}.csv`.
+
+| | rows | distinct real GTINs | matches Felix's 432 real-EAN packets |
+|---|---|---|---|
+| the copy in helixnet, 2025-11-30 | 10,082 | 9,425 | 153 (35%) |
+| downloaded today | 11,035 | 10,404 | **174 (40%)** |
+
+`--fetch` now does the download from inside banco-starter, so a refresh no longer needs the
+monster repo. `--prune` removes rows a later feed dropped (188 on the first refresh) and
+refuses when the feed is under half the loaded size — a truncated download must never be able
+to empty the shop's lookup table.
+
+## Their EANs are NOT different from the packet
+
+Angel: *"why would fourtwenty.ch have different EANs than what is on the actual package —
+something is just fundamentally wrong."*
+
+Nothing is. Where FourTwenty carries a product their code is the manufacturer's code:
+174 exact matches, and on Gizeh alone **9 of 16 match digit-for-digit including the 8-digit
+EAN-8s** — so there is no truncation or padding problem either. 13 feed-misses were searched
+on fourtwenty.ch by hand and **the site agreed with the feed 13 times out of 13**. The
+dropship feed is not a subset of the webshop; it is the webshop.
+
+The 60% that miss is COVERAGE. FourTwenty is one wholesaler.
+
+## Kings Castle — measured, and genuinely complementary
+
+`kingscastle.ch` is JTL-Shop and answers an EAN search at `?qs=<ean>`. Ten codes FourTwenty
+does **not** have:
+
+| EAN | Kings Castle |
+|---|---|
+| 4260641140046 | ✅ actiTube ActiveFilter 7mm — the BL-10 code nobody else had |
+| 4260748411032 | ✅ Purize Holzmundstück 6mm |
+| 798190264677 | ✅ LocalWeed VapeKit 40% CBD Purple Kush |
+| 42425700 · 42239512 · 42061199 (Gizeh) | ❌ |
+| 716165202400 · 716165174516 (Raw, Cyclones) | ❌ |
+| 3086126789880 (BIC) · 7630021913565 (American Spirit) | ❌ |
+| 7640244720505 (Blow CBD) | ❌ |
+
+**3 of 11 — and all three are ones FourTwenty lacks.** Estimated combined reach ≈ 40% + 16%
+≈ **56%**. Nothing else we have covers Purize, actiTube variants or LocalWeed.
+
+⚠️ **Take the name, the photo and the EAN — NEVER the price.** Kings Castle is a wholesaler
+and lists cases: EAN `4260641140046` returned *"actiTube ActiveFilter 7mm (10 x 50Stk) —
+CHF 99.00"* while the single sits on the same page at CHF 9.90. Auto-filling that price would
+be wrong by 10×, and it is the multipack-shares-a-GTIN trap again, from a new direction.
+
+**No feed needed for this one:** `/catalog/page-facts` already reads a product page for name,
+price, photo and EAN. The missing piece is only *search Kings Castle by EAN* as a tier below
+the reference.
+
+## Tamar: closed, not deferred
+
+`helixnet/src/services/supplier_search/tamar.py:104` returns `barcode=None`, hardcoded. Tamar
+publishes no EAN and never will through that adapter. And
+`b2b.fourtwenty.ch/b2b_de/uber-uns/downloads.html` carries only safety sheets, lab analyses,
+manuals and press kits — no product feed.
+
+## ⛔ THE PROD IMPORT IS BLOCKED, AND ON PURPOSE
+
+Dry-run on Felix's box, 2026-08-21:
+
+```
+prod (999800d)    18+ by our classifier :  959
+sandbox (today)   18+ by our classifier :  982
+```
+
+The 23-row gap **is the alcohol fix**. Prod's `classify()` still has no layer-2 alcohol branch,
+so importing there today would load ~22 bottles — Absinthe, Agwa, the Arehucas rums, the Sulzer
+sparkling wine — into `reference_products` marked **not 18+**, and `/reference/{id}/adopt`
+copies `age_restricted` straight onto the live product (pos_router.py:2287).
+
+**It would leave prod worse than it is now.** Today, hand-creating "Absinthe Mansinthe" gets
+gated on the title. Adopting it from an un-fixed reference would not.
+
+**So: deploy today's code to prod first, then import.** Not the other way round.
