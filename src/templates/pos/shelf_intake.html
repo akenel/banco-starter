@@ -64,9 +64,26 @@
         <p class="text-xs text-gray-400 mb-2">Optional, and worth the four seconds.</p>
       </div>
 
-      <textarea x-model="raw" x-ref="dumpbox" rows="10" autofocus
+      <!-- Same rule as the restored-session banner: silent recovery reads as lost work.
+           He must be told the codes came back, or he re-walks the shop anyway. -->
+      <div x-show="restoredRaw" style="display:none"
+           class="bg-emerald-50 border-2 border-emerald-300 rounded-xl p-4 mb-3 text-sm text-emerald-900 flex justify-between items-center gap-3 flex-wrap">
+        <span>
+          ↩️ <span class="font-semibold">Your codes came back.</span>
+          <span x-text="roughCount()"></span> still in the box from last time — nothing was lost.
+          Triage them, or clear the box to start a fresh shelf.
+        </span>
+        <button @click="restoredRaw = false" class="text-emerald-700 font-semibold flex-none">Got it</button>
+      </div>
+      <!-- @input=saveRaw: the codes in this box are the ONLY thing on the whole screen that
+           cannot be recreated — everything after triage can be re-derived from them, and they
+           come from twenty minutes of walking the shop with a gun. They were the one thing
+           never saved. Angel lost a shelf to a reboot on 2026-08-21. -->
+      <textarea x-model="raw" x-ref="dumpbox" rows="10" autofocus @input="saveRaw()"
                 placeholder="Click here, then scan 'Daten hochladen' on the gun…"
                 class="w-full border-2 border-indigo-200 focus:border-indigo-500 rounded-xl px-4 py-3 font-mono text-sm"></textarea>
+      <p x-show="raw.trim()" class="text-xs text-green-700 mt-1" style="display:none">
+          💾 Saved in this browser — a reboot or a closed tab will not lose these codes.</p>
 
       <div class="flex items-center justify-between mt-3 flex-wrap gap-2">
         <p class="text-sm text-gray-500">
@@ -696,6 +713,7 @@ function shelfIntake() {
   return {
     raw: '', expected: null, busy: false, error: '',
     result: null, pending: [], batchStart: 0, showKnown: false, restored: false,
+    restoredRaw: false, _rawTimer: null,
     // The shop's own currency, from /config — never hardcode CHF, Banco runs EUR and USD shops.
     shopCurrency: (window.POSConfig && POSConfig.currency) || 'CHF',
     preview: '',            // full-size candidate picture
@@ -706,13 +724,26 @@ function shelfIntake() {
       try {
         localStorage.setItem(STORE_KEY, JSON.stringify({
           result: this.result, pending: this.pending, batchStart: this.batchStart,
+          raw: this.raw, expected: this.expected,
         }));
       } catch (e) { /* quota/private mode — the work still exists on screen */ }
+    },
+    // Stage 1 has no `result` yet, so the old save() stored nothing and restore() refused to
+    // load anything without one. Debounced so a gun dumping 400 lines writes once, not 400 times.
+    saveRaw() {
+      clearTimeout(this._rawTimer);
+      this._rawTimer = setTimeout(() => this.save(), 400);
     },
     restore() {
       try {
         const s = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
+        if (!s) return;
+        // Codes with no triage yet are still a shelf. Bring them back to the box they were in.
+        if (!s.result && s.raw && s.raw.trim()) {
+          this.raw = s.raw; this.expected = s.expected ?? null; this.restoredRaw = true;
+        }
         if (s && s.result) {
+          this.raw = s.raw || ''; this.expected = s.expected ?? null;
           this.result = s.result; this.pending = s.pending || []; this.batchStart = s.batchStart || 0;
           this.restored = true;
           // Land on the first batch that still has work, not wherever the tab happened to die.
