@@ -141,6 +141,12 @@
               <p x-show="m.lookup && m.lookup.price !== null && m.lookup.price !== undefined"
                  class="text-xs text-gray-500 mt-0.5">
                 supplier price <span x-text="m.lookup && m.lookup.price"></span></p>
+              <p x-show="m.lookup && m.lookup.title && m.lookup.exact === false" x-cloak style="display:none"
+                 class="text-[11px] font-semibold text-rose-800 bg-rose-50 border border-rose-300 rounded px-2 py-1 mt-1">
+                🎯 This is the product RANGE, not this exact one — the supplier page never printed
+                this code. The flavour / size / colour is <b>not identified</b>. Read it off the
+                packet and finish the name below.
+              </p>
               <p x-show="m.lookup && m.lookup.wholesale" x-cloak style="display:none"
                  class="text-[11px] font-semibold text-amber-800 bg-amber-50 border border-amber-300 rounded px-2 py-1 mt-1">
                 ⚠️ Wholesaler — that price is usually a whole case. Check the pack size.
@@ -209,6 +215,22 @@
                 <b x-text="m.barcode"></b> goes on as its barcode, so it scans next time.
                 <span class="text-gray-700">Check the pack size against the packet first.</span>
               </p>
+              <!-- THE NAME IS EDITABLE BEFORE IT IS CREATED.
+                   It was not, and that is how "Vaal E-Pack Pods (20mg)" — the family name for
+                   Peach Ice AND Blueberry Ice — would have gone into the catalogue under one
+                   code, with no way to tell later which packet it was. A create button that
+                   cannot be corrected before it fires is a create button that launders a guess
+                   into a fact. -->
+              <div class="mb-2">
+                <label class="block text-xs text-gray-600 mb-1">
+                  Name
+                  <span x-show="m.lookup && m.lookup.exact === false" class="text-rose-700 font-semibold">
+                    — add the flavour / size from the packet</span>
+                </label>
+                <input type="text" x-model="m.newName" class="input-field"
+                       :class="m.lookup && m.lookup.exact === false ? 'border-rose-400' : ''"
+                       placeholder="what is on the packet">
+              </div>
               <div class="flex items-end gap-2 flex-wrap">
                 <div>
                   <label class="block text-xs text-gray-600 mb-1">Your price (CHF)</label>
@@ -251,7 +273,7 @@
           const r = await API.get('/api/v1/pos/catalog-misses?limit=200&include_resolved='
                                   + (this.includeResolved ? 'true' : 'false'));
           this.items = (r.items || []).map(i => ({
-            ...i, busy: false, lookup: null, matches: null, msg: '', ok: false, newPrice: '',
+            ...i, busy: false, lookup: null, matches: null, msg: '', ok: false, newPrice: '', newName: '',
           }));
         } catch (e) {
           this.error = (e && e.message) || 'Could not load the list.';
@@ -274,13 +296,16 @@
                     // The reference row's own id — with it, creating goes through the TESTED
                     // adopt path (canonical title, description, photo, class, idempotent) instead
                     // of a hand-rolled create that would quietly lose three of those four.
-                    refId: r0.id, wholesale: false };
+                    refId: r0.id, wholesale: false, exact: true };
           } else {
             const w = await API.get('/api/v1/pos/products/web-lookup?barcode='
                                     + encodeURIComponent(m.barcode));
             if (w && w.found) {
               hit = { source: w.source_label || w.source, title: w.title,
-                      image: (w.images || [])[0], price: null, wholesale: !!w.wholesale };
+                      image: (w.images || [])[0], price: null, wholesale: !!w.wholesale,
+                      // false = we landed on the product FAMILY, not this item (see
+                      // parse_shop_page). The name is missing the flavour/size/colour.
+                      exact: w.exact !== false };
             }
           }
           // An empty object, not null: `x-show="m.lookup"` must open the panel even when the
@@ -291,6 +316,7 @@
           if (hit && !hit.wholesale && hit.price != null && !(Number(m.newPrice) > 0)) {
             m.newPrice = hit.price;
           }
+          if (hit && hit.title && !(m.newName || '').trim()) m.newName = hit.title;
           if (hit) this.findInCatalog(m);
         } catch (e) {
           m.msg = 'Lookup failed: ' + ((e && e.message) || e); m.ok = false;
@@ -335,6 +361,14 @@
       async createFromLookup(m) {
         const price = Number(m.newPrice);
         if (!(price > 0)) { m.ok = false; m.msg = 'Set your price first.'; return; }
+        const name = (m.newName || '').trim() || (m.lookup && m.lookup.title) || ('Item ' + m.barcode);
+        // A family name must not be saved unchanged. The operator has the packet; make them put
+        // the variant on it, or the row is a guess wearing a supplier's wording.
+        if (m.lookup && m.lookup.exact === false && name === (m.lookup.title || '')) {
+          m.ok = false;
+          m.msg = 'That is the range name. Add the flavour / size from the packet before creating it.';
+          return;
+        }
         m.busy = true; m.msg = '';
         try {
           let p;
@@ -345,7 +379,7 @@
             p = await API.post('/api/v1/pos/products', {
               sku: 'MISS-' + m.barcode,
               barcode: m.barcode,
-              name: (m.lookup && m.lookup.title) || ('Item ' + m.barcode),
+              name: name,
               price: price,
               image_url: (m.lookup && m.lookup.image) || null,
               // The supplier shops we ask are German-language; saying so beats letting it land

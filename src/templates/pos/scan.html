@@ -141,6 +141,14 @@
                           <button @click="usePendingWeb()" class="btn-primary text-sm flex-none"
                                   data-i18n="scan.web_use_this">Use it</button>
                         </div>
+                        <!-- ⚠️ THE FAMILY, NOT THE ITEM. See parse_shop_page(): the supplier page did
+                             not print the code we scanned, which means we landed on the parent —
+                             a flavour or size selector. Angel, holding a Vaal pod: "this is peach
+                             ice, not the blueberry." Saying nothing here is how three flavours end
+                             up sharing one name. -->
+                        <p x-show="pendingWeb && pendingWeb.exact === false" x-cloak style="display:none"
+                           class="text-[11px] font-semibold text-rose-800 bg-rose-50 border border-rose-300 rounded px-2 py-1 mt-2"
+                           data-i18n="scan.web_family">🎯 This is the product RANGE, not this exact one — the flavour / size / colour is not identified. Read it off the packet.</p>
                         <p x-show="pendingWeb && pendingWeb.wholesale" x-cloak style="display:none"
                            class="text-[11px] font-semibold text-amber-800 bg-amber-50 border border-amber-300 rounded px-2 py-1 mt-2"
                            data-i18n="scan.web_wholesale">⚠️ Wholesaler — the price on that page is usually a whole case. Check the pack size, and set YOUR price.</p>
@@ -985,6 +993,9 @@
                                                      CHF 99.00, while the single is CHF 9.90 on the same page. The
                                                      lookup never returns a price, but the operator has that page open
                                                      in another tab, so say it where they are standing. -->
+                                                <p x-show="web.exact === false" x-cloak style="display:none"
+                                                   class="text-[11px] font-semibold text-rose-800 bg-rose-50 border border-rose-300 rounded px-2 py-1 mt-1"
+                                                   data-i18n="scan.web_family">🎯 This is the product RANGE, not this exact one — the flavour / size / colour is not identified. Read it off the packet.</p>
                                                 <p x-show="web.wholesale" x-cloak style="display:none"
                                                    class="text-[11px] font-semibold text-amber-800 bg-amber-50 border border-amber-300 rounded px-2 py-1 mt-1"
                                                    data-i18n="scan.web_wholesale">⚠️ Wholesaler — the price on that page is usually a whole case. Check the pack size, and set YOUR price.</p>

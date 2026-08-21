@@ -179,3 +179,46 @@ def test_a_real_name_ending_in_a_short_word_survives():
     # " K" or " Ka" would quietly rename real products.
     for name in ("Vape Pod 2ml K", "Grinder Ka", "Blunt Wrap OK", "Papers Kb"):
         assert _TITLE_CUT_VERB.sub("", name).strip() == name, name
+
+
+# ---- the FAMILY page (2026-08-21) ---------------------------------------------------
+#
+# Angel, holding a Vaal pod: "this is peach ice, not the blueberry." 6941908339899 redirects
+# correctly to /Vaal-VapePod-20mg-EPack-1-Stk — and that page is a PARENT with a flavour
+# selector. It says "Peach ICE" and "Blueberry ICE" five times each, and the scanned code
+# appears on it ZERO times. The redirect was right, the page was right, and the name
+# "Vaal E-Pack Pods (20mg)" is missing the one word that identifies the packet.
+#
+# The discriminator: does the page PRINT the code we searched for? Measured across six real
+# lookups — the four exact hits all print it, both family pages print no EAN at all.
+
+FAMILY_HTML = (
+    '<meta property="og:title" content="Vaal E-Pack Pods (20mg) kaufen, 18.90 CHF">\n'
+    '<div>Peach ICE</div><div>Blueberry ICE</div>\n'      # the range, on one page
+)
+EXACT_HTML = (
+    '<meta property="og:title" content="Purize Aktivkohlefilter 6mm - green (50 Stk.) kaufen, 8.90 CHF">\n'
+    '<span class="ean">4260748412268</span>\n'            # the shop names THIS variant's code
+)
+
+
+def test_a_family_page_is_flagged_not_discarded():
+    out = parse_shop_page(FAMILY_HTML, HIT_URL, "6941908339899", KC)
+    # Still a hit — a family name plus a photo beats a bare number.
+    assert out is not None
+    assert out["title"] == "Vaal E-Pack Pods (20mg)"
+    # …but it must NOT claim to be this exact item.
+    assert out["exact"] is False
+
+
+def test_a_page_carrying_the_code_is_exact():
+    out = parse_shop_page(EXACT_HTML, HIT_URL, "4260748412268", KC)
+    assert out["exact"] is True
+    assert "green (50 Stk.)" in out["title"]
+
+
+def test_exactness_is_about_THIS_code_not_any_code():
+    # A neighbouring variant's code on the page must not make our code "exact" — that is how a
+    # peach pod would inherit the blueberry's confidence.
+    out = parse_shop_page(EXACT_HTML, HIT_URL, "6941908339899", KC)
+    assert out["exact"] is False

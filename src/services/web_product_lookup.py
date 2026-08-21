@@ -108,8 +108,36 @@ def parse_shop_page(html: str, final_url: str, barcode: str, shop: dict) -> dict
         return None        # the echo case: a miss page titles itself with the code
     desc = _OG["description"].search(html or "")
     img = _OG["image"].search(html or "")
+
+    # 🎯 IS THIS PAGE ABOUT THE THING WE SCANNED, OR ABOUT ITS FAMILY?
+    #
+    # Angel, 2026-08-21, holding a Vaal pod: "this is peach ice, not the blueberry."
+    # `6941908339899` redirected correctly to /Vaal-VapePod-20mg-EPack-1-Stk — and that page is
+    # a PARENT with a flavour selector. It says "Peach ICE" and "Blueberry ICE" five times each,
+    # and the scanned code appears on it ZERO times. So the redirect was right, the page was
+    # right, and the NAME we would have handed back — "Vaal E-Pack Pods (20mg)" — is missing the
+    # one word that identifies what he is holding.
+    #
+    # Same disease as the pack-size trap, one level down: a variant, not a quantity. And it is
+    # the worst kind, because the answer looks complete.
+    #
+    # The discriminator is simple and general: DOES THE PAGE PRINT THE CODE WE SEARCHED FOR?
+    # Measured across six lookups — the four exact hits all print it (…yellow (100 Stk.),
+    # …green (50 Stk.), Purple Kush Kit, actiTube Slim (50Stk.)); both family pages print no
+    # EAN at all. A shop that lists a variant's code on the page is telling us which variant
+    # this is; one that does not has only shown us the range.
+    #
+    # NOT a reason to discard the hit — the family name plus a photo is still a big head start
+    # over a bare number. It is a reason to SAY SO, so nobody creates "Vaal E-Pack Pods (20mg)"
+    # and discovers next month that three flavours share it.
+    exact = bool(barcode) and barcode in (html or "")
+
     return {
         "found": True,
+        # True  → the page carries this exact code; the title names the item.
+        # False → the code resolved to a FAMILY page; the title is the range, and the variant
+        #         (flavour / size / colour) is NOT identified. The packet is the authority.
+        "exact": exact,
         "source": shop["key"],
         "source_label": shop["label"],
         "source_url": final_url,
@@ -202,6 +230,8 @@ async def lookup_product(barcode: str | None, name: str | None = None) -> dict:
     out: dict = {
         "found": False, "source": None, "source_label": None, "source_url": None,
         "wholesale": False,
+        # See parse_shop_page: False means "we landed on the family, not the item".
+        "exact": False,
         "title": None, "brand": None, "category": None,
         "description": None, "images": [], "lang_hint": None, "quota": None,
         "google_url": _google_url(barcode, name), "note": None,
