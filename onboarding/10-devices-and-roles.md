@@ -55,6 +55,15 @@ Measured on each machine with `<your Banco address>/pos/hardware` and `/static/t
 📷 snap-and-fill **does nothing on the tablet** — it has no camera, so the button appears to be
 broken rather than saying so. The same flow works well on the phone.
 
+> ✅ **The "appears to be broken" half is fixed — 2026-08-22.** The button now hides itself on any
+> machine with no camera attached (`enumerateDevices()` → a `.banco-has-camera` class), so the Win 10
+> tablet and any camera-less desktop simply do not offer it. **The role boundary below still
+> stands** — this machine still cannot photograph a packet; it just no longer lies about it.
+>
+> Same change gave the **X1 tablet** a working live camera with a USB webcam, which the paragraph
+> below did not anticipate: an X1 with a webcam *is* a capture device. See
+> [`13-tablet-x1-debian.md`](13-tablet-x1-debian.md).
+
 That is not a defect to fix; it is the line between the devices. `/pos/hardware` now reports the
 camera explicitly so the next person doesn't spend twenty minutes on it.
 
