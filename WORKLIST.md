@@ -36,6 +36,13 @@ the exact command sequence: [`onboarding/13-tablet-x1-debian.md`](onboarding/13-
       enabled today draws continuously; that is the price of the failover.** If the 4 h charge
       matters, check `charge_control_end_threshold` (a Lenovo 80 % cap) and use the real 45 W
       adapter — 9 W net charging says small charger, not tired battery.
+- [ ] 🔌 **A 45 W USB-C adapter (CHF 20–30) — the only purchase today that changes a number.**
+      Measured: `charge_control_end_threshold` = 100 (no cap) and `power_now` = **8.45 W** into the
+      cell. `37.01 Wh ÷ 8.45 W = 4.4 h` — exactly the observed charge time. The current supply is
+      delivering ~25 W total against a ~17 W system draw; stock for this machine is **45 W /
+      20 V 2.25 A**, which would charge it in ~1.3 h. ⚠️ **The sharp edge:** bright screen +
+      streaming webcam + registered LTE modem on a 25 W supply can out-draw it, and a tablet that
+      discharges while plugged in looks exactly like a dead battery and is not one.
 
 **🅿️ DOCKS ARE PARKED — buy nothing.** Two were tried and neither works: the **WiGig Dock W123**
 reaches a machine only over a 60 GHz radio the Intel 8265 does not have (and Intel WiGig docking
