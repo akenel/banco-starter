@@ -317,5 +317,13 @@ it is the one field where a shop's own record beats the supplier's, and it is wo
   a supplier photo we now know can be wrong. Not a silent trap — both pictures are on screen when
   you tap — but the guard is inconsistent with the two fields either side of it.
 
-**Open:** guard the photo in `pullAll()` the way `barcode` and `category` are guarded. Angel's
-call — "Use all" arguably means *all*.
+**Decided 2026-08-22 — leave it.** Angel:
+
+> *"I think personally it's ok, no need to change — the same product on Tamar made a mistake too,
+> so 420 a little wrong and Tamar slightly wrong too. The human user at Artemis can make the
+> correction and make sure pic and EAN and title line up properly."*
+
+Two independent suppliers wrong on the same product settles it: **there is no source to defer
+to.** A guard in `pullAll()` would only pick a different wrong default. The side-by-side compare
+already puts both pictures in front of the person who can actually tell them apart, and that
+person is the fix. "Use all" means all.

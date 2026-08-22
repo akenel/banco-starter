@@ -53,8 +53,14 @@ No *"3 for 5 applied"* on a line that pooled, and no reason on a line that did n
 send me a screenshot to learn that a checkbox was unticked. **Layla and Mark will not have that
 option.** This is the real remaining build.
 
-Also open: `84157089` **Smoking Gold** reads 2.00 with a 3-for-5; Felix said collector paper,
-2.50, no deal. Angel's call, not a bug.
+**Closed 2026-08-22 — Smoking Gold is not special.** Angel: *"GOLD is same as the others, nothing
+special — sounds special but it's the same as Deluxe `84195937`. These are the King Size Papers,
+no filter no tips."* Felix's "collector, 2.50, no deal" was a misread of the name. Verified: Gold
+and Deluxe are byte-identical on everything that prices them — 2.00, `bundle`, 3-for-5, standard
+class, no age gate. **The 3-for-5 it already carries is correct.**
+
+*(Cosmetic only: Gold sits in `Papers & Filters`, Deluxe in `Rolling Papers`. Pooling keys on
+price + terms, not category, so the till is unaffected — but they are the same kind of thing.)*
 
 ---
 
