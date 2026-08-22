@@ -29,13 +29,26 @@ the exact command sequence: [`onboarding/13-tablet-x1-debian.md`](onboarding/13-
 - [ ] Measure signal where the till stands (29 % at home; concrete will be worse)
 - [ ] Pull the Fritzbox WAN cable with the till open and ring a real sale
 - [ ] Ask Felix what that SIM actually is — data-only vs voice bills very differently
+- [ ] 🔋 **Battery: measure before spending.** 4 h to charge, ~2 h runtime. Get the real
+      degradation first — `cat /sys/class/power_supply/BAT*/{energy_full_design,energy_full,
+      cycle_count}`. **For a till that sits plugged in on a counter, 2 h is a free UPS, not a
+      fault** — more than any desktop till has. It only matters if the tablet walks the shop
+      for shelf intake. And doc 13 already expects **tablet #2 from Felix, same spec** — ask
+      him before buying a battery (~CHF 60 + opening the case) or a machine (CHF 150–250).
 
-**🛑 The WiGig Dock (W123) Felix supplied is useless here.** It reaches the machine only over a
-60 GHz 802.11ad radio — no host cable — and the tablet's card is an Intel 8265 (802.11ac, no
-60 GHz). No Linux support for Intel WiGig docking either. **Get a CHF 25–40 USB-C dock with
-Ethernet instead** — or ask Felix for a ThinkPad `40A9`/`40AS` USB-C dock. That buys wired
-Ethernet (better than Wi-Fi for a fixed till: **Ethernet → Wi-Fi → LTE**), plus USB-A for the
-gun dongle *and* the webcam at once.
+**🅿️ DOCKS ARE PARKED — buy nothing.** Two were tried and neither works: the **WiGig Dock W123**
+reaches a machine only over a 60 GHz radio the Intel 8265 does not have (and Intel WiGig docking
+has no Linux support), and the **Hybrid USB-C Dock DUD901** gave neither data nor charge.
+
+**And a dock was never the point.** Angel: *"we have power cable for the tablet so that is
+basically all we need."* Right. Its one real feature here is wired Ethernet — the gun is on
+Bluetooth (no port) and the webcam has the USB-A — so a dock adds a box, a 135 W brick, a mains
+socket and one more thing to knock off a counter, to buy one thing. If Ethernet is ever wanted it
+is a **CHF 15 USB adapter**, not a dock.
+
+> ⚠️ **And that "if" is unmeasured.** "Ethernet beats Wi-Fi for a fixed till" was my theory, not an
+> observation — nobody has yet seen the shop Wi-Fi fail. **Run the till on Wi-Fi in Luzern with LTE
+> behind it and watch.** Buy nothing until the failure is real.
 
 **📸 Snap-find is DONE too — human-green 2026-08-22.** The webcam capture was running at the
 browser default (~640×480), so the vision model could not read brand lettering and described
