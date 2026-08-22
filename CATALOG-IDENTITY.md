@@ -278,3 +278,44 @@ None of it is a rewrite. The design was right; the data was filled in wrong.
 Hours went into proving the search worked — and it did, ranking the right product #1. But the
 operator was not searching. He was **scanning**, and a scan cannot fall back to a name. Answer
 the job the person is actually doing, not the one that is easy to measure.
+
+---
+
+## Field note, 2026-08-22 — a supplier page is reliable per FIELD, not per page
+
+Angel, comparing our **Smoking Gold Kingsize** (`84157089`) against the 420 listing:
+
+> *"420 has the wrong pic but the price is right … i seen the same mix up with greengo — our
+> catalog is more correct but this is not something we can fix, it needs the human touch. Pics
+> can be old style or slightly different from the one in hand, but the nice part with the 420
+> website is the EAN is correct."*
+
+Two products, same failure, same source. That is a pattern, not an incident — and it refines the
+doctrine at the top of this file. The EAN is the identity **and it is also the field a supplier
+is most careful with**, because it is the field their own logistics depend on. The photo is the
+field nobody downstream checks, so it rots first: an old print run, a variant, a neighbouring
+SKU.
+
+| Field | From a supplier page | Why |
+|---|---|---|
+| **EAN** | trust | their warehouse depends on it |
+| **Price** | trust as a *reference* | it is what they charge, not what the shop charges |
+| **Description / tiers** | useful, verify | wholesale rungs are theirs, not the shop's |
+| **Photo** | **do not trust** | wrong on Smoking Gold *and* Greengo, from the same source |
+
+**A shop that photographs its own stock owns the better catalogue.** That is not a nice-to-have:
+it is the one field where a shop's own record beats the supplier's, and it is worth protecting.
+
+### What the code does about it
+
+- `_maybeEnrich()` fills a photo **only when ours is blank** (`needsImg`) — correct, leave it.
+- The edit screen shows **both photos side by side** before you adopt anything — Angel asked for
+  this on 2026-08-21 (*"that second look helps"*), and this is the job it was built for.
+- **`pullAll()` — "Use all these details" — overwrites an existing photo unconditionally**, while
+  guarding `barcode` and `category` with *"only if ours is blank"*. Someone reaching for that
+  button to get the description and the tiers also silently replaces a photo of real stock with
+  a supplier photo we now know can be wrong. Not a silent trap — both pictures are on screen when
+  you tap — but the guard is inconsistent with the two fields either side of it.
+
+**Open:** guard the photo in `pullAll()` the way `barcode` and `category` are guarded. Angel's
+call — "Use all" arguably means *all*.
