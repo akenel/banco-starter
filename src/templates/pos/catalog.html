@@ -187,8 +187,12 @@
              the four strays sat on the live catalogue for a day because nobody did. This asks
              the whole catalogue at once, so a bad price is found standing at the shelf rather
              than at a till with a customer waiting. -->
-        <div x-show="!showDiscontinued && priceCheck.length > 0" style="display:none"
-             class="card" style="border-left:4px solid #d97706">
+        <!-- ONE style attribute. Two of them is a silent HTML parse error: the browser keeps the
+             first and DISCARDS the second, so the amber border I specified never rendered and the
+             panel came out as a plain white card between the stats and the list -- present, and
+             invisible to anyone looking for the amber thing the test sheet described. -->
+        <div x-show="!showDiscontinued && priceCheck.length > 0"
+             class="card" style="display:none; border-left:4px solid #d97706; background:#fffbeb">
             <button @click="priceCheckOpen = !priceCheckOpen"
                     class="w-full flex items-center justify-between text-left">
                 <span class="font-bold text-amber-800">

@@ -9,7 +9,32 @@
 > [`worklist-archive/done.md`](worklist-archive/done.md) with its commit hashes; when a thread
 > grows a long write-up, the write-up goes to the archive and a one-line pointer stays here.
 
-*Last updated: 2026-08-21.*
+*Last updated: 2026-08-22.*
+
+---
+
+## ▶️ NEXT — the EAN on the catalogue row (Angel, 2026-08-22)
+
+> *"the list is excellent and helpful but i see no EAN here — maybe good idea to put the EAN in
+> the list just above the CHF selling price — would help to quick make sure the EAN actually
+> matches the product with a quick glance."*
+
+Agreed, and it is the repo's own doctrine: [`CATALOG-IDENTITY.md`](CATALOG-IDENTITY.md) says the
+**EAN is the identity** and the name is only a label. The row shows the SKU (`TAM-19993`) — an
+internal number nobody can check against a packet — and hides the one number you can.
+
+**Held until Angel finishes the price-warning testsheet.** When it goes in:
+
+- EAN above the price, monospace, next to the SKU chip.
+- Decide what an EAN-less row shows. **Do not leave it blank** — most of the 5,423 have no real
+  barcode yet, and "no barcode" is itself the work signal. A quiet grey *"no barcode yet"* turns
+  the catalogue into its own to-do list.
+- Ship it together with the sweep-panel border fix below.
+
+**Also waiting in the same change:** the sweep panel had TWO `style` attributes, so the browser
+silently discarded the amber border and it rendered as a plain white card — present, but not the
+amber thing the testsheet told Angel to look for. Fixed locally, **not yet deployed** so as not to
+restart the app mid-test.
 
 ---
 
