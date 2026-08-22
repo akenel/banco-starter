@@ -45,19 +45,22 @@ the exact command sequence: [`onboarding/13-tablet-x1-debian.md`](onboarding/13-
       **cable** — one without PD support negotiates down to 5 V/15 W, and the cable is already
       under suspicion from the dock.
 
-### ⚠️ SIDE EFFECT OF `4206246` — the Win 10 tablet now shows a camera button it cannot use
+### ✅ FIXED — the Win 10 tablet's dead camera button
 
-Fixing the X1's hidden 📷 Webcam button meant showing it wherever `getUserMedia` exists and the
-machine is not a phone. **`getUserMedia` exists in every modern browser whether or not a camera is
-attached** — so on the **old Win 10 tablet** (touchscreen, no camera, per doc 10) the button now
-appears and, when tapped, alerts *"No camera available (or permission denied)"*. Before my change it
-was hidden there, by accident rather than by design.
+`4206246` showed the 📷 Webcam button wherever `getUserMedia` exists — which is *every* modern
+browser, camera or not — so the old Win 10 tablet (touch, no camera) gained a button whose only
+output was the alert *"No camera available"*. Now `enumerateDevices()` decides: presence is listed
+with **no permission prompt**, and a `.banco-has-camera` class on `<html>` gates the buttons via
+one CSS rule. A class rather than a reactive value because `x-show` is Alpine in three templates
+and will not re-render when a module variable changes underneath it — and because it re-answers on
+`devicechange`, so plugging the webcam in mid-shift works without a reload.
 
-Degrades to an alert, not to data loss — but it is a button that lies, on a machine Layla and Mark
-use. **Proper fix (~15 min):** `enumerateDevices()` on init, keep a `hasVideoInput` flag, and gate
-the button on it. Device *presence* is visible without camera permission, so no prompt is needed.
+**Fails OPEN** if the browser cannot enumerate: hiding the button on the one machine that *has* a
+camera is the worse error, and it is the one we just spent the evening fixing.
 
-*Found by asking what else the predicate touched, not by anyone hitting it — check before staff do.*
+`prove-webcam-button-shows.js` is now 8 cases; the 4 new ones go red against the code that shipped
+this evening. ⬜ **Still needs a human on the Win 10 tablet** — the button is gone by CSS, which is
+a claim about a screen, and per LESSONS #7 those are not verified by reading a stylesheet.
 
 ---
 

@@ -194,6 +194,50 @@
   window.posCaptureAttr = function () {
     return window.posIsMobileOS() ? 'environment' : false;
   };
+
+  // ── IS A CAMERA ACTUALLY ATTACHED? Discovered, never assumed. ────────────────────
+  //
+  // 2026-08-22, the fix above's own side effect. posShowWebcam() gates on getUserMedia,
+  // which EXISTS IN EVERY MODERN BROWSER whether or not hardware is plugged in — so the
+  // shop's old Win 10 tablet (touchscreen, no camera, doc 10) gained a "📷 Webcam" button
+  // whose only output was the alert "No camera available". A button that lies, on a
+  // machine Layla and Mark use. enumerateDevices() answers properly: device PRESENCE is
+  // listed with NO permission prompt (only the labels are withheld, and we do not want them).
+  //
+  // Why a CSS class and not a reactive value: the three buttons are plain
+  // `x-show="posShowWebcam()"` in three templates, and Alpine will not re-render when a
+  // module-level variable changes underneath it. A class on <html> moves all of them at
+  // once, whenever the answer changes — including when Angel plugs the webcam in later,
+  // which is exactly how this machine gets used.
+  var CAM_CLASS = 'banco-has-camera';
+
+  window.posRefreshCameraPresence = async function () {
+    const md = navigator.mediaDevices;
+    const root = document.documentElement;
+    // Cannot ask → do not hide the button. Failing CLOSED here would silently remove the
+    // camera from the one machine that has one, which is the bug we just spent the evening
+    // fixing. Failing open costs an alert on a machine that has no camera anyway.
+    if (!md || !md.enumerateDevices) { root.classList.add(CAM_CLASS); return true; }
+    try {
+      const devices = await md.enumerateDevices();
+      const has = devices.some(d => d.kind === 'videoinput');
+      root.classList.toggle(CAM_CLASS, has);
+      return has;
+    } catch (e) {
+      root.classList.add(CAM_CLASS);
+      return true;
+    }
+  };
+
+  try {
+    window.posRefreshCameraPresence();
+    // Plugged in or unplugged mid-session — re-ask rather than making the operator reload.
+    if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
+      navigator.mediaDevices.addEventListener('devicechange', function () {
+        window.posRefreshCameraPresence();
+      });
+    }
+  } catch (e) { /* no DOM yet / no mediaDevices — the CSS default hides, the retry re-shows */ }
 })();
 
 // ---------------------------------------------------------------------------

@@ -894,7 +894,7 @@
                         <span x-text="aiBusy ? ('🔍 ' + t('scan.reading')) : ('📷 ' + t('scan.snap_fill'))"></span>
                         <input type="file" accept="image/*" :capture="posCaptureAttr()" class="hidden" @change="aiSnapFill($event)" :disabled="aiBusy">
                     </label>
-                    <button type="button" x-show="posShowWebcam()" @click="webcamSnapFill()" :disabled="aiBusy"
+                    <button type="button" data-needs-camera x-show="posShowWebcam()" @click="webcamSnapFill()" :disabled="aiBusy"
                             class="btn-secondary inline-flex items-center gap-1 text-lg px-5 py-3 ml-2">📷 Webcam</button>
                     <p x-show="aiNote" x-text="aiNote" class="text-xs text-indigo-700 font-medium mt-2" style="display:none;"></p>
                     <button type="button" @click="lazyPhotoFirst=false; $nextTick(()=>{ if($refs.lazyLinkInput) $refs.lazyLinkInput.focus() })"
@@ -916,7 +916,7 @@
                             <span x-text="aiBusy ? '🔍 ' + t('scan.reading') : '✨ ' + t('scan.snap_fill')"></span>
                             <input type="file" accept="image/*" :capture="posCaptureAttr()" class="hidden" @change="aiSnapFill($event)" :disabled="aiBusy">
                         </label>
-                        <button type="button" x-show="posShowWebcam()" @click="webcamSnapFill()" :disabled="aiBusy"
+                        <button type="button" data-needs-camera x-show="posShowWebcam()" @click="webcamSnapFill()" :disabled="aiBusy"
                                 class="btn-secondary flex-none inline-flex items-center gap-1">📷 Webcam</button>
                         <span class="text-xs text-gray-500" data-i18n="scan.snap_help">No barcode? Photograph it — AI names it &amp; searches the catalog.</span>
                     </div>

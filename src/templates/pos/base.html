@@ -116,6 +116,13 @@
             background: #555;
         }
 
+        /* A CAMERA BUTTON ON A MACHINE WITH NO CAMERA IS A BUTTON THAT LIES.
+           pos-scanner.js enumerates video inputs and puts .banco-has-camera on <html>.
+           Until it does — and on the Win 10 tablet, where it never will — anything marked
+           data-needs-camera stays hidden. !important because x-show writes inline styles,
+           and this must win over an x-show that says "the browser supports cameras". */
+        html:not(.banco-has-camera) [data-needs-camera] { display: none !important; }
+
         /* Big PILL buttons for Pam — REAL CSS (not @apply: the Play CDN only compiles
            @apply inside <style type="text/tailwind">, and this is a plain <style>, so
            @apply was silently dead. Plain CSS works regardless). */

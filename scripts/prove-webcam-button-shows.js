@@ -47,11 +47,28 @@ const CASES = [
    { webcam: false, capture: false }],
 ];
 
+function fakeDoc() {
+  const set = new Set();
+  return {
+    _classes: set,
+    createElement: () => ({ style: {}, appendChild() {} }),
+    body: { appendChild() {} },
+    documentElement: {
+      classList: {
+        add: (c) => set.add(c),
+        remove: (c) => set.delete(c),
+        contains: (c) => set.has(c),
+        toggle: (c, on) => (on ? set.add(c) : set.delete(c)),
+      },
+    },
+  };
+}
+
 let fail = 0;
 for (const [name, ua, touch, gum, want] of CASES) {
   const ctx = {
     navigator: { userAgent: ua, maxTouchPoints: touch, mediaDevices: gum ? { getUserMedia() {} } : undefined },
-    document: { createElement: () => ({ style: {}, appendChild() {} }), body: { appendChild() {} } },
+    document: fakeDoc(),
   };
   ctx.window = ctx; ctx.globalThis = ctx;
   vm.createContext(ctx);
@@ -66,5 +83,48 @@ for (const [name, ua, touch, gum, want] of CASES) {
   console.log(`        webcam button ${got.webcam} (want ${want.webcam})` +
               `   capture=${JSON.stringify(got.capture)} (want ${JSON.stringify(want.capture)})`);
 }
-console.log(fail ? `\n${fail} FAILED` : `\nall ${CASES.length} pass`);
-process.exit(fail ? 1 : 0);
+// ── PART 2: is a camera actually attached? ───────────────────────────────────────
+// posShowWebcam() only says the BROWSER can open cameras. The Win 10 tablet has a
+// touchscreen, a desktop browser and no camera — it passed part 1 and still must not
+// show the button. That is what .banco-has-camera decides.
+const CAM_CASES = [
+  ['USB webcam attached  ← the X1 with Angel\'s webcam',
+   [{ kind: 'videoinput' }, { kind: 'audioinput' }], true],
+  ['No camera at all     ← the shop Win 10 tablet',
+   [{ kind: 'audioinput' }], false],
+  ['enumerateDevices throws — cannot tell, must NOT hide a real camera',
+   'throw', true],
+  ['enumerateDevices missing entirely (ancient browser)',
+   null, true],
+];
+
+(async () => {
+  for (const [name, devices, want] of CAM_CASES) {
+    const md = { getUserMedia() {} };
+    if (devices === 'throw') md.enumerateDevices = async () => { throw new Error('nope'); };
+    else if (devices !== null) md.enumerateDevices = async () => devices;
+
+    const ctx = {
+      navigator: { userAgent: 'Mozilla/5.0 (X11; Linux x86_64) Chrome/138', maxTouchPoints: 10, mediaDevices: md },
+      document: fakeDoc(),
+    };
+    ctx.window = ctx; ctx.globalThis = ctx;
+    vm.createContext(ctx);
+    try { vm.runInContext(src, ctx); } catch (e) { /* DOM tail */ }
+
+    if (!ctx.window.posRefreshCameraPresence) {
+      console.log(`FAIL  ${name}\n        posRefreshCameraPresence missing (pre-fix source?)`);
+      fail++; continue;
+    }
+    await ctx.window.posRefreshCameraPresence();
+    const shown = ctx.document.documentElement.classList.contains('banco-has-camera');
+    const ok = shown === want;
+    if (!ok) fail++;
+    console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}`);
+    console.log(`        button shown ${shown} (want ${want})`);
+  }
+
+  const total = CASES.length + CAM_CASES.length;
+  console.log(fail ? `\n${fail} FAILED` : `\nall ${total} pass`);
+  process.exit(fail ? 1 : 0);
+})();
