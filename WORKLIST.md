@@ -586,7 +586,31 @@ worth doing when convenient — a lifecycle rule on `wolfhold-banco-backups` (22
 
 ## ▶️ NOW — needs Angel's hands
 
-1. **⛔ The two bulk catalogue scripts are blocked on WHERE they run, not on code.**
+1. **✅ NOT BLOCKED — the shell on prod exists, and both DRY RUNS ARE CLEAN (2026-08-22).**
+   The "decide: a shell on prod, or a dump pulled down" question answered itself: `ssh banco`
+   works, and both scripts `docker cp` into `banco-app` exactly as the FourTwenty importer did
+   yesterday. Prod copies are byte-identical to this repo (md5). Measured tonight:
+
+   | | scope on prod | dry run |
+   |---|---|---|
+   | `enrich-from-source.py` | **5,096** products carry a `source_url` | 40 fetched · **0 failed** · 35 spec tables · **4 tier ladders** |
+   | `adopt-images.py` | **5,155 of 5,422** actives hotlink an image (95%), 13 have none | 20 across 9 external hosts, no errors |
+
+   **The spec half is the safe half and it is most of the value:** 88% of pages yield a spec
+   table, ~4,500 products' worth, and specs cannot misprice anything.
+   ⚠️ **The tier half touches money and lands at ~10%, i.e. ~510 new ladders on a live till —
+   against 92 today, a 5.5× increase, on the same day we found four ladders that silently
+   underpriced.** The script guards the worst case itself (it refuses any ladder whose first
+   rung costs more than one unit, and reports it for a human — `enrich-from-source.py:206`),
+   and every ladder it writes is `tier_mode='per_unit'`, which is exactly the mode today's
+   `tierWarning()` was built to make loud. **So: run it, then run `GET /catalog/price-check`
+   over the whole catalogue before the shop opens.** That sweep found both money leaks on its
+   first run today; it is the right net under this.
+   ⏱ Times are unverified at scale — the archive says ~90 min and ~137 min; the 137 was never
+   measured against 5,155 images.
+   → detail in [`worklist-archive/catalogue-and-till.md`](worklist-archive/catalogue-and-till.md)
+
+**Superseded — the original note:** ⛔ *The two bulk catalogue scripts are blocked on WHERE they run, not on code.*
    Local dev has **6 products**; the 5,111 live on the prod/UAT box, and `deploy-prod.sh` is
    written to run *on* that server. Decide: a shell on prod, or a dump pulled down here. Then
    `enrich-from-source.py --apply` (~90 min) and `adopt-images.py --apply` (~137 min).
@@ -600,9 +624,10 @@ worth doing when convenient — a lifecycle rule on `wolfhold-banco-backups` (22
    shelf pass with the gun is the only thing that goes faster. Runbook:
    [`onboarding/09-shelf-intake.md`](onboarding/09-shelf-intake.md); triage is read-only
    (`pos_router.py:1002` — *"Nothing is written"*), so it is safe to point at the live shop.
-   ⬜ *One doc question left, and it is a DOC question, not a re-test:* the scanner README cites
-   **Inateck** BCST-35 §4.6 p.20 for Inventurmodus, this list said **Netum**. Whichever gun Angel
-   used is the right one — fix the loser so the next shop's runbook is not wrong.
+   ✅ *And the doc contradiction is settled:* **the Netum NS L8 is the store-mode gun** — 3,000
+   codes, tested. The **Inateck BCST-35 is single-shot, with Bluetooth**, which makes it the
+   phone/tablet gun. `09-shelf-intake.md` and `testsheets/Scanners/README.md` both said Inateck
+   and are corrected.
 
 ---
 

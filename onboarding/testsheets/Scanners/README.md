@@ -193,14 +193,29 @@ Both passed `/static/scanner-gun-test.html` after the change: hyphens arrive as 
 
 ## Inventory mode — scan the whole shop, upload later
 
-**The BCST-35 stores up to 3,000 codes offline.** Manual §4.6 "Inventurmodus", page 20. This is the
-right way to build a catalog: walk the shelves scanning, then do the desk work later, batched.
+> ⚠️ **CORRECTED 2026-08-22 — THE STORE-MODE GUN IS THE NETUM, NOT THE INATECK.**
+> This section used to open *"The BCST-35 stores up to 3,000 codes offline"*, citing the Inateck
+> manual §4.6, and `WORKLIST.md` said the opposite. Angel settled it from the bench:
+> *"the NetumScan gun holds the 3000 codes, well tested and works fine. The Inateck gun is ok but
+> only single shooter, and it has a Bluetooth feature so it can be used with a tablet or phone."*
+> **The gun that walks the shelf is the Netum NS L8.** The Inateck BCST-35 is the single-shot
+> gun, and its Bluetooth is what makes it the phone/tablet one. The Inateck manual may well
+> document an Inventurmodus of its own — nobody here uses it, and the tested path is the Netum.
+> The barcode table below came out of the Inateck PDF; **use the Netum's own key sheet**
+> (<https://doc1.netum.net/L8/en/keyboard>) for the real thing.
+
+**The Netum NS L8 stores up to 3,000 codes offline** — tested and working, 2026-08-22. This is
+the right way to build a catalog: walk the shelves scanning, then do the desk work later, batched.
+
+**The dump survives the browser textarea.** That was the last open unknown in shelf intake and
+Angel closed it: *"there are no issues."* `/pos/shelf-intake` is read-only until you act on the
+triage (`pos_router.py:1002` — *"Nothing is written"*), so a practice run costs nothing.
 
 > ⚠️ **These five do NOT need Enter Setup / Save and Exit.** Scan the one you want, on its own.
 > (Manual: *"Das Scannen von 'Beginn der Einrichtung' oder 'Speichern und Beenden' ist für die
 > Verwendung der 5 folgenden Barcodes nicht erforderlich."*)
 
-| Barcode (page 20) | Does |
+| Barcode (naming from the Inateck PDF; check the Netum sheet for its equivalents) | Does |
 |---|---|
 | **Inventurmodus** | gun STORES scans instead of transmitting |
 | **(*) Normalmodus** | back to live scanning — the factory default |

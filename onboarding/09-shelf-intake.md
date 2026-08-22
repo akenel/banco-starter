@@ -36,9 +36,13 @@ catalogue under a barcode that was never on any packet.
 
 ## Before you start
 
-**One gun, set to inventory mode.** Confirmed on the Inateck BCST-35 (manual §4.6
-"Inventurmodus", page 20). See [`testsheets/Scanners/README.md`](testsheets/Scanners/README.md)
-for the five barcodes and the keyboard-layout trap that bites every shop once.
+**One gun, set to inventory mode — the NETUM NS L8.** Corrected 2026-08-22: this guide used
+to name the Inateck BCST-35 (manual §4.6, page 20). Angel, from the bench: *"the NetumScan gun
+holds the 3000 codes, well tested and works fine. The Inateck gun is ok but only single shooter,
+and it has a Bluetooth feature so it can be used with a tablet or phone."* **The Netum walks the
+shelf; the Inateck is the single-shot gun for a phone or tablet.** See
+[`testsheets/Scanners/README.md`](testsheets/Scanners/README.md) for the barcodes and the
+keyboard-layout trap that bites every shop once.
 
 > ⚠️ Set the gun's keyboard layout **before** you walk the shop. A gun on US into a Swiss German
 > session types `-` as `'`, which is invisible on pure-digit EANs and breaks every SKU. Twenty
