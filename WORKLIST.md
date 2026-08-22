@@ -728,9 +728,24 @@ MinIO  19M → 22M     3 MB for 91 images  ≈ 34 KB each (the helper downsizes)
 disk   13G/38G, 23G free — UNCHANGED at this resolution
 ```
 
-**Extrapolated to the 5,061 still hotlinked: ~57 minutes and ~156 MB.** The archive's ~137 min was
-nearly 2.5× too pessimistic. **On disk: Angel asked whether Hetzner needs more room. It does not —
-156 MB against 23 GB free is 0.7%. Buy nothing.**
+**✅ FINISHED 2026-08-22, the whole catalogue. The shop owns its pictures.**
+
+```
+5,422 active products   5,395 ours (99.5%)   14 still hotlinked   13 never had an image
+MinIO  18M → 163M       ~57 min              disk 14G/38G, 23G free — unmoved
+verified in the database: 5047 of these 5061 now serve a local image — agrees with the 5047 reported
+```
+
+Prediction was ~57 min and ~156 MB; actual was ~57 min and 145 MB of growth. The archive's
+~137 min estimate was 2.5× pessimistic. **Angel asked whether Hetzner needs more room. It does
+not, and it was never close** — 145 MB against 23 GB free.
+
+**The 14 that stayed external are the finding, not the failure.** Every one is a dead or blocked
+link on somebody else's server — 8 `ITEM-*` vape cartridges, `Bongasmus 440mm`, two ELFBAR pods,
+a Steely Dan grinder, a Blow CBD joint, a hand sanitiser. They kept their external URLs, so
+nothing broke; they are simply the rows whose pictures were already rotting. **That is the
+Metrop MR2 case, caught 14 more times, and it is exactly why this job existed.** Worth a pass
+someday to re-source them; nothing is blocked on it.
 
 **Superseded — the original note:** ⛔ *The two bulk catalogue scripts are blocked on WHERE they run, not on code.*
    Local dev has **6 products**; the 5,111 live on the prod/UAT box, and `deploy-prod.sh` is
