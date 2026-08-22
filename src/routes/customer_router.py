@@ -30,6 +30,7 @@ from src.db.models import (
     LineItemModel,
     ProductModel,
 )
+from src.schemas.customer_schema import is_of_age as _is_of_age_by_dob
 from src.schemas.customer_schema import (
     CustomerCreate,
     CustomerUpdate,
@@ -246,9 +247,25 @@ async def get_checkout_view(
         "instagram": customer.instagram,
         # Age fields — the checkout gate reads these; without them the client can't tell a minor
         # from an adult and either skips the gate (memberOfAge defaults true) or loops the walk-in.
+        #
+        # `is_of_age` IS THE DATE'S ANSWER ONLY, and None when no date is on file. Changed
+        # 2026-08-22 alongside checkout.html:1032 — and it is the SIBLING of that fix, not a
+        # separate one. This used to send `bool(customer.is_of_age)`, the model property, which
+        # delegates to member_of_age() and counts a self-ticked checkbox as proof. checkout.html
+        # line 1027 prefers this field over everything else ("the server's authoritative call"),
+        # so a member enrolled at the public kiosk with no birthdate arrived here as
+        # `is_of_age: true` and SUPPRESSED the 18+ stop — the identical hole the checkout fix
+        # closes, reached through the member-lookup door instead of the scan door. Fixing one and
+        # not the other would have left a gate that holds only for members attached one way.
+        # STANDING RULE 6: one bad endpoint means check its siblings.
+        #
+        # `age_confirmed` is still sent, unchanged and unpromoted — it is a claim, and it should
+        # be visible as one. checkout.html:1027 is the only template that reads is_of_age.
         "birthdate": customer.birthdate.isoformat() if customer.birthdate else None,
         "age_confirmed": bool(customer.age_confirmed),
-        "is_of_age": bool(customer.is_of_age),
+        "has_dob": customer.birthdate is not None,
+        "is_of_age": (_is_of_age_by_dob(customer.birthdate)
+                      if customer.birthdate is not None else None),
         "loyalty_tier": customer.loyalty_tier.value,
         "tier_discount_percent": customer.tier_discount_percent,
         "tier_locked": bool(customer.tier_locked),

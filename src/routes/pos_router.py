@@ -5009,11 +5009,26 @@ async def scan_customer_qr(
 
     logger.info(f"QR scan: Customer '{customer.handle}' recognized via {code}")
 
+    # 18+ — SEND THE ANSWER, NOT THE BIRTHDATE (2026-08-22, with the till's member scan).
+    # `is_of_age` is computed from the DOB ALONE and is None when there is no DOB, so the till
+    # can tell "settled" from "nobody has established this" — a distinction `member_of_age()`
+    # deliberately collapses for back-compat by treating a self-ticked box as of-age. The card
+    # must not be able to wave a person past the counter on a checkbox they ticked themselves.
+    # The date itself never leaves this function: an anonymous member stays anonymous.
+    # The PURE date rule, not `customer.is_of_age` — that property delegates to member_of_age(),
+    # which is the back-compat rule that counts a self-ticked box. Importing the date function
+    # directly is the point of this line, not an oversight.
+    from src.schemas.customer_schema import is_of_age as _is_of_age_by_dob
+    _dob = getattr(customer, "birthdate", None)
+    _of_age = _is_of_age_by_dob(_dob) if _dob is not None else None
+
     return CustomerQRScanResponse(
         success=True,
         message=f"Welcome back, {customer.handle}!",
         customer_id=customer.id,
         handle=customer.handle,
+        has_dob=_dob is not None,
+        is_of_age=_of_age,
         qr_code=customer.qr_code,
         loyalty_tier=customer.loyalty_tier.value,
         tier_discount_percent=customer.tier_discount_percent,

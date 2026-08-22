@@ -113,6 +113,61 @@ end of a long day.**
 
 ---
 
+### 🎫 THE MEMBER CARD — BUILT 2026-08-22 · ⬜ NOT DEPLOYED, NEEDS A HUMAN → [the spec](worklist-archive/2026-08-22-anon-member-card.md)
+
+**Angel's rule: a DATE settles it, a TICK does not.** *"If the people wanna put in the date of
+birth, yeah, that settles that"* — and without one, *"she can double check if she thinks there's
+a problem."*
+
+**Shipped in this commit — the scan and the gate TOGETHER, on purpose.** Adding the till scan
+alone would have made it *easier* to attach a self-declared member, and a self-declared member
+was the thing suppressing the check. Half of this would have been worse than none.
+
+| | |
+|---|---|
+| **No new input at the till** | `HLX-`+8 hex cannot collide with an EAN, so the box she already scans into routes it (`scan.html:1456`). Same gun, no mode switch. |
+| **The server sends the ANSWER, never the date** | `has_dob` + `is_of_age` (`pos_router.py:5013`). An anonymous member stays anonymous *at the till too*. |
+| **A tick no longer suppresses the 18+ stop** | `checkout.html:1032` — was `return m.age_confirmed !== false`, now `return false`. |
+| **The sibling door, closed too** | `customer_router.py:251` sent the back-compat `is_of_age`, which `checkout.html:1027` prefers over everything — so the member-**lookup** path re-opened the identical hole. Standing rule 6. |
+| **A THIRD door closed for free** | `held_orders.html:136` writes a member with *no* age fields; `undefined !== false` was **true**, so a kiosk held order silently cleared the gate. The checkout fix covers it. |
+
+**It costs nothing in clicks** — which was Felix's other requirement (*"idiot proof… not a lot of
+clicks"*): a member **with** a DOB now takes **0 taps** (better than today), a member **without**
+one takes the same 1 tap a walk-in takes. Nobody's checkout got longer; only the self-issued free
+pass went away.
+
+**Proved live on local (`988622c`), the scan endpoint answering for three seeded members:**
+
+```
+HLX-AAAA0001  ZZTEST-tick    has_dob=False  is_of_age=None   → gate SHOWS, "check ID if unsure"
+HLX-AAAA0002  ZZTEST-dob     has_dob=True   is_of_age=True   → gate suppressed, correctly
+HLX-AAAA0003  ZZTEST-minor   has_dob=True   is_of_age=False  → till refuses, loudly
+HLX-NOSUCH99  success=false — clean not-found
+```
+
+`src/tests/test_member_card_age.py` — 6 tests pinning the gap between `member_of_age()` (the
+back-compat sale rule, which counts the tick, correctly) and `is_of_age()` (the date rule). The
+whole defect lived in an endpoint sending the first where a screen needed the second.
+
+⬜ **STILL OWED, and it is the part that matters:**
+- **A human on the checkout screen.** Per LESSONS #7 a screen is never verified by reading it, and
+  every claim above about the *stop appearing* is read from code — the browser extension was not
+  connected. `scripts/prove-till-18plus.js` (45 checks) must run before any promote.
+- **`customer_router.py:251` is proved by identical expression + unit test, NOT by an
+  authenticated call.** It needs a token; it did not get one tonight.
+- **NOT DEPLOYED TO PROD.** Local only.
+- **Mint `qr_code` for the 18 live members** — 0 of 18 have one, so no card exists to scan yet.
+- 🧹 Three `ZZTEST-*` members are seeded in **LOCAL dev only** (never prod) so the browser prover
+  has something to scan: `DELETE FROM customers WHERE handle LIKE 'ZZTEST-%';`
+
+⬜ **AND THE T&C PAGE IS NOT WRITTEN — deliberately.** Angel sketched it (*"plain English, not
+lawyer talk"*): skipping the DOB is fine, but you may be asked for ID the first time if you look
+underage; doing this underage is illegal and we will probably catch you at the counter; this is a
+**points system only**, tracking purchases and spend, maybe a gift at bronze/silver/platinum. He
+also said *"I'm just making stuff up."* **The wording is his, not mine** — a page that tells a
+customer what they are agreeing to should not be invented by the copilot. Draft copy needed, then
+DE at minimum; FR/IT need a speaker, not a guess.
+
 ### 🎫 THE ANONYMOUS MEMBER CARD — spec'd 2026-08-22, NOT scheduled → [the spec](worklist-archive/2026-08-22-anon-member-card.md)
 
 Felix, via Angel: *"nobody wants to give their name, but show a barcode or QR code to scan would be

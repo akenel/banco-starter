@@ -1029,7 +1029,28 @@
                     const a = this.ageFromDob(m.birthdate);
                     return a !== null && a >= 18;
                 }
-                return m.age_confirmed !== false;
+                // NO BIRTHDATE => NOT SETTLED => THE CASHIER DECIDES. Changed 2026-08-22.
+                //
+                // This line used to read `return m.age_confirmed !== false`, so a member with no
+                // birthdate but the signup checkbox ticked counted as of-age — and needsAgeGate()
+                // below then SUPPRESSED the 18+ stop entirely. The kiosk at /pos/kiosk is public,
+                // has no date-of-birth field at all, and posts age_confirmed=true from a checkbox
+                // the customer ticks about themselves. So anyone could self-issue a card that
+                // waved them past the counter, and the cashier was never prompted to look at them.
+                // A walk-in got MORE scrutiny than a member: the card REMOVED the check instead of
+                // backing it. CLAUDE.md pattern 1 — a control present on every layer except the
+                // screen the person is standing at.
+                //
+                // Angel set the rule, 2026-08-22: "if the people wanna put in the date of birth,
+                // yeah, that settles that" — and without one, "she can double check if she thinks
+                // there's a problem." A date settles it; a tick does not.
+                //
+                // COSTS NOTHING IN CLICKS, which was the other requirement ("he wants it to be
+                // idiot proof... not a lot of clicks"):
+                //   member with a DOB   → no stop at all      = 0 taps (BETTER than today)
+                //   member with no DOB  → the same stop as a walk-in = 1 tap (SAME as today)
+                // Nobody's checkout got longer. The self-declared free pass is what went away.
+                return false;
             },
             // PROVEN under 18 by DOB — authoritative (matches the server). No walk-in attestation can
             // clear this; the cashier must remove the member or drop the 18+ items.

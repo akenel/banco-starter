@@ -539,6 +539,24 @@ class CustomerQRScanResponse(BaseModel):
     # Credits
     credits_balance: Optional[int] = None
 
+    # 18+ — THE ANSWER, NEVER THE BIRTHDATE. Added 2026-08-22 with the till's member scan.
+    #
+    # The till has to decide whether to raise the 18+ stop, and until now this response carried
+    # nothing to decide it with — so a scanned member arrived at checkout with no age at all.
+    # We send the ANSWER, computed here, and never the date: the whole point of the card is that
+    # a customer can be a member without handing over anything about themselves, and a DOB on the
+    # wire to every till is exactly what they were avoiding.
+    #
+    #   has_dob=True,  is_of_age=True   → settled. No stop, no ID, nothing to tap.
+    #   has_dob=True,  is_of_age=False  → PROVEN under 18. The cashier cannot attest this away.
+    #   has_dob=False                   → not settled. The cashier looks at the person and decides.
+    #                                     A self-ticked box is not a document (Angel, 2026-08-22:
+    #                                     "if the people wanna put in the date of birth, yeah,
+    #                                      that settles that").
+    has_dob: bool = Field(False, description="A birthdate is on file — the card can settle 18+")
+    is_of_age: Optional[bool] = Field(
+        None, description="18+ per the birthdate ALONE. None when no birthdate is on file.")
+
     # CRACK level
     crack_level: Optional[CrackLevel] = None
 

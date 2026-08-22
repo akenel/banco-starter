@@ -1453,6 +1453,21 @@
                     return;
                 }
                 this._lastScanCode = code; this._lastScanAt = now;
+
+                // A MEMBER CARD IS NOT A PRODUCT, AND IT DOES NOT NEED ITS OWN BOX.
+                //
+                // Felix: customers do not want to give a name. Angel, 2026-08-22: "we just have to
+                // wire up the input at the till that she can scan the guy's code... it's just
+                // another input type." It turned out not to need one. `HLX-` + 8 hex cannot
+                // collide with an EAN (pure digits), so the code she is already holding a gun to
+                // tells us what it is. Same box, same gun, no mode switch, nothing to remember —
+                // which is the whole requirement: "he wants it to be idiot proof... we don't want
+                // this to become a big step in the checkout process."
+                if (/^HLX-[0-9A-F]{8}$/i.test(code)) {
+                    await this.attachMemberByCode(code);
+                    return;
+                }
+
                 try {
                     // Exact barcode lookup (the dedicated endpoint -- /search fuzzy-ranks
                     // the exact match too low to trust for a scan).
@@ -1702,6 +1717,52 @@
                 let sum = 0;
                 for (let i = 0; i < 12; i++) sum += (+body[i]) * (i % 2 === 0 ? 1 : 3);
                 return body + ((10 - (sum % 10)) % 10);
+            },
+
+            // Scan a member card. Stores the SAME sessionStorage shape `/pos/customer-lookup`
+            // writes with "Use for Checkout" (checkout.html:683 reads it), so checkout needed no
+            // change to receive one — one producer more, same contract.
+            //
+            // The toast is the whole UI. There is no member panel, no confirm step and no extra
+            // tap, because the requirement was explicitly that this NOT become a step: it is a
+            // scan she was making anyway, and the only feedback is a line telling her what
+            // happened. What it says about age is deliberate and is the reason this shipped with
+            // the checkout.html:1032 change rather than before it:
+            //
+            //   birthdate on file, 18+  → "✅ Age on file" — the stop will not appear, correctly
+            //   birthdate on file, <18  → "⛔ UNDER 18" — refuse; no attestation can clear it
+            //   no birthdate            → "⚠️ no age on file — check ID if unsure", and the 18+
+            //                             stop still appears at checkout. Angel: "she can double
+            //                             check if she thinks there's a problem."
+            async attachMemberByCode(code) {
+                this.barcodeInput = '';
+                try {
+                    const r = await API.get(`/api/v1/pos/customer/scan?code=${encodeURIComponent(code)}`);
+                    if (!r || !r.success) {
+                        showToast('🎫 ' + (r && r.message ? r.message : 'Member card not found'), 'warning');
+                    } else {
+                        // Only what checkout needs. The birthdate is NOT here because the server
+                        // does not send it — an anonymous member stays anonymous at the till.
+                        const member = {
+                            id: r.customer_id, handle: r.handle, qr_code: r.qr_code,
+                            has_dob: !!r.has_dob, is_of_age: r.is_of_age,
+                            loyalty_tier: r.loyalty_tier,
+                            tier_discount_percent: r.tier_discount_percent || 0,
+                            credits_balance: r.credits_balance || 0,
+                        };
+                        try { sessionStorage.setItem('checkout_customer', JSON.stringify(member)); } catch (e) {}
+                        if (r.is_of_age === false) {
+                            showToast(`⛔ ${r.handle} — UNDER 18 on file. Do not sell age-restricted items.`, 'error');
+                        } else if (r.is_of_age === true) {
+                            showToast(`🎫 ${r.handle} attached · ✅ Age on file`, 'success');
+                        } else {
+                            showToast(`🎫 ${r.handle} attached · ⚠️ no age on file — check ID if unsure`, 'warning');
+                        }
+                    }
+                } catch (err) {
+                    showToast('🎫 Member card lookup failed: ' + (err.message || err), 'error');
+                }
+                this.$nextTick(() => this.$refs.barcodeInput && this.$refs.barcodeInput.focus());
             },
 
             async createNoCodeItem() {
