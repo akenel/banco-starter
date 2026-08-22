@@ -29,12 +29,13 @@ the exact command sequence: [`onboarding/13-tablet-x1-debian.md`](onboarding/13-
 - [ ] Measure signal where the till stands (29 % at home; concrete will be worse)
 - [ ] Pull the Fritzbox WAN cable with the till open and ring a real sale
 - [ ] Ask Felix what that SIM actually is — data-only vs voice bills very differently
-- [ ] 🔋 **Battery: measure before spending.** 4 h to charge, ~2 h runtime. Get the real
-      degradation first — `cat /sys/class/power_supply/BAT*/{energy_full_design,energy_full,
-      cycle_count}`. **For a till that sits plugged in on a counter, 2 h is a free UPS, not a
-      fault** — more than any desktop till has. It only matters if the tablet walks the shop
-      for shelf intake. And doc 13 already expects **tablet #2 from Felix, same spec** — ask
-      him before buying a battery (~CHF 60 + opening the case) or a machine (CHF 150–250).
+- [x] ~~🔋 **Battery**~~ — **measured 2026-08-22: nothing to buy.** `37.01 Wh` design,
+      `34.67 Wh` now, **97 cycles → 93.7 % health.** The 2 h runtime is a 37 Wh battery driving a
+      12" 2K screen (~17 W draw), i.e. the machine's *design*, not its decline — a new cell buys
+      about eight minutes. Levers are brightness and radios, not capacity. **Note the LTE modem
+      enabled today draws continuously; that is the price of the failover.** If the 4 h charge
+      matters, check `charge_control_end_threshold` (a Lenovo 80 % cap) and use the real 45 W
+      adapter — 9 W net charging says small charger, not tired battery.
 
 **🅿️ DOCKS ARE PARKED — buy nothing.** Two were tried and neither works: the **WiGig Dock W123**
 reaches a machine only over a 60 GHz radio the Intel 8265 does not have (and Intel WiGig docking
