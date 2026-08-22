@@ -51,6 +51,39 @@ That is a clean three-way split with nothing left over:
 So during the install: **stick in USB-A, charger in USB-C, folio attached.** No hub, no adapter,
 nothing to buy. The "one USB port is all it takes" line from doc 10 carries over intact.
 
+### 🛑 The WiGig Dock (W123) Felix supplied does NOT work with this tablet — 2026-08-22
+
+A square box with plenty of ports, and useless here. The **ThinkPad WiGig Dock W123** reaches the
+machine **only over a 60 GHz 802.11ad radio** — there is no USB or wired host cable, just its own
+power brick. It requires an Intel Tri-Band Wireless-AC **18260/17265** card.
+
+```
+lspci: 04:00.0 Network controller: Intel Corporation Wireless 8265 / 8275 [8086:24fd]
+```
+
+**The 8265 is 802.11ac, 2.4/5 GHz — no 60 GHz radio.** It is the only wireless device on the bus.
+And even with the right card, Intel's WiGig docking needed the Windows-only *Intel Wireless Dock
+Manager*; there is effectively no Linux support. Wrong radio **and** no driver.
+
+> ⚠️ **BIOS listing a feature is not the machine having it.** `F1 → Security → I/O Port Access`
+> shows a **WiGig** toggle set On. Lenovo ships one firmware across a model line and lists options
+> for hardware that is not fitted. *Exactly the same trap as the camera switch reading On while the
+> sensors cannot be powered.* **Believe `lspci`, not the BIOS menu.**
+
+**What to get instead — CHF 25–40 USB-C dock or hub with Ethernet.** It buys three things at once:
+
+- **Wired Ethernet**, which for a till that sits in one place beats Wi-Fi outright — no association
+  drops, no roaming, and no "associated but the uplink is dead". That makes the order
+  **Ethernet → Wi-Fi → LTE**, which is where a mobile backup belongs.
+- **Several USB-A ports** — gun dongle *and* the USB webcam (see the camera section) at once,
+  removing the port clash this section used to have to solve with Bluetooth.
+- **Charging pass-through** on the same cable.
+
+Ask Felix for a ThinkPad USB-C dock (`40A9`/`40AS` series) before buying — he has hardware lying
+around, and those work natively on Debian. Note the *other* Lenovo square box, the **USB 3.0
+Basic/Pro Dock**, is **DisplayLink**: Ethernet and the USB hub work out of the box, video needs a
+proprietary driver. For a till that is fine — the dock's HDMI is not needed.
+
 ---
 
 ## 🔧 BUILD SHEET — doing this again on tablet #2

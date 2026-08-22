@@ -30,6 +30,13 @@ the exact command sequence: [`onboarding/13-tablet-x1-debian.md`](onboarding/13-
 - [ ] Pull the Fritzbox WAN cable with the till open and ring a real sale
 - [ ] Ask Felix what that SIM actually is — data-only vs voice bills very differently
 
+**🛑 The WiGig Dock (W123) Felix supplied is useless here.** It reaches the machine only over a
+60 GHz 802.11ad radio — no host cable — and the tablet's card is an Intel 8265 (802.11ac, no
+60 GHz). No Linux support for Intel WiGig docking either. **Get a CHF 25–40 USB-C dock with
+Ethernet instead** — or ask Felix for a ThinkPad `40A9`/`40AS` USB-C dock. That buys wired
+Ethernet (better than Wi-Fi for a fixed till: **Ethernet → Wi-Fi → LTE**), plus USB-A for the
+gun dongle *and* the webcam at once.
+
 **📷 The tablet camera is CLOSED — buy the webcam.** Re-measured 2026-08-22 on kernel `6.12.101`:
 two sensors *are* fitted (OV2740 + OV5670) — the August "nothing attached" was wrong — but the
 TPS68470 PMIC powering both has no board data for this model, so Linux cannot switch them on.
