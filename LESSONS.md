@@ -111,3 +111,61 @@ exactly when you test it.
 **⑦ And the design was the shopkeeper's.** I was drafting a price-group table with membership to
 maintain. Angel said: *"if the paper has tier pricing then they can mix."* The deal IS the group.
 No table, nothing to configure, and a roll can never pool with a paper because 10.00 ≠ 5.00.
+
+---
+
+## 2026-08-22 — the day being *accurate* turned out not to be enough
+
+Angel rang three plain King Size papers and the till said 6.00 where the deal is 5.00. One
+checkbox — *"price is for the whole pack"* — had been left unticked on one of them.
+
+**1. A true label that reads like a deal is a lie that passes review.** The mis-saved row printed
+`3+ @ 5.00 ea` on the catalogue row, the shelf row and the bench card. That is *exactly* what
+per_unit means. It also claims 15.00 for three while the till charges 5.00, and it sat on four
+live products for a day with nobody blinking — because a ladder printed in indigo reads as a
+deal however absurd the number. The fix was not a better sentence, it was to **stop pricing a
+row we know is wrong** and say so in red instead.
+
+**2. A row that is right alone and wrong in company cannot be found by testing it alone.** Three
+of the slim pack on its own rings 5.00 correctly — the server's above-base rescue reads the rung
+as a pack. It only breaks in a mixed basket. Every single-product test passes. *Ask what shape of
+input your harness never constructs.*
+
+**3. The app manufactured its own warning.** `addTier()` creates a `1 → <price>` rung the first
+time anyone taps "+ Add break" on a per_unit product, by design (BL-31). My first rule flagged
+that as dead weight — so the app would have scolded Angel for using its own button, and inside a
+week he would have stopped reading warnings. **Narrowed it: an equal rung is silent, a
+disagreeing one is red.** *Before shipping a warning, run it against what your own UI produces on
+ordinary use.* Six of the twelve assertions in the prover now exist only to keep it quiet.
+
+**4. Two real leaks were hiding in that same shape.** Tycoon Gas labelled 6.90, ringing **5.00**.
+Greengo Wide Rolls labelled 4.00, ringing **3.50**. A `min_qty: 1` rung replaces the shelf price,
+and one unit is not a deal. The sweep found both on its first run; neither was visible from the
+row anyone happened to be editing.
+
+**5. A silent all-clear is indistinguishable from a dead feature.** Angel fixed all eight flagged
+rows, the panel correctly vanished, and we spent twenty minutes and a dozen tool calls proving
+nothing was broken. I checked the route, the logs, the query, the i18n bundle — and along the way
+told him prod was serving a stale asset, which was **wrong**: my grep had dropped `/pos/` from
+the path so I fetched a 404 and read the empty result as a stale file. *An empty result needs a
+"nothing here" that is distinguishable from "did not run" — in the UI and in your own probes.*
+
+**6. A save you have to go looking for is a save that does not happen.** Angel filled the New
+Product form twice, told me he had saved, and **no POST ever reached the server**. The Create
+button sat at y=1618 in an 1100px window — 500px below the fold, behind the bottom nav. My own
+warning box made the reach ~90px worse. He was not doing it wrong; the button was not there. Now
+sticky. *When someone says they did it and the system says they didn't, measure the geometry
+before doubting the person.*
+
+**7. My own repro accused working code — twice in one hour.** First a `.btn-success` selector that
+grabbed a hidden "Yes — merge them" button and reported the Save button unreachable. Then a
+`.replace()` on a 4-space-indented anchor against a 6-space line, which silently did nothing and
+left a seed row uncreated. *A string replacement without an assert is a no-op waiting to be
+believed.* Both were caught only because the failure looked implausible.
+
+**8. An assertion that cannot fail is worse than no assertion.** I shipped `ok('an EAN-less row
+says "no barcode yet"', nones >= 0)` — true of every number. A green tick that means nothing is
+worse than a missing one, because it is counted.
+
+**Angel ran the 25-check sheet on prod: `25 pass · 0 fail`.** The live shop now carries 92
+quantity ladders and zero that cannot mean what they say.

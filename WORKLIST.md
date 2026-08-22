@@ -13,28 +13,48 @@
 
 ---
 
-## ▶️ NEXT — the EAN on the catalogue row (Angel, 2026-08-22)
+## ✅ THE PRICE WARNING — BUILT, PROVED, HUMAN-GREEN — 2026-08-22 → [the day](worklist-archive/2026-08-22-pooling/)
 
-> *"the list is excellent and helpful but i see no EAN here — maybe good idea to put the EAN in
-> the list just above the CHF selling price — would help to quick make sure the EAN actually
-> matches the product with a quick glance."*
+Angel rang 1 Greengo King Size + 2 Greengo King Size slim and got **CHF 6.00** where three plain
+papers are 5.00. The price was right; *"price is for the whole pack"* was unticked, so the row
+stored `tier_mode: per_unit` — an island that can never pool. **Four live rows** had it.
 
-Agreed, and it is the repo's own doctrine: [`CATALOG-IDENTITY.md`](CATALOG-IDENTITY.md) says the
-**EAN is the identity** and the name is only a label. The row shows the SKU (`TAM-19993`) — an
-internal number nobody can check against a packet — and hides the one number you can.
+They were never hidden. All three screens printed `3+ @ 5.00 ea` — literally true of per_unit,
+absurd on its face (15.00 for three, while the till charged 5.00) — and nobody blinked, because
+**a ladder printed in indigo reads as a deal however silly the number.** Being accurate was not
+enough; it had to be loud, and it had to stop pricing a row it knows is wrong.
 
-**Held until Angel finishes the price-warning testsheet.** When it goes in:
+**Angel ran the 25-check sheet on prod: `25 pass · 0 fail · GO`.** Prod on `73e9cff`.
 
-- EAN above the price, monospace, next to the SKU chip.
-- Decide what an EAN-less row shows. **Do not leave it blank** — most of the 5,423 have no real
-  barcode yet, and "no barcode" is itself the work signal. A quiet grey *"no barcode yet"* turns
-  the catalogue into its own to-do list.
-- Ship it together with the sweep-panel border fix below.
+| Shipped | Where it came from |
+|---|---|
+| `tierWarning()` — one rule, three screens + both editors | the CHF 6.00 basket |
+| `GET /catalog/price-check` — the whole catalogue at once | a badge only helps whoever scrolls past |
+| The EAN above the price on every row | *"i see no EAN here … a quick glance"* |
+| A sticky Save on the edit modal | two saves that never reached the server |
+| The equal `1 →` rung goes silent | `+ Add break` creates it, by design |
+| `✓ Pricing checked — nothing to fix` | twenty minutes proving a working feature worked |
 
-**Also waiting in the same change:** the sweep panel had TWO `style` attributes, so the browser
-silently discarded the amber border and it rendered as a plain white card — present, but not the
-amber thing the testsheet told Angel to look for. Fixed locally, **not yet deployed** so as not to
-restart the app mid-test.
+**Money found and closed:** Tycoon Gas labelled 6.90, ringing **5.00** (−1.90 a can). Greengo
+Wide Rolls labelled 4.00, ringing **3.50**. Both were a `min_qty: 1` rung silently replacing the
+shelf price — *one unit is not a deal*. Neither was findable by looking at the row you happened
+to be working on; the sweep found both on its first run.
+
+**Angel cleared all ten flagged rows himself.** The live shop now carries 92 quantity ladders and
+**0** that cannot mean what they say.
+
+**Proof:** `prove-bad-price-is-visible.js`, 34 assertions — 6 of them guard-breaks that must stay
+SILENT. Reverting each of the four features turns 5 red. Plus 5 sibling provers (77 total) and 53
+pricing unit tests.
+
+### 🔜 Next — the till still does not EXPLAIN the deal
+
+No *"3 for 5 applied"* on a line that pooled, and no reason on a line that did not. Angel had to
+send me a screenshot to learn that a checkbox was unticked. **Layla and Mark will not have that
+option.** This is the real remaining build.
+
+Also open: `84157089` **Smoking Gold** reads 2.00 with a 3-for-5; Felix said collector paper,
+2.50, no deal. Angel's call, not a bug.
 
 ---
 
