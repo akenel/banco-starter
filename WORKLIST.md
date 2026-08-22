@@ -21,10 +21,14 @@ ships **FCC-locked** — one symlink into `/etc/ModemManager/fcc-unlock.d/`. Ful
 the exact command sequence: [`onboarding/13-tablet-x1-debian.md`](onboarding/13-tablet-x1-debian.md)
 (*LTE IS WORKING* section).
 
-**Proved in Angel's flat on `Init7_1A34`, not on the counter.** Five things to redo in Luzern:
+**Proved in Angel's flat on `Init7_1A34`, not on the counter.** The cold boot is now done (below); **four things left, all of them genuinely location-dependent:**
 
-- [ ] **Cold boot** (poweroff, unplug, hold power 15 s) — the *only* test of the FCC symlink; a
-      `systemctl restart` does not power-cycle the modem and proves nothing
+- [x] ~~**Cold boot**~~ — ✅ **PROVEN 2026-08-22 20:24, and it is machine-level, not location-level,
+      so it does not need redoing in Luzern.** Full `poweroff` + mains unplugged, so the modem lost
+      power and its FCC authorisation with it. On the way back up:
+      `[fcc unlock dispatcher] singleton created` — it **found and ran** the symlinked script, where
+      this afternoon the same line read *"file doesn't exist … no valid program found"*. Same boot:
+      `cdc-wdm2 gsm connected shop-lte`, untouched. **The till survives a power cut with LTE intact.**
 - [ ] Set `ipv4.route-metric 100` on the **shop** Wi-Fi profile — it is a different connection
 - [ ] Measure signal where the till stands (29 % at home; concrete will be worse)
 - [ ] Pull the Fritzbox WAN cable with the till open and ring a real sale

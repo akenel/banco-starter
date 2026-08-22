@@ -890,8 +890,17 @@ sudo qmicli -d /dev/cdc-wdm2 --device-open-mbim --device-open-proxy --dms-set-fc
 
 #### ⬜ What to redo in Luzern — this is not done until these are ticked
 
-- [ ] **Cold boot on the counter.** Full poweroff, unplug, hold power 15 s, boot, touch nothing.
-      Want `registered` + gsm device connected. *This is the only test of the FCC symlink.*
+- [x] ~~**Cold boot**~~ — ✅ **DONE 2026-08-22 20:24. The FCC symlink works.** Verified the
+      mechanism, not just the outcome: ModemManager's log level was raised via a systemd drop-in
+      (`ExecStart=/usr/sbin/ModemManager --log-level=DEBUG`) so the unlock would be *visible* on the
+      next boot, then a real power cut — `systemctl poweroff`, mains unplugged.
+      ```
+      [modem0] attempting FCC unlock...
+      [fcc unlock dispatcher] singleton created      ← found it and RAN it
+      ```
+      Against the afternoon's `Cannot run fcc unlock operation … file doesn't exist`. Same boot:
+      `cdc-wdm2  gsm  connected  shop-lte`, no intervention. Drop-in removed afterwards.
+      **Nothing to redo here — this is machine behaviour, not shop behaviour.**
 - [ ] **Set the shop Wi-Fi metric.** `ipv4.route-metric 100` was set on `Init7_1A34` (Angel's home
       AP). The shop profile is a different connection and starts at the default 600.
 - [ ] **Check signal in the shop.** Home measured **29 %**. Concrete and a basement will be worse;
