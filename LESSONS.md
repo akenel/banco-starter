@@ -318,3 +318,46 @@ not a place anybody stands. It became real at `4206246` on prod, after a hard-re
 `pos-scanner.js`. *Ask not only which screen, but which copy of the code that screen is loading.*
 
 Human-green, Angel on the tablet: **"the webcam button is there and it works."**
+
+## 2026-08-22, night — the model was not guessing, the camera was starving it
+
+Angel snapped a grinder that **was already in the catalogue** and snap-find missed it. His read:
+*"it never finds a match in the catalog but the google search basically finds it fine."* He was
+about to work around it by screenshotting Google Images.
+
+**The matcher was innocent, and the way to know that was to ask prod, not to reason.** Running the
+real ranking query against the live row (`Grinder Champ High White Leaf - 4-teiliger Ø50mm`) for
+five plausible reads:
+
+| what the AI reads | rank | score |
+|---|---|---|
+| `Champ High White Leaf Grinder` | 1 | 1.000 |
+| `White Leaf Grinder` | 1 | 1.000 |
+| `Grinder` | 1 | 1.000 |
+| `Metal Herb Grinder 4-part 50mm` | **16** | 0.452 |
+
+Even the bare word "Grinder" ranks it first. The only read that buries it is the **unbranded but
+specific** one — and the picker shows 6. *Invented specifics do not just fail to help, they
+actively displace the right row.* The function's own comment already said the model "answered 50mm
+for nearly everything"; what was new is that this is enough to lose a perfect match.
+
+**So why did the model describe instead of read?** `getUserMedia` was asked for a camera with no
+size constraint, so it returned the browser default — commonly 640×480. Brand lettering on a tin is
+mush at that size. And `image_intake` only ever DOWNSCALES (PRODUCT caps at 1024px): **no server-side
+step can recover detail the capture never took.** Asked for 1920×1080 ideal, plus Angel framing the
+lettering rather than the object, the same grinder came back rank 1. Human-green: *"perfect hit."*
+
+**Three things worth keeping:**
+
+1. **A quality complaint about a model is a claim about its input, until you have measured the
+   input.** Nothing anywhere recorded what reached the vision service — a 640×480 webcam frame and
+   a 12MP phone shot both arrive as "a JPEG". That is now logged (`vision intake: product WxH kB`).
+   The debugging was blind for exactly as long as the measurement was missing.
+2. **Ask the system for the ranking instead of theorising about it.** One SQL run against prod
+   turned "the matcher is bad" into a table showing it is perfect for four reads out of five, and
+   named the fifth. Same discipline as LESSONS #5, used the right way round.
+3. **The workaround would have hidden the bug.** Screenshotting Google Images produces a sharp
+   picture, so it would have "worked" — and left every future snap at 640×480, plus a catalogue
+   of other people's photographs. `/catalog/page-facts` already existed for this and returns the
+   **EAN**, which a screenshot never can. *When a user invents a workaround, find what it is
+   compensating for before praising it.*

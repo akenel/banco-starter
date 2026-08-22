@@ -37,6 +37,15 @@ Ethernet instead** — or ask Felix for a ThinkPad `40A9`/`40AS` USB-C dock. Tha
 Ethernet (better than Wi-Fi for a fixed till: **Ethernet → Wi-Fi → LTE**), plus USB-A for the
 gun dongle *and* the webcam at once.
 
+**📸 Snap-find is DONE too — human-green 2026-08-22.** The webcam capture was running at the
+browser default (~640×480), so the vision model could not read brand lettering and described
+the object instead — an unbranded-but-specific read drops a perfect catalogue row from rank 1
+to rank 16 of a list showing 6. Now asks 1920×1080; the server only downscales, so this had to
+be fixed at the camera. Angel, close-up on a Champ High grinder: *"found the item in our
+catalog right at the top — perfect hit."* Intake dimensions are now logged, so next time it is
+measured, not guessed. **For an item genuinely not in the catalogue, paste the product page
+(🔗 field on Add) — it returns a real EAN; a photo never can.**
+
 **📷 The tablet camera is DONE — a USB webcam, human-green on the tablet 2026-08-22.** Re-measured 2026-08-22 on kernel `6.12.101`:
 two sensors *are* fitted (OV2740 + OV5670) — the August "nothing attached" was wrong — but the
 TPS68470 PMIC powering both has no board data for this model, so Linux cannot switch them on.
