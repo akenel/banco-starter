@@ -487,6 +487,43 @@
                                         <span x-show="cartTierApplied(cart, index)" class="text-xs text-green-600 font-semibold ml-1" data-i18n="scan.tier_badge">pack ✓</span>
                                     </p>
                                 </div>
+                                <!-- WHY this line costs what it costs. "pack ✓" above says a deal
+                                     touched it; it never said WHICH deal, how many packs are in it,
+                                     or -- the expensive one -- why a line that looks eligible is
+                                     standing outside. See dealInfo() in base.html. -->
+                                <div x-show="dealInfo(cart, index)" x-cloak style="display:none" class="mt-1 text-right">
+                                    <p class="text-xs font-semibold leading-tight"
+                                       :class="(dealInfo(cart, index) || {}).state === 'apart' ? 'text-red-600'
+                                               : (dealInfo(cart, index) || {}).state === 'near' ? 'text-gray-500'
+                                               : 'text-emerald-700'"
+                                       x-text="(dealInfo(cart, index) || {}).text"></p>
+                                    <p x-show="(dealInfo(cart, index) || {}).nudge" style="display:none"
+                                       class="text-xs text-amber-700 font-semibold leading-tight"
+                                       x-text="(dealInfo(cart, index) || {}).nudge"></p>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- THE GROUPS, NAMED. A per-line note tells you a line is in a deal; it cannot
+                         tell you WHICH lines are in it together. That is the question Angel actually
+                         asked twice ("is this my pricing issue?"), and it is only answerable by
+                         listing the members. -->
+                    <div x-show="cartDeals(cart).length > 0" x-cloak style="display:none"
+                         class="border-t pt-3 mt-3">
+                        <p class="text-xs font-bold text-emerald-800 mb-1">
+                            🏷️ <span data-i18n="scan.deals_heading">Deals in this basket</span>
+                        </p>
+                        <template x-for="(d, di) in cartDeals(cart)" :key="di">
+                            <div class="text-xs text-gray-700 mb-1.5 pl-1">
+                                <span class="font-bold text-emerald-800" x-text="d.label"></span>
+                                <span class="text-gray-500">·</span>
+                                <span x-text="d.qty"></span>
+                                <span class="text-gray-500">×</span>
+                                <span class="font-bold" x-text="formatPrice(d.total)"></span>
+                                <span x-show="d.saved > 0" class="text-emerald-700 font-semibold"
+                                      x-text="'(' + t('scan.deals_saved').replace('{amount}', formatPrice(d.saved)) + ')'"></span>
+                                <p class="text-gray-500 leading-tight" x-text="d.names.join(' · ')"></p>
                             </div>
                         </template>
                     </div>

@@ -110,16 +110,25 @@
                 <h2 class="text-xl font-semibold text-gray-900 mb-4" data-i18n="checkout.order_summary">Order Summary</h2>
                 <div class="bg-gray-50 rounded-lg p-4 space-y-2">
                     <template x-for="(item, index) in cartData.cart" :key="index">
-                        <div class="flex justify-between">
-                            <span>
-                                <span x-text="`${item.quantity}x ${item.name}`"></span>
-                                <!-- 🔞 early warning for the cashier — same chip as the catalog -->
-                                <span x-show="isAgeLine(item)" class="chip chip-age">🔞 18+</span>
-                            </span>
-                            <span>
-                                <span x-text="formatPrice(cartLineTotal(cartData.cart, index))"></span>
-                                <span x-show="tierApplied(item)" class="text-xs text-green-600 font-semibold ml-1" data-i18n="scan.tier_badge">pack ✓</span>
-                            </span>
+                        <div>
+                            <div class="flex justify-between">
+                                <span>
+                                    <span x-text="`${item.quantity}x ${item.name}`"></span>
+                                    <!-- 🔞 early warning for the cashier — same chip as the catalog -->
+                                    <span x-show="isAgeLine(item)" class="chip chip-age">🔞 18+</span>
+                                </span>
+                                <span>
+                                    <span x-text="formatPrice(cartLineTotal(cartData.cart, index))"></span>
+                                    <span x-show="tierApplied(item)" class="text-xs text-green-600 font-semibold ml-1" data-i18n="scan.tier_badge">pack ✓</span>
+                                </span>
+                            </div>
+                            <!-- The last screen before the drawer opens. If a line is priced by a
+                                 deal -- or is standing outside one it looks eligible for -- this is
+                                 the last chance anyone has to notice. Same dealInfo() as the till. -->
+                            <p x-show="dealInfo(cartData.cart, index)" x-cloak style="display:none"
+                               class="text-xs font-semibold leading-tight pl-1"
+                               :class="(dealInfo(cartData.cart, index) || {}).state === 'apart' ? 'text-red-600' : 'text-emerald-700'"
+                               x-text="(dealInfo(cartData.cart, index) || {}).text"></p>
                         </div>
                     </template>
                 </div>

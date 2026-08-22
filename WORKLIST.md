@@ -47,11 +47,29 @@ to be working on; the sweep found both on its first run.
 SILENT. Reverting each of the four features turns 5 red. Plus 5 sibling provers (77 total) and 53
 pricing unit tests.
 
-### 🔜 Next — the till still does not EXPLAIN the deal
+### ✅ The till now EXPLAINS the deal — 2026-08-22
 
-No *"3 for 5 applied"* on a line that pooled, and no reason on a line that did not. Angel had to
-send me a screenshot to learn that a checkbox was unticked. **Layla and Mark will not have that
-option.** This is the real remaining build.
+Twice in one day Angel sent a screenshot of a cart asking *"is this my pricing issue?"* Both times
+the arithmetic was right and the screen showed only numbers. **Numbers cannot say why.** He could
+send a screenshot; Layla and Mark cannot.
+
+Every cart line that carries a ladder now says one of four things, and the checkout screen repeats
+it as the last word before the drawer opens:
+
+| | |
+|---|---|
+| `🏷️ 3 for CHF 5.00 — 3 in this deal` | pooled, and how many are in it |
+| `🏷️ 3 for CHF 5.00 — not reached yet` + `+1 more → save CHF 1.00` | how far off, and what it is worth |
+| `⚠️ not in the deal — this pack is priced per unit` | **the one that cost the day** |
+| *(nothing)* | a plain product, most of the basket |
+
+Plus **Deals in this basket** above the totals, naming the members of each group — the only thing
+that answers *"why did these three not pool?"* without opening a product.
+
+Every figure comes from the same `_bundleTotal()` the drawer uses, so the explanation cannot drift
+from the charge. `prove-till-explains-the-deal.js`, 35 assertions, four of them guard-breaks that
+must stay SILENT — a till that comments on every line is a till nobody reads. Neutering
+`dealInfo()` turns 7 red.
 
 **Closed 2026-08-22 — Smoking Gold is not special.** Angel: *"GOLD is same as the others, nothing
 special — sounds special but it's the same as Deluxe `84195937`. These are the King Size Papers,

@@ -1112,6 +1112,153 @@
             const price = parseFloat(row && row.unit_price);
             return !!(base > 0 && price > base && (price / parseInt(row.min_qty, 10)) <= base);
         }
+        // ── THE TILL EXPLAINS THE DEAL ────────────────────────────────────────────────────
+        // 2026-08-22. Twice in one day Angel had to send me a screenshot to find out why a basket
+        // came to 6.00 instead of 5.00 -- once because a pack was saved per_unit, once because he
+        // had picked papers that were not all on the same deal. Both times the cart showed only
+        // numbers, and numbers cannot say WHY. Layla and Mark will not have the option of sending
+        // me a screenshot.
+        //
+        // The cart already POOLS correctly (cartPools). What it never did was narrate: which lines
+        // are in a deal together, what that deal is, what one more unit would be worth, and -- the
+        // one that cost the most time -- why a line that looks eligible is standing outside it.
+        //
+        // Reads the cart, changes nothing. Every number here comes from the same _bundleTotal()
+        // the drawer uses, so the explanation cannot drift from the charge.
+
+        // Largest rung whose min_qty <= qty, and the smallest rung above it.
+        function _rungAt(tiers, qty) {
+            let best = null;
+            for (const r of tiers || []) {
+                const mq = parseInt(r.min_qty, 10), up = parseFloat(r.unit_price);
+                if (!(mq >= 1) || !isFinite(up) || qty < mq) continue;
+                if (!best || mq > best.mq) best = { mq, up };
+            }
+            return best;
+        }
+        function _rungAbove(tiers, qty) {
+            let next = null;
+            for (const r of tiers || []) {
+                const mq = parseInt(r.min_qty, 10), up = parseFloat(r.unit_price);
+                if (!(mq >= 1) || !isFinite(up) || mq <= qty) continue;
+                if (!next || mq < next.mq) next = { mq, up };
+            }
+            return next;
+        }
+        function _rungLabel(mq, up) {
+            return mq + ' ' + t('catalog.tiers_for') + ' ' + formatPrice(up);
+        }
+
+        // Every deal group in the basket: lines that pool, plus a lone bundle line whose own
+        // ladder has kicked in. Used for the summary block AND by dealInfo() below.
+        function cartDeals(cart) {
+            const groups = {};
+            (cart || []).forEach((it, i) => {
+                if (it && it.is_giveaway) return;
+                const k = _poolKey(it);
+                if (k) (groups[k] = groups[k] || []).push(i);
+            });
+            const out = [];
+            for (const k of Object.keys(groups)) {
+                const idx = groups[k];
+                const first = cart[idx[0]];
+                const base = Number(first.price) || 0;
+                const qty = idx.reduce((a, i) => a + (Number(cart[i].quantity) || 0), 0);
+                if (qty <= 0) continue;
+                const rung = _rungAt(first.price_tiers, qty);
+                if (!rung) continue;                       // ladder exists but nothing has kicked in
+                const total = Math.min(_bundleTotal(first.price_tiers, base, qty), base * qty);
+                out.push({
+                    key: k, indexes: idx, qty: qty,
+                    lines: idx.length,
+                    names: idx.map(i => cart[i].name).filter(Boolean),
+                    label: _rungLabel(rung.mq, rung.up),
+                    total: Math.round(total * 100) / 100,
+                    saved: Math.round((base * qty - total) * 100) / 100,
+                });
+            }
+            return out.sort((a, b) => b.saved - a.saved);
+        }
+
+        // What THIS line should say for itself. Returns null when there is nothing to explain --
+        // a plain product with no ladder says nothing, which is most of the basket.
+        function dealInfo(cart, i) {
+            const it = (cart || [])[i];
+            if (!it || it.is_giveaway) return null;
+            const tiers = Array.isArray(it.price_tiers) ? it.price_tiers : [];
+            if (!tiers.length) return null;
+            const base = Number(it.price) || 0;
+            const qty = Number(it.quantity) || 0;
+            if (!(base > 0) || qty <= 0) return null;
+
+            const key = _poolKey(it);
+
+            // NOT a bundle row. It prices per unit, which is legitimate -- UNLESS the basket also
+            // holds a bundle line it would otherwise have joined. That is the exact case that cost
+            // Angel the morning: an OCB Slim sitting next to two papers on the same 3-for-5, priced
+            // alone because one checkbox on its product record was unticked. The till could see
+            // that and said nothing.
+            if (!key) {
+                const twin = (cart || []).some((o, j) => {
+                    if (j === i || !o || o.tier_mode !== 'bundle') return false;
+                    if (Math.abs((Number(o.price) || 0) - base) > 0.005) return false;
+                    const a = JSON.stringify((o.price_tiers || []).map(r => [parseInt(r.min_qty, 10), Number(r.unit_price)]).sort());
+                    const b = JSON.stringify(tiers.filter(r => parseInt(r.min_qty, 10) >= 2)
+                                                  .map(r => [parseInt(r.min_qty, 10), Number(r.unit_price)]).sort());
+                    return a === b;
+                });
+                return twin ? { state: 'apart', text: t('scan.deal_apart') } : null;
+            }
+
+            // Pooled totals, so a line speaks for the GROUP it is in, not for itself.
+            let poolQty = 0, mates = 0;
+            (cart || []).forEach((o, j) => {
+                if (_poolKey(o) !== key) return;
+                poolQty += Number(o.quantity) || 0;
+                if (j !== i) mates++;
+            });
+
+            const rung = _rungAt(tiers, poolQty);
+            const next = _rungAbove(tiers, poolQty);
+
+            if (rung) {
+                const info = {
+                    state: mates ? 'pooled' : 'solo',
+                    text: t(mates ? 'scan.deal_pooled' : 'scan.deal_solo')
+                            .replace('{deal}', _rungLabel(rung.mq, rung.up))
+                            .replace('{qty}', poolQty),
+                };
+                // Only nudge when the next rung is genuinely worth reaching.
+                if (next) {
+                    const need = next.mq - poolQty;
+                    const nowT = Math.min(_bundleTotal(tiers, base, poolQty), base * poolQty);
+                    const thenT = Math.min(_bundleTotal(tiers, base, poolQty + need), base * (poolQty + need));
+                    const save = Math.round((nowT + need * base - thenT) * 100) / 100;
+                    if (save >= 0.05) {
+                        info.nudge = t('scan.deal_nudge')
+                                        .replace('{n}', need).replace('{amount}', formatPrice(save));
+                    }
+                }
+                return info;
+            }
+
+            // Ladder present, nothing reached yet -- say how far off it is.
+            if (next) {
+                const need = next.mq - poolQty;
+                const nowT = base * poolQty;
+                const thenT = Math.min(_bundleTotal(tiers, base, poolQty + need), base * (poolQty + need));
+                const save = Math.round((nowT + need * base - thenT) * 100) / 100;
+                return {
+                    state: 'near',
+                    text: t('scan.deal_near').replace('{deal}', _rungLabel(next.mq, next.up)),
+                    nudge: save >= 0.05
+                        ? t('scan.deal_nudge').replace('{n}', need).replace('{amount}', formatPrice(save))
+                        : '',
+                };
+            }
+            return null;
+        }
+
         // ── "THIS PRICE IS NOT WHAT YOU THINK" ────────────────────────────────────────────
         // ONE rule, three screens (catalogue row, shelf row, bench card). On 2026-08-22 Angel
         // rang 1 × Greengo King Size + 2 × Greengo King Size slim and the till said CHF 6.00
