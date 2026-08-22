@@ -47,7 +47,7 @@ to be working on; the sweep found both on its first run.
 SILENT. Reverting each of the four features turns 5 red. Plus 5 sibling provers (77 total) and 53
 pricing unit tests.
 
-### ✅ The till now EXPLAINS the deal — 2026-08-22 · **17/17 GO**, then 9/10 on the retest
+### ✅ The till now EXPLAINS the deal — 2026-08-22 · **17/17 GO**, retest **10/10 GO**
 
 Twice in one day Angel sent a screenshot of a cart asking *"is this my pricing issue?"* Both times
 the arithmetic was right and the screen showed only numbers. **Numbers cannot say why.** He could
