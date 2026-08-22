@@ -48,3 +48,39 @@ time, the shelf-intake save is putting a price back, not the staff.
 37 rolls + 33 papers (Rolling Papers), 10 rolls + 5 papers (Papers & Filters),
 1 roll filed under "Other" (`Greengo Rolls King Size` — pools fine, the
 category is just untidy). These four were the only strays.
+
+---
+
+# What the sweep found on its first run — live catalogue, 2026-08-22
+
+`GET /catalog/price-check` over the live shop: **10 rows**, not the 4 I found by hand.
+
+## Red — cannot pool (the original four)
+
+| EAN | Product | Do |
+|---|---|---|
+| `2000000232225` | Elements Phantom King Size Slim | tick whole-pack |
+| `2000000237800` | Elements Zushi King Size Slim | tick whole-pack |
+| `85950672` | Greengo King Size slim | ✅ Angel fixed 2026-08-22 |
+| `84157089` | Smoking Gold Kingsize | separate decision: 2.50, no deal |
+
+## Amber — a `{min_qty: 1}` rung, and TWO of them are live money
+
+A `min_qty: 1` rung silently replaces the shelf price. Confirmed against
+`pricing.tier_unit_price()` itself, not by reading it:
+
+| EAN | Product | Catalogue says | Till charges | Per unit |
+|---|---|---|---|---|
+| `4035687900004` | Tycoon Gas 250ml | 6.90 | **5.00** | **−1.90** |
+| `85966789` | Greengo Wide Rolls | 4.00 | **3.50** | **−0.50** |
+
+Neither is a deal — it is one unit. Whichever number is the intended one, the
+shelf label and the drawer disagree today, and only Angel can say which is right.
+
+The other six are harmless: the `min_qty: 1` rung restates the base price exactly,
+so nothing changes at the till. They are flagged amber as dead weight, not as a
+leak — four actiTube rows, two GIZEH rows.
+
+**This is the point of the sweep.** Both leaks had been sitting in the catalogue,
+on every screen, priced in indigo like a feature. Neither was findable by looking
+at the row you happened to be working on.
