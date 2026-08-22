@@ -9,7 +9,7 @@
 > [`worklist-archive/done.md`](worklist-archive/done.md) with its commit hashes; when a thread
 > grows a long write-up, the write-up goes to the archive and a one-line pointer stays here.
 
-*Last updated: 2026-08-22 (evening).*
+*Last updated: 2026-08-22 (Sat evening).*
 
 ---
 
@@ -349,8 +349,12 @@ column is indexed and two other endpoints do use it.
 **① THE IMPORTER IS BUILT AND PROVEN** — `scripts/import_reference_catalog.py` (`a9dda04`).
 Sandbox: 0 → **10,082 rows**, idempotent on a second run, and `_reference_best_match` now
 answers `4002450223400 → Pueblo Classic Tabak Dose 100g CHF 26.50 how=barcode`. Dry run unless
-`--apply`. ⚠️ **Not run on prod — that is Angel's call.** It cannot change a price or a live
-product; `reference_products` is read-only at the counter.
+`--apply`. ✅ **RUN ON PROD 2026-08-21 06:32 UTC — measured 2026-08-22 evening, not remembered.**
+`reference_products` on Felix's box: **11,035 rows · 10,980 with a real EAN · 981 age-gated**,
+all stamped `2026-08-21 06:32`. `--fetch` pulled a fresher feed than the 10,082-row CSV, hence
+the higher count. Spot-check live tonight: `4002450223400 → Pueblo Classic Tabak Dose 100g
+CHF 26.50`. This item sat marked "Angel's call" for a day AFTER it was done — pattern 3, a
+remembered state with no expiry condition on it.
 
 Three things its first dry run caught, each of which would have shipped:
 - **FourTwenty's 18+ flag is their checkout policy, not the product** — they mark a USB wall
@@ -399,8 +403,41 @@ resolve. **Reach ~40% → ~56%.**
   Angel's own BL-10 product — at **CHF 99.00**, while the single is CHF 9.90 on the same page.
 
 **Still to do:** ④ measure how often *"Is it already in my catalogue?"* actually binds to an
-existing minted row — the button exists, the hit rate does not. ⑤ deploy tier 3 to prod
-(sandbox only so far). ⑥ a SECOND wholesale feed is still the big lever; neardark needs creds.
+existing minted row — the button exists, the hit rate does not. ⑤ ~~deploy tier 3 to prod~~
+✅ **already there** — `a9dda04`, `e66acb3`, `cbc158d` are all ancestors of prod's `9abc082`
+(`git merge-base --is-ancestor`, checked 2026-08-22). ⑥ a SECOND wholesale feed is still the
+big lever; neardark needs creds.
+
+### ⚠️ THE REFERENCE DOES NOT FIX THE 4,979 MINTED CODES — measured on prod 2026-08-22
+
+Asked directly: *"is that going to replace the existing tamar 2000000 EANs … and fix those bad
+internal dummy eans — is that the idea?"* **No.** Worth writing down, because it is the natural
+reading and it is wrong.
+
+The importer writes **one table** via one `UPSERT` — `reference_products` — and never touches
+`products`. It is a clipboard beside the catalogue, not a migration.
+
+And a bulk title-match cannot do it either. Measured on Felix's box tonight, 4,979 minted rows
+against all 11,035 reference titles (`pg_trgm`):
+
+```
+300-row sample, best similarity vs the WHOLE reference table
+  < 0.5   212 rows  (71%)   ← no usable match at all
+  ≥ 0.7    36 rows  (12%)
+  = 1.00    9 rows   (3%)
+full 4,979 with an EXACT title match to a ref row carrying a real EAN:  140  (2.8%)
+```
+
+So the ceiling on auto-binding is **140 of 4,979**, and even those are not safe: **145 reference
+codes sit on more than one product** (the Clipper 4-pack at CHF 75 and its singles at CHF 7.50
+share a GTIN), so an exact title match can bind the code of the wrong pack size — and per
+LESSONS #8 a wrong bind looks exactly like a right one from inside the database. Only the packet
+tells them apart.
+
+**What actually converts a minted row is one scan** — bind-on-scan (BL-90), at the counter, with
+the packet in a hand. The reference's job is to make that scan *land*: a miss the supplier knows
+now opens find-and-bind with the real title already in the box. 18 aliases bound so far.
+**The open number is still ④ — the hit rate — and it is measurable at the till, not here.**
 
 *Bulk name-matching stays weak and measured: "Tabak Beutel Sasso Tobaccos Hash 25gr." does not
 reach "Sasso Tabaccos Brazil Hash BIO" at the 0.5 threshold. **Scan-time beats bulk.***
