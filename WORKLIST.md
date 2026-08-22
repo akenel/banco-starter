@@ -32,7 +32,17 @@ the exact command sequence: [`onboarding/13-tablet-x1-debian.md`](onboarding/13-
 - [ ] Set `ipv4.route-metric 100` on the **shop** Wi-Fi profile — it is a different connection
 - [ ] Measure signal where the till stands (29 % at home; concrete will be worse)
 - [ ] Pull the Fritzbox WAN cable with the till open and ring a real sale
-- [ ] Ask Felix what that SIM actually is — data-only vs voice bills very differently
+- [x] ~~Ask Felix what that SIM is~~ — ✅ **Sunrise, PURE DATA, CHF 5.50/month.** No voice, no
+      surprise bill; cheap enough that leaving the modem registered all day costs nothing.
+- [ ] 🔋 **A USB-C PD power bank — the tablet is meant to WALK the shop.** Earlier advice to
+      "just keep it plugged in" assumed a fixed counter; it is not one, so 2 h matters.
+      ⚠️ **It must be PD.** This tablet refuses 5 V, so a USB-A output does literally nothing —
+      Angel's 10,000 mAh bank did exactly that. A PD bank negotiates 15–20 V, i.e. it *is* the
+      adapter in a battery. Label must list multiple voltages (`9V/12V/20V`) and a wattage
+      (30–65 W), output must be USB-C, cable must be **C-to-C**. Test:
+      `cat /sys/class/power_supply/BAT*/status` → want `Charging`. A PD 20,000 mAh (~60 Wh
+      usable) is ~1.5 charges of the 37 Wh battery. *Suspect the cable too — the same one
+      failed to carry data or power through the dock.*
 - [x] ~~🔋 **Battery**~~ — **measured 2026-08-22: nothing to buy.** `37.01 Wh` design,
       `34.67 Wh` now, **97 cycles → 93.7 % health.** The 2 h runtime is a 37 Wh battery driving a
       12" 2K screen (~17 W draw), i.e. the machine's *design*, not its decline — a new cell buys
