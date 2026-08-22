@@ -113,6 +113,34 @@ end of a long day.**
 
 ---
 
+### 🎫 THE ANONYMOUS MEMBER CARD — spec'd 2026-08-22, NOT scheduled → [the spec](worklist-archive/2026-08-22-anon-member-card.md)
+
+Felix, via Angel: *"nobody wants to give their name, but show a barcode or QR code to scan would be
+better — like the Coop or Migros membership cards."* Supercard/Cumulus: **the card IS the identity.**
+
+**Most of it is already built and has never been used.** `customers.qr_code` (unique, nullable),
+`generate_qr_code()` → `HLX-`+8 hex (`customer_model.py:471`), `GET /customer/scan` with **no auth**
+— *"the code is the secret"* (`pos_router.py:4967`), kiosk signup already mints one. And only
+`Handle *` is required on the member form — **an anonymous member is already legal in this schema.**
+
+```
+prod, measured 2026-08-22:  18 customers · 0 with a qr_code · 15 with a real_name
+```
+
+The till has no member-scan path at all; checkout links away to a screen where you TYPE a handle.
+Built, wired, empty — the `reference_products` shape again.
+
+**The one real decision: a date of birth is not a name.** The member is load-bearing for 18+ —
+`member_dob` is the strongest rung and `member_confirmed` is, in the model's own words, *"a tick,
+not a document"* (`transaction_model.py:107`). A card carrying **a code and a DOB and nothing else**
+is fully anonymous AND keeps the strong rung. **It is also the pitch:** not "earn points" but
+***"scan this and we never have to ask for your ID again"*** — which removes a modal from the most
+common basket in the shop. Four build items; only *a member-scan path at the till* has real thinking
+in it. ⚠️ Risks in the spec — carry-rate, whether an unauthenticated scan may clear an age gate,
+FADP on a stored DOB, and **it has not been put to Felix beyond that one sentence.**
+
+---
+
 **🅿️ DOCKS ARE PARKED — buy nothing.** Two were tried and neither works: the **WiGig Dock W123**
 reaches a machine only over a 60 GHz radio the Intel 8265 does not have (and Intel WiGig docking
 has no Linux support), and the **Hybrid USB-C Dock DUD901** gave neither data nor charge.
