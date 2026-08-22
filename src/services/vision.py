@@ -251,7 +251,13 @@ def _normalize(raw: bytes, content_type: str, preset: str = "product") -> tuple[
         from src.services.image_intake import process, PRODUCT, SLIP, ImageIntakeError
         presets = {"product": PRODUCT, "slip": SLIP}
         try:
-            return _b64(process(raw, presets.get(preset, PRODUCT)).main), "image/jpeg"
+            r = process(raw, presets.get(preset, PRODUCT))
+            # 2026-08-22: "is the model bad, or was the photo small?" was unanswerable —
+            # nothing recorded what actually reached it. A webcam frame at the browser's
+            # default 640x480 and a 12MP phone shot both arrive as "a JPEG". Say the size.
+            logger.info("vision intake: %s %dx%d %.0fkB -> model", preset, r.width, r.height,
+                        len(r.main) / 1024)
+            return _b64(r.main), "image/jpeg"
         except ImageIntakeError as e:
             raise VisionImageError(str(e))
     except ImportError:

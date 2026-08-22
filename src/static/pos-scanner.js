@@ -207,11 +207,20 @@
     async capture() {
       const md = navigator.mediaDevices;
       if (!md || !md.getUserMedia) { alert('This browser has no camera access.'); return null; }
+      // ASK FOR PIXELS. getUserMedia with no size constraint hands back the browser
+      // default — commonly 640x480. The snap goes to a vision model that has to read the
+      // brand off a packet, and image_intake only downscales (PRODUCT = 1024px long edge),
+      // it cannot invent detail that was never captured. `ideal` degrades gracefully: a
+      // webcam that cannot do 1080p returns its best, it does not fail.
+      const SIZE = { width: { ideal: 1920 }, height: { ideal: 1080 } };
       let stream;
-      try { stream = await md.getUserMedia({ video: { facingMode: 'environment' }, audio: false }); }
+      try { stream = await md.getUserMedia({ video: { facingMode: 'environment', ...SIZE }, audio: false }); }
       catch (e) {
-        try { stream = await md.getUserMedia({ video: true, audio: false }); }
-        catch (e2) { alert('No camera available (or permission denied).'); return null; }
+        try { stream = await md.getUserMedia({ video: SIZE, audio: false }); }
+        catch (e2) {
+          try { stream = await md.getUserMedia({ video: true, audio: false }); }
+          catch (e3) { alert('No camera available (or permission denied).'); return null; }
+        }
       }
       return await new Promise((resolve) => {
         const ov = document.createElement('div');
@@ -238,6 +247,9 @@
         snap.onclick = () => {
           const c = document.createElement('canvas');
           c.width = video.videoWidth || 1280; c.height = video.videoHeight || 720;
+          // Leave the capture size where a human can find it: "was the photo too small?"
+          // is otherwise unanswerable after the fact.
+          try { console.info('[banco] webcam capture', c.width + 'x' + c.height); } catch (e) {}
           c.getContext('2d').drawImage(video, 0, 0, c.width, c.height);
           c.toBlob((blob) => {
             cleanup();
