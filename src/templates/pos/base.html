@@ -1030,6 +1030,11 @@
                 if (totalQty <= 0) continue;
                 let pool = Math.min(_bundleTotal(first.price_tiers, base, totalQty), base * totalQty);
                 pool = Math.round(pool * 100);                       // work in whole cents
+                // A GROUP THAT SAVED NOTHING IS NOT A DEAL. Mirrors _pool_bundle_prices(). Two
+                // papers pool but 2 is below the 3-rung, so the pool price IS the flat price --
+                // and reporting it as pooled made cartTierApplied() print "pack ✓" beside a line
+                // charged in full, directly under the new text saying "not reached yet".
+                if (pool >= Math.round(base * totalQty * 100)) continue;
                 const exact = qtys.map(q => pool * q / totalQty);
                 const cents = exact.map(e => Math.floor(e));
                 let short = pool - cents.reduce((a, b) => a + b, 0);

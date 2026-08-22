@@ -978,7 +978,16 @@ async def _pool_bundle_prices(db, lines):
             continue                       # one line only — the ordinary path already handles it
         tiers = members[0][2].price_tiers
         base = members[0][2].price
-        totals = allocate_pool(tiers, base, [qty for _i, qty, _p in members])
+        qtys = [qty for _i, qty, _p in members]
+        totals = allocate_pool(tiers, base, qtys)
+        # A GROUP THAT SAVED NOTHING IS NOT A DEAL. 2026-08-22: two King Size papers in a basket
+        # pool (same terms, same base) but 2 is below the 3-rung, so allocate_pool returns the flat
+        # price. The lines were still reported as pooled, which set tier_final=True, which took
+        # them OUT of eligible_subtotal -- so a manager's goodwill discount silently skipped two
+        # full-price papers and nothing on the screen said why.
+        # tier_final means "a volume break set this price". If the price did not move, it did not.
+        if sum(totals) >= sum(_q_money(base) * Decimal(q) for q in qtys):
+            continue
         for (i, _qty, _p), total in zip(members, totals):
             out[i] = total
     return out

@@ -57,6 +57,7 @@ const ok = (n, c) => { c ? (pass++, console.log('  ✅ ' + n)) : (fail++, consol
     for (const k of Object.keys(carts)) {
       const c = carts[k];
       out[k] = { info: c.map((_, i) => dealInfo(c, i)), deals: cartDeals(c),
+                 badge: c.map((_, i) => cartTierApplied(c, i)),
                  sum: Math.round(c.reduce((a, _, i) => a + cartLineTotal(c, i), 0) * 100) / 100 };
     }
     return out;
@@ -80,13 +81,22 @@ const ok = (n, c) => { c ? (pass++, console.log('  ✅ ' + n)) : (fail++, consol
   ok('...and what one more is worth', /\+1/.test(nud(R.twoShort.info[0])));
   ok('...naming the actual saving', /1\.00/.test(nud(R.twoShort.info[0])));
   ok('no group is claimed yet', R.twoShort.deals.length === 0);
+  // Found in Angel's own UAT evidence, 2026-08-22: the line read "CHF 2.00 pack ✓" directly above
+  // "not reached yet". Two papers DO pool, but 2 is below the 3-rung so the pool price is the flat
+  // price -- and a pool that saved nothing was still marking the line as volume-priced. On the
+  // server that set tier_final, which took the line out of eligible_subtotal, so a manager's
+  // discount silently skipped two full-price papers.
+  ok('no "pack ✓" badge on a line that got no pack price', R.twoShort.badge.every(b => !b));
+  ok('...and the price really is flat', R.twoShort.sum === 4.00);
 
   console.log("\nfour papers — Ralph's rule, and no false promise");
   ok('it rings 7.00', R.four.sum === 7.00);
   ok('the lines are pooled', R.four.info.every(o => o && o.state === 'pooled'));
+  ok('...and the badge is honest here, because the price DID move', R.four.badge.every(b => b));
   ok('no nudge — there is no rung above 3 to reach', R.four.info.every(o => !nud(o)));
 
   console.log('\nTHE ONE THAT COST THE DAY — a per_unit stray beside an identical deal');
+  ok('no false "pack ✓" beside the outsider either', R.stray.badge.every(b => !b));
   ok('the two eligible papers are grouped but one short',
      R.stray.info[0].state === 'near' && R.stray.info[1].state === 'near');
   ok('...and the till offers the missing one', /\+1/.test(nud(R.stray.info[0])));
