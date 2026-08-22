@@ -9,7 +9,40 @@
 > [`worklist-archive/done.md`](worklist-archive/done.md) with its commit hashes; when a thread
 > grows a long write-up, the write-up goes to the archive and a one-line pointer stays here.
 
-*Last updated: 2026-08-22 (Sat evening).*
+*Last updated: 2026-08-23 (~01:00, end of the Saturday-night session).*
+
+---
+
+## ▶️ START HERE — the state at 01:00 on Sun 2026-08-23
+
+**Everything below this block is context. These are the live threads, in order.**
+
+**① The member card is BUILT and NOT DEPLOYED.** Local only, four commits. Counter card → public
+signup → assigned `ART-AB12` → QR on the phone → scanned *or spoken* at the till → credits on the
+sale. **Before it promotes, in this order:**
+1. `BANCO_ALLOW_FAKE_SALES=1 NODE_PATH=/home/angel/repos/helixnet/node_modules node scripts/prove-till-18plus.js`
+2. **A human on the checkout screen.** Every claim that the 18+ stop *appears* is read from code —
+   the browser extension was not connected. LESSONS #7: that is a guess with citations.
+3. Then deploy, then mint `qr_code` for the 18 live members (0 have one, so no card exists yet).
+
+**② Two things are waiting on Angel, not on code:**
+- **The T&C wording.** Deliberately not written — a page telling a customer what they agree to
+  should not be invented by the copilot. Sketch is in the member-card section below.
+- **Whether Felix runs the join offer at all.** Now a store setting; both answers work.
+
+**③ `enrich-from-source.py --apply`** — dry run was clean (40 fetched, 0 failed). ~510 new price
+ladders on a live till, so **run `GET /catalog/price-check` over the catalogue straight after.**
+Not a job for the end of a long day.
+
+**④ Luzern-only, whenever Angel is next at the shop:** the tablet's LTE — shop Wi-Fi route metric,
+signal where the till stands, and pulling the Fritzbox WAN cable mid-sale.
+
+**Done tonight, no action needed:** all 5,395 catalogue images adopted (99.5%, ~57 min, 145 MB —
+Hetzner never needed more room); FourTwenty confirmed already live on prod and measured as
+*unable* to bulk-fix the minted EANs; the gun's inventory dump closed; docs corrected to Netum.
+
+> ⚠️ **This file is 993 lines against its own 150-line rule.** A 20-minute archive pass is
+> overdue — the ✅ sections from 08-14 through 08-22 belong in `worklist-archive/done.md`.
 
 ---
 
