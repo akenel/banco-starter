@@ -20,7 +20,7 @@ CPU **i5-7Y57 @ 1.2 GHz** · **8 GB** · Secure Boot **off**.
 | RAM | **8 GB** LPDDR3, **soldered** — not upgradable ✅ confirmed |
 | Storage | **NVMe SSD** (M.2 2242), not eMMC — fast install, no space crawl |
 | Wi-Fi | Intel Wireless-AC 8265 — **works out of the box**, firmware ships in the Debian 13 installer |
-| WWAN | LTE modem present (that is where the IMEI comes from). Optional; ignore unless wanted |
+| WWAN | **Sierra EM7455 LTE — WORKING 2026-08-22.** Ships FCC-locked; needs one symlink. See **LTE IS WORKING** below |
 | Firmware | **64-bit UEFI** — the 32-bit-EFI trap that kills Debian on cheap Atom tablets does not apply |
 | Keyboard | detachable folio over pogo pins — **does not consume a USB port** |
 
@@ -735,6 +735,137 @@ have to earn their keep on the days the Wi-Fi is out.
 > through a WAN outage. That cuts against the "own it outright" premise and is worth a real
 > decision someday; noted here, not scheduled.
 
+### 📶 LTE IS WORKING — 2026-08-22 · and the whole problem was **one line in a log**
+
+*The plan above was written 2026-08-04 and is unchanged and correct. This is the build: Felix's
+nano-SIM in the slot, Debian 13, `banco.wolfhold.app` loading with Wi-Fi switched off.*
+
+**Human-green — Angel, 2026-08-22:** *"i turned off wifi and i can still run banco on the web."*
+
+> ⚠️ **Proved at Angel's flat, NOT in the shop.** The Wi-Fi in this test was **`Init7_1A34`**
+> (home). Luzern has a different SSID, different concrete, and — the part that actually matters —
+> possibly different LTE coverage. **Everything below has to be re-run on the counter.** See
+> *"What to redo in Luzern"* at the end of this section.
+
+#### What the machine is
+
+| | |
+|---|---|
+| Modem | **Sierra Wireless EM7455**, USB `1199:9079`, firmware `SWI9X30C_02.33.03.00` |
+| Driver | `cdc_mbim` — MBIM, QMI-capable. Loads by itself, no firmware package needed |
+| SIM | Sunrise — `operator id 22802`, so the APN is **`internet`** |
+| APN | `internet` (Sunrise/Salt). Swisscom + its resellers use `gprs.swisscom.ch` |
+
+Nothing had to be installed for the hardware. `modemmanager`, `libqmi-utils` and `libmbim-utils`
+were already present on Debian 13.
+
+#### The actual blocker: the modem ships **FCC-locked**
+
+Qualcomm-based Sierra modems come up after **every power cycle** with the radio disabled and
+refuse to turn it on until the host sends a vendor unlock command. ModemManager knows how — but
+since MM 1.18.4 the unlock scripts ship **disabled**, and Debian enables none of them. So MM tried,
+found nothing, and reported a generic error.
+
+What that looks like from the outside — three different lies, none of them the cause:
+
+| What it said | What it actually meant |
+|---|---|
+| `nmcli`: `cdc-wdm0  gsm  unavailable` | nothing |
+| `mmcli`: `state: failed / sim-missing` | the radio is off, so the slot was never energised |
+| `mmcli -m any -e`: `Core.Retry: Invalid transition` | the modem refused `RadioState=on` |
+
+Only `-G DEBUG` names it, and it names it exactly:
+
+```
+<<<<<<   RadioState = 'on'            MM asks
+>>>>>>   status error = 'Failure'     the modem refuses
+>>>>>>   HwRadioState = 'on'
+>>>>>>   SwRadioState = 'off'         and stays off
+[modem0] attempting FCC unlock...
+[fcc unlock dispatcher] Cannot run fcc unlock operation from
+  /usr/lib/x86_64-linux-gnu/ModemManager/fcc-unlock.d/1199:9079: file doesn't exist
+```
+
+#### 🔧 THE SEQUENCE — do this on tablet #2 and skip the whole afternoon
+
+```bash
+# 1 · WWAN radio is soft-blocked out of the box. Do this through NM, not rfkill alone —
+#     NM persists it in /var/lib/NetworkManager/NetworkManager.state and re-asserts otherwise.
+sudo rfkill unblock wwan
+nmcli radio wwan on
+sudo rfkill list wwan                 # must read: Soft blocked: no
+
+# 2 · Enable the FCC-unlock script. THIS IS THE ONE THAT MATTERS.
+sudo mkdir -p /etc/ModemManager/fcc-unlock.d
+sudo ln -s /usr/share/ModemManager/fcc-unlock.available.d/1199 \
+           /etc/ModemManager/fcc-unlock.d/1199
+sudo ln -s /usr/share/ModemManager/fcc-unlock.available.d/1199:9079 \
+           /etc/ModemManager/fcc-unlock.d/1199:9079
+sudo systemctl restart ModemManager
+
+# 3 · Confirm. Want: registered / on / attached.
+mmcli -m any | grep -E 'state:|power state:'
+
+# 4 · Ask the SIM which network it is on — do not guess the APN.
+mmcli -i 0                            # operator id: 22801 Swisscom · 22802 Sunrise · 22803 Salt
+
+# 5 · The connection. ifname '*' on purpose — see the trap below.
+nmcli con add type gsm ifname '*' con-name shop-lte apn internet
+nmcli con mod shop-lte connection.autoconnect yes
+nmcli con mod shop-lte ipv6.method ignore
+nmcli con mod shop-lte   ipv4.route-metric 700
+nmcli con mod "<shop-wifi>" ipv4.route-metric 100
+nmcli con up "<shop-wifi>"            # metric only applies on reconnect
+nmcli con up shop-lte
+```
+
+Both links then stay up and the **route metric** decides which carries traffic — failover is
+instant, with no reconnect and no tap. This supersedes the third launcher sketched above: the
+launcher is still worth keeping as a manual override, but nobody has to press it.
+
+#### Traps, each one paid for
+
+- **`cdc-wdm0` became `cdc-wdm2` across a reboot.** The port name is *not* stable. A profile
+  pinned to `ifname cdc-wdm0` works until the boot where it doesn't. Use `ifname '*'`.
+- **`sim-missing` while the radio is blocked means nothing.** Re-seating the card proves nothing
+  until `rfkill` reads `Soft blocked: no` and `power state: on`. Two of those re-seats were wasted.
+- **`Busy`, repeatedly, on first connect.** Three bearers racing — `nmcli con up` run by hand while
+  NM's own autoconnect was also trying. It is self-inflicted and it clears. NM succeeded on its own
+  retry **five minutes later**. Do not keep hammering `con up`.
+- **`retrieving IP configuration failed: modem IP method unsupported`** is the IPv6 half; the
+  bearer is IPv4-only. `ipv6.method ignore` silences it. The connection activates either way.
+- **`mmcli -s` is SMS. The SIM is `mmcli -i`.**
+- **`journalctl` shows nothing without `sudo`** unless the user is in `adm`/`systemd-journal`.
+- **A manual `qmicli --dms-set-fcc-authentication` survives until the modem loses power.** So does
+  everything you test afterwards. `systemctl restart ModemManager` does **not** power-cycle it —
+  which means *a restart proves nothing about the symlink.* Only a cold boot does.
+
+Manual one-shot, for proving the diagnosis before wiring the symlink in (needs the proxy, because
+ModemManager holds the port):
+
+```bash
+sudo qmicli -d /dev/cdc-wdm2 --device-open-mbim --device-open-proxy --dms-set-fcc-authentication
+```
+
+#### ⬜ What to redo in Luzern — this is not done until these are ticked
+
+- [ ] **Cold boot on the counter.** Full poweroff, unplug, hold power 15 s, boot, touch nothing.
+      Want `registered` + gsm device connected. *This is the only test of the FCC symlink.*
+- [ ] **Set the shop Wi-Fi metric.** `ipv4.route-metric 100` was set on `Init7_1A34` (Angel's home
+      AP). The shop profile is a different connection and starts at the default 600.
+- [ ] **Check signal in the shop.** Home measured **29 %**. Concrete and a basement will be worse;
+      the till needs a usable link where the till actually stands, not by the window.
+- [ ] **Pull the Fritzbox WAN cable with the till open and ring a real sale.** Link-loss failover
+      is what the metrics buy. It is not the same test as switching Wi-Fi off on the tablet.
+- [ ] **Ask Felix what that SIM is.** Data-only, a spare voice line, or bundled with something —
+      it connects identically and bills very differently. IMSI/ICCID are on the card; keep them off
+      any forum post.
+
+> **Still true, and no amount of LTE fixes it:** Banco lives at `banco.wolfhold.app`. LTE buys a
+> second path to the same remote server, not independence from it. See the note above.
+
+---
+
 **Sleep settings, same session:** blank the screen, never suspend. **Suspend drops the Bluetooth
 link to the printer**, so waking costs a reconnect on top of the QL's 25–30 s calibration. Screen
 blank costs nothing and wakes instantly.
@@ -887,3 +1018,8 @@ Not promoted to `WORKLIST.md`; item 3 (the bulk catalogue scripts on prod) is st
 - [ ] Network the QL-820NWB over **Wi-Fi** so this machine can print at all
 - [ ] Once it runs: update the device table in [`10-devices-and-roles.md`](10-devices-and-roles.md)
       — it currently describes three machines and this is a fourth
+- [x] ~~LTE modem~~ — **working 2026-08-22**, Sunrise SIM, FCC-unlock symlink. Angel: *"i turned off
+      wifi and i can still run banco on the web"*
+- [ ] ⚠️ **Re-prove the LTE in Luzern** — the test above was at Angel's flat on `Init7_1A34`. Five
+      items to redo on the counter, listed at the end of the LTE section. **Cold boot is the only
+      test of the FCC symlink**; a `systemctl restart` proves nothing

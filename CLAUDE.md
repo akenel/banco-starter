@@ -97,10 +97,12 @@ open `LESSONS.md` when one of them is about to apply.*
 **When something bites: add the narrative to `LESSONS.md`, and if it is a new instance of a
 pattern below, bump the count here. A pattern at ×7 is telling you something a paragraph cannot.**
 
-1. **×7 · Green on the layer you can reach says nothing about the layer the user stands on.**
+1. **×8 · Green on the layer you can reach says nothing about the layer the user stands on.**
    `cash_box_float`, the force-close, `POST /catalog/merge`, honest confidence, `best_match_score`,
    the 18+ refusals, the evidence with no screen — each existed on every layer a test could reach
-   and on **no screen**. *Ask where the person is STANDING when they need it.*
+   and on **no screen**; and on 2026-08-22 the tablet's LTE was proved on Angel's home Wi-Fi, in a
+   flat, with a route metric set on an SSID Luzern does not have. *Ask where the person is STANDING
+   when they need it — and that includes which building.*
 2. **×5 · A downstream filter quietly discards the row the fix existed to find.** The dedup guard's
    same-size rule, the alias filters judging `products.name`, the category "boost" that was a sort
    key above `score`; and on 2026-08-22 `eligible_subtotal` dropped two full-price papers because

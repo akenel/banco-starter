@@ -13,6 +13,25 @@
 
 ---
 
+## ⬜ THE TABLET'S LTE — WORKS AT HOME, UNPROVEN IN LUZERN — 2026-08-22
+
+Felix's ask: the till keeps selling when the shop Wi-Fi dies. The X1 Tablet's **Sierra EM7455** is
+up on a Sunrise SIM and Angel ran Banco with Wi-Fi switched off. The blocker was that the modem
+ships **FCC-locked** — one symlink into `/etc/ModemManager/fcc-unlock.d/`. Full runbook, traps and
+the exact command sequence: [`onboarding/13-tablet-x1-debian.md`](onboarding/13-tablet-x1-debian.md)
+(*LTE IS WORKING* section).
+
+**Proved in Angel's flat on `Init7_1A34`, not on the counter.** Five things to redo in Luzern:
+
+- [ ] **Cold boot** (poweroff, unplug, hold power 15 s) — the *only* test of the FCC symlink; a
+      `systemctl restart` does not power-cycle the modem and proves nothing
+- [ ] Set `ipv4.route-metric 100` on the **shop** Wi-Fi profile — it is a different connection
+- [ ] Measure signal where the till stands (29 % at home; concrete will be worse)
+- [ ] Pull the Fritzbox WAN cable with the till open and ring a real sale
+- [ ] Ask Felix what that SIM actually is — data-only vs voice bills very differently
+
+---
+
 ## ✅ THE PRICE WARNING — BUILT, PROVED, HUMAN-GREEN — 2026-08-22 → [the day](worklist-archive/2026-08-22-pooling/)
 
 Angel rang 1 Greengo King Size + 2 Greengo King Size slim and got **CHF 6.00** where three plain

@@ -216,3 +216,45 @@ on PASS/ISSUE/FAIL with persistence, 13/13, without anyone writing it down. What
 missing was a *template*: every sheet had been hand-built, which is why four had lost the copy
 button and three the clock. *Before designing the house style, check whether the house already has
 one.*
+
+## 2026-08-22, evening — the LTE modem, and three status fields that were all telling the truth about the wrong thing
+
+Felix wants the shop tablets to keep selling when the Wi-Fi dies, and handed over an X1 Tablet
+Gen 2 with a nano-SIM in it. It took an afternoon. The fix was **one symlink**, and the cause was
+named in plain English by the machine itself the moment debug logging went on.
+
+**1. Every error message described a symptom one layer below the cause.** `nmcli` said the gsm
+device was `unavailable`. `mmcli` said `state: failed / sim-missing`. `mmcli -m any -e` said
+`Core.Retry: Invalid transition`. All three were accurate and all three were downstream of the same
+thing: the modem ships **FCC-locked** and refuses `RadioState=on` until the host sends a vendor
+unlock. ModemManager knows how, but since 1.18.4 the unlock scripts ship *disabled* and Debian
+enables none — so MM tried, found no script, and reported a generic failure. One `-G DEBUG` run
+printed `attempting FCC unlock... file doesn't exist` and the afternoon was over.
+*Turn on the device's own log before proposing a fourth hypothesis.*
+
+**2. A status field read at the wrong moment is a confident false negative.** `sim-missing` was
+reported while the WWAN radio was still soft-blocked — a powered-down modem has never energised the
+slot, so it *cannot* report anything else. I read it as evidence about the card, and Angel pulled
+and re-seated a SIM twice on my say-so. It was never about the card. *Before believing a reading,
+ask whether the thing being measured was switched on.* Same family as the five-minute-timeout
+lesson: the harness — here, the query — was structurally incapable of the answer I wanted.
+
+**3. I agreed with a paste that contradicted itself, nearly.** Angel wrote *"i think SIM is ok now
+… it sees it"* over a paste that still read `sim-missing` — it was old scrollback, wrong copy. Had
+I taken the human verdict at face value we would have moved on to APNs with a dead modem. Standing
+rule 5 says a human confirming it is done; it does **not** say agree with a claim the pasted
+evidence refutes. The later *"i turned off wifi and i can still run banco on the web"* is the real
+thing, and that one is done.
+
+**4. The device name moved and would have broken it silently.** `cdc-wdm0` came back as `cdc-wdm2`
+after a reboot. A NetworkManager profile pinned to `ifname cdc-wdm0` would have worked all through
+testing and failed on some future boot — i.e. during the outage it exists to survive. `ifname '*'`.
+*An identifier that survived every test you ran is not thereby stable.*
+
+**5. And the thing that is still not proved.** Everything after the manual
+`qmicli --dms-set-fcc-authentication` ran on that authorisation, which persists until the modem
+loses power — `systemctl restart` does not power-cycle it. So `registered / on / attached` says
+nothing about whether the symlink works. **Only a cold boot tests it.** Beyond that, the whole
+build was proved at Angel's flat on `Init7_1A34`, not in Luzern: different SSID (so the Wi-Fi route
+metric is unset there), different concrete, different coverage. Home signal was 29 %.
+*Where the person is standing includes which building.*
