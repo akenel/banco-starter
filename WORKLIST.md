@@ -592,10 +592,17 @@ worth doing when convenient — a lifecycle rule on `wolfhold-banco-backups` (22
    `enrich-from-source.py --apply` (~90 min) and `adopt-images.py --apply` (~137 min).
    → detail in [`worklist-archive/catalogue-and-till.md`](worklist-archive/catalogue-and-till.md)
 
-2. **🔫 The gun's inventory-mode dump is still unproven** — the last unknown in shelf intake, and
-   the whole 10× path. Does a 20–30 code burst survive a browser textarea? ⚠️ The gun roles are
-   **the reverse** of what the old deck assumed: the Netum has store mode, the Inateck does single
-   scans. Re-test before planning around either.
+2. ~~**🔫 The gun's inventory-mode dump is unproven**~~ — ✅ **CLOSED 2026-08-22, human-green.**
+   Angel: *"the gun has been tested and it works fine, there are no issues."* The burst survives
+   the browser textarea. **The last unknown in shelf intake is gone and the 10× path is open** —
+   which matters more tonight than it did this morning, because the 08-22 measurement says
+   hand-binding at a screen is the ONLY thing converting minted rows (113 in 3½ weeks) and a
+   shelf pass with the gun is the only thing that goes faster. Runbook:
+   [`onboarding/09-shelf-intake.md`](onboarding/09-shelf-intake.md); triage is read-only
+   (`pos_router.py:1002` — *"Nothing is written"*), so it is safe to point at the live shop.
+   ⬜ *One doc question left, and it is a DOC question, not a re-test:* the scanner README cites
+   **Inateck** BCST-35 §4.6 p.20 for Inventurmodus, this list said **Netum**. Whichever gun Angel
+   used is the right one — fix the loser so the next shop's runbook is not wrong.
 
 ---
 
