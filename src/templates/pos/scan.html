@@ -2619,7 +2619,10 @@
             get totals() {
                 const _pools = cartPools(this.cart);
                 const subtotal = this.cart.reduce((sum, item, i) => sum + (i in _pools ? _pools[i] : tierLineTotal(item)), 0);
-                return calculateTotal(subtotal, this.discount);
+                // Eligible portion only — the same rule the server and the checkout screen use.
+                // Without it the cart quoted a discount on tobacco and on deal-priced lines that
+                // the drawer was never going to give.
+                return calculateTotal(subtotal, this.discount, cartEligibleSubtotal(this.cart, _pools));
             },
 
             clearCart() {

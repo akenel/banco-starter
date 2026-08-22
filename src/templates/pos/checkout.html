@@ -896,11 +896,9 @@
                 sessionStorage.setItem('pos_cart', JSON.stringify(this.cartData));
             },
 
-            // Mirror of the server's class_promo_restricted: tobacco/alcohol get NO discount.
-            isPromoRestricted(it) {
-                return !!(it && (it.promo_restricted ||
-                    ['tobacco_nicotine', 'alcohol'].includes(it.product_class)));
-            },
+            // Shared with the till — isPromoRestricted() now lives in base.html so the cart panel,
+            // this screen and any future one cannot drift apart.
+            isPromoRestricted(it) { return isPromoRestricted(it); },
             recalculateTotals() {
                 // Mix and match first: lines that share a bundle deal are priced as ONE basket,
                 // so the split has to exist before anything is summed. Recomputed on every
@@ -915,8 +913,7 @@
                 // portion only — tobacco/alcohol never get a promo discount (Swiss law). Mirrors the
                 // server so the Dry Run Preview total matches the charge. Manual & member STACK off the
                 // same eligible base as separate lanes (member tier auto + cashier manual = summed).
-                const eligibleSum = this.cartData.cart.reduce(
-                    (s, it, i) => s + ((this.isPromoRestricted(it) || tierApplied(it) || (i in this._pools)) ? 0 : tierLineTotal(it)), 0);
+                const eligibleSum = cartEligibleSubtotal(this.cartData.cart, this._pools);
                 this.discountAmount = eligibleSum * (this.discount / 100);   // manual, eligible items only
                 const afterDiscount = subtotal - this.discountAmount;
                 const memberPct = (this.member && this.member.tier_discount_percent) || 0;

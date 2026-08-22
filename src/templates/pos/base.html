@@ -1408,8 +1408,31 @@
 
         // Calculate total with discount (inclusive VAT model).
         // The gross (shelf price less discount) IS the total -- VAT lives inside it.
-        function calculateTotal(subtotal, discountPercent = 0) {
-            const discountAmount = subtotal * (discountPercent / 100);
+        // ── WHAT A DISCOUNT MAY TOUCH ─────────────────────────────────────────────────────
+        // Tobacco and alcohol never take a promotional discount (Swiss law), and a line already
+        // priced by a volume break is discount-final. The SERVER has always applied the manual and
+        // member discounts to this eligible portion only; checkout.html mirrored it; the till's own
+        // cart panel did not, and applied the percentage to everything. So a cashier typing 10%
+        // over a basket of deal papers plus a lighter was quoted one number in the cart and shown a
+        // higher one at checkout — shown != charged, one screen earlier than anyone was looking.
+        // One function now, because three copies of a rule is how the third one drifts.
+        function isPromoRestricted(it) {
+            return !!(it && (it.promo_restricted ||
+                ['tobacco_nicotine', 'alcohol'].includes(it.product_class)));
+        }
+        function cartEligibleSubtotal(cart, pools) {
+            const _p = pools || cartPools(cart);
+            return (cart || []).reduce(function (s, it, i) {
+                if (it && it.is_giveaway) return s;
+                if (isPromoRestricted(it) || tierApplied(it) || (i in _p)) return s;
+                return s + tierLineTotal(it);
+            }, 0);
+        }
+
+        function calculateTotal(subtotal, discountPercent = 0, eligibleSubtotal = null) {
+            const base = (eligibleSubtotal === null || eligibleSubtotal === undefined)
+                ? subtotal : eligibleSubtotal;
+            const discountAmount = base * (discountPercent / 100);
             const afterDiscount = subtotal - discountAmount;  // gross the customer pays
             const vat = calculateVAT(afterDiscount);          // VAT contained within
             return {
