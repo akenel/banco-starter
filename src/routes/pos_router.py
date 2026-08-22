@@ -12829,6 +12829,52 @@ async def _ean_lookup_sites(db: AsyncSession) -> list[dict]:
     return sites
 
 
+@html_router.get("/pos/join-card", response_class=HTMLResponse, name="pos_join_card")
+async def pos_join_card(request: Request, db: AsyncSession = Depends(get_db_session)):
+    """🎫 The card the cashier holds up: scan this, become a member, 30 seconds, no name.
+
+    Angel's flow, 2026-08-22: *"the customer walks in and is about to pay for the CBD and the
+    cashier asks, are you an Artemis member? — what's that? — here, just scan this code and it
+    takes you to our kiosk signup page."* This is that code, and it was the last missing piece:
+    everything after it (the signup, the QR it mints, the till scanning it back) already worked.
+
+    PRINT IT **OR** HOLD UP THE TABLET. A phone camera reads a screen perfectly well, so the
+    screen path needs no printer at all — which matters, because label printing is still being
+    wired up. `@media print` sizes it to 88 mm to cut out and stand up when that lands.
+
+    THE URL IS BUILT FROM THE REQUEST, never hardcoded. A shop cloning Banco gets its own domain
+    in its own QR with nothing to edit; `banco.wolfhold.app` baked into a template would have
+    silently broken this for every self-hoster, which is the one thing this project exists not
+    to do. `/pos/kiosk` is deliberately public (no auth) — that is what makes the customer's own
+    phone able to reach it.
+
+    ⚠️ AND IT MUST READ THE FORWARDED HEADERS, not `request.url_for`. `entrypoint.sh` runs
+    uvicorn WITHOUT `--proxy-headers`, so the ASGI scheme is the INTERNAL `http` — behind Caddy,
+    `url_for` mints `http://banco.wolfhold.app/…`. It would still resolve (Caddy redirects to
+    TLS), but the card would carry a printed `http://` URL and an extra hop, and some phone
+    scanners warn on a bare http link. Caught before anything was printed. Same three-line idiom
+    the postcard and label pages already use (`:11511`, `:12218`, `:12297`) — one convention, not
+    a fourth invention. The real fix is `--proxy-headers` on uvicorn; that is a deploy change and
+    it is logged in WORKLIST.md rather than smuggled in under a counter card.
+
+    Staff-facing shell only; it holds no member data and calls nothing.
+    """
+    proto = request.headers.get("x-forwarded-proto", "https")
+    host = request.headers.get("x-forwarded-host") or request.headers.get("host", "")
+    store_name = "Banco POS"
+    try:
+        store = await get_active_store_settings(db)
+        if store is not None and getattr(store, "store_name", None):
+            store_name = store.store_name
+    except Exception:      # noqa: BLE001 — a counter card must never 500 over a missing name
+        logger.warning("join-card: store name unavailable; using the fallback", exc_info=True)
+    return templates.TemplateResponse("pos/join_card.html", {
+        "request": request,
+        "store_name": store_name,
+        "join_url": f"{proto}://{host}{request.url_for('pos_kiosk').path}",
+    })
+
+
 @html_router.get("/pos/shelf-intake", response_class=HTMLResponse, name="pos_shelf_intake")
 async def pos_shelf_intake(request: Request, db: AsyncSession = Depends(get_db_session)):
     """🛒 Shelf Intake — dump a scanner gun's offline cache and turn it into a catalogue.

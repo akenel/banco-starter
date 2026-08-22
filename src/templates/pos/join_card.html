@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="de" translate="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="google" content="notranslate">
+<title>{{ store_name }} · Mitglied werden</title>
+<script src="/static/vendor/qrcode.min.js"></script>
+<style>
+  /* A card that lives on a counter. Two jobs, one page:
+     - PRINTED and stood up next to the till, or
+     - held up ON THE TABLET, because a phone camera reads a screen perfectly well and that
+       needs no printer at all. Label printing is still being wired up, so the screen path is
+       the one that works today. */
+  :root{ --ink:#0f2419; --mut:#5b6b60; --paper:#ffffff; --accent:#0d9488; --line:#d9e2dc; }
+  *{ box-sizing:border-box; } html,body{ margin:0; }
+  body{ font-family:"Segoe UI",-apple-system,BlinkMacSystemFont,Roboto,Helvetica,Arial,sans-serif;
+        background:#eef2ef; color:var(--ink); display:flex; align-items:center;
+        justify-content:center; min-height:100vh; padding:20px; }
+  .card{ background:var(--paper); width:100%; max-width:420px; border-radius:22px;
+         border:1px solid var(--line); padding:30px 28px 24px; text-align:center;
+         box-shadow:0 10px 30px rgba(15,36,25,.10); }
+  .shop{ font-size:13px; letter-spacing:.16em; text-transform:uppercase; color:var(--mut); }
+  h1{ font-size:27px; line-height:1.18; margin:8px 0 2px; font-weight:800; }
+  h2{ font-size:16px; margin:2px 0 18px; font-weight:600; color:var(--mut); }
+  #qr{ display:inline-block; padding:12px; background:#fff; border:1px solid var(--line);
+       border-radius:16px; line-height:0; }
+  #qr img, #qr canvas{ display:block; }
+  .url{ font-family:ui-monospace,Menlo,Consolas,monospace; font-size:11px; color:var(--mut);
+        margin-top:10px; word-break:break-all; }
+  ol{ text-align:left; margin:20px auto 0; padding-left:20px; max-width:320px;
+      font-size:14.5px; line-height:1.65; }
+  ol span{ color:var(--mut); }
+  .foot{ margin-top:18px; padding-top:14px; border-top:1px solid var(--line);
+         font-size:12.5px; color:var(--mut); line-height:1.55; }
+  .no-print{ margin-top:18px; }
+  button{ font:inherit; font-size:14px; padding:10px 18px; border-radius:12px;
+          border:1px solid var(--line); background:#f6f9f7; cursor:pointer; }
+
+  @media print{
+    /* One card per sheet, no shadow, no button. Cut it out and stand it up. */
+    body{ background:#fff; padding:0; display:block; }
+    .card{ box-shadow:none; border:1px dashed #999; max-width:none; width:88mm;
+           margin:12mm auto; border-radius:0; }
+    .no-print{ display:none !important; }
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <p class="shop">{{ store_name }}</p>
+    <h1>Mitglied werden<br><span style="font-weight:600;font-size:20px;">Become a member</span></h1>
+    <h2>30 Sekunden · kein Name nötig<br>30 seconds · no name needed</h2>
+
+    <div id="qr"></div>
+    <p class="url">{{ join_url }}</p>
+
+    <ol>
+      <li>Code scannen <span>· scan the code</span></li>
+      <li>Absenden — Name freilassen <span>· submit, leave the name blank</span></li>
+      <li>Deinen Code zeigen <span>· show us your code</span></li>
+    </ol>
+
+    <p class="foot">
+      <strong>📸 Screenshot machen.</strong> Dein Code <em>ist</em> dein Konto —
+      wir haben keinen Namen, um dich zu finden.<br>
+      <span style="opacity:.75">Screenshot it. The code <em>is</em> your account — we have no name to find you by.</span>
+    </p>
+
+    <div class="no-print"><button onclick="window.print()">🖨️ Drucken / Print</button></div>
+  </div>
+
+<script>
+  // The URL is built SERVER-SIDE from the request, never hardcoded. A shop cloning Banco gets
+  // its own domain in its own QR with nothing to edit — that is the whole premise of the
+  // starter, and a baked-in banco.wolfhold.app would have quietly broken it for everyone else.
+  new QRCode(document.getElementById('qr'), {
+    text: {{ join_url | tojson }},
+    width: 208, height: 208,
+    colorDark: '#0f2419', colorLight: '#ffffff',
+    // Level M, not H: this code gets scanned off a printed card in shop light and off a tablet
+    // screen at arm's length. M keeps the modules big and the read fast; the payload is a short
+    // URL, so there is redundancy to spare either way.
+    correctLevel: QRCode.CorrectLevel.M,
+  });
+</script>
+</body>
+</html>

@@ -201,6 +201,35 @@ phone posts it, not by reading the handler.
 > is **not** fine for an age verification, which is why `matched_by` exists and why the first-use
 > check below must hang off the scan.
 
+### 🪧 THE COUNTER CARD — `/pos/join-card`, built 2026-08-23
+
+The last missing piece of Angel's flow (*"here, just scan this code and it takes you to our kiosk
+signup page"*). Everything after it already worked.
+
+**Print it OR hold up the tablet** — a phone camera reads a screen perfectly well, so the screen
+path needs no printer at all, which matters while label printing is still being wired up.
+`@media print` sizes it to 88 mm to cut out and stand up when that lands. DE + EN, three steps,
+and the *"screenshot it, the code IS your account"* line repeated from the kiosk. Pulls the real
+shop name from Store settings — rendered `Artemis Lucerne - Headshop`.
+
+**⚠️ Found building it: `request.url_for()` would have printed an `http://` QR on prod.**
+`entrypoint.sh` runs uvicorn **without `--proxy-headers`**, so the ASGI scheme is the internal
+`http` and `url_for` behind Caddy mints `http://banco.wolfhold.app/…`. It would still resolve —
+Caddy redirects to TLS — but the card would carry a printed `http://` URL, an extra hop, and some
+phone scanners warn on a bare http link. **Caught before anything was printed.** Fixed with the
+same three-line forwarded-header idiom the postcard and label pages already use
+(`pos_router.py:11511`, `:12218`, `:12297`) — one convention, not a fourth invention.
+
+```
+local                                    → https://localhost:3000/pos/kiosk
+X-Forwarded-Proto/Host, i.e. via Caddy   → https://banco.wolfhold.app/pos/kiosk   ✅ in the QR
+```
+
+⬜ **The real fix is `--proxy-headers` on uvicorn** (plus `--forwarded-allow-ips`). That is a
+deploy change touching every absolute URL the app mints, so it is logged here rather than
+smuggled in under a counter card. Until then, three call sites carry the workaround and a fourth
+that forgets it will be wrong in a way nobody notices — because http *works*.
+
 ### 💡 FIRST-USE AGE CHECK — Angel's idea, 2026-08-22, NOT BUILT
 
 *"The first time the member tries to make a purchase, a popup appears… the cashier verifies their
