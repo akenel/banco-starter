@@ -1463,7 +1463,10 @@
                 // tells us what it is. Same box, same gun, no mode switch, nothing to remember —
                 // which is the whole requirement: "he wants it to be idiot proof... we don't want
                 // this to become a big step in the checkout process."
-                if (/^HLX-[0-9A-F]{8}$/i.test(code)) {
+                // A member card, either way it arrives: the QR off a phone (HLX-, unguessable)
+                // or the four characters he reads off the card / says out loud (ART-AB12).
+                // Neither can collide with an EAN, so the box she already scans into routes both.
+                if (/^HLX-[0-9A-F]{8}$/i.test(code) || /^ART-[0-9A-Z]{4}$/i.test(code)) {
                     await this.attachMemberByCode(code);
                     return;
                 }
@@ -1751,12 +1754,16 @@
                             credits_balance: r.credits_balance || 0,
                         };
                         try { sessionStorage.setItem('checkout_customer', JSON.stringify(member)); } catch (e) {}
+                        // A SPOKEN CODE IS A NAME, NOT A CARD — say so on the screen. Four
+                        // characters are ~1-in-81 guessable at ten thousand members, so the
+                        // cashier should know she is trusting a person, not a token.
+                        const how = r.matched_by === 'spoken_code' ? ' (code given, not scanned)' : '';
                         if (r.is_of_age === false) {
                             showToast(`⛔ ${r.handle} — UNDER 18 on file. Do not sell age-restricted items.`, 'error');
                         } else if (r.is_of_age === true) {
-                            showToast(`🎫 ${r.handle} attached · ✅ Age on file`, 'success');
+                            showToast(`🎫 ${r.handle} attached${how} · ✅ Age on file`, 'success');
                         } else {
-                            showToast(`🎫 ${r.handle} attached · ⚠️ no age on file — check ID if unsure`, 'warning');
+                            showToast(`🎫 ${r.handle} attached${how} · ⚠️ no age on file — check ID if unsure`, 'warning');
                         }
                     }
                 } catch (err) {

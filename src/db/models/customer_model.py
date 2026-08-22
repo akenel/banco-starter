@@ -475,5 +475,31 @@ class CustomerModel(Base):
         self.qr_code = code
         return code
 
+
+# The alphabet a person reads OFF A CARD and SAYS OUT LOUD to a cashier. 32 characters:
+# 0/O, 1/I/L and U are gone — 0-vs-O is the mistake this format exists to avoid, and dropping U
+# means the set cannot spell the short English or German words you would rather not print on a
+# customer's card. (Crockford base32, same reasoning.)
+MEMBER_CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTVWXYZ"
+
+
+def generate_member_code(rand=None) -> str:
+    """A member handle nobody has to invent: ART-AB12.
+
+    Felix's members do not want to give a name, and the signup form was making them make one up
+    anyway — "pick a username, 3-30 characters", at a counter, with a queue. Angel, 2026-08-22:
+    *"4 chars are easy to remember... we assign that, no username required."* So the shop assigns
+    it, and the customer's whole identity is four characters they can say out loud.
+
+    ⚠️ THIS IS A NAME, NOT A PASSWORD, and the difference is the whole security story.
+    30^4 = 810,000 codes. At ten thousand members that is one live code in every 81 guesses — so
+    a guessed code MUST NOT be worth anything on its own. It is the public half, exactly like
+    saying "Larry" at the counter; the QR still carries the unguessable HLX- token, and anything
+    that matters (see the first-use age check) hangs off the scan, never off the spoken code.
+    """
+    import secrets
+    r = rand or secrets
+    return "ART-" + "".join(r.choice(MEMBER_CODE_ALPHABET) for _ in range(4))
+
     def __repr__(self):
         return f"<CustomerModel(handle='{self.handle}', tier={self.loyalty_tier.value}, crack={self.crack_level.value})>"

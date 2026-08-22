@@ -4989,10 +4989,26 @@ async def scan_customer_qr(
             message="No QR code provided"
         )
 
-    # Look up by QR code
-    result = await db.execute(
-        select(CustomerModel).where(CustomerModel.qr_code == code)
-    )
+    # TWO WAYS IN, AND THEY ARE NOT EQUALLY TRUSTED.
+    #
+    #   HLX-xxxxxxxx  the QR on the card. 8 hex = 4.3 bn; unguessable. The bearer token.
+    #   ART-AB12      the four characters the customer SAYS OUT LOUD when the card is lost.
+    #                 30^4 = 810,000, i.e. ~1 live code in 81 guesses at ten thousand members.
+    #
+    # The spoken code resolves the same member — that is the point of it, Angel 2026-08-22:
+    # "if you lose the card, ask the cashier to print a new one, or just tell the cashier your
+    # 4 char code." But it is a NAME, not a password, and `matched_by` goes back to the till so
+    # nothing downstream can treat the two as the same evidence. A guessed ART code must never
+    # be worth more than walking up and claiming to be someone.
+    code_u = code.strip().upper()
+    if code_u.startswith("ART-"):
+        result = await db.execute(
+            select(CustomerModel).where(func.upper(CustomerModel.handle) == code_u))
+        matched_by = "spoken_code"
+    else:
+        result = await db.execute(
+            select(CustomerModel).where(CustomerModel.qr_code == code_u))
+        matched_by = "scanned_card"
     customer = result.scalar_one_or_none()
 
     if not customer:
@@ -5029,6 +5045,7 @@ async def scan_customer_qr(
         handle=customer.handle,
         has_dob=_dob is not None,
         is_of_age=_of_age,
+        matched_by=matched_by,
         qr_code=customer.qr_code,
         loyalty_tier=customer.loyalty_tier.value,
         tier_discount_percent=customer.tier_discount_percent,
@@ -11822,7 +11839,11 @@ async def kiosk_search(
 
 
 class KioskSignup(BaseModel):
-    handle: str
+    # OPTIONAL, and it has to be optional HERE too — the handler below happily assigns
+    # ART-AB12 when it is blank, but Pydantic rejected the request first, so "no username
+    # required" was true one layer too deep to matter. Caught by posting the form the way
+    # the phone will actually post it.
+    handle: Optional[str] = None
     real_name: Optional[str] = None
     email: Optional[str] = None
     phone: Optional[str] = None
@@ -11842,10 +11863,33 @@ async def kiosk_signup(
     to the phone). Returns their handle + a scannable HLX- QR so the cashier pulls them up and
     applies it. 18+ REQUIRED (head shop). Handle must be unique. No auth — this is the hook."""
     import re
-    from src.db.models.customer_model import CustomerModel
+    from src.db.models.customer_model import CustomerModel, generate_member_code
     handle = (body.handle or "").strip().lstrip("@")
-    if not re.fullmatch(r"[A-Za-z0-9_.\-]{3,30}", handle or ""):
-        raise HTTPException(status_code=400, detail="Pick a username: 3–30 letters, numbers, . _ -")
+
+    # NOBODY HAS TO INVENT A NAME ANY MORE. Blank => the shop assigns ART-AB12.
+    #
+    # This form used to REQUIRE a username, which is the "my name is Larry" problem wearing a
+    # hat: the one thing these members are here to avoid is telling you who they are, and the
+    # first field made them make something up — at a counter, with a queue, and then "that name
+    # is taken, try another". Angel, 2026-08-22: "4 chars are easy to remember... we assign
+    # that, no username required." A typed handle is still honoured for anyone who wants one.
+    #
+    # Retries on collision because 30^4 is finite and `handle` is UNIQUE. Ten tries against a
+    # table of a few thousand is astronomically safe; the raise is there so a wedged generator
+    # is loud rather than silently handing two people the same card.
+    if not handle:
+        for _ in range(10):
+            candidate = generate_member_code()
+            taken = (await db.execute(
+                select(CustomerModel).where(func.lower(CustomerModel.handle) == candidate.lower())
+            )).scalar_one_or_none()
+            if taken is None:
+                handle = candidate
+                break
+        else:
+            raise HTTPException(status_code=503, detail="Could not allocate a member code — try again.")
+    elif not re.fullmatch(r"[A-Za-z0-9_.\-]{3,30}", handle):
+        raise HTTPException(status_code=400, detail="3–30 letters, numbers, . _ - — or leave it blank and we'll pick one.")
     if not body.age_confirmed:
         raise HTTPException(status_code=400, detail="Please confirm you are 18 or older.")
     exists = (await db.execute(

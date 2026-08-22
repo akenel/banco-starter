@@ -160,6 +160,68 @@ whole defect lived in an endpoint sending the first where a screen needed the se
 - 🧹 Three `ZZTEST-*` members are seeded in **LOCAL dev only** (never prod) so the browser prover
   has something to scan: `DELETE FROM customers WHERE handle LIKE 'ZZTEST-%';`
 
+### 🎫 ART-AB12 — the member code nobody has to invent (2026-08-22, built)
+
+Angel: *"we can make tens of thousands of members like ART-AB12… 4 chars are easy to remember…
+we assign that, no username required… if you lose the card, ask the cashier to print a new one,
+or just tell the cashier your 4 char code."* Built.
+
+- **The signup no longer demands a username.** Leave it blank → the shop assigns `ART-AB12`.
+  Every field on that form is now optional, which is the point: these members are here because
+  they do not want to give a name, and the form used to open by making them invent one.
+- **Alphabet is 30 characters** — `0/O`, `1/I/L` and `U` removed. This string gets *spoken down a
+  counter and hand-copied*; "is that a zero or an oh" is the failure the format exists to stop.
+- **Two codes, two jobs, and the till tells them apart** (`matched_by`):
+  `HLX-xxxxxxxx` in the QR — 4.3 bn, unguessable, the bearer token.
+  `ART-AB12` printed beside it — the name you say out loud. **Both attach a member at the till.**
+- **The success screen now leads with the ART code**, 4xl and spaced, plus *"screenshot this or
+  remember the code — it IS your account, we have no name to find you by"* in DE/FR/IT/EN.
+  The HLX token is no longer printed as text: nobody should be able to read a bearer token off
+  a stranger's phone.
+
+**Proved live on local:**
+
+```
+signup, no username → ART-7T9H / ART-XHKH / ART-TFZ5
+HLX-BFB2268F  →  ART-7T9H   matched_by=scanned_card
+ART-7T9H      →  ART-7T9H   matched_by=spoken_code     ← card lost, code spoken
+art-7t9h      →  ART-7T9H   matched_by=spoken_code     ← as she would type it
+ART-ZZZZ      →  clean not-found
+```
+
+8 tests in `test_member_card_age.py`. Found on the way: `KioskSignup.handle` was `str`, so
+Pydantic rejected a blank one **before** the handler's assign-a-code branch could run — "no
+username required" was true one layer too deep to matter. Caught by posting the form the way a
+phone posts it, not by reading the handler.
+
+> ### ⚠️ THE NUMBER TO DECIDE ON: 30⁴ = 810,000
+> Ample for a shop. **Also ~1 live code in every 81 guesses at ten thousand members.** So the
+> spoken code is a **name**, not a password — it must never be sufficient on its own for anything
+> that matters. That is fine for credits (guessing one lets you *give* a stranger points) and it
+> is **not** fine for an age verification, which is why `matched_by` exists and why the first-use
+> check below must hang off the scan.
+
+### 💡 FIRST-USE AGE CHECK — Angel's idea, 2026-08-22, NOT BUILT
+
+*"The first time the member tries to make a purchase, a popup appears… the cashier verifies their
+age, maybe with a quick look, or if in doubt asks for ID… so all anon members have the age
+checked but verified."*
+
+**This is better than asking for a date of birth, and it should probably replace it.** No DOB is
+stored at all — maximum anonymity, nothing under FADP to hold — and the check is a human looking
+at a human, which is what the law actually wants. It gives a rung *above* `member_confirmed`
+(a self-tick) that persists, instead of re-asking every visit.
+
+Design notes before anyone builds it:
+- **Record HOW.** "Looked over 25" and "checked their ID" are not the same evidence and must not
+  share a value. Write it to `age_check_event` (append-only) with who and when.
+- **A look does not self-correct.** A DOB makes a 17-year-old legal on their birthday; a staff
+  glance marks them verified forever. Consider recording an ID check as permanent and a glance
+  as needing a re-look after N months.
+- **Hang it off the SCAN, never the spoken code** — see the 810,000 above.
+- **A verified card in a younger sibling's hand is still verified.** That is the bearer-token
+  limit of every loyalty card and worth stating out loud rather than discovering.
+
 ⬜ **AND THE T&C PAGE IS NOT WRITTEN — deliberately.** Angel sketched it (*"plain English, not
 lawyer talk"*): skipping the DOB is fine, but you may be asked for ID the first time if you look
 underage; doing this underage is illegal and we will probably catch you at the counter; this is a

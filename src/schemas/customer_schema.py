@@ -553,6 +553,10 @@ class CustomerQRScanResponse(BaseModel):
     #                                     A self-ticked box is not a document (Angel, 2026-08-22:
     #                                     "if the people wanna put in the date of birth, yeah,
     #                                      that settles that").
+    # How the member was resolved — "scanned_card" (the unguessable HLX- QR) or "spoken_code"
+    # (the four characters ART-AB12, which is a name and roughly 1-in-81 guessable at ten
+    # thousand members). Sent so no screen can ever treat the two as the same evidence.
+    matched_by: Optional[str] = Field(None, description="scanned_card | spoken_code")
     has_dob: bool = Field(False, description="A birthdate is on file — the card can settle 18+")
     is_of_age: Optional[bool] = Field(
         None, description="18+ per the birthdate ALONE. None when no birthdate is on file.")

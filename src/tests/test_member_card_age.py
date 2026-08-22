@@ -103,3 +103,39 @@ def test_has_dob_is_the_flag_the_till_shows():
     is_of_age, so that 'unknown' never renders as an accusation."""
     for birthdate, expected in ((None, False), (_dob_for_age(30, TODAY), True)):
         assert (birthdate is not None) is expected
+
+
+# ---------------------------------------------------------------- the spoken code
+
+def test_the_member_code_is_readable_off_a_card():
+    """ART-AB12: four characters a customer can read aloud down a counter.
+
+    The alphabet is the whole point. 0/O and 1/I/L are gone because this string gets SPOKEN and
+    HAND-COPIED, and "is that a zero or an oh" is the failure this format exists to prevent. U is
+    gone so four random characters cannot spell something you would rather not print on a card.
+    """
+    from src.db.models.customer_model import MEMBER_CODE_ALPHABET, generate_member_code
+    import re
+
+    for banned in "01ILOU":
+        assert banned not in MEMBER_CODE_ALPHABET, f"{banned} is ambiguous or unwanted"
+
+    for _ in range(200):
+        code = generate_member_code()
+        assert re.fullmatch(r"ART-[2-9A-Z]{4}", code), code
+        assert all(c in MEMBER_CODE_ALPHABET for c in code[4:])
+
+
+def test_the_code_space_is_big_enough_to_use_and_small_enough_to_guess():
+    """Both halves of that sentence are load-bearing.
+
+    30^4 = 810,000 is ample for a shop ("tens of thousands of members" — Angel), and it is also
+    only ~1 live code in 81 guesses at ten thousand members. So the spoken code is a NAME: it
+    resolves a member, and it must never be sufficient on its own for anything that matters.
+    The unguessable HLX- token stays in the QR, and the endpoint tags which one was used
+    (`matched_by`) so no screen can confuse them.
+    """
+    from src.db.models.customer_model import MEMBER_CODE_ALPHABET
+    space = len(MEMBER_CODE_ALPHABET) ** 4
+    assert space == 810_000
+    assert space // 10_000 == 81          # members → guesses per hit. Write it down, don't feel it.
