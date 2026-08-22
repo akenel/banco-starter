@@ -45,6 +45,22 @@ the exact command sequence: [`onboarding/13-tablet-x1-debian.md`](onboarding/13-
       **cable** — one without PD support negotiates down to 5 V/15 W, and the cable is already
       under suspicion from the dock.
 
+### ⚠️ SIDE EFFECT OF `4206246` — the Win 10 tablet now shows a camera button it cannot use
+
+Fixing the X1's hidden 📷 Webcam button meant showing it wherever `getUserMedia` exists and the
+machine is not a phone. **`getUserMedia` exists in every modern browser whether or not a camera is
+attached** — so on the **old Win 10 tablet** (touchscreen, no camera, per doc 10) the button now
+appears and, when tapped, alerts *"No camera available (or permission denied)"*. Before my change it
+was hidden there, by accident rather than by design.
+
+Degrades to an alert, not to data loss — but it is a button that lies, on a machine Layla and Mark
+use. **Proper fix (~15 min):** `enumerateDevices()` on init, keep a `hasVideoInput` flag, and gate
+the button on it. Device *presence* is visible without camera permission, so no prompt is needed.
+
+*Found by asking what else the predicate touched, not by anyone hitting it — check before staff do.*
+
+---
+
 ### 🌙 DARK MODE — wanted, spec'd, NOT scheduled
 
 Angel put the tablet in dark mode and Banco is still all white screens. **The power argument does
