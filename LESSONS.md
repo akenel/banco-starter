@@ -290,3 +290,31 @@ wrong premise is a bug that has not gone off yet.
 **4. Two afternoons, same shape, opposite directions.** The LTE modem looked broken and was one
 symlink from working. The camera looked settled and was two sensors nobody had found. *Both remembered
 verdicts were hypotheses with timestamps; both needed re-measuring; neither survived it.*
+
+## 2026-08-22, end of day — the camera worked and the button was hidden
+
+Angel found a USB webcam, plugged it into the tablet: *"i just plugged it in and it just works."*
+It did — in GNOME. In Banco, ✨ Snap & fill opened a **file picker** and the 📷 Webcam button was
+not on the screen at all. His verdict: *"kinda stupid for snap and fill for a new product."* Right,
+and precisely so: that button is the **no-barcode** path, so a file picker is a dead end by
+definition — the item is unmarked, that is why you are photographing it.
+
+**The cause was a category error in one predicate.** `posIsTouchDevice()` split the world into
+phone-or-laptop on `maxTouchPoints`. A Linux tablet is *both*: a touchscreen **and** a desktop
+browser that ignores the file input's `capture` attribute. So it received the phone branch's
+attribute, which does nothing there, and the phone branch's hidden button. Neither path — on the
+only machine in the shop with a working camera. **A touchscreen is not a phone.** The axis that
+matters is the OS, because only a phone has a native camera app worth handing off to.
+
+**What makes this pattern 1 and not just a bug:** every layer I could reach was green. The webcam
+enumerated, `uvcvideo` bound, GNOME showed a picture, `PosCameraPhoto.capture()` was correct code
+that had presumably worked on a laptop. The failure existed **only on the screen Angel was standing
+in front of**, and only because of a boolean decided three files away. Reading `pos-scanner.js` on
+its own would never have found it; it took a person tapping the button and getting a file dialog.
+
+**And the fix needed a deploy to be true.** Committing it changed nothing for Angel — the tablet
+talks to `banco.wolfhold.app`, which runs deployed code. "Fixed" meant *fixed in a repo*, which is
+not a place anybody stands. It became real at `4206246` on prod, after a hard-reload past a cached
+`pos-scanner.js`. *Ask not only which screen, but which copy of the code that screen is loading.*
+
+Human-green, Angel on the tablet: **"the webcam button is there and it works."**

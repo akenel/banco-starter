@@ -37,12 +37,14 @@ Ethernet instead** — or ask Felix for a ThinkPad `40A9`/`40AS` USB-C dock. Tha
 Ethernet (better than Wi-Fi for a fixed till: **Ethernet → Wi-Fi → LTE**), plus USB-A for the
 gun dongle *and* the webcam at once.
 
-**📷 The tablet camera is CLOSED — buy the webcam.** Re-measured 2026-08-22 on kernel `6.12.101`:
+**📷 The tablet camera is DONE — a USB webcam, human-green on the tablet 2026-08-22.** Re-measured 2026-08-22 on kernel `6.12.101`:
 two sensors *are* fitted (OV2740 + OV5670) — the August "nothing attached" was wrong — but the
 TPS68470 PMIC powering both has no board data for this model, so Linux cannot switch them on.
-Kernel-patch territory; not going on a shop till. **Order a CHF 20 USB webcam + stand for the
-back office**, then test snap-and-fill in *Chromium over HTTPS*, not GNOME Snapshot. Ten-second
-re-check after any kernel jump: `sudo dmesg | grep -i tps68470`.
+Kernel-patch territory; not going on a shop till. A USB webcam in the USB-A port *just worked* —
+but Banco hid its own 📷 Webcam button on any touchscreen, so the tablet had **no live-camera
+path at all**. Fixed and deployed (`4206246`, prod on `4206246`); Angel confirmed on the tablet:
+*"the webcam button is there and it works"*. Still open: a small stand for the back office.
+Ten-second re-check of the internal cameras after any kernel jump: `sudo dmesg | grep -i tps68470`.
 
 ---
 

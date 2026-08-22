@@ -920,7 +920,16 @@ rear camera and an IR sensor for Windows Hello. The glass you can see may be any
 **Symptom:** GNOME **Snapshot** (`gnome-snapshot 48.0.1-1`, already installed) reports *no cameras
 found*.
 
-> 🛑 **SETTLED 2026-08-22 on kernel `6.12.101` — buy the USB webcam, do not debug this.** Two real
+> ✅ **RESOLVED 2026-08-22 — a USB webcam, and it works.** Angel plugged one into the USB-A port:
+> *"i just plugged it in and it just works"*, and after one code fix (below) **the 📷 Webcam button
+> is live on the tablet and capturing.** The internal cameras remain dead; they are not needed.
+>
+> ⚠️ **The webcam working was NOT the same as Banco working.** `posIsTouchDevice()` treated any
+> touchscreen as a phone, so on this tablet the 📷 Webcam button was **hidden** and ✨ Snap & fill
+> fell through to a file picker — on the one machine in the shop that had just grown a camera.
+> Fixed in `4206246`: the axis is the OS, not the glass. `scripts/prove-webcam-button-shows.js`.
+>
+> 🛑 **The internal cameras: settled on kernel `6.12.101` — do not debug them.** Two real
 > sensors (OV2740 + OV5670) are fitted and enabled; the TPS68470 camera PMIC that powers **both**
 > has no board data for this model, so Linux cannot switch them on. Fixing it is a kernel patch.
 > The one-line re-check after a kernel jump is at the end of *RE-MEASURED 2026-08-22*.
@@ -1104,8 +1113,10 @@ Not promoted to `WORKLIST.md`; item 3 (the bulk catalogue scripts on prod) is st
       OV5670); the TPS68470 PMIC that powers both has no board data for this model → kernel
       patch territory. **Buy the CHF 20 USB webcam.** Ten-second re-check after a kernel jump:
       `sudo dmesg | grep -i tps68470`
-- [ ] 📷 Order the USB webcam + a small stand for the back office (gun for EANs, phone for
-      grab shots). Then test **snap-and-fill in Chromium over HTTPS** — not GNOME Snapshot
+- [x] ~~📷 USB webcam~~ — **found one, plugged into USB-A, works.** Needed one code fix
+      (`4206246`) because Banco hid the live-camera button on touchscreens. **Human-green on the
+      tablet in Chromium over HTTPS, 2026-08-22:** *"the webcam button is there and it works"*
+- [ ] 📷 A small stand for the back office — packet down, both hands free, consistent light
 - [ ] Confirm with Felix that nothing on it needs saving
 - [ ] Decide the gun's keyboard layout *before* the installer asks
 - [ ] Network the QL-820NWB over **Wi-Fi** so this machine can print at all
