@@ -84,3 +84,41 @@ leak — four actiTube rows, two GIZEH rows.
 **This is the point of the sweep.** Both leaks had been sitting in the catalogue,
 on every screen, priced in indigo like a feature. Neither was findable by looking
 at the row you happened to be working on.
+
+---
+
+# Category tidy — 2026-08-22
+
+> Angel: *"can you fix them all so they are all 'Rolling Papers' … then they are all the same, so
+> the Rolls with our bundle prices and the King Size Papers also have the 'Rolling Papers'
+> category for consistency."*
+
+**18 rows moved** — 17 from `Papers & Filters`, 1 from `Other`. Category only; price, tiers,
+mode, class and age gate untouched. Rollback: `rollback-category-tidy.sql` (one statement per
+EAN, restoring each row's own previous category).
+
+The selector was the bundle ladder itself, not the category name — *"products carrying our two
+deals"*. That matters: it caught every roll and paper and **no filters or tips**, which is the
+line Angel drew himself (*"ks papers with filters get no bundle pricing"*). Picking rows by
+category would have needed a judgement call per row; picking them by the deal they carry needed
+none.
+
+The live shop now reads as two clean groups and nothing else:
+
+```
+Rolling Papers · CHF 2.00 · 3 for  5.00 → 42 King Size papers
+Rolling Papers · CHF 4.00 · 3 for 10.00 → 49 rolls
+```
+
+## One row does not match its 48 siblings — NOT changed
+
+`2000000070070` **Greengo Rolls King Size** is `product_class = cbd_hemp` and **age-gated 18+**.
+The other 48 rolls are `standard` with no gate. It is a rolling-paper roll; the class looks like
+it was inferred from the brand name.
+
+**Left alone on purpose.** Loosening an age gate is the one direction where a wrong bulk script
+is a compliance failure, not a tidy-up. It needs Angel or Ralph to say "that is a plain paper",
+and then it is a two-field edit.
+
+It prices correctly either way — pooling keys on price and terms, not on class — so this is a
+compliance-tidiness question, not a money one.
