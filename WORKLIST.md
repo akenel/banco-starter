@@ -439,6 +439,49 @@ the packet in a hand. The reference's job is to make that scan *land*: a miss th
 now opens find-and-bind with the real title already in the box. 18 aliases bound so far.
 **The open number is still ④ — the hit rate — and it is measurable at the till, not here.**
 
+### ④ THE HIT RATE — MEASURED 2026-08-22. It cannot be answered yet, and here is why.
+
+**113 minted codes HAVE been converted.** The bind promotes correctly: a real EAN off a packet
+takes the primary slot and the minted `2xxxxxxxxxxxx` is demoted to an alias, never discarded
+(`pos_router.py:2329`). So a rescued row is `product_barcodes.barcode ~ '^2\d{12}$'` with a real
+`products.barcode` — **113 on prod**, out of 4,979. **2.3% in three and a half weeks.**
+
+```
+day      rescues   sales that day
+07-31       16
+08-05       50            ← hand-binding sessions, not till traffic
+08-06       27
+08-20       13          2
+08-21       12          1     ← reference went live 06:32 UTC this morning
+08-22        1          0
+```
+
+**None of them came from the till.** The box has rung **50 transactions in its entire life**
+(45 completed + 5 refunded, since 2026-07-25) and **4 in the last nine days.** Twelve binds on
+08-21 spread from 07:24 to 17:28 against **one sale** — that is a human at the catalogue screen
+working through a list, not a cashier scanning a packet. *(Inference from timing: the endpoint is
+the same either way, so the DB cannot distinguish them. It is a strong inference, not a fact.)*
+
+**So the reference's effect is unmeasurable, and would have been whatever we found.** 13 binds
+the day before it loaded, 12 the day after. With one sale between them there is no denominator.
+**The blocker on ④ is not instrumentation — it is that the shop is in acceptance, not trading.**
+
+### 🔴 AND THE MISS RATE IS NOT BEING RECORDED AT ALL
+
+`catalog_miss` — SPEC §6's "self-prioritising enrichment backlog" — holds **1 row, ever.**
+`_record_catalog_miss` is called from two places (`pos_router.py:5850`, `:6464`) and both are
+gated `if ln.department_code and ln.unresolved_barcode`. **Only a miss rung through the
+department strip is counted.** A miss the cashier handles by creating the item — now the good
+path, since `createNoCodeItem()` binds the real code — carries no `unresolved_barcode` on a
+department line, so it is never counted. Defensible as design (it *was* resolved), but the
+consequence is that **"three of four scans miss" has no live measurement behind it.** That
+figure came from counting minted rows in the catalogue, which is a stock, not a rate.
+
+**What this actually says:** hand-binding works and is the only thing converting rows. At 113 per
+three weeks, 4,979 rows is years. The reference does not change that rate — it changes what a
+human sees when they get there. **The lever is a shelf pass with the gun, not a till feature**,
+which puts this behind the inventory-mode dump in `▶️ NOW`.
+
 *Bulk name-matching stays weak and measured: "Tabak Beutel Sasso Tobaccos Hash 25gr." does not
 reach "Sasso Tabaccos Brazil Hash BIO" at the 0.5 threshold. **Scan-time beats bulk.***
 
