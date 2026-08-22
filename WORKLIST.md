@@ -36,13 +36,49 @@ the exact command sequence: [`onboarding/13-tablet-x1-debian.md`](onboarding/13-
       enabled today draws continuously; that is the price of the failover.** If the 4 h charge
       matters, check `charge_control_end_threshold` (a Lenovo 80 % cap) and use the real 45 W
       adapter — 9 W net charging says small charger, not tired battery.
-- [ ] 🔌 **A 45 W USB-C adapter (CHF 20–30) — the only purchase today that changes a number.**
-      Measured: `charge_control_end_threshold` = 100 (no cap) and `power_now` = **8.45 W** into the
-      cell. `37.01 Wh ÷ 8.45 W = 4.4 h` — exactly the observed charge time. The current supply is
-      delivering ~25 W total against a ~17 W system draw; stock for this machine is **45 W /
-      20 V 2.25 A**, which would charge it in ~1.3 h. ⚠️ **The sharp edge:** bright screen +
-      streaming webcam + registered LTE modem on a 25 W supply can out-draw it, and a tablet that
-      discharges while plugged in looks exactly like a dead battery and is not one.
+- [x] ~~🔌 **A 45 W adapter**~~ — **RETRACTED, buy nothing. The adapter is 65 W, above the 45 W
+      stock.** I read `power_now` = 8.45 W and extrapolated `37.01 Wh ÷ 8.45 W = 4.4 h`. **That
+      reading was taken at 77 % and climbing** — Li-ion charges fast to ~80 % then tapers into
+      constant-voltage, so 8.45 W describes the last stretch and nothing else. Same error as
+      reading `sim-missing` off a powered-down modem, six hours apart. *If a real number is ever
+      wanted, measure `power_now` at 30–50 %.* If charging genuinely is slow on 65 W, suspect the
+      **cable** — one without PD support negotiates down to 5 V/15 W, and the cable is already
+      under suspicion from the dock.
+
+### 🌙 DARK MODE — wanted, spec'd, NOT scheduled
+
+Angel put the tablet in dark mode and Banco is still all white screens. **The power argument does
+not hold** — the X1 Tablet is an **IPS LCD**, where the backlight burns the same whatever colour
+the pixels are; dark mode saves power only on OLED. On an LCD the lever is *brightness*. So this is
+a comfort feature — a bright white till in a dim shop is tiring over a shift, and an app that
+ignores the OS setting looks broken. Fine reason to build it, different reason.
+
+**Do NOT do it with Tailwind `dark:` variants.** Four classes alone account for **503 occurrences**
+across the POS templates (`text-gray-900` ×204, `bg-white` ×148, `bg-gray-50` ×94, `bg-gray-100`
+×57), before the rest of the palette — well over a thousand edits, on a live till, forever after
+remembered by every new template.
+
+**Do it in one place.** `base.html` already carries real CSS for `.btn-primary`, `.input-field` and
+`.card`, and Tailwind's Play build emits its utilities as ordinary CSS, so one block repaints
+everything:
+
+```css
+@media (prefers-color-scheme: dark) {
+  .bg-white { background-color: #1c1c1e !important; }
+  .text-gray-900 { color: #e8e8ea !important; }
+  .bg-gray-50, .bg-gray-100 { background-color: #232326 !important; }
+  /* ~30 more lines */
+}
+```
+
+~40 lines, one file, follows the OS, reverts by deletion. **The cost is not the CSS — it is the
+verification.** A blanket override will strand light text on newly-dark badges, and **the price
+display is not cosmetic**: a cashier reads it fast, under pressure, with a customer waiting. Needs
+a human on every screen — till, cart, checkout, catalogue, scan, receiving — the same afternoon the
+18+ and price-warning passes each took. **Pick it up with an afternoon and fresh eyes, not at the
+end of a long day.**
+
+---
 
 **🅿️ DOCKS ARE PARKED — buy nothing.** Two were tried and neither works: the **WiGig Dock W123**
 reaches a machine only over a 60 GHz radio the Intel 8265 does not have (and Intel WiGig docking

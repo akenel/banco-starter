@@ -232,7 +232,8 @@ enables none — so MM tried, found no script, and reported a generic failure. O
 printed `attempting FCC unlock... file doesn't exist` and the afternoon was over.
 *Turn on the device's own log before proposing a fourth hypothesis.*
 
-**2. A status field read at the wrong moment is a confident false negative.** `sim-missing` was
+**2. A status field read at the wrong moment is a confident false negative.** *(And I did it twice
+in one day — see the postscript.)* `sim-missing` was
 reported while the WWAN radio was still soft-blocked — a powered-down modem has never energised the
 slot, so it *cannot* report anything else. I read it as evidence about the card, and Angel pulled
 and re-seated a SIM twice on my say-so. It was never about the card. *Before believing a reading,
@@ -361,3 +362,23 @@ lettering rather than the object, the same grinder came back rank 1. Human-green
    of other people's photographs. `/catalog/page-facts` already existed for this and returns the
    **EAN**, which a screenshot never can. *When a user invents a workaround, find what it is
    compensating for before praising it.*
+
+
+### Postscript to 2026-08-22 — I made lesson #2 again, six hours later
+
+Angel's tablet took four hours to charge. I had him read `power_now`, got **8.45 W**, computed
+`37.01 Wh ÷ 8.45 W = 4.4 h`, matched it against the observed time, declared the adapter undersized
+and told him to buy a 45 W one. The arithmetic was clean and the conclusion was wrong.
+
+**The reading was taken at 77 % and climbing.** Lithium cells charge hard to ~80 % and then taper
+into constant-voltage, so 8.45 W describes the final stretch and nothing else. Extrapolating it
+across a full charge is the same error as reading `sim-missing` off a modem whose radio was
+switched off: *the instrument was fine, the moment was wrong.* And the matching number made it
+worse — a coincidence that agrees with your theory feels like confirmation.
+
+Angel caught it by checking the adapter: **65 W**, already above the 45 W this machine ships with.
+*"is that true?"* — one question, and the whole finding fell over.
+
+**What generalises:** a single instantaneous sample of anything with a duty cycle, a taper, a warm-up
+or a sleep state is not a rate. Before extrapolating one reading across a process, ask **where in
+the process it was taken** — and prefer two samples at different points over one that happens to fit.
