@@ -11716,10 +11716,20 @@ def _qr_data_uri(payload: str, logo_url: str | None = None) -> str:
 # -and-view; guest cart + held-order handoff is v2.
 # ================================================================
 @html_router.get("/pos/kiosk", response_class=HTMLResponse, name="pos_kiosk")
-async def pos_kiosk(request: Request):
+async def pos_kiosk(request: Request, db: AsyncSession = Depends(get_db_session)):
     """The guest kiosk shell — public, full-screen, boots to an attract screen. All the product
-    data comes from the public /api/v1/pos/kiosk/lookup endpoint; nothing here needs a login."""
-    return templates.TemplateResponse("pos/kiosk.html", {"request": request})
+    data comes from the public /api/v1/pos/kiosk/lookup endpoint; nothing here needs a login.
+
+    THE JOIN OFFER IS INJECTED, not hardcoded in the page. `signupPct` used to be
+    `this.isTouch ? 15 : 10` in the template while the signup endpoint carried the same two
+    literals — the page ADVERTISED a number a different file had to agree to GRANT. Serving both
+    from the store setting means the offer on screen is, by construction, the offer honoured at
+    the till. When they are 0 the page swaps to the points copy rather than saying "0% off"."""
+    return templates.TemplateResponse("pos/kiosk.html", {
+        "request": request,
+        "join_pct_kiosk": await _welcome_discount_pct(db, "kiosk"),
+        "join_pct_phone": await _welcome_discount_pct(db, "phone"),
+    })
 
 
 async def _kiosk_related(db: AsyncSession, product, limit: int = 10) -> list:
@@ -11906,7 +11916,11 @@ async def kiosk_signup(
             raise HTTPException(status_code=409, detail="That email is already registered.")
 
     source = "phone" if (body.source or "").strip().lower() == "phone" else "kiosk"
-    discount = 15 if source == "phone" else 10
+    # THE SHOP'S NUMBER, read once, here. Was `15 if phone else 10` in this line AND again in
+    # kiosk.html's `signupPct` — two literals that had to agree, with a customer at the counter
+    # holding the page that promised one of them. Now the page is told this number (see
+    # pos_kiosk below), so it cannot advertise an offer the till will not grant.
+    discount = await _welcome_discount_pct(db, source)
     member = CustomerModel(
         handle=handle,
         real_name=(body.real_name or "").strip() or None,
@@ -12827,6 +12841,25 @@ async def _ean_lookup_sites(db: AsyncSession) -> list[dict]:
     except Exception:
         logger.debug("supplier lookup-site merge failed", exc_info=True)
     return sites
+
+
+async def _welcome_discount_pct(db: AsyncSession, source: str) -> int:
+    """The first-order % this shop offers a new member, by where they signed up. 0 = no offer.
+
+    Angel's bait (2026-08-23: *"the 15% discount was my idea... sort of encouragement"*), and
+    Felix's money — so it is a store setting, defaulting to exactly what used to be hardcoded.
+    Never raises: a missing settings row must not stop somebody joining."""
+    key = "welcome_discount_phone_pct" if source == "phone" else "welcome_discount_kiosk_pct"
+    fallback = 15 if source == "phone" else 10
+    try:
+        store = await get_active_store_settings(db)
+        if store is None:
+            return fallback
+        val = getattr(store, key, None)
+        return fallback if val is None else max(0, int(val))
+    except Exception:      # noqa: BLE001
+        logger.warning("welcome discount unreadable; using the default", exc_info=True)
+        return fallback
 
 
 @html_router.get("/pos/join-card", response_class=HTMLResponse, name="pos_join_card")

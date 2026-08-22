@@ -201,6 +201,44 @@ phone posts it, not by reading the handler.
 > is **not** fine for an age verification, which is why `matched_by` exists and why the first-use
 > check below must hang off the scan.
 
+### 💰 THE JOIN OFFER IS NOW THE SHOP'S NUMBER — built 2026-08-23, DEFAULTS UNCHANGED
+
+Angel: *"the 15% discount was my idea as bait to get people to be members — sort of
+encouragement… we could maybe take it out for now, but I think the customer needs to know why."*
+Both halves handled, and **nothing was decided for Felix.**
+
+**It was hardcoded in two files that had to agree** — `pos_router.py` granting `15 if phone else
+10`, and `kiosk.html`'s `signupPct` advertising the same two literals. Nobody had made them
+disagree yet; whoever edited one and not the other would have had **the page promise a number
+the till refused, to a customer standing at the counter.** Now `store_settings` holds
+`welcome_discount_kiosk_pct` / `welcome_discount_phone_pct`, the server hands them to the page,
+and the offer on screen is by construction the offer honoured at the till.
+
+**And zero is a first-class answer, not a broken one.** At 0 the page would have read *"Become a
+member — 0% off today"*. It now swaps to the points copy in all four languages:
+
+```
+15/10 (default, unchanged)  "Become a member — 15% off today"
+0                           "Become a member — collect points"
+                            "Collect points on every purchase. No name needed, 20 seconds."
+```
+
+**Proved live on local, both ways round:**
+
+```
+default  page says 15 / 10   ·  signup granted discount_pct=15   ← identical to before
+set to 0 page says  0 /  0   ·  signup granted discount_pct=0    ·  copy swapped to points
+restored to 10/15
+```
+
+Additive migration, defaults reproducing exactly the old hardcoded numbers, so **this changes
+nothing until Felix changes it** — which he can now do himself.
+
+⬜ **Still Felix's call, and only his:** whether to run the offer at all. ⬜ Angel's other idea —
+*"you're now Silver status, here's a discount code for website purchases"* — is not built and
+not spec'd; note that credits still cannot be redeemed for anything, so a status message today
+would promise a mechanism that does not exist.
+
 ### 🪧 THE COUNTER CARD — `/pos/join-card`, built 2026-08-23
 
 The last missing piece of Angel's flow (*"here, just scan this code and it takes you to our kiosk

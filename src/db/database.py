@@ -145,6 +145,11 @@ async def init_db_tables() -> None:
 # a shared DB: ADD COLUMN IF NOT EXISTS is non-destructive and backward-compatible
 # (older code that doesn't select the column is unaffected). Postgres only.
 _ADDITIVE_COLUMNS: list[str] = [
+    # The join-now offer is the SHOP's number (2026-08-23). Defaults reproduce exactly what was
+    # hardcoded before — 10% at the kiosk, 15% on a phone — so this migration changes nothing
+    # until Felix changes it. 0 turns the offer off and the kiosk copy follows.
+    "ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS welcome_discount_kiosk_pct INTEGER NOT NULL DEFAULT 10",
+    "ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS welcome_discount_phone_pct INTEGER NOT NULL DEFAULT 15",
     # Today "breakdowns" block (2026-06-12): sub-tasks, time, assignee, edit history.
     "ALTER TABLE bottega_tasks ADD COLUMN IF NOT EXISTS parent_id UUID",
     "ALTER TABLE bottega_tasks ADD COLUMN IF NOT EXISTS estimate_min INTEGER",

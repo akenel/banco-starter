@@ -290,6 +290,29 @@ class StoreSettingsModel(Base):
         comment="Variance allowed before a note is required (CHF). NULL = 0.20 legacy default."
     )
 
+    # THE JOIN-NOW BAIT — the shop's number, not a literal in two files.
+    #
+    # Angel, 2026-08-23: *"the 15% discount was my idea as bait to get people to be members —
+    # sort of encouragement."* Felix may not want to give it. Both are legitimate and it is his
+    # money, so it is a SETTING and the kiosk copy follows it.
+    #
+    # It was hardcoded in TWO places that had to agree — `pos_router.py` granting it and
+    # `kiosk.html`'s `signupPct` advertising it. Nobody had made them disagree yet; whoever
+    # edited one and not the other would have had the page promise a number the till refused,
+    # to a customer standing at the counter. Now the page is TOLD the number by the server.
+    #
+    # Phone is higher on purpose: it nudges the customer onto their own device, where the QR
+    # ends up in their pocket instead of on a shared screen. Zero on either turns the offer off
+    # AND switches the kiosk copy to the points message — see `joinNoDisc` in kiosk.html.
+    welcome_discount_kiosk_pct: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=10,
+        comment="First-order % for a member who signed up on the shop's kiosk. 0 = no offer.",
+    )
+    welcome_discount_phone_pct: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=15,
+        comment="First-order % for a member who signed up on their own phone. 0 = no offer.",
+    )
+
     # Customer Loyalty Settings
     loyalty_tier1_threshold: Mapped[Decimal] = mapped_column(
         Numeric(10, 2),

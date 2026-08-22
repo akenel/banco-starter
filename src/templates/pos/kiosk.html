@@ -97,7 +97,7 @@
     <!-- The hook: join today, save on your first order -->
     <button @click="startSignup()"
             class="mt-10 px-7 py-4 rounded-2xl bg-emerald-500/20 border border-emerald-300/50 text-emerald-50 text-lg font-bold hover:bg-emerald-500/30 transition">
-      🎁 <span x-text="mf('join', {pct: signupPct})"></span>
+      🎁 <span x-text="jf('join', {pct: signupPct})"></span>
     </button>
   </section>
 
@@ -107,7 +107,7 @@
       <div class="text-center mb-6">
         <div class="text-5xl mb-2">🎁</div>
         <h2 class="text-3xl font-black" x-text="m('joinTitle')"></h2>
-        <p class="text-emerald-100/75 mt-1" x-text="mf('joinSub', {pct: signupPct})"></p>
+        <p class="text-emerald-100/75 mt-1" x-text="jf('joinSub', {pct: signupPct})"></p>
       </div>
       <form @submit.prevent="submitSignup()" class="space-y-3">
         <!-- EVERY FIELD HERE IS OPTIONAL, AND THE FIRST ONE USED TO BE COMPULSORY.
@@ -138,7 +138,7 @@
 
         <button type="submit" :disabled="_busy"
                 class="w-full px-7 py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-emerald-950 text-lg font-black">
-          <span x-show="!_busy" x-text="mf('joinBtn', {pct: signupPct})"></span>
+          <span x-show="!_busy" x-text="jf('joinBtn', {pct: signupPct})"></span>
           <span x-show="_busy" style="display:none;" x-text="m('joining')"></span>
         </button>
         <button type="button" @click="reset()" class="w-full py-2 text-emerald-200/60 text-sm" x-text="m('back')"></button>
@@ -150,7 +150,7 @@
   <section x-show="view==='member'" class="min-h-screen flex flex-col items-center justify-center px-6 text-center" style="display:none;">
     <div class="text-6xl mb-3">🎉</div>
     <h2 class="text-4xl font-black mb-1" x-text="mf('welcome', {handle: member.handle})"></h2>
-    <p class="text-2xl price font-bold mb-8" x-text="mf('welcomeSub', {pct: member.discount_pct})"></p>
+    <p class="text-2xl price font-bold mb-8" x-text="jf('welcomeSub', {pct: member.discount_pct})"></p>
     <div class="glass rounded-3xl p-6 flex flex-col items-center">
       <div id="member-qr" x-ref="memberQr" class="bg-white p-2 rounded-xl"></div>
       <!-- THE SPOKEN CODE IS THE BIG ONE, and the HLX token is not shown at all.
@@ -211,7 +211,7 @@
         </button>
       </div>
       <p x-show="!myMember" class="text-center text-emerald-200/60 text-sm mt-4">
-        🎁 <button @click="startSignup()" class="underline" x-text="mf('join', {pct: signupPct})"></button>
+        🎁 <button @click="startSignup()" class="underline" x-text="jf('join', {pct: signupPct})"></button>
       </p>
     </div>
   </section>
@@ -500,29 +500,39 @@
       MEMBER: {
         de:{ join:'Mitglied werden — {pct}% Rabatt heute', joinTitle:'Mitglied werden', joinSub:'{pct}% auf deine erste Bestellung. Dauert 20 Sekunden.',
              fUser:'Wunschname (optional)', fUserHint:'Leer lassen — wir geben dir einen kurzen Code.', fName:'Name (optional)', fEmail:'E-Mail (optional)', fPhone:'Telefon (optional)',
-             fAge:'Ich bestätige, dass ich 18 oder älter bin', fMarketing:'Schick mir Angebote (optional)', joinBtn:'Beitreten & {pct}% sparen', joining:'Wird erstellt…', back:'Zurück',
+             fAge:'Ich bestätige, dass ich 18 oder älter bin', fMarketing:'Schick mir Angebote (optional)', joinBtn:'Beitreten & {pct}% sparen', joinNoDisc:'Mitglied werden — Punkte sammeln', joinSubNoDisc:'Sammle Punkte bei jedem Einkauf. Kein Name nötig, 20 Sekunden.', joinBtnNoDisc:'Mitglied werden', welcomeSubNoDisc:'Ab jetzt sammelst du bei jedem Einkauf Punkte.', joining:'Wird erstellt…', back:'Zurück',
              welcome:'Willkommen, {handle}!', welcomeSub:'{pct}% auf deine erste Bestellung heute.', showCashier:'Zeig das an der Kasse', keepIt:'📸 Mach einen Screenshot oder merk dir diesen Code. Er ist dein Konto — wir haben sonst keinen Namen, um dich zu finden. Vergessen? Sag den Code an der Kasse.', done:'Fertig',
              errUser:'Benutzername: 3–30 Buchstaben, Zahlen, . _ -', errAge:'Bitte bestätige, dass du 18 oder älter bist.', errGeneric:'Etwas ist schiefgelaufen — bitte nochmal.' },
         fr:{ join:'Devenir membre — {pct}% aujourd’hui', joinTitle:'Devenir membre', joinSub:'{pct}% sur votre première commande. 20 secondes.',
              fUser:'Nom souhaité (optionnel)', fUserHint:'Laissez vide — nous vous donnons un code court.', fName:'Nom (optionnel)', fEmail:'E-mail (optionnel)', fPhone:'Téléphone (optionnel)',
-             fAge:'Je confirme avoir 18 ans ou plus', fMarketing:'Envoyez-moi des offres (optionnel)', joinBtn:'Rejoindre & économiser {pct}%', joining:'Création…', back:'Retour',
+             fAge:'Je confirme avoir 18 ans ou plus', fMarketing:'Envoyez-moi des offres (optionnel)', joinBtn:'Rejoindre & économiser {pct}%', joinNoDisc:'Devenir membre — cumulez des points', joinSubNoDisc:'Cumulez des points à chaque achat. Sans nom, 20 secondes.', joinBtnNoDisc:'Devenir membre', welcomeSubNoDisc:'Dès maintenant, chaque achat vous rapporte des points.', joining:'Création…', back:'Retour',
              welcome:'Bienvenue, {handle} !', welcomeSub:'{pct}% sur votre première commande aujourd’hui.', showCashier:'Montrez ceci à la caisse', keepIt:'📸 Faites une capture d’écran ou retenez ce code. C’est votre compte — nous n’avons aucun nom pour vous retrouver. Perdu ? Donnez le code à la caisse.', done:'Terminé',
              errUser:'Nom d’utilisateur : 3–30 lettres, chiffres, . _ -', errAge:'Veuillez confirmer que vous avez 18 ans ou plus.', errGeneric:'Une erreur est survenue — réessayez.' },
         it:{ join:'Diventa socio — {pct}% oggi', joinTitle:'Diventa socio', joinSub:'{pct}% sul tuo primo ordine. Bastano 20 secondi.',
              fUser:'Nome desiderato (facoltativo)', fUserHint:'Lascia vuoto — ti diamo un codice breve.', fName:'Nome (facoltativo)', fEmail:'Email (facoltativa)', fPhone:'Telefono (facoltativo)',
-             fAge:'Confermo di avere 18 anni o più', fMarketing:'Inviami offerte (facoltativo)', joinBtn:'Iscriviti & risparmia {pct}%', joining:'Creazione…', back:'Indietro',
+             fAge:'Confermo di avere 18 anni o più', fMarketing:'Inviami offerte (facoltativo)', joinBtn:'Iscriviti & risparmia {pct}%', joinNoDisc:'Diventa socio — accumula punti', joinSubNoDisc:'Accumula punti a ogni acquisto. Senza nome, 20 secondi.', joinBtnNoDisc:'Diventa socio', welcomeSubNoDisc:'Da ora accumuli punti a ogni acquisto.', joining:'Creazione…', back:'Indietro',
              welcome:'Benvenuto, {handle}!', welcomeSub:'{pct}% sul tuo primo ordine oggi.', showCashier:'Mostralo alla cassa', keepIt:'📸 Fai uno screenshot o ricorda questo codice. È il tuo account — non abbiamo un nome per ritrovarti. Perso? Di\' il codice alla cassa.', done:'Fatto',
              errUser:'Nome utente: 3–30 lettere, numeri, . _ -', errAge:'Conferma di avere 18 anni o più.', errGeneric:'Qualcosa è andato storto — riprova.' },
         en:{ join:'Become a member — {pct}% off today', joinTitle:'Become a member', joinSub:'{pct}% off your first order. Takes 20 seconds.',
              fUser:'Preferred name (optional)', fUserHint:"Leave it blank — we'll give you a short code.", fName:'Name (optional)', fEmail:'Email (optional)', fPhone:'Phone (optional)',
-             fAge:'I confirm I am 18 or older', fMarketing:'Send me offers (optional)', joinBtn:'Join & save {pct}%', joining:'Joining…', back:'Back',
+             fAge:'I confirm I am 18 or older', fMarketing:'Send me offers (optional)', joinBtn:'Join & save {pct}%', joinNoDisc:'Become a member — collect points', joinSubNoDisc:'Collect points on every purchase. No name needed, 20 seconds.', joinBtnNoDisc:'Become a member', welcomeSubNoDisc:'From now on you collect points on every purchase.', joining:'Joining…', back:'Back',
              welcome:'Welcome, {handle}!', welcomeSub:'{pct}% off your first order today.', showCashier:'Show this to the cashier', keepIt:"📸 Screenshot this or remember the code. It IS your account — we have no name to find you by. Lost it? Just tell the cashier the code.", done:'Done',
              errUser:'Pick a username: 3–30 letters, numbers, . _ -', errAge:'Please confirm you are 18 or older.', errGeneric:'Something went wrong — try again.' },
       },
       m(k){ return (this.MEMBER[this.lang] || this.MEMBER.en)[k] || (this.MEMBER.en[k] || k); },
       mf(k, vars){ let s = this.m(k); for (const a in (vars||{})) s = s.split('{'+a+'}').join(vars[a]); return s; },
 
-      get signupPct(){ return this.isTouch ? 15 : 10; },   // phone (via QR) = 15%, kiosk = 10%
+      // THE SHOP'S NUMBERS, handed down by the server (Settings → the welcome_discount_* pair).
+      // These were the literals `this.isTouch ? 15 : 10`, duplicating what the signup endpoint
+      // granted — so the page could advertise an offer the till would refuse, to somebody
+      // standing at the counter. Now there is one source and the page just reports it.
+      get signupPct(){ return this.isTouch ? {{ join_pct_phone|default(15) }} : {{ join_pct_kiosk|default(10) }}; },
+      // Zero means the shop is not buying members with a discount today — so the page must give
+      // the REAL reason instead of advertising "0% off". Angel, 2026-08-23: "we could maybe take
+      // it out for now, but I think the customer needs to know why."
+      get hasOffer(){ return this.signupPct > 0; },
+      j(key){ return this.m(this.hasOffer ? key : key + 'NoDisc'); },
+      jf(key, vars){ return this.hasOffer ? this.mf(key, vars) : this.m(key + 'NoDisc'); },
 
       CART: {
         de:{ add:'Zur Bestellung', cart:'Deine Bestellung', empty:'Dein Korb ist leer', items:'Art.',
