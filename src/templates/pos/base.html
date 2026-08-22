@@ -1152,15 +1152,27 @@
                     };
                 }
             }
+            // A {min_qty: 1} rung REPLACES the shelf price -- one unit is not a deal, so whatever
+            // it says is what the drawer takes. Two live rows were leaking on exactly this: Tycoon
+            // Gas labelled 6.90 ringing 5.00, Greengo Wide Rolls labelled 4.00 ringing 3.50.
+            //
+            // NARROWED 2026-08-22, and this is the important half. addTier() CREATES a qty-1 rung
+            // holding the product's own price the first time anyone taps "+ Add break" on a
+            // per_unit product -- by design (BL-31: "per_unit's first row IS the single-unit
+            // base"). The first cut of this rule flagged that as dead weight, which means the app
+            // manufactured its own warning on ordinary use. That is the crying-wolf this whole
+            // feature is supposed to avoid, and it is how a warning gets switched off in a week.
+            // An equal rung changes no price, so it is now SILENT. Only a rung that disagrees with
+            // the shelf price speaks, and it speaks in red, because it is money.
             for (const r of tiers) {
                 const mq = parseInt(r && r.min_qty, 10), up = parseFloat(r && r.unit_price);
                 if (mq !== 1 || !isFinite(up)) continue;
-                if (Math.abs(up - base) < 0.005)
-                    return { level: 'warn', text: t('catalog.warn_dead_rung'), fix: '' };
+                if (Math.abs(up - base) < 0.005) return null;   // the editor's own convention
                 return {
-                    level: 'warn',
-                    text: t('catalog.warn_one_rung').replace('{price}', formatPrice(up)),
-                    fix: '',
+                    level: 'error',
+                    text: t('catalog.warn_one_rung')
+                            .replace('{price}', formatPrice(up)).replace('{base}', formatPrice(base)),
+                    fix: t('catalog.warn_one_rung_fix').replace('{price}', formatPrice(up)),
                 };
             }
             return null;

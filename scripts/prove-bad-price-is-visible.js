@@ -59,13 +59,15 @@ const made = [];
       ['GOOD',  'ZZPROBE good deal ' + RUN,  [{ min_qty: 3, unit_price: '5.00' }], 'bundle'],
       ['RUNG',  'ZZPROBE one rung ' + RUN,   [{ min_qty: 1, unit_price: '1.50' }], 'per_unit'],
       ['PLAIN', 'ZZPROBE no ladder ' + RUN,  null, null],
+      ['NOEAN', 'ZZPROBE no barcode ' + RUN, null, null],   // barcode omitted on purpose
     ];
     const ids = {}, codes = {};
     for (let i = 0; i < seeds.length; i++) {
       const [tag, name, tiers, mode] = seeds[i];
-      const code = gtin('841477', 13);
+      const code = (tag === 'NOEAN') ? null : gtin('841477', 13);
       const r = await p.evaluate(async ([sku, name, code, tiers, mode]) => {
-        const body = { sku, name, barcode: code, price: 2.00, stock_quantity: 1, category: 'Rolling Papers' };
+          const body = { sku, name, price: 2.00, stock_quantity: 1, category: 'Rolling Papers' };
+        if (code) body.barcode = code;
         if (tiers) { body.price_tiers = tiers; body.tier_mode = mode; }
         try { return { ok: true, body: await API.post('/api/v1/pos/products?allow_duplicate=true', body) }; }
         catch (e) { return { ok: false, detail: (e && e.message) || String(e) }; }
@@ -82,6 +84,9 @@ const made = [];
       roll:  tierWarning({ price: 4.00, tier_mode: 'bundle',   price_tiers: [{ min_qty: 3, unit_price: '10.00' }] }),
       real:  tierWarning({ price: 5.00, tier_mode: 'per_unit', price_tiers: [{ min_qty: 10, unit_price: '4.50' }] }),
       rung:  tierWarning({ price: 4.00, tier_mode: 'per_unit', price_tiers: [{ min_qty: 1, unit_price: '3.50' }] }),
+      // What "+ Add break" itself creates on a per_unit product: a qty-1 rung holding the price.
+      addbreak: tierWarning({ price: 2.00, tier_mode: 'per_unit', price_tiers: [{ min_qty: 1, unit_price: '2.00' }] }),
+    ladder:   tierWarning({ price: 4.90, tier_mode: 'per_unit', price_tiers: [{ min_qty: 1, unit_price: '4.90' }, { min_qty: 10, unit_price: '4.50' }] }),
       plain: tierWarning({ price: 2.00, tier_mode: 'per_unit', price_tiers: [] }),
       junk:  tierWarning({ price: 2.00, tier_mode: 'per_unit', price_tiers: 'not-an-array' }),
       nul:   tierWarning(null),
@@ -93,7 +98,15 @@ const made = [];
     ok('a CORRECT 3-for-10 roll bundle says nothing', verdicts.roll === null);
     ok('a genuine per_unit break (10+ @ 4.50) says nothing', verdicts.real === null);
     ok('no ladder, no warning', verdicts.plain === null);
-    ok('a 1+ rung that undercuts the shelf price is amber, not red', verdicts.rung && verdicts.rung.level === 'warn');
+    // NARROWED 2026-08-22. A qty-1 rung that DISAGREES with the shelf price is money -- the till
+    // takes the rung. Tycoon Gas rang 5.00 on a 6.90 label; Greengo Wide Rolls 3.50 on 4.00.
+    ok('a 1+ rung that undercuts the shelf price is RED', verdicts.rung && verdicts.rung.level === 'error');
+    ok('...and it names both numbers', /3\.50/.test((verdicts.rung || {}).text || '') && /4\.00/.test((verdicts.rung || {}).text || ''));
+    // GUARD-BREAK, and the one that decides whether this feature survives contact with the shop:
+    // addTier() MANUFACTURES the equal-price qty-1 rung the first time anyone taps "+ Add break".
+    // If that warns, the app scolds you for using it normally and the warning gets switched off.
+    ok('the rung "+ Add break" creates by itself is SILENT', verdicts.addbreak === null);
+    ok('a normal per_unit ladder anchored at its own price is SILENT', verdicts.ladder === null);
     ok('a scalar price_tiers does not throw', verdicts.junk === null);
     ok('null product does not throw', verdicts.nul === null);
 
@@ -107,8 +120,12 @@ const made = [];
     ok('the bad row shows the warning', /costs MORE than one/i.test(catTxt));
     ok('...and NOT a deal chip that prices it', !/3\+\s*@\s*5\.00 ea/.test(catTxt));
     ok('the good row keeps its deal chip', /🏷️\s*3 for 5\.00/.test(catTxt));
+    // TWO reds now, not one: the mis-saved bundle AND the qty-1 rung that undercuts the shelf
+    // price. The rung used to be amber; on 2026-08-22 it was promoted, because the till really
+    // does take it (Tycoon Gas rang 5.00 on a 6.90 label).
     const badChips = await p.$$eval('.chip-bad', e => e.filter(x => x.offsetParent).length);
-    ok('exactly one row is flagged red', badChips === 1);
+    ok('exactly two rows are flagged red', badChips === 2);
+    ok('the undercutting rung is one of them', /overrides the shelf price/i.test(catTxt));
 
     // ── 3 · the sweep ───────────────────────────────────────────────────────────────────────────
     console.log('\nthe sweep — the whole catalogue at once, not the row you happen to scroll past');
@@ -123,6 +140,38 @@ const made = [];
     ok('the ladderless row is NOT in the sweep', !sweep.warned.some(n => /ZZPROBE no ladder/.test(n)));
     const panel = p.locator('text=/Pricing to check/i').first();
     ok('the panel is on the page', await panel.isVisible());
+
+    // ── the EAN on the row, and the clean-sweep line ──────────────────────────────────────────
+    console.log('\nthe row must show the number you can hold against the packet');
+    const eans = await p.$$eval('.ean-num', e => e.filter(x => x.offsetParent).map(x => x.textContent.trim()));
+    ok('the row prints the EAN', eans.includes(codes.BAD));
+    // Was `nones >= 0`, which is true of every number -- an assertion that cannot fail is a
+    // green tick that means nothing. The NOEAN seed gives it something real to be wrong about.
+    const noneRow = await p.evaluate(() => {
+      const row = [...document.querySelectorAll('.cat-card')].find(r => /ZZPROBE no barcode/.test(r.textContent));
+      if (!row) return 'row missing';
+      const none = row.querySelector('.ean-none'), num = row.querySelector('.ean-num');
+      if (!none || !none.offsetParent) return 'no placeholder shown';
+      if (num && num.offsetParent) return 'shows a number it does not have';
+      return (none.textContent || '').trim();
+    });
+    ok('an EAN-less row says "no barcode yet" rather than going blank', /no barcode/i.test(noneRow));
+    ok('the EAN sits ABOVE the price', await p.evaluate((c) => {
+      const row = [...document.querySelectorAll('.cat-card')].find(r => r.textContent.includes(c));
+      if (!row) return false;
+      const e = row.querySelector('.ean-num'), pr = row.querySelector('.cat-price');
+      return !!(e && pr) && e.getBoundingClientRect().top < pr.getBoundingClientRect().top;
+    }, codes.BAD));
+
+    // ── the save button must be reachable ─────────────────────────────────────────────────────
+    console.log('\nthe Create button must be in reach — a save you go looking for is a save that does not happen');
+    await p.goto(ROOT + '/pos/catalog'); await p.waitForLoadState('networkidle'); await p.waitForTimeout(1200);
+    await p.locator('button:has-text("New product")').first().click(); await p.waitForTimeout(700);
+    const saveBtn = p.locator('button:has-text("Create product")').first();
+    const vh = p.viewportSize().height;
+    const saveBox = await saveBtn.boundingBox();
+    ok('the Create button is inside the window without scrolling', !!saveBox && saveBox.y + saveBox.height <= vh + 1);
+    await p.keyboard.press('Escape').catch(() => {});
 
     // ── 4 · the editor, at the moment the mistake is made ───────────────────────────────────────
     console.log('\nthe editor — caught as it is typed, fixed in one tap');

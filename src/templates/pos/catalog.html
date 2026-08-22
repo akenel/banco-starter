@@ -34,6 +34,18 @@
         background: #f1f1ef; color: #475569; padding: 1px 8px; border-radius: 6px;
         white-space: nowrap;
     }
+    .cat-ean { margin-top: 2px; }
+    /* The modal's action row rides the bottom of the scroll box, always in reach. */
+    .modal-actions {
+        position: sticky; bottom: 0; z-index: 5;
+        background: #fff; margin: 0 -1rem -1rem; padding: 0.75rem 1rem 1rem;
+        box-shadow: 0 -8px 16px -12px rgba(0,0,0,.35);
+    }
+
+    .ean-num { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px;
+               font-weight: 700; letter-spacing: .02em; color: #3730a3; }
+    .ean-none { font-size: 11.5px; color: #9ca3af; font-style: italic; }
+
 
     .badge-cat {
         display: inline-flex; align-items: center; gap: 5px;
@@ -191,6 +203,15 @@
              first and DISCARDS the second, so the amber border I specified never rendered and the
              panel came out as a plain white card between the stats and the list -- present, and
              invisible to anyone looking for the amber thing the test sheet described. -->
+        <!-- AN EMPTY SWEEP MUST SAY IT IS EMPTY. 2026-08-22: Angel cleared all eight flagged rows,
+             the panel correctly vanished, and we both spent twenty minutes proving the feature was
+             not broken -- because "nothing to report" and "not working" looked identical. A silent
+             all-clear is indistinguishable from a dead check. -->
+        <div x-show="!showDiscontinued && priceCheckLoaded && priceCheck.length === 0 && ladderCount > 0"
+             style="display:none" class="text-xs text-gray-500 mb-3 pl-1">
+            ✓ <span data-i18n="catalog.warn_none">Pricing checked — nothing to fix</span>
+            (<span x-text="ladderCount"></span> <span data-i18n="catalog.warn_ladders">quantity ladders</span>)
+        </div>
         <div x-show="!showDiscontinued && priceCheck.length > 0"
              class="card" style="display:none; border-left:4px solid #d97706; background:#fffbeb">
             <button @click="priceCheckOpen = !priceCheckOpen"
@@ -256,6 +277,18 @@
                                 <span x-show="p.product_class && p.product_class !== 'standard'"
                                       class="chip chip-class" x-text="classLabel(p.product_class)"></span>
                                 <span x-show="p.promo_restricted" class="chip chip-nopromo">🚫 <span data-i18n="catalog.no_promo">no promo</span></span>
+                            </div>
+                            <!-- 🔢 THE EAN, ABOVE THE PRICE. Angel, 2026-08-22: "i see no EAN here …
+                                 would help to quick make sure the EAN actually matches the product with
+                                 a quick glance." The row showed the SKU (TAM-19993) — an internal number
+                                 nobody can hold against a packet — and hid the one number they can.
+                                 CATALOG-IDENTITY.md: the EAN IS the identity, the name is only a label.
+                                 An EAN-less row says so out loud rather than going blank: most of the
+                                 5,423 have no real code yet, and "no barcode" is itself the work. -->
+                            <div class="cat-meta cat-ean">
+                                <span x-show="p.barcode" class="ean-num" x-text="p.barcode"></span>
+                                <span x-show="!p.barcode" style="display:none" class="ean-none"
+                                      data-i18n="catalog.no_barcode_yet">no barcode yet</span>
                             </div>
                             <div class="cat-meta" style="margin-top:auto">
                                 <span class="cat-price" x-text="formatPrice(p.price)"></span>
@@ -920,7 +953,13 @@
                     </label>
                 </div>
 
-                <div class="flex flex-wrap gap-3 pt-2 border-t">
+                <!-- STICKY. 2026-08-22: Angel filled this form twice and told me he had saved,
+                     and no POST ever reached the server. The Create button sat at y=1618 in an
+                     1100px window -- 500px below the fold, behind the bottom nav -- so the form
+                     looked complete and finished nothing. The price-warning box I added above it
+                     made the reach ~90px worse, but it was already out of sight without it.
+                     A save you have to go looking for is a save that does not happen. -->
+                <div class="flex flex-wrap gap-3 pt-3 border-t modal-actions">
                     <button @click="save()" :disabled="saving" class="btn-success flex-1">
                         <span x-show="!saving" x-text="editing ? t('catalog.save_changes') : t('catalog.create_product')"></span>
                         <span x-show="saving" style="display:none;" data-i18n="catalog.saving">Saving…</span>
@@ -1233,6 +1272,8 @@
             showDiscontinued: false,
             priceCheck: [],          // [{p, warn}] — rows whose ladder cannot mean what it says
             priceCheckOpen: false,
+            priceCheckLoaded: false, // so "clean" can be told apart from "never ran"
+            ladderCount: 0,          // how many products carry a ladder at all
 
             modalOpen: false,
             editing: false,
@@ -2125,11 +2166,13 @@
             async loadPriceCheck() {
                 try {
                     const r = await API.get('/api/v1/pos/catalog/price-check');
+                    this.ladderCount = r.count || 0;
+                    this.priceCheckLoaded = true;
                     this.priceCheck = (r.items || [])
                         .map(p => ({ p, warn: tierWarning(p) }))
                         .filter(x => x.warn && x.warn.text)
                         .sort((a, b) => (a.warn.level === 'error' ? 0 : 1) - (b.warn.level === 'error' ? 0 : 1));
-                } catch (e) { this.priceCheck = []; }
+                } catch (e) { this.priceCheck = []; this.priceCheckLoaded = false; }
             },
             openEditById(id) { this.openEdit({ id }); },
 
