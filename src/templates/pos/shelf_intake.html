@@ -266,10 +266,18 @@
                          says nothing about the deal — so the only way to know was to open each
                          one, which is the exact complaint that put the price here this morning.
                          Same gap, one level down. The bench card has said this for hours. -->
-                    <p x-show="rowDeal(k)" style="display:none"
+                    <p x-show="rowDeal(k) && !(tierWarning(k) || {}).text" style="display:none"
                        class="text-[11px] text-indigo-700 font-semibold" x-text="rowDeal(k)"></p>
-                    <p x-show="!rowDeal(k)" style="display:none"
+                    <p x-show="!rowDeal(k) && !(tierWarning(k) || {}).text" style="display:none"
                        class="text-[11px] text-gray-400">no deal</p>
+                    <!-- Replaces the ladder, never sits beside it: on a mis-saved row the ladder is
+                         the lie. This is the screen Angel was standing on when he priced the shelf. -->
+                    <p x-show="(tierWarning(k) || {}).text" style="display:none"
+                       class="text-[11px] font-bold leading-tight"
+                       :class="(tierWarning(k) || {}).level === 'error' ? 'text-red-700' : 'text-amber-700'"
+                       x-text="(tierWarning(k) || {}).text"></p>
+                    <p x-show="(tierWarning(k) || {}).fix" style="display:none"
+                       class="text-[11px] text-gray-600 leading-tight" x-text="(tierWarning(k) || {}).fix"></p>
                   </div>
                   <div x-show="k.editing" style="display:none" class="flex items-center gap-1 justify-end">
                     <input type="number" step="0.05" min="0" x-model="k.newPrice"

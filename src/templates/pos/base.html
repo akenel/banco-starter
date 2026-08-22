@@ -177,6 +177,12 @@
             vertical-align: middle;
         }
         .chip-age { background: #fde2e2; color: #9b1c1c; }
+        .chip-deal { background: #e0e7ff; color: #3730a3; }
+        /* A price that cannot mean what it says. Loud on purpose — the honest-but-quiet
+           version ("3+ @ 5.00 ea") sat on four live rows for a day and nobody blinked,
+           because a ladder printed in indigo reads as a deal however absurd the number. */
+        .chip-warn { background: #fef3c7; color: #92400e; white-space: normal; }
+        .chip-bad  { background: #fee2e2; color: #991b1b; white-space: normal; }
 
         /* Data tables — zebra rows, strong header, row hover (add class="data-table") */
         .data-table { width: 100%; border-collapse: collapse; }
@@ -1105,6 +1111,59 @@
             const base = parseFloat(product && product.price);
             const price = parseFloat(row && row.unit_price);
             return !!(base > 0 && price > base && (price / parseInt(row.min_qty, 10)) <= base);
+        }
+        // ── "THIS PRICE IS NOT WHAT YOU THINK" ────────────────────────────────────────────
+        // ONE rule, three screens (catalogue row, shelf row, bench card). On 2026-08-22 Angel
+        // rang 1 × Greengo King Size + 2 × Greengo King Size slim and the till said CHF 6.00
+        // where three plain papers are 5.00. Nothing was wrong with the price. The slim pack
+        // had been saved with "price is for the whole pack" UNTICKED, so it stored tier_mode
+        // 'per_unit' — and a per_unit row is an island: it can never pool with anything.
+        //
+        // The tell is EXACT, not a heuristic: a per_unit rung priced ABOVE the product's own
+        // price is nonsense, because buying more never costs more each. That single condition
+        // caught all four strays in the live catalogue and flagged none of the 85 correct rows.
+        //
+        // It has to be LOUD, not merely accurate. The row ALREADY read "3+ @ 5.00 ea" on all
+        // three screens — literally true of per_unit, absurd on its face — and nobody blinked,
+        // because a ladder printed in indigo looks like a deal. Meanwhile the till charged 5.00
+        // for three (tierLineTotal's rescue reads the rung as a pack). Shown 15.00, charged
+        // 5.00, and no way to tell from the screen which one the drawer would honour.
+        //
+        // Second rule, quieter: a {min_qty: 1} rung silently REPLACES the shelf price. Equal to
+        // base it is dead weight; different from base the label says one number and the till
+        // takes another (Greengo Wide Rolls: shelf 4.00, rung 3.50).
+        //
+        // Returns {level, text, fix} or null. `fix` is the sentence that names the one tap.
+        function tierWarning(product) {
+            if (!product) return null;
+            const tiers = product.price_tiers;
+            if (!Array.isArray(tiers) || !tiers.length) return null;
+            const base = parseFloat(product.price);
+            if (!(base > 0)) return null;
+            if ((product.tier_mode || 'per_unit') !== 'bundle') {
+                for (const r of tiers) {
+                    const mq = parseInt(r && r.min_qty, 10), up = parseFloat(r && r.unit_price);
+                    if (!(mq >= 2) || !isFinite(up) || up <= base) continue;
+                    return {
+                        level: 'error',
+                        text: t('catalog.warn_above_base').replace('{qty}', mq),
+                        fix: t('catalog.warn_above_base_fix')
+                                .replace('{qty}', mq).replace('{total}', formatPrice(up)),
+                    };
+                }
+            }
+            for (const r of tiers) {
+                const mq = parseInt(r && r.min_qty, 10), up = parseFloat(r && r.unit_price);
+                if (mq !== 1 || !isFinite(up)) continue;
+                if (Math.abs(up - base) < 0.005)
+                    return { level: 'warn', text: t('catalog.warn_dead_rung'), fix: '' };
+                return {
+                    level: 'warn',
+                    text: t('catalog.warn_one_rung').replace('{price}', formatPrice(up)),
+                    fix: '',
+                };
+            }
+            return null;
         }
         function tierRowLabel(product, row) {
             const mq = parseInt(row.min_qty, 10);

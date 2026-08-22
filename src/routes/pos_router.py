@@ -1099,6 +1099,54 @@ async def catalog_shelf_intake_triage(
     }
 
 
+@router.get("/catalog/price-check")
+async def catalog_price_check(
+    db: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(require_any_pos_role()),
+):
+    """Every active product carrying a quantity ladder — the CANDIDATES for a bad price.
+
+    Deliberately NOT the verdict. The rule that decides whether a ladder is nonsense
+    ("a per_unit rung priced above the product's own price cannot mean each") lives in
+    exactly one place: tierWarning() in templates/pos/base.html, which already paints
+    the catalogue row, the shelf row and the bench card. Re-implementing it here would
+    make a fourth copy, and this codebase has already been bitten by keeping two copies
+    of the price ladder level by hand.
+
+    So the server does the cheap half — the necessary precondition, a non-empty ladder —
+    and the client applies the same function it uses everywhere else. ~90 rows on the
+    live catalogue, so the whole list fits in one response with room to spare.
+    """
+    rows = (await db.execute(
+        select(ProductModel)
+        .where(ProductModel.is_active.is_(True))
+        # jsonb_typeof ONLY. jsonb_array_length() throws "cannot get array length of a
+        # scalar" on the legacy rows that stored a bare number, and Postgres is free to
+        # evaluate the two predicates in either order, so the type guard does not protect
+        # the length call. Empty ladders are dropped in Python below, where it is free.
+        .where(func.jsonb_typeof(ProductModel.price_tiers) == "array")
+        .order_by(ProductModel.name)
+        .limit(1000)
+    )).scalars().all()
+    items = [r for r in rows if r.price_tiers]
+    return {
+        "count": len(items),
+        "items": [
+            {
+                "id": str(r.id),
+                "name": r.name,
+                "barcode": r.barcode,
+                "category": r.category,
+                "price": str(r.price) if r.price is not None else None,
+                "tier_mode": r.tier_mode or "per_unit",
+                "price_tiers": r.price_tiers or [],
+            }
+            for r in rows
+            if r.price_tiers
+        ],
+    }
+
+
 class ShelfRecheckRequest(BaseModel):
     """Product ids whose rows are on screen and may have just been edited elsewhere."""
     product_ids: list[UUID] = Field(..., max_length=300)

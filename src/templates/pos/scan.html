@@ -685,8 +685,15 @@
                                 </template>
                                 <p x-show="priceEditRise()" style="display:none" class="text-red-700 font-semibold mt-1">
                                     ⚠️ That is a price RISE, not a deal. Did you mean
-                                    “price is for the whole pack”? Tick the box.
+                                    “price is for the whole pack”?
                                 </p>
+                                <!-- Naming the box was not enough: four live rows reached the shop with
+                                     it unticked. Give the tap, not the instruction. -->
+                                <button x-show="priceEditRise()" style="display:none"
+                                        @click="priceEdit.bundle = true"
+                                        class="mt-1 px-2.5 py-1 rounded-lg bg-indigo-600 text-white font-bold text-xs">
+                                    Yes — price is for the whole pack
+                                </button>
                             </div>
                             <p class="text-xs text-amber-800 mb-2">
                                 ⚠️ This changes the product for everyone, not just this sale.

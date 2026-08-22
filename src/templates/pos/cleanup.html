@@ -397,11 +397,18 @@
                                               x-text="'cost ' + formatPrice(p.cost)"></span>
                                         <!-- Tier pricing is invisible everywhere else on this screen, so its
                                              ABSENCE and its presence look identical. Say both. -->
-                                        <span x-show="tierLabel(p)" style="display:none;"
+                                        <span x-show="tierLabel(p) && !(tierWarning(p) || {}).text" style="display:none;"
                                               class="text-xs px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 font-semibold"
                                               x-text="tierLabel(p)"></span>
-                                        <span x-show="!tierLabel(p)" style="display:none;"
+                                        <span x-show="!tierLabel(p) && !(tierWarning(p) || {}).text" style="display:none;"
                                               class="text-xs text-gray-400" data-i18n="cleanup.no_tier">single price only</span>
+                                        <!-- Same rule as the catalogue row and the shelf row (tierWarning in
+                                             base.html). Replaces the ladder rather than joining it. -->
+                                        <span x-show="(tierWarning(p) || {}).text" style="display:none;"
+                                              class="text-xs px-2 py-0.5 rounded-full font-bold"
+                                              :class="(tierWarning(p) || {}).level === 'error' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-800'"
+                                              :title="(tierWarning(p) || {}).fix"
+                                              x-text="(tierWarning(p) || {}).text"></span>
                                     </p>
                                     <!-- Gap chips -->
                                     <div class="flex flex-wrap gap-1 mt-2 items-center">

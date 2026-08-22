@@ -183,6 +183,39 @@
             <div class="cat-stat"><div class="lbl" data-i18n="catalog.stat_showing">Showing</div><div class="big" x-text="results.length"></div></div>
         </div>
 
+        <!-- THE SWEEP. A badge on a row only helps the person who happens to scroll past it;
+             the four strays sat on the live catalogue for a day because nobody did. This asks
+             the whole catalogue at once, so a bad price is found standing at the shelf rather
+             than at a till with a customer waiting. -->
+        <div x-show="!showDiscontinued && priceCheck.length > 0" style="display:none"
+             class="card" style="border-left:4px solid #d97706">
+            <button @click="priceCheckOpen = !priceCheckOpen"
+                    class="w-full flex items-center justify-between text-left">
+                <span class="font-bold text-amber-800">
+                    <span data-i18n="catalog.warn_sweep">⚠️ Pricing to check</span>
+                    (<span x-text="priceCheck.length"></span>)
+                </span>
+                <span class="text-gray-400" x-text="priceCheckOpen ? '▾' : '▸'"></span>
+            </button>
+            <div x-show="priceCheckOpen" style="display:none" class="mt-2 space-y-2">
+                <template x-for="w in priceCheck" :key="w.p.id">
+                    <div class="flex items-start gap-2 border-t pt-2">
+                        <div class="flex-1 min-w-0">
+                            <p class="font-semibold text-sm truncate" x-text="w.p.name"></p>
+                            <p class="text-[11px] text-gray-500 font-mono" x-text="w.p.barcode || '—'"></p>
+                            <p class="text-xs font-bold mt-0.5"
+                               :class="w.warn.level === 'error' ? 'text-red-700' : 'text-amber-700'"
+                               x-text="w.warn.text"></p>
+                            <p x-show="w.warn.fix" style="display:none"
+                               class="text-xs text-gray-600" x-text="w.warn.fix"></p>
+                        </div>
+                        <button x-show="user.isManager" style="display:none" @click="openEditById(w.p.id)"
+                                class="cat-edit flex-none">✏️ <span data-i18n="common.edit">Edit</span></button>
+                    </div>
+                </template>
+            </div>
+        </div>
+
         <!-- Results -->
         <div class="card">
             <div x-show="results.length === 0" class="text-center py-10 text-gray-500">
@@ -230,8 +263,15 @@
                                      price once a product carries a deal — and on a shelf of 45
                                      papers the ones MISSING their deal are the work, and they
                                      looked exactly like the ones that were finished. -->
-                                <span x-show="dealLabel(p)" style="display:none" class="chip chip-deal"
-                                      x-text="dealLabel(p)"></span>
+                                <span x-show="dealLabel(p) && !(tierWarning(p) || {}).text" style="display:none"
+                                      class="chip chip-deal" x-text="dealLabel(p)"></span>
+                                <!-- The deal chip is SUPPRESSED above when tierWarning fires, because on a
+                                     mis-saved row it is the falsehood: "3+ @ 5.00 ea" claims 15.00 for three
+                                     while the till charges 5.00. Say the row is wrong instead of pricing it. -->
+                                <span x-show="(tierWarning(p) || {}).text" style="display:none"
+                                      class="chip" :class="(tierWarning(p) || {}).level === 'error' ? 'chip-bad' : 'chip-warn'"
+                                      :title="(tierWarning(p) || {}).fix"
+                                      x-text="(tierWarning(p) || {}).text"></span>
                                 <span class="cat-hint" data-i18n="catalog.tap_for_details_hint">Tap for details ›</span>
                             </div>
                         </div>
@@ -779,6 +819,22 @@
                                 <button type="button" @click="form.price_tiers.splice(i,1)" class="text-red-500 hover:text-red-700 flex-none text-lg leading-none" title="remove">×</button>
                             </div>
                         </template>
+                        <!-- Caught at the moment the mistake is MADE, not the moment it costs money.
+                             Live as you type (not a save-time confirm): the answer is one tap, and a
+                             dialog you can dismiss teaches nothing. See tierWarning() in base.html. -->
+                        <div x-show="(formTierWarning() || {}).text" style="display:none"
+                             class="mt-1 rounded-lg px-3 py-2 text-xs leading-snug"
+                             :class="(formTierWarning() || {}).level === 'error'
+                                     ? 'bg-red-50 border border-red-200 text-red-800'
+                                     : 'bg-amber-50 border border-amber-200 text-amber-800'">
+                            <p class="font-bold" x-text="(formTierWarning() || {}).text"></p>
+                            <p x-show="(formTierWarning() || {}).fix" style="display:none"
+                               class="mt-0.5" x-text="(formTierWarning() || {}).fix"></p>
+                            <button type="button" x-show="(formTierWarning() || {}).level === 'error'"
+                                    style="display:none" @click="applyWholePack()"
+                                    class="mt-1.5 px-2.5 py-1 rounded-lg bg-indigo-600 text-white font-bold"
+                                    data-i18n="catalog.tiers_mode_bundle">N for X total</button>
+                        </div>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1"><span data-i18n="catalog.form_category">Category</span>
@@ -1171,6 +1227,8 @@
             _formSnapshot: null,   // form signature when the edit modal opened (unsaved-changes guard)
             detailProduct: null,   // product shown in the read-only preview modal
             showDiscontinued: false,
+            priceCheck: [],          // [{p, warn}] — rows whose ladder cannot mean what it says
+            priceCheckOpen: false,
 
             modalOpen: false,
             editing: false,
@@ -1222,6 +1280,7 @@
                 if (!userInfo) { window.location.href = '/pos'; return; }
                 this.user = { ...userInfo, isManager: AuthHelper.isManager(), isAdmin: AuthHelper.isAdmin() };
                 this.loadCategories();
+                this.loadPriceCheck();
                 this.search();   // list the catalogue by default — no need to type first
                 // Deep-link from the product page's manager "Edit" button: /pos/catalog?edit={id}
                 // opens that product straight into the edit modal (openEdit fetches the full record).
@@ -2054,6 +2113,38 @@
                         t => t.min_qty === '' || t.min_qty == null || Number(t.min_qty) >= 2);
             },
 
+            // The sweep. The server hands back every active row that HAS a ladder; the verdict
+            // is tierWarning(), the same function painting the row badges — one rule, not a
+            // fourth copy of it. A failure here is silent on purpose: a catalogue that loads
+            // without its warning panel is worse than one that refuses to load only if you
+            // notice, and the row badges still fire either way.
+            async loadPriceCheck() {
+                try {
+                    const r = await API.get('/api/v1/pos/catalog/price-check');
+                    this.priceCheck = (r.items || [])
+                        .map(p => ({ p, warn: tierWarning(p) }))
+                        .filter(x => x.warn && x.warn.text)
+                        .sort((a, b) => (a.warn.level === 'error' ? 0 : 1) - (b.warn.level === 'error' ? 0 : 1));
+                } catch (e) { this.priceCheck = []; }
+            },
+            openEditById(id) { this.openEdit({ id }); },
+
+            // Same rule as the row badges, fed from the form as the manager types.
+            formTierWarning() {
+                return tierWarning({
+                    price: this.form.price,
+                    tier_mode: this.form.tier_mode || 'per_unit',
+                    price_tiers: (this.form.price_tiers || []).filter(
+                        r => r && r.min_qty !== '' && r.min_qty != null
+                             && r.unit_price !== '' && r.unit_price != null),
+                });
+            },
+            // The one tap the warning is pointing at.
+            applyWholePack() {
+                this.form.tier_mode = 'bundle';
+                this.onTierModeChange();   // drops the qty-1 rung a bundle cannot have
+            },
+
             markupPct() {
                 const p = parseFloat(this.form.price), c = parseFloat(this.form.cost);
                 if (!c || !p || c <= 0) return '—';
@@ -2114,6 +2205,7 @@
                         return;
                     }
                     this.showDiscontinued ? this.loadDiscontinued() : this.search();
+                    this.loadPriceCheck();   // a row just fixed must leave the sweep list
                 } catch (e) {
                     // BL-128 #3: a same-size, near-identical NAME already exists → the #1 dupe source.
                     // Show the look-alikes so the operator can open the real one instead of forking it.

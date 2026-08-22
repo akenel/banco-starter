@@ -63,11 +63,17 @@ const made = [];
 
   console.log('\nthe catalog row must say what the deal is');
   ok('a proper bundle reads "3 for 5.00"', /🏷️\s*3 for 5\.00/.test(t));
-  ok('the SAME tier in the wrong mode reads differently', /🏷️\s*3\+\s*@\s*5\.00 ea/.test(t));
+  // REVISED 2026-08-22. This used to assert the wrong-mode row read "3+ @ 5.00 ea" — literally
+  // true of per_unit, and the exact sentence that let four bad rows reach the shop unnoticed. It
+  // claims 15.00 for three while the till charges 5.00, so it is not a quieter deal label, it is
+  // a false one. tierWarning() now REPLACES it. The row must still look different from a good
+  // one — that part of the original intent stands — it must just not look like a deal.
+  ok('the SAME tier in the wrong mode no longer reads as a deal', !/🏷️\s*3\+\s*@\s*5\.00 ea/.test(t));
+  ok('...it reads as a warning instead', /costs MORE than one/i.test(t));
   // Count the DEAL CHIP by its class, not by the emoji: the category badge uses 🏷️ too, so my
   // first version of this assertion counted those and failed against working code.
   const chips = await p.$$eval('.chip-deal', els => els.filter(e => e.offsetParent).map(e => e.textContent.trim()));
-  ok('exactly two rows carry a deal chip — the third has none', chips.length === 2);
+  ok('exactly ONE row carries a deal chip — the mis-saved one lost it', chips.length === 1);
   ok('the price is still there', /CHF\s*2\.00/.test(t));
 
   console.log('\npageerrors: ' + errs.length + ' ' + (errs[0] || ''));
