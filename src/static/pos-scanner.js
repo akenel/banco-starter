@@ -159,19 +159,40 @@
     },
   };
 
-  // Device hint for the file-input `capture` attribute. On a TOUCH device we keep
-  // capture="environment" (go straight to the rear camera — the mobile behaviour we
-  // want). On a desktop/laptop we DROP it so the input opens a normal file picker
-  // (load from disc) instead of dead-ending on a missing camera.
+  // Does this thing have a touchscreen? Kept for layout decisions. NOT a proxy for
+  // "is a phone" — see posIsMobileOS below, and the comment on posShowWebcam.
   window.posIsTouchDevice = function () {
     try {
       return (navigator.maxTouchPoints || 0) > 0
         || /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
     } catch (e) { return false; }
   };
+
+  // A TOUCHSCREEN IS NOT A PHONE. 2026-08-22, X1 Tablet on Debian + a USB webcam:
+  // touch was true, so the file input carried capture="environment" — which desktop
+  // Chromium IGNORES, dead-ending on a file picker — AND the live-webcam button was
+  // hidden as "mobile". The one machine with a working camera got neither path.
+  // The axis that matters is the OS, not the glass: only a phone has a native camera
+  // app worth handing off to.
+  window.posIsMobileOS = function () {
+    try { return /Mobi|Android|iPhone|iPod/i.test(navigator.userAgent || ''); }
+    catch (e) { return false; }
+  };
+
+  // Show the live-camera button wherever the browser can actually open a camera and
+  // the native hand-off is not the better path. True on laptops AND on desktop-browser
+  // tablets; false on phones, where capture="environment" goes straight to the camera.
+  window.posShowWebcam = function () {
+    try {
+      return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
+        && !window.posIsMobileOS();
+    } catch (e) { return false; }
+  };
+
   // Value to bind onto an <input type=file :capture="...">: 'environment' or false.
+  // Only a phone honours it; anywhere else it is a no-op that hides the real problem.
   window.posCaptureAttr = function () {
-    return window.posIsTouchDevice() ? 'environment' : false;
+    return window.posIsMobileOS() ? 'environment' : false;
   };
 })();
 
