@@ -26,7 +26,15 @@ CPU **i5-7Y57 @ 1.2 GHz** · **8 GB** · Secure Boot **off**.
 
 This is one of the better-supported Linux machines Lenovo ever shipped. Nothing here is a gamble.
 
-### ⚠️ This is NOT the till tablet
+### 🛑 WRONG — RETRACTED 2026-08-22. There is no second tablet.
+
+*The section below claimed this X1 was a spare and that a separate Win 10 Lenovo was the till.
+**Both are the same machine.** Felix handed over this X1 running Windows 10 in German; Angel wiped
+it on 2026-08-04. Angel, 2026-08-22: "the single tablet we have now." The distinguishing detail I
+invented — "screen that does not detach" — was never read off any machine. The paragraph is kept
+because a confident, repeated, unchecked claim is worth seeing.*
+
+### ⚠️ ~~This is NOT the till tablet~~ — WRONG, see above
 
 [`10-devices-and-roles.md`](10-devices-and-roles.md) says of the *other* tablet — the Win 10 Lenovo
 with one USB-A port, screen that does not detach — that Windows **should be left alone** because it

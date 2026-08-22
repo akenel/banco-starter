@@ -50,6 +50,22 @@ Measured on each machine with `<your Banco address>/pos/hardware` and `/static/t
 - **ProBook — the workhorse.** The label printer lives here, and so does anything that wants a real
   keyboard: bulk enrichment, reports, restores.
 
+> 🛑 **CORRECTION 2026-08-22 — THERE IS ONE TABLET, NOT TWO. Read this before the tables below.**
+>
+> Angel: *"the single tablet we have now."* The "Windows 10 Lenovo tablet" tested on 2026-07-31 and
+> the **ThinkPad X1 Tablet Gen 2** are the **same machine** — Felix handed it over running Windows 10
+> in German and Angel put Debian 13 on it on 2026-08-04. [`13`](13-tablet-x1-debian.md) asserted they
+> were two machines ("the Win 10 Lenovo … screen that does not detach", "do not confuse the two")
+> and that assertion was never checked against the shop. It is wrong, and it survived three weeks.
+>
+> **And "two tablets, two guns" is a RECOMMENDATION to Felix, not an inventory.** Angel's advice for
+> a base kit — 2 guns, 2 tablets, 1 labeller, 1 webcam — so a dead device is not a stopped till.
+> Everything below written as though a second tablet exists is describing the **target**, not the
+> counter. **The shop has one tablet today.**
+>
+> *Lesson: a roster is a claim about the world. This one was assembled from a kit test, an
+> inference and a wish, and read for three weeks as a fact.*
+
 ### The camera thing is a role boundary, not a bug
 
 📷 snap-and-fill **does nothing on the tablet** — it has no camera, so the button appears to be
@@ -147,7 +163,7 @@ now.*
 |---|---|---|
 | **X1 tablet** (Debian) | ✅ **Bluetooth — proved 2026-08-04**, survives sleep | ❓ untested — needs the printer on the LAN |
 | **HP back office** (rebuilt) | ✅ USB today | ❓ untested |
-| **Old Win 10 tablet** | ❌ not wired | ❓ untested |
+| ~~**Old Win 10 tablet**~~ | *(does not exist — same machine as the X1, see the correction above)* | — |
 | **Felix's Windows system** | ❌ **needs the labeller on the LAN** | ✅ works today (his own setup) |
 | **Phone** | ❌ | ❌ |
 
