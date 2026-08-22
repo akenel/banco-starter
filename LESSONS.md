@@ -169,3 +169,50 @@ worse than a missing one, because it is counted.
 
 **Angel ran the 25-check sheet on prod: `25 pass · 0 fail`.** The live shop now carries 92
 quantity ladders and zero that cannot mean what they say.
+
+---
+
+## 2026-08-22, later — the till learned to explain itself, and two lies fell out
+
+The build was *"the cart says WHY a line costs what it costs"*. Angel ran it, 17/17 GO. Then a
+focused retest, 9 of 10 (the tenth he wrote *"looks fine, no confusion"* and did not tick).
+Sixteen commits. What is worth keeping is not the feature.
+
+**1. An honest label makes an old lie visible.** `pack ✓` had been printing on lines charged in
+full for weeks and nobody saw it, because a green tick beside a number is not a claim anyone
+reads. It only became obvious the moment `3 for CHF 5.00 — not reached yet` sat directly under it
+and the two disagreed on the same line. *Adding a true statement next to a false one is a
+debugging technique.*
+
+**2. A group that saved nothing is not a deal.** Two King Size papers pool — same terms, same base
+— but two is below the three-rung, so the pooled price IS the flat price. Both mirrors still
+reported the group. On screen that was a wrong badge. On the server it set `tier_final`, which
+takes a line out of `eligible_subtotal`, so **a manager's goodwill discount silently skipped two
+full-price papers**. A flag whose name is a claim (*"a volume break set this price"*) must be set
+by the claim being true, not by the code path that usually implies it.
+
+**3. Three copies of a rule, and the third had drifted.** The server discounts only the eligible
+portion — tobacco and alcohol never take a promotion, a volume-break line is discount-final.
+`checkout.html` mirrored it, with a comment saying so. The till's own cart panel had no concept of
+eligibility at all and applied the percentage to everything: **CHF 8.91 in the cart, CHF 9.41 at
+checkout and in the drawer.** The cart is the screen the cashier quotes from. The server's comment
+read *"the EXACT formula the till displays, so charged == shown"* — a comment asserting a property
+nothing checked.
+
+**4. The harness could not build the failing shape.** `prove-cart-agrees-with-till` ran green all
+day across 320 quantities and 9 mixed baskets while this was live, because it compares line totals
+and **never constructs a discounted basket**. That is not thin coverage, it is a shape the test
+cannot make. Same family as the five-minute-timeout lesson, and the second time this year.
+
+**5. A screen dump beats a tick — twice in one afternoon.** Angel pasted the literal cart text into
+his UAT notes instead of just marking PASS. Both bugs above came out of those pastes; neither came
+out of a test, and he had marked both steps PASS. *The evidence a tester leaves behind is worth
+more than their verdict.* This is now written into the test-sheet template: a notes box on every
+step, not only on failures.
+
+**6. The format was already there.** Asked for "a robust testsheet format for our UAT system", I
+built one — and then found thirteen sheets in `onboarding/testsheets/` that had already converged
+on PASS/ISSUE/FAIL with persistence, 13/13, without anyone writing it down. What was actually
+missing was a *template*: every sheet had been hand-built, which is why four had lost the copy
+button and three the clock. *Before designing the house style, check whether the house already has
+one.*

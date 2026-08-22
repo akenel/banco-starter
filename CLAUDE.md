@@ -101,10 +101,12 @@ pattern below, bump the count here. A pattern at ×7 is telling you something a 
    `cash_box_float`, the force-close, `POST /catalog/merge`, honest confidence, `best_match_score`,
    the 18+ refusals, the evidence with no screen — each existed on every layer a test could reach
    and on **no screen**. *Ask where the person is STANDING when they need it.*
-2. **×4 · A downstream filter quietly discards the row the fix existed to find.** The dedup guard's
+2. **×5 · A downstream filter quietly discards the row the fix existed to find.** The dedup guard's
    same-size rule, the alias filters judging `products.name`, the category "boost" that was a sort
-   key above `score`. *When you add a thing to match on, check every filter downstream still knows
-   which one it is judging. A tier is a filter with extra steps.*
+   key above `score`; and on 2026-08-22 `eligible_subtotal` dropped two full-price papers because
+   pooling them had set `tier_final`, so a manager's discount silently skipped them. *When you add
+   a thing to match on, check every filter downstream still knows which one it is judging. A tier
+   is a filter with extra steps, and a flag is a filter you cannot see.*
 3. **×3 · A remembered failure is a hypothesis with a timestamp on it.** The Brother driver that had
    been fixed upstream; the spec-parser note that was backwards for three days; the bfcache cart bug
    I predicted from a missing guard and Angel disproved in ten seconds. *Re-measure before repeating
@@ -122,12 +124,15 @@ pattern below, bump the count here. A pattern at ×7 is telling you something a 
    proof, and the partial prod copy that manufactured a 24-product compliance scare. *Get the
    reference figure FROM the system, and copy the columns that make a row TRUE, not the ones your
    task reads.*
-6. **×2 · A test that finishes inside five minutes cannot see a five-minute timeout.** Silent
+6. **×3 · A test that finishes inside five minutes cannot see a five-minute timeout.** Silent
    token refresh had NEVER worked in the sandbox — issuer mismatch, `localhost:8090` vs
    `keycloak:8080` — so every session hard-logged-out the moment the access token expired. Every
    probe I write runs in 90 seconds with a fresh token, so nothing I could build would have found
    it. **Angel found it in ten minutes of ordinary use, and lost a compliance record to it.**
    *Ask what your harness is structurally blind to: time, idleness, a second tab, a real day.*
+   2026-08-22: `prove-cart-agrees-with-till` ran green all day over 320 quantities while the cart
+   quoted a discount the drawer would not give — because it compares line totals and **never
+   constructs a discounted basket**. Not a gap in coverage; a shape the harness cannot make.
 7. **Anything a person touches is verified by a human or a browser — never by reading the template.**
    For server work, reading the code IS the verification. For a screen it is a guess with citations.
    `scripts/prove-till-18plus.js` exists because I got this wrong twice in one day.
@@ -150,5 +155,5 @@ pattern below, bump the count here. A pattern at ×7 is telling you something a 
 
 ---
 
-*Last updated: 2026-08-13*
+*Last updated: 2026-08-22*
 *"You can't clone SAP. You can clone this."*

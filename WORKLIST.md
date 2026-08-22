@@ -9,7 +9,7 @@
 > [`worklist-archive/done.md`](worklist-archive/done.md) with its commit hashes; when a thread
 > grows a long write-up, the write-up goes to the archive and a one-line pointer stays here.
 
-*Last updated: 2026-08-22.*
+*Last updated: 2026-08-22 (evening).*
 
 ---
 
@@ -47,7 +47,7 @@ to be working on; the sweep found both on its first run.
 SILENT. Reverting each of the four features turns 5 red. Plus 5 sibling provers (77 total) and 53
 pricing unit tests.
 
-### ✅ The till now EXPLAINS the deal — 2026-08-22
+### ✅ The till now EXPLAINS the deal — 2026-08-22 · **17/17 GO**, then 9/10 on the retest
 
 Twice in one day Angel sent a screenshot of a cart asking *"is this my pricing issue?"* Both times
 the arithmetic was right and the screen showed only numbers. **Numbers cannot say why.** He could
@@ -67,9 +67,27 @@ Plus **Deals in this basket** above the totals, naming the members of each group
 that answers *"why did these three not pool?"* without opening a product.
 
 Every figure comes from the same `_bundleTotal()` the drawer uses, so the explanation cannot drift
-from the charge. `prove-till-explains-the-deal.js`, 35 assertions, four of them guard-breaks that
+from the charge. `prove-till-explains-the-deal.js`, 39 assertions, four of them guard-breaks that
 must stay SILENT — a till that comments on every line is a till nobody reads. Neutering
 `dealInfo()` turns 7 red.
+
+**Two older bugs fell out of it, both found in Angel's pasted screen text, not by a test:**
+
+1. **`pack ✓` on a line charged in full.** Two papers pool but two is below the three-rung, so the
+   pool saved nothing — and a pool that saved nothing was still marking the line volume-priced.
+   On the server that set `tier_final`, which takes a line out of `eligible_subtotal`, so **a
+   manager's discount silently skipped two full-price papers.**
+2. **The cart quoted a discount the drawer would not give.** The server discounts the eligible
+   portion only; `checkout.html` mirrored it; the cart panel did not. Three deal papers + a
+   lighter at 10% showed **CHF 8.91** in the cart and **CHF 9.41** at checkout and in the drawer.
+   `isPromoRestricted()` and `cartEligibleSubtotal()` now live in `base.html` — one copy.
+
+`prove-cart-agrees-with-till` was green through all of it: it compares line totals and **never
+builds a discounted basket**. A shape the harness cannot make, not a gap in it.
+
+**UAT:** `onboarding/testsheets/TEMPLATE.html` — steps as data, PASS/ISSUE/FAIL, per-step notes,
+timing, a copy-out report, and a training mode that hides the expected result until asked. Two
+sheets built on it. See `onboarding/testsheets/README.md`.
 
 **Closed 2026-08-22 — Smoking Gold is not special.** Angel: *"GOLD is same as the others, nothing
 special — sounds special but it's the same as Deluxe `84195937`. These are the King Size Papers,
