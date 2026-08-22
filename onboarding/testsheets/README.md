@@ -64,7 +64,8 @@ Newest first. Only the top one uses the template.
 
 | Date | Sheet | Result |
 |---|---|---|
-| 2026-08-22 | [The till explains the deal](2026-08-22-till-explains-the-deal.html) | — |
+| 2026-08-22 | [The pack badge and the discount](2026-08-22-pack-badge-and-discount.html) | — |
+| 2026-08-22 | [The till explains the deal](2026-08-22-till-explains-the-deal.html) | 17/17 GO |
 | 2026-08-22 | [The price warning](../TESTSHEET-price-warning.md) *(markdown)* | 25/25 GO |
 
 Hand-built, pre-template — [Shop day preflight](SHOP-DAY-PREFLIGHT.html) ·
