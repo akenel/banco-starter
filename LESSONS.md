@@ -258,3 +258,35 @@ nothing about whether the symlink works. **Only a cold boot tests it.** Beyond t
 build was proved at Angel's flat on `Init7_1A34`, not in Luzern: different SSID (so the Wi-Fi route
 metric is unset there), different concrete, different coverage. Home signal was 29 %.
 *Where the person is standing includes which building.*
+
+## 2026-08-22, later still — the camera dead end that was the wrong dead end
+
+Doc 13 had carried a verdict since 2026-08-05: *"the kernel sees the imaging unit on the PCI bus and
+nothing attached to the other end… do not re-run this hunt."* Angel asked for the camera. Re-running
+it took twenty minutes and the verdict was wrong.
+
+**1. Absence in a log is not absence in the hardware.** The August conclusion came from
+`dmesg | grep int3472` returning nothing. That is what an empty socket looks like — and *equally*
+what a machine whose glue modules never loaded looks like. Nobody asked ACPI. On kernel `6.12.101`
+the ACPI namespace declares **two fitted, enabled sensors** (OV2740 `INT3474:01`, OV5670
+`INT3477:00`, both `status=15`) and the kernel prints *"Found supported sensor… Connected 1
+cameras"*. The hardware was there the whole time. *When concluding a thing does not exist, query the
+registry that would know, not the log of a process that may never have run.*
+
+**2. The note saved itself by dating itself.** That same block said *"a measurement with a timestamp,
+not a permanent verdict — re-check after a major kernel jump."* That sentence is the only reason it
+got re-opened instead of believed. **Write the expiry condition into the verdict.** The rewritten
+section now names a *ten-second* re-check — `sudo dmesg | grep -i tps68470` — instead of "re-run the
+hunt", so the next person spends seconds, not an afternoon.
+
+**3. The new dead end is real, and it is better than the old one.** Both fitted sensors are powered
+by one PMIC (`INT3472:05`, TPS68470) which fails with *"No board-data found for this model"*; no
+other power provider is present. Board data is a DMI-matched table compiled into the kernel and this
+model is not in it. So: sensors never get power → no I²C client → no sensor entity in the media
+graph → `cam -l` empty. **Same answer as August — buy the USB webcam — arrived at for a reason that
+is checkable, specific, and names what would have to change.** A correct conclusion resting on a
+wrong premise is a bug that has not gone off yet.
+
+**4. Two afternoons, same shape, opposite directions.** The LTE modem looked broken and was one
+symlink from working. The camera looked settled and was two sensors nobody had found. *Both remembered
+verdicts were hypotheses with timestamps; both needed re-measuring; neither survived it.*

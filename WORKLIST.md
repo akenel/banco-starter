@@ -30,6 +30,13 @@ the exact command sequence: [`onboarding/13-tablet-x1-debian.md`](onboarding/13-
 - [ ] Pull the Fritzbox WAN cable with the till open and ring a real sale
 - [ ] Ask Felix what that SIM actually is — data-only vs voice bills very differently
 
+**📷 The tablet camera is CLOSED — buy the webcam.** Re-measured 2026-08-22 on kernel `6.12.101`:
+two sensors *are* fitted (OV2740 + OV5670) — the August "nothing attached" was wrong — but the
+TPS68470 PMIC powering both has no board data for this model, so Linux cannot switch them on.
+Kernel-patch territory; not going on a shop till. **Order a CHF 20 USB webcam + stand for the
+back office**, then test snap-and-fill in *Chromium over HTTPS*, not GNOME Snapshot. Ten-second
+re-check after any kernel jump: `sudo dmesg | grep -i tps68470`.
+
 ---
 
 ## ✅ THE PRICE WARNING — BUILT, PROVED, HUMAN-GREEN — 2026-08-22 → [the day](worklist-archive/2026-08-22-pooling/)

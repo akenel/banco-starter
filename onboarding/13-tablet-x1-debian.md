@@ -887,6 +887,11 @@ rear camera and an IR sensor for Windows Hello. The glass you can see may be any
 **Symptom:** GNOME **Snapshot** (`gnome-snapshot 48.0.1-1`, already installed) reports *no cameras
 found*.
 
+> 🛑 **SETTLED 2026-08-22 on kernel `6.12.101` — buy the USB webcam, do not debug this.** Two real
+> sensors (OV2740 + OV5670) are fitted and enabled; the TPS68470 camera PMIC that powers **both**
+> has no board data for this model, so Linux cannot switch them on. Fixing it is a kernel patch.
+> The one-line re-check after a kernel jump is at the end of *RE-MEASURED 2026-08-22*.
+
 ### ✅ Ruled out first — BIOS. Everything is ON.
 
 Read off the machine 2026-08-05, `F1` → `Security` → `I/O Port Access`:
@@ -920,7 +925,9 @@ often ship this way.
 | `lsusb` shows a camera, no `/dev/video` | UVC module | minutes |
 | `lspci` shows an **Imaging Unit**, USB shows nothing | **Intel IPU3** | an afternoon — `libcamera` + software ISP, and Chromium must be told to use it |
 
-### 🛑 MEASURED 2026-08-05 — dead end. Do not re-run this hunt.
+### ⚠️ SUPERSEDED — the 2026-08-05 measurement, kept because it was WRONG
+
+*What was recorded on 2026-08-05, on the kernel of the day:*
 
 ```
 lspci | grep -i imaging     → Imaging Unit           (IPU3 present)
@@ -928,15 +935,63 @@ dmesg | grep -iE 'int3472|ov[0-9]{4}|cio2'
                             → no sensor named, no int3472
 ```
 
-**The kernel sees the imaging unit on the PCI bus and nothing attached to the other end.** No
-`ov####` sensor driver bound, no `int3472` power/clock provider. So there is nothing for `libcamera`
-to drive — installing it would achieve exactly nothing, and the failure mode would have been a clean
-install and a black rectangle.
+> **The kernel sees the imaging unit on the PCI bus and nothing attached to the other end.**
 
-**Stopped here deliberately.** Same call as the reinstall on 2026-08-04: the certain path beats the
-clever one when the clever one may end in nothing. Kernel version and date are recorded above — per
-the driver lesson, **this is a measurement with a timestamp, not a permanent verdict.** Re-check
-after a major kernel jump; do not re-check on a hunch.
+**That conclusion was wrong, and the way it was wrong is the lesson.** It inferred *absent hardware*
+from *absent log lines* — which is equally what you see when the drivers never load. Nobody asked
+ACPI. The note did at least date itself and say "re-check after a major kernel jump", which is why
+it got re-opened rather than believed.
+
+### 🛑 RE-MEASURED 2026-08-22 · kernel `6.12.101+deb13-amd64` — a dead end, but a DIFFERENT one
+
+The drivers are all present and loaded now — `ipu3_cio2`, `ipu3_imgu`, `ipu_bridge`, `ov2740`,
+`intel_skl_int3472_{discrete,tps68470,common}` — and `/dev/video0…13` + `/dev/media0,1` exist. The
+kernel even announces a camera:
+
+```
+ipu3-cio2 0000:00:14.3: Found supported sensor INT3474:01
+ipu3-cio2 0000:00:14.3: Connected 1 cameras
+```
+
+**There is real hardware here.** Exactly three camera ACPI devices report present (`status=15`):
+
+| ACPI id | What it is | Bound? |
+|---|---|---|
+| `INT3472:05` | **TPS68470** camera PMIC | bound — **and then failed** |
+| `INT3474:01` | **OV2740** image sensor | unbound |
+| `INT3477:00` | **OV5670** image sensor | unbound |
+| `INT33BE:00/01`, `INT3470`, `INT3471`, `INT3472:00–04,06–08`, `INT3474:00` | declared but `status=0` | not fitted |
+
+And the single line that ends it:
+
+```
+int3472-tps68470 i2c-INT3472:05: TPS68470 REVID: 0x21
+int3472-tps68470 i2c-INT3472:05: error -ENODEV: No board-data found for this model
+```
+
+**Both fitted sensors are powered by that one PMIC, and no other power provider is present.** With
+the PMIC unconfigured, the sensors' regulators/clocks/GPIOs never come up, so their I²C clients are
+never instantiated — `/sys/bus/i2c/devices/` has no `i2c-INT3474:01` — so no sensor subdev appears
+in the media graph, so `libcamera` finds nothing:
+
+```
+media-ctl -p -d /dev/media0    → only ipu3-csi2 0-3 and ipu3-cio2 0-3. No sensor entity.
+cam -l                         → "Available cameras:"  (empty)
+```
+
+**Why no amount of userspace work fixes this.** `tps68470_board_data.c` is a **DMI-matched table
+compiled into the kernel** giving each specific machine's GPIO / regulator / clock mapping. The
+ThinkPad X1 Tablet Gen 2 is not in it. The fix is a kernel patch, carried and rebuilt at every
+kernel update, on a machine a shop depends on. **No.**
+
+> **The re-check rule, updated.** Do not re-run the *driver* hunt — drivers are fine. The single
+> thing to re-test after a kernel jump is one line:
+> ```bash
+> sudo dmesg | grep -i tps68470
+> ```
+> If `No board-data found for this model` is gone, board data landed upstream and the cameras may
+> come up on their own. If it is still there, nothing has changed. **That is a ten-second check;
+> everything else in this section is settled.**
 
 ### ✅ The answer instead: a USB webcam
 
@@ -1012,7 +1067,12 @@ Not promoted to `WORKLIST.md`; item 3 (the bulk catalogue scripts on prod) is st
 - [x] ~~Read the port layout~~ — 1 × USB-C + 1 × USB-A, no hub needed (2026-08-04)
 - [x] ~~Confirm 8 vs 16 GB RAM~~ — **8 GB**, MTM `20JCS0WR00`, i5-7Y57 (2026-08-05)
 - [ ] **BIOS is 1.44, dated 2022-05-23** — over three years old. Check `fwupdmgr` for a newer one
-- [ ] 📷 **Camera** — Snapshot reports no cameras; BIOS switch confirmed ON. Run the diagnostic
+- [x] ~~📷 **Camera**~~ — **closed 2026-08-22, kernel `6.12.101`.** Two sensors fitted (OV2740,
+      OV5670); the TPS68470 PMIC that powers both has no board data for this model → kernel
+      patch territory. **Buy the CHF 20 USB webcam.** Ten-second re-check after a kernel jump:
+      `sudo dmesg | grep -i tps68470`
+- [ ] 📷 Order the USB webcam + a small stand for the back office (gun for EANs, phone for
+      grab shots). Then test **snap-and-fill in Chromium over HTTPS** — not GNOME Snapshot
 - [ ] Confirm with Felix that nothing on it needs saving
 - [ ] Decide the gun's keyboard layout *before* the installer asks
 - [ ] Network the QL-820NWB over **Wi-Fi** so this machine can print at all

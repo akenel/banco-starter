@@ -109,10 +109,13 @@ pattern below, bump the count here. A pattern at ×7 is telling you something a 
    pooling them had set `tier_final`, so a manager's discount silently skipped them. *When you add
    a thing to match on, check every filter downstream still knows which one it is judging. A tier
    is a filter with extra steps, and a flag is a filter you cannot see.*
-3. **×3 · A remembered failure is a hypothesis with a timestamp on it.** The Brother driver that had
+3. **×4 · A remembered failure is a hypothesis with a timestamp on it.** The Brother driver that had
    been fixed upstream; the spec-parser note that was backwards for three days; the bfcache cart bug
-   I predicted from a missing guard and Angel disproved in ten seconds. *Re-measure before repeating
-   a verdict — and before acting on a note you wrote last week.*
+   I predicted from a missing guard and Angel disproved in ten seconds; and the tablet camera written
+   off on 2026-08-05 as "nothing attached to the other end" — ACPI declares **two fitted sensors**,
+   and the August verdict had inferred absent hardware from absent log lines. *Re-measure before
+   repeating a verdict. Absence in a log is not absence in the world — ask the registry that knows,
+   and write the expiry condition into the note.*
 4. **×4 · Break the guard on purpose before claiming it holds — and break the COMBINATION,
    not just the fields.** A test that counted occurrences matched its own `def` line. A deploy
    preflight that rejected "localhost" passed happily on `https://` with the host unset. And on
