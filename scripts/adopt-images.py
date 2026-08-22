@@ -37,8 +37,9 @@ if not sys.stdout.isatty():
 
 
 async def main(args):
-    from sqlalchemy import text
+    from sqlalchemy import text, select as _select
     from src.db.database import AsyncSessionLocal as async_session_maker
+    from src.db.models.product_model import ProductModel
     from src.routes.pos_router import _copy_external_image_to_storage
 
     async with async_session_maker() as db:
@@ -69,16 +70,31 @@ async def main(args):
     fails_in_a_row = 0
     async with async_session_maker() as db:
         for i, (pid, sku, name, url) in enumerate(rows, 1):
-            product = (await db.execute(text(
-                "SELECT id, image_url FROM products WHERE id = :i"), {"i": pid})).first()
+            # A REAL ProductModel, not a stub. This line was a hand-made `_P` object
+            # carrying only .id and .image_url, with the comment "the helper only needs
+            # .id and .image_url". It needed more than that, in two ways, and the second
+            # one is the dangerous one:
+            #
+            #   1. `_copy_external_image_to_storage` logs `product.sku` on BOTH its success
+            #      and failure paths (pos_router.py:3987, :3991), so the stub raised
+            #      AttributeError — inside the except handler, which then raised it again.
+            #      The script died on product 1 and had clearly never completed a run.
+            #   2. Far worse had we only added `.sku`: the helper's whole point is
+            #      `product.image_url = serve`, and on a stub that assignment lands on a
+            #      throwaway object. The commit persists the product_images row and the
+            #      MinIO object, and the product KEEPS POINTING AT THE OTHER SERVER. The
+            #      script would have printed "adopted 5155" and changed nothing —
+            #      CLAUDE.md pattern 1, green on every layer a test can reach.
+            #
+            # Proof it was real, not theory: the crashed run on 2026-08-22 uploaded
+            # ITEM-0002's picture and committed its row while `products.image_url` stayed
+            # on tuotroestanco.com. A tracked ORM instance is what makes the write land.
+            product = (await db.execute(
+                _select(ProductModel).where(ProductModel.id == pid))).scalar_one_or_none()
             if product is None:
                 continue
 
-            class _P:      # the helper only needs .id and .image_url
-                pass
-            p = _P(); p.id = pid; p.image_url = url
-
-            stored = await _copy_external_image_to_storage(db, p, url)
+            stored = await _copy_external_image_to_storage(db, product, url)
             if stored:
                 ok += 1
                 fails_in_a_row = 0
@@ -95,6 +111,19 @@ async def main(args):
             await asyncio.sleep(args.delay)
 
     print(f"\n{C['grn']}adopted {ok}{C['x']} · {C['yel']}left alone {fail}{C['x']}")
+
+    # ASK THE DATABASE, do not report our own arithmetic. `ok` counts what the helper
+    # RETURNED; this counts what the products table now SAYS. They came apart once
+    # already (the _P stub above), and that is the failure this line exists to catch —
+    # LESSONS.md: get the reference figure FROM the system.
+    async with async_session_maker() as db:
+        ids = [r[0] for r in rows]
+        landed = (await db.execute(text(
+            "SELECT count(*) FROM products WHERE id = ANY(:ids) AND image_url NOT LIKE 'http%'"),
+            {"ids": ids})).scalar_one()
+    verdict = C['grn'] + 'agrees' + C['x'] if landed == ok else C['red'] + 'DISAGREES' + C['x']
+    print(f"{C['b']}verified in the database:{C['x']} {landed} of these {total} now serve a "
+          f"local image — {verdict} with the {ok} reported above")
     print(f"{C['dim']}Re-runnable: anything already ours is skipped by the helper.{C['x']}")
     return 0
 

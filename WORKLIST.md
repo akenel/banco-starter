@@ -606,9 +606,48 @@ worth doing when convenient — a lifecycle rule on `wolfhold-banco-backups` (22
    `tierWarning()` was built to make loud. **So: run it, then run `GET /catalog/price-check`
    over the whole catalogue before the shop opens.** That sweep found both money leaks on its
    first run today; it is the right net under this.
-   ⏱ Times are unverified at scale — the archive says ~90 min and ~137 min; the 137 was never
-   measured against 5,155 images.
+   ⏱ **`adopt-images` is now MEASURED, not estimated — and it had never once completed a run.**
+   See below.
    → detail in [`worklist-archive/catalogue-and-till.md`](worklist-archive/catalogue-and-till.md)
+
+### 🩸 `adopt-images` HAD NEVER RUN — a stub product, and a write that went nowhere
+
+Angel asked for 100 first, *"so we can get an idea how well it works, how fast, and how the disk
+starts to fill up."* It died on **product 1**.
+
+`adopt-images.py` built a hand-made `_P` object carrying `.id` and `.image_url`, commented *"the
+helper only needs .id and .image_url."* It needed more, in two ways:
+
+1. `_copy_external_image_to_storage` logs `product.sku` on **both** its success and failure paths
+   (`pos_router.py:3987`, `:3991`). The stub raised `AttributeError` — *inside the except handler*,
+   which raised it again. Uncatchable, product 1, every time.
+2. **The dangerous one, had we only added `.sku`:** the helper's entire purpose is
+   `product.image_url = serve`, and on a stub that assignment lands on a throwaway object. The
+   commit still persists the `product_images` row and the MinIO object, so **the script would have
+   printed "adopted 5155" and left every product pointing at the other server.** Pattern 1, green
+   on every layer a test can reach.
+
+Not theory: the crashed run uploaded **ITEM-0002**'s picture and committed its row while
+`products.image_url` still read `tuotroestanco.com`. That one orphan row was deleted; its ~34 KB
+MinIO object is still there and is not worth chasing.
+
+**Fixed** by loading a real `ProductModel` — a tracked instance is what makes the write land — and
+the script now **asks the database** what it holds instead of reporting its own arithmetic:
+`verified in the database: 91 of these 100 now serve a local image — agrees with the 91 reported`.
+That line exists because `ok` and reality came apart once already.
+
+**MEASURED on prod, 2026-08-22 (100 products, real run):**
+
+```
+100 products        67 seconds        0.67 s each
+ 91 adopted          9 left alone (fetch failed — external URL kept, nothing broken)
+MinIO  19M → 22M     3 MB for 91 images  ≈ 34 KB each (the helper downsizes)
+disk   13G/38G, 23G free — UNCHANGED at this resolution
+```
+
+**Extrapolated to the 5,061 still hotlinked: ~57 minutes and ~156 MB.** The archive's ~137 min was
+nearly 2.5× too pessimistic. **On disk: Angel asked whether Hetzner needs more room. It does not —
+156 MB against 23 GB free is 0.7%. Buy nothing.**
 
 **Superseded — the original note:** ⛔ *The two bulk catalogue scripts are blocked on WHERE they run, not on code.*
    Local dev has **6 products**; the 5,111 live on the prod/UAT box, and `deploy-prod.sh` is
