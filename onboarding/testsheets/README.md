@@ -60,11 +60,12 @@ steps.
 
 ## Sheets
 
-Newest first. The top two use the template.
+Newest first. The top three use the template.
 
 | Date | Sheet | Result |
 |---|---|---|
-| 2026-08-24 | [The catalogue export + the member card](2026-08-24-catalog-export-and-member-card.html) | *not yet run* |
+| 2026-08-24 | [Retest — four fixes](2026-08-24-retest-four-fixes.html) | *not yet run* |
+| 2026-08-24 | [The catalogue export + the member card](2026-08-24-catalog-export-and-member-card.html) | 20/22 · **GO with issues** |
 | 2026-08-22 | [The pack badge and the discount](2026-08-22-pack-badge-and-discount.html) | 10/10 GO |
 | 2026-08-22 | [The till explains the deal](2026-08-22-till-explains-the-deal.html) | 17/17 GO |
 | 2026-08-22 | [The price warning](../TESTSHEET-price-warning.md) *(markdown)* | 25/25 GO |

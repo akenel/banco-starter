@@ -1,0 +1,518 @@
+<title>Banco UAT Sheet Template</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════════════════
+   THE SHEET. Everything below this block is the reusable shell — to make a new UAT sheet,
+   change only this object. Kept in the repo as onboarding/testsheets/TEMPLATE.html.
+
+   step fields:  id · do (required) · expect · why (italic aside) · callout (boxed, for the
+                 load-bearing ones) · codes[] (tap to copy) · link {href,text}
+   ═══════════════════════════════════════════════════════════════════════════════════════ */
+const SHEET = {
+  key:      'banco-uat-2026-08-24-retest-v1',
+  eyebrow:  'Banco POS · UAT · prod · retest',
+  title:    'Four fixes, one of them at a live till',
+  standfirst: 'Everything here was found by <b>you</b>, running the last sheet, and fixed the same afternoon. The one that matters is <b>§B</b>: "clear the cart does not work anymore" turned out to be real, and older than any of this week\'s work — clearing emptied the screen and left the cart sitting in the browser\'s storage, which the page then restored from. Fixing it turned up a second half you did not report, and that half is the reason §B leads. The rest is your C1, D3/D4 and E2 — and D3/D4 you have already closed yourself, so §C asks you to confirm it stuck rather than do it twice. A GO means the till starts every sale clean.',
+  meta: [['Shop','banco.wolfhold.app','https://banco.wolfhold.app/pos'],
+         ['Log in as','admin (Felix) — §C needs admin'],
+         ['Build','ed20cfa or later'], ['Deployed','24 Aug 2026'], ['Budget','~20 min']],
+  safety: { title: 'Never press Checkout.',
+            body: 'Every basket ends with 🗑️ <b>Clear</b> — which is the thing under test, so you will be doing it a lot. A completed transaction is a line in the Kassenbuch and cannot be taken back out.' },
+
+  sections: [
+
+    { id: 'A', title: 'The build landed', time: '1 min', steps: [
+      { id: 'A1',
+        do: 'Open the shop and read the grey line under the login box, before logging in.',
+        link: { href: 'https://banco.wolfhold.app/pos', text: 'banco.wolfhold.app/pos' },
+        expect: 'The build ends with <b>ed20cfa</b> (or later)',
+        why: 'Last time I deployed a fix, ran the deploy script, watched all four gates go green — and nothing had shipped, because the pull had quietly done nothing. The gates compare the running build to the CHECKED-OUT commit, so they cannot see a checkout that never moved. This line can.' },
+    ]},
+
+    { id: 'B', title: 'Clear cart — the one that bit at a live till', time: '6 min', steps: [
+      { id: 'B1',
+        do: 'Go to <b>Scan</b>, add any two items to the cart, then press <b>Checkout</b> to open the checkout screen. Do <u>not</u> pay. Come back to the cart (browser back, or Edit Cart).',
+        expect: 'Your two items are still in the cart',
+        why: 'This trip to Checkout is what plants the stored copy of the cart. Without it the bug does not exist — which is why it survived a year of ordinary selling and only appeared when you walked the checkout seven times in one afternoon.' },
+      { id: 'B2',
+        do: 'Now press 🗑️ <b>Clear</b> and confirm.',
+        expect: 'Empty cart, and the confirm box says it also <b>detaches the member</b>',
+        why: 'The wording changed today. Clearing now drops the attached member too, so it had better say so — a silent detach is its own surprise at a counter.' },
+      { id: 'B3',
+        do: 'Leave the screen — go to the <b>Dashboard</b> — then come back to <b>Scan</b>.',
+        expect: 'The cart is <b>still empty</b>, and there is <b>no</b> "cart restored" message',
+        callout: 'THIS IS THE BUG, exactly as you hit it: "i cleared twice and when i go back to cart the last item is still there". Clearing emptied the screen and left the cart in the browser\'s storage — and this page restores the cart from that storage every time it loads. Clearing a second time could never help, because clearing had never once touched the thing it was being restored from. If an item comes back here, mark FAIL and stop.' },
+      { id: 'B4',
+        do: 'Scan a <b>member card</b> (any ART- code you have) so a member is attached. Add an <b>18+</b> item. Then 🗑️ <b>Clear</b>. Now add the <b>same 18+ item again</b> and go to Checkout.',
+        expect: 'The red <b>Age-restricted sale — 18+</b> stop appears',
+        why: 'The half you did not report, and the dangerous one. Clearing used to leave the member attached — so the next customer inherited the last one\'s card, their discount, and their age answer, without the cashier ever looking at them. That is the hole we closed on the 22nd walking back in through a different door. If no stop appears here, the member survived the clear.' },
+      { id: 'B5',
+        do: 'With an empty cart, press 🗑️ <b>Clear</b> again.',
+        expect: '<b>Nothing bad.</b> Still empty, no error, no stuck modal',
+        why: 'The quiet check. Clearing nothing should be boring.' },
+      { id: 'B6', do: '🗑️ <b>Clear</b> to finish.', expect: 'Empty cart' },
+    ]},
+
+    { id: 'C', title: 'The kiosk join — and switching the offer off', time: '6 min', steps: [
+      { id: 'C1',
+        do: 'On a <b>phone</b>, open the kiosk, start the signup, leave <b>every field blank</b>, tick 18+, submit.',
+        link: { href: 'https://banco.wolfhold.app/pos/kiosk', text: '/pos/kiosk' },
+        expect: 'It works, and the shop assigns an <b>ART-XXXX</b> code',
+        why: 'Your C1 last time. The server, the schema and 8 unit tests were all already correct — the only layer still demanding a username was the page itself, and the comment directly above that box said "EVERY FIELD HERE IS OPTIONAL".' },
+      { id: 'C2',
+        do: 'Start another signup. This time type <b>!!</b> as the username and submit.',
+        expect: 'It is <b>refused</b> — "3–30 letters, numbers, . _ -"',
+        why: 'The fix had to make the rule conditional, not delete it. Deleting the rule would also have made C1 pass, which is why this step exists.' },
+      { id: 'C3',
+        do: 'Log in as <b>admin</b> (Felix). Go to <b>Settings</b> and find <b>🎁 New-member join offer</b>.',
+        expect: 'Two boxes — at the kiosk, and on their own phone — both reading <b>0</b>, because you set them this afternoon',
+        why: 'Your D4. Last week\'s commit claimed Felix could set this himself; he could not. It was missing on three layers — no field on the screen, the update schema silently dropped it, and the read schema never returned it, so the boxes would have loaded blank and one bad coercion would have zeroed your offer on any unrelated save.' },
+      { id: 'C4',
+        do: 'Reload the Settings page and look again.',
+        expect: 'Both still read <b>0</b> — it stuck',
+        callout: 'Your D3 decision, already live: verified on the running shop at 14:20 — the kiosk serves 0% on both paths and the copy has swapped to points in all four languages. The exploit is closed: signup is anonymous and unlimited, so a welcome discount was a coupon a customer could re-mint on every visit — a new code, another 15%, for ever. You set it through the SCREEN rather than by SQL, which is also what proves D4 is genuinely fixed rather than worked around.' },
+      { id: 'C5',
+        do: 'Open the kiosk again on the phone.',
+        expect: 'It offers <b>points</b>, and there is <b>no percentage anywhere</b> — no "0% off"',
+        why: 'Points rather than credit, on your instinct and the code\'s: "credit" reads as francs the shop owes you, while the rule is 1 credit per CHF SPENT. Points carry no exchange rate, which is honest while the shop has not set one.' },
+      { id: 'C6',
+        do: 'Sign up once more (blank, 18+ ticked). Then look at the <b>Dashboard</b> new-members list.',
+        expect: 'The new member shows <b>0%</b>, not 15%',
+        why: 'The page and the till used to be two hardcoded numbers in two files that had to agree. Now they are one setting, so what the screen advertises is what the till grants, by construction.' },
+    ]},
+
+    { id: 'D', title: 'Deactivated members stay gone', time: '3 min', steps: [
+      { id: 'D1',
+        do: 'Go to <b>Members</b>, search for one of the ART- codes you just made, open <b>✏️ Edit Profile</b>, press <b>🚫 Deactivate</b>.',
+        expect: 'It disappears from the list <b>immediately</b> — no manual page refresh',
+        why: 'Your E2. Deactivating cleared the detail card but never re-ran the search, so the row sat there looking live until you refreshed — "could be a little confusing".' },
+      { id: 'D2',
+        do: 'Go to the <b>Dashboard</b>.',
+        expect: 'That member is <b>gone</b> from "🎉 N new members today", and the count dropped by one',
+        why: 'Your report this morning — you thought it was a cache. It was a missing WHERE: the list asked for everyone created today and never asked whether they were still active. Every other screen already filtered them, which is exactly why the one that did not looked stale rather than wrong.' },
+      { id: 'D3',
+        do: 'Scan that deactivated member\'s ART- code at the till.',
+        expect: 'It is <b>refused</b> — "Customer account is inactive"',
+        why: 'Confirming a guard that was already there. I claimed mid-investigation this morning that it was missing, having read the query and not the six lines below it. It was never missing — this step is me showing my work rather than asking you to take my word for it.' },
+    ]},
+
+    { id: 'E', title: 'The one number we never pinned down', time: '2 min', steps: [
+      { id: 'E1',
+        do: 'Go to <b>Catalog</b> and press <b>📄 Export catalog (CSV)</b>. Watch the green toast and write down <b>the exact number it says</b>.',
+        expect: 'The toast number equals the <b>Products</b> tile on the same screen (5422 last time)',
+        why: 'You marked this ISSUE twice on the last sheet and every counter on screen said 5422, so I still do not know what the toast itself showed. If it is blank, or a different number, that is the answer I need — put it in the note.' },
+    ]},
+
+    { id: 'F', title: 'Put the shop back', time: '1 min', steps: [
+      { id: 'F1',
+        do: 'Empty cart, and deactivate any leftover ART- test members you do not want to keep.',
+        expect: 'Clean cart, clean member list',
+        why: 'The test members carry no discount now, so leaving them is harmless — but they are real rows.' },
+    ]},
+  ],
+  closing: [
+    '<b>§B is the one that matters.</b> It is the only bug here that was hurting you at a real till, with real customers, and it was never introduced by this week\'s work — it has been there since the first commit and simply needed the checkout round trip to show itself.',
+    'Three of the four fixes on this sheet have the same shape: the server was right, the in-memory state was right, and a <b>stored copy on the customer-facing layer</b> was wrong. The kiosk username, the new-members list, and the cart. Worth knowing where to look next time.',
+    'If a step is <b>ISSUE</b> rather than FAIL, it worked but something was off. Those are worth as much as the failures — every single fix on this sheet started as one of your notes.',
+  ],
+};</script>
+
+<style>
+  :root{
+    --paper:#f1f4f2; --card:#fff; --ink:#141d1b; --ink-2:#41514e; --ink-3:#71847f;
+    --rule:#dfe6e2; --rule-2:#eef2f0;
+    --accent:#136259; --accent-soft:#e2efec; --accent-ink:#0d4841;
+    --bad:#a51b1b; --bad-soft:#fbe9e9; --warn:#8a4b06; --warn-soft:#fcf0dd;
+    --good:#1c6b3a; --good-soft:#e4f2e8;
+    --shadow:0 1px 2px rgba(20,29,27,.05), 0 8px 24px -16px rgba(20,29,27,.28);
+  }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+    --paper:#0e1413; --card:#161e1c; --ink:#e8efec; --ink-2:#a3b3ae; --ink-3:#7b8c87;
+    --rule:#27332f; --rule-2:#1d2725;
+    --accent:#5cc4b4; --accent-soft:#12312d; --accent-ink:#8fdcd0;
+    --bad:#f08b8b; --bad-soft:#3a1a1a; --warn:#e5aa5c; --warn-soft:#382512;
+    --good:#7bce9c; --good-soft:#14301f;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  }}
+  :root[data-theme="dark"]{
+    --paper:#0e1413; --card:#161e1c; --ink:#e8efec; --ink-2:#a3b3ae; --ink-3:#7b8c87;
+    --rule:#27332f; --rule-2:#1d2725;
+    --accent:#5cc4b4; --accent-soft:#12312d; --accent-ink:#8fdcd0;
+    --bad:#f08b8b; --bad-soft:#3a1a1a; --warn:#e5aa5c; --warn-soft:#382512;
+    --good:#7bce9c; --good-soft:#14301f;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  }
+  *{box-sizing:border-box}
+  body{background:var(--paper); color:var(--ink); margin:0;
+       font-family:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif; font-size:16px; line-height:1.55}
+  .wrap{max-width:960px; margin:0 auto; padding:0 20px 100px}
+  h1,h2{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",sans-serif; text-wrap:balance; margin:0}
+  .mono{font-family:"IBM Plex Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums}
+
+  header{padding:40px 0 22px; border-bottom:2px solid var(--ink)}
+  .eyebrow{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.14em;
+           text-transform:uppercase; color:var(--accent); font-weight:600}
+  h1{font-size:clamp(32px,5.5vw,50px); font-weight:700; line-height:1.03; letter-spacing:-.015em; margin:10px 0 12px}
+  .standfirst{color:var(--ink-2); max-width:64ch; margin:0}
+  .meta{display:flex; flex-wrap:wrap; gap:8px 22px; margin-top:18px;
+        font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--ink-3)}
+  .meta b{color:var(--ink-2); font-weight:600}
+  .meta a{color:var(--accent)}
+
+  /* who ran it */
+  .who{display:flex; flex-wrap:wrap; gap:10px; margin-top:16px; align-items:center}
+  .who input{font:inherit; font-size:14px; padding:7px 11px; border-radius:5px;
+             border:1px solid var(--rule); background:var(--card); color:var(--ink); min-width:150px}
+  .who input:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
+  .toggle{display:inline-flex; align-items:center; gap:7px; font-size:13px; color:var(--ink-2);
+          cursor:pointer; user-select:none; margin-left:auto}
+
+  /* scoreboard */
+  .board{position:sticky; top:0; z-index:20; background:var(--paper);
+         border-bottom:1px solid var(--rule); padding:10px 0; margin-bottom:6px}
+  .board-in{display:flex; align-items:center; gap:12px; flex-wrap:wrap}
+  .bar{flex:1 1 160px; min-width:120px; height:8px; border-radius:99px; background:var(--rule);
+       overflow:hidden; display:flex}
+  .bar i{display:block; height:100%; width:0; transition:width .25s ease}
+  .bar .p{background:var(--good)} .bar .i{background:var(--warn)} .bar .f{background:var(--bad)}
+  .tally{font-family:"IBM Plex Mono",monospace; font-size:13px; color:var(--ink-2); white-space:nowrap}
+  .tally b{color:var(--ink)}
+  .clock{font-family:"IBM Plex Mono",monospace; font-size:13px; color:var(--ink-3); white-space:nowrap}
+  .verdict{font-family:"IBM Plex Sans Condensed",sans-serif; font-weight:700; font-size:13px;
+           letter-spacing:.06em; text-transform:uppercase; padding:5px 12px; border-radius:4px;
+           background:var(--rule-2); color:var(--ink-3); white-space:nowrap}
+  .verdict.go{background:var(--good-soft); color:var(--good)}
+  .verdict.issues{background:var(--warn-soft); color:var(--warn)}
+  .verdict.nogo{background:var(--bad-soft); color:var(--bad)}
+  .btn{background:none; border:1px solid var(--rule); color:var(--ink-2); font:inherit;
+       font-size:12px; padding:5px 11px; border-radius:4px; cursor:pointer; white-space:nowrap}
+  .btn:hover{border-color:var(--ink-3); color:var(--ink)}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600}
+
+  .stop{display:flex; gap:14px; align-items:flex-start; margin:20px 0 30px; padding:16px 18px;
+        background:var(--bad-soft); border-left:4px solid var(--bad); border-radius:0 6px 6px 0}
+  .stop .sym{font-size:22px} .stop p{margin:0}
+  .stop strong{font-family:"IBM Plex Sans Condensed",sans-serif; font-size:17px; display:block; margin-bottom:2px}
+  .stop small{color:var(--ink-2); font-size:13.5px}
+
+  section{margin:0 0 32px}
+  .sec-head{display:flex; align-items:center; gap:12px; padding-bottom:9px;
+            border-bottom:1px solid var(--ink)}
+  .sec-letter{font-family:"IBM Plex Mono",monospace; font-weight:600; font-size:13px;
+              color:var(--card); background:var(--ink); width:24px; height:24px; border-radius:3px;
+              display:grid; place-items:center; flex:none}
+  .sec-head h2{font-size:21px; font-weight:700; letter-spacing:-.01em; flex:1}
+  .sec-time{font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--ink-3)}
+
+  .step{border-bottom:1px solid var(--rule-2); padding:16px 0}
+  .step:last-child{border-bottom:0}
+  .step-top{display:grid; grid-template-columns:42px 1fr auto; gap:0 14px; align-items:start}
+  .sid{font-family:"IBM Plex Mono",monospace; font-size:12px; font-weight:600; color:var(--ink-3); padding-top:3px}
+  .do{margin:0 0 7px}
+  .expect{color:var(--ink-2); font-size:15px; padding-left:16px; border-left:2px solid var(--accent-soft); margin:0 0 6px}
+  .expect b{color:var(--ink)}
+  .why{color:var(--ink-3); font-size:13.5px; font-style:italic; margin:0}
+  .callout{margin:12px 0 0; padding:12px 15px; background:var(--warn-soft);
+           border-left:3px solid var(--warn); border-radius:0 5px 5px 0; font-size:14.5px}
+  .hidden-expect{padding-left:16px; border-left:2px dashed var(--rule); margin:0 0 6px}
+  .hidden-expect button{background:none; border:0; color:var(--accent); font:inherit; font-size:14px;
+                        cursor:pointer; text-decoration:underline; padding:0}
+
+  .marks{display:flex; gap:5px; flex-wrap:wrap; justify-content:flex-end}
+  .mark{font-family:"IBM Plex Sans Condensed",sans-serif; font-weight:700; font-size:12px;
+        letter-spacing:.04em; padding:7px 11px; border-radius:4px; cursor:pointer;
+        border:1px solid var(--rule); background:var(--card); color:var(--ink-3)}
+  .mark:hover{border-color:var(--ink-3)}
+  .mark:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+  .step[data-v="pass"]  .mark[data-m="pass"] {background:var(--good); border-color:var(--good); color:#fff}
+  .step[data-v="issue"] .mark[data-m="issue"]{background:var(--warn); border-color:var(--warn); color:#fff}
+  .step[data-v="fail"]  .mark[data-m="fail"] {background:var(--bad);  border-color:var(--bad);  color:#fff}
+  .step[data-v="pass"] {background:linear-gradient(90deg,var(--good-soft),transparent 38%)}
+  .step[data-v="issue"]{background:linear-gradient(90deg,var(--warn-soft),transparent 38%)}
+  .step[data-v="fail"] {background:linear-gradient(90deg,var(--bad-soft), transparent 38%)}
+  .stamp{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--ink-3); text-align:right; margin-top:4px}
+
+  .say{margin:10px 0 0 56px}
+  .say textarea{width:100%; min-height:40px; resize:vertical; padding:8px 11px; border-radius:5px;
+                border:1px solid var(--rule); background:var(--card); color:var(--ink);
+                font:inherit; font-size:14px}
+  .say textarea:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
+  .step[data-v="fail"] .say textarea, .step[data-v="issue"] .say textarea{border-color:var(--warn)}
+  .say label{display:block; font-size:11.5px; color:var(--ink-3); margin-bottom:4px;
+             font-family:"IBM Plex Mono",monospace; letter-spacing:.04em; text-transform:uppercase}
+
+  .codes{display:flex; flex-wrap:wrap; gap:6px; margin:8px 0}
+  .ean{font-family:"IBM Plex Mono",monospace; font-size:13.5px; font-weight:600;
+       background:var(--accent-soft); color:var(--accent-ink); padding:3px 9px; border-radius:4px;
+       cursor:pointer; border:1px solid transparent}
+  .ean:hover{border-color:var(--accent)}
+  .ean.copied{background:var(--good-soft); color:var(--good)}
+
+  .close{margin-top:40px; padding-top:26px; border-top:2px solid var(--ink)}
+  .close h2{font-size:23px; margin-bottom:8px}
+  .close li{color:var(--ink-2); font-size:14.5px; margin-bottom:7px}
+  .summary{margin-top:16px; padding:16px 18px; background:var(--card); border:1px solid var(--rule);
+           border-radius:8px; box-shadow:var(--shadow)}
+  .summary pre{margin:0; font-family:"IBM Plex Mono",monospace; font-size:12.5px; line-height:1.65;
+               white-space:pre-wrap; color:var(--ink-2); max-height:340px; overflow:auto}
+  .sumbar{display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; align-items:center}
+  .said{color:var(--good); font-size:12px; font-family:"IBM Plex Mono",monospace}
+
+  @media (max-width:680px){
+    .step-top{grid-template-columns:34px 1fr; gap:0 10px}
+    .marks{grid-column:2; padding-top:10px; justify-content:flex-start}
+    .say{margin-left:44px}
+  }
+  @media (prefers-reduced-motion:reduce){ *{transition:none!important} }
+  @media print{ .board,.btn,.marks,.who,.toggle{display:none!important} body{background:#fff} }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow" id="eyebrow"></div>
+    <h1 id="title"></h1>
+    <p class="standfirst" id="standfirst"></p>
+    <div class="meta" id="meta"></div>
+    <div class="who">
+      <input id="who-name" placeholder="Tested by…" autocomplete="off">
+      <input id="who-where" placeholder="Till / device…" autocomplete="off">
+      <label class="toggle"><input type="checkbox" id="training"> Training mode — hide the expected result</label>
+    </div>
+  </header>
+
+  <div class="board">
+    <div class="board-in">
+      <div class="bar"><i class="p" id="bp"></i><i class="i" id="bi"></i><i class="f" id="bf"></i></div>
+      <div class="tally"><b id="done">0</b>/<span id="total">0</span> · <span id="np">0</span>✓ <span id="ni">0</span>! <span id="nf">0</span>✕</div>
+      <div class="clock" id="clock">—</div>
+      <div class="verdict" id="verdict">Not started</div>
+      <button class="btn" id="reset" type="button">Clear</button>
+    </div>
+  </div>
+
+  <div class="stop"><div class="sym">⛔</div><p><strong id="safety-t"></strong><small id="safety-b"></small></p></div>
+
+  <div id="sheet"></div>
+
+  <div class="close">
+    <h2>Results</h2>
+    <ul id="closing"></ul>
+    <div class="summary">
+      <div class="sumbar">
+        <button class="btn primary" id="copy" type="button">Copy results</button>
+        <button class="btn" id="print" type="button">Print / PDF</button>
+        <span class="said" id="said"></span>
+      </div>
+      <pre id="sum">Nothing marked yet.</pre>
+    </div>
+  </div>
+</div>
+
+<noscript><p style="padding:20px;color:#a51b1b">This sheet needs JavaScript — it records your marks as you go.</p></noscript>
+
+<script>
+(function () {
+  var S = SHEET, state = {}, started = null, tick = null;
+  var steps = [];
+  S.sections.forEach(function (sec) { sec.steps.forEach(function (st) { steps.push(st); }); });
+
+  function load() { try { var v = JSON.parse(localStorage.getItem(S.key) || '{}'); state = v.marks || {}; started = v.started || null;
+                          if (v.who) { $('who-name').value = v.who.name || ''; $('who-where').value = v.who.where || ''; } } catch (e) {} }
+  function save() { try { localStorage.setItem(S.key, JSON.stringify({
+                          marks: state, started: started,
+                          who: { name: $('who-name').value, where: $('who-where').value } })); } catch (e) {} }
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { return String(s == null ? '' : s); }
+  function hhmmss(ms) { var t = Math.max(0, Math.round(ms / 1000));
+    return (t / 3600 | 0 ? (t / 3600 | 0) + 'h ' : '') + ((t % 3600) / 60 | 0) + 'm ' + (t % 60) + 's'; }
+
+  // ── render the sheet from SHEET ────────────────────────────────────────────────────────
+  $('eyebrow').textContent = S.eyebrow;
+  $('title').textContent = S.title;
+  $('standfirst').innerHTML = S.standfirst;
+  $('total').textContent = steps.length;
+  $('meta').innerHTML = S.meta.map(function (m) {
+    return '<span><b>' + esc(m[0]) + '</b> ' + (m[2] ? '<a href="' + m[2] + '">' + esc(m[1]) + '</a>' : esc(m[1])) + '</span>';
+  }).join('');
+  $('safety-t').textContent = S.safety.title;
+  $('safety-b').innerHTML = S.safety.body;
+  $('closing').innerHTML = (S.closing || []).map(function (c) { return '<li>' + c + '</li>'; }).join('');
+
+  $('sheet').innerHTML = S.sections.map(function (sec) {
+    return '<section><div class="sec-head"><div class="sec-letter">' + esc(sec.id) + '</div>' +
+      '<h2>' + esc(sec.title) + '</h2><div class="sec-time">' + esc(sec.time || '') + '</div></div>' +
+      sec.steps.map(function (st) {
+        var codes = (st.codes || []).map(function (c) {
+          return '<span class="ean" role="button" tabindex="0">' + esc(c) + '</span>'; }).join('');
+        return '<div class="step" data-id="' + esc(st.id) + '">' +
+          '<div class="step-top">' +
+            '<div class="sid">' + esc(st.id) + '</div>' +
+            '<div>' +
+              '<p class="do">' + st.do + '</p>' +
+              (codes ? '<div class="codes">' + codes + '</div>' : '') +
+              (st.expect ? '<p class="expect js-expect">' + st.expect + '</p>' +
+                           '<p class="hidden-expect js-hidden" style="display:none">' +
+                           '<button type="button" class="js-reveal">Show what should happen ›</button></p>' : '') +
+              (st.why ? '<p class="why">' + st.why + '</p>' : '') +
+              (st.callout ? '<div class="callout">' + st.callout + '</div>' : '') +
+            '</div>' +
+            '<div><div class="marks">' +
+              '<button class="mark" data-m="pass">PASS</button>' +
+              '<button class="mark" data-m="issue">ISSUE</button>' +
+              '<button class="mark" data-m="fail">FAIL</button>' +
+            '</div><div class="stamp js-stamp"></div></div>' +
+          '</div>' +
+          '<div class="say"><label>Notes — what you saw, what confused you</label>' +
+          '<textarea rows="1" placeholder="optional on a pass, please fill in on an issue or a fail"></textarea></div>' +
+        '</div>';
+      }).join('') + '</section>';
+  }).join('');
+
+  // ── behaviour ──────────────────────────────────────────────────────────────────────────
+  function startClock() {
+    if (!started) { started = Date.now(); save(); }
+    if (!tick) tick = setInterval(paintClock, 1000);
+    paintClock();
+  }
+  function paintClock() {
+    if (!started) { $('clock').textContent = '—'; return; }
+    var doneAll = steps.every(function (s) { return (state[s.id] || {}).v; });
+    var end = doneAll ? lastStamp() : Date.now();
+    $('clock').textContent = '⏱ ' + hhmmss(end - started) + (doneAll ? '' : '…');
+    if (doneAll && tick) { clearInterval(tick); tick = null; }
+  }
+  function lastStamp() {
+    return steps.reduce(function (m, s) { return Math.max(m, (state[s.id] || {}).at || 0); }, started || 0);
+  }
+
+  function paint() {
+    var np = 0, ni = 0, nf = 0;
+    document.querySelectorAll('.step').forEach(function (el) {
+      var st = state[el.dataset.id] || {};
+      if (st.v) el.dataset.v = st.v; else el.removeAttribute('data-v');
+      if (st.v === 'pass') np++; if (st.v === 'issue') ni++; if (st.v === 'fail') nf++;
+      var ta = el.querySelector('textarea');
+      if (ta && ta.value !== (st.note || '')) ta.value = st.note || '';
+      var stamp = el.querySelector('.js-stamp');
+      stamp.textContent = st.at ? new Date(st.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+    });
+    var n = steps.length, done = np + ni + nf;
+    $('done').textContent = done; $('np').textContent = np; $('ni').textContent = ni; $('nf').textContent = nf;
+    $('bp').style.width = (np / n * 100) + '%';
+    $('bi').style.width = (ni / n * 100) + '%';
+    $('bf').style.width = (nf / n * 100) + '%';
+    var v = $('verdict'); v.className = 'verdict';
+    if (nf) { v.classList.add('nogo'); v.textContent = 'No go'; }
+    else if (done === n && ni) { v.classList.add('issues'); v.textContent = 'Go with issues'; }
+    else if (done === n) { v.classList.add('go'); v.textContent = 'Go'; }
+    else if (!done) { v.textContent = 'Not started'; }
+    else { v.textContent = (n - done) + ' left'; }
+    paintClock();
+    $('sum').textContent = report();
+  }
+
+  function report() {
+    var np = 0, ni = 0, nf = 0, rows = [];
+    steps.forEach(function (s) {
+      var st = state[s.id] || {};
+      if (!st.v && !st.note) return;
+      if (st.v === 'pass') np++; if (st.v === 'issue') ni++; if (st.v === 'fail') nf++;
+      rows.push('  ' + (s.id + '    ').slice(0, 5) + (st.v ? st.v.toUpperCase() : '—').padEnd(6) +
+                (st.note ? '· ' + st.note.replace(/\s+/g, ' ') : ''));
+    });
+    if (!rows.length) return 'Nothing marked yet.';
+    var who = $('who-name').value.trim(), where = $('who-where').value.trim();
+    var done = np + ni + nf;
+    var head = [
+      S.title,
+      'build ' + (S.meta.find(function (m) { return m[0] === 'Build'; }) || [])[1],
+      who ? 'tested by ' + who : null,
+      where ? 'on ' + where : null,
+      started ? new Date(started).toLocaleString() : null,
+      // Elapsed, not first-mark-to-last-mark: a half-finished run was reporting "took 0m 0s"
+      // because only one step had a timestamp. A finished run freezes at the last mark.
+      started ? (done === steps.length ? 'took ' : 'running ') + hhmmss((done === steps.length ? lastStamp() : Date.now()) - started) : null,
+    ].filter(Boolean).join(' · ');
+    var verdict = nf ? 'NO GO' : (done === steps.length ? (ni ? 'GO WITH ISSUES' : 'GO') : 'INCOMPLETE');
+    return head + '\n' + '-'.repeat(Math.min(head.length, 72)) + '\n' + rows.join('\n') +
+      '\n\n' + np + ' pass · ' + ni + ' issue · ' + nf + ' fail · ' +
+      (steps.length - done) + ' not run\nVERDICT: ' + verdict;
+  }
+
+  document.querySelectorAll('.step').forEach(function (el) {
+    var id = el.dataset.id;
+    el.querySelectorAll('.mark').forEach(function (b) {
+      b.addEventListener('click', function () {
+        startClock();
+        state[id] = state[id] || {};
+        if (state[id].v === b.dataset.m) { state[id].v = null; state[id].at = null; }
+        else { state[id].v = b.dataset.m; state[id].at = Date.now(); }
+        save(); paint();
+      });
+    });
+    var ta = el.querySelector('textarea');
+    ta.addEventListener('input', function () {
+      state[id] = state[id] || {}; state[id].note = ta.value;
+      ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 220) + 'px';
+      save(); $('sum').textContent = report();
+    });
+    var rev = el.querySelector('.js-reveal');
+    if (rev) rev.addEventListener('click', function () {
+      el.querySelector('.js-expect').style.display = '';
+      el.querySelector('.js-hidden').style.display = 'none';
+    });
+  });
+
+  // Training mode: the tester says what they saw BEFORE reading what they were told to see.
+  // A sheet that shows the answer first is a checklist; one that does not is a lesson.
+  $('training').addEventListener('change', function () {
+    var on = $('training').checked;
+    document.querySelectorAll('.step').forEach(function (el) {
+      var e = el.querySelector('.js-expect'), h = el.querySelector('.js-hidden');
+      if (!e || !h) return;
+      e.style.display = on ? 'none' : '';
+      h.style.display = on ? '' : 'none';
+    });
+  });
+
+  ['who-name', 'who-where'].forEach(function (id) {
+    $(id).addEventListener('input', function () { save(); $('sum').textContent = report(); });
+  });
+
+  $('reset').addEventListener('click', function () {
+    state = {}; started = null; if (tick) { clearInterval(tick); tick = null; }
+    save(); paint();
+  });
+
+  $('copy').addEventListener('click', function () {
+    var txt = report(), done = function () {
+      $('said').textContent = 'copied'; setTimeout(function () { $('said').textContent = ''; }, 1400); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(done, fallback);
+    else fallback();
+    function fallback() {
+      var t = document.createElement('textarea'); t.value = txt; document.body.appendChild(t); t.select();
+      try { document.execCommand('copy'); done(); } catch (e) { $('said').textContent = 'select the text below and copy'; }
+      document.body.removeChild(t);
+    }
+  });
+  $('print').addEventListener('click', function () { window.print(); });
+
+  document.querySelectorAll('.ean').forEach(function (el) {
+    function copy() {
+      var txt = el.textContent.trim(), ok = function () {
+        el.classList.add('copied'); setTimeout(function () { el.classList.remove('copied'); }, 900); };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(ok, function () {});
+      else { var t = document.createElement('textarea'); t.value = txt; document.body.appendChild(t); t.select();
+             try { document.execCommand('copy'); ok(); } catch (e) {} document.body.removeChild(t); }
+    }
+    el.addEventListener('click', copy);
+    el.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); copy(); } });
+  });
+
+  load(); paint();
+  if (started) { tick = setInterval(paintClock, 1000); paintClock(); }
+})();
+</script>
