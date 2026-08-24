@@ -1204,7 +1204,7 @@
         <div class="card w-full max-w-sm text-center">
             <span class="text-4xl block mb-2">🗑️</span>
             <h3 class="text-xl font-bold text-gray-900 mb-1" data-i18n="scan.clear_confirm_title">Clear the whole cart?</h3>
-            <p class="text-sm text-gray-500 mb-5" data-i18n="scan.clear_confirm_body">This removes every item. You can't undo it.</p>
+            <p class="text-sm text-gray-500 mb-5" data-i18n="scan.clear_confirm_body">This removes every item and detaches the member, so the next sale starts clean. You can't undo it.</p>
             <div class="flex gap-3">
                 <button @click="showClearModal = false" class="btn-secondary flex-1" data-i18n="scan.keep_cart">Keep cart</button>
                 <button @click="confirmClearCart()" class="btn-danger flex-1" data-i18n="scan.clear_it">Clear it</button>
@@ -2703,6 +2703,30 @@
                 // New sale → drop the old idempotency key, so a previous (maybe-committed-but-
                 // -blipped) sale can never be shadowed/adopted by the next one. Fresh cart, fresh key.
                 sessionStorage.removeItem('pos_sale_uuid');
+
+                // AND THE STORED CART — the bug Angel hit on 2026-08-24: "i cleared twice and when
+                // i go back to cart the last item is still there". Clearing emptied `this.cart` in
+                // memory and left `pos_cart` sitting in sessionStorage — and this page RESTORES
+                // from `pos_cart` on every load (the Edit-Cart path). So the cart came back from
+                // the dead the moment you navigated away and returned, announcing itself with a
+                // "cart restored" toast, and clearing AGAIN could never help, because clearing has
+                // never once touched the thing it was being restored from.
+                //
+                // Unchanged since the first commit. It needs a trip to Checkout first (that is
+                // what writes `pos_cart`), which is why it surfaced in a UAT that walked the
+                // checkout seven times rather than in a year of ordinary selling.
+                sessionStorage.removeItem('pos_cart');
+
+                // AND THE ATTACHED MEMBER. Not what Angel reported, and the more dangerous half:
+                // `checkout_customer` carries the member AND their age answer, and nothing here
+                // dropped it. "Start fresh" kept the last customer's card attached to the NEXT
+                // person's sale — their welcome discount, and their `is_of_age`, applied to
+                // somebody the cashier never looked at. That is the hole closed on 2026-08-22
+                // walking back in through a different door.
+                // Re-scanning a card costs one tap; attaching the wrong person's age does not
+                // cost anything until it matters, and then it cannot be taken back.
+                sessionStorage.removeItem('checkout_customer');
+
                 showToast(t('scan.toast_cart_cleared'), 'info');
             },
 
