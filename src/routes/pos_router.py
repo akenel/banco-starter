@@ -9,7 +9,7 @@ import json
 import logging
 import re
 from fastapi import APIRouter, Depends, HTTPException, status, Request, UploadFile, File, Body
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse, Response, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, or_, update, true
@@ -20,7 +20,7 @@ from uuid import UUID, uuid4
 from typing import Optional
 from pathlib import Path
 
-from src.db.database import get_db_session
+from src.db.database import get_db_session, get_db_session_context
 from src.services.fiscal_regime import resolve_regime
 from src.services.store_settings_seeding import get_active_store_settings
 from src.services.catalog_enrichment import mint_internal_ean13
@@ -7925,6 +7925,225 @@ async def export_catalog_worklist(
         content=data,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f'attachment; filename="{fname}"'},
+    )
+
+
+# ================================================================
+# TAKE YOUR CATALOG WITH YOU — the whole thing, as a CSV
+# ================================================================
+# The thesis of this repo is ownership: "you can't clone SAP, you can clone this." A shop
+# owner who cannot get their OWN product list out of the box does not own it — they are
+# renting it from us, which is precisely the fear this project exists to kill. Until now
+# the only exports were sales reports (Banana CSV, transactions, product-sales) and the
+# BL-131 *worklist*, which is deliberately the opposite of this file: it exports only the
+# UNFINISHED rows, capped at 2,000, so somebody can walk a shelf filling gaps. Asking for
+# "my catalog" and getting "the 500 rows that still need a photo" is not the same thing.
+#
+# So: every row, every column that means something to a human, no gap filter and no cap.
+#
+# Format follows the convention Felix already gets from the transactions export
+# (`transactions.html:_downloadCSV`): SEMICOLON-separated, every field quoted, CRLF, and a
+# UTF-8 BOM — that combination is what makes Excel de-CH/it-IT open umlauts and accents
+# correctly by double-click instead of through the import wizard. Numbers stay RAW
+# (`12.50`, dot decimal, no thousands separator) for exactly the reason product_sales.html
+# records: a locale-formatted number (de-CH apostrophe, it-IT comma) corrupts the cell.
+_CSV_INJECT = ("=", "+", "@", "\t", "\r")
+
+
+def _csv_text(v) -> str:
+    """A text cell Excel will show as TEXT, never evaluate as a formula.
+
+    A product genuinely named `=C4 Cleaner` or `@home Grinder` is a spreadsheet formula the
+    moment Excel opens the file — at best a `#NAME?` where the product used to be, at worst
+    a cell that reaches out and does something. Leading apostrophe is the standard defusal;
+    Excel eats it and shows the original string. A leading `-` is deliberately NOT escaped:
+    the far more common case is a legitimate negative number, and mangling those to protect
+    against `-2+3` would break real data to prevent a cosmetic error.
+    """
+    s = "" if v is None else str(v)
+    s = s.replace("\r\n", " ").replace("\n", " ").strip()
+    return "'" + s if s[:1] in _CSV_INJECT else s
+
+
+def _csv_money(v) -> str:
+    """`12.50`, or empty. NEVER `0.00` for a missing value — see the `no_cost_reason` essay
+    on ProductModel: a fabricated cost is worse than an absent one, and that stays true in
+    an export. An empty cell reads as "we don't know"; a zero reads as "it's free"."""
+    return "" if v is None else f"{float(v):.2f}"
+
+
+@router.get("/catalog/export.csv")
+async def export_catalog_csv(
+    category: Optional[str] = None,
+    include_inactive: bool = False,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(require_manager_or_admin()),
+):
+    """The WHOLE catalog as a CSV — every product, every EAN, no cap, no gap filter.
+
+    Manager/admin only, because the file carries `cost` (and therefore every margin in the
+    shop) — the same bar the worklist export sits behind.
+
+    `category` narrows to one shelf; `include_inactive=true` adds the discontinued rows
+    (off by default, so the ordinary download is "what I sell today").
+
+    Streamed in keyset batches instead of assembled in memory. 5,400 products is only a few
+    MB so a buffer would *work* — but the shop that self-hosts this with 80,000 rows is the
+    one we can't test on, and a generator costs nothing to write today.
+    """
+    import csv as _csv
+    import io as _io
+
+    scope = [] if include_inactive else [ProductModel.is_active == True]
+    if category:
+        # ILIKE '%x%', NOT an exact match — because that is what `/api/v1/pos/search` does, and
+        # this button sits on the screen that search feeds. An exact match here would look right
+        # in every test and still hand the operator a DIFFERENT set of rows than the list they
+        # were staring at: a shop carrying both "Bongs" and "Pipes & Bongs" picks "Bongs" on
+        # screen, sees both, exports one. That is lesson 2 exactly — a filter that no longer
+        # knows which thing it is judging — and it is invisible unless the two are compared.
+        # `prove-catalog-export.py` compares them against the live search endpoint for this
+        # reason; if `/search` ever changes its predicate, that check goes red here too.
+        scope.append(ProductModel.category.ilike(f"%{category.strip()}%"))
+
+    # How many rows the file will contain — logged next to who asked for it, because an
+    # export of the entire product list with costs is exactly the event you want in a log
+    # if someone later asks where the catalog went.
+    total = (await db.execute(
+        select(func.count()).select_from(ProductModel).where(and_(true(), *scope))
+    )).scalar() or 0
+
+    # ALIAS BARCODES (BL-90): one article can carry several codes — the retail EAN on
+    # `products.barcode` plus the case/logistics codes in `product_barcodes`. An export that
+    # printed only the primary would silently drop the very codes that took the longest to
+    # collect, and the owner would not know until a scan missed somewhere else. Small table;
+    # pull it once into a dict rather than a join that fans the rows out.
+    alias_rows = (await db.execute(
+        select(ProductBarcodeModel.product_id, ProductBarcodeModel.barcode)
+        .order_by(ProductBarcodeModel.created_at)
+    )).all()
+    aliases: dict = {}
+    for pid, code in alias_rows:
+        aliases.setdefault(pid, []).append(code)
+
+    currency = await _store_currency(db)
+
+    COLUMNS = [
+        "sku", "barcode", "barcode_is_internal", "alt_barcodes",
+        "name", "description",
+        "product_group", "category", "tags",
+        f"price_{currency}", f"cost_{currency}", "no_cost_reason",
+        "price_tiers", "tier_mode",
+        "stock_quantity", "min_stock", "max_stock", "stock_alert_threshold",
+        "is_active", "is_age_restricted", "product_class", "age_reason",
+        "supplier_name", "supplier_sku", f"supplier_price_{currency}",
+        "vending_compatible", "vending_slot",
+        "image_url", "source_system", "source_id", "source_url", "artemis_path",
+        "work_note", "created_at", "updated_at", "product_id",
+    ]
+
+    def _row(p) -> list:
+        # price_tiers is JSONB ([{min_qty, unit_price}, ...]). A raw JSON blob in a cell is
+        # unreadable in Excel; "3@4.50 | 10@4.00" is the ladder a human can actually check.
+        tiers = ""
+        if p.price_tiers:
+            try:
+                tiers = " | ".join(
+                    f"{t.get('min_qty')}@{float(t.get('unit_price')):.2f}" for t in p.price_tiers
+                )
+            except Exception:
+                tiers = json.dumps(p.price_tiers, ensure_ascii=False)
+        return [
+            _csv_text(p.sku),
+            # The EAN as TEXT, always. Excel reads a bare 7610000123456 as a number and
+            # renders it 7.61E+12 — the single most common way a barcode column arrives
+            # back destroyed. The leading apostrophe pins it as a string.
+            ("'" + p.barcode) if p.barcode else "",
+            "yes" if p.barcode_is_internal else "no",
+            " ".join("'" + c for c in aliases.get(p.id, [])),
+            _csv_text(p.name),
+            _csv_text(p.description),
+            _csv_text(p.product_group),
+            _csv_text(p.category),
+            _csv_text(p.tags),
+            _csv_money(p.price),
+            _csv_money(p.cost),
+            _csv_text(p.no_cost_reason),
+            _csv_text(tiers),
+            _csv_text(p.tier_mode),
+            "" if p.stock_quantity is None else str(p.stock_quantity),
+            "" if p.min_stock is None else str(p.min_stock),
+            "" if p.max_stock is None else str(p.max_stock),
+            "" if p.stock_alert_threshold is None else str(p.stock_alert_threshold),
+            "yes" if p.is_active else "no",
+            "yes" if p.is_age_restricted else "no",
+            _csv_text(p.product_class),
+            _csv_text(p.age_reason),
+            _csv_text(p.supplier_name),
+            _csv_text(p.supplier_sku),
+            _csv_money(p.supplier_price),
+            "yes" if p.vending_compatible else "no",
+            "" if p.vending_slot is None else str(p.vending_slot),
+            _csv_text(p.image_url),
+            _csv_text(p.source_system),
+            _csv_text(p.source_id),
+            _csv_text(p.source_url),
+            _csv_text(p.artemis_path),
+            _csv_text(p.work_note),
+            p.created_at.isoformat() if p.created_at else "",
+            p.updated_at.isoformat() if p.updated_at else "",
+            str(p.id),
+        ]
+
+    async def _stream():
+        buf = _io.StringIO()
+        writer = _csv.writer(buf, delimiter=";", quoting=_csv.QUOTE_ALL, lineterminator="\r\n")
+
+        def _flush() -> str:
+            out = buf.getvalue()
+            buf.seek(0)
+            buf.truncate(0)
+            return out
+
+        writer.writerow(COLUMNS)
+        yield "﻿" + _flush()   # BOM first, or Excel guesses the encoding and guesses wrong
+
+        # A FRESH session, not the request's. A StreamingResponse body runs after the endpoint
+        # has returned, and whether `Depends(get_db_session)` is still open at that point is a
+        # framework-lifecycle detail I would rather not bet a shop's export on. Own the session,
+        # own its lifetime.
+        # Keyset (not OFFSET) on the unique, indexed `sku`: the catalog can be edited while a
+        # big export streams, and OFFSET paging would then skip or repeat rows at the seam.
+        async with get_db_session_context() as sdb:
+            cursor = None
+            while True:
+                page = [ProductModel.sku > cursor] if cursor is not None else []
+                rows = (await sdb.execute(
+                    select(ProductModel)
+                    .where(and_(true(), *scope, *page))
+                    .order_by(ProductModel.sku.asc())
+                    .limit(500)
+                )).scalars().all()
+                if not rows:
+                    break
+                for p in rows:
+                    writer.writerow(_row(p))
+                cursor = rows[-1].sku
+                yield _flush()
+
+    slug = (category or "all").lower().replace(" ", "-").replace("&", "and")[:24]
+    fname = f"banco-catalog-{slug}-{datetime.now(timezone.utc).date().isoformat()}.csv"
+    logger.info(
+        f"Catalog CSV export: {total} rows ({slug}, include_inactive={include_inactive}) "
+        f"by {current_user['username']}"
+    )
+    return StreamingResponse(
+        _stream(),
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{fname}"',
+            "X-Banco-Row-Count": str(total),
+        },
     )
 
 

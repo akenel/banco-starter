@@ -382,3 +382,47 @@ Angel caught it by checking the adapter: **65 W**, already above the 45 W this m
 **What generalises:** a single instantaneous sample of anything with a duty cycle, a taper, a warm-up
 or a sleep state is not a rate. Before extrapolating one reading across a process, ask **where in
 the process it was taken** — and prefer two samples at different points over one that happens to fit.
+
+
+## 2026-08-24 — the catalog could not leave the building, and its own filter disagreed with the screen
+
+Angel asked a one-line question: *"does banco have a button to download the existing catalog with
+EAN and all the info to a CSV?"* The honest answer was **no**. Banco had three CSV exports — the
+Banana daily summary, the transactions list, the product-sales report — and every one of them is a
+report *about* selling. The only export that touched the catalog was the BL-131 worklist, which is
+deliberately the opposite of what he asked for: `_bench_gap_clause()` filters it to the rows that
+are still **unfinished**, capped at 2,000. Ask for "my catalog", get "the 500 rows still missing a
+photo". The nearest raw route was `GET /products` at `limit=100` — 54 paged calls and a script.
+
+That is a strange hole for a repo whose whole thesis is *"you can't clone SAP, you can clone this."*
+**A shop that cannot get its own product list out of the box does not own it.** Everything else — the
+compose file, the restore runbook, the go-live path — argues for ownership, and the one screen where
+an owner would reach for their data had no door. Worth noticing how it happened: every export that
+did exist was built for something a person asked for on a specific day (Felix's bookkeeping, Felix's
+receipts). Nobody asks for the exit until they want to use it.
+
+**Then the new endpoint made lesson #2 on its way out.**
+
+`?category=` filtered with `lower(category) = lower(:category)`. Exact, obvious, and it passed every
+check I wrote — because every check compared the export against *my own expectations of the export*.
+The catalog screen it sits on filters with `category ILIKE '%' || :category || '%'`. The two only
+diverge when one category name **contains** another, which this catalogue is full of ("Bongs" inside
+"Pipes & Bongs"): the operator picks a shelf, sees both on screen, and downloads one. A file that
+silently disagrees with the list you were staring at — and nothing in it looks wrong.
+
+The only thing that could catch it was asking **both** endpoints the same question and diffing the
+answers. `scripts/prove-catalog-export.py` now does exactly that: it pages `/search` to the end and
+compares SKU sets against the export, for a full category name *and for a fragment of one*. The
+fragment is the case that matters; it is the one that fails when a `=` quietly replaces an `ILIKE`.
+
+**What generalises:** *a filter is only correct relative to the filter the user thinks they are
+using.* When you add a second way to ask the same question, do not test it against your own
+expectations — test it against the first way, with an input chosen so a wrong predicate must differ.
+Self-consistent tests on a duplicated concept are the most confident kind of green there is.
+
+**A footnote on my own harness, which is lesson #1 wearing a lab coat.** The browser proof failed on
+its first run: `isVisible()` on a button whose `x-show="user.isManager"` depends on an async fetch.
+The button was fine; the *check* raced. I nearly went looking for a bug in working code. The fix is
+not a longer sleep — it is waiting on the real signal (`waitFor({state:'visible'})`), and, for the
+cashier case, waiting for **the cashier's own banner** before asserting the button is absent.
+Otherwise "the button is hidden" is true of a blank page, and passes for the worst possible reason.

@@ -9,7 +9,7 @@
 > [`worklist-archive/done.md`](worklist-archive/done.md) with its commit hashes; when a thread
 > grows a long write-up, the write-up goes to the archive and a one-line pointer stays here.
 
-*Last updated: 2026-08-23 (~01:00, end of the Saturday-night session).*
+*Last updated: 2026-08-24 (catalog CSV export added — see ⑤ in START HERE).*
 
 ---
 
@@ -36,6 +36,17 @@ Not a job for the end of a long day.
 
 **④ Luzern-only, whenever Angel is next at the shop:** the tablet's LTE — shop Wi-Fi route metric,
 signal where the till stands, and pulling the Fritzbox WAN cable mid-sale.
+
+**⑤ NEW, built 2026-08-24 — "Export catalog (CSV)", the shop can take its data home.** Angel
+asked whether Banco could download the catalog with EANs; it could not — every CSV was a *sales*
+report, and the only catalog export was the BL-131 worklist, which by design carries only the
+UNFINISHED rows, capped at 2,000. `GET /api/v1/pos/catalog/export.csv` (manager/admin) now streams
+the whole thing — 36 columns, EANs as text, BL-90 alias barcodes, no cap — with the button on the
+catalog top bar. Proved locally: `python3 scripts/prove-catalog-export.py` (18 checks, 1,100 rows,
+crosses the keyset seam twice) and `NODE_PATH=/home/angel/repos/helixnet/node_modules node
+scripts/prove-catalog-export-button.js` (12 checks, a real browser download). **Not deployed, and
+not yet run against the real 5,395-row catalogue** — the dev DB holds 8 active products, so the
+only thing local testing cannot speak to is scale. Run it on sandbox before it promotes.
 
 **Done tonight, no action needed:** all 5,395 catalogue images adopted (99.5%, ~57 min, 145 MB —
 Hetzner never needed more room); FourTwenty confirmed already live on prod and measured as

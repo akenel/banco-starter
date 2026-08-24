@@ -105,12 +105,16 @@ pattern below, bump the count here. A pattern at ×7 is telling you something a 
    while Banco **hid its own camera button on any touchscreen**, leaving the one machine that had
    just grown a camera with no path to it. *Ask where the person is STANDING when they need it —
    which building, and which screen.*
-2. **×5 · A downstream filter quietly discards the row the fix existed to find.** The dedup guard's
+2. **×6 · A downstream filter quietly discards the row the fix existed to find.** The dedup guard's
    same-size rule, the alias filters judging `products.name`, the category "boost" that was a sort
-   key above `score`; and on 2026-08-22 `eligible_subtotal` dropped two full-price papers because
-   pooling them had set `tier_final`, so a manager's discount silently skipped them. *When you add
-   a thing to match on, check every filter downstream still knows which one it is judging. A tier
-   is a filter with extra steps, and a flag is a filter you cannot see.*
+   key above `score`; on 2026-08-22 `eligible_subtotal` dropped two full-price papers because
+   pooling them had set `tier_final`, so a manager's discount silently skipped them; and on
+   2026-08-24 the new catalog export filtered `category` with `=` while the screen it sits on uses
+   `ILIKE '%x%'` — so picking "Bongs" showed "Pipes & Bongs" on screen and left it out of the file.
+   *When you add a thing to match on, check every filter downstream still knows which one it is
+   judging. A tier is a filter with extra steps, and a flag is a filter you cannot see. A SECOND
+   way to ask the same question must be tested against the FIRST, never against your own
+   expectations — pick the input where a wrong predicate has to differ.*
 3. **×4 · A remembered failure is a hypothesis with a timestamp on it.** The Brother driver that had
    been fixed upstream; the spec-parser note that was backwards for three days; the bfcache cart bug
    I predicted from a missing guard and Angel disproved in ten seconds; and the tablet camera written
@@ -162,5 +166,5 @@ pattern below, bump the count here. A pattern at ×7 is telling you something a 
 
 ---
 
-*Last updated: 2026-08-22*
+*Last updated: 2026-08-24*
 *"You can't clone SAP. You can clone this."*

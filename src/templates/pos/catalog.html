@@ -122,7 +122,17 @@
                     <p class="text-sm text-gray-600" data-i18n="catalog.subtitle">Manage products — edit, discontinue, add</p>
                 </div>
             </div>
-            <button x-show="user.isManager" @click="openCreate()" class="btn-primary">➕ <span data-i18n="catalog.new_product">New product</span></button>
+            <div class="flex items-center gap-2">
+                <!-- Take your catalog with you. The whole product list — every EAN, every price,
+                     every cost — as one CSV. Not a report ABOUT the catalog: the catalog itself.
+                     Manager-only, because the file carries cost (and therefore every margin). -->
+                <button x-show="user.isManager" @click="exportCatalogCSV()" class="btn-secondary" :disabled="exportingCsv"
+                        :title="(category ? 'Download the ' + category + ' shelf' : 'Download the whole catalog') + ' as a CSV'">
+                    <span x-show="!exportingCsv">📄 <span data-i18n="catalog.export_csv">Export catalog (CSV)</span></span>
+                    <span x-show="exportingCsv" style="display:none;" data-i18n="catalog.exporting_csv">Building…</span>
+                </button>
+                <button x-show="user.isManager" @click="openCreate()" class="btn-primary">➕ <span data-i18n="catalog.new_product">New product</span></button>
+            </div>
         </div>
     </div>
 
@@ -1270,6 +1280,7 @@
             _formSnapshot: null,   // form signature when the edit modal opened (unsaved-changes guard)
             detailProduct: null,   // product shown in the read-only preview modal
             showDiscontinued: false,
+            exportingCsv: false,   // full-catalog CSV download in flight
             priceCheck: [],          // [{p, warn}] — rows whose ladder cannot mean what it says
             priceCheckOpen: false,
             priceCheckLoaded: false, // so "clean" can be told apart from "never ran"
@@ -1477,6 +1488,39 @@
                     this.total = this.results.length;
                 } catch (e) { console.error(e); this.results = []; this.total = 0; this.ageTotal = 0; }
                 finally { this.loading = false; }
+            },
+
+            // Take your catalog with you — the ownership promise with a button on it.
+            // A plain <a href> can't carry the bearer token, so fetch the bytes with auth
+            // and hand the browser a blob (same trick as the worklist export in cleanup.html).
+            // The download follows what's ON SCREEN: the category filter narrows it, and the
+            // discontinued toggle decides whether dead rows come along — so the file can never
+            // quietly disagree with the list the operator is looking at.
+            async exportCatalogCSV() {
+                this.exportingCsv = true;
+                try {
+                    const qs = new URLSearchParams();
+                    if (this.category) qs.set('category', this.category);
+                    if (this.showDiscontinued) qs.set('include_inactive', 'true');
+                    const r = await fetch(`/api/v1/pos/catalog/export.csv?${qs}`, {
+                        headers: { 'Authorization': `Bearer ${AuthHelper.getToken()}` },
+                    });
+                    if (!r.ok) throw new Error(`Export failed (${r.status})`);
+                    const rows = r.headers.get('X-Banco-Row-Count') || '';
+                    const blob = await r.blob();
+                    const cd = r.headers.get('Content-Disposition') || '';
+                    const m = cd.match(/filename="([^"]+)"/);
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = m ? m[1] : 'banco-catalog.csv';
+                    document.body.appendChild(a); a.click(); a.remove();
+                    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+                    // Say HOW MANY rows left the building. "Downloaded ✓" over an empty file
+                    // looks identical to a working one until somebody opens it.
+                    showToast(t('catalog.csv_done').replace('{n}', rows), 'success');
+                } catch (e) {
+                    showToast(e.message || t('catalog.csv_failed'), 'error');
+                } finally { this.exportingCsv = false; }
             },
 
             _blankForm() {
