@@ -9035,7 +9035,11 @@ async def update_store_settings(
                        "cashier_max_discount", "manager_max_discount",
                        "loyalty_tier1_threshold", "loyalty_tier1_discount",
                        "loyalty_tier2_threshold", "loyalty_tier2_discount",
-                       "loyalty_tier3_threshold", "loyalty_tier3_discount")
+                       "loyalty_tier3_threshold", "loyalty_tier3_discount",
+                       # The join offer is a discount that costs the shop money and is claimable
+                       # by anyone off the street — signup is anonymous and unlimited. It belongs
+                       # with the other discount numbers: admin-only, sealed on the SERVER.
+                       "welcome_discount_kiosk_pct", "welcome_discount_phone_pct")
         _dropped = [f for f in _admin_only if f in update_data]
         for f in _dropped:
             update_data.pop(f, None)

@@ -607,6 +607,12 @@ class StoreSettingsBase(BaseModel):
     loyalty_tier2_discount: Decimal = Field(default=Decimal("15.0"), ge=0, le=100)
     loyalty_tier3_threshold: Decimal = Field(default=Decimal("5000.00"), ge=0)
     loyalty_tier3_discount: Decimal = Field(default=Decimal("25.0"), ge=0, le=100)
+    # Must be on the READ schema too, not only the update one. Without it the settings form loads
+    # them as `undefined`, the boxes render blank, and the next save of ANY unrelated setting
+    # posts a blank — which is one coercion away from silently switching the shop's offer off.
+    # Defaults mirror the DB migration (10 kiosk / 15 phone).
+    welcome_discount_kiosk_pct: int = Field(default=10, ge=0, le=100)
+    welcome_discount_phone_pct: int = Field(default=15, ge=0, le=100)
 
 
 class StoreSettingsCreate(StoreSettingsBase):
@@ -657,6 +663,13 @@ class StoreSettingsUpdate(BaseModel):
     loyalty_tier2_discount: Optional[Decimal] = Field(None, ge=0, le=100)
     loyalty_tier3_threshold: Optional[Decimal] = Field(None, ge=0)
     loyalty_tier3_discount: Optional[Decimal] = Field(None, ge=0, le=100)
+    # The join offer. The columns and the kiosk have read these since 2026-08-23, and the commit
+    # that added them said Felix could now set them himself — he could not: they were on no
+    # screen AND this schema silently dropped them, so the only way to change the number was
+    # SQL. Found by Angel at step D4, 2026-08-24. `ge=0` because ZERO IS A REAL ANSWER: it turns
+    # the offer off and the kiosk swaps to its points copy on its own.
+    welcome_discount_kiosk_pct: Optional[int] = Field(None, ge=0, le=100)
+    welcome_discount_phone_pct: Optional[int] = Field(None, ge=0, le=100)
     # 🌍-1 payments seam: which terminal the till drives. 'manual' = cashier confirms by hand
     # (default, no regression); 'worldline_sim' = the in-checkout simulated Worldline/TWINT terminal
     # (sandbox demo). Real 'worldline'/'sumup' adapters land with M2. Admin-only in the endpoint.
