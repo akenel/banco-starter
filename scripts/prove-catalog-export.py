@@ -97,7 +97,15 @@ def main():
             body.update({"cost": 3.25})          # the ONLY seeded row with a cost
         r = mgr.post(f"{BASE}/products", params={"allow_duplicate": "true"}, json=body)
         if r.status_code not in (200, 201):
+            # Clean up before dying. A bare sys.exit() here left two live probe rows in the
+            # catalogue — one of them named `=SUM(A1:A9) "Big" Grinder; 50mm` — and they were
+            # still sitting in the product list two runs later, showing up in an export I was
+            # reading as if it were real data. A test that FAILS is fine; a test that fails and
+            # leaves its litter in the shop's catalogue is not.
             print(f"  seed {sku} -> {r.status_code} {r.text[:200]}")
+            print(f"  🧹 removing the {len(made)} row(s) already seeded …")
+            for _, pid in made:
+                mgr.delete(f"{BASE}/products/{pid}")
             sys.exit(1)
         made.append((sku, r.json()["id"]))
     print(f"  seeded {len(made)}")
