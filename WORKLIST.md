@@ -9,81 +9,73 @@
 > [`worklist-archive/done.md`](worklist-archive/done.md) with its commit hashes; when a thread
 > grows a long write-up, the write-up goes to the archive and a one-line pointer stays here.
 
-*Last updated: 2026-08-24 (UAT ran on prod — see ⑥ in START HERE).*
+*Last updated: 2026-08-24, 14:30 (four fixes shipped; retest sheet ready to run).*
 
 ---
 
-## ▶️ START HERE — the state at 01:00 on Sun 2026-08-23
+## ▶️ START HERE — the state at 14:30 on Mon 2026-08-24
 
 **Everything below this block is context. These are the live threads, in order.**
 
-**① The member card is BUILT and NOT DEPLOYED.** Local only, four commits. Counter card → public
-signup → assigned `ART-AB12` → QR on the phone → scanned *or spoken* at the till → credits on the
-sale. **Before it promotes, in this order:**
-1. `BANCO_ALLOW_FAKE_SALES=1 NODE_PATH=/home/angel/repos/helixnet/node_modules node scripts/prove-till-18plus.js`
-2. **A human on the checkout screen.** Every claim that the 18+ stop *appears* is read from code —
-   the browser extension was not connected. LESSONS #7: that is a guess with citations.
-3. Then deploy, then mint `qr_code` for the 18 live members (0 have one, so no card exists yet).
+**PROD IS AT `02dd90b` / build `b453`.** Everything below shipped and was verified on the running
+shop today. The member card and the catalogue export are **deployed and human-green** — the notes
+that said otherwise were true on Sunday and are gone.
 
-**② Two things are waiting on Angel, not on code:**
-- **The T&C wording.** Deliberately not written — a page telling a customer what they agree to
-  should not be invented by the copilot. Sketch is in the member-card section below.
-- **Whether Felix runs the join offer at all.** Now a store setting; both answers work.
+**① NEXT SESSION, FIRST THING: run the retest sheet.**
+[`onboarding/testsheets/2026-08-24-retest-four-fixes.html`](onboarding/testsheets/2026-08-24-retest-four-fixes.html)
+— 18 steps, ~20 min, covering the four things fixed today. **§B is the one that matters**: it is
+the only bug this week that was hurting a real till with real customers, and B4 walks the half
+Angel did not report (clearing left the MEMBER attached, so the next customer inherited the last
+one's card, discount and age answer).
 
-**③ `enrich-from-source.py --apply`** — dry run was clean (40 fetched, 0 failed). ~510 new price
+**② What shipped today, in order — all deployed, all proved in a browser:**
+| | | |
+|---|---|---|
+| `1f379d5` | **Catalogue CSV export** | 36 columns, no cap, EANs as text. `GET /catalog/export.csv`, button on the catalog top bar |
+| `85154c0` | **Kiosk refused a blank username** | server + schema + 8 unit tests all correct; only the page wrong |
+| `128cce4` | **Join offer is a settings field** | was missing on THREE layers, not one. Admin-only |
+| `571c94c` | **Deactivated members stay gone** | a missing WHERE, not a cache. Also closed E2 |
+| `ed20cfa` | **Clear cart** | left the cart in sessionStorage, which the page restored from |
+| `02dd90b` | the retest sheet | |
+
+New proofs, all runnable: `prove-catalog-export.py`, `prove-catalog-export-button.js`,
+`prove-kiosk-blank-username.js`, `prove-join-offer.js`, `prove-clear-cart.js`.
+
+**③ CLOSED TODAY, human-green — do not re-open:**
+- The **18+ stop** was witnessed firing on a real till (UAT C3) and refusing a known minor (C5).
+  That is what the member card had been held back for since 22 Aug. It is done.
+- The **join offer is 0/0 on prod**, set by Angel through the Settings screen (not SQL — which is
+  what proves the new control is real). Verified live: the kiosk serves 0% on both paths and reads
+  "collect points" in DE/FR/IT/EN. The re-mint exploit is closed.
+- **First honest count of the minted-EAN damage**, from the export's own column:
+  **4,983 invented · 433 real · 6 with none at all** (of 5,422 active).
+
+**④ Still open, in order:**
+1. ⬜ **Credits are earned and cannot be spent.** Every sale writes `credits_balance` + a
+   `CreditTransactionModel` row, but there is **no redemption path at checkout**. The kiosk now
+   invites people to collect points nothing can redeem. A promise on a customer-facing screen with
+   nothing behind it — the biggest open item here.
+2. ⬜ **B1, one glance:** Angel marked the export toast ISSUE twice; every counter on screen said
+   5422 and what the TOAST said is still unknown. §E of the retest sheet asks for the exact number.
+3. ⬜ **B3 wart:** barcodes export as `'7610…` — Excel eats the apostrophe, LibreOffice shows it.
+   No fix is clean in both. An **.xlsx** export would sidestep it entirely (the openpyxl machinery
+   already exists for the BL-131 worklist). Angel's call.
+4. ⬜ **Sibling of the kiosk fix, not done:** `customer_lookup.html:566` + `CustomerCreate` still
+   demand a handle, so a cashier cannot create an anonymous member at the till the way the kiosk
+   can. Same "invent a name at a counter with a queue" problem the ART code exists to kill.
+
+**⑤ Waiting on Angel, not on code:** the **T&C wording** — a page telling a customer what they
+agree to should not be invented by the copilot. Sketch is in the member-card section below.
+
+**⑥ `enrich-from-source.py --apply`** — dry run clean (40 fetched, 0 failed). ~510 new price
 ladders on a live till, so **run `GET /catalog/price-check` over the catalogue straight after.**
 Not a job for the end of a long day.
 
-**④ Luzern-only, whenever Angel is next at the shop:** the tablet's LTE — shop Wi-Fi route metric,
+**⑦ Luzern-only, whenever Angel is next at the shop:** the tablet's LTE — shop Wi-Fi route metric,
 signal where the till stands, and pulling the Fritzbox WAN cable mid-sale.
 
-**⑤ NEW, built 2026-08-24 — "Export catalog (CSV)", the shop can take its data home.** Angel
-asked whether Banco could download the catalog with EANs; it could not — every CSV was a *sales*
-report, and the only catalog export was the BL-131 worklist, which by design carries only the
-UNFINISHED rows, capped at 2,000. `GET /api/v1/pos/catalog/export.csv` (manager/admin) now streams
-the whole thing — 36 columns, EANs as text, BL-90 alias barcodes, no cap — with the button on the
-catalog top bar. Proved locally: `python3 scripts/prove-catalog-export.py` (18 checks, 1,100 rows,
-crosses the keyset seam twice) and `NODE_PATH=/home/angel/repos/helixnet/node_modules node
-scripts/prove-catalog-export-button.js` (12 checks, a real browser download). **Not deployed, and
-not yet run against the real 5,395-row catalogue** — the dev DB holds 8 active products, so the
-only thing local testing cannot speak to is scale. Run it on sandbox before it promotes.
-
-**⑥ UAT RAN 2026-08-24 — 20 pass, 2 issue, 0 fail, "GO WITH ISSUES".** Sheet:
-[`onboarding/testsheets/2026-08-24-catalog-export-and-member-card.html`](onboarding/testsheets/2026-08-24-catalog-export-and-member-card.html).
-The catalogue export is **human-green on the real 5,422-row catalogue** — and B4 gave the first
-honest count of the minted-EAN damage: **4,983 invented, 433 real, 6 with none at all.**
-The 18+ stop was witnessed firing (C3) and refusing a known minor (C5), which is what the member
-card was held back for since 22 Aug. Fixed same day and deployed: **C1** (the kiosk refused a
-BLANK username — server, schema and 8 unit tests all correct, only the page wrong: `85154c0`) and
-**D3/D4** (the join offer is now a settings field, admin-only: `128cce4`).
-
-**Two things still open, in order:**
-1. ⬜ **ANGEL: set the join offer to 0/0.** Settings → 🎁 New-member join offer, both boxes → 0 →
-   Save. Prod still serves 15% phone / 10% kiosk. This is Angel's D3 decision — signup is
-   anonymous and unlimited, so a welcome % is a coupon a customer re-mints every visit. Doing it
-   on the screen (not by SQL) also closes D4 human-green.
-2. ⬜ **Credits are earned and cannot be spent.** Every sale writes `credits_balance` and a
-   `CreditTransactionModel` row, but there is **no redemption path at checkout** — only a
-   docstring mention. So the kiosk invites people to collect points nothing can yet redeem.
-   Found 2026-08-24 while choosing the word "points" over "credit". Not urgent, but it is a
-   promise on a customer-facing screen with nothing behind it.
-
-**Smaller, from the same run:**
-- ⬜ **E2:** deactivating a member returns to the list and the row still looks live until a manual
-  refresh — "could be a little confusing" (Angel). Stale list, cosmetic.
-- ⬜ **B1 (unresolved):** Angel marked the export toast ISSUE; every counter on screen said 5422
-  and it is not yet known what the toast itself showed. Needs one look.
-- ⬜ **B3 wart:** barcodes export as `'7610…` and LibreOffice shows the apostrophe literally
-  (Excel eats it). No fix is clean in both; an .xlsx export would sidestep it entirely.
-- ⬜ **Sibling of C1, not fixed:** `customer_lookup.html:566` + `CustomerCreate` still demand a
-  handle, so a cashier cannot create an anonymous member at the till the way the kiosk can.
-
-**Done tonight, no action needed:** all 5,395 catalogue images adopted (99.5%, ~57 min, 145 MB —
-Hetzner never needed more room); FourTwenty confirmed already live on prod and measured as
-*unable* to bulk-fix the minted EANs; the gun's inventory dump closed; docs corrected to Netum.
-
-> ⚠️ **This file is 993 lines against its own 150-line rule.** A 20-minute archive pass is
-> overdue — the ✅ sections from 08-14 through 08-22 belong in `worklist-archive/done.md`.
+> ⚠️ **This file is >1,000 lines against its own 150-line rule.** The archive pass is now well
+> overdue — the ✅ sections from 08-14 through 08-23 belong in `worklist-archive/done.md`.
 
 ---
 

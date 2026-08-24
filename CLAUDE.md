@@ -163,6 +163,15 @@ pattern below, bump the count here. A pattern at ×7 is telling you something a 
     what genuinely blocks a promote; log the rest and move on.
 12. **A validation nobody can see is a silent failure, and a green summary over an unchecked box is
     a lie.** Put the outcome where the button is, and never demand words a dropdown already said.
+13. **×3 · The server is right, the tests are green, and the STORED COPY the screen renders from is
+    wrong.** On 2026-08-24 in one afternoon: the kiosk refused a blank username the server accepts;
+    `/customers/new-today` kept deactivated members because it filtered `created_at` and not
+    `is_active`; and Clear cart emptied `this.cart` while leaving `pos_cart` in sessionStorage,
+    which the page restores from on every load — so the cart came back and clearing twice could not
+    help. Not logic errors; *synchronisation* errors between a truth and its cached shadow, and the
+    shadow always wins because the shadow is what renders. *State written in one place and read in
+    another needs an owner: ask of every reset/clear/cancel — what did this write, and does this
+    delete ALL of it?* A clear that clears one key of three is not a clear.
 
 ---
 

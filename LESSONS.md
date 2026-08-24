@@ -426,3 +426,50 @@ The button was fine; the *check* raced. I nearly went looking for a bug in worki
 not a longer sleep — it is waiting on the real signal (`waitFor({state:'visible'})`), and, for the
 cashier case, waiting for **the cashier's own banner** before asserting the button is absent.
 Otherwise "the button is hidden" is true of a blank page, and passes for the worst possible reason.
+
+
+## 2026-08-24, afternoon — three bugs, one shape: the server was right and the stored copy was wrong
+
+A UAT on the live shop found four things. Three of them are the same bug wearing different clothes,
+and I did not see it until the third one.
+
+**The kiosk refused a blank username.** `submitSignup()` tested the handle against a 3–30 pattern
+with no blank check. The server assigned `ART-AB12` on a blank handle, the schema had been changed
+from `str` to `Optional[str]` for exactly this, and eight unit tests covered it. All green. The
+comment sitting directly above the input read *"EVERY FIELD HERE IS OPTIONAL, AND THE FIRST ONE
+USED TO BE COMPULSORY"* — true of the markup, false of the code seven hundred lines below it.
+
+**Deactivated members would not go away.** `/customers/new-today` asked for everyone created today
+and never asked whether they were still active. Angel's words were *"something is still cached"* —
+and that is the interesting part. It read as caching **because every other screen already filtered
+them**: the members list, the search, the till's card scan. When one screen out of four is wrong,
+it does not look wrong. It looks stale.
+
+**Clear cart did not clear the cart.** `confirmClearCart()` emptied `this.cart` and dropped the
+idempotency key but never `pos_cart` — and the scan page restores the cart from `pos_cart` on every
+load. So clearing worked on screen, the stale copy stayed in session storage, and the next
+navigation resurrected it. Angel cleared twice; it could never have helped, because clearing had
+never once touched the thing it was being restored from. Unchanged since the first commit — it needs
+a trip to Checkout first, so a year of ordinary selling never produced the sequence.
+
+**The shape.** In all three, the server was correct, the in-memory state was correct, the tests were
+green, and **a stored copy on the layer the customer stands on was wrong**. Not a logic error —
+a *synchronisation* error between a truth and its cached shadow. And the shadow always wins, because
+the shadow is what renders.
+
+**What generalises: state that is written in one place and read in another needs an owner, and every
+mutation has to name every copy.** A clear that clears one of three keys is not a clear. Ask, of any
+"reset", "clear" or "cancel": *what did this write, and does this delete all of it?*
+
+**The half nobody reported, which is the real lesson about scope.** Fixing the cart, I checked what
+else a sale leaves in session storage. `checkout_customer` — the member AND their age answer — was
+also never dropped. So "start fresh" kept the last customer's card attached to the NEXT person's
+sale: their discount, and their `is_of_age`, applied to somebody the cashier never looked at. That
+is precisely the hole closed on 22 August, walking back in through a different door, and **it was
+found by asking what else lives beside the thing that broke** rather than by fixing what was
+reported. Standing rule 6, paying for itself in one line.
+
+**And a caution against the same instinct.** Rule 6 also had me announce, mid-investigation, that
+the till's member scan was unguarded — I had read the two `select(CustomerModel)` lines and not the
+six below them, where an explicit `if not customer.is_active` returns *"Customer account is
+inactive"*. There was never a hole. *Check the siblings, yes. Finish reading before you report one.*
