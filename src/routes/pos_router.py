@@ -12181,9 +12181,15 @@ async def customers_new_today(
     from datetime import timezone as _tz
     from src.db.models.customer_model import CustomerModel
     start = datetime.now(_tz.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    # DEACTIVATED MEMBERS ARE NOT NEW MEMBERS. This filtered on `created_at` alone, so a member
+    # deactivated minutes after signing up kept sitting in "🎉 N new members today" until
+    # midnight — and because everything else in the app hides them (customer_router's list and
+    # search both filter is_active, and the till's card scan refuses them outright), the ONE
+    # screen still showing them read like a caching bug rather than a missing WHERE.
+    # Angel, 2026-08-24: "it simply should not show de-activated customers." Quite.
     rows = (await db.execute(
         select(CustomerModel)
-        .where(CustomerModel.created_at >= start)
+        .where(CustomerModel.created_at >= start, CustomerModel.is_active == True)  # noqa: E712
         .order_by(CustomerModel.created_at.desc())
         .limit(100)
     )).scalars().all()

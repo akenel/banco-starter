@@ -664,10 +664,19 @@
             async deactivateMember() {
                 if (!this.customer) return;
                 if (!confirm(t('customer.confirm_deactivate', { name: this.customer.handle }))) return;
+                const id = this.customer.id;      // captured before the card is cleared below
                 try {
                     await API.delete('/api/v1/customers/' + this.customer.id);
                     this.showEditForm = false;
                     this.customer = null;        // drop the detail card
+                    // AND DROP THEM FROM THE LIST BEHIND IT. Closing the card left the pick-list
+                    // untouched, so the member you had just deactivated was still sitting there
+                    // looking live until you hand-refreshed the page — Angel, UAT step E2:
+                    // "it looks the same until you do a refresh and then its off the list —
+                    // could be a little confusing." The search already hides inactive members
+                    // (customer_router filters is_active); it simply was never re-run.
+                    this.matches = this.matches.filter(m => m.id !== id);
+                    if (this.searchQuery) await this.searchCustomer();
                     showToast(t('customer.deactivated'), 'success');
                 } catch (e) {
                     showToast(e.message || t('customer.save_failed'), 'error');
