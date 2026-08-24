@@ -9,7 +9,7 @@
 > [`worklist-archive/done.md`](worklist-archive/done.md) with its commit hashes; when a thread
 > grows a long write-up, the write-up goes to the archive and a one-line pointer stays here.
 
-*Last updated: 2026-08-24 (catalog CSV export added — see ⑤ in START HERE).*
+*Last updated: 2026-08-24 (UAT ran on prod — see ⑥ in START HERE).*
 
 ---
 
@@ -47,6 +47,36 @@ crosses the keyset seam twice) and `NODE_PATH=/home/angel/repos/helixnet/node_mo
 scripts/prove-catalog-export-button.js` (12 checks, a real browser download). **Not deployed, and
 not yet run against the real 5,395-row catalogue** — the dev DB holds 8 active products, so the
 only thing local testing cannot speak to is scale. Run it on sandbox before it promotes.
+
+**⑥ UAT RAN 2026-08-24 — 20 pass, 2 issue, 0 fail, "GO WITH ISSUES".** Sheet:
+[`onboarding/testsheets/2026-08-24-catalog-export-and-member-card.html`](onboarding/testsheets/2026-08-24-catalog-export-and-member-card.html).
+The catalogue export is **human-green on the real 5,422-row catalogue** — and B4 gave the first
+honest count of the minted-EAN damage: **4,983 invented, 433 real, 6 with none at all.**
+The 18+ stop was witnessed firing (C3) and refusing a known minor (C5), which is what the member
+card was held back for since 22 Aug. Fixed same day and deployed: **C1** (the kiosk refused a
+BLANK username — server, schema and 8 unit tests all correct, only the page wrong: `85154c0`) and
+**D3/D4** (the join offer is now a settings field, admin-only: `128cce4`).
+
+**Two things still open, in order:**
+1. ⬜ **ANGEL: set the join offer to 0/0.** Settings → 🎁 New-member join offer, both boxes → 0 →
+   Save. Prod still serves 15% phone / 10% kiosk. This is Angel's D3 decision — signup is
+   anonymous and unlimited, so a welcome % is a coupon a customer re-mints every visit. Doing it
+   on the screen (not by SQL) also closes D4 human-green.
+2. ⬜ **Credits are earned and cannot be spent.** Every sale writes `credits_balance` and a
+   `CreditTransactionModel` row, but there is **no redemption path at checkout** — only a
+   docstring mention. So the kiosk invites people to collect points nothing can yet redeem.
+   Found 2026-08-24 while choosing the word "points" over "credit". Not urgent, but it is a
+   promise on a customer-facing screen with nothing behind it.
+
+**Smaller, from the same run:**
+- ⬜ **E2:** deactivating a member returns to the list and the row still looks live until a manual
+  refresh — "could be a little confusing" (Angel). Stale list, cosmetic.
+- ⬜ **B1 (unresolved):** Angel marked the export toast ISSUE; every counter on screen said 5422
+  and it is not yet known what the toast itself showed. Needs one look.
+- ⬜ **B3 wart:** barcodes export as `'7610…` and LibreOffice shows the apostrophe literally
+  (Excel eats it). No fix is clean in both; an .xlsx export would sidestep it entirely.
+- ⬜ **Sibling of C1, not fixed:** `customer_lookup.html:566` + `CustomerCreate` still demand a
+  handle, so a cashier cannot create an anonymous member at the till the way the kiosk can.
 
 **Done tonight, no action needed:** all 5,395 catalogue images adopted (99.5%, ~57 min, 145 MB —
 Hetzner never needed more room); FourTwenty confirmed already live on prod and measured as
