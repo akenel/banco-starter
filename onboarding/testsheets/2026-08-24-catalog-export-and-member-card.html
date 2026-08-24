@@ -12,13 +12,13 @@
                  load-bearing ones) · codes[] (tap to copy) · link {href,text}
    ═══════════════════════════════════════════════════════════════════════════════════════ */
 const SHEET = {
-  key:      'banco-uat-2026-08-24-export-and-member-v1',
+  key:      'banco-uat-2026-08-24-export-and-member-v2',
   eyebrow:  'Banco POS · UAT · prod',
   title:    'Your catalogue, and the card that stopped waving people past the counter',
   standfirst: 'One deploy, two unrelated things, and only one of them is why it exists. The <b>catalogue export</b> is new: until today Banco could not hand a shop its own product list, which is a strange hole in a system whose whole argument is that you own it. Riding along is the <b>member card</b> — built on 22 Aug, never deployed, and gated on exactly this: a human standing at the checkout screen. It closed a hole where a tick-box on a public form suppressed the 18+ stop, so a member got <i>less</i> scrutiny than a walk-in. Every claim about that stop appearing is currently read from code, which LESSONS #7 calls a guess with citations. A GO means the file is honest and the stop is real.',
   meta: [['Shop','banco.wolfhold.app','https://banco.wolfhold.app/pos'],
          ['Log in as','manager — plus one cashier check in §B'],
-         ['Build','3f2848a'], ['Deployed','24 Aug 2026'], ['Budget','~25 min']],
+         ['Build','db95b51 or later'], ['Deployed','24 Aug 2026'], ['Budget','~25 min']],
   safety: { title: 'Never press Checkout.',
             body: 'Every basket on this sheet ends with 🗑️ <b>Clear</b>. A completed transaction is a line in the Kassenbuch and cannot be taken back out — and a completed sale also BURNS a member’s welcome discount, which you cannot un-burn.' },
 
@@ -43,8 +43,8 @@ const SHEET = {
         why: 'This is the whole point of the deploy — every other CSV Banco has ever made is a report about SELLING; this is the catalogue itself. Read the number in the toast and compare it to the PRODUCTS tile on the same screen: they must match. A silent "✓" over an empty file looks exactly like a working one, which is why the count is in the toast at all.' },
       { id: 'B2',
         do: 'Open the file by <b>double-clicking</b> it — do not use an import wizard.',
-        expect: 'It opens straight into columns. German and Italian names read correctly: <b>Blüten</b>, not <b>BlÃ¼ten</b>',
-        why: 'Excel guesses the encoding unless the file tells it. The file starts with a UTF-8 byte-order mark and uses semicolons, which is the Swiss/European convention your bank statements use — that combination is what makes a double-click work instead of a fifteen-step wizard.' },
+        expect: 'German and Italian names read correctly — <b>Blüten</b>, not <b>BlÃ¼ten</b>. In <b>LibreOffice you will get the Text Import dialog</b>; that is normal, just check it says UTF-8 and Semicolon and press OK',
+        why: 'Corrected after the first run, 24 Aug: this step used to claim the file "opens straight into columns", which is true of Excel and NOT of LibreOffice — LibreOffice shows its import dialog for every .csv it ever opens, no matter how well-formed. The UTF-8 byte-order mark and the semicolons are what make that dialog come up already set correctly instead of mangling the umlauts. Angel marked this PASS with a note; the note was right and the step was wrong.' },
       { id: 'B3',
         do: 'Look at column <b>B (barcode)</b> on a row that has one.',
         expect: 'The full <b>13 digits</b>, e.g. 7610000123456 — <b>not</b> 7.61E+12',

@@ -817,7 +817,17 @@
       async submitSignup(){
         this.signupErr = '';
         const f = this.form;
-        if (!/^[A-Za-z0-9_.\-]{3,30}$/.test((f.handle || '').trim())) { this.signupErr = this.m('errUser'); return; }
+        // BLANK IS THE POINT — validate the handle only when they actually typed one.
+        //
+        // This line read `if (!/…{3,30}/.test(handle)) return` with no blank check, so an empty
+        // box failed the pattern and the form refused to submit. The SERVER had already been
+        // fixed to assign ART-AB12 on a blank handle, the schema had been fixed to accept it,
+        // and 8 unit tests covered it — and the customer standing at the counter still got
+        // "3–30 letters", because the only layer nobody re-read was the one they were looking at.
+        // CLAUDE.md pattern 1: green on every layer you can reach, and on NO screen.
+        // Found by Angel on the shop's own phone, 2026-08-24, step C1.
+        const typed = (f.handle || '').trim();
+        if (typed && !/^[A-Za-z0-9_.\-]{3,30}$/.test(typed)) { this.signupErr = this.m('errUser'); return; }
         if (!f.age) { this.signupErr = this.m('errAge'); return; }
         if (this._busy) return;
         this._busy = true;
@@ -827,7 +837,7 @@
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              handle: f.handle.trim(),
+              handle: typed || null,
               real_name: (f.real_name || '').trim(),
               email: (f.email || '').trim(),
               phone: (f.phone || '').trim(),
