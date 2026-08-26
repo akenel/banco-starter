@@ -40,13 +40,17 @@ When Angel says **OPEN SHOP** after a reboot, compaction, or fresh start, it mea
 
 *Full text in `STANDING-RULES.md` — these are the non-negotiables.*
 
-1. **Write to files, not chat.** If it matters and it's only in chat, it didn't happen.
+1. **Write to files, not chat.** If it matters and it's only in chat, it didn't happen — and it goes in the file that actually gets read, updated in the same commit.
 2. **Execute, don't note.** If it can be done this turn, do it this turn.
 3. **Read before edit.** Never modify or overwrite a file not looked at this session.
-4. **Prove, don't assume.** "Fixed" is a claim until the output is verified. Re-probe after every restart.
-5. **Human-green beats machine-green.** Tests passing ≠ done. A human confirming it works is done.
-6. **When you find one problem, check for the pattern.** One bad endpoint → check its siblings.
-7. **Own the mistake, don't say "good enough."** Name it plainly and fix it, or say honestly it isn't done.
+4. **Prove, don't assume.** "Fixed" is a claim until the output is verified. Re-probe after every restart — and reproduce a bug the way a shop owner hits it before fixing it.
+5. **Human-green beats machine-green.** Tests passing ≠ done. A human confirming it works is done. Keep the proof with the change.
+6. **Steer, I row.** Angel owns direction; the copilot owns execution.
+7. **One driver per tree.** Never two copilots in one working directory. Parallel work gets its own checkout and its own worklist.
+8. **Own the mistake.** "My input was wrong" beats "the tool can't handle it."
+9. **When you find one problem, check for the pattern.** One bad endpoint → check its siblings.
+10. **Don't say "good enough."** Do it right, or say honestly that it isn't done.
+11. **Price the work like a machine.** "Overkill for now" is a trained-in bias, not a judgment — ask what it would choose if the build were nearly free.
 
 ---
 
@@ -82,7 +86,7 @@ banco-starter/
 ## HOW WE WORK (the operating loop)
 
 1. **Steer, don't paste.** Point at the thing; the copilot fetches and reads it.
-2. **One driver.** One session steers at a time. Orchestrate; don't juggle terminals.
+2. **One driver per tree.** Never two copilots in one working directory — separate checkouts, separate worklists, or sequential.
 3. **Cadence.** Trunk-based on `main`, small honest commits (see the conventional-commit log).
 4. **Human-green, not machine-green.** For anything a shop owner will touch, a human confirms it.
 
