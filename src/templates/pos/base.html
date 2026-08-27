@@ -1463,7 +1463,10 @@
             };
 
             const toast = document.createElement('div');
-            toast.className = `fixed top-4 right-4 ${colors[type]} text-white px-6 py-4 rounded-lg shadow-lg z-50 transform transition-all duration-300`;
+            // max-w so a long message wraps into a readable block instead of stretching the
+            // full width of the screen, and z-[60] so it is never painted under a modal or the
+            // sticky header. 2026-08-27: a correct, well-worded refusal was invisible in practice.
+            toast.className = `fixed top-4 right-4 max-w-md ${colors[type]} text-white px-6 py-4 rounded-lg shadow-lg z-[60] transform transition-all duration-300`;
             toast.textContent = message;
             toast.style.transform = 'translateX(400px)';
 
