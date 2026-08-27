@@ -43,6 +43,11 @@
                    margin:.5mm 0 .3mm; white-space:nowrap; }
   .label.s .human{ font-size:2.2mm; font-family:monospace; color:#333; letter-spacing:.04em;
                    white-space:nowrap; overflow:hidden; }
+  /* A shop SKU is far longer than an EAN-13 (SKU-1787824909875 is 17 chars against 13) and
+     the line above clips silently — Angel printed three and the code ran off the sticker.
+     Shrink rather than clip: an unreadable code is the same as no code, and this line is the
+     fallback for when the scan fails, which is exactly when it gets read by eye. */
+  .label.s .human.long{ font-size:1.85mm; letter-spacing:0; }
 
   /* ---- MEDIUM (shelf-talker) — 62mm ---- */
   .label.m{ width:62mm; margin:0 auto; background:#fff; padding:3mm 3mm 2mm; box-shadow:0 2px 8px rgba(0,0,0,.15);
@@ -94,7 +99,7 @@
     <div class="txt">
       <div class="pname">{{ name }}</div>
       {% if price %}<div class="price">{{ currency }} {{ price }}</div>{% endif %}
-      <div class="human">{{ sku }}</div>
+      <div class="human {{ 'long' if code|length > 13 else '' }}">{{ code }}</div>
     </div>
   </div>
   {% else %}
@@ -104,8 +109,11 @@
     {% if store_name %}<div class="store">{{ store_name }}</div>{% endif %}
     <div class="pname">{{ name }}</div>
     {% if price %}<div class="price">{{ currency }} {{ price }}</div>{% endif %}
-    {% if barcode %}<svg class="code" id="bc"></svg>{% else %}<div class="nocode">— no barcode —</div>{% endif %}
-    <div class="human">{{ sku }}</div>
+    {% if code %}<svg class="code" id="bc"></svg>{% else %}<div class="nocode">— no code —</div>{% endif %}
+    {# The code is what the gun reads; the SKU is what a person looks up. On a 62mm
+       shelf-talker there is room for both, and they are only the same string when the
+       product has no manufacturer EAN. #}
+    <div class="human">{{ code }}{% if sku and sku != code %} <span style="color:#888">· {{ sku }}</span>{% endif %}</div>
   </div>
   {% endif %}
 
@@ -114,7 +122,10 @@
       // SMALL renders a server-side QR <img>; only MEDIUM uses JsBarcode.
       var small = {{ 'true' if size=='s' else 'false' }};
       if (small) return;
-      var code = {{ barcode | tojson }};
+      // The SHOP'S code, not just the EAN: a quick-added product has no manufacturer
+      // barcode, and CODE128 carries its SKU perfectly well. Blank here used to mean a
+      // shelf-talker with no code on it at all.
+      var code = {{ code | tojson }};
       if (!code) return;
       var isEan13 = /^\d{13}$/.test(code);
       var opts = { format: isEan13 ? "EAN13" : "CODE128", displayValue: true,

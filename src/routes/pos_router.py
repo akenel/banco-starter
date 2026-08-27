@@ -2135,6 +2135,20 @@ async def _find_product_by_any_barcode(db: AsyncSession, barcode: str) -> Option
     if product:
         return product
 
+    # THE SHOP'S OWN CODE. A product with no manufacturer EAN still needs to scan, and the
+    # label we print for it carries its SKU (see `product_label.html` — the QR falls back to
+    # `barcode or sku`). Until this fallback existed the label was a trap: the gun read it
+    # perfectly and the till said "not found", because nothing here ever looked at the SKU.
+    # Seen 2026-08-27 on three Crank pipes quick-added at the counter.
+    #
+    # No collision risk: every SKU in this catalogue carries letters (TAM-, ITEM-, SKU-,
+    # TREAT-) and every EAN is digits only, so a real barcode can never land here by accident.
+    # Deliberately AFTER the barcode paths — a manufacturer code always wins.
+    result = await db.execute(select(ProductModel).where(ProductModel.sku == barcode))
+    product = result.scalar_one_or_none()
+    if product:
+        return product
+
     # LAST RESORT: the gun may be set to the wrong keyboard layout.
     # A scanner is just a keyboard — it presses the KEY that yields a character
     # on ITS configured layout, and the OS reads that key through the layout
@@ -2162,6 +2176,14 @@ async def _find_product_by_any_barcode(db: AsyncSession, barcode: str) -> Option
         product = result.scalar_one_or_none()
         if product:
             logger.warning("alias barcode %r matched only after keyboard-layout correction to %r",
+                           barcode, candidate)
+            return product
+        # And the SKU — this is the case the layout bug was ORIGINALLY found on (TAM-21796 read
+        # as TAM'21796), so the shop's own codes are exactly what needs the correction most.
+        result = await db.execute(select(ProductModel).where(ProductModel.sku == candidate))
+        product = result.scalar_one_or_none()
+        if product:
+            logger.warning("SKU %r matched only after keyboard-layout correction to %r",
                            barcode, candidate)
             return product
     return None
@@ -11797,6 +11819,11 @@ async def product_label(
         "price": f"{float(product.price):.2f}" if product.price is not None else None,
         "currency": await _store_currency(db),
         "barcode": product.barcode or "",
+        # THE CODE THIS LABEL ACTUALLY CARRIES. A product with no manufacturer EAN still gets a
+        # scannable label — it falls back to the shop's own SKU, which the till now resolves
+        # (`_find_product_by_any_barcode`). One value, used by the QR, the CODE128 and the
+        # human-readable line, so a sticker can never show one code and encode another.
+        "code": product.barcode or product.sku or "",
         "qr": _qr_data_uri(product.barcode or product.sku or "",
                            getattr(settings, "receipt_logo_url", None)),
         "sku": product.sku or "",
