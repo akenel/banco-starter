@@ -107,3 +107,51 @@ only path that should be used:
 Feed it from the article-number join, not from a name match. Spot-check a random 20 against the
 physical packets before running the rest — **verification against reality finds a class of error
 that verification against the database cannot** (LESSON #8).
+
+---
+
+## Before you ask: find out whether the data has ever existed
+
+At Artemis the 4,971 rows did not come from the distributor directly — `source_url` on every
+one of them points at **the shop's own webshop** (`artemisluzern.ch`), which was itself built
+from the distributor's catalogue. So there are three places the EANs could already be, and two
+of them cost nothing to check:
+
+1. **The shop's own e-commerce platform.** Many carry a GTIN field, because Google Shopping
+   requires one. Checked 2026-08-27: the public product pages publish **no** JSON-LD, no
+   `gtin13`, no SKU markup — so the platform is not feeding Google Shopping with GTINs and
+   almost certainly does not hold them.
+2. **The import file itself.** If it had carried barcodes, nothing would have needed to mint
+   `2000000…` codes. The minting IS the evidence that the channel never carried EANs.
+3. **The distributor's ERP.** The only remaining source — and the one worth an email.
+
+That first pass matters because it tells you what you are actually asking for. If the shop's
+own systems have never seen an EAN, the distributor's answer may be "we don't hold those
+either" — and that is the real risk, not the price.
+
+## What it will and will not cost
+
+**Almost certainly not money.** An EAN is a GS1 identifier belonging to the *manufacturer* —
+Black Leaf, Gizeh, Elf Bar, BioBizz — printed publicly on every packet. A distributor neither
+owns them nor can licence them. What distributors do charge for is a **full data feed**: images,
+descriptions, stock levels, net prices, an API. Two columns is not a data product, it is a
+support request, and it is in their interest that a customer can scan the goods they sell.
+
+**The real risk is coverage.** A distributor whose customers have never scanned anything often
+maintains the EAN field loosely or not at all. Plan for a list that comes back 40–60% populated
+and treat that as a win: it is 2,000–3,000 products that start scanning, and it costs one email.
+
+## And the part no software solves
+
+**One named person at the shop has to own the catalogue.** Not "help with", not "look at when
+there's time" — own it: decide what a product is, what it is called, what it costs, whether it
+needs an ID check. A catalogue with no owner decays no matter how good the tooling is, and every
+hour spent on tooling before that person exists is spent at a discount.
+
+So make it one ask, not two, and put it to whoever can actually assign it:
+
+> Who owns the product catalogue? The EAN list from the distributor is that person's first job,
+> and I'll do the technical side.
+
+That is a question a manager can answer. "Please get me a spreadsheet from your supplier" is a
+favour, and favours drift.
