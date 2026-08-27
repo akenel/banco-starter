@@ -590,3 +590,105 @@ for this shop it is the correct shape. 5,430 products against 50 transactions in
 life — intake here is *"a box arrived, put four things away"*, not a bulk import. A tool built for
 four items done properly beats one built for four hundred done hopefully, and the four-hundred
 version is exactly what minted 5,103 fake EANs that had to be unwound.
+
+---
+
+## 2026-08-27, evening — three things that were invisible, and one search on the wrong screen
+
+*The afternoon's entry above was written at half past three. The shop stayed open, Angel kept
+working, and the day's second half found a different family of bug: not wrong, not missing —
+**invisible**.*
+
+### 1. A refusal nobody could read
+
+Angel typed a LOT number into the Barcode field. Banco refused, and refused **well** — the message
+names what the string probably is (*"it is most likely the LOT or BATCH number printed next to the
+real barcode"*) and says what to do instead. Perfect words. It rendered as a **toast, pinned to the
+top-right of the viewport, for eight seconds**, while his eyes were on a modal in the middle of a
+long page.
+
+> *"i could not actually read the error -- it buried behind everything"*
+
+He zoomed the browser to **40%** to find it. Lesson #12, which we already had, and which the
+codebase had already paid for once: *a validation nobody can see is a silent failure.* The words
+were never the problem. The refusal now renders inside the modal, above the button that failed, and
+stays until dismissed.
+
+### 2. One invisible character switched off an entire feature
+
+Angel pasted a bong's `fourtwenty.ch` URL expecting the page's long German description. Nothing came
+back, twice, and he concluded the reader had failed. **It had not.** It read the name, the price, the
+EAN, the image and six facets correctly. Only the description was wrong, and it was this:
+
+```
+description = "‌"        ← ONE U+200C ZERO WIDTH NON-JOINER
+```
+
+Invisible. **Truthy.** And it survives `str.strip()`, because it is not whitespace. So:
+
+```
+thin = (not facts["description"]) or _looks_like_marketing(...)
+     =  False                      or  False
+     =  False
+```
+
+...and the model was **never asked to read the body prose at all**. The enrichment step was switched
+off by a character nobody can see, on every fourtwenty.ch page, for as long as that code has existed.
+Fixed by making the blankness test agree with the human looking at the field.
+
+**The generalisation is the same one as the other two in this entry:** a truth test has to answer the
+question a PERSON is asking. `if description:` asks "is this string non-empty?". The question was
+"is there a description here?", and for one character those two answers differ.
+
+### 3. The search that would have found it was on another screen
+
+Angel hunted an old-favourite rasta bong through his catalogue, the photo matcher and Google, and
+gave up:
+
+> *"i have no chance"*
+
+It was in `reference_products` the whole time — Black Leaf *Bong Rasta 18cm*, right EAN, right price,
+with a photo. `GET /reference/search` finds it from the single word **"rasta"**, and that endpoint was
+already wired into **Receiving** and into **Scan** — but not into the **Catalogue editor**, which is
+where products are actually created. *Built, working, on the wrong screen* — the third instance this
+week, after the clone endpoint and the force-close.
+
+There was a second barrier, and it is not a software one: **he searched "rainbow" and the feed says
+"rasta".** The trade vocabulary is German and nothing translates it. The new panel's empty state
+therefore names the words — *rasta not rainbow, Kopf, Schliff, Kawumm* — because the vocabulary IS
+the interface here.
+
+### The one I built, measured, and threw away
+
+The reference name-matcher rejects the exactly-correct word: `similarity('rasta', 'Bong Rasta 18cm')`
+is **0.375**, under its 0.5 gate, while `word_similarity` scores it **1.000**. Obvious fix. I wrote
+it — `GREATEST(similarity, word_similarity)` over title *and* description, exactly what the products
+search at `pos_router.py:1715` already does — and then tested it against the old one on six real
+inputs:
+
+```
+rainbow bong →  OLD: Rainbow Glass Bong 14cm
+                NEW: BLAZE Gear Bong Rainbow/Metallic Blue 31cm     ← worse
+```
+
+**One case worse, none better.** Reverted, unshipped. Lesson #2's tail, earned again: *a SECOND way
+to ask the same question must be tested against the FIRST, never against your own expectations.* It
+felt obviously right for the twenty minutes between writing it and measuring it.
+
+### And a verdict I gave three reads too early
+
+The scanner gun corrupts characters. After two setting changes I saw three clean reads and told Angel
+it was fixed. He sent nine more: **eight of fourteen still corrupt.** I had made, at n=3, exactly the
+mistake I had warned him about two messages earlier — *"one read proves as little as one bad one"*.
+A run of heads is not a fixed coin.
+
+The gun was then parked deliberately, on a precise argument rather than fatigue: **the corruption only
+lands on a digit immediately before an uppercase letter**, because that is where the shift key
+asserts early. Pure-numeric codes never assert shift, so EAN-13 and UPC-A are structurally immune —
+which is why every numeric barcode scanned perfectly all day. And Banco's own SKUs put their letters
+at the FRONT (`SKU-1787…`), so no digit sits in front of an uppercase letter there either. The
+pathological shape — digits, then uppercase, mid-string — is a lot number, which should never be
+scanned into a barcode field anyway.
+
+*Parking a bug is a decision, and it needs the same evidence as fixing one.* "It only breaks a shape
+we never use, and here is why" is a reason. "We ran out of afternoon" is not.

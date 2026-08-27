@@ -9,46 +9,70 @@
 > [`worklist-archive/done.md`](worklist-archive/done.md) with its commit hashes; when a thread
 > grows a long write-up, the write-up goes to the archive and a one-line pointer stays here.
 
-*Last updated: 2026-08-27, 13:45 (labels fixed at the counter, deployed, human-green).*
+*Last updated: 2026-08-27, 18:30 (a full day at the shop; nine deploys, all human-green).*
 
 ---
 
-## ▶️ START HERE — the state at 13:45 on Thu 2026-08-27
+## ▶️ START HERE — the state at 18:30 on Thu 2026-08-27
 
-**Today, live, with Layla serving: labels for goods with NO manufacturer EAN.** Three Crank pipes
-were quick-added at the counter; all three printed a label and NONE could be rung up. Deployed in
-three rounds and **Angel confirmed all four Crank pipes now scan and ring** — human-green.
+**A whole day at the counter with Layla serving.** Nine deploys, every one proved on the live shop.
+Prod is on build `b469`.
 
 | | |
 |---|---|
-| `3d5f878` | till resolves a **SKU**, not just a barcode; label carries one code for QR + CODE128 + text |
-| `f3a4084` | the gun sends SHIFT a beat late — `sKU-…`. Case-tolerant lookup; sticker WRAPS instead of clipping |
-| `b273e71` | the page title IS the PDF filename, and both sizes shared one |
+| `3d5f878` | the till resolves a **SKU**, so goods with no manufacturer EAN get a label that scans |
+| `f3a4084` | the gun sends SHIFT late (`sKU-`). Case-tolerant lookup; the sticker WRAPS instead of clipping |
+| `b273e71` | the page title IS the PDF filename — both label sizes shared one, so saving one destroyed the other |
+| `c981a25` | a correct refusal rendered as an 8-second toast nobody could read. Now inside the modal, above the button |
+| `a48a78f` | **UPC-A vs EAN-13**: one leading zero hid **2,632 supplier rows**, 24% of the FourTwenty feed |
+| `a48a78f` | fourtwenty.ch publishes its description as ONE invisible character, which switched off the whole body read |
+| `4968587` | **search the supplier catalogue from the Catalogue screen** — it was wired into Receiving and Scan, not there |
 
-**THE LESSON, and it is mine.** Round one was proved by TYPING the SKU — the one way it would
-never be entered. The gun's real output differs in case, so the fix was green on the layer I
-could reach and dead on the counter. Pattern 1, committed within the hour of writing about it.
+**Also today, and not code:** the cash box was reconciled on a real count (CHF 1216.90, sixteen days
+open), all four Crank pipes ring, three JUICY wraps created, and the day's last bong went in with a
+photo, a description, an article number and a label that scans.
 
 ### Open, in order
 
-**① Layla's product-grouping idea** — she watched four near-identical pipes go through the till
-all morning. Angel is relaying it. *Nothing written down yet — capture it before it evaporates.*
+**① The gate audit — 42 blunts and wraps sell with NO ID check.**
+[`onboarding/testsheets/2026-08-27-gate-audit.html`](onboarding/testsheets/2026-08-27-gate-audit.html)
+· 35 near-identical products on the same shelf ARE gated. Angel checked the packet: it carries a
+cigarette-style tobacco health warning, so the FourTwenty feed's `standard` is wrong. **Section C is
+Felix's decision, not a fix to apply** — tick which should gate, then it is one update. *Angel has
+fixed the wrap classes by hand; the other ~40 are still open.*
 
-**② Label → PDF paginates wrong.** Printing to PDF sometimes spills a sliver of the label onto a
-second page, and the first page is then cut. `@page{ size:62mm 28mm }` (small) / `62mm 55mm`
-(medium) versus what Chrome actually lays out. Cosmetic, not blocking — Angel: "we deal with that
-pdf later".
+**② Layla's product-grouping idea is BUILT and unreachable.** `POST /products/{id}/clone` — its own
+docstring describes her exact case. On no screen. She reinvented it from the counter without seeing
+the code, which is the strongest argument for it. **This is the next feature.**
 
-**③ Two landmines in the live catalogue** — `ITEM-0070` and `ITEM-0072` are the SAME product
-("JaJa Noir King Size XXL Black Zigarettenpapier"), both **priced CHF 999.99**, both active. A
-search for "JaJa" can ring 999.99 today. Needs the real price and which row to keep.
+**③ The scanner gun is PARKED, deliberately.** ~8 reads in 14 corrupt a digit — but only ever the
+digit immediately before an UPPERCASE letter, where the shift asserts early. Pure-numeric codes never
+assert shift, so EAN-13/UPC-A are structurally immune, and Banco's SKUs put their letters at the
+front. Safe for everything the shop scans. The NSL8 has **no inter-character delay setting** (all 28
+pages read; manual now in `onboarding/testsheets/Scanners/`). Next test if it is ever picked up:
+scan into a plain text editor, not Firefox — intermittent modifier corruption is as often the host's
+input stack as the gun's.
 
-**④ The MEDIUM label's CODE128 is unproven by a gun.** 17 characters in 62mm makes fine bars. If
-it will not read, the answer is a SHORTER SKU, not a bigger label.
+**④ Label → PDF paginates wrong.** A sliver spills onto a second page and the first is cut.
+`@page{62mm 28mm}` / `{62mm 55mm}` versus what Chrome lays out. Angel: *"we deal with that pdf later"*.
 
-**⑤ 13 active products have no scannable code at all** — 6 are TREAT-\* giveaways and probably
-should not have one. The other 7 are real gaps: the 3 Crank pipes (now sellable via SKU), the
-Hempsana CBD Salbe, the PURIZE grinder, and the two JaJa rows in ③.
+**⑤ The MEDIUM label's CODE128 is still unproven by a gun.** 17 characters in 62mm makes fine bars.
+If it will not read, the answer is a SHORTER SKU, not a bigger label.
+
+**⑥ The vocabulary gap has no fix yet.** Angel searched *rainbow*, the feed says *rasta*. The new
+panel's empty state names the trade words (rasta, Kopf, Schliff, Kawumm) but nothing translates them.
+A synonym table is the obvious next step and has NOT been thought through.
+
+**⑦ Adopting from the supplier copies its 18+ answer with no safety net**, while the till's quick-add
+applies one — same operation, two answers. And the classifier does not know the words "blunt" or
+"wrap", so the safety net would not have caught the wraps anyway. Both real, both unfixed.
+
+### Not bugs — decided today
+
+- **58 products at CHF 999.99 are DELIBERATE.** Angel: *"the number is so high it can't be missed"*.
+  A not-priced-yet marker with a human as the check. `/pos/cleanup?mode=bench&gap=price` lists them.
+- **"A couple at a time" is the right shape for intake**, not a limitation to engineer around.
+  5,430 products against 50 transactions in the box's whole life.
 
 ---
 

@@ -101,7 +101,7 @@ open `LESSONS.md` when one of them is about to apply.*
 **When something bites: add the narrative to `LESSONS.md`, and if it is a new instance of a
 pattern below, bump the count here. A pattern at ×7 is telling you something a paragraph cannot.**
 
-1. **×10 · Green on the layer you can reach says nothing about the layer the user stands on.**
+1. **×11 · Green on the layer you can reach says nothing about the layer the user stands on.**
    `cash_box_float`, the force-close, `POST /catalog/merge`, honest confidence, `best_match_score`,
    the 18+ refusals, the evidence with no screen — each existed on every layer a test could reach
    and on **no screen**; the tablet's LTE was proved on Angel's home Wi-Fi, in a flat, with a route
@@ -110,6 +110,10 @@ pattern below, bump the count here. A pattern at ×7 is telling you something a 
    just grown a camera with no path to it; and on 2026-08-27 I proved a new SKU lookup by **TYPING
    the SKU** — the one way it would never be entered. The gun sends SHIFT a beat late, so it
    arrives as `sKU-`, and my fix was green everywhere I could reach and dead at the counter.
+   That same evening Angel hunted a bong through his catalogue, the photo matcher and Google and
+   said *"i have no chance"* — `GET /reference/search` finds it from the one word "rasta" and was
+   wired into Receiving and Scan but **not into the screen that creates products**. Third this
+   week, after the clone endpoint and the force-close.
    *Ask where the person is STANDING when they need it — which building, and which screen.*
 2. **×7 · A downstream filter quietly discards the row the fix existed to find.** The dedup guard's
    same-size rule, the alias filters judging `products.name`, the category "boost" that was a sort
@@ -170,8 +174,15 @@ pattern below, bump the count here. A pattern at ×7 is telling you something a 
     and a step whose question his flow never reached. He said: *"I don't know what you're looking
     for anymore."* Fair. Standing rule 5 cuts both ways: a human confirming it is DONE. Report
     what genuinely blocks a promote; log the rest and move on.
-12. **A validation nobody can see is a silent failure, and a green summary over an unchecked box is
-    a lie.** Put the outcome where the button is, and never demand words a dropdown already said.
+12. **×3 · A truth test has to answer the question a PERSON is asking.** A validation nobody can
+    see is a silent failure, and a green summary over an unchecked box is a lie. 2026-08-27 added
+    two: a correct, well-worded refusal rendered as an 8-second toast at the top of the viewport
+    while the operator's eyes were on a modal — *"i could not actually read the error"*, and he
+    zoomed to 40% to find it; and `fourtwenty.ch` publishes its description as ONE U+200C
+    zero-width non-joiner, which is invisible, **truthy**, and survives `.strip()` — so
+    `if description:` said "there is one" and the model was never asked to read the page body, on
+    every page, for as long as that code existed. *Put the outcome where the button is; never
+    demand words a dropdown already said; and make `is it empty?` mean what the human means.*
 13. **×3 · The server is right, the tests are green, and the STORED COPY the screen renders from is
     wrong.** On 2026-08-24 in one afternoon: the kiosk refused a blank username the server accepts;
     `/customers/new-today` kept deactivated members because it filtered `created_at` and not
