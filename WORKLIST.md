@@ -78,6 +78,9 @@ the name she types and `POST /products/quick` ever asked the catalogue. That is 
 were born. The form now runs the same two-source search (ranked + DE↔EN folded) as she types and
 offers "you may already have this → bind" above the Create button. Never auto-binds (LESSON #9).
 Four new assertions, red on the shipped image first. → `done.md`.
+▶️ **Needs a human on the live till:**
+[`onboarding/testsheets/2026-08-27-no-duplicate-on-a-miss.html`](onboarding/testsheets/2026-08-27-no-duplicate-on-a-miss.html)
+— 14 steps, ~12 min. Section B is the fix; B2 is the one that matters.
 
 
 **① The gate audit — 42 blunts and wraps sell with NO ID check.**
@@ -166,6 +169,11 @@ applies one — same operation, two answers. And the classifier does not know th
   shipped fix, and standing rule 9 says check the siblings.
 - **⑰ A second wholesale feed is the big lever** — Kings Castle took reach ~40% → ~56% as tier 3.
   neardark needs credentials.
+- **⑲ There is no un-bind.** `POST /products/{id}/barcodes` exists; nothing removes a code from a
+  row — no endpoint, no screen, no button. Found while writing the sheet above, which has to warn a
+  tester that section C cannot be taken back. Binding is the operation the whole miss flow now
+  pushes people towards, and it is one-way. LESSON #9 says a wrong bind looks exactly like a right
+  one; today the only repair is psql. A manager-only remove, with the code shown, is small.
 - **⑱ The catalogue CSV eats a leading apostrophe** — barcodes export as `'7610…`; Excel eats it,
   LibreOffice shows it, and no fix is clean in both. **An .xlsx export sidesteps it entirely** and
   the openpyxl machinery already exists for the BL-131 worklist. Angel's call.
