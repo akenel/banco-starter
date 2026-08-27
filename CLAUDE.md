@@ -105,6 +105,22 @@ banco-starter/
 3. **Cadence.** Trunk-based on `main`, small honest commits (see the conventional-commit log).
 4. **Human-green, not machine-green.** For anything a shop owner will touch, a human confirms it.
 
+### Use what exists — never invent a second one
+
+*Searched all 16 repos on 2026-08-27 because I had been hunting for these every session. These are
+the answers. Reach for the named file; do not go looking, and do not build a fresh one.*
+
+| when Angel asks for… | use exactly this |
+|---|---|
+| **a test sheet** | `onboarding/testsheets/TEMPLATE.html` — steps-as-data, PASS/**ISSUE**/FAIL, per-step notes, timer, training mode. Copy it, fill the `STEPS` array. **Never a new format.** Built sheets sit beside it as examples. |
+| **a browser proof** | extend a `scripts/prove-*.js` — 21 exist. Playwright is borrowed via `NODE_PATH`, not vendored. See `TESTING.md`. |
+| **a server-side proof** | extend a `scripts/prove-*.py` — 5 exist. |
+| **a deploy / backup / restore / go-live** | the script in `scripts/` that already does it. Never a fresh one. |
+
+⚠️ **Older testsheet templates exist in `helixnet/docs/testing/` and `freehold/docs/testing/` — they
+are ANCESTORS, not alternatives.** Ours is the newest and the only one with steps-as-data, the ISSUE
+verdict and training mode. Do not copy one back in.
+
 ---
 
 ## LESSONS — the patterns
