@@ -4,6 +4,21 @@
 
 ---
 
+## SESSION START — read these, in this order
+
+*Copilot: this section is addressed to you. Do it at the start of every session, before answering anything.*
+
+1. **This file**, top to bottom — who we are and how we work.
+2. **`MEMORY.md`** — the memory index, one line per fact. Read the whole index; open a
+   `memory/*.md` file only when its line says that fact is relevant to what we are doing **right now**.
+3. **`WORKLIST.md`** — what's next, in order.
+
+Do not skip step 2. Memory that is written and never read is just a folder of notes.
+
+@MEMORY.md
+
+---
+
 ## RESUME CODE WORD — "OPEN SHOP"
 
 When Angel says **OPEN SHOP** after a reboot, compaction, or fresh start, it means:
@@ -20,7 +35,7 @@ When Angel says **OPEN SHOP** after a reboot, compaction, or fresh start, it mea
 ## WHO WE ARE
 
 **Angel (Angelo Kenel)** — the captain. Solo operator / second-career founder. Steers, decides, owns the direction.
-- Building Banco to be *owned*, not rented. Runs a real Swiss shop on it today.
+- Building Banco to be *owned*, not rented. His first Swiss shop is in acceptance testing on it (see CURRENT SITUATION — not live yet).
 
 **Claude** — the pilot. Executes, reads before editing, proves before claiming done.
 - Small trusted context over a firehose. Write to files, not chat.
