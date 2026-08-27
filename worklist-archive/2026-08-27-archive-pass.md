@@ -1,0 +1,1101 @@
+# Archive — the 2026-08-27 pass
+
+*`WORKLIST.md` had grown back to 1,201 lines against its own 150-line rule — the second time, after
+the 1,734-line split on 2026-08-13. Everything below was moved out of it on 2026-08-27, **verbatim,
+nothing edited**, and the move was verified byte-for-byte against the pre-pass file. Two blocks went
+to [`backlog.md`](backlog.md) instead (dark mode; the till that felt slow) and are not repeated here.*
+
+*Status calls made with Angel while doing it: the member card **is deployed**; the 08-24 retest sheet
+is **most likely run**; the 08-21 papers list was not recognised and became a `price-check` sweep in
+the live file; credits-can't-be-spent is **working as designed and waiting on Felix**, so it went to
+the backlog; BL-14 (the cursor) stayed **open** and is specified in the live file.*
+
+---
+
+
+## The 3% measurement — item ⓪'s tables, 2026-08-27
+
+*(was `WORKLIST.md` lines 37–114)*
+
+**⓪ THE 3% IS NOT A MATCHING PROBLEM — 91% OF THE CATALOGUE IS KEYED ON INVENTED CODES.**
+Measured on prod 2026-08-27, 21:xx, after Angel said *"scan once, find it, move on… happens by luck
+3% of the time"* and *"the system IMHO is doomed"*.
+
+| measured | |
+|---|---|
+| **4,971 of 5,447** active products (**91%**) carry a barcode `200…`, 13 digits | GS1 reserves **20–29 for RESTRICTED CIRCULATION** — codes valid inside ONE building. They are minted. By definition they cannot be on a packet. |
+| **188 of 5,435** shop barcodes exist in the FourTwenty feed | **3.5%.** Angel's "3%" was not a mood. It is the scan hit-rate, and it is a property of the SEED DATA, not of the idea. |
+| **136 alias rows / 128 products** in `product_barcodes` | sell-to-seed has run **136 times in the system's life**. The mechanism works. Almost nothing has used it. |
+| name-match minted → feed row that HAS a real EAN | ~**10%** at sim ≥ 0.80, ~**16%** at ≥ 0.70, **72% no match at all** (sample n=300) |
+
+**What this means.** Angel is not failing at intake. He is **re-creating products he already owns**,
+because the packet's code can never match the code we filed it under. Every "nightmare" product was
+already in the catalogue.
+
+**CORRECTION — the bind-to-existing button is NOT missing. I said it was; I was wrong.**
+`scan.html:2124 linkToExisting()` binds the scanned code via `POST /products/{id}/barcodes`, and that
+endpoint already **promotes** a real EAN to primary and **demotes** the minted `2…` code to an alias
+so printed shelf labels keep scanning. The plumbing is done and correct.
+
+**The real UI bug (small, still worth fixing).** On a PURE barcode miss `lazyLinkQuery` is empty, so
+`openLazy()` skips `searchExisting()` — **our own catalogue is never searched.** The reference feed IS
+consulted by barcode, and `confirmAdopt()` then **creates a new product**. So when the feed correctly
+identifies the packet and we already own that item under a minted code, the till manufactures a
+DUPLICATE. Fix: take the winning reference/web title, search our catalogue with it, and offer "you
+already have this → bind" ABOVE "Add to shop". Never auto-bind (LESSON #9).
+
+**Telemetry is blind.** `catalog_miss` holds **1 row, ever** (2026-08-21, dept DIV). Only the
+sell-as-department path records a miss; the not-found→create path does not. We cannot see how often a
+scan misses, so we cannot see whether sell-to-seed is working at all.
+
+**TAMAR'S LIST IS THE ANSWER, AND IT JOINS EXACTLY — no matching required.** Angel called this
+himself: *"the only way is get the eans from tamar."* He is right, and it is better than he thought:
+
+- **4,971 of 4,971** minted products carry `supplier_sku` = **Tamar's own article number**. Every SKU
+  is prefixed `TAM-`, `source_system = artemis`, 100% populated.
+- The minted barcode literally ENCODES it — `2000000` + article no. + check digit:
+  `art 1341 → 2000000013411`, `art 23530 → 2000000235301`, `art 22535 → 2000000225357`.
+- So the list joins on ONE COLUMN, exactly. No fuzzy match, no review queue, no wrong-EAN risk.
+
+**⚠️ THE CATALOGUE IS TAMAR'S ORDERABLE RANGE, NOT ARTEMIS'S SHELF.** Angel, 2026-08-27:
+*"Tamar is a skin for the Artemis webshop — Tamar sells via artemisluzern.ch on behalf of Artemis
+and ships anything ordered there."* So `artemisluzern.ch` IS Tamar's system, wearing Artemis's
+brand, and the 5,447 rows are a **dropship range**, not stock. Corroborated: `pos_stock_movements`
+holds **0 rows** — nothing in Banco has ever recorded what is physically in that store.
+
+**This shrinks the EAN job by an order of magnitude.** Only what SITS ON THE SHELF has to scan; a
+dropship listing never crosses the counter. The crammed store does not hold 5,000 SKUs. The "6–9
+months to line it up" figure prices the whole range — the real job is the shelf, which is what
+shelf intake already does, one packet at a time, deliberately, off the counter. **Before any bulk
+EAN work: establish what is actually in the room.**
+
+Checked on the storefront 2026-08-27 (`ppadmin • level1 content manager 5.0`, Vue front end, an
+`/api/shop/…` namespace): the product pages carry **no JSON-LD, no gtin13, no product JSON, no
+identifier fields at all**. Nothing in the Artemis/Tamar web channel publishes an EAN anywhere. It
+does not prove their database lacks the field — a storefront need not render it — but every
+observable part of the channel is EAN-free, which is why the import had to mint codes.
+
+**Ask for a SAMPLE before asking for the list.** "Send us the EAN for these 20 article numbers"
+needs no data-sharing decision from anybody, and the reply tells you the coverage exactly. A better
+diagnostic question than *"do you have EANs?"* is **"when you receive goods from the manufacturers,
+what do you scan?"** — a distributor that scans cartons at goods-in has GTINs; one that keys
+article numbers by hand does not.
+
+**The ask is two columns** (`Artikelnummer ; EAN`) plus the article-number list attached, so Tamar
+never has to decide which articles we mean. Full German text + the export SQL + how to apply the list:
+[`onboarding/supplier-ean-request.md`](onboarding/supplier-ean-request.md). The 4,971-row CSV is
+generated and with Angel. **This is an email to Rafi/Felix, not a sprint.**
+
+⚠️ **NAME-MATCHING CANNOT RECOVER EANs — measured, not assumed.** At similarity **0.80**, a threshold
+I had called safe an hour earlier: `Adapter NS 19/19 150mm` and `Adapter NS 19/19 200mm` BOTH matched
+EAN `6097224146113` — two products, one code; `120mm` matched a Dynavap; `Räucherstäbchenhalter
+Hanfblatt` matched `…Messing` (hemp leaf vs brass). Real catalogues differ by exactly the token that
+matters — a size, a material, a strength — and it is a tiny fraction of the string. **A wrong barcode
+looks exactly like a right one (LESSON #9).** Bulk name-matching does not save work; it manufactures
+invisible damage. That is why the supplier list is the only honest source.
+
+
+
+---
+
+
+## ⬜ The tablet's LTE — the full thread (live item ⑬ is the short form)
+
+*(was `WORKLIST.md` lines 223–268. The open location-dependent checks were promoted to the
+live worklist; the measurements — cold boot, battery health, and the RETRACTED 45 W adapter —
+are kept here because each one is a verdict that cost time to reach.)*
+
+
+## ⬜ THE TABLET'S LTE — WORKS AT HOME, UNPROVEN IN LUZERN — 2026-08-22
+
+Felix's ask: the till keeps selling when the shop Wi-Fi dies. The X1 Tablet's **Sierra EM7455** is
+up on a Sunrise SIM and Angel ran Banco with Wi-Fi switched off. The blocker was that the modem
+ships **FCC-locked** — one symlink into `/etc/ModemManager/fcc-unlock.d/`. Full runbook, traps and
+the exact command sequence: [`onboarding/13-tablet-x1-debian.md`](onboarding/13-tablet-x1-debian.md)
+(*LTE IS WORKING* section).
+
+**Proved in Angel's flat on `Init7_1A34`, not on the counter.** The cold boot is now done (below); **four things left, all of them genuinely location-dependent:**
+
+- [x] ~~**Cold boot**~~ — ✅ **PROVEN 2026-08-22 20:24, and it is machine-level, not location-level,
+      so it does not need redoing in Luzern.** Full `poweroff` + mains unplugged, so the modem lost
+      power and its FCC authorisation with it. On the way back up:
+      `[fcc unlock dispatcher] singleton created` — it **found and ran** the symlinked script, where
+      this afternoon the same line read *"file doesn't exist … no valid program found"*. Same boot:
+      `cdc-wdm2 gsm connected shop-lte`, untouched. **The till survives a power cut with LTE intact.**
+- [ ] Set `ipv4.route-metric 100` on the **shop** Wi-Fi profile — it is a different connection
+- [ ] Measure signal where the till stands (29 % at home; concrete will be worse)
+- [ ] Pull the Fritzbox WAN cable with the till open and ring a real sale
+- [x] ~~Ask Felix what that SIM is~~ — ✅ **Sunrise, PURE DATA, CHF 5.50/month.** No voice, no
+      surprise bill; cheap enough that leaving the modem registered all day costs nothing.
+- [ ] 🔋 **A USB-C PD power bank — the tablet is meant to WALK the shop.** Earlier advice to
+      "just keep it plugged in" assumed a fixed counter; it is not one, so 2 h matters.
+      ⚠️ **It must be PD.** This tablet refuses 5 V, so a USB-A output does literally nothing —
+      Angel's 10,000 mAh bank did exactly that. A PD bank negotiates 15–20 V, i.e. it *is* the
+      adapter in a battery. Label must list multiple voltages (`9V/12V/20V`) and a wattage
+      (30–65 W), output must be USB-C, cable must be **C-to-C**. Test:
+      `cat /sys/class/power_supply/BAT*/status` → want `Charging`. A PD 20,000 mAh (~60 Wh
+      usable) is ~1.5 charges of the 37 Wh battery. *Suspect the cable too — the same one
+      failed to carry data or power through the dock.*
+- [x] ~~🔋 **Battery**~~ — **measured 2026-08-22: nothing to buy.** `37.01 Wh` design,
+      `34.67 Wh` now, **97 cycles → 93.7 % health.** The 2 h runtime is a 37 Wh battery driving a
+      12" 2K screen (~17 W draw), i.e. the machine's *design*, not its decline — a new cell buys
+      about eight minutes. Levers are brightness and radios, not capacity. **Note the LTE modem
+      enabled today draws continuously; that is the price of the failover.** If the 4 h charge
+      matters, check `charge_control_end_threshold` (a Lenovo 80 % cap) and use the real 45 W
+      adapter — 9 W net charging says small charger, not tired battery.
+- [x] ~~🔌 **A 45 W adapter**~~ — **RETRACTED, buy nothing. The adapter is 65 W, above the 45 W
+      stock.** I read `power_now` = 8.45 W and extrapolated `37.01 Wh ÷ 8.45 W = 4.4 h`. **That
+      reading was taken at 77 % and climbing** — Li-ion charges fast to ~80 % then tapers into
+      constant-voltage, so 8.45 W describes the last stretch and nothing else. Same error as
+      reading `sim-missing` off a powered-down modem, six hours apart. *If a real number is ever
+      wanted, measure `power_now` at 30–50 %.* If charging genuinely is slow on 65 W, suspect the
+      **cable** — one without PD support negotiates down to 5 V/15 W, and the cable is already
+      under suspicion from the dock.
+
+---
+
+## Mon 2026-08-24, the state at 14:30
+
+*(was `WORKLIST.md` lines 157–221)*
+
+
+## ▶️ Mon 2026-08-24 — the state at 14:30 (still current below this line)
+
+**Everything below this block is context. These are the live threads, in order.**
+
+**PROD IS AT `02dd90b` / build `b453`.** Everything below shipped and was verified on the running
+shop today. The member card and the catalogue export are **deployed and human-green** — the notes
+that said otherwise were true on Sunday and are gone.
+
+**① NEXT SESSION, FIRST THING: run the retest sheet.**
+[`onboarding/testsheets/2026-08-24-retest-four-fixes.html`](onboarding/testsheets/2026-08-24-retest-four-fixes.html)
+— 18 steps, ~20 min, covering the four things fixed today. **§B is the one that matters**: it is
+the only bug this week that was hurting a real till with real customers, and B4 walks the half
+Angel did not report (clearing left the MEMBER attached, so the next customer inherited the last
+one's card, discount and age answer).
+
+**② What shipped today, in order — all deployed, all proved in a browser:**
+| | | |
+|---|---|---|
+| `1f379d5` | **Catalogue CSV export** | 36 columns, no cap, EANs as text. `GET /catalog/export.csv`, button on the catalog top bar |
+| `85154c0` | **Kiosk refused a blank username** | server + schema + 8 unit tests all correct; only the page wrong |
+| `128cce4` | **Join offer is a settings field** | was missing on THREE layers, not one. Admin-only |
+| `571c94c` | **Deactivated members stay gone** | a missing WHERE, not a cache. Also closed E2 |
+| `ed20cfa` | **Clear cart** | left the cart in sessionStorage, which the page restored from |
+| `02dd90b` | the retest sheet | |
+
+New proofs, all runnable: `prove-catalog-export.py`, `prove-catalog-export-button.js`,
+`prove-kiosk-blank-username.js`, `prove-join-offer.js`, `prove-clear-cart.js`.
+
+**③ CLOSED TODAY, human-green — do not re-open:**
+- The **18+ stop** was witnessed firing on a real till (UAT C3) and refusing a known minor (C5).
+  That is what the member card had been held back for since 22 Aug. It is done.
+- The **join offer is 0/0 on prod**, set by Angel through the Settings screen (not SQL — which is
+  what proves the new control is real). Verified live: the kiosk serves 0% on both paths and reads
+  "collect points" in DE/FR/IT/EN. The re-mint exploit is closed.
+- **First honest count of the minted-EAN damage**, from the export's own column:
+  **4,983 invented · 433 real · 6 with none at all** (of 5,422 active).
+
+**④ Still open, in order:**
+1. ⬜ **Credits are earned and cannot be spent.** Every sale writes `credits_balance` + a
+   `CreditTransactionModel` row, but there is **no redemption path at checkout**. The kiosk now
+   invites people to collect points nothing can redeem. A promise on a customer-facing screen with
+   nothing behind it — the biggest open item here.
+2. ⬜ **B1, one glance:** Angel marked the export toast ISSUE twice; every counter on screen said
+   5422 and what the TOAST said is still unknown. §E of the retest sheet asks for the exact number.
+3. ⬜ **B3 wart:** barcodes export as `'7610…` — Excel eats the apostrophe, LibreOffice shows it.
+   No fix is clean in both. An **.xlsx** export would sidestep it entirely (the openpyxl machinery
+   already exists for the BL-131 worklist). Angel's call.
+4. ⬜ **Sibling of the kiosk fix, not done:** `customer_lookup.html:566` + `CustomerCreate` still
+   demand a handle, so a cashier cannot create an anonymous member at the till the way the kiosk
+   can. Same "invent a name at a counter with a queue" problem the ART code exists to kill.
+
+**⑤ Waiting on Angel, not on code:** the **T&C wording** — a page telling a customer what they
+agree to should not be invented by the copilot. Sketch is in the member-card section below.
+
+**⑥ `enrich-from-source.py --apply`** — dry run clean (40 fetched, 0 failed). ~510 new price
+ladders on a live till, so **run `GET /catalog/price-check` over the catalogue straight after.**
+Not a job for the end of a long day.
+
+**⑦ Luzern-only, whenever Angel is next at the shop:** the tablet's LTE — shop Wi-Fi route metric,
+signal where the till stands, and pulling the Fritzbox WAN cable mid-sale.
+
+> ⚠️ **This file is >1,000 lines against its own 150-line rule.** The archive pass is now well
+> overdue — the ✅ sections from 08-14 through 08-23 belong in `worklist-archive/done.md`.
+
+
+---
+
+
+## ✅ FIXED — the Win 10 tablet's dead camera button
+
+*(was `WORKLIST.md` lines 269–286)*
+
+
+### ✅ FIXED — the Win 10 tablet's dead camera button
+
+`4206246` showed the 📷 Webcam button wherever `getUserMedia` exists — which is *every* modern
+browser, camera or not — so the old Win 10 tablet (touch, no camera) gained a button whose only
+output was the alert *"No camera available"*. Now `enumerateDevices()` decides: presence is listed
+with **no permission prompt**, and a `.banco-has-camera` class on `<html>` gates the buttons via
+one CSS rule. A class rather than a reactive value because `x-show` is Alpine in three templates
+and will not re-render when a module variable changes underneath it — and because it re-answers on
+`devicechange`, so plugging the webcam in mid-shift works without a reload.
+
+**Fails OPEN** if the browser cannot enumerate: hiding the button on the one machine that *has* a
+camera is the worse error, and it is the one we just spent the evening fixing.
+
+`prove-webcam-button-shows.js` is now 8 cases; the 4 new ones go red against the code that shipped
+this evening. ⬜ **Still needs a human on the Win 10 tablet** — the button is gone by CSS, which is
+a claim about a screen, and per LESSONS #7 those are not verified by reading a stylesheet.
+
+
+---
+
+
+## 🎫 The member card — BUILT 2026-08-22 (DEPLOYED; Angel confirmed 2026-08-27)
+
+*(was `WORKLIST.md` lines 323–370)*
+
+
+### 🎫 THE MEMBER CARD — BUILT 2026-08-22 · ⬜ NOT DEPLOYED, NEEDS A HUMAN → [the spec](worklist-archive/2026-08-22-anon-member-card.md)
+
+**Angel's rule: a DATE settles it, a TICK does not.** *"If the people wanna put in the date of
+birth, yeah, that settles that"* — and without one, *"she can double check if she thinks there's
+a problem."*
+
+**Shipped in this commit — the scan and the gate TOGETHER, on purpose.** Adding the till scan
+alone would have made it *easier* to attach a self-declared member, and a self-declared member
+was the thing suppressing the check. Half of this would have been worse than none.
+
+| | |
+|---|---|
+| **No new input at the till** | `HLX-`+8 hex cannot collide with an EAN, so the box she already scans into routes it (`scan.html:1456`). Same gun, no mode switch. |
+| **The server sends the ANSWER, never the date** | `has_dob` + `is_of_age` (`pos_router.py:5013`). An anonymous member stays anonymous *at the till too*. |
+| **A tick no longer suppresses the 18+ stop** | `checkout.html:1032` — was `return m.age_confirmed !== false`, now `return false`. |
+| **The sibling door, closed too** | `customer_router.py:251` sent the back-compat `is_of_age`, which `checkout.html:1027` prefers over everything — so the member-**lookup** path re-opened the identical hole. Standing rule 6. |
+| **A THIRD door closed for free** | `held_orders.html:136` writes a member with *no* age fields; `undefined !== false` was **true**, so a kiosk held order silently cleared the gate. The checkout fix covers it. |
+
+**It costs nothing in clicks** — which was Felix's other requirement (*"idiot proof… not a lot of
+clicks"*): a member **with** a DOB now takes **0 taps** (better than today), a member **without**
+one takes the same 1 tap a walk-in takes. Nobody's checkout got longer; only the self-issued free
+pass went away.
+
+**Proved live on local (`988622c`), the scan endpoint answering for three seeded members:**
+
+```
+HLX-AAAA0001  ZZTEST-tick    has_dob=False  is_of_age=None   → gate SHOWS, "check ID if unsure"
+HLX-AAAA0002  ZZTEST-dob     has_dob=True   is_of_age=True   → gate suppressed, correctly
+HLX-AAAA0003  ZZTEST-minor   has_dob=True   is_of_age=False  → till refuses, loudly
+HLX-NOSUCH99  success=false — clean not-found
+```
+
+`src/tests/test_member_card_age.py` — 6 tests pinning the gap between `member_of_age()` (the
+back-compat sale rule, which counts the tick, correctly) and `is_of_age()` (the date rule). The
+whole defect lived in an endpoint sending the first where a screen needed the second.
+
+⬜ **STILL OWED, and it is the part that matters:**
+- **A human on the checkout screen.** Per LESSONS #7 a screen is never verified by reading it, and
+  every claim above about the *stop appearing* is read from code — the browser extension was not
+  connected. `scripts/prove-till-18plus.js` (45 checks) must run before any promote.
+- **`customer_router.py:251` is proved by identical expression + unit test, NOT by an
+  authenticated call.** It needs a token; it did not get one tonight.
+- **NOT DEPLOYED TO PROD.** Local only.
+- **Mint `qr_code` for the 18 live members** — 0 of 18 have one, so no card exists to scan yet.
+- 🧹 Three `ZZTEST-*` members are seeded in **LOCAL dev only** (never prod) so the browser prover
+  has something to scan: `DELETE FROM customers WHERE handle LIKE 'ZZTEST-%';`
+
+
+---
+
+
+## 🎫 ART-AB12 — the member code nobody has to invent
+
+*(was `WORKLIST.md` lines 371–411)*
+
+### 🎫 ART-AB12 — the member code nobody has to invent (2026-08-22, built)
+
+Angel: *"we can make tens of thousands of members like ART-AB12… 4 chars are easy to remember…
+we assign that, no username required… if you lose the card, ask the cashier to print a new one,
+or just tell the cashier your 4 char code."* Built.
+
+- **The signup no longer demands a username.** Leave it blank → the shop assigns `ART-AB12`.
+  Every field on that form is now optional, which is the point: these members are here because
+  they do not want to give a name, and the form used to open by making them invent one.
+- **Alphabet is 30 characters** — `0/O`, `1/I/L` and `U` removed. This string gets *spoken down a
+  counter and hand-copied*; "is that a zero or an oh" is the failure the format exists to stop.
+- **Two codes, two jobs, and the till tells them apart** (`matched_by`):
+  `HLX-xxxxxxxx` in the QR — 4.3 bn, unguessable, the bearer token.
+  `ART-AB12` printed beside it — the name you say out loud. **Both attach a member at the till.**
+- **The success screen now leads with the ART code**, 4xl and spaced, plus *"screenshot this or
+  remember the code — it IS your account, we have no name to find you by"* in DE/FR/IT/EN.
+  The HLX token is no longer printed as text: nobody should be able to read a bearer token off
+  a stranger's phone.
+
+**Proved live on local:**
+
+```
+signup, no username → ART-7T9H / ART-XHKH / ART-TFZ5
+HLX-BFB2268F  →  ART-7T9H   matched_by=scanned_card
+ART-7T9H      →  ART-7T9H   matched_by=spoken_code     ← card lost, code spoken
+art-7t9h      →  ART-7T9H   matched_by=spoken_code     ← as she would type it
+ART-ZZZZ      →  clean not-found
+```
+
+8 tests in `test_member_card_age.py`. Found on the way: `KioskSignup.handle` was `str`, so
+Pydantic rejected a blank one **before** the handler's assign-a-code branch could run — "no
+username required" was true one layer too deep to matter. Caught by posting the form the way a
+phone posts it, not by reading the handler.
+
+> ### ⚠️ THE NUMBER TO DECIDE ON: 30⁴ = 810,000
+> Ample for a shop. **Also ~1 live code in every 81 guesses at ten thousand members.** So the
+> spoken code is a **name**, not a password — it must never be sufficient on its own for anything
+> that matters. That is fine for credits (guessing one lets you *give* a stranger points) and it
+> is **not** fine for an age verification, which is why `matched_by` exists and why the first-use
+> check below must hang off the scan.
+
+
+---
+
+
+## 💰 The join offer is now the shop's number
+
+*(was `WORKLIST.md` lines 412–449)*
+
+### 💰 THE JOIN OFFER IS NOW THE SHOP'S NUMBER — built 2026-08-23, DEFAULTS UNCHANGED
+
+Angel: *"the 15% discount was my idea as bait to get people to be members — sort of
+encouragement… we could maybe take it out for now, but I think the customer needs to know why."*
+Both halves handled, and **nothing was decided for Felix.**
+
+**It was hardcoded in two files that had to agree** — `pos_router.py` granting `15 if phone else
+10`, and `kiosk.html`'s `signupPct` advertising the same two literals. Nobody had made them
+disagree yet; whoever edited one and not the other would have had **the page promise a number
+the till refused, to a customer standing at the counter.** Now `store_settings` holds
+`welcome_discount_kiosk_pct` / `welcome_discount_phone_pct`, the server hands them to the page,
+and the offer on screen is by construction the offer honoured at the till.
+
+**And zero is a first-class answer, not a broken one.** At 0 the page would have read *"Become a
+member — 0% off today"*. It now swaps to the points copy in all four languages:
+
+```
+15/10 (default, unchanged)  "Become a member — 15% off today"
+0                           "Become a member — collect points"
+                            "Collect points on every purchase. No name needed, 20 seconds."
+```
+
+**Proved live on local, both ways round:**
+
+```
+default  page says 15 / 10   ·  signup granted discount_pct=15   ← identical to before
+set to 0 page says  0 /  0   ·  signup granted discount_pct=0    ·  copy swapped to points
+restored to 10/15
+```
+
+Additive migration, defaults reproducing exactly the old hardcoded numbers, so **this changes
+nothing until Felix changes it** — which he can now do himself.
+
+⬜ **Still Felix's call, and only his:** whether to run the offer at all. ⬜ Angel's other idea —
+*"you're now Silver status, here's a discount code for website purchases"* — is not built and
+not spec'd; note that credits still cannot be redeemed for anything, so a status message today
+would promise a mechanism that does not exist.
+
+
+---
+
+
+## 🪧 The counter card — /pos/join-card
+
+*(was `WORKLIST.md` lines 450–478)*
+
+### 🪧 THE COUNTER CARD — `/pos/join-card`, built 2026-08-23
+
+The last missing piece of Angel's flow (*"here, just scan this code and it takes you to our kiosk
+signup page"*). Everything after it already worked.
+
+**Print it OR hold up the tablet** — a phone camera reads a screen perfectly well, so the screen
+path needs no printer at all, which matters while label printing is still being wired up.
+`@media print` sizes it to 88 mm to cut out and stand up when that lands. DE + EN, three steps,
+and the *"screenshot it, the code IS your account"* line repeated from the kiosk. Pulls the real
+shop name from Store settings — rendered `Artemis Lucerne - Headshop`.
+
+**⚠️ Found building it: `request.url_for()` would have printed an `http://` QR on prod.**
+`entrypoint.sh` runs uvicorn **without `--proxy-headers`**, so the ASGI scheme is the internal
+`http` and `url_for` behind Caddy mints `http://banco.wolfhold.app/…`. It would still resolve —
+Caddy redirects to TLS — but the card would carry a printed `http://` URL, an extra hop, and some
+phone scanners warn on a bare http link. **Caught before anything was printed.** Fixed with the
+same three-line forwarded-header idiom the postcard and label pages already use
+(`pos_router.py:11511`, `:12218`, `:12297`) — one convention, not a fourth invention.
+
+```
+local                                    → https://localhost:3000/pos/kiosk
+X-Forwarded-Proto/Host, i.e. via Caddy   → https://banco.wolfhold.app/pos/kiosk   ✅ in the QR
+```
+
+⬜ **The real fix is `--proxy-headers` on uvicorn** (plus `--forwarded-allow-ips`). That is a
+deploy change touching every absolute URL the app mints, so it is logged here rather than
+smuggled in under a counter card. Until then, three call sites carry the workaround and a fourth
+that forgets it will be wrong in a way nobody notices — because http *works*.
+
+
+---
+
+
+## 🎫 The anonymous member card — the spec
+
+*(was `WORKLIST.md` lines 508–533)*
+
+### 🎫 THE ANONYMOUS MEMBER CARD — spec'd 2026-08-22, NOT scheduled → [the spec](worklist-archive/2026-08-22-anon-member-card.md)
+
+Felix, via Angel: *"nobody wants to give their name, but show a barcode or QR code to scan would be
+better — like the Coop or Migros membership cards."* Supercard/Cumulus: **the card IS the identity.**
+
+**Most of it is already built and has never been used.** `customers.qr_code` (unique, nullable),
+`generate_qr_code()` → `HLX-`+8 hex (`customer_model.py:471`), `GET /customer/scan` with **no auth**
+— *"the code is the secret"* (`pos_router.py:4967`), kiosk signup already mints one. And only
+`Handle *` is required on the member form — **an anonymous member is already legal in this schema.**
+
+```
+prod, measured 2026-08-22:  18 customers · 0 with a qr_code · 15 with a real_name
+```
+
+The till has no member-scan path at all; checkout links away to a screen where you TYPE a handle.
+Built, wired, empty — the `reference_products` shape again.
+
+**The one real decision: a date of birth is not a name.** The member is load-bearing for 18+ —
+`member_dob` is the strongest rung and `member_confirmed` is, in the model's own words, *"a tick,
+not a document"* (`transaction_model.py:107`). A card carrying **a code and a DOB and nothing else**
+is fully anonymous AND keeps the strong rung. **It is also the pitch:** not "earn points" but
+***"scan this and we never have to ask for your ID again"*** — which removes a modal from the most
+common basket in the shop. Four build items; only *a member-scan path at the till* has real thinking
+in it. ⚠️ Risks in the spec — carry-rate, whether an unauthenticated scan may clear an age gate,
+FADP on a stored DOB, and **it has not been put to Felix beyond that one sentence.**
+
+
+---
+
+
+## 🅿️ Docks parked · 📸 snap-find done · 📷 tablet camera done
+
+*(was `WORKLIST.md` lines 535–567)*
+
+
+**🅿️ DOCKS ARE PARKED — buy nothing.** Two were tried and neither works: the **WiGig Dock W123**
+reaches a machine only over a 60 GHz radio the Intel 8265 does not have (and Intel WiGig docking
+has no Linux support), and the **Hybrid USB-C Dock DUD901** gave neither data nor charge.
+
+**And a dock was never the point.** Angel: *"we have power cable for the tablet so that is
+basically all we need."* Right. Its one real feature here is wired Ethernet — the gun is on
+Bluetooth (no port) and the webcam has the USB-A — so a dock adds a box, a 135 W brick, a mains
+socket and one more thing to knock off a counter, to buy one thing. If Ethernet is ever wanted it
+is a **CHF 15 USB adapter**, not a dock.
+
+> ⚠️ **And that "if" is unmeasured.** "Ethernet beats Wi-Fi for a fixed till" was my theory, not an
+> observation — nobody has yet seen the shop Wi-Fi fail. **Run the till on Wi-Fi in Luzern with LTE
+> behind it and watch.** Buy nothing until the failure is real.
+
+**📸 Snap-find is DONE too — human-green 2026-08-22.** The webcam capture was running at the
+browser default (~640×480), so the vision model could not read brand lettering and described
+the object instead — an unbranded-but-specific read drops a perfect catalogue row from rank 1
+to rank 16 of a list showing 6. Now asks 1920×1080; the server only downscales, so this had to
+be fixed at the camera. Angel, close-up on a Champ High grinder: *"found the item in our
+catalog right at the top — perfect hit."* Intake dimensions are now logged, so next time it is
+measured, not guessed. **For an item genuinely not in the catalogue, paste the product page
+(🔗 field on Add) — it returns a real EAN; a photo never can.**
+
+**📷 The tablet camera is DONE — a USB webcam, human-green on the tablet 2026-08-22.** Re-measured 2026-08-22 on kernel `6.12.101`:
+two sensors *are* fitted (OV2740 + OV5670) — the August "nothing attached" was wrong — but the
+TPS68470 PMIC powering both has no board data for this model, so Linux cannot switch them on.
+Kernel-patch territory; not going on a shop till. A USB webcam in the USB-A port *just worked* —
+but Banco hid its own 📷 Webcam button on any touchscreen, so the tablet had **no live-camera
+path at all**. Fixed and deployed (`4206246`, prod on `4206246`); Angel confirmed on the tablet:
+*"the webcam button is there and it works"*. Still open: a small stand for the back office.
+Ten-second re-check of the internal cameras after any kernel jump: `sudo dmesg | grep -i tps68470`.
+
+
+---
+
+
+## ✅ The price warning + the till explains the deal
+
+*(was `WORKLIST.md` lines 569–654)*
+
+
+## ✅ THE PRICE WARNING — BUILT, PROVED, HUMAN-GREEN — 2026-08-22 → [the day](worklist-archive/2026-08-22-pooling/)
+
+Angel rang 1 Greengo King Size + 2 Greengo King Size slim and got **CHF 6.00** where three plain
+papers are 5.00. The price was right; *"price is for the whole pack"* was unticked, so the row
+stored `tier_mode: per_unit` — an island that can never pool. **Four live rows** had it.
+
+They were never hidden. All three screens printed `3+ @ 5.00 ea` — literally true of per_unit,
+absurd on its face (15.00 for three, while the till charged 5.00) — and nobody blinked, because
+**a ladder printed in indigo reads as a deal however silly the number.** Being accurate was not
+enough; it had to be loud, and it had to stop pricing a row it knows is wrong.
+
+**Angel ran the 25-check sheet on prod: `25 pass · 0 fail · GO`.** Prod on `73e9cff`.
+
+| Shipped | Where it came from |
+|---|---|
+| `tierWarning()` — one rule, three screens + both editors | the CHF 6.00 basket |
+| `GET /catalog/price-check` — the whole catalogue at once | a badge only helps whoever scrolls past |
+| The EAN above the price on every row | *"i see no EAN here … a quick glance"* |
+| A sticky Save on the edit modal | two saves that never reached the server |
+| The equal `1 →` rung goes silent | `+ Add break` creates it, by design |
+| `✓ Pricing checked — nothing to fix` | twenty minutes proving a working feature worked |
+
+**Money found and closed:** Tycoon Gas labelled 6.90, ringing **5.00** (−1.90 a can). Greengo
+Wide Rolls labelled 4.00, ringing **3.50**. Both were a `min_qty: 1` rung silently replacing the
+shelf price — *one unit is not a deal*. Neither was findable by looking at the row you happened
+to be working on; the sweep found both on its first run.
+
+**Angel cleared all ten flagged rows himself.** The live shop now carries 92 quantity ladders and
+**0** that cannot mean what they say.
+
+**Proof:** `prove-bad-price-is-visible.js`, 34 assertions — 6 of them guard-breaks that must stay
+SILENT. Reverting each of the four features turns 5 red. Plus 5 sibling provers (77 total) and 53
+pricing unit tests.
+
+### ✅ The till now EXPLAINS the deal — 2026-08-22 · **17/17 GO**, retest **10/10 GO**
+
+Twice in one day Angel sent a screenshot of a cart asking *"is this my pricing issue?"* Both times
+the arithmetic was right and the screen showed only numbers. **Numbers cannot say why.** He could
+send a screenshot; Layla and Mark cannot.
+
+Every cart line that carries a ladder now says one of four things, and the checkout screen repeats
+it as the last word before the drawer opens:
+
+| | |
+|---|---|
+| `🏷️ 3 for CHF 5.00 — 3 in this deal` | pooled, and how many are in it |
+| `🏷️ 3 for CHF 5.00 — not reached yet` + `+1 more → save CHF 1.00` | how far off, and what it is worth |
+| `⚠️ not in the deal — this pack is priced per unit` | **the one that cost the day** |
+| *(nothing)* | a plain product, most of the basket |
+
+Plus **Deals in this basket** above the totals, naming the members of each group — the only thing
+that answers *"why did these three not pool?"* without opening a product.
+
+Every figure comes from the same `_bundleTotal()` the drawer uses, so the explanation cannot drift
+from the charge. `prove-till-explains-the-deal.js`, 39 assertions, four of them guard-breaks that
+must stay SILENT — a till that comments on every line is a till nobody reads. Neutering
+`dealInfo()` turns 7 red.
+
+**Two older bugs fell out of it, both found in Angel's pasted screen text, not by a test:**
+
+1. **`pack ✓` on a line charged in full.** Two papers pool but two is below the three-rung, so the
+   pool saved nothing — and a pool that saved nothing was still marking the line volume-priced.
+   On the server that set `tier_final`, which takes a line out of `eligible_subtotal`, so **a
+   manager's discount silently skipped two full-price papers.**
+2. **The cart quoted a discount the drawer would not give.** The server discounts the eligible
+   portion only; `checkout.html` mirrored it; the cart panel did not. Three deal papers + a
+   lighter at 10% showed **CHF 8.91** in the cart and **CHF 9.41** at checkout and in the drawer.
+   `isPromoRestricted()` and `cartEligibleSubtotal()` now live in `base.html` — one copy.
+
+`prove-cart-agrees-with-till` was green through all of it: it compares line totals and **never
+builds a discounted basket**. A shape the harness cannot make, not a gap in it.
+
+**UAT:** `onboarding/testsheets/TEMPLATE.html` — steps as data, PASS/ISSUE/FAIL, per-step notes,
+timing, a copy-out report, and a training mode that hides the expected result until asked. Two
+sheets built on it. See `onboarding/testsheets/README.md`.
+
+**Closed 2026-08-22 — Smoking Gold is not special.** Angel: *"GOLD is same as the others, nothing
+special — sounds special but it's the same as Deluxe `84195937`. These are the King Size Papers,
+no filter no tips."* Felix's "collector, 2.50, no deal" was a misread of the name. Verified: Gold
+and Deluxe are byte-identical on everything that prices them — 2.00, `bundle`, 3-for-5, standard
+class, no age gate. **The 3-for-5 it already carries is correct.**
+
+*(Cosmetic only: Gold sits in `Papers & Filters`, Deluxe in `Rolling Papers`. Pooling keys on
+price + terms, not category, so the till is unaffected — but they are the same kind of thing.)*
+
+
+---
+
+
+## ✅ Bundle pricing
+
+*(was `WORKLIST.md` lines 656–702)*
+
+
+## ✅ BUNDLE PRICING — BUILT, PROVED, LIVE — 2026-08-21 evening → [the day](worklist-archive/2026-08-21-price-consistency/)
+
+A customer buys a Smoking, a Raw and an OCB — not three of one. Until tonight that rang **6.00**
+where three of one paper rang 5.00. It now rings **5.00**, and the rule that made it simple was
+Angel's own: *"if the paper has tier pricing then they can mix."* **The deal IS the group** — no
+roll table, no paper table, nothing to maintain. Two lines pool on identical bundle terms + the
+same base price, which sorts the live shop into exactly two groups with no configuration:
+
+```
+49 products · CHF 4.00 · 3 for 10.00     rolls
+38 products · CHF 2.00 · 3 for  5.00     King Size papers
+```
+
+**Four money bugs found and fixed today, three of them by Angel noticing a number looked odd:**
+
+| what rang | should have | how it was found |
+|---|---|---|
+| 19 Gizeh Rolls Slim Pink → **5.89** | 55.10 | auditing every tiered row with the till's own function |
+| 4 packs → **13.33** | 14.00 | Angel asked **Ralph**, who serves the counter |
+| cart showed **15.00**, drawer 5.00 | 5.00 | Angel testing the mix at the till |
+| same deal **7.00** and **6.67** in one cart | 7.00 | Angel testing again |
+
+**Ralph's rule** (whole packs, then the deal starts again) is now the semantics everywhere,
+including the above-base rescue, which had been left on the old pro-rata behaviour.
+
+**Provers** — `prove-mix-and-match.js` rings REAL sales (localhost + `BANCO_ALLOW_FAKE_SALES=1`),
+`prove-cart-agrees-with-till.js` compares 320 quantities and 9 mixed baskets line by line across
+BOTH tier modes. Every one was watched go red before being trusted. 53 pricing unit tests.
+
+### ▶️ Tomorrow — Angel's hands
+
+- [ ] **Test a spread of packs.** The maths is proved; the shop floor is not.
+- [ ] `30058569` **OCB Premium Slim black** — tick *"price is for the whole pack"*. Plain paper,
+      belongs in the deal; stored `per_unit` so it cannot pool.
+- [ ] `30104891` **OCB Virgin Slim + Filters** — has filters, so by Angel's rule **no deal at
+      all**. Remove its tiers, do not convert them.
+- [ ] 8 King Size papers still to decide · 6 Rips to price · Old School's box price.
+
+### 🔜 The piece that is missing
+
+**The till does not EXPLAIN the deal.** The money is right; nothing says "3 for 5 applied", nothing
+prompts *"add one more and save CHF 1"*, and nothing says **why a line did not join the pool** —
+Angel had to ask. A cashier sees `pack ✓` on one line and not the one beside it with no way to
+know one is a filtered paper and the other is misconfigured. Layla and Mark will have to trust a
+number they cannot check. That is the next real build.
+
+
+---
+
+
+## ✅ Prod is live on today's code and the reference is loaded — 2026-08-21
+
+*(was `WORKLIST.md` lines 704–740)*
+
+
+## ✅ PROD IS LIVE ON TODAY'S CODE AND THE REFERENCE IS LOADED — 2026-08-21
+
+Deployed `7559fa1`, **all readiness checks green** (incl. silent token refresh and the
+append-only 18+ trigger), then imported the FourTwenty reference **from the live feed**.
+
+```
+reference_products        11,035 rows · 10,980 with a barcode · 10,384 distinct codes
+                          11,024 photos · 11,035 prices · 981 gated 18+
+alcohol rows              57 — and ZERO of them un-gated
+live products             5,446 — UNCHANGED. 4,998 minted — UNCHANGED.
+age_check_event           untouched
+```
+
+**The deploy had to come first, and that was the whole point.** A dry run on the old build
+classified **959** rows as 18+ against today's **981** — the 22-row gap was the alcohol fix, and
+importing without it would have loaded Absinthe, Agwa, the Arehucas rums and the Sulzer
+sparkling wine marked *not 18+*, which `/reference/{id}/adopt` copies onto a live product.
+That would have left prod **worse** than it was, because hand-creating an "Absinthe Mansinthe"
+already gated on the title. Verified on the box before importing: prod's `classify()` now
+returns `alcohol/True` for Spirituosen and still leaves *Brandywine (Solanum lycopersicum)* —
+a tomato — alone.
+
+Proven on the live box, by asking the database and the lookup rather than the script:
+
+```
+4002450223400 -> Pueblo Classic Tabak Dose 100g   CHF 26.50  18+  amb=1
+7666563986873 -> Sasso Tabaccos Brazil Hash BIO   CHF  7.50  18+  amb=1
+8718403231311 -> BioBizz Fish Mix 500ml           CHF  8.00       amb=1
+7640181330065 -> BudBouncy's V1 Indoor 3g         CHF 15.00  18+  amb=1
+9999999999994 -> no reference          (GS1 coupon-range filler, correctly refused)
+8412766066114 -> Clipper 1 Horn 654    CHF 3.00  amb=9  ← says "9 products share this code"
+```
+
+*Sasso is CHF 7.50 now, not the 6.90 in the nine-month-old copy — staleness cost prices too,
+not just coverage.* **Refresh with `--fetch --apply --prune` whenever the range moves.**
+
+
+---
+
+
+## 🔴 The FourTwenty lookup was never loaded — and the whole reference thread
+
+*(was `WORKLIST.md` lines 742–907)*
+
+
+## 🔴 THE FOURTWENTY LOOKUP WAS NEVER LOADED — 2026-08-21 → [the measurement](worklist-archive/2026-08-21-fourtwenty-reference.md)
+
+Angel: *"FourTwenty has the items, we just don't get matches… I have the feeling that they are
+the proper numbers."* **Both halves are right, and he was doing nothing wrong.**
+
+```
+reference_products   Felix's shop 0 rows · sandbox 0 · lapiazza 0 · wolfhold: no table
+scripts/import_reference_catalog.py — the only writer, per the model's own docstring
+                     DOES NOT EXIST, and never has (git log --all finds nothing)
+```
+
+Every FourTwenty path in the app — `/reference/search`, `reference_matches`, `adopt`,
+`_reference_best_match` — has queried an **empty table on every machine, for its whole life.**
+Pattern 1 at its purest. And `web_product_lookup.py` (the thing he thinks is the FourTwenty
+search) hits UPCitemdb and OpenFoodFacts — **it never touches 420.ch.**
+
+**The data is real and it is in the monster repo:**
+`helixnet/debllm/feeds/fourtwenty/products_latest.csv` — 10,082 rows, **9,977 with a real GTIN
+(99.8%)**, prices and photos. Two of his three failed scans yesterday are in it with everything
+(`4002450223400` Pueblo · `7666563986873` Sasso Hash); the actiTube genuinely is not.
+
+⚠️ **Loading it is necessary, not sufficient.** Shelf-intake triage refuses to match unknowns
+because *"a bare EAN carries no name"* — true only while the table was empty. And
+`_find_catalog_matches` searches the reference **by title only, never by barcode**, though the
+column is indexed and two other endpoints do use it.
+
+**① THE IMPORTER IS BUILT AND PROVEN** — `scripts/import_reference_catalog.py` (`a9dda04`).
+Sandbox: 0 → **10,082 rows**, idempotent on a second run, and `_reference_best_match` now
+answers `4002450223400 → Pueblo Classic Tabak Dose 100g CHF 26.50 how=barcode`. Dry run unless
+`--apply`. ✅ **RUN ON PROD 2026-08-21 06:32 UTC — measured 2026-08-22 evening, not remembered.**
+`reference_products` on Felix's box: **11,035 rows · 10,980 with a real EAN · 981 age-gated**,
+all stamped `2026-08-21 06:32`. `--fetch` pulled a fresher feed than the 10,082-row CSV, hence
+the higher count. Spot-check live tonight: `4002450223400 → Pueblo Classic Tabak Dose 100g
+CHF 26.50`. This item sat marked "Angel's call" for a day AFTER it was done — pattern 3, a
+remembered state with no expiry condition on it.
+
+Three things its first dry run caught, each of which would have shipped:
+- **FourTwenty's 18+ flag is their checkout policy, not the product** — they mark a USB wall
+  plug `mindestalter: 18`. Importing it would have gated 2,220 rows, and `adopt` copies
+  `age_restricted` straight onto the live product. **A till that IDs a phone charger teaches
+  the cashier to click through the age gate.** Our classifier decides (829); theirs is kept in
+  `raw` and printed as a disagreement.
+- **`classify()` was already written for this table and had no caller** — its docstring says
+  *"Map a REFERENCE ITEM to (our_category, our_class, age_restricted)"*.
+- **Layer 2 had no alcohol branch.** A bottle's title is a brand, so 17 of 44 "Spirituosen"
+  and **all 5** of "Bier, Wein & Champagner" would have loaded **un-gated**. Fixed; measured
+  across all 10,082 rows: **22 newly gated, 0 un-gated.** 4 new tests.
+
+**② AN EAN MISS NOW ASKS THE REFERENCE — BY BARCODE** (`e66acb3`). Neither half needed a new
+endpoint; both were already built around an empty table.
+- **The till:** a miss that the supplier knows opens the find-and-bind panel **with the real
+  title already in the search box** — which is what lets her find the Tamar row under a minted
+  code and bind THIS code to it. A miss nobody knows still gets 2026-08-07's quiet department
+  strip. No modal for nothing.
+- **Shelf intake:** unknown rows now carry title, price, photo, category and 18+.
+  **Exact barcode only — never a name guess.** *"It says, well, of course, it doesn't find
+  it… so then I have to do basically a web search."* Now it answers first.
+
+Two hazards found by scanning a **made-up** control code and getting a confident answer:
+- **GS1 980–999 (coupons) and 20–29 (someone else's in-store code) are not packet codes** —
+  the feed uses them as filler. Refused. 9,977 → 9,953. **977–979 KEPT**: those are ISBNs and
+  the shop really sells the books.
+- **145 codes sit on more than one product** — a Clipper 4-pack at CHF 75 and its singles at
+  CHF 7.50 share a GTIN. The screen now says *"the supplier lists N under this code"* instead
+  of naming one confidently.
+
+`scripts/prove-barcode-binding.js` — **29 checks, 29/29**, real browser. Sabotaged both halves
+→ 7 red. Skips **loudly** when the reference is empty, because a silent skip is the exact
+shape that hid this for the project's whole life.
+
+**③ KINGS CASTLE IS TIER 3** (`cbc158d`). Order on a miss: live catalogue → our reference
+(local, instant) → a shop that answers an EAN. Measured on ten codes FourTwenty lacks, Kings
+Castle answered **3** — actiTube, Purize, LocalWeed — all of them codes nothing else could
+resolve. **Reach ~40% → ~56%.**
+- **Generalised, not hardcoded:** `RESOLVABLE_SHOPS` is a list of dicts; a shop cloning Banco
+  adds an entry with no code. The scoped-search buttons derive from the same list.
+- **The offer never takes over.** The department strip appears immediately; the lookup runs
+  unawaited and an offer appears *beside* it. 2026-08-07's decision stands.
+- ⚠️ **No price crosses, and it is load-bearing now.** Kings Castle is a wholesaler: EAN
+  `4260641140046` lands on *"actiTube Aktivkohlefilter - Slim (50Stk.)"* — the right name,
+  Angel's own BL-10 product — at **CHF 99.00**, while the single is CHF 9.90 on the same page.
+
+**Still to do:** ④ measure how often *"Is it already in my catalogue?"* actually binds to an
+existing minted row — the button exists, the hit rate does not. ⑤ ~~deploy tier 3 to prod~~
+✅ **already there** — `a9dda04`, `e66acb3`, `cbc158d` are all ancestors of prod's `9abc082`
+(`git merge-base --is-ancestor`, checked 2026-08-22). ⑥ a SECOND wholesale feed is still the
+big lever; neardark needs creds.
+
+### ⚠️ THE REFERENCE DOES NOT FIX THE 4,979 MINTED CODES — measured on prod 2026-08-22
+
+Asked directly: *"is that going to replace the existing tamar 2000000 EANs … and fix those bad
+internal dummy eans — is that the idea?"* **No.** Worth writing down, because it is the natural
+reading and it is wrong.
+
+The importer writes **one table** via one `UPSERT` — `reference_products` — and never touches
+`products`. It is a clipboard beside the catalogue, not a migration.
+
+And a bulk title-match cannot do it either. Measured on Felix's box tonight, 4,979 minted rows
+against all 11,035 reference titles (`pg_trgm`):
+
+```
+300-row sample, best similarity vs the WHOLE reference table
+  < 0.5   212 rows  (71%)   ← no usable match at all
+  ≥ 0.7    36 rows  (12%)
+  = 1.00    9 rows   (3%)
+full 4,979 with an EXACT title match to a ref row carrying a real EAN:  140  (2.8%)
+```
+
+So the ceiling on auto-binding is **140 of 4,979**, and even those are not safe: **145 reference
+codes sit on more than one product** (the Clipper 4-pack at CHF 75 and its singles at CHF 7.50
+share a GTIN), so an exact title match can bind the code of the wrong pack size — and per
+LESSONS #8 a wrong bind looks exactly like a right one from inside the database. Only the packet
+tells them apart.
+
+**What actually converts a minted row is one scan** — bind-on-scan (BL-90), at the counter, with
+the packet in a hand. The reference's job is to make that scan *land*: a miss the supplier knows
+now opens find-and-bind with the real title already in the box. 18 aliases bound so far.
+**The open number is still ④ — the hit rate — and it is measurable at the till, not here.**
+
+### ④ THE HIT RATE — MEASURED 2026-08-22. It cannot be answered yet, and here is why.
+
+**113 minted codes HAVE been converted.** The bind promotes correctly: a real EAN off a packet
+takes the primary slot and the minted `2xxxxxxxxxxxx` is demoted to an alias, never discarded
+(`pos_router.py:2329`). So a rescued row is `product_barcodes.barcode ~ '^2\d{12}$'` with a real
+`products.barcode` — **113 on prod**, out of 4,979. **2.3% in three and a half weeks.**
+
+```
+day      rescues   sales that day
+07-31       16
+08-05       50            ← hand-binding sessions, not till traffic
+08-06       27
+08-20       13          2
+08-21       12          1     ← reference went live 06:32 UTC this morning
+08-22        1          0
+```
+
+**None of them came from the till.** The box has rung **50 transactions in its entire life**
+(45 completed + 5 refunded, since 2026-07-25) and **4 in the last nine days.** Twelve binds on
+08-21 spread from 07:24 to 17:28 against **one sale** — that is a human at the catalogue screen
+working through a list, not a cashier scanning a packet. *(Inference from timing: the endpoint is
+the same either way, so the DB cannot distinguish them. It is a strong inference, not a fact.)*
+
+**So the reference's effect is unmeasurable, and would have been whatever we found.** 13 binds
+the day before it loaded, 12 the day after. With one sale between them there is no denominator.
+**The blocker on ④ is not instrumentation — it is that the shop is in acceptance, not trading.**
+
+### 🔴 AND THE MISS RATE IS NOT BEING RECORDED AT ALL
+
+`catalog_miss` — SPEC §6's "self-prioritising enrichment backlog" — holds **1 row, ever.**
+`_record_catalog_miss` is called from two places (`pos_router.py:5850`, `:6464`) and both are
+gated `if ln.department_code and ln.unresolved_barcode`. **Only a miss rung through the
+department strip is counted.** A miss the cashier handles by creating the item — now the good
+path, since `createNoCodeItem()` binds the real code — carries no `unresolved_barcode` on a
+department line, so it is never counted. Defensible as design (it *was* resolved), but the
+consequence is that **"three of four scans miss" has no live measurement behind it.** That
+figure came from counting minted rows in the catalogue, which is a stock, not a rate.
+
+**What this actually says:** hand-binding works and is the only thing converting rows. At 113 per
+three weeks, 4,979 rows is years. The reference does not change that rate — it changes what a
+human sees when they get there. **The lever is a shelf pass with the gun, not a till feature**,
+which puts this behind the inventory-mode dump in `▶️ NOW`.
+
+*Bulk name-matching stays weak and measured: "Tabak Beutel Sasso Tobaccos Hash 25gr." does not
+reach "Sasso Tabaccos Brazil Hash BIO" at the 0.5 threshold. **Scan-time beats bulk.***
+
+
+---
+
+
+## 🔴 Six reports from the till — 2026-08-20 (BL-9…BL-14)
+
+*(was `WORKLIST.md` lines 909–940)*
+
+
+## 🔴 SIX REPORTS FROM THE TILL — 2026-08-20 (BL-9…BL-14) → [the evidence](worklist-archive/2026-08-20-till-reports.md)
+
+**All six tagged `annoying`. Not one `blocking`.** Read that before reading Felix's verdict.
+
+```
+5,446 products live · 4,998 carry a MINTED 2000000… barcode (92%)
+  414 findable by scanning the real packet (7.6%)
+   29 of 107 sold catalogue lines had a real EAN (27%)
+```
+
+**Three of every four things Felix rings up cannot be scanned off the pack.** The buttons he
+hates — department strip + "new item" form + pending-code banner, stacked at once — *only
+appear because the scan missed.* Fewer buttons is the wrong fix; a scan that hits is the fix.
+
+1. **🩸 THE LEAK — `scan.html:1385`.** `createNoCodeItem()` always mints, even when
+   `pendingBarcode` holds the code that just 404'd and the screen is *displaying* it. Every
+   item created today adds another unscannable row. = BL-9, BL-12, BL-13.
+   Sibling: `catalog.html:1297` never seeds Barcode from the search box, and its hint
+   *"leave it blank — a code is generated automatically"* is the bug written down as a feature.
+2. **📷 `catalog.html:1692`** — `if (!this.snapPreview)` plus an `openCreate()` that never
+   clears `snapPreview`/`snapName`/`pageUrl` ⇒ the panel shows the **previous** product's photo
+   under the words "read from this photo". = BL-10, BL-11.
+3. **BL-14 · the cursor** — title and body point opposite ways; needs 30 seconds of Angel
+   showing me. Plus two unlabelled buttons in his screenshot — **unverified**, could be an
+   html2canvas artifact, and a screen is checked in a browser.
+4. **The tablet** — no Chrome by default, Firefox search "no good". Not specified yet.
+
+The 4,998 already in there: bind-on-scan is built (BL-90); 18 real aliases bound so far.
+Tamar publishes no EAN — but **FourTwenty does**, and that feed was never loaded. See the item
+above; it is the same problem seen from the other end.
+
+
+---
+
+
+## 🔴 The silent-refresh bug — closed
+
+*(was `WORKLIST.md` lines 942–946)*
+
+
+## 🔴 The silent-refresh bug — CLOSED 2026-08-13 → [`worklist-archive/2026-08-18plus-and-compliance.md`](worklist-archive/2026-08-18plus-and-compliance.md)
+
+Fixed in `9f34f85`; now pattern 6 in `CLAUDE.md` and a lesson in `LESSONS.md`.
+
+
+---
+
+
+## ✅ Prod is live on today's code — 2026-08-14
+
+*(was `WORKLIST.md` lines 971–1004)*
+
+
+## ✅ PROD IS LIVE ON TODAY'S CODE — 2026-08-14, ALL GREEN
+
+Felix's shop is deployed and every readiness check passes:
+
+```
+✅ silent token refresh works — a session survives past the 5-min access token
+✅ 18+ evidence is append-only (trg_ace_append_only installed)
+✅ ALL GREEN.        banco.wolfhold.app 200 · banco-auth.wolfhold.app 200
+```
+
+**The 18+ evidence is now genuinely permanent on prod** — that trigger had never been
+installed there, and until this deploy the table any screen called "append-only" could have
+been rewritten by a single UPDATE. 13 compliance rules seeded, 0 active by design.
+Felix rang a sale immediately afterwards; the audit cockpit caught it.
+
+**Two things went wrong on the way, both mine, both now guarded:**
+
+1. **The deploy silently did not run the first time.** `deploy-prod.sh` was typed without
+   `./scripts/`, and the *command not found* scrolled past under 37 files of successful pull.
+2. **I crash-looped Keycloak** — `You can not set both 'hostname' and 'hostname-url' options`.
+   My own preflight, written that morning, **passed the broken config**, because it validated
+   each value alone and never the pair. The app served 200 throughout, so **the shop looked
+   alive while nobody could log in** — the nastier failure shape. Fixed, and the preflight now
+   refuses the combination (proven by restoring the exact broken file).
+
+⚠️ **The box is on `999800d`.** The two commits since — `250053f`, `b0cf512` — are compose and
+script changes only, no app code. A `git pull` picks them up; **nothing needs redeploying.**
+
+**Left over from the B2 detour:** the storage cap is lifted (31 GB, no cap, ~13¢/month). Still
+worth doing when convenient — a lifecycle rule on `wolfhold-banco-backups` (229 dumps since
+20 July, "keep all versions", nothing ages out), and a look at
+`wolfhold-freehold-backups` (35 files, **30.7 GB** — that was what blew the cap, not Banco).
+
+
+---
+
+
+## ▶️ NOW (08-22) + 🩸 adopt-images had never run
+
+*(was `WORKLIST.md` lines 1006–1105)*
+
+
+## ▶️ NOW — needs Angel's hands
+
+1. **✅ NOT BLOCKED — the shell on prod exists, and both DRY RUNS ARE CLEAN (2026-08-22).**
+   The "decide: a shell on prod, or a dump pulled down" question answered itself: `ssh banco`
+   works, and both scripts `docker cp` into `banco-app` exactly as the FourTwenty importer did
+   yesterday. Prod copies are byte-identical to this repo (md5). Measured tonight:
+
+   | | scope on prod | dry run |
+   |---|---|---|
+   | `enrich-from-source.py` | **5,096** products carry a `source_url` | 40 fetched · **0 failed** · 35 spec tables · **4 tier ladders** |
+   | `adopt-images.py` | **5,155 of 5,422** actives hotlink an image (95%), 13 have none | 20 across 9 external hosts, no errors |
+
+   **The spec half is the safe half and it is most of the value:** 88% of pages yield a spec
+   table, ~4,500 products' worth, and specs cannot misprice anything.
+   ⚠️ **The tier half touches money and lands at ~10%, i.e. ~510 new ladders on a live till —
+   against 92 today, a 5.5× increase, on the same day we found four ladders that silently
+   underpriced.** The script guards the worst case itself (it refuses any ladder whose first
+   rung costs more than one unit, and reports it for a human — `enrich-from-source.py:206`),
+   and every ladder it writes is `tier_mode='per_unit'`, which is exactly the mode today's
+   `tierWarning()` was built to make loud. **So: run it, then run `GET /catalog/price-check`
+   over the whole catalogue before the shop opens.** That sweep found both money leaks on its
+   first run today; it is the right net under this.
+   ⏱ **`adopt-images` is now MEASURED, not estimated — and it had never once completed a run.**
+   See below.
+   → detail in [`worklist-archive/catalogue-and-till.md`](worklist-archive/catalogue-and-till.md)
+
+### 🩸 `adopt-images` HAD NEVER RUN — a stub product, and a write that went nowhere
+
+Angel asked for 100 first, *"so we can get an idea how well it works, how fast, and how the disk
+starts to fill up."* It died on **product 1**.
+
+`adopt-images.py` built a hand-made `_P` object carrying `.id` and `.image_url`, commented *"the
+helper only needs .id and .image_url."* It needed more, in two ways:
+
+1. `_copy_external_image_to_storage` logs `product.sku` on **both** its success and failure paths
+   (`pos_router.py:3987`, `:3991`). The stub raised `AttributeError` — *inside the except handler*,
+   which raised it again. Uncatchable, product 1, every time.
+2. **The dangerous one, had we only added `.sku`:** the helper's entire purpose is
+   `product.image_url = serve`, and on a stub that assignment lands on a throwaway object. The
+   commit still persists the `product_images` row and the MinIO object, so **the script would have
+   printed "adopted 5155" and left every product pointing at the other server.** Pattern 1, green
+   on every layer a test can reach.
+
+Not theory: the crashed run uploaded **ITEM-0002**'s picture and committed its row while
+`products.image_url` still read `tuotroestanco.com`. That one orphan row was deleted; its ~34 KB
+MinIO object is still there and is not worth chasing.
+
+**Fixed** by loading a real `ProductModel` — a tracked instance is what makes the write land — and
+the script now **asks the database** what it holds instead of reporting its own arithmetic:
+`verified in the database: 91 of these 100 now serve a local image — agrees with the 91 reported`.
+That line exists because `ok` and reality came apart once already.
+
+**MEASURED on prod, 2026-08-22 (100 products, real run):**
+
+```
+100 products        67 seconds        0.67 s each
+ 91 adopted          9 left alone (fetch failed — external URL kept, nothing broken)
+MinIO  19M → 22M     3 MB for 91 images  ≈ 34 KB each (the helper downsizes)
+disk   13G/38G, 23G free — UNCHANGED at this resolution
+```
+
+**✅ FINISHED 2026-08-22, the whole catalogue. The shop owns its pictures.**
+
+```
+5,422 active products   5,395 ours (99.5%)   14 still hotlinked   13 never had an image
+MinIO  18M → 163M       ~57 min              disk 14G/38G, 23G free — unmoved
+verified in the database: 5047 of these 5061 now serve a local image — agrees with the 5047 reported
+```
+
+Prediction was ~57 min and ~156 MB; actual was ~57 min and 145 MB of growth. The archive's
+~137 min estimate was 2.5× pessimistic. **Angel asked whether Hetzner needs more room. It does
+not, and it was never close** — 145 MB against 23 GB free.
+
+**The 14 that stayed external are the finding, not the failure.** Every one is a dead or blocked
+link on somebody else's server — 8 `ITEM-*` vape cartridges, `Bongasmus 440mm`, two ELFBAR pods,
+a Steely Dan grinder, a Blow CBD joint, a hand sanitiser. They kept their external URLs, so
+nothing broke; they are simply the rows whose pictures were already rotting. **That is the
+Metrop MR2 case, caught 14 more times, and it is exactly why this job existed.** Worth a pass
+someday to re-source them; nothing is blocked on it.
+
+**Superseded — the original note:** ⛔ *The two bulk catalogue scripts are blocked on WHERE they run, not on code.*
+   Local dev has **6 products**; the 5,111 live on the prod/UAT box, and `deploy-prod.sh` is
+   written to run *on* that server. Decide: a shell on prod, or a dump pulled down here. Then
+   `enrich-from-source.py --apply` (~90 min) and `adopt-images.py --apply` (~137 min).
+   → detail in [`worklist-archive/catalogue-and-till.md`](worklist-archive/catalogue-and-till.md)
+
+2. ~~**🔫 The gun's inventory-mode dump is unproven**~~ — ✅ **CLOSED 2026-08-22, human-green.**
+   Angel: *"the gun has been tested and it works fine, there are no issues."* The burst survives
+   the browser textarea. **The last unknown in shelf intake is gone and the 10× path is open** —
+   which matters more tonight than it did this morning, because the 08-22 measurement says
+   hand-binding at a screen is the ONLY thing converting minted rows (113 in 3½ weeks) and a
+   shelf pass with the gun is the only thing that goes faster. Runbook:
+   [`onboarding/09-shelf-intake.md`](onboarding/09-shelf-intake.md); triage is read-only
+   (`pos_router.py:1002` — *"Nothing is written"*), so it is safe to point at the live shop.
+   ✅ *And the doc contradiction is settled:* **the Netum NS L8 is the store-mode gun** — 3,000
+   codes, tested. The **Inateck BCST-35 is single-shot, with Bluetooth**, which makes it the
+   phone/tablet gun. `09-shelf-intake.md` and `testsheets/Scanners/README.md` both said Inateck
+   and are corrected.
+
+
+---
+
+
+## ✅ The 18+ evidence work
+
+*(was `WORKLIST.md` lines 1107–1112)*
+
+
+## ✅ The 18+ evidence work — DONE, human-green 2026-08-13 → [`worklist-archive/2026-08-18plus-and-compliance.md`](worklist-archive/2026-08-18plus-and-compliance.md)
+
+Angel ran it and called it: *"it's working fine."* **Do not reopen it for another pass.**
+`scripts/prove-till-18plus.js` (45 checks, rings as `ralph`) still runs before a promote.
+
+
+---

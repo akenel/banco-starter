@@ -4,6 +4,37 @@
 
 ---
 
+- 2026-08-27 — **The second archive pass.** `WORKLIST.md` 1,201 → live-items-only; 889 lines moved
+  out verbatim to [`2026-08-27-archive-pass.md`](2026-08-27-archive-pass.md), two blocks to
+  [`backlog.md`](backlog.md). Everything below this line is indexed there.
+
+- 2026-08-24 — **The member card is DEPLOYED** (Angel confirmed 2026-08-27). The 08-22 section
+  saying `⬜ NOT DEPLOYED, NEEDS A HUMAN` had been stale for three days while a block 160 lines
+  above it said the opposite. `1f379d5` catalogue CSV export · `85154c0` kiosk blank username ·
+  `128cce4` join offer as a settings field · `571c94c` deactivated members stay gone · `ed20cfa`
+  clear cart. The 18+ stop was witnessed firing on a real till (UAT C3, C5).
+
+- 2026-08-22 — **BL-9 and BL-10, the mint leak, closed** (verified in code 2026-08-27).
+  `scan.html:1814` binds `pendingBarcode` instead of always minting; `catalog.html:1639`
+  `openCreate()` seeds the barcode from the search box when it is 8–14 digits, and the
+  *"leave it blank — a code is generated automatically"* hint that invited 4,998 unscannable rows
+  is rewritten to say when blank is actually right. **BL-11 was NOT closed with them** — see the
+  live worklist.
+
+- 2026-08-22 — **`adopt-images` finished the whole catalogue.** 5,395 of 5,422 actives serve a local
+  image (99.5%); MinIO 18M → 163M in ~57 min; disk unmoved. The 14 that stayed external are dead
+  links on other people's servers — the finding, not the failure.
+
+- 2026-08-22 — **The price warning + the till explains the deal.** `25 pass · 0 fail · GO` on prod,
+  then 17/17 and a 10/10 retest. Found and closed two live money leaks (Tycoon Gas −1.90/can,
+  Greengo Wide Rolls) and two older bugs in a pasted screenshot: `pack ✓` on a fully-charged line
+  took it out of `eligible_subtotal`, and the cart quoted a discount the drawer would not give.
+
+- 2026-08-21 — **Bundle pricing, and the FourTwenty reference finally loaded.** Mixed papers pool
+  (`a9dda04` `e66acb3` `cbc158d`); `reference_products` went 0 → 11,035 rows on prod after the
+  table had been empty on every machine for the project's whole life. Ralph's whole-packs rule is
+  the semantics everywhere.
+
 
 - 2026-08-07 — **Money safety: a photo cannot set a price, and the till cannot sell a placeholder.**
   `976eb0a` `45085a3` `3a28a87` `b4d31ce` `dff36bc`. Four things, one thread. (1) The `product`

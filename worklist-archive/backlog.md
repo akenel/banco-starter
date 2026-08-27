@@ -4,6 +4,113 @@
 
 ---
 
+### 💡 FIRST-USE AGE CHECK — Angel's idea, 2026-08-22, NOT BUILT
+
+*"The first time the member tries to make a purchase, a popup appears… the cashier verifies their
+age, maybe with a quick look, or if in doubt asks for ID… so all anon members have the age
+checked but verified."*
+
+**This is better than asking for a date of birth, and it should probably replace it.** No DOB is
+stored at all — maximum anonymity, nothing under FADP to hold — and the check is a human looking
+at a human, which is what the law actually wants. It gives a rung *above* `member_confirmed`
+(a self-tick) that persists, instead of re-asking every visit.
+
+Design notes before anyone builds it:
+- **Record HOW.** "Looked over 25" and "checked their ID" are not the same evidence and must not
+  share a value. Write it to `age_check_event` (append-only) with who and when.
+- **A look does not self-correct.** A DOB makes a 17-year-old legal on their birthday; a staff
+  glance marks them verified forever. Consider recording an ID check as permanent and a glance
+  as needing a re-look after N months.
+- **Hang it off the SCAN, never the spoken code** — see the 810,000 above.
+- **A verified card in a younger sibling's hand is still verified.** That is the bearer-token
+  limit of every loyalty card and worth stating out loud rather than discovering.
+
+⬜ **AND THE T&C PAGE IS NOT WRITTEN — deliberately.** Angel sketched it (*"plain English, not
+lawyer talk"*): skipping the DOB is fine, but you may be asked for ID the first time if you look
+underage; doing this underage is illegal and we will probably catch you at the counter; this is a
+**points system only**, tracking purchases and spend, maybe a gift at bronze/silver/platinum. He
+also said *"I'm just making stuff up."* **The wording is his, not mine** — a page that tells a
+customer what they are agreeing to should not be invented by the copilot. Draft copy needed, then
+DE at minimum; FR/IT need a speaker, not a guess.
+
+
+---
+
+
+
+- **💳 CREDITS ARE EARNED AND CANNOT BE SPENT — waiting on Felix, not on code.** *(Angel,
+  2026-08-27: "credits can't be spent yet — Felix has to decide how to use credits. But we offer a
+  discount, and Felix is wishy-washy on what a member means, so it's kind of working fine as per
+  design. Might have to drop.")* Every sale writes `credits_balance` + a `CreditTransactionModel`
+  row; there is **no redemption path at checkout**. The kiosk invites people to collect points
+  nothing can redeem — which the 08-24 worklist called the biggest open item. It is not a defect:
+  the discount is the working member benefit and the points are a ledger nobody has defined a use
+  for. **Do not build a redemption path until Felix says what a member IS.** If he never does, the
+  honest move is to stop advertising points rather than to build a mechanism.
+
+
+### 🌙 DARK MODE — wanted, spec'd, NOT scheduled
+
+Angel put the tablet in dark mode and Banco is still all white screens. **The power argument does
+not hold** — the X1 Tablet is an **IPS LCD**, where the backlight burns the same whatever colour
+the pixels are; dark mode saves power only on OLED. On an LCD the lever is *brightness*. So this is
+a comfort feature — a bright white till in a dim shop is tiring over a shift, and an app that
+ignores the OS setting looks broken. Fine reason to build it, different reason.
+
+**Do NOT do it with Tailwind `dark:` variants.** Four classes alone account for **503 occurrences**
+across the POS templates (`text-gray-900` ×204, `bg-white` ×148, `bg-gray-50` ×94, `bg-gray-100`
+×57), before the rest of the palette — well over a thousand edits, on a live till, forever after
+remembered by every new template.
+
+**Do it in one place.** `base.html` already carries real CSS for `.btn-primary`, `.input-field` and
+`.card`, and Tailwind's Play build emits its utilities as ordinary CSS, so one block repaints
+everything:
+
+```css
+@media (prefers-color-scheme: dark) {
+  .bg-white { background-color: #1c1c1e !important; }
+  .text-gray-900 { color: #e8e8ea !important; }
+  .bg-gray-50, .bg-gray-100 { background-color: #232326 !important; }
+  /* ~30 more lines */
+}
+```
+
+~40 lines, one file, follows the OS, reverts by deletion. **The cost is not the CSS — it is the
+verification.** A blanket override will strand light text on newly-dark badges, and **the price
+display is not cosmetic**: a cashier reads it fast, under pressure, with a customer waiting. Needs
+a human on every screen — till, cart, checkout, catalogue, scan, receiving — the same afternoon the
+18+ and price-warning passes each took. **Pick it up with an afternoon and fresh eyes, not at the
+end of a long day.**
+
+
+
+## 🔍 OPEN, NOT REPRODUCED — the till felt slow in Angel's browser
+
+`[Violation] 'click' handler took 1144–2077ms`, seven times between 13:05 and 13:14 on
+2026-08-13. **Measured here and could not reproduce it:** Add-to-cart, quantity, payment
+select all run **80–100 ms**, and Checkout 500 ms (a page navigation), with zero
+violations — in headless *and* in a fully rendered browser under Xvfb. One "Add" click
+fires **no** network at all.
+
+Two theories ruled out by checking rather than guessing: no rebuild was running during
+that window (the app container last started 12:52, his violations begin 13:05), and the
+i18n MutationObserver is already scoped to `childList`+`subtree` on *added* nodes only,
+with a comment naming this exact hazard.
+
+**What is left, and it is testable in 30 seconds:** his screenshot shows **DevTools open**
+with the Elements panel live, plus several browser extensions. Alpine mutates the DOM on
+every keystroke and every cart change, and a live Elements panel re-renders on each one.
+→ Close DevTools, ring the same cart, and see whether it still lags. If it does,
+`scratchpad/click-probe.js` names the offending handler in his own browser.
+
+*Not a defect until it reproduces without DevTools — but not closed either.*
+
+
+- **🪣 B2 lifecycle rule on `wolfhold-banco-backups`.** *(left over from the 08-14 B2 detour, moved
+  here 2026-08-27)* The storage cap is lifted (31 GB, no cap, ~13¢/month) so nothing is blocked, but
+  229 dumps since 20 July sit under "keep all versions" and nothing ages out. Also worth a look at
+  `wolfhold-freehold-backups` — 35 files, **30.7 GB**, which is what blew the cap, not Banco.
+
 
 - **👤 `store_settings.owner_name` — stop hardcoding a person into the UI.** *(Angel, 2026-08-07:
   "leave it for now, we can do the owner_name thing later")* **34 user-facing strings name a person**
