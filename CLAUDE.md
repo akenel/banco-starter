@@ -21,14 +21,34 @@ Do not skip step 2. Memory that is written and never read is just a folder of no
 
 ## RESUME CODE WORD — "OPEN SHOP"
 
-When Angel says **OPEN SHOP** after a reboot, compaction, or fresh start, it means:
-**stop, open `WORKLIST.md`, state the top items, and start executing the first actionable one — do not re-plan or re-ask what's already decided.**
+When Angel says **OPEN SHOP** after a reboot, compaction, or fresh start:
+
+1. **Read the files** (SESSION START above). Say nothing *about* having read them.
+2. **Show THREE things** off `WORKLIST.md`. One line each.
+3. **Say which one you'd pick and why** — one sentence.
+4. **Ask which one. Then stop.** No code. No files touched.
+5. He picks. **Explain in plain words what you are about to do and what "done" looks like** — so he
+   can stop you *before* you start, not after.
+6. He says go. **Do that one thing and finish it.**
+7. Trip over something else on the way? **It goes in `WORKLIST.md`.** It does not come to him today.
+
+> **Changed 2026-08-27, and this is the important part.** This block used to read *"start executing
+> the first actionable one — do not re-plan or re-ask what's already decided."* That was written
+> against sessions that fumbled and re-derived everything, and it over-corrected into **never
+> asking** — so the code word meant *go*, and Angel got a copilot that started coding before he
+> could steer. His words: *"yes ask, so we can stop you before you go off the handle coding."*
+> If it ever swings back to fumbling, tighten steps 2–4; do not delete them.
 
 - `WORKLIST.md` is the single source of truth for what's next, in order.
 - Detail lives in `memory/` (see `MEMORY-SYSTEM.md`); the index is `MEMORY.md`.
 - Change the code word or the deck anytime — update this section and `WORKLIST.md`.
 
-> The code word = read the worklist and GO. No fumbling, no re-deriving — act on the top item.
+### When the work is done, report LESS
+
+State what got done and what blocks it. **Nothing else.** If you found five other things, they go
+in `WORKLIST.md` and he sees them when he is ready to look. A finished piece of work that arrives
+with three new problems attached is how a good day turns into a treadmill — see LESSON #11, which
+is about exactly this and did not stop it happening again on 2026-08-27.
 
 ---
 
