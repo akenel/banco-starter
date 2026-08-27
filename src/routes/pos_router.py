@@ -2108,6 +2108,41 @@ async def publish_to_lapiazza(
     return {"published": True, **res}
 
 
+def _gtin_variants(code: str) -> list[str]:
+    """The SAME product code written the other legal way, or [].
+
+    UPC-A and EAN-13 are not two codes; they are one code with and without a leading zero.
+    A US packet carries a 12-digit UPC-A, and the moment anyone files it in a European system
+    it becomes a 13-digit EAN-13 by gaining a `0`. Both spellings are correct. Nothing in the
+    world reconciles them for you.
+
+    Measured on Felix's shop, 2026-08-27, while Angel stood at the counter with five JUICY
+    Super Wraps that would not scan:
+
+        2,632  reference rows a 12-digit scan could never reach   (24% of the FourTwenty feed)
+          135  products stored 12-digit, 13 stored 13-digit zero-padded — same shop, both ways
+           87  products present in BOTH catalogues under DIFFERENT padding
+
+    Super Wrap GOLD was never missing. It sat in the shop's own reference catalogue as
+    0016165170458 while the gun sent 016165170458, and everyone concluded it did not exist.
+
+    Lookup tolerance ONLY — nothing here rewrites what is stored. A shelf label already
+    printed carries whichever spelling it was born with and must keep scanning, so the
+    catalogue is left alone and the QUESTION is asked both ways instead.
+    """
+    code = (code or "").strip()
+    if not code.isdigit():
+        return []
+    out = []
+    if len(code) == 12:                       # UPC-A -> EAN-13
+        out.append("0" + code)
+    elif len(code) == 13 and code[0] == "0":  # EAN-13 -> the UPC-A printed on the packet
+        out.append(code[1:])
+    elif len(code) == 14 and code[0] == "0":  # GTIN-14 case pack -> EAN-13
+        out.append(code[1:])
+    return out
+
+
 async def _find_product_by_any_barcode(db: AsyncSession, barcode: str) -> Optional[ProductModel]:
     """
     Resolve a scanned barcode to a product, checking BOTH the primary
@@ -2134,6 +2169,24 @@ async def _find_product_by_any_barcode(db: AsyncSession, barcode: str) -> Option
     product = result.scalar_one_or_none()
     if product:
         return product
+
+    # THE SAME CODE, PADDED THE OTHER WAY (see `_gtin_variants`). Asked here rather than at
+    # write time on purpose: labels already printed carry whichever spelling they were born
+    # with, so the catalogue is left exactly as it is and the question is asked both ways.
+    for alt in _gtin_variants(barcode):
+        result = await db.execute(select(ProductModel).where(ProductModel.barcode == alt))
+        product = result.scalar_one_or_none()
+        if product:
+            logger.info("barcode %r matched as %r — UPC-A/EAN-13 padding", barcode, alt)
+            return product
+        result = await db.execute(
+            select(ProductModel)
+            .join(ProductBarcodeModel, ProductBarcodeModel.product_id == ProductModel.id)
+            .where(ProductBarcodeModel.barcode == alt))
+        product = result.scalar_one_or_none()
+        if product:
+            logger.info("alias barcode %r matched as %r — UPC-A/EAN-13 padding", barcode, alt)
+            return product
 
     # THE SHOP'S OWN CODE. A product with no manufacturer EAN still needs to scan, and the
     # label we print for it carries its SKU (see `product_label.html` — the QR falls back to
@@ -3531,7 +3584,12 @@ async def _reference_best_match(db: AsyncSession, name: str, barcode: str = "") 
     """
     from sqlalchemy import text          # module-level import is `select/func/...` only
     code = _clean_barcode(barcode)
-    if code:
+    # The packet's code, then the SAME code padded the other way (`_gtin_variants`). Tried in
+    # order and one query at a time, NOT widened into a single `= ANY(...)`: `n_matches` below
+    # means "how many rows the supplier files under THIS code", and folding two spellings into
+    # one count would report a plain product as ambiguous — a downstream reader judging the
+    # wrong thing, which is how the last three of these bugs worked.
+    for code in ([code] + _gtin_variants(code)) if code else []:
         r = (await db.execute(text("""
             SELECT title, barcode, description, image_url, suggested_price, our_category,
                    our_class, age_restricted, supplier,
