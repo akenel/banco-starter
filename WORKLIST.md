@@ -22,10 +22,8 @@ three rounds and **Angel confirmed all four Crank pipes now scan and ring** — 
 | | |
 |---|---|
 | `3d5f878` | till resolves a **SKU**, not just a barcode; label carries one code for QR + CODE128 + text |
-| `4f3a0dd`* | the gun sends SHIFT a beat late — `sKU-…`. Case-tolerant lookup; sticker WRAPS instead of clipping |
-| `9c1e0f1`* | the page title IS the PDF filename, and both sizes shared one |
-
-\* hashes as pushed today; see `git log` for exact.
+| `f3a4084` | the gun sends SHIFT a beat late — `sKU-…`. Case-tolerant lookup; sticker WRAPS instead of clipping |
+| `b273e71` | the page title IS the PDF filename, and both sizes shared one |
 
 **THE LESSON, and it is mine.** Round one was proved by TYPING the SKU — the one way it would
 never be entered. The gun's real output differs in case, so the fix was green on the layer I
