@@ -1,0 +1,244 @@
+<title>The Gate Audit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;800&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;700&display=swap">
+<style>
+:root{
+  --ink:#11251a; --body:#25382c; --mut:#5d6f64; --paper:#fbfcfa; --card:#ffffff;
+  --line:#d7e0da; --rule:#0f2419;
+  --accent:#0d7d72; --alarm:#8f2318; --alarm-bg:#fdf1ef; --ok:#2c6a49; --ok-bg:#eef6f1;
+  --shadow:0 1px 2px rgba(17,37,26,.05), 0 8px 24px rgba(17,37,26,.06);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ink:#eaf2ec; --body:#c6d4cb; --mut:#8ba095; --paper:#0c1611; --card:#132019;
+    --line:#26382d; --rule:#eaf2ec;
+    --accent:#4bbfae; --alarm:#f08a78; --alarm-bg:#2a1512; --ok:#7fc9a1; --ok-bg:#12241a;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"]{
+  --ink:#eaf2ec; --body:#c6d4cb; --mut:#8ba095; --paper:#0c1611; --card:#132019;
+  --line:#26382d; --rule:#eaf2ec;
+  --accent:#4bbfae; --alarm:#f08a78; --alarm-bg:#2a1512; --ok:#7fc9a1; --ok-bg:#12241a;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--paper); color:var(--body);
+  font-family:"Source Sans 3",ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  font-size:16px; line-height:1.55; -webkit-font-smoothing:antialiased;}
+.wrap{max-width:1120px; margin:0 auto; padding:40px 24px 96px; display:flex; flex-direction:column; gap:40px;}
+h1,h2,h3{font-family:Archivo,ui-sans-serif,system-ui,sans-serif; color:var(--ink); text-wrap:balance; margin:0;}
+h1{font-size:clamp(30px,4.4vw,46px); font-weight:800; letter-spacing:-.02em; line-height:1.04;}
+h2{font-size:23px; font-weight:700; letter-spacing:-.01em;}
+h3{font-size:16px; font-weight:600;}
+p{margin:0; max-width:66ch;}
+a{color:var(--accent);}
+.eyebrow{font-family:Archivo,sans-serif; font-size:11.5px; font-weight:600; letter-spacing:.18em;
+  text-transform:uppercase; color:var(--mut);}
+header{display:flex; flex-direction:column; gap:12px;}
+.sub{font-size:18px; color:var(--mut); max-width:64ch;}
+
+/* The finding, set the way the packet sets it: a health-warning block. That vernacular is
+   the whole argument — the box already says this, and the till does not. */
+.warning{border:3px solid var(--rule); background:var(--card); padding:24px 26px;
+  display:flex; flex-direction:column; gap:12px;}
+.warning .lead{font-family:Archivo,sans-serif; font-weight:800; font-size:clamp(19px,2.6vw,27px);
+  line-height:1.18; color:var(--ink); text-transform:uppercase; letter-spacing:-.005em;}
+.warning p{font-size:15.5px;}
+
+.tiles{display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:14px;}
+.tile{background:var(--card); border:1px solid var(--line); border-radius:3px; padding:18px 18px 16px;
+  display:flex; flex-direction:column; gap:5px; box-shadow:var(--shadow);}
+.tile .n{font-family:Archivo,sans-serif; font-weight:800; font-size:38px; line-height:1;
+  color:var(--ink); font-variant-numeric:tabular-nums;}
+.tile.bad .n{color:var(--alarm);} .tile.good .n{color:var(--ok);}
+.tile .k{font-size:13.5px; color:var(--mut); line-height:1.35;}
+
+section{display:flex; flex-direction:column; gap:14px;}
+.shead{display:flex; flex-direction:column; gap:5px; border-top:2px solid var(--rule); padding-top:14px;}
+.tablewrap{overflow-x:auto; border:1px solid var(--line); border-radius:3px; background:var(--card);
+  box-shadow:var(--shadow);}
+table{border-collapse:collapse; width:100%; min-width:720px; font-size:14.5px;}
+th{font-family:Archivo,sans-serif; font-size:11px; font-weight:600; letter-spacing:.13em;
+  text-transform:uppercase; color:var(--mut); text-align:left; padding:11px 12px;
+  border-bottom:1.5px solid var(--line); white-space:nowrap; background:var(--card);}
+td{padding:9px 12px; border-bottom:1px solid var(--line); vertical-align:top;}
+tr:last-child td{border-bottom:0;}
+.mono{font-family:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace; font-size:12.5px;
+  white-space:nowrap; font-variant-numeric:tabular-nums;}
+.dim{color:var(--mut);}
+.none{color:var(--mut); font-style:italic;}
+.nm{color:var(--ink); font-weight:600; min-width:230px;}
+.num{text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap;}
+.tick{width:34px;} .tick input{width:17px; height:17px; accent-color:var(--accent); cursor:pointer;}
+.verdict{width:130px; border-left:1px dashed var(--line);}
+.st{color:var(--mut); white-space:nowrap; font-size:13.5px;}
+.exp{min-width:270px; font-size:14px;}
+.flag{display:inline-block; margin-left:7px; font-family:Archivo,sans-serif; font-size:10.5px;
+  font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--alarm);
+  background:var(--alarm-bg); border:1px solid var(--alarm); border-radius:2px; padding:1px 6px;
+  vertical-align:1px; white-space:nowrap;}
+tr.w-ok td{background:var(--ok-bg);}
+tr.w-warn td, tr.w-test td{background:var(--alarm-bg);}
+
+.note{border-left:3px solid var(--accent); padding:2px 0 2px 16px; color:var(--body); font-size:15px;
+  display:flex; flex-direction:column; gap:8px;}
+ol,ul{margin:0; padding-left:22px; display:flex; flex-direction:column; gap:7px; max-width:66ch;}
+li::marker{color:var(--mut);}
+footer{border-top:1px solid var(--line); padding-top:16px; color:var(--mut); font-size:13.5px;
+  display:flex; flex-direction:column; gap:5px;}
+input:focus-visible, a:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+@media print{
+  body{background:#fff;} .wrap{padding:0; gap:22px; max-width:none;}
+  .tile,.tablewrap,.warning{box-shadow:none;} table{min-width:0; font-size:11px;}
+  tr{break-inside:avoid;}
+}
+</style>
+
+<div class="wrap">
+<header>
+  <span class="eyebrow">Artemis Lucerne · 27 August 2026 · counted from the live shop</span>
+  <h1>The Gate Audit</h1>
+  <p class="sub">Angel went looking for five JUICY Super Wraps that would not scan. Four of the five
+  problems turned out to be something else, and one of them is on the shelf right now.</p>
+</header>
+
+<div class="warning">
+  <div class="lead">42 age-restricted products can be sold today with no ID check</div>
+  <p>Every row in Section&nbsp;C is a blunt or a wrap, active, and classed <span class="mono">standard</span> —
+  so the till never asks the cashier to look at the customer. Meanwhile <b>35 near-identical products
+  on the same shelf are gated correctly.</b> The split is arbitrary: <i>Blunt Wrap Platinum</i> gates,
+  <i>Cyclones Blunt Hemp</i> does not. <i>Super Wrap Blue</i> gates, <i>Super Wrap Tropical</i> does not.</p>
+  <p>Angel checked the physical packet: <b>it carries a tobacco health warning, the same one that is on a
+  cigarette pack.</b> The box settles what the supplier feed got wrong — FourTwenty classes all eight
+  Super Wraps as <span class="mono">standard</span>.</p>
+</div>
+
+<div class="tiles">
+  <div class="tile bad"><span class="n">42</span><span class="k">blunts &amp; wraps sellable with <b>no 18+ gate</b></span></div>
+  <div class="tile good"><span class="n">35</span><span class="k">the same kind of product, gated correctly</span></div>
+  <div class="tile bad"><span class="n">58</span><span class="k">active products still priced <b>CHF&nbsp;999.99</b></span></div>
+  <div class="tile"><span class="n">2,632</span><span class="k">supplier rows a 12-digit scan could not reach until today</span></div>
+</div>
+
+<section>
+  <div class="shead">
+    <span class="eyebrow">Section A · the five you are holding</span>
+    <h2>Scan each one at the till</h2>
+  </div>
+  <p>Tick what matches. Write anything that does not in the last column. Two of these are
+  <b>supposed</b> to fail — that is the answer, not a fault.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th></th><th>Code on the packet</th><th>Flavour</th><th>Where it lives</th><th>What should happen</th><th>What actually happened</th></tr></thead>
+    <tbody><tr class="w-warn"><td class="tick"><input type="checkbox" aria-label="checked Tropical"></td><td class="mono">716165251064</td><td class="nm"><b>Tropical</b></td><td class="st">In the catalogue</td><td class="exp">Rings up. <b>But it is NOT gated</b> — no 🔞 badge. That is the bug.</td><td class="verdict"></td></tr>
+<tr class="w-ok"><td class="tick"><input type="checkbox" aria-label="checked Blue"></td><td class="mono">716165251040</td><td class="nm"><b>Blue</b></td><td class="st">In the catalogue</td><td class="exp">Rings up <b>and</b> shows 🔞 18+ · 🚬 Tobacco. This is what all five should look like.</td><td class="verdict"></td></tr>
+<tr class="w-test"><td class="tick"><input type="checkbox" aria-label="checked Gold"></td><td class="mono">016165170458</td><td class="nm"><b>Gold</b></td><td class="st">Reference only</td><td class="exp">Should now offer to create itself from FourTwenty — title, image, category pre-filled. <b>This is the proof the padding fix worked.</b></td><td class="verdict"></td></tr>
+<tr class="w-none"><td class="tick"><input type="checkbox" aria-label="checked Cuban Mojito"></td><td class="mono">716165174066</td><td class="nm"><b>Cuban Mojito</b></td><td class="st">Nowhere</td><td class="exp">Correctly <b>not found</b>. Genuinely absent from both catalogues — this is right, not a bug.</td><td class="verdict"></td></tr>
+<tr class="w-none"><td class="tick"><input type="checkbox" aria-label="checked Lychee"></td><td class="mono">016165170397</td><td class="nm"><b>Lychee</b></td><td class="st">Nowhere</td><td class="exp">Correctly <b>not found</b>. Same as above.</td><td class="verdict"></td></tr></tbody>
+  </table></div>
+  <div class="note">
+    <p><b>Gold is the one that matters.</b> It was never missing. It sat in your own reference catalogue
+    as <span class="mono">0016165170458</span> while the gun sent <span class="mono">016165170397</span>-style
+    12-digit codes, and everyone concluded it did not exist. A UPC-A and an EAN-13 are the same code with
+    and without a leading zero; nothing in Banco reconciled them until this afternoon.</p>
+  </div>
+</section>
+
+<section>
+  <div class="shead">
+    <span class="eyebrow">Section B · what changed today</span>
+    <h2>Retest these four, they are all deployed</h2>
+  </div>
+  <ol>
+    <li><b>A label that scans for goods with no manufacturer EAN.</b> Three Crank pipes printed labels
+    that could not be rung up. Scan a Crank pipe — small QR and medium barcode both.</li>
+    <li><b>The gun sends SHIFT a beat late</b>, so <span class="mono">SKU-…</span> arrives as
+    <span class="mono">sKU-…</span>. Scan the shop's own label; case no longer matters.</li>
+    <li><b>The PDF filename.</b> Save a Small and a Medium label of the same product — they must not
+    overwrite each other. Look for <span class="mono">(sm)</span> and <span class="mono">(md)</span>.</li>
+    <li><b>UPC-A ↔ EAN-13 padding.</b> Section A above is the test.</li>
+  </ol>
+  <div class="note"><p><b>Still unproven by a gun:</b> the medium label's CODE128 on a 17-character SKU.
+  If it will not read, the answer is a shorter SKU, not a bigger label.</p></div>
+</section>
+
+<section>
+  <div class="shead">
+    <span class="eyebrow">Section C · the 42 ungated</span>
+    <h2>Which of these should ask for ID?</h2>
+  </div>
+  <p>Felix's call, not Banco's. Tick every row that should be gated, then it is one update.
+  <b>8 of them are also priced CHF&nbsp;999.99</b> and can be rung at that price today.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th></th><th>Product</th><th>Barcode</th><th>SKU</th><th>Price</th><th>Gate it?</th></tr></thead>
+    <tbody><tr><td class="tick"><input type="checkbox" aria-label="checked TAM-26406"></td><td class="nm">Chapo Blunt Hemp Wraps Cheri 2 stk.</td><td class="mono">2000000264066</td><td class="mono dim">TAM-26406</td><td class="num">2.50</td><td class="verdict"></td></tr>
+<tr><td class="tick"><input type="checkbox" aria-label="checked TAM-26405"></td><td class="nm">Chapo Blunt Hemp Wraps El Patron 2 stk.</td><td class="mono">2000000264059</td><td class="mono dim">TAM-26405</td><td class="num">2.50</td><td class="verdict"></td></tr>
+<tr><td class="tick"><input type="checkbox" aria-label="checked TAM-26404"></td><td class="nm">Chapo Blunt Hemp Wraps La Colombienne 2 stk.</td><td class="mono">2000000264042</td><td class="mono dim">TAM-26404</td><td class="num">2.50</td><td class="verdict"></td></tr>
+<tr><td class="tick"><input type="checkbox" aria-label="checked ITEM-0111"></td><td class="nm">Clear Cone Blunt Peach <span class="flag">CHF 999.99</span></td><td class="mono">716165171782</td><td class="mono dim">ITEM-0111</td><td class="num">999.99</td><td class="verdict"></td></tr>
+<tr><td class="tick"><input type="checkbox" aria-label="checked ITEM-0107"></td><td class="nm">Cyclone Blunts Cane Xtra Slow <span class="flag">CHF 999.99</span></td><td class="mono">716165174516</td><td class="mono dim">ITEM-0107</td><td class="num">999.99</td><td class="verdict"></td></tr>
+<tr><td class="tick"><input type="checkbox" aria-label="checked TAM-16689"></td><td class="nm">Cyclones Blunt Clear mit Filter Natural 1 Stk.</td><td class="mono">2000000166896</td><td class="mono dim">TAM-16689</td><td class="num">1.50</td><td class="verdict"></td></tr>
+<tr><td class="tick"><input type="checkbox" aria-label="checked TAM-10882"></td><td class="nm">Cyclones Blunt Clear mit Filter Tiki Tango Coconut 1 Stk.</td><td class="mono">2000000108827</td><td class="mono dim">TAM-10882</td><td class="num">1.50</td><td class="verdict"></td></tr>
+<tr><td class="tick"><input type="checkbox" aria-label="checked TAM-8745"></td><td class="nm">Cyclones Blunt Clear mit Filter White Chocolate 1 Stk.</td><td class="mono">2000000087450</td><td class="mono dim">TAM-8745</td><td class="num">1.50</td><td class="verdict"></td></tr>
+<tr><td class="tick"><input type="checkbox" aria-label="checked TAM-16730"></td><td class="nm">Cyclones Blunt Hemp Blue - Blueberry 2 Stk.</td><td class="mono">2000000167305</td><td class="mono dim">TAM-16730</td><td class="num">2.20</td><td class="verdict"></td></tr>
+<tr><td class="tick"><input type="checkbox" aria-label="checked TAM-15364"></td><td class="nm">Cyclones Blunt Hemp Purple - Grape 2 Stk.</td><td class="mono">716165283911</td><td class="mono dim">TAM-15364</td><td class="num">2.00</td><td class="verdict"></td></tr>
+<tr><td class="tick"><input type="checkbox" aria-label="checked TAM-16729"></td><td class="nm">Cyclones Blunt Hemp Red Alert - Strawberry 2 Stk.</td><td class="mono">716165281375</td><td class="mono dim">TAM-16729</td><td class="num">2.20</td><td class="verdict"></td></tr>
+<tr><td class="tick"><input type="checkbox" aria-label="checked TAM-16961"></td><td class="nm">Cyclones Blunt mit Holzfilter Hyphy Traube 2 Stk.</td><td class="mono">2000000169613</td><td class="mono dim">TAM-16961</td><td class="num">3.00</td><td class="verdict"></td></tr>
+<tr><td class="tick"><input type="checkbox" aria-label="checked TAM-6099"></td><td class="nm">Cyclones Blunt mit Holzfilter Urban Assault 1 Stk.</td><td class="mono">2000000060996</td><td class="mono dim">TAM-6099</td><td class="num">3.00</td><td class="verdict"></td></tr>
+<tr><td class="tick"><input type="checkbox" aria-label="checked TAM-6478"></td><td class="nm">Cyclones Blunt mit Holzfilter Wolverine Ananas 2 Stk.</td><td class="mono">2000000064789</td><td class="mono dim">TAM-6478</td><td class="num">3.00</td><td class="verdict"></td></tr>
+<tr><td class="tick"><input type="checkbox" aria-label="checked ITEM-0108"></td><td class="nm">Cyclones Cone Blunts Hyphy 2 Stück XtraSlo <span class="flag">CHF 999.99</span></td><td class="mono">716165171942</td><td class="mono dim">ITEM-0108</td><td class="num">999.99</td><td class="verdict"></td></tr>
+<tr><td class="tick"><input type="checkbox" aria-label="checked ITEM-0103"></td><td class="nm">Cyclones Cone Blunts Original 2 Stück  King Size <span class="flag">CHF 999.99</span></td><td class="mono">716165171485</td><td class="mono dim">ITEM-0103</td><td class="num">999.99</td><td class="verdict"></td></tr>
+<tr><td class="tick"><input type="checkbox" aria-label="checked ITEM-0109"></td><td class="nm">Cyclones Mayhem Blunt Cone 2 Stück</td><td class="mono">716165203186</td><td class="mono dim">ITEM-0109</td><td class="num">2.00</td><td class="verdict"></td></tr>
+<tr><td class="tick"><input type="checkbox" aria-label="checked ITEM-0101"></td><td class="nm">Cyclones White Blunt Cone 2 Stück</td><td class="mono">716165200819</td><td class="mono dim">ITEM-0101</td><td class="num">2.00</td><td class="verdict"></td></tr>
+<tr><td class="tick"><input type="checkbox" aria-label="checked ITEM-0098"></td><td class="nm">Cyclones XTRA Slo Wonder Blunt Cone 2 Stück</td><td class="mono">716165201687</td><td class="mono dim">ITEM-0098</td><td class="num">2.00</td><td class="verdict"></td></tr>
+<tr><td class="tick"><input type="checkbox" aria-label="checked ITEM-0099"></td><td class="nm">Cyclones XTRA Urban Assault Blunt Cone 2 Stück</td><td class="mono">716165171966</td><td class="mono dim">ITEM-0099</td><td class="num">2.00</td><td class="verdict"></td></tr>
+<tr><td class="tick"><input type="checkbox" aria-label="checked ITEM-0177"></td><td class="nm">G-Rollz Terpene Infused Blunt Blueberry Kookies 2pcs</td><td class="mono">0602728160136</td><td class="mono dim">ITEM-0177</td><td class="num">5.00</td><td class="verdict"></td></tr>
+<tr><td class="tick"><input type="checkbox" aria-label="checked ITEM-0179"></td><td class="nm">G-Rollz Terpene Infused Blunt Cones Candy Crunched 2pcs</td><td class="mono">0602728142514</td><td class="mono dim">ITEM-0179</td><td class="num">5.00</td><td class="verdict"></td></tr>
+<tr><td class="tick"><input type="checkbox" aria-label="checked ITEM-0005"></td><td class="nm">G-Rollz Terpene Infused Blunt Dutch Blend 2pcs</td><td class="mono">0602728160167</td><td class="mono dim">ITEM-0005</td><td class="num">5.00</td><td class="verdict"></td></tr>
+<tr><td class="tick"><input type="checkbox" aria-label="checked ITEM-0312"></td><td class="nm">G-Rollz Terpene Infused Blunt Strawberry Cheesecake 2pcs</td><td class="mono">0602728160143</td><td class="mono dim">ITEM-0312</td><td class="num">5.00</td><td class="verdict"></td></tr>
+<tr><td class="tick"><input type="checkbox" aria-label="checked ITEM-0311"></td><td class="nm">G-Rollz Terpene Infused Herbal Tea Blunt Natural OGK 2pcs</td><td class="mono">0616695693146</td><td class="mono dim">ITEM-0311</td><td class="num">5.00</td><td class="verdict"></td></tr>
+<tr><td class="tick"><input type="checkbox" aria-label="checked SKU-1786043087100"></td><td class="nm">G-Rollz Terpene Infused Herbal Tea Blunt Strawberry Cheesecake 2pcs</td><td class="mono">0616695693122</td><td class="mono dim">SKU-1786043087100</td><td class="num">5.00</td><td class="verdict"></td></tr>
+<tr><td class="tick"><input type="checkbox" aria-label="checked ITEM-0170"></td><td class="nm">Juicy Blunts Blue / Black n <span class="flag">CHF 999.99</span></td><td class="mono">716165200284</td><td class="mono dim">ITEM-0170</td><td class="num">999.99</td><td class="verdict"></td></tr>
+<tr><td class="tick"><input type="checkbox" aria-label="checked ITEM-0112"></td><td class="nm">Juicy Hemp Wraps - Blue <span class="flag">CHF 999.99</span></td><td class="mono">716165281283</td><td class="mono dim">ITEM-0112</td><td class="num">999.99</td><td class="verdict"></td></tr>
+<tr><td class="tick"><input type="checkbox" aria-label="checked TAM-12080"></td><td class="nm">Juicy Jays Blunt Hemp Wraps Black and Blueberry 2 Stk.</td><td class="mono">2000000120805</td><td class="mono dim">TAM-12080</td><td class="num">1.50</td><td class="verdict"></td></tr>
+<tr><td class="tick"><input type="checkbox" aria-label="checked TAM-16732"></td><td class="nm">Juicy Jays Blunt Hemp Wraps Maniac- Mango 2 Stk.</td><td class="mono">2000000167329</td><td class="mono dim">TAM-16732</td><td class="num">1.50</td><td class="verdict"></td></tr>
+<tr><td class="tick"><input type="checkbox" aria-label="checked TAM-12081"></td><td class="nm">Juicy Jays Blunt Hemp Wraps Natural 2 Stk.</td><td class="mono">2000000120812</td><td class="mono dim">TAM-12081</td><td class="num">1.50</td><td class="verdict"></td></tr>
+<tr><td class="tick"><input type="checkbox" aria-label="checked TAM-16731"></td><td class="nm">Juicy Jays Blunt Hemp Wraps Purple Grape 2 Stk.</td><td class="mono">716165281313</td><td class="mono dim">TAM-16731</td><td class="num">1.50</td><td class="verdict"></td></tr>
+<tr><td class="tick"><input type="checkbox" aria-label="checked TAM-12083"></td><td class="nm">Juicy Jays Blunt Hemp Wraps Red Alert Strawberry 2 Stk.</td><td class="mono">716165281306</td><td class="mono dim">TAM-12083</td><td class="num">1.50</td><td class="verdict"></td></tr>
+<tr><td class="tick"><input type="checkbox" aria-label="checked TAM-12082"></td><td class="nm">Juicy Jays Blunt Hemp Wraps Tropical Passion 2 Stk.</td><td class="mono">716165281290</td><td class="mono dim">TAM-12082</td><td class="num">1.50</td><td class="verdict"></td></tr>
+<tr><td class="tick"><input type="checkbox" aria-label="checked ITEM-0167"></td><td class="nm">Juicy Jay´s - Blunt - Infrared - 2er Pack <span class="flag">CHF 999.99</span></td><td class="mono">016165005316</td><td class="mono dim">ITEM-0167</td><td class="num">999.99</td><td class="verdict"></td></tr>
+<tr><td class="tick"><input type="checkbox" aria-label="checked TAM-7623"></td><td class="nm">Juicy Jays Blunts Red Alert (Strawberry Fields) 2 Stk.</td><td class="mono">716165171911</td><td class="mono dim">TAM-7623</td><td class="num">1.50</td><td class="verdict"></td></tr>
+<tr><td class="tick"><input type="checkbox" aria-label="checked TAM-7626"></td><td class="nm">Juicy Jays Blunts Tropical Passion 2 Stk.</td><td class="mono">2000000076263</td><td class="mono dim">TAM-7626</td><td class="num">1.50</td><td class="verdict"></td></tr>
+<tr><td class="tick"><input type="checkbox" aria-label="checked TAM-9646"></td><td class="nm">Juicy Jays Blunts Wham Bam Watermelon 2 Stk.</td><td class="mono">2000000096469</td><td class="mono dim">TAM-9646</td><td class="num">1.50</td><td class="verdict"></td></tr>
+<tr><td class="tick"><input type="checkbox" aria-label="checked TAM-4192"></td><td class="nm">Juicy Jays Super Blunt Raspberry  23cm  1 Stk.</td><td class="mono">2000000041926</td><td class="mono dim">TAM-4192</td><td class="num">8.90</td><td class="verdict"></td></tr>
+<tr><td class="tick"><input type="checkbox" aria-label="checked TAM-4143"></td><td class="nm">Juicy Jays Super Blunt Tropical Passion  23cm  1 Stk.</td><td class="mono">2000000041438</td><td class="mono dim">TAM-4143</td><td class="num">8.90</td><td class="verdict"></td></tr>
+<tr><td class="tick"><input type="checkbox" aria-label="checked REF-FOURTWENTY-HB-JSSWTROP"></td><td class="nm">Juicy Jay&#x27;s Super Wrap Tropical</td><td class="mono">716165251064</td><td class="mono dim">REF-FOURTWENTY-HB-JSSWTROP</td><td class="num">10.00</td><td class="verdict"></td></tr>
+<tr><td class="tick"><input type="checkbox" aria-label="checked ITEM-0110"></td><td class="nm">Mango&#x27;n&#x27;Papaya Flavored Hemp Wraps <span class="flag">CHF 999.99</span></td><td class="mono">716165281320</td><td class="mono dim">ITEM-0110</td><td class="num">999.99</td><td class="verdict"></td></tr></tbody>
+  </table></div>
+</section>
+
+<section>
+  <div class="shead">
+    <span class="eyebrow">Section D · not fixed, on purpose</span>
+    <h2>Decisions waiting on a person</h2>
+  </div>
+  <ul>
+    <li><b>The classifier does not know the words “blunt” or “wrap.”</b> It catches
+    <i>Swisher Sweets</i> and misses <i>Super Wrap Tropical</i>. Teaching it is a one-line change and a
+    compliance decision, so it is not made yet.</li>
+    <li><b>Adopting from the supplier copies the supplier's 18+ answer with no safety net</b>, while the
+    till's quick-add applies one. Same operation, two answers — that is how Tropical came in ungated.</li>
+    <li><b>Cuban Mojito and Lychee do not exist anywhere.</b> They need creating, and cloning Blue is the
+    cheap way — the clone endpoint is already built and is on no screen.</li>
+    <li><b>58 active products priced CHF 999.99</b>, including two identical <i>JaJa Noir King Size XXL</i>
+    rows. Any of them can be sold at that price right now.</li>
+  </ul>
+</section>
+
+<footer>
+  <span>Every figure on this page was counted from the production database on 27 August 2026, not
+  estimated. Banco POS · Artemis Lucerne.</span>
+  <span>Blank verdict column = not tested yet. A page with unticked boxes is more useful than a page
+  that claims everything passed.</span>
+</footer>
+</div>
