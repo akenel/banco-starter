@@ -9,11 +9,52 @@
 > [`worklist-archive/done.md`](worklist-archive/done.md) with its commit hashes; when a thread
 > grows a long write-up, the write-up goes to the archive and a one-line pointer stays here.
 
-*Last updated: 2026-08-24, 14:30 (four fixes shipped; retest sheet ready to run).*
+*Last updated: 2026-08-27, 13:45 (labels fixed at the counter, deployed, human-green).*
 
 ---
 
-## ▶️ START HERE — the state at 14:30 on Mon 2026-08-24
+## ▶️ START HERE — the state at 13:45 on Thu 2026-08-27
+
+**Today, live, with Layla serving: labels for goods with NO manufacturer EAN.** Three Crank pipes
+were quick-added at the counter; all three printed a label and NONE could be rung up. Deployed in
+three rounds and **Angel confirmed all four Crank pipes now scan and ring** — human-green.
+
+| | |
+|---|---|
+| `3d5f878` | till resolves a **SKU**, not just a barcode; label carries one code for QR + CODE128 + text |
+| `4f3a0dd`* | the gun sends SHIFT a beat late — `sKU-…`. Case-tolerant lookup; sticker WRAPS instead of clipping |
+| `9c1e0f1`* | the page title IS the PDF filename, and both sizes shared one |
+
+\* hashes as pushed today; see `git log` for exact.
+
+**THE LESSON, and it is mine.** Round one was proved by TYPING the SKU — the one way it would
+never be entered. The gun's real output differs in case, so the fix was green on the layer I
+could reach and dead on the counter. Pattern 1, committed within the hour of writing about it.
+
+### Open, in order
+
+**① Layla's product-grouping idea** — she watched four near-identical pipes go through the till
+all morning. Angel is relaying it. *Nothing written down yet — capture it before it evaporates.*
+
+**② Label → PDF paginates wrong.** Printing to PDF sometimes spills a sliver of the label onto a
+second page, and the first page is then cut. `@page{ size:62mm 28mm }` (small) / `62mm 55mm`
+(medium) versus what Chrome actually lays out. Cosmetic, not blocking — Angel: "we deal with that
+pdf later".
+
+**③ Two landmines in the live catalogue** — `ITEM-0070` and `ITEM-0072` are the SAME product
+("JaJa Noir King Size XXL Black Zigarettenpapier"), both **priced CHF 999.99**, both active. A
+search for "JaJa" can ring 999.99 today. Needs the real price and which row to keep.
+
+**④ The MEDIUM label's CODE128 is unproven by a gun.** 17 characters in 62mm makes fine bars. If
+it will not read, the answer is a SHORTER SKU, not a bigger label.
+
+**⑤ 13 active products have no scannable code at all** — 6 are TREAT-\* giveaways and probably
+should not have one. The other 7 are real gaps: the 3 Crank pipes (now sellable via SKU), the
+Hempsana CBD Salbe, the PURIZE grinder, and the two JaJa rows in ③.
+
+---
+
+## ▶️ Mon 2026-08-24 — the state at 14:30 (still current below this line)
 
 **Everything below this block is context. These are the live threads, in order.**
 
