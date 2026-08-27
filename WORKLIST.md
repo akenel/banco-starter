@@ -74,6 +74,30 @@ himself: *"the only way is get the eans from tamar."* He is right, and it is bet
   `art 1341 → 2000000013411`, `art 23530 → 2000000235301`, `art 22535 → 2000000225357`.
 - So the list joins on ONE COLUMN, exactly. No fuzzy match, no review queue, no wrong-EAN risk.
 
+**⚠️ THE CATALOGUE IS TAMAR'S ORDERABLE RANGE, NOT ARTEMIS'S SHELF.** Angel, 2026-08-27:
+*"Tamar is a skin for the Artemis webshop — Tamar sells via artemisluzern.ch on behalf of Artemis
+and ships anything ordered there."* So `artemisluzern.ch` IS Tamar's system, wearing Artemis's
+brand, and the 5,447 rows are a **dropship range**, not stock. Corroborated: `pos_stock_movements`
+holds **0 rows** — nothing in Banco has ever recorded what is physically in that store.
+
+**This shrinks the EAN job by an order of magnitude.** Only what SITS ON THE SHELF has to scan; a
+dropship listing never crosses the counter. The crammed store does not hold 5,000 SKUs. The "6–9
+months to line it up" figure prices the whole range — the real job is the shelf, which is what
+shelf intake already does, one packet at a time, deliberately, off the counter. **Before any bulk
+EAN work: establish what is actually in the room.**
+
+Checked on the storefront 2026-08-27 (`ppadmin • level1 content manager 5.0`, Vue front end, an
+`/api/shop/…` namespace): the product pages carry **no JSON-LD, no gtin13, no product JSON, no
+identifier fields at all**. Nothing in the Artemis/Tamar web channel publishes an EAN anywhere. It
+does not prove their database lacks the field — a storefront need not render it — but every
+observable part of the channel is EAN-free, which is why the import had to mint codes.
+
+**Ask for a SAMPLE before asking for the list.** "Send us the EAN for these 20 article numbers"
+needs no data-sharing decision from anybody, and the reply tells you the coverage exactly. A better
+diagnostic question than *"do you have EANs?"* is **"when you receive goods from the manufacturers,
+what do you scan?"** — a distributor that scans cartons at goods-in has GTINs; one that keys
+article numbers by hand does not.
+
 **The ask is two columns** (`Artikelnummer ; EAN`) plus the article-number list attached, so Tamar
 never has to decide which articles we mean. Full German text + the export SQL + how to apply the list:
 [`onboarding/supplier-ean-request.md`](onboarding/supplier-ean-request.md). The 4,971-row CSV is
