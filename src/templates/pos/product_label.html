@@ -47,7 +47,15 @@
      the line above clips silently — Angel printed three and the code ran off the sticker.
      Shrink rather than clip: an unreadable code is the same as no code, and this line is the
      fallback for when the scan fails, which is exactly when it gets read by eye. */
-  .label.s .human.long{ font-size:1.85mm; letter-spacing:0; }
+  /* WRAPPING, not shrinking, is what actually guarantees the whole code is on the sticker.
+     1.85mm was still clipping Angel's 17-character SKU on the real print (2026-08-27) — the
+     column is only ~34mm once the 20mm QR has taken its share, and guessing a font size that
+     "should fit" is how the first attempt failed. Let it break onto a second line instead:
+     the sticker is 28mm tall against a 20mm QR, so the room exists, and a code that runs onto
+     two lines is READABLE where a code missing its last two characters is WRONG. */
+  .label.s .human.long{ font-size:1.9mm; letter-spacing:0; white-space:normal;
+                        word-break:break-all; line-height:1.1;
+                        display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
 
   /* ---- MEDIUM (shelf-talker) — 62mm ---- */
   .label.m{ width:62mm; margin:0 auto; background:#fff; padding:3mm 3mm 2mm; box-shadow:0 2px 8px rgba(0,0,0,.15);
@@ -56,7 +64,9 @@
   .label.m .pname{ font-size:3.6mm; font-weight:800; line-height:1.15; margin:1mm 0; max-height:9mm; overflow:hidden; }
   .label.m .price{ font-size:6mm; font-weight:800; color:#8B0000; margin:.5mm 0 1.5mm; }
   .label.m svg.code{ width:100%; height:14mm; }
-  .label.m .human{ font-size:2.6mm; font-family:monospace; color:#333; letter-spacing:.05em; margin-top:.5mm; }
+  .label.m .human{ font-size:3.4mm; font-family:monospace; color:#111; letter-spacing:.05em;
+                   margin-top:1mm; font-weight:700; word-break:break-all; }
+  .label.m .human span{ font-weight:400; font-size:2.6mm; }
 
   .nocode{ font-size:2.6mm; color:#999; padding:2mm 0; }
 
@@ -128,7 +138,10 @@
       var code = {{ code | tojson }};
       if (!code) return;
       var isEan13 = /^\d{13}$/.test(code);
-      var opts = { format: isEan13 ? "EAN13" : "CODE128", displayValue: true,
+      // displayValue OFF: the template already prints the code (and the SKU beside it) in
+      // `.human`. With it on, the shelf-talker showed the same string twice, one above the
+      // other — which reads as a rendering bug, not a feature.
+      var opts = { format: isEan13 ? "EAN13" : "CODE128", displayValue: false,
                    fontSize: small ? 16 : 26, height: small ? 34 : 48, margin: 0, width: small ? 1.1 : 1.6 };
       try { JsBarcode("#bc", code, opts); }
       catch(e){ try { opts.format="CODE128"; JsBarcode("#bc", code, opts); } catch(_){} }

@@ -2148,6 +2148,22 @@ async def _find_product_by_any_barcode(db: AsyncSession, barcode: str) -> Option
     product = result.scalar_one_or_none()
     if product:
         return product
+    # ...AND AGAIN WITHOUT CARING ABOUT CASE. A scanner is a keyboard, and a keyboard has a
+    # SHIFT STATE. Felix's Netum sends the shift a beat late on the first character, so
+    # "SKU-1787825927800" arrives as "sKU-1787825927800" — first letter lowercase, the rest
+    # correct. Typed by hand it matches; scanned off the shop's own label it does not, which is
+    # the only way that ever gets tested (2026-08-27, at the counter, with a customer waiting).
+    #
+    # Deliberately a SECOND query rather than making the first one case-insensitive: the exact
+    # match uses the index and covers every well-behaved gun, and only a miss pays for this.
+    # Barcodes are digits, so this can only ever help the shop's own alphanumeric codes.
+    result = await db.execute(
+        select(ProductModel).where(func.upper(ProductModel.sku) == barcode.upper()))
+    product = result.scalar_one_or_none()
+    if product:
+        logger.info("SKU %r matched only case-insensitively — the gun's shift state does not "
+                    "match what is printed on the label", barcode)
+        return product
 
     # LAST RESORT: the gun may be set to the wrong keyboard layout.
     # A scanner is just a keyboard — it presses the KEY that yields a character
@@ -2180,7 +2196,8 @@ async def _find_product_by_any_barcode(db: AsyncSession, barcode: str) -> Option
             return product
         # And the SKU — this is the case the layout bug was ORIGINALLY found on (TAM-21796 read
         # as TAM'21796), so the shop's own codes are exactly what needs the correction most.
-        result = await db.execute(select(ProductModel).where(ProductModel.sku == candidate))
+        result = await db.execute(
+            select(ProductModel).where(func.upper(ProductModel.sku) == candidate.upper()))
         product = result.scalar_one_or_none()
         if product:
             logger.warning("SKU %r matched only after keyboard-layout correction to %r",
