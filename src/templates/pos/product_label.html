@@ -2,7 +2,12 @@
 <html lang="de"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{ name }} — Label</title>
+{# The TITLE IS THE FILENAME. Chrome's "Save as PDF" takes it verbatim, so two labels that
+   share a title silently overwrite each other in the download folder — Angel saved a medium
+   over a small and lost it (2026-08-27). Two things make a label unique: which SIZE it is,
+   and WHICH PRODUCT it is. The name alone is neither: this catalogue has two products called
+   "JaJa Noir King Size XXL Black Zigarettenpapier" and they would collide as well. #}
+<title>{{ name }} ({{ 'sm' if size=='s' else 'md' }}) {{ code }} — Label</title>
 <script src="/static/vendor/jsbarcode.min.js"></script>
 <style>
   *{ box-sizing:border-box; margin:0; padding:0; }
