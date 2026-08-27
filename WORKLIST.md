@@ -19,8 +19,9 @@
 
 ## ▶️ START HERE — the state at 18:30 on Thu 2026-08-27
 
-**A whole day at the counter with Layla serving.** Nine deploys, every one proved on the live shop.
-Prod is on build `b469`.
+**A whole day at the counter with Layla serving.** Ten deploys, every one proved on the live shop.
+**Prod is on `dbb4a76` (b484)**, deployed 23:20 — it carried `f673b66` (the "the packet says «…»"
+banner) as well, which had never been pushed. Neither has been touched by a real scan yet.
 
 | | |
 |---|---|
