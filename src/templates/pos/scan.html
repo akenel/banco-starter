@@ -921,6 +921,15 @@
                         <span class="text-xs text-gray-500" data-i18n="scan.snap_help">No barcode? Photograph it — AI names it &amp; searches the catalog.</span>
                     </div>
                     <p x-show="aiNote" x-text="aiNote" class="text-xs text-indigo-700 font-medium mt-1" style="display:none;"></p>
+                    <!-- Shown only when the name was RESOLVED FROM THE CODE and the catalogue
+                         answered. Hides itself the moment the operator edits the query, because
+                         then the words are theirs and the list needs no explaining. -->
+                    <div x-show="ownedSeed && lazyLinkQuery === ownedSeed && lazyLinkResults.length"
+                         style="display:none;"
+                         class="mt-3 rounded-lg border-2 border-amber-400 bg-amber-50 px-3 py-2">
+                        <p class="text-sm font-semibold text-amber-900 leading-snug"
+                           x-text="t('scan.owned_seed', {n: ownedSeed})"></p>
+                    </div>
                     <div x-show="lazyLinkResults.length" class="mt-2 max-h-96 overflow-y-auto divide-y border rounded-lg" style="display:none;">
                         <template x-for="p in lazyLinkResults" :key="p.id">
                             <!-- BL-102.1: row tap = bind (fast path). 👁 = preview WITHOUT binding
@@ -1274,6 +1283,10 @@
             lazyLinkQuery: '',
             lazyLinkResults: [],
             lazyLinkSearching: false,
+            // The name the panel opened WITH, when the operator never typed it — the supplier
+            // feed or the web recognised the packet from the code. Labels the banner; '' means
+            // the operator is searching on their own words and no explanation is owed.
+            ownedSeed: '',
             _lazySearchSeq: 0,     // request sequencing — the LAST keystroke's answer must win
             // BL-102 (matching doctrine): a scanned code that misses = "not in the catalog
             // yet", which is NORMAL (suppliers store minted codes, not the real EAN). Don't
@@ -1904,6 +1917,13 @@
                 this.lazyCreateOpen = false;
                 this.lazyLinkOpen = true;
                 this.lazyLinkQuery = prefillName || '';
+                // A LIST APPEARING OUT OF NOWHERE READS AS A GLITCH. This panel is opened from a
+                // barcode miss WITH a name (scan.html:1553 reference hit, :1636 web offer) — the
+                // catalogue is then searched for a word nobody typed, and rows appear. Say where
+                // the name came from, so "we already have this, bind it" is an ANSWER on screen
+                // and not an unexplained list. LESSON #12: a truth test has to answer the
+                // question a PERSON is asking.
+                this.ownedSeed = (barcode && prefillName) ? String(prefillName) : '';
                 this.lazyLinkResults = [];
                 this.lazyLinkSearching = false;
                 // BL-102: a PURE barcode miss (code, no name) leads with the camera, not the
