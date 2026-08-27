@@ -118,7 +118,7 @@ input:focus-visible, a:focus-visible{outline:2px solid var(--accent); outline-of
 <div class="tiles">
   <div class="tile bad"><span class="n">42</span><span class="k">blunts &amp; wraps sellable with <b>no 18+ gate</b></span></div>
   <div class="tile good"><span class="n">35</span><span class="k">the same kind of product, gated correctly</span></div>
-  <div class="tile bad"><span class="n">58</span><span class="k">active products still priced <b>CHF&nbsp;999.99</b></span></div>
+  <div class="tile"><span class="n">58</span><span class="k">priced <b>CHF&nbsp;999.99</b> — deliberate. Waiting on a real price</span></div>
   <div class="tile"><span class="n">2,632</span><span class="k">supplier rows a 12-digit scan could not reach until today</span></div>
 </div>
 
@@ -169,7 +169,7 @@ input:focus-visible, a:focus-visible{outline:2px solid var(--accent); outline-of
     <h2>Which of these should ask for ID?</h2>
   </div>
   <p>Felix's call, not Banco's. Tick every row that should be gated, then it is one update.
-  <b>8 of them are also priced CHF&nbsp;999.99</b> and can be rung at that price today.</p>
+  Some are also priced CHF&nbsp;999.99 — that is a deliberate "not priced yet" marker, not a fault.</p>
   <div class="tablewrap"><table>
     <thead><tr><th></th><th>Product</th><th>Barcode</th><th>SKU</th><th>Price</th><th>Gate it?</th></tr></thead>
     <tbody><tr><td class="tick"><input type="checkbox" aria-label="checked TAM-26406"></td><td class="nm">Chapo Blunt Hemp Wraps Cheri 2 stk.</td><td class="mono">2000000264066</td><td class="mono dim">TAM-26406</td><td class="num">2.50</td><td class="verdict"></td></tr>
@@ -230,8 +230,9 @@ input:focus-visible, a:focus-visible{outline:2px solid var(--accent); outline-of
     till's quick-add applies one. Same operation, two answers — that is how Tropical came in ungated.</li>
     <li><b>Cuban Mojito and Lychee do not exist anywhere.</b> They need creating, and cloning Blue is the
     cheap way — the clone endpoint is already built and is on no screen.</li>
-    <li><b>58 active products priced CHF 999.99</b>, including two identical <i>JaJa Noir King Size XXL</i>
-    rows. Any of them can be sold at that price right now.</li>
+    <li><b>58 products priced CHF 999.99 — on purpose.</b> Angel: <i>"the number is so high it can't be
+    missed"</i>, so a cashier or manager catches it where a plausible-but-wrong price would sail through.
+    A pricing pass, not a bug. <span class="mono">/pos/cleanup?mode=bench&amp;gap=price</span> filters to them.</li>
   </ul>
 </section>
 
