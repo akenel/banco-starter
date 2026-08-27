@@ -45,7 +45,7 @@
  * RUN
  *   BANCO_ALLOW_FAKE_SALES=1 NODE_PATH=<dir with playwright> node scripts/prove-till-18plus.js
  *   (there is no node build in this repo on purpose — playwright is borrowed, not vendored;
- *    set BANCO_PLAYWRIGHT to a node_modules dir that has it.)
+ *    point NODE_PATH at a node_modules dir that has it. See TESTING.md.)
  */
 'use strict';
 

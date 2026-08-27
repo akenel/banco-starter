@@ -87,6 +87,7 @@ adds the audit machine.
 | `felix` | `felix` | admin (all roles) |
 
 > These are **local demo** credentials baked into `keycloak/import/realm-export.json`.
+> The `prove-*` scripts log in as these users too — see [`TESTING.md`](TESTING.md).
 > For any real use, change them in Keycloak (or edit the realm export before first boot).
 
 ---
@@ -139,3 +140,19 @@ docker compose down -v              # stop AND wipe all data volumes (fresh star
 - **Keycloak didn't import the realm** — the import runs only on a *fresh* Keycloak
   volume. `docker compose down -v` then `up` to re-import.
 - **Empty catalog** — set `HX_SEED_DEMO=true` for a demo catalog, or restore a backup.
+
+---
+
+## Prove it works
+
+Standing up is not the same as working. The proofs are **27 standalone scripts** — 21 driving a real
+browser, 5 server-side probes, 1 needing no stack at all — invoked one at a time, with two write
+guards you should understand before running any of them against a machine you care about.
+
+**→ [`TESTING.md`](TESTING.md)** — what they are, what they need, and the borrowed-Playwright
+`NODE_PATH` trick that is not obvious from the code.
+
+```bash
+# the gate before any promote to prod (45 checks)
+BANCO_ALLOW_FAKE_SALES=1 NODE_PATH=/path/to/node_modules node scripts/prove-till-18plus.js
+```
