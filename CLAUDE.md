@@ -65,7 +65,7 @@ When Angel says **OPEN SHOP** after a reboot, compaction, or fresh start, it mea
 banco-starter/
 ├── WORKLIST.md            # what's next, in order  ← code word opens this (keep it < 150 lines)
 ├── worklist-archive/      # the narrative, once an item is finished or a thread grows long
-├── LESSONS.md             # the 45 lessons in full; CLAUDE.md keeps only the patterns
+├── LESSONS.md             # every lesson in full; CLAUDE.md keeps only the patterns
 ├── CATALOG-IDENTITY.md    # what actually names a product (EAN = identity, names = labels)
 ├── CLAUDE.md              # this file (loads every session)
 ├── MEMORY.md              # the memory index (one line per fact)
@@ -94,27 +94,32 @@ banco-starter/
 
 ## LESSONS — the patterns
 
-*45 lessons and counting live in [`LESSONS.md`](LESSONS.md), each with the evidence that earned
+*Every lesson lives in [`LESSONS.md`](LESSONS.md) in full, each with the evidence that earned
 it. **This list is the distillation** — the shapes that have bitten more than once. Read these;
 open `LESSONS.md` when one of them is about to apply.*
 
 **When something bites: add the narrative to `LESSONS.md`, and if it is a new instance of a
 pattern below, bump the count here. A pattern at ×7 is telling you something a paragraph cannot.**
 
-1. **×9 · Green on the layer you can reach says nothing about the layer the user stands on.**
+1. **×10 · Green on the layer you can reach says nothing about the layer the user stands on.**
    `cash_box_float`, the force-close, `POST /catalog/merge`, honest confidence, `best_match_score`,
    the 18+ refusals, the evidence with no screen — each existed on every layer a test could reach
    and on **no screen**; the tablet's LTE was proved on Angel's home Wi-Fi, in a flat, with a route
-   metric set on an SSID Luzern does not have; and the USB webcam worked in GNOME in ten seconds
+   metric set on an SSID Luzern does not have; the USB webcam worked in GNOME in ten seconds
    while Banco **hid its own camera button on any touchscreen**, leaving the one machine that had
-   just grown a camera with no path to it. *Ask where the person is STANDING when they need it —
-   which building, and which screen.*
-2. **×6 · A downstream filter quietly discards the row the fix existed to find.** The dedup guard's
+   just grown a camera with no path to it; and on 2026-08-27 I proved a new SKU lookup by **TYPING
+   the SKU** — the one way it would never be entered. The gun sends SHIFT a beat late, so it
+   arrives as `sKU-`, and my fix was green everywhere I could reach and dead at the counter.
+   *Ask where the person is STANDING when they need it — which building, and which screen.*
+2. **×7 · A downstream filter quietly discards the row the fix existed to find.** The dedup guard's
    same-size rule, the alias filters judging `products.name`, the category "boost" that was a sort
    key above `score`; on 2026-08-22 `eligible_subtotal` dropped two full-price papers because
    pooling them had set `tier_final`, so a manager's discount silently skipped them; and on
    2026-08-24 the new catalog export filtered `category` with `=` while the screen it sits on uses
-   `ILIKE '%x%'` — so picking "Bongs" showed "Pipes & Bongs" on screen and left it out of the file.
+   `ILIKE '%x%'` — so picking "Bongs" showed "Pipes & Bongs" on screen and left it out of the file;
+   and on 2026-08-27 an **exact** barcode match discarded 2,632 supplier rows (24% of the feed),
+   because a UPC-A and an EAN-13 are one code with and without a leading zero and nothing
+   reconciled them. Super Wrap Gold was "not even on the internet" while sitting three tables away.
    *When you add a thing to match on, check every filter downstream still knows which one it is
    judging. A tier is a filter with extra steps, and a flag is a filter you cannot see. A SECOND
    way to ask the same question must be tested against the FIRST, never against your own
@@ -176,8 +181,17 @@ pattern below, bump the count here. A pattern at ×7 is telling you something a 
     shadow always wins because the shadow is what renders. *State written in one place and read in
     another needs an owner: ask of every reset/clear/cancel — what did this write, and does this
     delete ALL of it?* A clear that clears one key of three is not a clear.
+14. **A mechanical failure in an easy case gets read as proof the hard case is impossible.**
+    2026-08-27: a leading zero, a late shift key, a lookup that never read the SKU and a filename
+    that overwrote itself stacked up until an *exact-identity* case — a product sitting in the
+    catalogue with a valid code — presented itself as "it's not even on the internet". Angel spent
+    half an hour with three windows open and concluded matching was hopeless. Matching genuinely IS
+    hard (145 codes on >1 product; a right match at 0.46 scoring under a wrong one at 0.66) — but
+    none of that was in play. *Before improving the fuzzy layer, prove the EXACT layer works end to
+    end on the machine the person is standing at. The quiet failure of the easy path is what sends
+    people reaching for cleverness, or for bulk, exactly where neither was needed.*
 
 ---
 
-*Last updated: 2026-08-24*
+*Last updated: 2026-08-27*
 *"You can't clone SAP. You can clone this."*

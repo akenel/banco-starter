@@ -473,3 +473,120 @@ reported. Standing rule 6, paying for itself in one line.
 the till's member scan was unguarded — I had read the two `select(CustomerModel)` lines and not the
 six below them, where an explicit `if not customer.is_active` returns *"Customer account is
 inactive"*. There was never a hole. *Check the siblings, yes. Finish reading before you report one.*
+
+---
+
+## 2026-08-27 — four mechanical bugs wearing a hard problem's clothes
+
+*Written at the shop, mid-trade, with Layla serving and Felix in and out. Everything below was
+measured on the live box, not remembered.*
+
+**The morning's real job was the cash box**, which had sat open since 7 August — sixteen days,
+opened by pam, float CHF 200, six sales rung into it. Felix had counted the physical money: CHF
+1216.90. My first instinct was the force-close, the manager-gated §5 escape hatch. **Wrong tool.**
+Force-close is for a box that *cannot* be counted; this one was counted and sitting on the table.
+The right move was the ordinary reconcile, which records `counted_verified = TRUE` and leaves no
+asterisk on the books forever. *An escape hatch is not a shortcut, and reaching for it when the
+normal path is open buys a permanent footnote for nothing.*
+
+I also got the expected figure wrong on the way in — told Angel CHF 111.10 of cash sales when the
+screen said 137.00, because I filtered `created_at >= '2026-08-07 19:46:09'` using a timestamp I
+had myself rendered `AT TIME ZONE 'Europe/Zurich'` against a column stored in UTC. Two hours late,
+two sales missed. **Lesson #5 exactly: get the reference figure FROM the system.** The screen was
+right the whole time and I nearly talked him out of trusting it.
+
+### The four bugs, and what each one actually was
+
+Three Crank pipes were quick-added at the counter. All three printed a label. **None could be rung
+up**, and working out why took Angel half an hour with three browser windows open.
+
+1. **The small sticker printed a QR the till could not resolve.** The label route builds the code
+   as `barcode or sku`, so a product with no manufacturer EAN gets a QR of its SKU — and
+   `_find_product_by_any_barcode` had never once looked at the SKU. **The gun read it perfectly and
+   the till said "not found".** A sticker that looks finished and dies at the counter is worse than
+   printing nothing, because nothing at least tells the truth.
+2. **The medium label printed `— no barcode —`** and nothing else, correctly, for the same reason.
+3. **The gun sends SHIFT a beat late.** `SKU-1787825927800` arrives as `sKU-1787825927800` — first
+   letter lowercase, the rest fine. **I had proved my own fix by TYPING the SKU**, which is the one
+   way it would never be entered. Green on the layer I could reach, dead on the counter, an hour
+   after I wrote that sentence about somebody else. Angel found it in one scan.
+4. **The page title is the PDF filename.** Both label sizes shared one, so saving a medium
+   destroyed the small. And two active products are named byte-identically
+   (*JaJa Noir King Size XXL*), which would have collided invisibly.
+
+And the small label had been **silently clipping** the code all along: `SKU-17878259278` printed for
+`SKU-1787825927800`. Two characters gone. The fallback a human reads *when the scan fails* was
+itself wrong. My first fix shrank the font and it still clipped — **guessing a size that "should
+fit" is how the first attempt failed, so the second stopped guessing and let it wrap.**
+
+### The one that was not about labels at all
+
+Five JUICY Super Wraps, same product, five flavours. Two scanned. Three found nothing, and nothing
+on the internet either. Angel's read at the counter: *"these are all the same and we need the bar
+codes… doing this via the cart might be wrong."*
+
+**Super Wrap GOLD was never missing.** It was sitting in the shop's own reference catalogue as
+`0016165170458` while the gun sent `016165170458`. A US packet carries a 12-digit UPC-A; file it in
+a European system and it becomes a 13-digit EAN-13 by gaining a leading zero. **Both spellings are
+correct and nothing reconciled them.** Measured that afternoon:
+
+```
+2,632  reference rows a 12-digit scan could never reach     (24% of the FourTwenty feed)
+  135  products stored 12-digit, 13 stored 13-digit padded  — same shop, both ways
+   87  products present in BOTH catalogues under DIFFERENT padding
+```
+
+In one hour that morning the same till created `0616695693146`, `0602728160143` and
+`716165251064` — three UPC-A codes, two spellings. **Lesson #2, in its purest form yet: an exact
+match is a filter, and it was discarding the row the lookup existed to find.**
+
+Fixed as lookup tolerance only. **Nothing rewrites what is stored** — a shelf label already printed
+carries whichever spelling it was born with and must keep scanning. The question gets asked both
+ways; the answer stays where it is.
+
+### What fell out of the side of it
+
+Chasing the wraps surfaced something bigger than five products: **42 active blunts and wraps are
+classed `standard` and sell with no ID gate, while 35 near-identical products on the same shelf are
+gated correctly.** The split is arbitrary — *Blunt Wrap Platinum* gates, *Cyclones Blunt Hemp* does
+not; *Super Wrap Blue* gates, *Super Wrap Tropical* does not.
+
+Angel settled it by picking up the box: **it carries a cigarette-style tobacco health warning.**
+FourTwenty classes all eight Super Wraps as `standard`. *The packet outranks the feed* — lesson #8,
+verification against reality, arriving as a physical object in a hand.
+
+Two things were deliberately NOT fixed. **The classifier does not know the words "blunt" or
+"wrap"** — it catches *Swisher Sweets* and misses *Super Wrap Tropical* — so the safety net I was
+about to add **would not have caught these**, and saying so mattered more than shipping it. And
+**adopting from the supplier copies the supplier's 18+ answer with no safety net** while the till's
+quick-add applies one: same operation, two answers, which is how Tropical came in ungated.
+
+### The shape — and it is Angel's, not mine
+
+He said it at the end of the day: *"I can not see users trying to use the shelf intake unless they
+do a couple at a time — but is hard really hard to match products — not really our fault its just
+hard."*
+
+Half right, and the other half is the lesson. **Matching genuinely is hard** — 145 supplier codes
+sit on more than one product, 71% of a 300-row sample scored below 0.5 similarity, and similarity
+cannot even rank correctly (a right match at 0.46, a wrong one at 0.66). That part is real.
+
+**But almost nothing that broke today was a matching problem.** A leading zero, a shift key, a
+lookup that never read the SKU, a filename that overwrote itself. Every one deterministic, every one
+fixable in an afternoon. And stacked together they made an *exact-identity* case — a product sitting
+in the catalogue with a valid code — present itself as *"it's not even on the internet"*.
+
+> **A mechanical failure in an easy case gets read as proof that the hard case is impossible.**
+> The easy path failing quietly is what makes people conclude the hard path is hopeless — and then
+> reach for cleverness, or for bulk, exactly where neither was needed.
+
+**What generalises.** Before improving the fuzzy layer, prove the exact layer actually works, end to
+end, on the machine the person is standing at. Today's work did not make matching better; it made
+matching **less necessary** — 2,632 supplier rows moved from "hope the title lines up" to "the code
+is the code", which is what `CATALOG-IDENTITY.md` said the answer was all along.
+
+**And the design note worth keeping.** "A couple at a time" is not a limitation to engineer around;
+for this shop it is the correct shape. 5,430 products against 50 transactions in the box's whole
+life — intake here is *"a box arrived, put four things away"*, not a bulk import. A tool built for
+four items done properly beats one built for four hundred done hopefully, and the four-hundred
+version is exactly what minted 5,103 fake EANs that had to be unwound.
