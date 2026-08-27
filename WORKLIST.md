@@ -9,7 +9,7 @@
 > [`worklist-archive/done.md`](worklist-archive/done.md) with its commit hashes; when a thread
 > grows a long write-up, the write-up goes to the archive and a one-line pointer stays here.
 
-*Last updated: 2026-08-27, 18:30 (a full day at the shop; nine deploys, all human-green).*
+*Last updated: 2026-08-27, evening (nine deploys; then the 3% got measured — see item ⓪).*
 
 ---
 
@@ -33,6 +33,44 @@ open), all four Crank pipes ring, three JUICY wraps created, and the day's last 
 photo, a description, an article number and a label that scans.
 
 ### Open, in order
+
+**⓪ THE 3% IS NOT A MATCHING PROBLEM — 91% OF THE CATALOGUE IS KEYED ON INVENTED CODES.**
+Measured on prod 2026-08-27, 21:xx, after Angel said *"scan once, find it, move on… happens by luck
+3% of the time"* and *"the system IMHO is doomed"*.
+
+| measured | |
+|---|---|
+| **4,971 of 5,447** active products (**91%**) carry a barcode `200…`, 13 digits | GS1 reserves **20–29 for RESTRICTED CIRCULATION** — codes valid inside ONE building. They are minted. By definition they cannot be on a packet. |
+| **188 of 5,435** shop barcodes exist in the FourTwenty feed | **3.5%.** Angel's "3%" was not a mood. It is the scan hit-rate, and it is a property of the SEED DATA, not of the idea. |
+| **136 alias rows / 128 products** in `product_barcodes` | sell-to-seed has run **136 times in the system's life**. The mechanism works. Almost nothing has used it. |
+| name-match minted → feed row that HAS a real EAN | ~**10%** at sim ≥ 0.80, ~**16%** at ≥ 0.70, **72% no match at all** (sample n=300) |
+
+**What this means.** Angel is not failing at intake. He is **re-creating products he already owns**,
+because the packet's code can never match the code we filed it under. Every "nightmare" product was
+already in the catalogue.
+
+**The missing screen (small).** The not-found path offers *"pick a department"* → CREATE. There is no
+**"this is a product I already have"** → bind the scanned code as an alias. That one button is the
+whole sell-to-seed loop, and it heals the catalogue from the till during real sales, fat-head first.
+Angel hit this exactly: *"i had the scan and then re-scanned the same item via the cart but never
+found the same thing we just scanned on the fly."*
+
+**Name search is NOT broken — its OUTPUT is.** Measured against live prod, top hit correct on all five
+real queries (`rasta bong` → *Bong Rasta 18cm*, the very thing he hunted for half an hour; `crank
+pipe`, `super wrap`, `jaja`, `elfbar watermelon` — all correct at #1). But it reports **"Found 585"**
+and pads with hundreds of junk rows (`jaja` returns *Acryl Bong 600mm* at #2). A right answer at
+position 1 inside 585 rows READS AS FAILURE. Cut the tail at a relevance floor. *(API-measured; the
+screen itself is NOT browser-verified — extension was down all day.)*
+
+**Would Tamar's EAN list help? YES — it is the highest-leverage object in the project.** FourTwenty
+is the wrong supplier: it covers 3.5% of the shelf by code. A list from the distributor Angel
+actually buys from is the SAME GOODS, and every EAN in it came off a real packet. **It is an email,
+not a sprint.** Ask Rafi/Felix.
+
+⚠️ **Any bulk bind must be review-gated (LESSON #9).** In the sample, `ELFLIQ Watermelon 10mg` matched
+`Elf Liq Watermelon 20mg` and `XROS Pod 2 Stk.` matched `4pcs` — wrong strength, wrong pack size. A
+wrong barcode looks exactly like a right one. High threshold + human confirm, never a bulk UPDATE.
+
 
 **① The gate audit — 42 blunts and wraps sell with NO ID check.**
 [`onboarding/testsheets/2026-08-27-gate-audit.html`](onboarding/testsheets/2026-08-27-gate-audit.html)
