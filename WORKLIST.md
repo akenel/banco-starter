@@ -49,27 +49,44 @@ Measured on prod 2026-08-27, 21:xx, after Angel said *"scan once, find it, move 
 because the packet's code can never match the code we filed it under. Every "nightmare" product was
 already in the catalogue.
 
-**The missing screen (small).** The not-found path offers *"pick a department"* → CREATE. There is no
-**"this is a product I already have"** → bind the scanned code as an alias. That one button is the
-whole sell-to-seed loop, and it heals the catalogue from the till during real sales, fat-head first.
-Angel hit this exactly: *"i had the scan and then re-scanned the same item via the cart but never
-found the same thing we just scanned on the fly."*
+**CORRECTION — the bind-to-existing button is NOT missing. I said it was; I was wrong.**
+`scan.html:2124 linkToExisting()` binds the scanned code via `POST /products/{id}/barcodes`, and that
+endpoint already **promotes** a real EAN to primary and **demotes** the minted `2…` code to an alias
+so printed shelf labels keep scanning. The plumbing is done and correct.
 
-**Name search is NOT broken — its OUTPUT is.** Measured against live prod, top hit correct on all five
-real queries (`rasta bong` → *Bong Rasta 18cm*, the very thing he hunted for half an hour; `crank
-pipe`, `super wrap`, `jaja`, `elfbar watermelon` — all correct at #1). But it reports **"Found 585"**
-and pads with hundreds of junk rows (`jaja` returns *Acryl Bong 600mm* at #2). A right answer at
-position 1 inside 585 rows READS AS FAILURE. Cut the tail at a relevance floor. *(API-measured; the
-screen itself is NOT browser-verified — extension was down all day.)*
+**The real UI bug (small, still worth fixing).** On a PURE barcode miss `lazyLinkQuery` is empty, so
+`openLazy()` skips `searchExisting()` — **our own catalogue is never searched.** The reference feed IS
+consulted by barcode, and `confirmAdopt()` then **creates a new product**. So when the feed correctly
+identifies the packet and we already own that item under a minted code, the till manufactures a
+DUPLICATE. Fix: take the winning reference/web title, search our catalogue with it, and offer "you
+already have this → bind" ABOVE "Add to shop". Never auto-bind (LESSON #9).
 
-**Would Tamar's EAN list help? YES — it is the highest-leverage object in the project.** FourTwenty
-is the wrong supplier: it covers 3.5% of the shelf by code. A list from the distributor Angel
-actually buys from is the SAME GOODS, and every EAN in it came off a real packet. **It is an email,
-not a sprint.** Ask Rafi/Felix.
+**Telemetry is blind.** `catalog_miss` holds **1 row, ever** (2026-08-21, dept DIV). Only the
+sell-as-department path records a miss; the not-found→create path does not. We cannot see how often a
+scan misses, so we cannot see whether sell-to-seed is working at all.
 
-⚠️ **Any bulk bind must be review-gated (LESSON #9).** In the sample, `ELFLIQ Watermelon 10mg` matched
-`Elf Liq Watermelon 20mg` and `XROS Pod 2 Stk.` matched `4pcs` — wrong strength, wrong pack size. A
-wrong barcode looks exactly like a right one. High threshold + human confirm, never a bulk UPDATE.
+**TAMAR'S LIST IS THE ANSWER, AND IT JOINS EXACTLY — no matching required.** Angel called this
+himself: *"the only way is get the eans from tamar."* He is right, and it is better than he thought:
+
+- **4,971 of 4,971** minted products carry `supplier_sku` = **Tamar's own article number**. Every SKU
+  is prefixed `TAM-`, `source_system = artemis`, 100% populated.
+- The minted barcode literally ENCODES it — `2000000` + article no. + check digit:
+  `art 1341 → 2000000013411`, `art 23530 → 2000000235301`, `art 22535 → 2000000225357`.
+- So the list joins on ONE COLUMN, exactly. No fuzzy match, no review queue, no wrong-EAN risk.
+
+**The ask is two columns** (`Artikelnummer ; EAN`) plus the article-number list attached, so Tamar
+never has to decide which articles we mean. Full German text + the export SQL + how to apply the list:
+[`onboarding/supplier-ean-request.md`](onboarding/supplier-ean-request.md). The 4,971-row CSV is
+generated and with Angel. **This is an email to Rafi/Felix, not a sprint.**
+
+⚠️ **NAME-MATCHING CANNOT RECOVER EANs — measured, not assumed.** At similarity **0.80**, a threshold
+I had called safe an hour earlier: `Adapter NS 19/19 150mm` and `Adapter NS 19/19 200mm` BOTH matched
+EAN `6097224146113` — two products, one code; `120mm` matched a Dynavap; `Räucherstäbchenhalter
+Hanfblatt` matched `…Messing` (hemp leaf vs brass). Real catalogues differ by exactly the token that
+matters — a size, a material, a strength — and it is a tiny fraction of the string. **A wrong barcode
+looks exactly like a right one (LESSON #9).** Bulk name-matching does not save work; it manufactures
+invisible damage. That is why the supplier list is the only honest source.
+
 
 
 **① The gate audit — 42 blunts and wraps sell with NO ID check.**
