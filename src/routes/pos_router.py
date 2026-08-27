@@ -851,7 +851,7 @@ async def catalog_page_facts(
     # customer. Both keep coming from the page's own record or not at all.
     ai_note = None
     html_body = facts.get("_html") or ""
-    thin = (not facts.get("description")) or _looks_like_marketing(facts.get("description", ""))
+    thin = (not _visible(facts.get("description"))) or _looks_like_marketing(facts.get("description", ""))
     if html_body and thin:
         from src.services.vision import read_product_page
         page_text = _html_to_text(html_body)
@@ -860,7 +860,7 @@ async def catalog_page_facts(
         d = res.get("data") or {}
         if d:
             # Blanks only — never overwrite what the shop stated about itself.
-            if not facts.get("description") or _looks_like_marketing(facts.get("description", "")):
+            if not _visible(facts.get("description")) or _looks_like_marketing(facts.get("description", "")):
                 if d.get("description"):
                     facts["description"] = d["description"]
             for k in ("brand",):
@@ -909,6 +909,11 @@ async def catalog_page_facts(
     # name, price, image or GTIN — Angel pasted one in expecting it to work. Reporting
     # found=True there invites the operator to save the shop's marketing blurb as a product
     # description, which is worse than a clean failure because nothing looks wrong.
+    # Never hand the screen an invisible string. The client fills the field when the incoming
+    # description is truthy, so a lone U+200C became a description a human could neither see nor
+    # tell apart from a real one that failed to render.
+    if not _visible(facts.get("description")):
+        facts["description"] = ""
     facts["found"] = bool((facts.get("name") or "").strip())
     if not facts["found"]:
         facts["why"] = ("That page didn't state a product name, price or picture in a form we can "
@@ -3647,6 +3652,28 @@ _MARKETING_RE = re.compile(
     r"free shipping|fast shipping|best price|buy now|order now|✔|✓", re.I)
 
 
+# Characters that occupy no space, carry no meaning, and are TRUTHY. Python's str.strip()
+# removes whitespace and these are not whitespace, so `if text:` and `len(text) > 0` both say
+# "there is a description here" about a string a human sees as empty.
+_INVISIBLE = "\u200b\u200c\u200d\u2060\ufeff\u00ad"
+
+
+def _visible(text: str | None) -> str:
+    """`text` with zero-width padding removed — what a PERSON would say is in the field.
+
+    2026-08-27. fourtwenty.ch publishes its product description as a single U+200C ZERO WIDTH
+    NON-JOINER. Angel pasted a bong's URL expecting the page's long German description and got
+    nothing, twice, and assumed the reader had failed. It had not: it read the name, the price,
+    the EAN, the image and six facets correctly. The description alone came back as one
+    invisible character — and because that character is truthy and survives .strip(), `thin`
+    computed False and the model was never asked to read the body prose at all.
+
+    A blankness test has to agree with the human looking at the field. Anything else is a
+    downstream filter judging a different question than the one being asked (pattern 2).
+    """
+    return (text or "").translate({ord(c): None for c in _INVISIBLE}).strip()
+
+
 def _looks_like_marketing(text: str) -> bool:
     """Is this 'description' actually the shop's sales pitch?
 
@@ -3658,7 +3685,7 @@ def _looks_like_marketing(text: str) -> bool:
     whether to delete anything. A false positive costs one model call; a false negative leaves a
     shipping promise in the catalogue.
     """
-    t = (text or "").strip()
+    t = _visible(text)
     return bool(t) and (len(t) < 400 and bool(_MARKETING_RE.search(t)))
 
 
