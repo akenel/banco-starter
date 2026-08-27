@@ -43,6 +43,17 @@
  *   7  the real EAN is PROMOTED to primary, the minted code kept as an alias
  *   8  scanning the same packet again FINDS it — sell-to-seed, closed                 <- the thesis
  *
+ * AND SCENARIO B — the miss NOBODY knows, which is where the duplicates were actually born.
+ * A code the supplier feed cannot name never opens that panel at all. It leaves the department
+ * strip and the ON-THE-FLY create form on screen — "New item — with the code you scanned" —
+ * and until 2026-08-27 nothing between the name she types there and POST /products/quick ever
+ * asked our own catalogue. On a shelf that is 91% minted codes, "the scan missed" is the normal
+ * state of a product we ALREADY OWN, so this is the path that made the second row.
+ *   9  a miss the feed does not know leaves the on-the-fly form on screen
+ *  10  typing the name there lists the product we already own
+ *  11  tapping it makes NO second product row
+ *  12  the scanned code now resolves to the row we already had
+ *
  * ⚠️  IT WRITES PRODUCTS. It rings NO sales — nothing here reaches the Kassenbuch — but it
  *     creates a catalogue row and removes it at the end (name prefix `ZZPROBE`). It refuses
  *     to run anywhere but localhost unless you insist.
@@ -96,6 +107,12 @@ const stamp  = String(Date.now()).slice(-7);
 // names a packet the scan could not.
 const PACKET_EAN = process.env.PROBE_EAN || '8718403231335';
 let   PACKET_TITLE = '';
+
+// SCENARIO B's packet: a real EAN that is NOT in the feed, so the till cannot name it and the
+// on-the-fly form is what she is left standing in front of. Chosen from outside the headshop
+// range on purpose — the point is a code our reference has never heard of.
+const WEB_EAN  = process.env.PROBE_WEB_EAN || '4000417025005';
+const MINTED_B = '2000000999992';
 
 // A probe row from an EARLIER run can be referenced by line_items (an old sandbox cart), and
 // then DELETE raises a foreign-key error that reads like a broken test and is not one. Delete
@@ -160,7 +177,9 @@ const lazy = p => p.evaluate(() => {
   const d = Alpine.$data(document.querySelector('[x-data]'));
   return { open: d.lazyOpen, query: d.lazyLinkQuery, seed: d.ownedSeed,
            results: (d.lazyLinkResults || []).map(r => r.name),
-           createOpen: d.lazyCreateOpen, cart: (d.cart || []).map(c => c.name) };
+           createOpen: d.lazyCreateOpen, cart: (d.cart || []).map(c => c.name),
+           searchMode: d.searchMode, deptOpen: d.deptOpen, pending: d.pendingBarcode,
+           otfOwned: (d.otfOwned || []).map(r => r.name) };
 });
 
 async function scan(p, code) {
@@ -232,6 +251,66 @@ async function scan(p, code) {
     check(!s2.open && s2.cart.some(n => n.startsWith(PROBE)),
           '8  scanning that packet again FINDS it — no panel, straight to the cart',
           `panel=${s2.open} cart=${s2.cart.join(' | ') || '(empty)'}`);
+
+    // ── SCENARIO B — the miss the feed cannot name ───────────────────────────────────────
+    //
+    // Everything above needed the supplier feed to KNOW the packet. That is the lucky case.
+    // The ordinary one is a code nobody has: no panel, no seeded name, just the department
+    // strip and a create form with the code held in a yellow box. She types what is in her
+    // hand and taps Create — and a row we already own, filed under a minted code, gets a
+    // twin. These four assertions are the ones that were red before 2026-08-27.
+    if (parseInt(psql(`select count(*) from reference_products where barcode='${WEB_EAN}'`), 10)) {
+      console.log(`\n  SCENARIO B SKIPPED: ${WEB_EAN} IS in the feed here — it must not be.`);
+      console.log('  Set PROBE_WEB_EAN to a real code your reference_products does not hold.\n');
+    } else if (parseInt(psql(`select count(*) from products where barcode='${WEB_EAN}'`), 10)) {
+      console.log(`\n  SCENARIO B SKIPPED: ${WEB_EAN} is already a catalogue row here.\n`);
+    } else {
+      const NAME_B = `${PROBE} ${stamp} Ritter Sport Marzipan`;
+      psql(`insert into products (id, sku, name, price, barcode, stock_quantity, is_active,
+              is_age_restricted, vending_compatible, sync_override, created_at, updated_at)
+            values (gen_random_uuid(), '${PROBE}-B-${stamp}', '${NAME_B}', 4.50,
+                    '${MINTED_B}', 1, true, false, false, false, now(), now())`);
+      console.log(`\n  scenario B — packet ${WEB_EAN} (the feed does NOT know it)`);
+      console.log(`  we own   : "${NAME_B}"  filed under the minted ${MINTED_B}\n`);
+
+      await goto(p, '/pos/scan');
+      await scan(p, WEB_EAN);
+      const b1 = await lazy(p);
+      check(b1.open === false && b1.searchMode === 'catalog' && b1.deptOpen === false
+            && b1.pending === WEB_EAN,
+            '9  the unknown miss leaves the on-the-fly form on screen, holding the code',
+            `panel=${b1.open} mode=${b1.searchMode} pending=${b1.pending}`);
+
+      // Type it the way she does — into the name box, not into Alpine.
+      await p.fill('input[x-model="otfName"]', `${PROBE} ${stamp} Ritter Sport`);
+      await p.waitForTimeout(2500);
+      const b2 = await lazy(p);
+      const listed = check(b2.otfOwned.some(n => n.startsWith(PROBE)),
+            '10 typing the name lists the product we ALREADY OWN',
+            b2.otfOwned.join(' | ') || '(none)');
+      const bannerB = await p.locator('p[x-text*="otf_owned"]').first().isVisible().catch(() => false);
+      check(bannerB, '10b the "you may already have this" line is on screen');
+
+      if (listed) {
+        const beforeB = rowsProbe();
+        await p.locator(`div:has-text("${NAME_B}")`).locator('visible=true').last()
+          .click({ timeout: 5000 })
+          .catch(async () => { await p.locator(`span:has-text("${NAME_B}")`).first().click(); });
+        await p.waitForTimeout(2500);
+        check(rowsProbe() === beforeB, '11 tapping it made NO second product row',
+              `${beforeB} before, ${rowsProbe()} after`);
+        const boundTo = psql(`select coalesce(p.name,'') from products p
+                              join product_barcodes pb on pb.product_id = p.id
+                              where pb.barcode = '${WEB_EAN}'`)
+                     || psql(`select coalesce(name,'') from products where barcode='${WEB_EAN}'`);
+        check(boundTo === NAME_B,
+              '12 the scanned code now resolves to the row we already had',
+              boundTo || '(bound to nothing)');
+      } else {
+        bad('11 tapping it made NO second product row', 'skipped — nothing was listed to tap');
+        bad('12 the scanned code now resolves to the row we already had', 'skipped');
+      }
+    }
   } catch (e) {
     bad('run', e.message);
   } finally {

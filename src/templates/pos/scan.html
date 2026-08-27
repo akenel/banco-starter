@@ -303,7 +303,47 @@
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2"><span data-i18n="scan.item_name">Item name</span> <span class="text-red-500">*</span></label>
                             <input type="text" x-model="otfName" @keyup.enter="createNoCodeItem()"
+                                   @input.debounce.400ms="searchOwnedForOtf()"
                                    placeholder="e.g. Cynthia cup — red" data-i18n-placeholder="scan.ph_item_name" class="input-field">
+                        </div>
+
+                        <!-- ⚠️ DO WE ALREADY OWN THIS? Asked as she types, answered BEFORE the
+                             Create button. 91% of this catalogue is filed under a minted 200…
+                             code that is on no packet, so "the scan missed" is the normal state
+                             of something we already have — and creating it again is how the same
+                             bong ends up on two rows, one of them findable by name only, forever.
+                             Tapping binds the scanned code to the row that already exists; it is
+                             never automatic (LESSON #9 — a wrong bind looks exactly like a right
+                             one, and only re-scanning the packet tells them apart). -->
+                        <div x-show="otfOwned.length" x-cloak style="display:none" class="space-y-2">
+                            <div class="rounded-lg border-2 border-amber-400 bg-amber-50 px-3 py-2">
+                                <p class="text-sm font-semibold text-amber-900 leading-snug"
+                                   x-text="t('scan.otf_owned')"></p>
+                            </div>
+                            <div class="max-h-96 overflow-y-auto divide-y border rounded-lg">
+                                <template x-for="p in otfOwned" :key="p.id">
+                                    <div @click="bindPendingToOwned(p)"
+                                         class="px-3 py-2 hover:bg-blue-50 flex items-center gap-3 cursor-pointer"
+                                         :class="lazySaving ? 'opacity-50 pointer-events-none' : ''">
+                                        <img x-show="p.image_url" :src="p.image_url" loading="lazy" alt=""
+                                             class="w-24 h-24 rounded object-contain bg-white border flex-none">
+                                        <span x-show="!p.image_url" class="w-24 h-24 rounded bg-gray-100 flex items-center justify-center text-gray-300 text-3xl flex-none">📦</span>
+                                        <span class="flex-1 min-w-0">
+                                            <span class="flex items-start gap-1.5 flex-wrap">
+                                                <span x-show="posProductSize(p.name)" x-text="posProductSize(p.name)"
+                                                      class="flex-none text-xs font-extrabold text-blue-800 bg-blue-100 rounded px-1.5 py-0.5"></span>
+                                                <span x-text="p.name" class="min-w-0 text-sm font-medium text-gray-900 leading-snug break-words"></span>
+                                                <span x-show="p._crossLang" x-cloak style="display:none" :title="t('scan.cross_lang_help')"
+                                                      class="flex-none text-xs font-bold text-purple-800 bg-purple-100 rounded px-1.5 py-0.5">DE/EN</span>
+                                            </span>
+                                            <span class="block text-xs text-gray-500 mt-0.5"
+                                                  x-text="formatPrice(p.price)"></span>
+                                        </span>
+                                        <span class="flex-none text-sm font-bold text-blue-700"
+                                              x-text="pendingBarcode ? t('scan.otf_owned_bind') : t('scan.otf_owned_add')"></span>
+                                    </div>
+                                </template>
+                            </div>
                         </div>
 
                         <div>
@@ -1361,6 +1401,13 @@
             // else's website (SPEC §4.2: nothing blocks, nothing to dismiss).
             pendingWeb: null,
             pendingWebBusy: false,
+            // 🔁 WHAT WE ALREADY OWN, asked as she types the name into the on-the-fly form.
+            // The find-and-bind panel has searched the live catalogue since 2026-08-21 — this
+            // form never did, and it is the one a cashier actually lands on when the miss is a
+            // code no feed knows. See searchOwnedForOtf().
+            otfOwned: [],
+            otfOwnedSearching: false,
+            _otfSearchSeq: 0,
             discount: 0,
             showClearModal: false,   // clear-cart confirm modal (replaces native confirm)
             discountError: '',
@@ -1521,6 +1568,10 @@
                     this.pendingBarcode = code;
                     this.searchMode = 'catalog';
                     this.barcodeInput = '';
+                    // A NEW packet must never inherit the last one's answer. The on-the-fly form
+                    // is about to be on screen again; whatever it offered for the previous code
+                    // is now a lie with a picture on it.
+                    this.otfOwned = []; this._otfSearchSeq++;
 
                     // 📚 ASK THE REFERENCE BY BARCODE BEFORE GIVING UP.
                     //
@@ -1609,6 +1660,7 @@
                 this.searchMode = 'barcode';
                 this.barcodeInput = '';        // BL-129: never let the next scan concatenate
                 this.pendingWeb = null;
+                this.otfOwned = []; this._otfSearchSeq++;   // never offer the LAST packet's match
                 this.$nextTick(() => this.$refs.barcodeInput && this.$refs.barcodeInput.focus());
             },
 
@@ -1891,6 +1943,11 @@
                 this.otfName = ''; this.otfPrice = ''; this.otfDescription = ''; this.otfCategory = '';
                 this.otfAgeRestricted = false;
                 this.otfPhotoFile = null; this.otfPhotoData = '';
+                // LESSON #13: a clear that clears four keys of five is not a clear. The name is
+                // gone but the list it produced would still be sitting under an empty box,
+                // offering the PREVIOUS packet's match to the next customer. Bump the sequence
+                // too, so a slow reply already in flight cannot re-fill it after the reset.
+                this.otfOwned = []; this._otfSearchSeq++;
                 this.lazySaving = false;
             },
 
@@ -2036,31 +2093,105 @@
             // Ranked results lead; cross-language extras follow, flagged so it is obvious WHY
             // a differently-named row is being offered. A failure in either half is logged and
             // ignored: a broken second opinion must never blank a working search at a till.
+            // The two-source merge itself, with no opinion about which box was typed into.
+            // Pulled out of searchExisting() 2026-08-27 so the ON-THE-FLY create form can ask
+            // the SAME question — there must not be a second, weaker way to ask "do we already
+            // own this?", or the two answers drift and the weaker one is on the busier screen.
+            async findOwned(q, barcode) {
+                const [ranked, folded] = await Promise.all([
+                    API.get(`/api/v1/pos/search?q=${encodeURIComponent(q)}&limit=8`)
+                        .catch(err => { console.warn('Existing-product search failed:', err); return null; }),
+                    API.post('/api/v1/pos/catalog/match-candidates',
+                             { name: q, barcode: (barcode || '').trim() || null })
+                        .catch(err => { console.warn('Cross-language match failed:', err); return null; }),
+                ]);
+                const out = (ranked && ranked.items ? ranked.items : []).slice(0, 8);
+                const seen = new Set(out.map(p => String(p.id)));
+                for (const c of (folded && folded.candidates ? folded.candidates : [])) {
+                    if (seen.has(String(c.id))) continue;
+                    out.push({ ...c, _crossLang: true });
+                    seen.add(String(c.id));
+                    if (out.length >= 10) break;
+                }
+                return out;
+            },
+
             async searchExisting() {
                 const q = this.lazyLinkQuery.trim();
                 if (q.length < 2) { this.lazyLinkResults = []; this.lazyLinkSearching = false; return; }
                 this.lazyLinkSearching = true;
                 const seq = ++this._lazySearchSeq;   // a fast typist must not have an old reply win
                 try {
-                    const [ranked, folded] = await Promise.all([
-                        API.get(`/api/v1/pos/search?q=${encodeURIComponent(q)}&limit=8`)
-                            .catch(err => { console.warn('Existing-product search failed:', err); return null; }),
-                        API.post('/api/v1/pos/catalog/match-candidates',
-                                 { name: q, barcode: (this.lazyBarcode || '').trim() || null })
-                            .catch(err => { console.warn('Cross-language match failed:', err); return null; }),
-                    ]);
+                    const out = await this.findOwned(q, this.lazyBarcode);
                     if (seq !== this._lazySearchSeq) return;   // a newer keystroke already answered
-                    const out = (ranked && ranked.items ? ranked.items : []).slice(0, 8);
-                    const seen = new Set(out.map(p => String(p.id)));
-                    for (const c of (folded && folded.candidates ? folded.candidates : [])) {
-                        if (seen.has(String(c.id))) continue;
-                        out.push({ ...c, _crossLang: true });
-                        seen.add(String(c.id));
-                        if (out.length >= 10) break;
-                    }
                     this.lazyLinkResults = out;
                 } finally {
                     if (seq === this._lazySearchSeq) this.lazyLinkSearching = false;
+                }
+            },
+
+            // 🔁 THE DUPLICATE FACTORY, CLOSED. 2026-08-27.
+            //
+            // A miss the supplier feed KNOWS re-opens the find-and-bind panel with the packet's
+            // real title in the search box, and the live catalogue is searched for it — that has
+            // worked since 2026-08-21 and prove-no-duplicate-on-a-miss.js holds it there.
+            //
+            // A miss NOBODY knows does not open that panel at all. It leaves the department strip
+            // and THIS form on screen — "New item — with the code you scanned" — and a cashier
+            // types the name of the thing in her hand and taps Create. Nothing between that name
+            // and `POST /products/quick` ever asked our own catalogue. On a shelf where 91% of
+            // rows are filed under a minted 200… code the packet cannot carry, "the scan missed"
+            // is the NORMAL state of a product we already own, so this is where the second row
+            // gets born — a real EAN on a fresh stub while the original sits there under a
+            // fiction. That is Angel re-creating products he already owns, one packet at a time.
+            //
+            // So: ask as she types, in the SAME words the panel uses (findOwned — ranked search
+            // plus the DE<->EN folded matcher, because "black" must find "schwarz"). Offer the
+            // row ABOVE the Create button. NEVER bind by itself — a wrong barcode bind looks
+            // exactly like a right one and only re-scanning the packet tells them apart
+            // (LESSON #9). She taps, or she creates; the screen just stops hiding the third
+            // option that was always the right one.
+            async searchOwnedForOtf() {
+                const q = (this.otfName || '').trim();
+                if (q.length < 3) { this.otfOwned = []; this.otfOwnedSearching = false; return; }
+                this.otfOwnedSearching = true;
+                const seq = ++this._otfSearchSeq;
+                try {
+                    const out = await this.findOwned(q, this.pendingBarcode);
+                    if (seq !== this._otfSearchSeq) return;
+                    this.otfOwned = out;
+                } catch (err) {
+                    // A second opinion that fails must never block the create she came here for.
+                    console.warn('Owned-product check failed:', err);
+                    if (seq === this._otfSearchSeq) this.otfOwned = [];
+                } finally {
+                    if (seq === this._otfSearchSeq) this.otfOwnedSearching = false;
+                }
+            },
+
+            // "We already have this one" → bind the scanned code to it and sell it. Same call
+            // linkToExisting() makes; the code just comes from `pendingBarcode` rather than the
+            // panel, because on this screen the department strip is what is holding it.
+            async bindPendingToOwned(product) {
+                const bc = (this.pendingBarcode || '').trim();
+                this.lazySaving = true;
+                try {
+                    if (bc) {
+                        await API.post(`/api/v1/pos/products/${product.id}/barcodes`, { barcode: bc });
+                    }
+                    this.addToCart(product, 1);
+                    this.otfName = ''; this.otfPrice = ''; this.otfDescription = ''; this.otfCategory = '';
+                    this.otfAgeRestricted = false;
+                    this.otfPhotoFile = null; this.otfPhotoData = '';
+                    this.otfOwned = [];
+                    this.pendingBarcode = '';
+                    showToast(t('scan.toast_linked', {n: product.name}), 'success');
+                    this.readyForNextScan();
+                } catch (err) {
+                    console.warn('Bind to owned product failed:', err);
+                    showToast(t('scan.toast_link_failed'), 'warning');
+                } finally {
+                    this.lazySaving = false;
                 }
             },
 

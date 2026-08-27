@@ -68,13 +68,15 @@ manufacturers, what do you scan?"** German text, export SQL and how to apply the
 [`onboarding/supplier-ean-request.md`](onboarding/supplier-ean-request.md). The 4,971-row CSV is
 generated and with Angel.
 
-**The real UI bug behind it (small, still worth fixing).** On a PURE barcode miss `lazyLinkQuery` is
-empty, so `openLazy()` skips `searchExisting()` — **our own catalogue is never searched** — and
-`confirmAdopt()` then creates a new product. When the feed correctly identifies a packet we already
-own under a minted code, **the till manufactures a duplicate.** Fix: take the winning reference/web
-title, search our catalogue with it, offer "you already have this → bind" ABOVE "Add to shop". Never
-auto-bind (LESSON #9). *(The bind plumbing itself is correct — `scan.html:2124 linkToExisting()`
-promotes a real EAN to primary and demotes the minted code to an alias.)*
+**The real UI bug behind it — FIXED 2026-08-27 late, and it was on a different screen than this
+note said.** The find-and-bind panel *does* search our own catalogue on a miss, and has since
+08-21; `prove-no-duplicate-on-a-miss.js` holds it there in nine assertions. But that panel only
+opens when the **supplier feed can name the code**. When nobody can — the ordinary case here — the
+cashier is left with the department strip and the **on-the-fly create form**, and nothing between
+the name she types and `POST /products/quick` ever asked the catalogue. That is where the twins
+were born. The form now runs the same two-source search (ranked + DE↔EN folded) as she types and
+offers "you may already have this → bind" above the Create button. Never auto-binds (LESSON #9).
+Four new assertions, red on the shipped image first. → `done.md`.
 
 
 **① The gate audit — 42 blunts and wraps sell with NO ID check.**

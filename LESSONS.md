@@ -692,3 +692,47 @@ scanned into a barcode field anyway.
 
 *Parking a bug is a decision, and it needs the same evidence as fixing one.* "It only breaks a shape
 we never use, and here is why" is a reason. "We ran out of afternoon" is not.
+
+---
+
+## 2026-08-27, late — the duplicate factory was on the screen nobody was looking at
+
+I opened this on the worklist's own note: *"on a PURE barcode miss `lazyLinkQuery` is empty, so
+`openLazy()` skips `searchExisting()` — our own catalogue is never searched — and `confirmAdopt()`
+then creates a new product."* I read `openLazyCapture`, agreed, and told Angel in plain words that
+Banco never asks itself whether it already owns the packet.
+
+**That was wrong, and the repo said so.** `scripts/prove-no-duplicate-on-a-miss.js` (`f673b66`)
+already asserts the opposite, through the real screen, in nine steps. Its own header records a
+previous session making the identical mistake and being disproved by reverting the code. I had read
+`openLazyCapture` and not its **callers**, which pass the resolved name in — the same error, written
+down, in the file named after the bug, and I made it anyway. *A prover is only memory if you read it
+before you re-derive the thing it proves.*
+
+The hole that was actually there is one screen over. A miss the supplier feed **knows** re-opens the
+find-and-bind panel with the packet's real title already in the search box — that path was correct
+and proven. A miss **nobody** knows does not open that panel at all. It leaves the department strip
+and the on-the-fly create form on screen — *"New item — with the code you scanned"* — and between
+the name a cashier types there and `POST /products/quick` there was nothing. No search, no question.
+
+Which makes it the **normal** path, not the edge case. On a shelf where 91% of rows are filed under
+a minted `200…` code that is on no packet, "the scan missed" is the ordinary state of a product we
+already own — and the screen she lands on when that happens was the one that could not see the
+catalogue. `createNoCodeItem()` does carry a duplicate guard, and it is exactly the wrong one: it
+catches a collision on the **same barcode**, which can never fire here, because the twin is filed
+under the fiction.
+
+The fix pulled the two-source merge out of `searchExisting()` into `findOwned()` and gave the
+on-the-fly form the same question in the same words — ranked search plus the DE↔EN folded matcher,
+so *black* still finds *schwarz*. The row is offered above the Create button; tapping binds the
+scanned code to what already exists. It never binds by itself (**LESSON #9**).
+
+Two things worth keeping:
+
+- **Pattern 1 again, ×12, and this time both screens were mine.** The capability existed, was
+  proven, and was one panel away from the person who needed it. *Which screen is she standing on
+  when the thing goes wrong?* — the answer here was "not that one", and no amount of reading the
+  fixed path would have said so.
+- **Watching it go red is what told the two paths apart.** Nine assertions green and four red in the
+  same run, against the same build, is a sentence no amount of source-reading produces. The four
+  reds were written before the fix and failed on the shipped image first (**LESSON #4**).

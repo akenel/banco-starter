@@ -152,7 +152,7 @@ open `LESSONS.md` when one of them is about to apply.*
 **When something bites: add the narrative to `LESSONS.md`, and if it is a new instance of a
 pattern below, bump the count here. A pattern at ×7 is telling you something a paragraph cannot.**
 
-1. **×11 · Green on the layer you can reach says nothing about the layer the user stands on.**
+1. **×12 · Green on the layer you can reach says nothing about the layer the user stands on.**
    `cash_box_float`, the force-close, `POST /catalog/merge`, honest confidence, `best_match_score`,
    the 18+ refusals, the evidence with no screen — each existed on every layer a test could reach
    and on **no screen**; the tablet's LTE was proved on Angel's home Wi-Fi, in a flat, with a route
@@ -164,7 +164,11 @@ pattern below, bump the count here. A pattern at ×7 is telling you something a 
    That same evening Angel hunted a bong through his catalogue, the photo matcher and Google and
    said *"i have no chance"* — `GET /reference/search` finds it from the one word "rasta" and was
    wired into Receiving and Scan but **not into the screen that creates products**. Third this
-   week, after the clone endpoint and the force-close.
+   week, after the clone endpoint and the force-close. Late that night, a fourth: the till DOES
+   search our own catalogue on a miss the supplier feed can name — proven, nine assertions — and
+   does NOT on a miss nobody can name, which is the ordinary one. The cashier is then standing in
+   front of the on-the-fly create form, the one screen with no catalogue search on it, and that is
+   where the duplicate rows were being born.
    *Ask where the person is STANDING when they need it — which building, and which screen.*
 2. **×7 · A downstream filter quietly discards the row the fix existed to find.** The dedup guard's
    same-size rule, the alias filters judging `products.name`, the category "boost" that was a sort

@@ -4,6 +4,21 @@
 
 ---
 
+- 2026-08-27, late — **The on-the-fly create form now asks whether we already own it.** Item ⓪'s
+  UI half. The find-and-bind panel has searched the live catalogue on a miss since 08-21 and
+  `prove-no-duplicate-on-a-miss.js` proves it — but that panel only opens when the **supplier feed
+  can name the code**. When nobody can, which on a 91%-minted shelf is the ordinary case, the
+  cashier is left on the department strip with *"New item — with the code you scanned"*, and
+  nothing between the name she typed and `POST /products/quick` ever asked the catalogue. Its one
+  duplicate guard catches a collision on the **same barcode**, which can never fire, because the
+  twin is filed under a minted `200…` code. The two-source merge came out of `searchExisting()`
+  into `findOwned()` so both screens ask in the same words (ranked search + DE↔EN folded matcher);
+  the form lists what we own between the name box and the Create button, and a tap binds the
+  scanned code to it. Never automatic (LESSON #9). Four assertions added to the prover — **9…12,
+  watched red on the shipped image, green after the rebuild**; scenario A's nine stayed green
+  throughout, which is what told the two paths apart. Also cleared `otfOwned` on every reset, so
+  the next customer is never shown the last packet's match (LESSON #13). Screenshot taken.
+
 - 2026-08-27 — **The second archive pass.** `WORKLIST.md` 1,201 → live-items-only; 889 lines moved
   out verbatim to [`2026-08-27-archive-pass.md`](2026-08-27-archive-pass.md), two blocks to
   [`backlog.md`](backlog.md). Everything below this line is indexed there.
