@@ -1107,6 +1107,61 @@
                         </button>
                     </template>
                 </div>
+                <!-- 📚 THE SUPPLIER CATALOGUE YOU ALREADY HOLD.
+                     2026-08-27. Angel hunted an old-favourite rasta bong through the shop's own
+                     catalogue, the photo matcher and Google, gave up, and said "i have no chance".
+                     It was in `reference_products` the whole time — Black Leaf "Bong Rasta 18cm",
+                     right EAN, right price, with a photo. `GET /reference/search` finds it from
+                     the single word "rasta" (title ILIKE), and that endpoint was already wired
+                     into Receiving and Scan — but NOT into this screen, which is where products
+                     are actually created. Built, working, on the wrong screen: the same shape as
+                     the clone button and the force-close.
+
+                     It sits ABOVE the live-site search on purpose. 11,035 rows we already hold,
+                     with real EANs and prices, beat scraping the open web — and cost nothing. -->
+                <div class="pt-2 border-t">
+                    <div class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                        📚 <span data-i18n="catalog.ref_search_title">Supplier catalogue</span>
+                        <span class="normal-case font-normal text-gray-400" data-i18n="catalog.ref_search_hint">— try one word: a colour, a brand, a shape</span>
+                    </div>
+                    <div class="flex gap-2">
+                        <input x-model="refQ" @keydown.enter.prevent="searchReference()"
+                               class="input-field flex-1" :placeholder="t('catalog.ref_search_ph')"
+                               placeholder="rasta · kawumm · black leaf · grinder…">
+                        <button @click="searchReference()" :disabled="refBusy"
+                                class="btn-secondary flex-none px-4">
+                            <span x-show="!refBusy">🔎</span>
+                            <span x-show="refBusy" style="display:none;" class="animate-pulse">…</span>
+                        </button>
+                    </div>
+                    <div x-show="refResults.length" class="mt-2">
+                        <template x-for="m in refResults" :key="m.id">
+                            <button @click="pickReference(m)"
+                                    class="w-full flex items-center gap-3 p-2.5 mb-2 rounded-lg border border-gray-200 hover:border-indigo-400 hover:bg-indigo-50 text-left">
+                                <div class="w-12 h-12 flex-none bg-gray-50 rounded border flex items-center justify-center overflow-hidden">
+                                    <img x-show="m.image_url" :src="m.image_url" class="w-full h-full object-contain" alt="" @error="$el.style.display='none'">
+                                    <span x-show="!m.image_url" class="text-2xl">📦</span>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="font-medium text-gray-900 truncate" x-text="m.title"></div>
+                                    <div class="text-xs text-gray-500 truncate">
+                                        <span class="font-semibold text-indigo-700" x-text="m.supplier"></span>
+                                        <template x-if="m.price != null"> · <span x-text="'CHF ' + Number(m.price).toFixed(2)"></span></template>
+                                        <template x-if="m.barcode"><span class="text-gray-400"> · <span x-text="m.barcode"></span></span></template>
+                                    </div>
+                                </div>
+                            </button>
+                        </template>
+                        <div x-show="refTotal > refResults.length" class="text-center text-[11px] text-gray-400 mb-1">
+                            <span x-text="refTotal"></span> <span data-i18n="catalog.ref_search_more">matches — narrow the word to see the rest</span>
+                        </div>
+                    </div>
+                    <div x-show="refSearched && !refBusy && !refResults.length"
+                         class="mt-2 text-center text-xs text-gray-400" data-i18n="catalog.ref_search_none">
+                        Nothing in the supplier catalogue under that word. Try the trade word — the feed is German: rasta (not rainbow), Kopf, Schliff, Kawumm.
+                    </div>
+                </div>
+
                 <!-- BL-35: not in EITHER local list → search the supplier sites live, adopt + self-heal -->
                 <div class="pt-2 border-t">
                     <button x-show="!liveBusy" @click="searchSuppliersLive()"
@@ -1333,6 +1388,7 @@
             snapBusy: false,      // BL-34: manual "🔎 Search similar" in flight
             // BL-35: live supplier-site search fallback
             liveResults: [],
+            refQ: '', refResults: [], refBusy: false, refSearched: false, refTotal: 0,
             liveVariants: [],     // BL-38: extra language variants also searched (e.g. German)
             liveBusy: false,
             liveSearched: false,
@@ -1668,6 +1724,49 @@
                     : `${t('catalog.ai_drafted_by')} ${d.provider} · ${(d.elapsed_ms/1000).toFixed(1)}s · ${t('catalog.ai_check_price')}`;
             },
 
+            // 📚 Search the supplier catalogue we ALREADY HOLD (reference_products, 11,035 rows).
+            // Deliberately a FREE-TEXT box and not the product name: the whole failure this fixes
+            // was that the name in Angel's head ("rainbow bong") is not the name in the feed
+            // ("Bong Rasta 18cm"), and every existing path searched using something already typed.
+            // One word he can guess beats a perfect match on a name he does not know.
+            async searchReference() {
+                const q = (this.refQ || '').trim();
+                if (q.length < 2) { showToast(t('catalog.ref_search_need_word') || 'Type at least two letters.', 'warning'); return; }
+                this.refBusy = true; this.refSearched = true;
+                try {
+                    const d = await API.get(`/api/v1/pos/reference/search?q=${encodeURIComponent(q)}&limit=8`);
+                    this.refResults = d.items || [];
+                    this.refTotal = d.total || 0;
+                } catch (e) {
+                    this.refResults = []; this.refTotal = 0;
+                    showToast(e.message || t('catalog.save_failed'), 'error');
+                } finally { this.refBusy = false; }
+            },
+
+            // FILL the form from a reference row — never save behind the operator's back. They
+            // still see every field and press the button, which is the rule this screen runs on:
+            // the human picks, the machine does everything after the pick.
+            pickReference(m) {
+                if (!m) return;
+                const blank = v => v === '' || v === null || v === undefined;
+                if (blank(this.form.name) && m.title) this.form.name = m.title;
+                // The EAN is the prize. A real supplier code beats anything minted, and it is the
+                // one field that must never be guessed — so it is taken only when we have none.
+                if (blank(this.form.barcode) && m.barcode) this.form.barcode = m.barcode;
+                if (blank(this.form.price) && m.price != null) this.form.price = m.price;
+                if (blank(this.form.description) && m.description) this.form.description = m.description;
+                if (blank(this.form.category) && m.category) this.form.category = m.category;
+                if (m.supplier && blank(this.form.supplier_name)) this.form.supplier_name = m.supplier;
+                // Photo rides along, fetched into OUR storage on save (a hotlinked supplier URL
+                // rots — 2026-08-02, adopt-images).
+                if (m.image_url && !this.pendingImageUrl && !this.pendingPhotos.length) {
+                    this.pendingImageUrl = m.image_url;
+                    if (!this.snapPreview) { this.snapPreview = m.image_url; this.snapName = m.title || ''; }
+                }
+                this.snapOpen = false;
+                showToast(t('catalog.ref_search_applied') || 'Filled from the supplier catalogue — check it, then save.', 'success');
+            },
+
             // BL-34: manual "🔎 Search similar" — the find-first picker from ANY create/edit, not just a
             // snap. Runs find-matches on the current name so you can grab the right photo/details or
             // find the existing item (even inactive). No photo — it's a name search.
@@ -1683,7 +1782,11 @@
                     }
                     // Open the picker even with no local match — the operator can escalate to a
                     // live supplier-site search from here (BL-35) instead of dead-ending on a toast.
-                    this.snap = d; this.snapFile = null; this._resetLive(); this.snapOpen = true;
+                    this.snap = d; this.snapFile = null; this._resetLive();
+                    // Seed with the FIRST word only. A full product name scores badly against a
+                    // feed written by somebody else; one word is what actually finds things here.
+                    this.refQ = (this.form.name || '').trim().split(/\s+/)[0] || '';
+                    this.snapOpen = true;
                 } catch (e) {
                     showToast(e.message || t('catalog.ai_unavailable'), 'error');
                 } finally { this.snapBusy = false; }
@@ -1899,7 +2002,10 @@
                 this.snapPickReference(adopt);
                 this._resetLive();
             },
-            _resetLive() { this.liveResults = []; this.liveVariants = []; this.liveSearched = false; this.liveErrors = {}; this.liveBusy = false; },
+            _resetRef() { this.refResults = []; this.refSearched = false; this.refTotal = 0; },
+
+            _resetLive() { this.liveResults = []; this.liveVariants = []; this.liveSearched = false; this.liveErrors = {}; this.liveBusy = false;
+                           this._resetRef(); },   // ONE owner for the picker's state — six call sites, none of which should have to remember two resets
             // 🔗 Paste a product page → fill the blanks from what that page STATES.
             // Same endpoint shelf intake and cleanup already use. Two rules carried over from
             // there, both learned the hard way:
