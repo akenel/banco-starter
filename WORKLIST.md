@@ -284,6 +284,29 @@ logout is *desirable*; a quiet Tuesday afternoon one is not.
   `min_stock` / `max_stock` / reorder points — `/reorder/suggestions` ranks by what the till sold.
 - **`age_check_event` is append-only** (a PL/pgSQL trigger, not `REVOKE` — which is a no-op against
   a table owner). Nothing can tidy a row away, including a mis-tap.
+- **Hardware gets a label when it earns one. There is nothing to build, and no binder.** Settled
+  2026-08-28. Of 1,062 bongs / grinders / trays / shishas / accessories, **20 carry a real EAN** —
+  they are house-brand goods that exist in no other catalogue, so image-matching finds nothing
+  (12 tested, 0 matched) and their minted `200…` code is the *correct* answer, not a failure.
+  **The rule is: something sells twice, it gets a label.** Nobody plans it, nobody maintains a
+  binder, and the work is done by the person who noticed the demand.
+  **The shelf is the signal.** Four jars of ~20 Crank pipes behind the counter → obviously needs a
+  scan method, and *Layla asked for exactly that unprompted* ("give me a label per type, I'll stick
+  it on the jar lid"). One hookah on the top shelf for two years → obviously does not. Staff read
+  their own selling patterns better than any rule we could write, and MISC is self-correcting:
+  Felix asks why everything is MISC, they notice they sold the same thing four times this week, and
+  they print a label. **That is ownership of their own catalogue, and it is worth more than
+  completeness.** Felix: *"I don't want to put a barcode on every grinder"* — and he is right; it
+  is their call, not ours.
+  ⚠️ **Nothing needs writing.** The label button is already one tap for any staff on any item
+  (`catalog.html:414`, "Pam's one-tap"), and a scanned label with no manufacturer EAN already
+  resolves by SKU (`pos_router.py:2197`, proven on three Crank pipes 2026-08-27). A printed paper
+  binder was considered and rejected: it does not scale past a few hundred rows, a printed price is
+  wrong the day after it prints (**LESSON #13** — the stored copy always wins), and it adds a second
+  checkout procedure for a minority of goods, which is the opposite of idiot-proof. **Build it only
+  if Ralph or Felix asks for it.**
+  *Keep the department-code escape hatch exactly as it is.* "Accessories, 39 francs, move on" is
+  correct behaviour at a busy till.
 
 
 ---
