@@ -199,10 +199,14 @@ pattern below, bump the count here. A pattern at ×7 is telling you something a 
    guard, and it is the more confident half.* A test that counted occurrences
    matched its own `def` line. Reverting each guard one at a time has caught something every time it
    has been done. *If you did not watch it go red, you do not know it works.*
-5. **×2 · A script that recomputes what the server computes will accuse working code.** The rounding
-   proof, and the partial prod copy that manufactured a 24-product compliance scare. *Get the
-   reference figure FROM the system, and copy the columns that make a row TRUE, not the ones your
-   task reads.*
+5. **×3 · A measurement harness will accuse working code as confidently as it reports the truth.**
+   The rounding proof; the partial prod copy that manufactured a 24-product compliance scare; and on
+   2026-08-28 a timer that started when a card **scrolled into view** rather than when a decision was
+   made, reporting *128s per decision → 180 hours* for a method that actually runs at 8–13s and ~9
+   hours. The raw numbers said so plainly — `5, 5, 6, 7, 10, 24, 34, 87, 191, 193, 194, …` — and the
+   mean hid it. *Get the reference figure FROM the system, copy the columns that make a row TRUE
+   rather than the ones your task reads, and look at the raw distribution before you quote an
+   average — a bimodal split is an instrument fault until proven otherwise.*
 6. **×3 · A test that finishes inside five minutes cannot see a five-minute timeout.** Silent
    token refresh had NEVER worked in the sandbox — issuer mismatch, `localhost:8090` vs
    `keycloak:8080` — so every session hard-logged-out the moment the access token expired. Every

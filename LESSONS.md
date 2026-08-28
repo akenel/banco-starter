@@ -736,3 +736,77 @@ Two things worth keeping:
 - **Watching it go red is what told the two paths apart.** Nine assertions green and four red in the
   same run, against the same build, is a sentence no amount of source-reading produces. The four
   reds were written before the fix and failed on the shipped image first (**LESSON #4**).
+
+---
+
+## 2026-08-28 — the pictures matched, the RANGE did not
+
+Angel's idea, and it is a good one: every Tamar product carries an excellent photograph, and
+FourTwenty publishes 11,014 real GTINs with photographs of their own. Show a person both pictures,
+let them say *"yes, that is the same product"*, and bind the EAN. No supplier co-operation needed.
+
+Two blind rounds against **ground truth he established himself** — 116 products where a human had
+already bound the EAN off the packet. The EAN was hidden during review, decoys with no correct
+answer were mixed in without telling him which, and only afterwards were his answers scored.
+
+| | round 1 (papers/filters) | round 2 (wraps/tobacco/CBD/vapes) |
+|---|---|---|
+| exact agreement with the hand-bound EAN | 8/14 (57%) | 7/14 (50%) |
+| **correct when the twin was actually shown** | 8/10 | **7/8 (88%)** |
+| ranker never surfaced the twin | 4/14 | 6/14 |
+| **decoys — false positives** | **0/6** | **0/6** |
+
+**Twelve decoys across two rounds and not one false positive.** The human half of this is not the
+risk. What went wrong in round 1 was a *variant* confusion — `Elements King Size` bound to
+`Elements King Size Slim Papers`, two products of different width sitting on the same card. Round 2
+put a dashed outline and a warning on any card where two candidates share a brand, and he then took
+**three Blunt Wrap Platinum flavours in a row, all correct**. The same trap, defused by naming it.
+
+### Five things worth keeping
+
+**1. Same product, different photograph — so perceptual hashing cannot do this.** On products known
+to be identical, only **2 of 14** image pairs were the same file; median dHash distance 0.35, which
+is noise. Both wholesalers photograph their own stock. Pixel hashing scored 57% rank-1 against a
+120-image lineup and fell to 50% against 1,761 — it degrades exactly as the pool grows, which is the
+wrong direction for a catalogue. *This is a **semantic** comparison wearing a pixel comparison's
+clothes. The answer is embeddings, not hashes.*
+
+**2. The negative result was worth more than the positive one.** Twelve grinders and bongs returned
+**zero matches** — and he was right every time. The candidates were category-mates, not twins:
+`Grinder Alu CNC 4teilig mit Sieb` → `Dragon Grinder 4-teilig Leather Silver`. Only 28% of
+grinders/bongs have even a 0.60 name candidate anywhere in the feed. **The two wholesalers' ranges
+barely overlap on hardware**, because hardware is house-brand and own-import; they overlap on
+consumables, because RAW and Gizeh and Purize are the same packets in both warehouses.
+
+That splits the catalogue, and it halves the job:
+
+```
+CONSUMABLE (papers, filters, wraps, tobacco, CBD, vapes)   2,425  ← twins exist, worth matching
+HARDWARE   (bongs, grinders, accessories, house-brand)     2,555  ← no twins. Keep the minted EAN.
+```
+
+*A minted code on a house-brand bong that exists in no other catalogue on earth is not a
+failure — it is the correct answer.* Nothing is gained by hunting a number that was never issued.
+
+**3. My own timer nearly killed a viable method — Pattern 5, third instance.** The first run
+reported **128s per decision → 180 hours**, which reads as "not worth doing". It was an artifact:
+the clock started when a card *scrolled into view*, and he scrolled the page before working, so
+twelve cards started their timers at the same instant. The raw numbers were bimodal and obvious in
+hindsight — `5, 5, 6, 7, 10, 24, 34, 87, 191, 193, 194, 195, …`. Real speed is **8–13 seconds**, and
+the job is ~9 hours, not a month. *A harness that measures the wrong interval will accuse a working
+method exactly as confidently as it would report a true one. Look at the raw distribution before
+quoting a mean.*
+
+**4. The title is the second check, and it decides the hard calls.** Angel, unprompted: *"i compare
+picture first when obvious and when is a little tougher i compare the titles and that second check
+is critical and determines the hit."* The tool had been treating the title as a caption. It is not —
+it is the tie-breaker on exactly the cards that are worth getting right, and it deserves the same
+room as the image. **Watch what the expert actually does before deciding what the screen should
+show.**
+
+**5. Checking the filter before shipping it, for once.** The plan was to drop every candidate whose
+`artikel_pro_verkaufseinheit` ≠ 1, since a wholesaler's GTIN is often the box of fifty, not the
+packet. Measured against the hand-bound truth first: 75 of 82 correct answers sit on a `units=1`
+row, but **2 would have been discarded**, one of them a live mis-bind already in the shop
+(`Smoking King Size brown Slim` → a row the feed calls a box of 50). So the rule became *rank down
+and flag in orange*, never discard. **Pattern 2 is at ×7 because this is normally found afterwards.**

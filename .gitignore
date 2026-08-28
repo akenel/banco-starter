@@ -35,3 +35,6 @@ src/static/build-sha.txt
 
 # Local pre-deploy dumps (--local-only). Encrypted, but never in git.
 backups/
+
+# Claude Code personal overrides (machine-specific; never published)
+.claude/settings.local.json

@@ -83,6 +83,29 @@ Four new assertions, red on the shipped image first. → `done.md`.
 — 14 steps, ~12 min. Section B is the fix; B2 is the one that matters.
 
 
+**⓪b PICTURE-MATCHING WORKS, AND IT HALVES THE JOB. Proven blind, twice, 2026-08-28.**
+→ full write-up + numbers: [`LESSONS.md`](LESSONS.md) *"the pictures matched, the RANGE did not"*
+
+Show a person their Tamar photo beside FourTwenty's, hide the EAN, let them say yes/no. Scored
+against 116 products Angel had already bound off the packet. **7–8 of 14 exact; 88% correct whenever
+the twin was actually on screen; and 0 false positives across 12 decoys in two rounds.** The human
+half is not the risk — **the ranker is** (it failed to surface the twin 6 times in 14).
+
+**The split that matters, and Angel agrees with it:**
+
+| | | |
+|---|---|---|
+| **CONSUMABLE** — papers, filters, wraps, tobacco, CBD, vapes | **2,425** | twins exist in the feed → worth matching, ~9 h at 13 s/decision |
+| **HARDWARE** — bongs, grinders, accessories | **2,555** | house-brand, **no twins** (12 tested, 0 matched). **Keep the minted EAN — that is the right answer, not a failure.** |
+
+▶️ **Next, in order:** (1) replace pixel-hashing with CLIP embeddings — the one lever, run once on
+the laptop, no server capacity needed (`MAP.md`); (2) give the **title** equal room to the picture —
+Angel: *"when is a little tougher i compare the titles and that second check … determines the hit"*;
+(3) build cards for consumables only, and only above a score floor. Never auto-bind (**LESSON #9**);
+the found EAN goes to `product_barcodes` as an alias so `products.barcode` and the printed labels are
+untouched. `product_barcodes` needs `kind` (retail|case) + `pack_qty` — a wholesaler GTIN is often
+the box of fifty. Tool: `scripts/ean-match/`.
+
 **① The gate audit — 42 blunts and wraps sell with NO ID check.**
 [`onboarding/testsheets/2026-08-27-gate-audit.html`](onboarding/testsheets/2026-08-27-gate-audit.html)
 · 35 near-identical products on the same shelf ARE gated. Angel checked the packet: it carries a
