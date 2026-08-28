@@ -13,7 +13,7 @@
 > [`worklist-archive/done.md`](worklist-archive/done.md) with its commit hashes; when a thread grows
 > a long write-up, the write-up goes to the archive and a one-line pointer stays here.
 
-*Last updated: 2026-08-27, evening — second archive pass, done with Angel item by item.*
+*Last updated: 2026-08-28 — item ⓪b (EAN picture-matching); ③④ archived; hardware settled as a standing fact.*
 
 ---
 
@@ -83,28 +83,22 @@ Four new assertions, red on the shipped image first. → `done.md`.
 — 14 steps, ~12 min. Section B is the fix; B2 is the one that matters.
 
 
-**⓪b PICTURE-MATCHING WORKS, AND IT HALVES THE JOB. Proven blind, twice, 2026-08-28.**
-→ full write-up + numbers: [`LESSONS.md`](LESSONS.md) *"the pictures matched, the RANGE did not"*
-
-Show a person their Tamar photo beside FourTwenty's, hide the EAN, let them say yes/no. Scored
-against 116 products Angel had already bound off the packet. **7–8 of 14 exact; 88% correct whenever
-the twin was actually on screen; and 0 false positives across 12 decoys in two rounds.** The human
-half is not the risk — **the ranker is** (it failed to surface the twin 6 times in 14).
-
-**The split that matters, and Angel agrees with it:**
+**⓪b PICTURE-MATCHING WORKS, AND IT HALVES THE JOB.** Blind, three rounds, against 116 products
+Angel had bound off the packet: **100% correct when the twin was on screen (round 3), 0 false
+positives in 19 decoys.** Numbers, the CLIP ranker and the four rules it obeys:
+[`LESSONS.md`](LESSONS.md) *"the pictures matched, the RANGE did not"* · `scripts/ean-match/README.md`
 
 | | | |
 |---|---|---|
-| **CONSUMABLE** — papers, filters, wraps, tobacco, CBD, vapes | **2,425** | twins exist in the feed → worth matching, ~9 h at 13 s/decision |
-| **HARDWARE** — bongs, grinders, accessories | **2,555** | house-brand, **no twins** (12 tested, 0 matched). **Keep the minted EAN — that is the right answer, not a failure.** |
+| **CONSUMABLE** — papers, filters, wraps, tobacco, CBD, vapes | **2,425** | twins exist → worth matching, ~9 h |
+| **HARDWARE** — bongs, grinders, accessories | **2,555** | no twins (12 tested, 0 matched). Minted EAN is the RIGHT answer |
 
-▶️ **Next, in order:** (1) replace pixel-hashing with CLIP embeddings — the one lever, run once on
-the laptop, no server capacity needed (`MAP.md`); (2) give the **title** equal room to the picture —
-Angel: *"when is a little tougher i compare the titles and that second check … determines the hit"*;
-(3) build cards for consumables only, and only above a score floor. Never auto-bind (**LESSON #9**);
-the found EAN goes to `product_barcodes` as an alias so `products.barcode` and the printed labels are
-untouched. `product_barcodes` needs `kind` (retail|case) + `pack_qty` — a wholesaler GTIN is often
-the box of fifty. Tool: `scripts/ean-match/`.
+▶️ **Next:** work consumables category-by-category, ~40 a sitting, controls salted in. Needs a small
+migration first — `product_barcodes` wants `kind` (retail|case), `pack_qty`, `source`. The found EAN
+goes in as an **alias**; `products.barcode` and every printed label stay untouched, so a bad batch is
+one DELETE. Never auto-bind, never add a confidence threshold (both measured — see the README).
+⚠️ Do **not** category-filter the FourTwenty side: it files papers under `Rolls` and under
+`Themen · Gizeh January Action 10%`, and doing so hid 18 of 29 findable answers (**LESSON #2**).
 
 **① The gate audit — 42 blunts and wraps sell with NO ID check.**
 [`onboarding/testsheets/2026-08-27-gate-audit.html`](onboarding/testsheets/2026-08-27-gate-audit.html)
@@ -117,16 +111,11 @@ fixed the wrap classes by hand; the other ~40 are still open.*
 docstring describes her exact case. On no screen. She reinvented it from the counter without seeing
 the code, which is the strongest argument for it. **This is the next feature.**
 
-**③ The scanner gun is PARKED, deliberately.** ~8 reads in 14 corrupt a digit — but only ever the
-digit immediately before an UPPERCASE letter, where the shift asserts early. Pure-numeric codes never
-assert shift, so EAN-13/UPC-A are structurally immune, and Banco's SKUs put their letters at the
-front. Safe for everything the shop scans. The NSL8 has **no inter-character delay setting** (all 28
-pages read; manual now in `onboarding/testsheets/Scanners/`). Next test if it is ever picked up:
-scan into a plain text editor, not Firefox — intermittent modifier corruption is as often the host's
-input stack as the gun's.
-
-**④ Label → PDF paginates wrong.** A sliver spills onto a second page and the first is cut.
-`@page{62mm 28mm}` / `{62mm 55mm}` versus what Chrome lays out. Angel: *"we deal with that pdf later"*.
+**③④ The scanner gun and the label PDF are PARKED — both moved out 2026-08-28.** The gun is
+safe for every code this shop scans (EAN-13/UPC-A are pure numeric, so the late SHIFT can never
+fire); the PDF path is save-to-file only and the printer is fed directly. Findings, the one
+untried test, and why neither is abandoned:
+[`worklist-archive/2026-08-28-scanner-and-label-pdf.md`](worklist-archive/2026-08-28-scanner-and-label-pdf.md)
 
 **⑤ The MEDIUM label's CODE128 is still unproven by a gun.** 17 characters in 62mm makes fine bars.
 If it will not read, the answer is a SHORTER SKU, not a bigger label.
