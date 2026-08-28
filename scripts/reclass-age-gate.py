@@ -151,8 +151,16 @@ def main():
     for pid, _, _, cls_new in changes:
         stmts.append(
             "UPDATE products SET product_class = {c}, is_age_restricted = true, "
+            # age_reason records WHY the gate was raised, and it is not decoration: the
+            # compliance rulepack (scripts/db/compliance_rulepack_seed.sql) reports any gated
+            # row where it IS NULL as a finding. A run that tightened 40 products and left the
+            # column empty would trade one compliance flag for another. COALESCE so a reason a
+            # human set deliberately is never overwritten — same spirit as tighten-only.
+            "age_reason = coalesce(age_reason, {r}), "
             "updated_at = now() WHERE id = {i};".format(
-                c=json.dumps(cls_new).replace('"', "'"), i=json.dumps(pid).replace('"', "'")))
+                c=json.dumps(cls_new).replace('"', "'"),
+                r=json.dumps("class:" + cls_new).replace('"', "'"),
+                i=json.dumps(pid).replace('"', "'")))
     stmts.append("COMMIT;")
     out = psql(env, "\n".join(stmts), args.container)
     if out is None:

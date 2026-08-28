@@ -13,7 +13,7 @@
 > [`worklist-archive/done.md`](worklist-archive/done.md) with its commit hashes; when a thread grows
 > a long write-up, the write-up goes to the archive and a one-line pointer stays here.
 
-*Last updated: 2026-08-28, late — the 18 merges are DONE; the price is on the match card and beats the units field 4/4 vs 1/4. Next: ⓪b run 2 on the next consumable category.*
+*Last updated: 2026-08-28, late — the price is on the match card; the age-gate regex is fixed and 40 of the 42 ungated blunts now gate (the live rows need one command on the shop box). Next: ⓪b run 2.*
 
 ---
 
@@ -156,12 +156,50 @@ types the packet name → search the FEED → take that row's GTIN → look the 
 → land on the Tamar row. Two hops, no Tamar name-matching anywhere. **Would have caught 18 of 18
 where names caught 3.** Not built.
 
-**① The gate audit — 42 blunts and wraps sell with NO ID check.**
+**① The gate audit — the classifier is FIXED; the live rows still need one command.**
 [`onboarding/testsheets/2026-08-27-gate-audit.html`](onboarding/testsheets/2026-08-27-gate-audit.html)
-· 35 near-identical products on the same shelf ARE gated. Angel checked the packet: it carries a
-cigarette-style tobacco health warning, so the FourTwenty feed's `standard` is wrong. **Section C is
-Felix's decision, not a fix to apply** — tick which should gate, then it is one update. *Angel has
-fixed the wrap classes by hand; the other ~40 are still open.*
+
+**It was not Felix's decision after all — it was a regex that needed two words touching.** The rule
+was `blunt\s*wraps?`, so "Blunt Wrap Platinum" gated and `Cyclones Blunt **Hemp** Wraps` did not.
+No real title puts those words together: they read *Blunt Hemp Wraps*, *Blunt Clear mit Filter*,
+*Cone Blunts*, or drop one word entirely (*Juicy Jays Blunts*, *Hemp Wraps*, *Super Wrap*). The
+policy was already settled and written in the code — *"blunt wraps are gated CONSERVATIVELY —
+over-gating a tobacco wrap is the safe error"* — the pattern just never implemented it.
+
+✅ **Fixed and tested.** `_BLUNT` now matches the word, with a hardware veto, because **"Blunt" is
+also a design name and a shape name**: a *Glas Blunt* is a reusable pipe, *Blunt Orbit* is artwork
+printed on tins and rolling trays, and there is a *Blunt Geko Grinder*. Swept over **11,009 feed
+titles + 5,061 of our own products**: `+35 / +23` newly gated, **0 un-gated, 0 class changes**, and
+every one of our 23 is in category *Blunts & Wraps*. **40 of the audit's 42 now gate.** Six new
+tests; each of the three guards reverted on its own and watched go red.
+
+⚠️ **One regression the age gate could never have caught:** *Legendary Premium CBD Blunt 2g* moved
+`cbd_hemp → tobacco_nicotine`. Both gate 18+, so nothing about ID checking changed — but `cbd_hemp`
+carries the `thc_report` compliance obligation and tobacco does not. Found only by sweeping for
+CLASS changes rather than GATE changes. Vetoed, and pinned by a test.
+
+▶️ **The live rows are still `standard` — a classifier fix does not fix rows already in the table.**
+One command, on the shop box, after the deploy:
+
+```
+ssh banco 'cd /root/banco-starter && python3 scripts/reclass-age-gate.py'          # dry run first
+ssh banco 'cd /root/banco-starter && python3 scripts/reclass-age-gate.py --apply'
+```
+
+It already exists and its rule is *tighten-only* — it can never un-gate anything. It now also
+writes `age_reason='class:…'`, because the compliance rulepack reports a gated row with a NULL
+reason as a finding, and a run that fixed 40 products would have traded one flag for another.
+⚠️ **Needs `./scripts/rebuild.sh` first** — the app image bakes `src/` in.
+
+▶️ **What is genuinely Felix's, and it is now two rows, not forty-two:**
+`G-Rollz Terpene Infused **Herbal Tea** Blunt` (Natural OGK · Strawberry Cheesecake). They stay open
+because `_AGE_NEG` treats "herbal" as a tobacco-free substitute — deliberate, and pinned by a test
+so it cannot drift. If Felix says they gate, it is one word in `_AGE_NEG`.
+
+⚠️ **Latent, in `reclass-age-gate.py`, not hit today:** values are quoted with
+`json.dumps(...).replace('"', "'")`, which emits `\uXXXX` for non-ASCII and would not survive a
+value containing a quote. Today every value is a UUID or a class name, so it is ASCII and safe.
+Worth replacing with proper parameter binding before anything user-typed goes through it.
 
 **② Layla's product-grouping idea is BUILT and unreachable.** `POST /products/{id}/clone` — its own
 docstring describes her exact case. On no screen. She reinvented it from the counter without seeing

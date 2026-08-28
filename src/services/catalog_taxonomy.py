@@ -145,13 +145,36 @@ _TOBACCO = re.compile(r"tabak|tabacc|tobacco|zigar|sigaret|cigaret|nikotin|nicot
 # title at all, so they leaked through as un-gated "standard" goods. Catch the brands + the NNxNNcig
 # pack pattern + MYO/RYO loose-tobacco + HEETS/IQOS.
 _CIG = re.compile(r"\bmarlboro\b|\bparisienne\b|\bcamel\b|\bwinston\b|gauloises|lucky\s*strike|\bchesterfield\b|american\s*spirit|\bpueblo\b|\bphilip\s*morris\b|\d+\s*x?\s*\d*\s*cig\b|\bcig\b|\bmyo\b|\bryo\b|\bheets\b|\biqos\b", re.I)
-# Cigars / cigarillos / blunt wraps — tobacco products the cigarette rules miss (field 2026-07-08:
+# Cigars / cigarillos — tobacco products the cigarette rules miss (field 2026-07-08:
 # "Swisher Sweets" + "Smock Woods … Cigars" leaked as un-gated 'standard'). Brands (Swisher,
-# Backwoods) + generic cigar/cigarillo terms + "blunt wrap" (a tobacco-leaf wrap). "blunt wrap" is
-# narrow on purpose so plain rolling "papers" stay open. Blunt wraps are gated CONSERVATIVELY —
-# over-gating a tobacco wrap is the safe error; Felix/Treuhänder can confirm the CH line. 0mg/herbal
-# still veto via _AGE_NEG.
-_CIGAR = re.compile(r"\bswisher\b|backwoods|cigarillo|zigarillo|\bcigars?\b|\bzigarre\b|\bzigarren\b|stumpen|\bcheroot\b|black\s*&?\s*mild|smock\s*woods|blunt\s*wraps?", re.I)
+# Backwoods) + generic cigar/cigarillo terms. 0mg/herbal still veto via _AGE_NEG.
+# ("blunt wrap" used to live here; it moved to _BLUNT below, which is wider AND has a veto.)
+_CIGAR = re.compile(r"\bswisher\b|backwoods|cigarillo|zigarillo|\bcigars?\b|\bzigarre\b|\bzigarren\b|stumpen|\bcheroot\b|black\s*&?\s*mild|smock\s*woods", re.I)
+
+# Blunts and wraps. FIELD FINDING 2026-08-27 (Artemis, counted from the live shop): **42
+# blunts and wraps could be sold with no ID check**, while 35 near-identical products on the
+# SAME SHELF were gated correctly. The split was arbitrary — "Blunt Wrap Platinum" gated,
+# "Cyclones Blunt Hemp" did not — and the reason was pure word adjacency: the old pattern was
+# `blunt\s*wraps?`, so it needed those two words TOUCHING. Every real title puts something
+# between them ("Blunt HEMP Wraps", "Blunt CLEAR mit Filter", "Cone BLUNTS"), or drops one of
+# them entirely ("Juicy Jays Blunts", "Hemp Wraps", "Super Wrap"). Angel checked the physical
+# packet: it carries a cigarette-style tobacco health warning. The box settles it.
+#
+# So the WORD is the signal, not the pair. But "Blunt" is also a DESIGN name on hardware and a
+# SHAPE name on glass, which is why this cannot be a bare \bblunts?\b. Measured over 11,009
+# feed titles and 5,061 of our own products, a bare pattern newly gated 27 + 25 rows, and
+# exactly 7 + 2 of those were hardware:
+#
+#     Lit Stick 2in1 Glas Blunt          a reusable GLASS PIPE shaped like a blunt
+#     Tin Box - Blunt Orbit              a storage tin; "Blunt Orbit" is the printed artwork
+#     Rolling Tray S Blunt Orbit         the same artwork on a tray
+#     Fourtwenty Blunt Geko … Grinder    a grinder
+#
+# Nothing else. The veto is deliberately about the OBJECT (glass, tin, tray, grinder), never
+# about a flavour or a brand, because a flavour word is exactly what an over-broad veto would
+# use to let a real blunt through. LESSON #2.
+_BLUNT = re.compile(r"\bblunts?\b|hemp\s*wraps?|super\s*wraps?", re.I)
+_BLUNT_HARDWARE = re.compile(r"gla[sß]\s*blunt|glass\s*blunt|tin\s*box|blech-?dose|rolling\s*tray|\btray\b|grinder", re.I)
 # 2026-08-21: the Swiss/German words were missing, so a bottle in FourTwenty's "Spirituosen"
 # bucket classified `standard` — 17 of 44 spirits and ALL 5 of "Bier, Wein & Champagner"
 # would have been imported un-gated. Substance words only, never brand names: "Bacardi" in a
@@ -315,7 +338,13 @@ def classify(title: str | None, ref_category: str | None = None, raw=None,
     # (1) TITLE is decisive: named tobacco/cigarette, shisha molasses, or a nicotine e-cig — unless
     #     it's an accessory/herbal. Shisha brands + the mg-in-vape signal gate off the title alone,
     #     so they hold up even when the supplier category is a coarse dump ("Accessories"/"Vaporizers").
-    if (_TOBACCO.search(t) or _CIG.search(t) or _CIGAR.search(t) or _SHISHA_TOBACCO.search(t)) and not neg and not _SUBSTANCE_ACCESSORY.search(t):
+    # …and a CBD blunt is CBD, not tobacco. Without this veto "Legendary Premium CBD Blunt 2g"
+    # moved cbd_hemp -> tobacco_nicotine: still 18+, so the age gate never noticed, but it
+    # quietly dropped the `thc_report` compliance obligation that rides on cbd_hemp. Caught by
+    # sweeping the whole feed for CLASS changes and not only for gate changes (LESSON #2).
+    is_blunt = bool(_BLUNT.search(t)) and not _BLUNT_HARDWARE.search(t) and not is_cbd
+    if (_TOBACCO.search(t) or _CIG.search(t) or _CIGAR.search(t) or _SHISHA_TOBACCO.search(t)
+            or is_blunt) and not neg and not _SUBSTANCE_ACCESSORY.search(t):
         cls = "tobacco_nicotine"
     elif (_NIC_MG.search(t) or _ECIG_FORM.search(t)
           or (_VAPE_BRAND.search(t) and _VAPE_REFILL.search(t))) \

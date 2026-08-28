@@ -302,6 +302,67 @@ def test_blunt_wraps_are_gated_conservatively():
     assert age is True and cls == "tobacco_nicotine"
 
 
+def test_a_blunt_gates_even_when_the_two_words_are_not_touching():
+    # THE 42. Counted from the live shop 2026-08-27: 42 blunts and wraps could be sold with no
+    # ID check while 35 near-identical ones on the same shelf were gated. The old pattern was
+    # `blunt\s*wraps?` — it needed the words ADJACENT, and no real title puts them that way.
+    # Every one of these was live and un-gated at a till in Lucerne.
+    for title in ["Cyclones Blunt Hemp Purple - Grape 2 Stk.",
+                  "Juicy Jays Blunt Hemp Wraps Natural 2 Stk.",
+                  "Chapo Blunt Hemp Wraps El Patron 2 stk.",
+                  "Cyclones Blunt Clear mit Filter White Chocolate 1 Stk.",
+                  "Cyclones Blunt mit Holzfilter Urban Assault 1 Stk.",
+                  "Cyclones Cone Blunts Original 2 Stück  King Size",
+                  "Juicy Jays Blunts Wham Bam Watermelon 2 Stk.",
+                  "Juicy Jays Super Blunt Raspberry 23cm 1 Stk.",
+                  "Cyclones Mayhem Blunt Cone 2 Stück",
+                  "G-Rollz Terpene Infused Blunt Dutch Blend 2pcs",
+                  # …and the ones that never say "blunt" at all
+                  "Juicy Jay's Super Wrap Tropical",
+                  "Juicy Hemp Wraps - Blue",
+                  "Mango'n'Papaya Flavored Hemp Wraps"]:
+        age, cls, _ = _age(title)
+        assert age is True and cls == "tobacco_nicotine", title
+
+
+def test_blunt_is_a_design_name_on_hardware_and_a_shape_on_glass():
+    # The reason this cannot be a bare \bblunts?\b. Measured over 11,009 feed titles and 5,061
+    # of our own products: these are every hardware row a bare pattern would have gated.
+    # A glass "blunt" is a reusable PIPE; "Blunt Orbit" is artwork printed on tins and trays.
+    for title in ["Lit Stick 2in1 Glas Blunt Silber",
+                  "V Syndicate Syndicase 2.0 Tin Box - Blunt Orbit",
+                  "Blech-Dose Syndicase 2.0 Tin Box - Blunt Orbit",
+                  'Rolling Tray Box "Blunt Orbit" 210x135mm',
+                  "V-Syndicate Rolling Tray S Blunt Orbit 140 x 180mm",
+                  "Fourtwenty Blunt Geko Aluminium Grinder Black 4Parts 50mm"]:
+        assert _age(title)[0] is False, title
+
+
+def test_a_cbd_blunt_stays_cbd_and_keeps_its_thc_report():
+    # Both classes gate 18+, so the age check would never have noticed this — but cbd_hemp
+    # carries compliance='thc_report' and tobacco_nicotine does not. Sweeping the feed for
+    # CLASS changes rather than GATE changes is what caught it.
+    age, cls, _ = _age("Legendary Premium CBD Blunt 2g")
+    assert age is True and cls == "cbd_hemp"
+
+
+def test_the_herbal_veto_still_beats_the_blunt_rule():
+    # A "Herbal Tea Blunt" is a tobacco-free wrap and _AGE_NEG opens it on purpose. These two
+    # are the ONLY rows of the 42 that stay open, and that is Felix's line to draw, not ours —
+    # so it is pinned here rather than left to drift.
+    for title in ["G-Rollz Terpene Infused Herbal Tea Blunt Natural OGK 2pcs",
+                  "G-Rollz Terpene Infused Herbal Tea Blunt Strawberry Cheesecake 2pcs"]:
+        assert _age(title)[0] is False, title
+
+
+def test_plain_papers_and_rolls_are_still_not_blunts():
+    # the widening must not creep onto the shelf next door
+    for title in ["OCB Premium Rolls Papers", "RAW Classic King Size Slim Papers",
+                  "Smoking Brown Rolls", "Gizeh Rolls Slim mit Filter",
+                  "Elements King Size Slim Papers"]:
+        assert _age(title)[0] is False, title
+
+
 def test_nicotine_mg_gates_without_an_ecig_context_word():
     # field 2026-07-09 prod leak: "E-Pack"/"Instaflow"/"Starterkit" 20mg had no disposable/pod/vape token
     for title in ["VAAL E-Pack Kit 20mg Blueberry Ice", "VAAL E-Pack Refill 20mg Grape Ice 8Stk.",
