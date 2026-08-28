@@ -13,7 +13,7 @@
 > [`worklist-archive/done.md`](worklist-archive/done.md) with its commit hashes; when a thread grows
 > a long write-up, the write-up goes to the archive and a one-line pointer stays here.
 
-*Last updated: 2026-08-28, late — the price is on the match card; the age-gate regex is fixed and 40 of the 42 ungated blunts now gate (the live rows need one command on the shop box). Next: ⓪b run 2.*
+*Last updated: 2026-08-28, late — price on the match card; the age gate applied on prod (44 rows); and the odd barcode `2024VL099B` is saveable again. Next: deploy ①c, then ⓪b run 2.*
 
 ---
 
@@ -227,6 +227,38 @@ so it cannot drift. If Felix says they gate, it is one word in `_AGE_NEG`.
 value containing a quote. Today every value is a UUID or a class name, so it is ASCII and safe.
 Worth replacing with proper parameter binding before anything user-typed goes through it.
 
+**①c THE ODD BARCODE IS SAVEABLE AGAIN — ✅ done 2026-08-28.** The pack of **JaJa Noir King Size
+XXL Black** carries `2024VL099B`. Letters and all, a real printed code, and no EAN stripe anywhere
+on the packet. Angel spent **over an hour** on it and could not save it from any screen.
+
+**`allow_nonstandard=true` had been on the server the whole time, and on NO SCREEN** — a query
+parameter, in zero templates. Its twin `allow_duplicate=true` *is* wired up (`catalog.html:2391`,
+`shelf_intake.html:1331`): one override got a button, its sibling never did (**standing rule 9**).
+And the refusal actively misdirects — *"scan the stripe under the EAN digits instead"* — sending you
+to look for something that is not on the box. The guard's own comment had called it: *"a guard with
+no way past it is a trap — the operator would just put the code in the name field instead, where
+nothing can ever scan it."* Written, then not wired.
+
+Now: the objection appears with **"That IS the code on the packet — save it"** beside it, and the
+retry carries the flag. The objection itself is unchanged — it is right most of the time. The 422
+detail became structured (`conflict: 'barcode_format'`) so the button attaches to **this** refusal
+and never to the missing-price 422 on the same endpoint.
+
+▶️ **Proved end to end in a browser on the local stack**, not by reading the template: create with
+`2024VL099B` → refused → click → saved → **`GET /products/barcode/2024VL099B` returns 200** and the
+right product. Test rows cleaned up, 0 left behind. 7 new tests in `test_barcode_objection.py`.
+
+⚠️ **And it was hiding LESSON #12 a fourth time.** The refusal was placed next to the save button —
+the fix from last time — and was *still* unreadable: the modal body scrolls independently while the
+button strip is pinned, so with the form scrolled up the message rendered at **y=1372 in a 1050px
+viewport**, 322px below the fold. Press Create, and from where you are sitting nothing happens.
+`isVisible()` said `true` the whole time; only a screenshot showed it. Both refusals now scroll
+themselves into view — and `$nextTick` was **not** enough, because `x-show` flips `display` on its
+own pass and scrolling to a zero-height box does nothing. It waits for a real box instead.
+
+▶️ **Not yet on prod.** Needs `git pull && ./scripts/deploy-prod.sh` on the shop box, then JaJa Noir
+can be saved with its real code.
+
 **② Layla's product-grouping idea is BUILT and unreachable.** `POST /products/{id}/clone` — its own
 docstring describes her exact case. On no screen. She reinvented it from the counter without seeing
 the code, which is the strongest argument for it. **This is the next feature.**
@@ -428,6 +460,15 @@ logout is *desirable*; a quiet Tuesday afternoon one is not.
 | stand up | `./scripts/rebuild.sh` → `./scripts/standup.sh` |
 | server-side 18+ evidence | `BANCO_ALLOW_FAKE_SALES=1 python3 scripts/prove-age-evidence.py` |
 | **the actual screens** | `BANCO_ALLOW_FAKE_SALES=1 NODE_PATH=/home/angel/repos/helixnet/node_modules node scripts/prove-till-18plus.js` |
+| **the unit tests** | `POSTGRES_HOST=localhost POSTGRES_PORT=5442 python3 -m pytest src/tests/ -q` |
+
+⚠️ **`python3 -m pytest src/tests/` on its own looks half-broken, and is not.** 30 test files import
+`pos_router`, which opens a DB connection at IMPORT time, and the app's default host is the
+in-network name `postgres:5432` — which resolves only inside the container. From the host you must
+point it at the mapped port (`POSTGRES_HOST_PORT` in `.env`, **5442** here, not 5432). Without it:
+30 collection errors and 49 failures, none of them real. With it: **2,488 pass, 12 fail** — and
+those 12 fail on a clean `HEAD` too. Found 2026-08-28 after reporting the bare run's numbers as if
+they meant something.
 
 ⚠️ Both scripts **ring real completed sales** and refund them afterwards; a completed transaction is
 a line in the Kassenbuch. `BANCO_ALLOW_FAKE_SALES=1` exists so it cannot happen by accident.

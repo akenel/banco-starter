@@ -985,6 +985,25 @@
                                 :aria-label="t('catalog.dismiss') || 'Dismiss'">✕</button>
                     </div>
                 </div>
+                <!-- The barcode-format objection, and the way past it. Same place as saveError,
+                     for the same reason (LESSON #12): the person deciding is looking at the SAVE
+                     button, not at the corner of the viewport. Amber, not red — this is a question,
+                     not a failure, and most of the time the guard is right. -->
+                <div x-show="codeObjection" style="display:none;"
+                     class="mb-3 rounded-lg border-2 border-amber-400 bg-amber-50 text-amber-900 px-4 py-3">
+                    <div class="flex items-start gap-2">
+                        <span class="text-lg leading-none">🏷️</span>
+                        <div class="flex-1 text-sm leading-snug" x-text="codeObjection"></div>
+                    </div>
+                    <div class="flex flex-wrap gap-2 mt-3">
+                        <button @click="useCodeAnyway()" :disabled="saving"
+                                class="bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold px-3 py-2 rounded-lg"
+                                data-i18n="catalog.code_use_anyway">That IS the code on the packet — save it</button>
+                        <button @click="codeObjection = ''" :disabled="saving"
+                                class="text-amber-800 text-sm px-3 py-2 rounded-lg border border-amber-300 hover:bg-amber-100"
+                                data-i18n="catalog.code_let_me_fix">Let me fix it</button>
+                    </div>
+                </div>
                 <div class="flex flex-wrap gap-3 pt-3 border-t modal-actions">
                     <button @click="save()" :disabled="saving" class="btn-success flex-1">
                         <span x-show="!saving" x-text="editing ? t('catalog.save_changes') : t('catalog.create_product')"></span>
@@ -1364,6 +1383,8 @@
             saving: false,
             dup: null,            // BL-32: set when a create hits an existing product → {existing_id, existing, conflict}
             nameDupes: null,      // BL-128 #3: same-size look-alikes returned by the create guard → [{id,name,price,...}]
+            codeObjection: '',    // the barcode-format refusal, with a way PAST it (see useCodeAnyway)
+            _forceNonstandard: false,
             _forceCreate: false,  // BL-128 #3: true after "create it anyway" → next create bypasses the name guard
             form: {},
             gallery: [],          // existing photos (edit mode): [{id, url, is_cover}]
@@ -1626,6 +1647,7 @@
             openCreate() {
 
                 this.saveError = '';   // a refusal from the LAST product must not haunt this one
+                this.codeObjection = ''; this._forceNonstandard = false;
                 this.editing = false;
                 this.form = this._blankForm();
                 this.gallery = []; this.pendingPhotos = []; this.pendingImageUrl = ''; this._aiTail = ''; this.uploadingPhoto = false;
@@ -2207,6 +2229,7 @@
             async openEdit(p) {
 
                 this.saveError = '';   // a refusal from the LAST product must not haunt this one
+                this.codeObjection = ''; this._forceNonstandard = false;
                 this.editing = true;
                 this.form = { id: p.id, ...this._blankForm(), ...p };  // start with row data
                 this.gallery = []; this.pendingPhotos = []; this.pendingImageUrl = ''; this._aiTail = ''; this.uploadingPhoto = false;
@@ -2380,20 +2403,30 @@
 
                 this.saving = true;
                 this.saveError = '';          // a stale refusal must never outlive the fix for it
+                this.codeObjection = '';
                 try {
                     let productId = this.form.id;
+                    // The overrides the operator has explicitly agreed to, as query flags.
+                    // allow_nonstandard must reach the EDIT path too: _barcode_objection guards
+                    // create AND update, so a code you cannot create is also a code you cannot
+                    // paste into an existing row.
+                    const _flags = [];
+                    if (this._forceNonstandard) _flags.push('allow_nonstandard=true');
                     if (this.editing) {
-                        await API.put(`/api/v1/pos/products/${this.form.id}`, this._payload());
+                        const url = `/api/v1/pos/products/${this.form.id}`
+                                  + (_flags.length ? '?' + _flags.join('&') : '');
+                        await API.put(url, this._payload());
                     } else {
                         // BL-128 #3: after the operator confirms "create it anyway" we bypass the
                         // same-size name-dedup guard; otherwise the guard may 409 with look-alikes.
-                        const url = this._forceCreate
-                            ? '/api/v1/pos/products?allow_duplicate=true'
-                            : '/api/v1/pos/products';
+                        if (this._forceCreate) _flags.push('allow_duplicate=true');
+                        const url = '/api/v1/pos/products'
+                                  + (_flags.length ? '?' + _flags.join('&') : '');
                         const created = await API.post(url, this._payload());
                         this._forceCreate = false;
                         productId = created.id;
                     }
+                    this._forceNonstandard = false;   // one save, one override
                     // Upload any queued photos (create mode) now that the product exists.
                     if (productId && this.pendingPhotos.length) {
                         for (const ph of this.pendingPhotos) { await this._uploadPhoto(productId, ph.file); }
@@ -2436,6 +2469,15 @@
                     }
                     // BL-32: a create that hit an existing product (409 duplicate barcode/SKU) is NOT a
                     // dead-end — surface the existing one so the operator can apply their enrichment to it.
+                    // A code with letters in it, or an odd length. Often the guard is RIGHT (a lot
+                    // number scanned instead of the EAN) — and sometimes the packet genuinely
+                    // carries that code. Tested on e.detail.conflict, never on the status alone:
+                    // these same endpoints 422 for a missing price, and "use it anyway" there is
+                    // nonsense.
+                    else if (e.status === 422 && e.detail && e.detail.conflict === 'barcode_format') {
+                        this.codeObjection = e.detail.message || e.message;
+                        this._revealRefusal('[x-show="codeObjection"]');
+                    }
                     else if (!this.editing && e.status === 409 && e.detail && e.detail.existing_id) {
                         try {
                             const existing = await API.get(`/api/v1/pos/products/${e.detail.existing_id}`);
@@ -2446,6 +2488,7 @@
                         // beside the button for the person who just pressed it.
                         this.saveError = e.message || (typeof e.detail === 'string' ? e.detail : '')
                                          || t('catalog.save_failed');
+                        this._revealRefusal('[x-show="saveError"]');   // same fold problem, same fix
                         showToast(e.message || t('catalog.save_failed'), 'error');
                     }
                 } finally { this.saving = false; }
@@ -2478,6 +2521,45 @@
                 this.pendingPhotos = [];
                 this.openEdit({ id: m.id });
             },
+            // A refusal that renders BELOW THE FOLD is a refusal nobody reads. Moving the block
+            // next to the save button was not enough: the modal body scrolls independently and
+            // the button strip is pinned, so with the form scrolled to the top the message landed
+            // at y=1372 in a 1050px viewport — 322px past the bottom edge, measured in a browser.
+            // Press Create, and from where you are sitting nothing happened. LESSON #12, third time.
+            //
+            // $nextTick is NOT enough, measured: x-show flips `display` on its own reactive pass,
+            // so on the tick the element is still display:none — a zero-height box, and scrolling
+            // to it does nothing at all. (Manually calling scrollIntoView a moment later moved it
+            // 1372 -> 719, which is how we know the technique was fine and the TIMING was not.)
+            // So wait for the element to actually HAVE a box, a few frames at most, then scroll.
+            // Instant, not smooth: a refusal should be there when the eye arrives, not gliding.
+            _revealRefusal(sel, tries = 10) {
+                requestAnimationFrame(() => {
+                    const el = document.querySelector(sel);
+                    if (el && el.getBoundingClientRect().height > 0) {
+                        el.scrollIntoView({ block: 'center' });
+                    } else if (tries > 0) {
+                        this._revealRefusal(sel, tries - 1);
+                    }
+                });
+            },
+
+            // "that IS the code on the packet" — save it, objection and all.
+            //
+            // WHY THIS BUTTON EXISTS. `allow_nonstandard=true` was on the server from the start and
+            // on NO SCREEN, so from the counter an odd code was simply unsaveable. 2026-08-28: the
+            // pack of JaJa Noir King Size XXL Black carries `2024VL099B` — letters and all, a real
+            // printed code — and Angel spent over an hour on it. The refusal even sends you looking
+            // for a stripe that is not there: "scan the stripe under the EAN digits instead".
+            // The guard's own comment predicted this: "a guard with no way past it is a trap — the
+            // operator would just put the code in the name field instead, where nothing can ever
+            // scan it." The objection stays; only the dead end goes.
+            useCodeAnyway() {
+                this.codeObjection = '';
+                this._forceNonstandard = true;
+                this.save();
+            },
+
             // BL-128 #3: "no, these are different" — create anyway, bypassing the name guard this once.
             createAnyway() {
                 this.nameDupes = null;

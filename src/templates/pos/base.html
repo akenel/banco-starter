@@ -805,7 +805,16 @@
                                 return (field ? field + ': ' : '') + (d.msg || 'invalid');
                             }).join('; ');
                         } else if (detail && typeof detail === 'object') {
-                            try { detail = JSON.stringify(detail); } catch (_) { detail = null; }
+                            // A structured detail carries its own human sentence in `message`
+                            // (e.g. the barcode-format objection, which the screen turns into an
+                            // override button). Prefer it — JSON.stringify'ing a refusal puts
+                            // `{"conflict":"barcode_format",...}` in front of a cashier.
+                            // err.detail below still hands the raw object to smart callers.
+                            if (typeof detail.message === 'string' && detail.message) {
+                                detail = detail.message;
+                            } else {
+                                try { detail = JSON.stringify(detail); } catch (_) { detail = null; }
+                            }
                         }
                         const err = new Error(detail || `Request failed with status ${response.status}`);
                         err.status = response.status;   // so callers can tell a 4xx rejection from a 5xx server blip

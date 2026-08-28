@@ -589,7 +589,7 @@ async def create_product(
     if not allow_nonstandard and (data.get("barcode") or "").strip():
         objection = _barcode_objection(str(data["barcode"]).strip())
         if objection:
-            raise HTTPException(status_code=422, detail=objection)
+            raise HTTPException(status_code=422, detail=_barcode_objection_detail(objection))
 
     # BL-128 #3 — same-size name-dedup guard (skipped on an explicit create-anyway).
     if not allow_duplicate:
@@ -2350,6 +2350,16 @@ class AddBarcodeRequest(BaseModel):
 # It objects, it does not forbid. `allow_nonstandard=true` is there because a shop may genuinely
 # need an odd code, and a guard with no way past it is a trap — the operator would just put the
 # code in the name field instead, where nothing can ever scan it.
+# The 422 body. A STRUCTURED detail, not a bare string, because the screen has to attach an
+# override button to THIS refusal and to no other — the same endpoints raise 422 for a missing
+# price and a too-long field, and "Use it anyway" on either of those is nonsense. `conflict` is
+# the key the name-dedup guard already uses (`conflict: 'name'`), so the client tests one thing.
+# `message` keeps the toast readable: the API helper prefers detail.message over the raw object.
+def _barcode_objection_detail(objection: str) -> dict:
+    return {"conflict": "barcode_format", "message": objection,
+            "override": "allow_nonstandard"}
+
+
 def _barcode_objection(code: str) -> Optional[str]:
     """A plain-words reason this string is probably not a product barcode, or None."""
     code = (code or "").strip()
@@ -2392,7 +2402,7 @@ async def add_product_barcode(
     if not allow_nonstandard:
         objection = _barcode_objection(barcode)
         if objection:
-            raise HTTPException(status_code=422, detail=objection)
+            raise HTTPException(status_code=422, detail=_barcode_objection_detail(objection))
 
     result = await db.execute(select(ProductModel).where(ProductModel.id == product_id))
     product = result.scalar_one_or_none()
@@ -2820,7 +2830,7 @@ async def update_product(
     if not allow_nonstandard and (update_data.get("barcode") or "").strip():
         objection = _barcode_objection(str(update_data["barcode"]).strip())
         if objection:
-            raise HTTPException(status_code=422, detail=objection)
+            raise HTTPException(status_code=422, detail=_barcode_objection_detail(objection))
     # BL-26: validate + normalize quantity-break tiers before they land (ascending, unique).
     # The first-row rule is mode-aware: per_unit needs a qty-1 base row; bundle ("N for X")
     # starts at qty>=2 (base = the product's own price). Use the incoming tier_mode if the edit
