@@ -810,3 +810,90 @@ packet. Measured against the hand-bound truth first: 75 of 82 correct answers si
 row, but **2 would have been discarded**, one of them a live mis-bind already in the shop
 (`Smoking King Size brown Slim` → a row the feed calls a box of 50). So the rule became *rank down
 and flag in orange*, never discard. **Pattern 2 is at ×7 because this is normally found afterwards.**
+
+---
+
+## 2026-08-28, afternoon — the run, and four things that went wrong in the harness
+
+The picture-matcher met real work: 97 Rolling Papers cards, 85 needing an EAN and 12 of Angel's
+own hand-bound answers salted in unlabelled. 41 bindings came out of it. What the day actually
+taught, though, was mostly about the harness rather than the method.
+
+### 1. THE RESCAN LOOP — the tool that seeds is not the tool that verifies
+
+Angel's, and it closes the whole thing:
+
+> *"its pretty simple to do with the gun in store mode and fed into the shelf intake tool — the odd
+> balls or no eans will stand out and the ones that are bound are there listed for the user to
+> double check and fix if they need too"*
+
+Picture-matching produces a **hypothesis**: two photographs looked alike and a person agreed. Shelf
+intake produces **truth**: a person is holding the packet and the gun reads what is printed on it.
+They are not competing tools, they are the two halves of one loop — and the second half already
+exists and is the tool Angel trusts most.
+
+So the residual error never has to be hunted. Walk the shelf with the gun, and:
+
+- a bound code that scans is **confirmed** (stamp `confirmed_at`, promote it out of hypothesis)
+- a bound code that scans to the WRONG product stands out immediately, on screen, with the packet
+  in your hand — the only place that error is visible at all
+- an unbound item simply fails to scan and lands in intake like any new product
+
+**A wrong image-match is discovered by ordinary shop work.** That is why `product_barcodes.source`
+exists (BL-90b) and why an image-match never takes `products.barcode`: the minted code stays
+primary until a packet says otherwise. *This is LESSON #8 with a mechanism attached — verification
+against REALITY finds a class of error that verification against the database cannot, and the shop
+performs it for free while trading.*
+
+### 2. THE PRICE TELLS YOU IT IS A BOX. THE "UNITS" FIELD DOES NOT. (Pattern 2, ×8)
+
+Angel: *"for that box versus single we could have a price and then i know that is a box price
+versus a single and it becomes dead obvious"*. He was right, and it caught four of my errors
+**before they were written**.
+
+I had been reading `artikel_pro_verkaufseinheit` as items-per-box. Against what the shop actually
+charges, that field is ambiguous — on papers it counts **leaves in a booklet** as often:
+
+```
+                          shop    feed   units field     truth
+Elements Phantom KS Wide  2.00    5.00   "32"            32 leaves in one booklet
+Smoking Supreme Smoqueen  2.00    2.00   "50 Booklet"    50 leaves. Same price = same thing
+OCB DW kurz Organic Hemp  2.00   40.00   "25"            a real box, 20x the price
+```
+
+**Four of my five "case" codes were singles.** The price ratio flagged a different four, three of
+which the units field missed entirely (OCB Virgin 26.7×, G-Rollz 15.4×, Elements Zushi 4.5×).
+*A field whose meaning shifts between rows is worse than a missing field, because it reads as
+authoritative. Cross it against a number that cannot lie — here, what the shop charges.*
+
+### 3. MY HARNESS FED HIM A PREVIOUS RUN'S ANSWERS, AND I THEN BLAMED HIM FOR THEM
+
+Every sheet used the same `localStorage` key. So the 97-card papers deck opened with **16 of its
+first 17 cards already answered** — from round 3, a completely different set of products. Angel
+spotted it (*"the first 12 or 14 were already set at the start"*); I had not.
+
+Worse than the bug: **I had already analysed those answers as his.** I reported the one "mistake" he
+made (`Raw KS slim Classic Ethereal`) and built a confident little theory about him rejecting
+`Smoking Master Silver` twice. Both were artifacts. Re-run clean, he got **both right**.
+
+*Contaminated state does not announce itself — it arrives looking exactly like data. Before drawing
+a conclusion about a person's judgement from a harness you wrote, ask what the harness could have
+put there on its own.* Fixed: the storage key is now per-run, so a new deck can never inherit.
+
+### 4. THE INTERFACE SAID LOCKED WHEN IT MEANT DONE
+
+> *"had I been asked 'are you sure' I could have cancelled — i was a little trigger happy"*
+
+A decided card dimmed to 50% opacity. It was always clickable; nothing was ever locked. But 50%
+opacity is the universal sign for *disabled*, so he believed a misclick was permanent and stopped
+trying. **The affordance lied and the behaviour was fine, which is the harder failure to see** —
+every test I could write would have passed. Fixed: 82% opacity, an explicit *"nothing is locked"*
+line on decided cards, and a per-card ↺ clear.
+
+### 5. And one near-miss worth naming
+
+The first version of the apply commit put a real shop's **product ids, names and EANs into a
+PUBLIC repo**. Caught before any push, and only because the deploy step made me look at the remote.
+`scripts/ean-match/data/` is now gitignored. *A tool that reads production data will produce
+production data, and it will land wherever the tool lives. Decide where its output goes at the
+moment you create the folder, not at the moment you push.*

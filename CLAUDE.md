@@ -170,7 +170,7 @@ pattern below, bump the count here. A pattern at ×7 is telling you something a 
    front of the on-the-fly create form, the one screen with no catalogue search on it, and that is
    where the duplicate rows were being born.
    *Ask where the person is STANDING when they need it — which building, and which screen.*
-2. **×7 · A downstream filter quietly discards the row the fix existed to find.** The dedup guard's
+2. **×8 · A downstream filter quietly discards the row the fix existed to find — and a field whose meaning shifts between rows is worse than a missing one.** The dedup guard's
    same-size rule, the alias filters judging `products.name`, the category "boost" that was a sort
    key above `score`; on 2026-08-22 `eligible_subtotal` dropped two full-price papers because
    pooling them had set `tier_final`, so a manager's discount silently skipped them; and on
@@ -179,6 +179,12 @@ pattern below, bump the count here. A pattern at ×7 is telling you something a 
    and on 2026-08-27 an **exact** barcode match discarded 2,632 supplier rows (24% of the feed),
    because a UPC-A and an EAN-13 are one code with and without a leading zero and nothing
    reconciled them. Super Wrap Gold was "not even on the internet" while sitting three tables away.
+   And on 2026-08-28, twice in one run: restricting the supplier feed by CATEGORY hid 18 of 29
+   findable answers, because it files rolling papers under `Rolls` and under
+   `Themen · Gizeh January Action 10%` — a seasonal promotion used as a product type; then
+   `artikel_pro_verkaufseinheit` was read as items-per-box when on papers it counts LEAVES IN A
+   BOOKLET as often, so four of five "case" codes were singles. Angel's fix was to cross it against
+   a number that cannot lie: **a box costs 20× what a packet costs.**
    *When you add a thing to match on, check every filter downstream still knows which one it is
    judging. A tier is a filter with extra steps, and a flag is a filter you cannot see. A SECOND
    way to ask the same question must be tested against the FIRST, never against your own
