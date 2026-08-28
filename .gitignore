@@ -38,3 +38,7 @@ backups/
 
 # Claude Code personal overrides (machine-specific; never published)
 .claude/settings.local.json
+
+# EAN-match working data — REAL SHOP DATA (product ids, names, EANs) for a third party.
+# banco-starter is a PUBLIC repo; none of this belongs in it. The tool regenerates it.
+scripts/ean-match/data/

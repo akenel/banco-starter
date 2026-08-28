@@ -29,7 +29,9 @@ h1{font-size:21px;margin:0 0 4px}.lede{color:var(--mut);margin:0 0 10px;max-widt
 .sec{margin:24px 0 12px;padding:9px 13px;background:var(--shade);border-radius:8px;font-size:13px;color:var(--mut)}
 .sec b{color:var(--fg)}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin:0 0 18px}
-.card.done{opacity:.5}
+.card.done{opacity:.82}
+.card.done .redo{display:block}
+.redo{display:none;font-size:12px;color:var(--mut);margin-top:8px}
 header{display:flex;gap:12px;align-items:center;margin-bottom:12px;font-size:13px;color:var(--mut)}
 .n{font-weight:700;color:var(--fg)}.verdict{margin-left:auto;font-weight:700}
 .conf{padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700;letter-spacing:.3px}
@@ -64,7 +66,7 @@ kbd{border:1px solid var(--line);border-radius:4px;padding:0 5px;font-size:11px;
 """
 
 SCRIPT = r"""
-const K='banco-eanmatch-v3';
+const K='banco-eanmatch-'+RUN;   // per-run key: a new deck NEVER inherits old answers
 let S=JSON.parse(localStorage.getItem(K)||'{}'), TS=JSON.parse(localStorage.getItem(K+'-ts')||'{}');
 let CUR={};                       // card -> which alternate is loaded in the right pane
 const N=CARDS.length;
@@ -101,6 +103,7 @@ document.addEventListener('click',e=>{
   const y=e.target.closest('.yes'); if(y){mark(+y.dataset.p, CUR[+y.dataset.p]??0);return;}
   const n=e.target.closest('.no');  if(n){mark(+n.dataset.p,'none');return;}
   const h=e.target.closest('.hm');  if(h){mark(+h.dataset.p,'skip');return;}
+  const u=e.target.closest('.undo');if(u){delete S[+u.dataset.p];save();render();return;}
 });
 document.getElementById('dl').onclick=()=>{const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([JSON.stringify({decisions:S,stamps:TS,at:new Date().toISOString()},null,1)],{type:'application/json'}));
@@ -109,7 +112,7 @@ document.getElementById('rst').onclick=()=>{if(confirm('Clear all?')){S={};TS={}
 CARDS.forEach(c=>show(c.i,0)); render();
 """
 
-def build(cards, out, title, intro, sections):
+def build(cards, out, title, intro, sections, run_id='v3'):
     body=[]
     for c in cards:
         if c["i"] in sections: body.append(f'<div class="sec">{sections[c["i"]]}</div>')
@@ -135,9 +138,10 @@ def build(cards, out, title, intro, sections):
   </div>
   <div class="alts"><span class="hdr">other guesses:</span>{alts}</div>
   {flag}{weak}
+  <div class="redo">↺ changed your mind? click any option again — nothing is locked</div>
   <div class="acts"><button class="yes" data-p="{c["i"]}">✓ Same product — bind it</button>
     <button class="no" data-p="{c["i"]}">✗ No match</button>
-    <button class="hm" data-p="{c["i"]}">Can't tell</button></div>
+    <button class="hm" data-p="{c["i"]}">Can't tell</button><button class="undo" data-p="{c["i"]}">↺ clear</button></div>
 </section>''')
     js=json.dumps([{"i":c["i"],"name":c["name"],
         "cands":[{"img":b64(k["img"]),"tdiff":k["tdiff"],"mydiff":k["mydiff"],
@@ -150,5 +154,5 @@ def build(cards, out, title, intro, sections):
 <div class="bar"><span>reviewed <b id="prog">0</b></span><span>median <b id="spd">—</b>/decision</span>
 <button id="rst" style="border:1px solid var(--line);background:transparent;color:var(--mut);border-radius:7px;padding:7px 12px;cursor:pointer;font:inherit">reset</button>
 <button id="dl" disabled>Download decisions</button></div>
-<script>const CARDS={js};{SCRIPT}</script></body></html>'''
+<script>const RUN={run_id!r};const CARDS={js};{SCRIPT}</script></body></html>'''
     open(out,"w").write(doc); return len(doc)
