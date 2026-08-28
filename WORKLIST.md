@@ -13,7 +13,7 @@
 > [`worklist-archive/done.md`](worklist-archive/done.md) with its commit hashes; when a thread grows
 > a long write-up, the write-up goes to the archive and a one-line pointer stays here.
 
-*Last updated: 2026-08-28 — item ⓪b (EAN picture-matching); ③④ archived; hardware settled as a standing fact.*
+*Last updated: 2026-08-28, evening — EAN picture-matching built, proved and run on Rolling Papers; 23 aliases live on prod, 18 duplicates found. Next: the merges (⓪c).*
 
 ---
 
@@ -99,6 +99,31 @@ goes in as an **alias**; `products.barcode` and every printed label stay untouch
 one DELETE. Never auto-bind, never add a confidence threshold (both measured — see the README).
 ⚠️ Do **not** category-filter the FourTwenty side: it files papers under `Rolls` and under
 `Themen · Gizeh January Action 10%`, and doing so hid 18 of 29 findable answers (**LESSON #2**).
+
+**⓪c 18 DUPLICATE PAIRS TO MERGE — proven by EAN, waiting on Angel's price call.** ▶️ NEXT SESSION.
+List (shop data, gitignored): `scripts/ean-match/data/MERGE-LIST-papers.md`
+
+Applying the papers run wrote 23 aliases and hit **18 conflicts** — every one a real duplicate the
+till's uniqueness constraint refused to create twice. **15 are `ITEM-` rows born at the counter**;
+3 are Tamar-vs-Tamar twins inside the supplier catalogue itself.
+
+⚠️ **This is why the duplicate guard never fires, and it is not the cashier's fault.** Median name
+similarity between rows *proven identical by barcode*: **0.67. Only 3 of 18 clear 0.80**, which is
+the lowest threshold we proved safe. `Rips Extra Dünn Slim schwarz` ↔ `Rolls Xtra Thin Slim`;
+`Smoking DW kurz silver` ↔ `Smoking Master Silver Rolls`. **Tamar names in German house-shorthand;
+the cashier types what is printed on the packet.** No name matcher can bridge that, and loosening
+the threshold buys a mis-ring instead of a duplicate.
+
+▶️ **The fix for FUTURE duplicates — use FourTwenty as a translator, not Tamar as a target.**
+FourTwenty's titles *are* packet names (that is why text ranking hit 79% today). So: cashier types
+the packet name → search the FEED → take that row's GTIN → look the GTIN up in our catalogue → land
+on the Tamar row. Two hops, no Tamar name-matching anywhere. **Would have caught 18 of 18 tonight
+where names caught 3.**
+
+▶️ **The merges themselves:** keep the Tamar row (photo + description + tier ladder), merge the
+till-born row in (it carries the real EAN). `POST /catalog/merge` exists. **One human decision per
+pair — the price.** `TAM-12215` is 2.90 vs `ITEM-0069` at 4.00, and `ITEM-0158 Trip 2` is priced
+**999.99**, a placeholder someone typed. Never merge automatically (**LESSON #9**).
 
 **① The gate audit — 42 blunts and wraps sell with NO ID check.**
 [`onboarding/testsheets/2026-08-27-gate-audit.html`](onboarding/testsheets/2026-08-27-gate-audit.html)
