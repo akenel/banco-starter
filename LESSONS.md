@@ -897,3 +897,95 @@ PUBLIC repo**. Caught before any push, and only because the deploy step made me 
 `scripts/ean-match/data/` is now gitignored. *A tool that reads production data will produce
 production data, and it will land wherever the tool lives. Decide where its output goes at the
 moment you create the folder, not at the moment you push.*
+
+---
+
+## 2026-08-28, evening — three doors that were already built, and none of them had a handle
+
+A long day, and the shape repeated three times: **the capability existed, the person could not
+reach it.** Not one of tonight's three items was the hard problem it looked like from the counter.
+
+### 1. THE 42 UNGATED BLUNTS WERE A REGEX THAT NEEDED TWO WORDS TOUCHING (Pattern 2)
+
+42 blunts and wraps could be sold with **no ID check** while 35 near-identical products on the same
+shelf were gated. It was filed as *Felix's decision* — which of them ought to gate — and it was not
+a decision at all. The rule was `blunt\s*wraps?`, needing those two words **adjacent**, and no real
+title puts them that way: *Blunt **Hemp** Wraps*, *Blunt **Clear** mit Filter*, ***Cone** Blunts*,
+or neither word at all (*Juicy Jays Blunts*, *Super Wrap*).
+
+The policy was already settled and written **three lines above the pattern** — *"blunt wraps are
+gated CONSERVATIVELY; over-gating a tobacco wrap is the safe error"*. The comment implemented
+nothing. *A stated policy sitting next to a narrower implementation reads as if it is in force.
+When a rule looks arbitrary from the shop floor, suspect the pattern before you escalate it to a
+human decision.*
+
+But the widening could not be a bare `\bblunts?\b`, and this is the half that matters: swept over
+**11,009 feed titles and 5,061 of our own**, a bare pattern also gates a *Lit Stick 2in1 **Glas
+Blunt*** (a reusable pipe), a tin box and a rolling tray printed with ***Blunt Orbit*** artwork, and
+a ***Blunt** Geko Grinder*. The veto therefore names the **object** — glass, tin, tray, grinder —
+never a flavour or a brand, because a flavour-word veto is exactly what would let a real blunt
+through.
+
+**And the regression the age gate could never have caught:** *Legendary Premium CBD Blunt 2g* moved
+`cbd_hemp → tobacco_nicotine`. Both gate 18+, so nothing about ID checking changed — but `cbd_hemp`
+carries the `thc_report` compliance obligation and tobacco does not. *Sweep for CLASS changes, not
+for GATE changes. The axis you are not looking at is where the silent loss is.*
+
+### 2. FOUR ROLLING PAPERS CAME ALONG FOR THE RIDE, AND MY SNAPSHOT COULD NOT SEE THEM (Pattern 5)
+
+I predicted 40 rows. The live run tightened **44**. The extra four were `Zigarettenpapier` products
+— `_TOBACCO` matches `zigaret` as a **substring**, so the German compound for *rolling paper* reads
+as *cigarette*. Verified identical on `HEAD~1`: pre-existing, not the blunt fix. It surfaced only
+because nobody had run the reclass since those rows were created by hand at the counter.
+
+Why I could not have known: I measured against `artemis.csv`, a **5,061-row snapshot taken at
+10:07**, while the shop had **5,408 active**. All four sat in the 347 rows I could not see. *A
+partial copy of production does not fail loudly — it returns a confident answer about the part it
+holds. State the population your number came from, in the same sentence as the number.*
+
+### 3. THE OVERRIDE HAD BEEN ON THE SERVER ALL ALONG (Pattern 1, and standing rule 9)
+
+The pack of *JaJa Noir King Size XXL Black* carries **`2024VL099B`** — letters and all, a real
+printed code, no EAN stripe anywhere on the box. Angel spent **over an hour** and could not save it
+from any screen. `allow_nonstandard=true` had been on the server from the beginning, guarded create,
+update and alias-add — and appeared in **zero templates**. Its twin, `allow_duplicate=true`, *is*
+wired to a button in two places. One override got a handle; its sibling never did.
+
+Worse, the refusal **misdirects**: *"scan the stripe under the EAN digits instead"* sends you
+looking for something that is not on the packet. And the guard's own comment had already written
+the ending: *"a guard with no way past it is a trap — the operator would just put the code in the
+name field instead, where nothing can ever scan it."* Predicted, then not wired.
+
+*An escape hatch that exists only as a query parameter has not shipped. When you add a guard, the
+way past it is part of the guard — and when you add one override, grep for its siblings.*
+
+### 4. LESSON 12, A FOURTH TIME — AND `isVisible()` SAID TRUE THROUGHOUT
+
+The refusal was already placed **next to the save button**; that was the fix from 2026-08-27. It was
+still unreadable. The modal body scrolls independently while the button strip is pinned, so with the
+form scrolled up the message rendered at **y=1372 in a 1050px viewport** — 322px below the fold. You
+press Create and, from where you are sitting, *nothing happens*.
+
+Playwright's `isVisible()` returned `true` the entire time, because it means *in the DOM and not
+`display:none`*. Only a screenshot showed it. **The assertion agreed with the code and disagreed
+with the person.** *"Is it rendered" is not the question. The question is "is it inside the
+rectangle the human is looking at" — `getBoundingClientRect()` against `innerHeight`, or an actual
+picture.*
+
+The fix needed a second correction of the same kind: `$nextTick` was not enough, because `x-show`
+flips `display` on its own reactive pass, so on the tick the element is still a zero-height box and
+`scrollIntoView` is a silent no-op. It now waits for a real box. *Measured 1372 → 719.*
+
+### 5. AND I QUOTED A NUMBER FROM A HARNESS I HAD NOT UNDERSTOOD (Pattern 5, ×4)
+
+I reported *"49 failures before, 49 after, none introduced"* as evidence the change was safe. The
+"none introduced" was true; the 49 was noise. **30 test files import `pos_router`, which opens a DB
+connection at import time**, and the app's default host is the in-network name `postgres:5432` —
+which resolves only inside the container. Run properly from the host
+(`POSTGRES_HOST=localhost POSTGRES_PORT=5442`, the mapped port from `.env`) the suite is
+**2,488 pass / 12 fail**, and those 12 fail on a clean `HEAD` too.
+
+I had even called the 30 collection errors "pre-existing" — correctly — and then never asked *why*,
+which is the question that would have fixed them. *A failure you have explained away is not a
+failure you have understood. Before quoting a test count as evidence, prove the harness can see the
+thing it is counting.* Now in `WORKLIST.md` under "How to prove it before claiming it".

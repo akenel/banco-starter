@@ -152,7 +152,7 @@ open `LESSONS.md` when one of them is about to apply.*
 **When something bites: add the narrative to `LESSONS.md`, and if it is a new instance of a
 pattern below, bump the count here. A pattern at ×7 is telling you something a paragraph cannot.**
 
-1. **×12 · Green on the layer you can reach says nothing about the layer the user stands on.**
+1. **×13 · Green on the layer you can reach says nothing about the layer the user stands on.**
    `cash_box_float`, the force-close, `POST /catalog/merge`, honest confidence, `best_match_score`,
    the 18+ refusals, the evidence with no screen — each existed on every layer a test could reach
    and on **no screen**; the tablet's LTE was proved on Angel's home Wi-Fi, in a flat, with a route
@@ -161,6 +161,11 @@ pattern below, bump the count here. A pattern at ×7 is telling you something a 
    just grown a camera with no path to it; and on 2026-08-27 I proved a new SKU lookup by **TYPING
    the SKU** — the one way it would never be entered. The gun sends SHIFT a beat late, so it
    arrives as `sKU-`, and my fix was green everywhere I could reach and dead at the counter.
+   On 2026-08-28 the same shape, sitting there since the guard was written: a pack whose printed
+   barcode is `2024VL099B` could not be saved from ANY screen, because `allow_nonstandard=true` —
+   the documented way past the refusal — was a **query parameter in zero templates**, while its twin
+   `allow_duplicate=true` had a button in two places. Angel lost an hour to it. The guard's own
+   comment predicted the outcome word for word and was never wired to a handle.
    That same evening Angel hunted a bong through his catalogue, the photo matcher and Google and
    said *"i have no chance"* — `GET /reference/search` finds it from the one word "rasta" and was
    wired into Receiving and Scan but **not into the screen that creates products**. Third this
@@ -170,7 +175,7 @@ pattern below, bump the count here. A pattern at ×7 is telling you something a 
    front of the on-the-fly create form, the one screen with no catalogue search on it, and that is
    where the duplicate rows were being born.
    *Ask where the person is STANDING when they need it — which building, and which screen.*
-2. **×8 · A downstream filter quietly discards the row the fix existed to find — and a field whose meaning shifts between rows is worse than a missing one.** The dedup guard's
+2. **×9 · A downstream filter quietly discards the row the fix existed to find — and a field whose meaning shifts between rows is worse than a missing one.** The dedup guard's
    same-size rule, the alias filters judging `products.name`, the category "boost" that was a sort
    key above `score`; on 2026-08-22 `eligible_subtotal` dropped two full-price papers because
    pooling them had set `tier_final`, so a manager's discount silently skipped them; and on
@@ -184,7 +189,11 @@ pattern below, bump the count here. A pattern at ×7 is telling you something a 
    `Themen · Gizeh January Action 10%` — a seasonal promotion used as a product type; then
    `artikel_pro_verkaufseinheit` was read as items-per-box when on papers it counts LEAVES IN A
    BOOKLET as often, so four of five "case" codes were singles. Angel's fix was to cross it against
-   a number that cannot lie: **a box costs 20× what a packet costs.**
+   a number that cannot lie: **a box costs 20× what a packet costs** — measured
+   2026-08-28, and it beat the field it replaces **4/4 against 1/4**. The ninth came that evening:
+   **42 blunts sold with no ID check**, because the rule was `blunt\s*wraps?` and needed the two
+   words TOUCHING, which no real title does (*Blunt **Hemp** Wraps*, ***Cone** Blunts*) — while the
+   policy it was meant to implement sat three lines above it in a comment.
    *When you add a thing to match on, check every filter downstream still knows which one it is
    judging. A tier is a filter with extra steps, and a flag is a filter you cannot see. A SECOND
    way to ask the same question must be tested against the FIRST, never against your own
@@ -205,14 +214,21 @@ pattern below, bump the count here. A pattern at ×7 is telling you something a 
    guard, and it is the more confident half.* A test that counted occurrences
    matched its own `def` line. Reverting each guard one at a time has caught something every time it
    has been done. *If you did not watch it go red, you do not know it works.*
-5. **×3 · A measurement harness will accuse working code as confidently as it reports the truth.**
+5. **×5 · A measurement harness will accuse working code as confidently as it reports the truth.**
    The rounding proof; the partial prod copy that manufactured a 24-product compliance scare; and on
    2026-08-28 a timer that started when a card **scrolled into view** rather than when a decision was
    made, reporting *128s per decision → 180 hours* for a method that actually runs at 8–13s and ~9
    hours. The raw numbers said so plainly — `5, 5, 6, 7, 10, 24, 34, 87, 191, 193, 194, …` — and the
    mean hid it. *Get the reference figure FROM the system, copy the columns that make a row TRUE
    rather than the ones your task reads, and look at the raw distribution before you quote an
-   average — a bimodal split is an instrument fault until proven otherwise.*
+   average — a bimodal split is an instrument fault until proven otherwise. Name the population in
+   the same sentence as the number, and never quote a test count from a harness you have not proved
+   can SEE what it counts.*
+   Two more on 2026-08-28: I predicted 40 age-gate changes and prod made **44**, because I measured
+   a **5,061-row snapshot** of a **5,408-row** shop and the four extras sat in the 347 I could not
+   see; and I quoted *"49 test failures before and after"* as evidence when 30 test files were
+   merely failing to reach a database — run properly it is **2,488 pass / 12 fail**. I had already
+   called those errors "pre-existing" and never asked WHY, which is the question that fixes them.
 6. **×3 · A test that finishes inside five minutes cannot see a five-minute timeout.** Silent
    token refresh had NEVER worked in the sandbox — issuer mismatch, `localhost:8090` vs
    `keycloak:8080` — so every session hard-logged-out the moment the access token expired. Every
@@ -239,7 +255,7 @@ pattern below, bump the count here. A pattern at ×7 is telling you something a 
     and a step whose question his flow never reached. He said: *"I don't know what you're looking
     for anymore."* Fair. Standing rule 5 cuts both ways: a human confirming it is DONE. Report
     what genuinely blocks a promote; log the rest and move on.
-12. **×3 · A truth test has to answer the question a PERSON is asking.** A validation nobody can
+12. **×4 · A truth test has to answer the question a PERSON is asking.** A validation nobody can
     see is a silent failure, and a green summary over an unchecked box is a lie. 2026-08-27 added
     two: a correct, well-worded refusal rendered as an 8-second toast at the top of the viewport
     while the operator's eyes were on a modal — *"i could not actually read the error"*, and he
@@ -247,7 +263,14 @@ pattern below, bump the count here. A pattern at ×7 is telling you something a 
     zero-width non-joiner, which is invisible, **truthy**, and survives `.strip()` — so
     `if description:` said "there is one" and the model was never asked to read the page body, on
     every page, for as long as that code existed. *Put the outcome where the button is; never
-    demand words a dropdown already said; and make `is it empty?` mean what the human means.*
+    demand words a dropdown already said; and make `is it empty?` mean what the human means. "Is it
+    rendered" is not the question — "is it inside the rectangle the person is looking at" is, and
+    that is `getBoundingClientRect()` against `innerHeight`, or a picture.*
+    A fourth on 2026-08-28, the same lesson refusing to die: the refusal HAD been moved next to the
+    save button and was still unread — the modal body scrolls while the button strip is pinned, so
+    it rendered at **y=1372 in a 1050px viewport**, 322px below the fold. `isVisible()` returned
+    **true** throughout, because it means *in the DOM and not display:none*. Only a screenshot
+    showed it.
 13. **×3 · The server is right, the tests are green, and the STORED COPY the screen renders from is
     wrong.** On 2026-08-24 in one afternoon: the kiosk refused a blank username the server accepts;
     `/customers/new-today` kept deactivated members because it filtered `created_at` and not
@@ -269,5 +292,5 @@ pattern below, bump the count here. A pattern at ×7 is telling you something a 
 
 ---
 
-*Last updated: 2026-08-27*
+*Last updated: 2026-08-28*
 *"You can't clone SAP. You can clone this."*

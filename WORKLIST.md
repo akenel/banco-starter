@@ -17,25 +17,29 @@
 
 ---
 
-## ▶️ START HERE — the state at 18:30 on Thu 2026-08-27
+## ▶️ START HERE — the state at the end of Fri 2026-08-28
 
-**A whole day at the counter with Layla serving.** Ten deploys, every one proved on the live shop.
-**Prod is on `dbb4a76` (b484)**, deployed 23:20 — it carried `f673b66` (the "the packet says «…»"
-banner) as well, which had never been pushed. Neither has been touched by a real scan yet.
+**Three things shipped and all three are live on the shop.** None was the hard problem it looked
+like from the counter; each one was a capability that already existed with no way to reach it.
 
 | | |
 |---|---|
-| `3d5f878` | the till resolves a **SKU**, so goods with no manufacturer EAN get a label that scans |
-| `f3a4084` | the gun sends SHIFT late (`sKU-`). Case-tolerant lookup; the sticker WRAPS instead of clipping |
-| `b273e71` | the page title IS the PDF filename — both label sizes shared one, so saving one destroyed the other |
-| `c981a25` | a correct refusal rendered as an 8-second toast nobody could read. Now inside the modal, above the button |
-| `a48a78f` | **UPC-A vs EAN-13**: one leading zero hid **2,632 supplier rows**, 24% of the FourTwenty feed |
-| `a48a78f` | fourtwenty.ch publishes its description as ONE invisible character, which switched off the whole body read |
-| `4968587` | **search the supplier catalogue from the Catalogue screen** — it was wired into Receiving and Scan, not there |
+| `27e94c1` | **the feed PRICE is on the match card.** Angel's idea, and it beats the `units` field **4/4 vs 1/4** at telling a box from a packet. Every thumbnail carries its price, so the box shows before you click it |
+| `5f9632c` | **42 blunts and wraps sold with no ID check** — a regex that needed two words touching. 40 now gate; the 2 `Herbal Tea` ones stay open on purpose |
+| `1bd17fe` | applied on prod: **44 rows tightened**, re-run reports nothing to do |
+| `d761595` | **`2024VL099B` is saveable again.** The override had been on the server the whole time and on no screen. ✅ Angel scanned the pack at the till — *"it worked perfectly"* |
 
-**Also today, and not code:** the cash box was reconciled on a real count (CHF 1216.90, sixteen days
-open), all four Crank pipes ring, three JUICY wraps created, and the day's last bong went in with a
-photo, a description, an article number and a label that scans.
+**Also done:** the 18 duplicate pairs are merged by hand, and Angel correctly left the
+with/without-filter pairs alone — which showed that **one supplier EAN sits on two products**, so a
+barcode conflict is not proof of a duplicate.
+
+⚠️ **Two loose ends from tonight, both written up below:** four rolling papers are now gated 18+
+that should not be (**①b**), and the ⓪b carry-forwards are down to two (decoys, per-category
+ranker).
+
+**Where the EAN-match working data lives:** `scripts/ean-match/work/` — 800 MB, gitignored, moved
+out of a `/tmp` session scratchpad on 2026-08-28. The SQL exports are checked in at
+`scripts/ean-match/sql/`.
 
 ### Open, in order
 
