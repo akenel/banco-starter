@@ -256,8 +256,9 @@ viewport**, 322px below the fold. Press Create, and from where you are sitting n
 themselves into view — and `$nextTick` was **not** enough, because `x-show` flips `display` on its
 own pass and scrolling to a zero-height box does nothing. It waits for a real box instead.
 
-▶️ **Not yet on prod.** Needs `git pull && ./scripts/deploy-prod.sh` on the shop box, then JaJa Noir
-can be saved with its real code.
+✅ **HUMAN-GREEN ON THE LIVE SHOP, 2026-08-28.** Deployed `d761595`; Angel saved JaJa Noir with
+`2024VL099B` and **scanned the pack at the till — it rings.** *"it scans and it worked perfectly."*
+That is the finish line (standing rule 5).
 
 **② Layla's product-grouping idea is BUILT and unreachable.** `POST /products/{id}/clone` — its own
 docstring describes her exact case. On no screen. She reinvented it from the counter without seeing
