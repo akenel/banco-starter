@@ -21,17 +21,54 @@ five findings: `LESSONS.md`, *"the pictures matched, the RANGE did not"*.
 - **Consumables only.** Bongs and grinders have no twins in the feed (12 tested, 0 matched). Their
   minted EAN is the correct answer.
 
+## Where the working data lives
+
+`scripts/ean-match/work/` — gitignored, and it holds the whole 800 MB working set: both pools,
+the image thumbnails, the CLIP vectors and every deck. **It lived in a `/tmp` session scratchpad
+until 2026-08-28**, one cleanup away from re-fetching 11,215 images. Override with `EAN_WORK`.
+
 ## Pipeline
 
 ```
-fetchpool2.py   FourTwenty feed images  -> pool2_hashes.pkl + thumbs/   (resumable)
-fetchtam.py     Tamar product images    -> tam_hashes.pkl   + thumbs/   (gentle on the live app)
-select2.py      rank candidates, compute mutual-best -> cards2.json / truth2.json
-sheet2.py       build(...) -> one self-contained HTML review sheet
-score2.py       score the downloaded decisions against truth2.json
+sql/export-feed.sql      FourTwenty rows  -> work/poolfull.csv   (gtin,title,img,units,brand,PRICE)
+sql/export-products.sql  our rows, ONE category -> work/ours_<run>.csv  (…,minted,PRICE)
+fetchpool2.py / fetchtam.py   images -> work/thumbs/ + hash caches   (resumable, gentle)
+select_run.py            rank -> work/cards_<run>.json / truth_<run>.json
+sheet3.py                build(...) -> one self-contained HTML review sheet
+score2.py                score the downloaded decisions against the truth file
 ```
 
-`hash.py` holds dHash / pHash / colour-histogram and the fetch helper.
+`hash.py` holds dHash / pHash / colour-histogram and the fetch helper. `select2.py` / `select3.py`
+/ `sheet2.py` are the blind measurement rounds that chose the ranker — kept for the record,
+superseded by `select_run.py` / `sheet3.py`.
+
+## The price is on the card, and it is the box-vs-packet tell
+
+Angel's idea, 2026-08-28: **a box costs 20× what a packet costs**, and nothing else on the card
+reveals it. The picture cannot — a box of papers is photographed as a packet of papers — and the
+title only sometimes says "Box". Both sides of every card now carry a price, the ratio sits under
+the candidate title, and every thumbnail in the line-up carries its price so **the box is visible
+before you click it**.
+
+Measured against the 41 bindings a human confirmed on papers run 1:
+
+| | ratio (feed ÷ ours) |
+|---|---|
+| the 4 he called **case** | 4.5× · 15.4× · 20.0× · 26.7× — the four highest in the deck |
+| the 37 he called **retail** | 0.5× … 2.5× |
+
+Clean separation. `sheet3.BOX = 3.0` sits in the empty band. The field this replaces,
+`artikel_pro_verkaufseinheit`, got **1 of the 4 boxes** and called two CHF 2.00 packets a box
+(both say "32" — on papers that counts leaves in a booklet). LESSON #2.
+
+▶️ `python3 scripts/prove-ean-box-price.py` — 11 assertions, offline, including the threshold
+moved into the data on purpose. **BOX is measured on papers and on nothing else. Re-run it per
+category**, the same way the ranker is re-measured per category.
+
+**The ratio is displayed, never acted on.** It re-orders nothing, hides nothing, binds nothing —
+it puts a number in front of the person deciding. That is not the confidence threshold the next
+section rejects; it is a caption. A missing price on either side shows *no* ratio rather than
+`0.0×`, which would read as a confident "not a box".
 
 ## Known limitation — read before extending
 

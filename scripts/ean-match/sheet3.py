@@ -1,4 +1,21 @@
-"""Round-3 sheet: side-by-side always on, no hover zigzag, title diffing, variable candidate count."""
+"""Round-3 sheet: side-by-side always on, no hover zigzag, title diffing, variable candidate count.
+
+PRICE IS ON THE CARD (2026-08-28). Angel's idea, and it is the only reliable box-vs-packet tell we
+have: a box costs many times what a packet costs. Measured against the 41 bindings a human confirmed
+on the first papers run:
+
+    the 4 he called CASE   ->  4.5x  15.4x  20.0x  26.7x   (the four highest ratios in the deck)
+    the 37 he called RETAIL ->  0.5x .................. 2.5x
+
+Clean separation, nothing in between. The feed's own `artikel_pro_verkaufseinheit` — the field this
+replaces — got 1 of those 4 boxes right and called two CHF 2.00 packets a box (both say "32"),
+because on papers it counts leaves in a booklet as often as items in a case (LESSON #2).
+Re-run scripts/prove-ean-box-price.py per category; BOX is measured on papers and nowhere else.
+
+The ratio is DISPLAYED, never acted on: it re-orders nothing, hides nothing and binds nothing.
+It puts a number in front of the person who decides. (README: there is no confidence threshold,
+and this is not one — it is a caption.)
+"""
 import json, os, html, base64, re
 def b64(h): return "data:image/jpeg;base64,"+base64.b64encode(bytes.fromhex(h)).decode() if h else ""
 _W=re.compile(r"[a-z0-9]+")
@@ -14,6 +31,21 @@ def diff_html(mine, theirs):
             else: out.append(html.escape(w))
         return "".join(out)
     return render(mine,b), render(theirs,a)
+
+# --- the box tell ------------------------------------------------------------
+# BOX is where the banner appears. It is the middle of the EMPTY BAND measured on the
+# papers run: the highest confirmed retail ratio was 2.5x and the lowest confirmed case
+# ratio was 4.5x, so anything in 2.5..4.5 was never observed and 3.0 splits it. It is a
+# caption threshold, not a filter — crossing it hides nothing and binds nothing.
+# Re-measure it per category (papers were measured; nothing else has been).
+BOX = 3.0
+
+def ratio(mine, theirs):
+    """How many times our shelf price the feed charges. None whenever either side is unknown —
+    an absent price must never render as 0x, which reads as a confident 'not a box'."""
+    if not mine or theirs is None: return None
+    try: return round(float(theirs) / float(mine), 3)
+    except (TypeError, ValueError, ZeroDivisionError): return None
 
 STYLE="""
 :root{--bg:#fbfbf9;--fg:#1a1a18;--mut:#6b6b64;--line:#e2e1db;--card:#fff;--sel:#1f7a3d;--warn:#b45309;
@@ -57,6 +89,11 @@ header{display:flex;gap:12px;align-items:center;margin-bottom:12px;font-size:13p
 .acts button.on{background:var(--sel);color:#fff;border-color:var(--sel);font-weight:700}
 .acts .no.on{background:var(--weak);border-color:var(--weak)}
 .flag{margin-top:11px;color:var(--warn);font-size:12.5px;font-weight:600}
+.box{display:none;margin-top:11px;padding:9px 12px;border:1px solid var(--warn);border-left:4px solid var(--warn);
+     border-radius:8px;color:var(--warn);font-size:13px;font-weight:600;line-height:1.45}
+.box b{font-variant-numeric:tabular-nums}
+.price{margin-top:4px;font-size:13.5px;font-weight:700;font-variant-numeric:tabular-nums}
+.price span{font-weight:400;color:var(--mut);font-size:12px}
 .bar{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);
      padding:10px 18px;display:flex;gap:16px;align-items:center;z-index:60}
 .bar b{font-variant-numeric:tabular-nums}
@@ -76,7 +113,17 @@ function show(p,j){
   document.getElementById('bi'+p).src=k.img;
   document.getElementById('bt'+p).innerHTML=k.tdiff;
   document.getElementById('at'+p).innerHTML=k.mydiff;
-  document.getElementById('bm'+p).textContent=(k.brand||'—')+(k.units!=='1'&&k.units!=='?'?'  ·  ⚠ '+k.units+' per unit':'');
+  const bits=[k.brand||'—'];
+  if(k.price!=null) bits.push('CHF '+k.price.toFixed(2));
+  if(k.ratio!=null) bits.push(k.ratio.toFixed(1)+'× your price');
+  if(k.units!=='1'&&k.units!=='?') bits.push('feed says '+k.units+'/unit');
+  document.getElementById('bm'+p).textContent=bits.join('  ·  ');
+  const bx=document.getElementById('bx'+p);
+  if(k.ratio!=null&&k.ratio>=BOX){bx.style.display='block';
+    bx.innerHTML='⚠ the feed charges <b>'+k.ratio.toFixed(1)+'×</b> what you charge. If this is your product '
+      +'at all, this listing is the <b>BOX</b> and not the packet on your shelf — bind it as a <b>case</b>, '
+      +'or pick another candidate.';}
+  else{bx.style.display='none';}
   const cf=document.getElementById('cf'+p);
   cf.className='conf '+k.cls; cf.textContent=k.conf;
   document.querySelectorAll('#p'+p+' .al').forEach(b=>b.classList.toggle('on',+b.dataset.j===j));
@@ -118,25 +165,34 @@ def build(cards, out, title, intro, sections, run_id='v3'):
         if c["i"] in sections: body.append(f'<div class="sec">{sections[c["i"]]}</div>')
         for k in c["cands"]:
             md,td = diff_html(c["name"], k["title"]); k["mydiff"], k["tdiff"] = md, td
+        def cap(j, k):
+            # the price sits under every thumbnail, so the box in the line-up is visible
+            # BEFORE you click it — that was the whole point of putting price on the card
+            p = k.get("price")
+            return f'{j+1}' if p is None else f'{j+1} · {p:g}'
         alts="".join(
             f'<button class="al" data-p="{c["i"]}" data-j="{j}"><img src="{b64(k["img"])}" alt="">'
-            f'<div class="cap">{j+1}</div></button>' for j,k in enumerate(c["cands"]))
+            f'<div class="cap">{cap(j,k)}</div></button>' for j,k in enumerate(c["cands"]))
         brands=[k.get("brand","") for k in c["cands"]]
         dup={b for b in brands if b and brands.count(b)>1}
         flag='<div class="flag">⚠ two candidates share a brand — the difference is in the <u style="color:var(--diff)">red words</u>, not the picture</div>' if dup else ""
         weak='<div class="flag">⚠ nothing here scored well. Expect no match.</div>' if c["cands"][0]["cls"]=="w" else ""
+        mine=(f'CHF {c["price"]:.2f} <span>your till price</span>' if c.get("price") is not None
+              else '<span>no price on file</span>')
         body.append(f'''
 <section class="card" id="p{c["i"]}">
   <header><span class="n">{c["i"]+1}/{len(cards)}</span><span>{html.escape(c["cat"])}</span>
     <span class="conf w" id="cf{c["i"]}">—</span><span class="verdict" id="v{c["i"]}">—</span></header>
   <div class="duo">
     <div class="pane"><div class="lbl">your product · {html.escape(c["sku"])}</div>
-      <img src="{b64(c["img"])}" alt=""><div class="ttl" id="at{c["i"]}"></div></div>
+      <img src="{b64(c["img"])}" alt=""><div class="ttl" id="at{c["i"]}"></div>
+      <div class="price">{mine}</div></div>
     <div class="pane"><div class="lbl">FourTwenty candidate</div>
       <img id="bi{c["i"]}" alt=""><div class="ttl" id="bt{c["i"]}"></div>
       <div class="meta" id="bm{c["i"]}"></div></div>
   </div>
   <div class="alts"><span class="hdr">other guesses:</span>{alts}</div>
+  <div class="box" id="bx{c["i"]}"></div>
   {flag}{weak}
   <div class="redo">↺ changed your mind? click any option again — nothing is locked</div>
   <div class="acts"><button class="yes" data-p="{c["i"]}">✓ Same product — bind it</button>
@@ -145,7 +201,8 @@ def build(cards, out, title, intro, sections, run_id='v3'):
 </section>''')
     js=json.dumps([{"i":c["i"],"name":c["name"],
         "cands":[{"img":b64(k["img"]),"tdiff":k["tdiff"],"mydiff":k["mydiff"],
-                  "brand":k.get("brand",""),"units":k["units"],"conf":k["conf"],"cls":k["cls"]}
+                  "brand":k.get("brand",""),"units":k["units"],"conf":k["conf"],"cls":k["cls"],
+                  "price":k.get("price"),"ratio":ratio(c.get("price"), k.get("price"))}
                  for k in c["cands"]]} for c in cards])
     doc=f'''<!doctype html><html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>{html.escape(title)}</title>
@@ -154,5 +211,5 @@ def build(cards, out, title, intro, sections, run_id='v3'):
 <div class="bar"><span>reviewed <b id="prog">0</b></span><span>median <b id="spd">—</b>/decision</span>
 <button id="rst" style="border:1px solid var(--line);background:transparent;color:var(--mut);border-radius:7px;padding:7px 12px;cursor:pointer;font:inherit">reset</button>
 <button id="dl" disabled>Download decisions</button></div>
-<script>const RUN={run_id!r};const CARDS={js};{SCRIPT}</script></body></html>'''
+<script>const RUN={run_id!r};const BOX={BOX};const CARDS={js};{SCRIPT}</script></body></html>'''
     open(out,"w").write(doc); return len(doc)

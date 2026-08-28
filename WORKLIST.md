@@ -13,7 +13,7 @@
 > [`worklist-archive/done.md`](worklist-archive/done.md) with its commit hashes; when a thread grows
 > a long write-up, the write-up goes to the archive and a one-line pointer stays here.
 
-*Last updated: 2026-08-28, evening — EAN picture-matching built, proved and run on Rolling Papers; 23 aliases live on prod, 18 duplicates found. Next: the merges (⓪c).*
+*Last updated: 2026-08-28, late — the 18 merges are DONE; the price is on the match card and beats the units field 4/4 vs 1/4. Next: ⓪b run 2 on the next consumable category.*
 
 ---
 
@@ -97,23 +97,51 @@ positives in 19 decoys.** Numbers, the CLIP ranker and the four rules it obeys:
 `evidence`), the no-promote rule for an image-match, `apply.py`, and **Rolling Papers run 1 — 23
 aliases live**. Do not redo these.
 
-▶️ **Next:** the merges (⓪c), then the remaining consumables category-by-category, ~40 a sitting.
+▶️ **Next:** the remaining consumables category-by-category, ~40 a sitting (⓪c's merges are done).
 Order by control count, **vape last** (E-Liquids/Coils/Vape Devices = 1,338 rows with ZERO controls).
-Carry three things forward: **the feed PRICE on each card** (Angel's idea — a box costs 20× a packet
-and nothing else reveals it); **decoys salted into real runs**, not just controls (papers run 1 had
-none, so it measured recall and not gullibility); and **re-measure the ranker per category** — CLIP
-helped on mixed goods and actively HURT on papers (top-3 54% vs 79% for name-only).
+✅ **The feed PRICE is on the card — done 2026-08-28.** Angel's idea, and it beat the field it
+replaces on both counts. Against the 41 bindings he confirmed on papers run 1: the 4 he called a
+CASE came out at **4.5× / 15.4× / 20.0× / 26.7×** our shelf price — the four highest ratios in the
+deck — and all 37 retail rows sat between **0.5× and 2.5×**. Nothing in between; `BOX = 3.0` sits in
+the empty band. The feed's own `artikel_pro_verkaufseinheit` got **1 of those 4** and called two CHF
+2.00 packets a box. Every thumbnail in the line-up now carries its price too, so the box is visible
+**before** you click it. `python3 scripts/prove-ean-box-price.py` — 11 assertions, offline, screen
+confirmed in a browser. ⚠️ **Measured on papers only — re-run it per category**, like the ranker.
+
+Still to carry forward: **decoys salted into real runs**, not just controls (papers run 1 had none,
+so it measured recall and not gullibility); and **re-measure the ranker per category** — CLIP helped
+on mixed goods and actively HURT on papers (top-3 54% vs 79% for name-only).
+
+⚠️ **Two things found while doing it, neither urgent.** (a) The whole 800 MB working set — both
+pools, 11,215 thumbnails, the CLIP vectors — was living in a **`/tmp` session scratchpad**, one
+cleanup away from re-fetching every image. It now has a home at `scripts/ean-match/work/`
+(gitignored) and the exports are checked in as `scripts/ean-match/sql/*.sql`. (b) **The retail-vs-case
+split has no script.** `papers_apply.json` was assembled by hand last session; the sheet records
+*which candidate*, never *which kind*. The price banner is the input to that call, so the sheet
+should capture it — otherwise the box knowledge is re-derived by hand every run.
 The found EAN goes in as an **alias**; `products.barcode` and every printed label stay untouched, so
 a bad batch is one DELETE. Never auto-bind, never add a confidence threshold (both measured — README).
 ⚠️ Do **not** category-filter the FourTwenty side: it files papers under `Rolls` and under
 `Themen · Gizeh January Action 10%`, and doing so hid 18 of 29 findable answers (**LESSON #2**).
 
-**⓪c 18 DUPLICATE PAIRS TO MERGE — proven by EAN, waiting on Angel's price call.** ▶️ NEXT SESSION.
+**⓪c THE 18 DUPLICATE PAIRS ARE MERGED — ✅ Angel, 2026-08-28 evening, by hand on `/pos/catalog`.**
 List (shop data, gitignored): `scripts/ean-match/data/MERGE-LIST-papers.md`
 
 Applying the papers run wrote 23 aliases and hit **18 conflicts** — every one a real duplicate the
-till's uniqueness constraint refused to create twice. **15 are `ITEM-` rows born at the counter**;
-3 are Tamar-vs-Tamar twins inside the supplier catalogue itself.
+till's uniqueness constraint refused to create twice. **15 were `ITEM-` rows born at the counter**;
+3 were Tamar-vs-Tamar twins inside the supplier catalogue itself. Angel merged them, keeping the
+Tamar row and taking the price call on each.
+
+⚠️ **He did NOT merge the last couple, and he was right to stop.** *"those were not dupes — one has
+filters and one without. The pictures look the same (bad pictures, not our fault) but the titles are
+different, so I left them."* Those are the **Tamar-vs-Tamar** pairs, and it means the supplier
+catalogue puts **one EAN on two different products** — a with-filter and a without-filter variant
+sharing a code. So: **a barcode conflict is not proof of a duplicate.** It is proof that two rows
+claim one code, and which of the two things that means is a human's call every time. The photos
+cannot settle it (both are the supplier's own bad stock shots) — **the title and the price can.**
+This is LESSON #14's "145 codes on more than one product", met in the wild for the first time.
+He left them deliberately: *"we will see the issue again if there really is an issue with the
+shelf intake."*
 
 ⚠️ **This is why the duplicate guard never fires, and it is not the cashier's fault.** Median name
 similarity between rows *proven identical by barcode*: **0.67. Only 3 of 18 clear 0.80**, which is
@@ -122,16 +150,11 @@ the lowest threshold we proved safe. `Rips Extra Dünn Slim schwarz` ↔ `Rolls 
 the cashier types what is printed on the packet.** No name matcher can bridge that, and loosening
 the threshold buys a mis-ring instead of a duplicate.
 
-▶️ **The fix for FUTURE duplicates — use FourTwenty as a translator, not Tamar as a target.**
-FourTwenty's titles *are* packet names (that is why text ranking hit 79% today). So: cashier types
-the packet name → search the FEED → take that row's GTIN → look the GTIN up in our catalogue → land
-on the Tamar row. Two hops, no Tamar name-matching anywhere. **Would have caught 18 of 18 tonight
-where names caught 3.**
-
-▶️ **The merges themselves:** keep the Tamar row (photo + description + tier ladder), merge the
-till-born row in (it carries the real EAN). `POST /catalog/merge` exists. **One human decision per
-pair — the price.** `TAM-12215` is 2.90 vs `ITEM-0069` at 4.00, and `ITEM-0158 Trip 2` is priced
-**999.99**, a placeholder someone typed. Never merge automatically (**LESSON #9**).
+▶️ **STILL OPEN — the fix for FUTURE duplicates: use FourTwenty as a translator, not Tamar as a
+target.** FourTwenty's titles *are* packet names (that is why text ranking hit 79%). So: cashier
+types the packet name → search the FEED → take that row's GTIN → look the GTIN up in our catalogue
+→ land on the Tamar row. Two hops, no Tamar name-matching anywhere. **Would have caught 18 of 18
+where names caught 3.** Not built.
 
 **① The gate audit — 42 blunts and wraps sell with NO ID check.**
 [`onboarding/testsheets/2026-08-27-gate-audit.html`](onboarding/testsheets/2026-08-27-gate-audit.html)
