@@ -178,18 +178,44 @@ tests; each of the three guards reverted on its own and watched go red.
 carries the `thc_report` compliance obligation and tobacco does not. Found only by sweeping for
 CLASS changes rather than GATE changes. Vetoed, and pinned by a test.
 
-▶️ **The live rows are still `standard` — a classifier fix does not fix rows already in the table.**
-One command, on the shop box, after the deploy:
+✅ **APPLIED ON PROD 2026-08-28 by Angel** — deployed `5f9632c`, then `reclass-age-gate.py --apply`
+over 5,408 active products: **44 tightened**, and a re-run reports *nothing to tighten*. That is the
+40 blunts and wraps from the audit (the 2 herbal ones correctly left open) **plus 4 the audit never
+counted** — see below. ⚠️ Still needs one scan at the till to be human-green: `716165283911`
+(*Cyclones Blunt Hemp Purple – Grape*) must now show 🔞 18+ · 🚬 Tobacco.
+*(Deploy on the shop box is `./scripts/deploy-prod.sh` — NOT `rebuild.sh`, which omits
+`compose.prod.yml` and would drop Caddy and HTTPS.)*
+
+**①b FOUR ROLLING PAPERS ARE NOW GATED 18+ AND SHOULD NOT BE — pre-existing, surfaced by the run.**
 
 ```
-ssh banco 'cd /root/banco-starter && python3 scripts/reclass-age-gate.py'          # dry run first
-ssh banco 'cd /root/banco-starter && python3 scripts/reclass-age-gate.py --apply'
+Smoking King Size Supreme Zigarettenpapier
+Rizla Blau DW Kurz - Zigarettenpapier aus natürlichem Zellstoff
+JaJa Noir King Size XXL Black Zigarettenpapier
+OCB Bamboo Slim + Filter Tips: Nachhaltiges Ba…
 ```
 
-It already exists and its rule is *tighten-only* — it can never un-gate anything. It now also
-writes `age_reason='class:…'`, because the compliance rulepack reports a gated row with a NULL
-reason as a finding, and a run that fixed 40 products would have traded one flag for another.
-⚠️ **Needs `./scripts/rebuild.sh` first** — the app image bakes `src/` in.
+**The German compound is the bug.** `_TOBACCO` matches `zigar|sigaret|cigaret` as a substring, and
+**Zigarettenpapier** contains `zigaret`. So a rolling paper reads as a cigarette. `_TOBACCO_ACCESSORY`
+(which knows `papier|paper|filter|hülse|stopf`) exists to stop exactly this — but it is only
+consulted on the SUPPLIER-CATEGORY layer, never on the title layer, and these products were created
+by hand at the counter with no supplier tags. Verified identical under `HEAD~1`: **not caused by the
+blunt fix.** It surfaced now only because nobody had run the reclass since those rows were created.
+
+*Why my sweep missed it:* I measured against `artemis.csv`, a **5,061-row snapshot taken at 10:07**;
+the shop has **5,408 active**. The four were in the 347 I could not see. A partial copy of prod hid
+them — the mirror image of LESSON #5, where a partial copy invented a compliance scare.
+
+⚠️ **`reclass-age-gate.py` only ever tightens, so it cannot undo these.** They need un-gating by
+hand (or one targeted UPDATE), and the classifier needs the compound fix or the next run re-raises
+them. The direction is the safe one — over-gating, not under — but the code's own comment is that
+over-gating **trains staff to wave prompts away**, which is worse than the leak.
+
+▶️ **The fix, not yet written:** run `_TOBACCO` against a copy of the title with the accessory
+compounds removed (`zigaretten(papier|hülsen|stopf|maschine|etui|spitze|halter|dose)`), so a
+standalone "Zigaretten" still gates and "Zigarettenpapier" does not. Must NOT apply
+`_TOBACCO_ACCESSORY` wholesale at the title layer — it contains `filter`, and real cigarette packs
+say "Filter".
 
 ▶️ **What is genuinely Felix's, and it is now two rows, not forty-two:**
 `G-Rollz Terpene Infused **Herbal Tea** Blunt` (Natural OGK · Strawberry Cheesecake). They stay open
