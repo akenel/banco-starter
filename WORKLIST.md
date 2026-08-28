@@ -93,10 +93,18 @@ positives in 19 decoys.** Numbers, the CLIP ranker and the four rules it obeys:
 | **CONSUMABLE** — papers, filters, wraps, tobacco, CBD, vapes | **2,425** | twins exist → worth matching, ~9 h |
 | **HARDWARE** — bongs, grinders, accessories | **2,555** | no twins (12 tested, 0 matched). Minted EAN is the RIGHT answer |
 
-▶️ **Next:** work consumables category-by-category, ~40 a sitting, controls salted in. Needs a small
-migration first — `product_barcodes` wants `kind` (retail|case), `pack_qty`, `source`. The found EAN
-goes in as an **alias**; `products.barcode` and every printed label stay untouched, so a bad batch is
-one DELETE. Never auto-bind, never add a confidence threshold (both measured — see the README).
+✅ **DONE and on prod (`6db45e0`):** the BL-90b migration (`kind`/`pack_qty`/`source`/`confirmed_at`/
+`evidence`), the no-promote rule for an image-match, `apply.py`, and **Rolling Papers run 1 — 23
+aliases live**. Do not redo these.
+
+▶️ **Next:** the merges (⓪c), then the remaining consumables category-by-category, ~40 a sitting.
+Order by control count, **vape last** (E-Liquids/Coils/Vape Devices = 1,338 rows with ZERO controls).
+Carry three things forward: **the feed PRICE on each card** (Angel's idea — a box costs 20× a packet
+and nothing else reveals it); **decoys salted into real runs**, not just controls (papers run 1 had
+none, so it measured recall and not gullibility); and **re-measure the ranker per category** — CLIP
+helped on mixed goods and actively HURT on papers (top-3 54% vs 79% for name-only).
+The found EAN goes in as an **alias**; `products.barcode` and every printed label stay untouched, so
+a bad batch is one DELETE. Never auto-bind, never add a confidence threshold (both measured — README).
 ⚠️ Do **not** category-filter the FourTwenty side: it files papers under `Rolls` and under
 `Themen · Gizeh January Action 10%`, and doing so hid 18 of 29 findable answers (**LESSON #2**).
 
