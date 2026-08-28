@@ -437,6 +437,42 @@ class ProductBarcodeModel(Base):
         nullable=False,
         comment="An additional EAN/UPC this product is also known by",
     )
+
+    # BL-90b: WHAT this alias is, and HOW MUCH IT TRUSTS ITSELF.
+    #
+    # The docstring above always knew a product can carry "the retail EAN plus a logistics/case
+    # code" — but both were stored as a bare string, so the packet's code and the code on the box
+    # of fifty were indistinguishable. On the FourTwenty feed 888 rows carry a GTIN for 2+ units,
+    # and roughly a third of the rolling-paper rows are boxes of 16/20/24/50. Binding one of those
+    # to a single packet makes the till ring up a box, and nothing on screen would say so.
+    kind: Mapped[str] = mapped_column(
+        String(16), default="retail", nullable=False, server_default=text("'retail'"),
+        comment="retail = the code on the packet · case = the code on the outer/box",
+    )
+    pack_qty: Mapped[int | None] = mapped_column(
+        Integer, nullable=True,
+        comment="How many single units this code covers (1 = a packet, 50 = a box). NULL = unknown",
+    )
+
+    # `source` is what makes shelf intake the second half of picture-matching. 'image-match' is a
+    # HYPOTHESIS a person agreed with off two photographs; 'scanned' is a person holding the thing.
+    # When a real packet later resolves to an image-matched alias, the packet has proved the guess
+    # and `confirmed_at` is stamped — so the residual error burns down through ordinary trading and
+    # nobody ever has to deliberately re-check anything (LESSON #8: verification against REALITY
+    # finds a class of error that verification against the database cannot).
+    source: Mapped[str] = mapped_column(
+        String(16), default="scanned", nullable=False, server_default=text("'scanned'"),
+        comment="scanned = a human held the packet · image-match = a picture said so and a human agreed",
+    )
+    confirmed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True,
+        comment="When a REAL scan confirmed an image-matched alias. NULL = still only a hypothesis",
+    )
+    evidence: Mapped[str | None] = mapped_column(
+        Text, nullable=True,
+        comment="Why we believe it — the feed row + score behind an image-match, so a bad batch is traceable",
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),

@@ -2325,6 +2325,14 @@ async def get_product_by_barcode(
 
 class AddBarcodeRequest(BaseModel):
     barcode: str
+    # BL-90b. All optional, and the defaults reproduce today's behaviour EXACTLY — a cashier
+    # capturing a code off a packet sends {barcode} alone and gets retail/scanned, which is
+    # what every existing row already is. Only the bulk EAN-match tool fills the rest in.
+    kind: Optional[str] = Field(None, description="retail (the packet) | case (the outer box)")
+    pack_qty: Optional[int] = Field(None, ge=1, description="units this code covers; 1 = a packet")
+    source: Optional[str] = Field(None, description="scanned | image-match")
+    evidence: Optional[str] = Field(None, max_length=2000,
+                                    description="why we believe it — feed row + score, so a bad batch is traceable")
 
 
 # ── IS THAT ACTUALLY A BARCODE? ───────────────────────────────────────────────────────────
@@ -2419,7 +2427,29 @@ async def add_product_barcode(
         getattr(product, "barcode_is_internal", False))
     _incoming_is_real = not re.match(r"^2\d{12}$", barcode)
 
-    if not product.barcode:
+    # BL-90b: A HYPOTHESIS DOES NOT GET THE PRIMARY SLOT.
+    #
+    # Everything below assumes a person held the packet — and when they did, promoting the real
+    # code over a minted one is exactly right. An `image-match` code was never held by anyone: two
+    # photographs looked alike and an operator agreed. Measured over three blind rounds that
+    # judgement was right 21 times in 22, which is good enough to SUGGEST and not good enough to
+    # become the product's identity (LESSON #9 — a wrong barcode looks exactly like a right one).
+    #
+    # So it lands as an alias and nothing else moves: `products.barcode` keeps the minted code,
+    # every printed label keeps scanning, `barcode_is_internal` keeps telling the truth, and the
+    # catalogue screen keeps showing the row as unverified — which it is. The packet still
+    # resolves, because lookup checks aliases too. When a real scan later confirms it, THAT is
+    # when it earns promotion.
+    _is_guess = (body.source or "scanned") == "image-match"
+
+    if _is_guess:
+        db.add(ProductBarcodeModel(
+            product_id=product.id, barcode=barcode,
+            kind=(body.kind or "retail"), pack_qty=body.pack_qty,
+            source="image-match", evidence=body.evidence))
+        logger.info("image-match alias %s attached to %s (NOT promoted — awaiting a real scan)",
+                    barcode, product.sku)
+    elif not product.barcode:
         product.barcode = barcode
         product.barcode_is_internal = not _incoming_is_real
         product.updated_at = datetime.now(timezone.utc)
@@ -2428,11 +2458,15 @@ async def add_product_barcode(
         product.barcode = barcode
         product.barcode_is_internal = False
         product.updated_at = datetime.now(timezone.utc)
-        db.add(ProductBarcodeModel(product_id=product.id, barcode=demoted))
+        db.add(ProductBarcodeModel(product_id=product.id, barcode=demoted,
+                                   kind="retail", source="scanned"))
         logger.info("promoted real EAN %s to primary on %s; minted %s kept as an alias",
                     barcode, product.sku, demoted)
     else:
-        db.add(ProductBarcodeModel(product_id=product.id, barcode=barcode))
+        db.add(ProductBarcodeModel(
+            product_id=product.id, barcode=barcode,
+            kind=(body.kind or "retail"), pack_qty=body.pack_qty,
+            source=(body.source or "scanned"), evidence=body.evidence))
 
     try:
         await db.commit()

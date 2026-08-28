@@ -389,6 +389,29 @@ _ADDITIVE_COLUMNS: list[str] = [
     # and the retry that follows it carry the same one. Joins transactions.client_uuid.
     "ALTER TABLE age_check_event ADD COLUMN IF NOT EXISTS cart_ref VARCHAR(64)",
     "CREATE INDEX IF NOT EXISTS ix_age_check_event_cart ON age_check_event (cart_ref)",
+    # BL-90b (2026-08-28): an alias barcode never said WHAT it was. Two gaps that matter.
+    #
+    # `kind` — the table's own docstring already anticipated "the retail EAN plus a
+    # logistics/case code", but stored both identically, so nothing could tell the packet's
+    # code from the code on the box of fifty. Backfilled 'retail' because that is what every
+    # existing alias is: a code a human scanned off something in their hand.
+    #
+    # `pack_qty` — how many units the code covers. A WHOLESALER's GTIN is often the outer:
+    # measured on the FourTwenty feed, 888 rows carry a code for 2+ units and ~a third of the
+    # paper rows are boxes of 16/20/24/50. Binding one of those to a single packet makes the
+    # till ring up a box. NULL = unknown, 1 = a single item.
+    #
+    # `source` — 'scanned' (a person held the packet) vs 'image-match' (a picture said so and
+    # a person agreed). This is what lets shelf intake CLOSE THE LOOP: when a real packet
+    # later resolves to an image-matched alias, the packet has just proved the guess and it
+    # can be promoted. Without it, "which of my barcodes has never been near a physical
+    # product?" is unanswerable, and that is the honest quality number for the catalogue.
+    # Backfilled 'scanned' — every alias that exists today came from a gun.
+    "ALTER TABLE product_barcodes ADD COLUMN IF NOT EXISTS kind VARCHAR(16) NOT NULL DEFAULT 'retail'",
+    "ALTER TABLE product_barcodes ADD COLUMN IF NOT EXISTS pack_qty INTEGER",
+    "ALTER TABLE product_barcodes ADD COLUMN IF NOT EXISTS source VARCHAR(16) NOT NULL DEFAULT 'scanned'",
+    "ALTER TABLE product_barcodes ADD COLUMN IF NOT EXISTS confirmed_at TIMESTAMPTZ",
+    "ALTER TABLE product_barcodes ADD COLUMN IF NOT EXISTS evidence TEXT",
 ]
 
 
