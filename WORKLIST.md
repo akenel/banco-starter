@@ -120,9 +120,23 @@ the empty band. The feed's own `artikel_pro_verkaufseinheit` got **1 of those 4*
 **before** you click it. `python3 scripts/prove-ean-box-price.py` — 11 assertions, offline, screen
 confirmed in a browser. ⚠️ **Measured on papers only — re-run it per category**, like the ranker.
 
-Still to carry forward: **decoys salted into real runs**, not just controls (papers run 1 had none,
-so it measured recall and not gullibility); and **re-measure the ranker per category** — CLIP helped
-on mixed goods and actively HURT on papers (top-3 54% vs 79% for name-only).
+Still to carry forward: **re-measure the ranker per category** — CLIP helped on mixed goods and
+actively HURT on papers (top-3 54% vs 79% for name-only). ✅ Decoys landed 2026-08-29
+(`select_run.py --decoys`); filters run 1 carries 15 controls + 12 decoys in 252 cards.
+
+⚠️ **The ranker does not speak German colours — found by Angel mid-run, 2026-08-29.** For
+`Aktivkohlefiter Kailar 5.9mm 250 Stk. schwarz` the top guess is **Pink 250pcs** while
+**Black 250pcs** sits in the feed twice; `schwarz` and `black` share no characters, so neither
+SequenceMatcher nor token Jaccard can see it. This is the ORIGINAL hypothesis that started ⓪b —
+German titles against international ones — surviving in the variant words. Sized on filters:
+33 cards whose top guess is the same brand and the same numbers, 9 where the colour disagrees,
+**2 where the right colour is in the feed and merely ranked below #1** — and the top-6 rescues
+both, so no answer is lost, only a click and a moment of doubt. Worth a synonym bonus
+(schwarz/black, weiss/white, grün/green, blau/blue, bunt/mix) **for the next category, not this
+one**: rebuilding a deck re-orders the candidate lists that a run's saved answers point at
+(`card → candidate number`), so it would silently repoint everything already decided.
+The other 7 are true no-matches — FourTwenty stocks 12 Kailar rows and no green at all. That is
+*"the pictures matched, the RANGE did not"* again, not a ranker fault.
 
 ⚠️ **Two things found while doing it, neither urgent.** (a) The whole 800 MB working set — both
 pools, 11,215 thumbnails, the CLIP vectors — was living in a **`/tmp` session scratchpad**, one
