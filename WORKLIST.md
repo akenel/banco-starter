@@ -13,7 +13,7 @@
 > [`worklist-archive/done.md`](worklist-archive/done.md) with its commit hashes; when a thread grows
 > a long write-up, the write-up goes to the archive and a one-line pointer stays here.
 
-*Last updated: 2026-08-28, late — price on the match card; the age gate applied on prod (44 rows); and the odd barcode `2024VL099B` is saveable again. Next: deploy ①c, then ⓪b run 2.*
+*Last updated: 2026-08-29 — ⓪b costed per category: `scripts/ean-match/SCHEDULE.md`. 14 h total, 2.5 h of it worth doing first. Next: Filters & Tips.*
 
 ---
 
@@ -101,8 +101,16 @@ positives in 19 decoys.** Numbers, the CLIP ranker and the four rules it obeys:
 `evidence`), the no-promote rule for an image-match, `apply.py`, and **Rolling Papers run 1 — 23
 aliases live**. Do not redo these.
 
-▶️ **Next:** the remaining consumables category-by-category, ~40 a sitting (⓪c's merges are done).
-Order by control count, **vape last** (E-Liquids/Coils/Vape Devices = 1,338 rows with ZERO controls).
+▶️ **Next: `scripts/ean-match/SCHEDULE.md`** — every category costed against prod 2026-08-29.
+**4,931 cards ≈ 14 h total**, but only **2.5 h of it is Tier A** (has controls, proven findable);
+5.8 h is Tier C hardware that should probably never be opened. **Start with Filters & Tips** —
+225 cards, 39 controls, 69% of them in the feed. ⚠️ **E-Liquids is the trap**: 699 cards, the
+biggest single block left, against ~**179** feed rows that could be a liquid and zero controls —
+a perfect matcher tops out at 26%. Pilot 30 cards before opening any Tier B category.
+⚠️ **`sql/export-products.sql` re-presents decided cards** — it selects on `barcode_is_internal`,
+which `apply.py` deliberately never clears, so all 23 papers bound on Friday reappear in a fresh
+papers deck (69 minted, 23 already aliased, **46 genuinely left**). Needs a `NOT EXISTS` on
+`product_barcodes … source='image-match'`. Same shape as the localStorage contamination.
 ✅ **The feed PRICE is on the card — done 2026-08-28.** Angel's idea, and it beat the field it
 replaces on both counts. Against the 41 bindings he confirmed on papers run 1: the 4 he called a
 CASE came out at **4.5× / 15.4× / 20.0× / 26.7×** our shelf price — the four highest ratios in the
