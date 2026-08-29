@@ -27,5 +27,12 @@ COPY (SELECT p.sku AS sku,
                     WHERE product_id = p.id
                     ORDER BY sort_order, created_at LIMIT 1) i ON true
       WHERE p.is_active
-        AND p.category ILIKE '%' || :'cat' || '%')
+        AND p.category ILIKE '%' || :'cat' || '%'
+        -- A card already decided must never come back. apply.py writes the found EAN as an
+        -- ALIAS and deliberately leaves barcode_is_internal alone (the minted code and every
+        -- printed label keep working), so `minted = true` does NOT mean "still needs an EAN".
+        -- Without this, a fresh papers deck re-presents all 23 rows bound on 2026-08-28 —
+        -- the same shape as the localStorage collision that contaminated papers run 1.
+        AND NOT EXISTS (SELECT 1 FROM product_barcodes b
+                        WHERE b.product_id = p.id AND b.source = 'image-match'))
 TO STDOUT WITH (FORMAT csv, HEADER);

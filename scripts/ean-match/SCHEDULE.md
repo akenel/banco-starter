@@ -40,8 +40,22 @@ Tier A is the whole of the confident work and it fits in an afternoon.
 | Other | 21 | 80 | 34% | — | 0.1 |
 | Papers & Filters | 1 | 3 | 67% | 318 | 0.0 |
 
-**Filters & Tips is the best next run**: 39 controls (second only to papers), 69% of them findable,
-and 225 cards is a single sitting.
+**Filters & Tips is the best next run, and it is measurably EASIER than papers** — which is not
+what anyone expected. `measure_recall.py` against the whole 10,141-row pool:
+
+| | controls in feed | ranked #1 | in the 6 shown | worst rank |
+|---|---:|---:|---:|---:|
+| **Filters & Tips** | 27/39 (69%) | 70% | **27/27 (100%)** | **3** |
+| Rolling Papers | 92/122 (75%) | 70% | 85/92 (92%) | 102 |
+
+Filter titles carry hard tokens — a brand, a size in mm, a count (`actiTube Konik 6mm 50pcs`) —
+where paper titles are mush. **Every findable control landed in the top 3.**
+
+⚠️ That is a statement about the RANKER, not about the human. It says the right answer will be on
+the screen; it says nothing about whether a person can tell a 6mm tip from an 8mm one in two
+photographs — they are identical, and that is precisely where a confident wrong pick comes from.
+The discriminator is the size and the count in the title, never the picture. The sheet marks those
+words in red and says so in the intro. Run 1 carries **12 decoys** to measure whether it worked.
 
 ### Tier B — supply exists, nothing proves it works. Pilot before committing.
 

@@ -78,13 +78,19 @@ def conf(x):
     return ("WEAK — probably nothing", "w")
 
 
-def build_deck(ours, feed, controls=12, topk=6, seed=23):
+def build_deck(ours, feed, controls=12, topk=6, seed=23, decoys=0):
     """Everything with a minted code is work; a sample of hand-bound rows rides along as
     CONTROLS, shuffled in and indistinguishable, so the run measures itself.
 
-    ⚠ Controls measure RECALL — they are all findable. They do NOT measure gullibility.
-    For that a run needs DECOYS too: rows whose EAN is in no feed at all, where the only
-    correct answer is 'no match'. Papers run 1 had none. Pass decoys=… when that lands."""
+    Two kinds of known-answer row, and a run needs BOTH:
+
+      CONTROLS — bound off a packet AND the EAN is in the feed. The right answer exists, so
+        these measure RECALL: did the ranker put it on screen, and did the human pick it?
+      DECOYS   — bound off a packet and the EAN is in NO feed row. The only correct answer is
+        'no match', so these measure GULLIBILITY. Without them a run cannot tell a careful
+        human from one who clicks the top card every time. Papers run 1 had none (2026-08-28).
+
+    Both are indistinguishable from work in the sheet — same layout, shuffled in."""
     titles = [p["title"] for p in feed]
     ftok = [toks(t) for t in titles]
     gset = {}
@@ -92,11 +98,13 @@ def build_deck(ours, feed, controls=12, topk=6, seed=23):
         gset.setdefault(n(p["gtin"]), i)
 
     work = [r for r in ours if r["minted"] == "true"]
-    withtwin = [r for r in ours if r["minted"] == "false" and r.get("barcode")
-                and n(r["barcode"]) in gset]
+    bound = [r for r in ours if r["minted"] == "false" and r.get("barcode")]
+    withtwin = [r for r in bound if n(r["barcode"]) in gset]
+    notwin = [r for r in bound if n(r["barcode"]) not in gset]
     random.seed(seed)
     ctrl = random.sample(withtwin, min(controls, len(withtwin)))
-    deck = work + ctrl
+    dcy = random.sample(notwin, min(decoys, len(notwin)))
+    deck = work + ctrl + dcy
     random.shuffle(deck)
 
     cards, truth, rank = [], [], []
@@ -131,7 +139,7 @@ def build_deck(ours, feed, controls=12, topk=6, seed=23):
                       "cand_prices": [c["price"] for c in cands],
                       "cand_scores": [c["score"] for c in cands],
                       "cand_mutual": [False] * len(cands)})
-    return cards, truth, rank, len(work), len(ctrl)
+    return cards, truth, rank, len(work), len(ctrl), len(dcy)
 
 
 def main():
@@ -142,12 +150,15 @@ def main():
     ap.add_argument("--feed", default=os.path.join(WORK, "poolfull.csv"))
     ap.add_argument("--prices", default="", help="optional sku,price CSV")
     ap.add_argument("--controls", type=int, default=12)
+    ap.add_argument("--decoys", type=int, default=0,
+                    help="rows whose EAN is in NO feed row — the only right answer is 'no match'")
     ap.add_argument("--topk", type=int, default=6)
     a = ap.parse_args()
 
     feed = load_feed(a.feed)
     ours = load_ours(a.ours, a.prices or None)
-    cards, truth, rank, nwork, nctrl = build_deck(ours, feed, a.controls, a.topk)
+    cards, truth, rank, nwork, nctrl, ndcy = build_deck(ours, feed, a.controls, a.topk,
+                                                        decoys=a.decoys)
     json.dump(cards, open(os.path.join(WORK, f"cards_{a.run}.json"), "w"))
     json.dump(truth, open(os.path.join(WORK, f"truth_{a.run}.json"), "w"), indent=1)
 
@@ -155,7 +166,10 @@ def main():
     nofeed = sum(1 for c in cards for k in c["cands"] if k["price"] is None)
     tot = sum(len(c["cands"]) for c in cards)
     rank.sort()
-    print(f"cards {len(cards)} ({nwork} need an EAN + {nctrl} controls) · pool {len(feed)}")
+    print(f"cards {len(cards)} ({nwork} need an EAN + {nctrl} controls + {ndcy} decoys)"
+          f" · pool {len(feed)}")
+    if not ndcy:
+        print("  ⚠ no decoys — this run measures recall only, never gullibility")
     print(f"control ranks: {rank}  -> in the {a.topk} shown: "
           f"{sum(1 for x in rank if x <= a.topk)}/{len(rank)}")
     print(f"price on file: ours {len(cards)-noprice}/{len(cards)} · feed {tot-nofeed}/{tot}")
