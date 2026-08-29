@@ -105,11 +105,17 @@ kbd{border:1px solid var(--line);border-radius:4px;padding:0 5px;font-size:11px;
 SCRIPT = r"""
 const K='banco-eanmatch-'+RUN;   // per-run key: a new deck NEVER inherits old answers
 let S=JSON.parse(localStorage.getItem(K)||'{}'), TS=JSON.parse(localStorage.getItem(K+'-ts')||'{}');
-let CUR={};                       // card -> which alternate is loaded in the right pane
+// CUR = which alternate is loaded in the right pane. It MUST be persisted next to S.
+// It was not, until 2026-08-29, and that was a silent answer-corrupter: on reload every pane
+// snapped back to #1 while the verdict still read "MATCH → #2", so the picture on screen no
+// longer matched the recorded decision — and the next "bind it" wrote #1 over the right answer
+// because CUR had been reset to 0 by the load. Angel hit it on TAM-18963 (Kailar, 6 near
+// identical candidates). Two names for one truth, and the one that renders always wins.
+let CUR=JSON.parse(localStorage.getItem(K+'-cur')||'{}');
 const N=CARDS.length;
-function save(){try{localStorage.setItem(K,JSON.stringify(S));localStorage.setItem(K+'-ts',JSON.stringify(TS));}catch(e){}}
+function save(){try{localStorage.setItem(K,JSON.stringify(S));localStorage.setItem(K+'-ts',JSON.stringify(TS));localStorage.setItem(K+'-cur',JSON.stringify(CUR));}catch(e){}}
 function show(p,j){
-  CUR[p]=j; const c=CARDS[p], k=c.cands[j];
+  CUR[p]=j; save(); const c=CARDS[p], k=c.cands[j];
   document.getElementById('bi'+p).src=k.img;
   document.getElementById('bt'+p).innerHTML=k.tdiff;
   document.getElementById('at'+p).innerHTML=k.mydiff;
@@ -150,13 +156,13 @@ document.addEventListener('click',e=>{
   const y=e.target.closest('.yes'); if(y){mark(+y.dataset.p, CUR[+y.dataset.p]??0);return;}
   const n=e.target.closest('.no');  if(n){mark(+n.dataset.p,'none');return;}
   const h=e.target.closest('.hm');  if(h){mark(+h.dataset.p,'skip');return;}
-  const u=e.target.closest('.undo');if(u){delete S[+u.dataset.p];save();render();return;}
+  const u=e.target.closest('.undo');if(u){const p=+u.dataset.p;delete S[p];delete TS[p];show(p,0);save();render();return;}
 });
 document.getElementById('dl').onclick=()=>{const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([JSON.stringify({decisions:S,stamps:TS,at:new Date().toISOString()},null,1)],{type:'application/json'}));
   a.download='ean-match-decisions-v3.json';a.click();};
-document.getElementById('rst').onclick=()=>{if(confirm('Clear all?')){S={};TS={};localStorage.removeItem(K);localStorage.removeItem(K+'-ts');render();}};
-CARDS.forEach(c=>show(c.i,0)); render();
+document.getElementById('rst').onclick=()=>{if(confirm('Clear all?')){S={};TS={};CUR={};localStorage.removeItem(K);localStorage.removeItem(K+'-ts');localStorage.removeItem(K+'-cur');CARDS.forEach(c=>show(c.i,0));render();}};
+CARDS.forEach(c=>show(c.i, CUR[c.i] ?? (typeof S[c.i]==='number' ? S[c.i] : 0))); render();
 """
 
 def build(cards, out, title, intro, sections, run_id='v3'):
