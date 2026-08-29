@@ -149,7 +149,10 @@ function render(){
   let d=[];for(let i=1;i<t.length;i++){const x=(t[i]-t[i-1])/1000;if(x>0&&x<180)d.push(x);}
   d.sort((a,b)=>a-b);
   document.getElementById('spd').textContent=d.length?Math.round(d[Math.floor(d.length/2)])+'s':'—';
-  document.getElementById('dl').disabled=Object.keys(S).length<N;
+  const done=Object.keys(S).length;
+  const dl=document.getElementById('dl');
+  dl.disabled=done===0;                        // stop wherever you like; export anyway
+  dl.textContent=done<N?`Download ${done} decisions`:'Download decisions';
 }
 document.addEventListener('click',e=>{
   const a=e.target.closest('.al'); if(a){show(+a.dataset.p,+a.dataset.j);return;}
@@ -160,7 +163,7 @@ document.addEventListener('click',e=>{
 });
 document.getElementById('dl').onclick=()=>{const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([JSON.stringify({decisions:S,stamps:TS,at:new Date().toISOString()},null,1)],{type:'application/json'}));
-  a.download='ean-match-decisions-v3.json';a.click();};
+  a.download='ean-match-'+RUN+'-'+Object.keys(S).length+'.json';a.click();};
 document.getElementById('rst').onclick=()=>{if(confirm('Clear all?')){S={};TS={};CUR={};localStorage.removeItem(K);localStorage.removeItem(K+'-ts');localStorage.removeItem(K+'-cur');CARDS.forEach(c=>show(c.i,0));render();}};
 CARDS.forEach(c=>show(c.i, CUR[c.i] ?? (typeof S[c.i]==='number' ? S[c.i] : 0))); render();
 """
