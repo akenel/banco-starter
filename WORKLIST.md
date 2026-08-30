@@ -13,7 +13,7 @@
 > [`worklist-archive/done.md`](worklist-archive/done.md) with its commit hashes; when a thread grows
 > a long write-up, the write-up goes to the archive and a one-line pointer stays here.
 
-*Last updated: 2026-08-29 — ⓪b costed per category: `scripts/ean-match/SCHEDULE.md`. 14 h total, 2.5 h of it worth doing first. Next: Filters & Tips.*
+*Last updated: 2026-08-30 — Filters & Tips run 1 applied: 50 aliases live, 14/15 controls. Next: ⓪d's 3 merges, then CBD Flower.*
 
 ---
 
@@ -101,16 +101,47 @@ positives in 19 decoys.** Numbers, the CLIP ranker and the four rules it obeys:
 `evidence`), the no-promote rule for an image-match, `apply.py`, and **Rolling Papers run 1 — 23
 aliases live**. Do not redo these.
 
+✅ **Filters & Tips run 1 — 50 aliases live on prod, 2026-08-30.** 252 cards in 83 minutes,
+median 13s, one gap under 3s in 249 — no rushing. Scored **14/15 controls** and **1 false positive
+in 11 valid decoys** (`actiTube Slim` bound to `actiTube EXTRA SLIM` — the near-twin trap, which is
+exactly what decoys are for). 62 accepted → 53 applied → **50 linked · 3 conflict · 0 failed**.
+Prod now carries **73 image-match aliases** (69 retail + 4 case) beside 154 scanned.
+
 ▶️ **Next: `scripts/ean-match/SCHEDULE.md`** — every category costed against prod 2026-08-29.
 **4,931 cards ≈ 14 h total**, but only **2.5 h of it is Tier A** (has controls, proven findable);
-5.8 h is Tier C hardware that should probably never be opened. **Start with Filters & Tips** —
-225 cards, 39 controls, 69% of them in the feed. ⚠️ **E-Liquids is the trap**: 699 cards, the
-biggest single block left, against ~**179** feed rows that could be a liquid and zero controls —
-a perfect matcher tops out at 26%. Pilot 30 cards before opening any Tier B category.
-⚠️ **`sql/export-products.sql` re-presents decided cards** — it selects on `barcode_is_internal`,
-which `apply.py` deliberately never clears, so all 23 papers bound on Friday reappear in a fresh
-papers deck (69 minted, 23 already aliased, **46 genuinely left**). Needs a `NOT EXISTS` on
-`product_barcodes … source='image-match'`. Same shape as the localStorage contamination.
+5.8 h is Tier C hardware that should probably never be opened. Filters is done; **CBD Flower is
+next** (195 cards, 24 controls, 54% findable), then Pipes, Tobacco, the 46 remaining papers.
+⚠️ **E-Liquids is the trap**: 699 cards, the biggest single block left, against ~**179** feed rows
+that could be a liquid and zero controls — a perfect matcher tops out at 26%. Pilot 30 cards
+before opening any Tier B category.
+
+**⓪d THREE MORE DUPLICATE PAIRS, found by the filters conflicts.** Same shape as ⓪c: an `ITEM-`
+row born at the counter under the international name, beside the TAM- row under Tamar's German
+one. `POST /catalog/merge`; **the price is Angel's call on each**, and the third pair differs by
+2×:
+
+| keep? | | |
+|---|---|---|
+| `ITEM-0053` actiTube REGULAR 8mm 100pcs · **13.00** | `TAM-5660` Aktivkohlefilter actiTube 8mm 100stk · **12.90** | 10 rappen apart |
+| `ITEM-0320` Rasta Filter Assortiert · **2.00** | `TAM-6296` Filterpapier Rasta nicht perforiert · **2.00** | same price |
+| `ITEM-0087` Raw Natural Filter Wide tips · **1.00** | `TAM-8614` Filterpapier RAW perforiert · **2.00** | ⚠ **double — decide** |
+
+⚠️ **My conflict prediction missed the third, on the leading zero.** `ITEM-0087` stores
+`716165177555` (UPC-A, 12 digits); the feed gives `0716165177555` (EAN-13). I compared the strings
+raw and saw no clash; the server normalises and refused it. **LESSON pattern #2, in the code that
+exists to warn about pattern #2.** Any future pre-flight must normalise both sides.
+
+⚠️ **9 rows held back — one GTIN, several of our products.** FourTwenty sells
+`Blackout Filter Assortiert` / `Freak Show Filters Assortiert` / `Anonymous Filter Assortiert` as
+ONE SKU where our catalogue carries one product per design (4 + 3 + 2). Angel was right on every
+card; the binding is one-to-many and a barcode that resolves to two products is not a barcode.
+`build_apply.py` holds these back automatically. The real fix is a merge, not a bind.
+
+⚠️ **A live data error the run was not looking for: `TAM-22371`** "Purize Regular 9mm 50stk
+allcolor", CHF 7.90, carries `4260748412541` — which FourTwenty lists as **"Purize Regular 100 All
+Color", CHF 19.00**. The 50-pack is bound to the 100-pack's code. The price confirms it (7.90 vs a
+50er at 9.50, not a 100 at 19.00). Angel picked the 50er and the scorer called him wrong; the
+binding underneath was wrong. **Re-scan the packet and rebind.**
 ✅ **The feed PRICE is on the card — done 2026-08-28.** Angel's idea, and it beat the field it
 replaces on both counts. Against the 41 bindings he confirmed on papers run 1: the 4 he called a
 CASE came out at **4.5× / 15.4× / 20.0× / 26.7×** our shelf price — the four highest ratios in the
