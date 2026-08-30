@@ -13,7 +13,7 @@
 > [`worklist-archive/done.md`](worklist-archive/done.md) with its commit hashes; when a thread grows
 > a long write-up, the write-up goes to the archive and a one-line pointer stays here.
 
-*Last updated: 2026-08-30 — Filters & Tips run 1 applied: 50 aliases live, 14/15 controls. Next: ⓪d's 3 merges, then CBD Flower.*
+*Last updated: 2026-08-30 — Filters run 1 applied (50 aliases) and its 3 duplicates merged. Next: ⓪e's 55 placeholder prices, or CBD Flower.*
 
 ---
 
@@ -115,16 +115,38 @@ next** (195 cards, 24 controls, 54% findable), then Pipes, Tobacco, the 46 remai
 that could be a liquid and zero controls — a perfect matcher tops out at 26%. Pilot 30 cards
 before opening any Tier B category.
 
-**⓪d THREE MORE DUPLICATE PAIRS, found by the filters conflicts.** Same shape as ⓪c: an `ITEM-`
-row born at the counter under the international name, beside the TAM- row under Tamar's German
-one. `POST /catalog/merge`; **the price is Angel's call on each**, and the third pair differs by
-2×:
+**⓪e FIFTY-FIVE ACTIVE PRODUCTS ARE PRICED AT CHF 999.99.** Found while checking the RAW rows,
+2026-08-30. All are `ITEM-` rows created at the counter, all carry a REAL scanned barcode, and all
+sit at stock 0 — so this is a typed placeholder that nobody came back to, the same thing
+`ITEM-0158` "Trip 2" turned out to be in the papers run. They cluster in blunts/wraps/cones
+(Cyclones, Juicy, Double Platinum), which is the same family as the age-gate work.
 
-| keep? | | |
+Two questions, neither answered yet: **does a stock-0 row still ring up at the till** (if it does,
+one scan charges CHF 999.99), and **are these duplicates of TAM- rows** the way every other
+counter-born row has been — in which case the fix is 55 more merges and not 55 price edits.
+Check the first before deciding; `SELECT … WHERE is_active AND price = 999.99` is the list.
+
+**⓪d THE THREE FILTERS DUPLICATES ARE MERGED — ✅ 2026-08-30, `scripts/ean-match/merge.py`.**
+All three TAM- rows now carry the real EAN as PRIMARY with `barcode_is_internal = false`, their
+minted `200…` code demoted to an alias so printed labels keep scanning, and the `ITEM-` rows
+deactivated (never deleted — they are somebody's sales history).
+
+| survivor | retired | primary barcode now |
 |---|---|---|
-| `ITEM-0053` actiTube REGULAR 8mm 100pcs · **13.00** | `TAM-5660` Aktivkohlefilter actiTube 8mm 100stk · **12.90** | 10 rappen apart |
-| `ITEM-0320` Rasta Filter Assortiert · **2.00** | `TAM-6296` Filterpapier Rasta nicht perforiert · **2.00** | same price |
-| `ITEM-0087` Raw Natural Filter Wide tips · **1.00** | `TAM-8614` Filterpapier RAW perforiert · **2.00** | ⚠ **double — decide** |
+| `TAM-5660` Aktivkohlefilter actiTube 8mm 100stk · 12.90 | `ITEM-0053` | `4260641140084` |
+| `TAM-6296` Filterpapier Rasta nicht perforiert · 2.00 | `ITEM-0320` | `4260219150064` |
+| `TAM-8614` Filterpapier RAW perforiert · 2.00 | `ITEM-0087` | `716165177555` |
+
+The third looked like it might not be a duplicate at all — one row said *perforiert*, the other
+said *Wide*, and the prices differed 2×. It is one: **`ITEM-0095` "RAW Black Filter Extra Breit"
+already holds `716165305378`**, which is the feed's genuine Extra Wide tips, while `ITEM-0087`'s
+own scanned barcode is the plain "RAW Perforierte Tips". The name was mistyped at the counter and
+the barcode is the identity (CATALOG-IDENTITY.md). *A disagreeing NAME is not evidence of two
+products; a disagreeing CODE is.*
+
+⚠️ **Price left as-is on purpose.** `POST /catalog/merge` never touches price, so each survivor
+kept its own. `TAM-8614` sits at **2.00 against the feed's 1.00** — the only one of the 53 at 0.5×.
+Worth a look, but it is a pricing decision and not a merge.
 
 ⚠️ **My conflict prediction missed the third, on the leading zero.** `ITEM-0087` stores
 `716165177555` (UPC-A, 12 digits); the feed gives `0716165177555` (EAN-13). I compared the strings
