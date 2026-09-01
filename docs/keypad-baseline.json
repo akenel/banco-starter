@@ -1,0 +1,110 @@
+{
+  "at": "2026-09-01T15:27:23.021Z",
+  "url": "http://localhost:3000",
+  "pass": 20,
+  "fail": 0,
+  "results": [
+    {
+      "r": "PASS",
+      "l": "/pos/scan — script active",
+      "d": "maxTouchPoints=1"
+    },
+    {
+      "r": "PASS",
+      "l": "/pos/checkout — script active",
+      "d": "maxTouchPoints=1"
+    },
+    {
+      "r": "PASS",
+      "l": "/pos/customer-lookup — script active",
+      "d": "maxTouchPoints=1"
+    },
+    {
+      "r": "PASS",
+      "l": "/pos/shelf-intake — script active",
+      "d": "maxTouchPoints=1"
+    },
+    {
+      "r": "PASS",
+      "l": "/pos/my-day — script active",
+      "d": "maxTouchPoints=1"
+    },
+    {
+      "r": "PASS",
+      "l": "/pos/selftest — script active",
+      "d": "maxTouchPoints=1"
+    },
+    {
+      "r": "PASS",
+      "l": "/pos/scan — scanner fields left alone",
+      "d": "none wired"
+    },
+    {
+      "r": "PASS",
+      "l": "/pos/checkout — scanner fields left alone",
+      "d": "none wired"
+    },
+    {
+      "r": "PASS",
+      "l": "/pos/customer-lookup — scanner fields left alone",
+      "d": "none wired"
+    },
+    {
+      "r": "PASS",
+      "l": "/pos/shelf-intake — scanner fields left alone",
+      "d": "none wired"
+    },
+    {
+      "r": "PASS",
+      "l": "/pos/my-day — scanner fields left alone",
+      "d": "none wired"
+    },
+    {
+      "r": "PASS",
+      "l": "/pos/selftest — scanner fields left alone",
+      "d": "none wired"
+    },
+    {
+      "r": "PASS",
+      "l": "Item name is marked data-keypad=\"text\""
+    },
+    {
+      "r": "PASS",
+      "l": "Price (CHF) is marked data-keypad=\"decimal\""
+    },
+    {
+      "r": "PASS",
+      "l": "tapping Item name opens the LETTER pad",
+      "d": "the field a cashier types a product name into"
+    },
+    {
+      "r": "PASS",
+      "l": "tapping Price opens the NUMBER pad"
+    },
+    {
+      "r": "PASS",
+      "l": "the pad types 12.50 into the box",
+      "d": "box reads \"12.50\""
+    },
+    {
+      "r": "PASS",
+      "l": "and Alpine RECEIVED it",
+      "d": "otfPrice = \"12.50\""
+    },
+    {
+      "r": "PASS",
+      "l": "a third rappen is refused",
+      "d": "still \"12.50\""
+    },
+    {
+      "r": "PASS",
+      "l": "a key lands AT THE CARET, not at the end",
+      "d": "\"123.50\""
+    },
+    {
+      "r": "INFO",
+      "l": "coverage /pos/scan",
+      "d": "4/23"
+    }
+  ]
+}
