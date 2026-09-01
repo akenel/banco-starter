@@ -13,7 +13,7 @@
 > [`worklist-archive/done.md`](worklist-archive/done.md) with its commit hashes; when a thread grows
 > a long write-up, the write-up goes to the archive and a one-line pointer stays here.
 
-*Last updated: 2026-09-01 — the tablet's soft keyboard measured on the real machine (⑳): no browser raises it and `inputmode` is ignored there, which killed the 290-field fix before it shipped. Next: the cashier input inventory, or ⓪e's 55 placeholder prices, or CBD Flower.*
+*Last updated: 2026-09-01 — ⑳ the keypad Banco draws itself is LIVE and human-green on the till: no browser on that tablet raises a keyboard, and `inputmode` is ignored there, which killed the 290-field fix before it shipped. Next: the modal shift, then the rest of the cashier's fields — or ⓪e's 55 placeholder prices, or CBD Flower.*
 
 ---
 
@@ -356,7 +356,42 @@ If it will not read, the answer is a SHORTER SKU, not a bigger label.
 panel's empty state names the trade words (rasta, Kopf, Schliff, Kawumm) but nothing translates them.
 A synonym table is the obvious next step and has NOT been thought through.
 
-**⑳ THE TABLET'S SOFT KEYBOARD — measured on the real machine 2026-09-01, and the obvious fix was
+**⑳ ✅ THE KEYPAD IS LIVE ON THE TILL — 2026-09-01, `6e586da`.** Human-green on the tablet,
+folio detached, as pam: NEW ITEM → tap **Item name** → letters, tap **Price (CHF)** → digits,
+**no swipe either time.** Angel: *"it works — you did it"*. The beacons agree:
+
+```
+[keypad] focusin on <input> data-keypad=text    -> MINE   open kind=text    padHeight=252
+[keypad] focusin on <input> data-keypad=decimal -> MINE   open kind=decimal padHeight=352
+```
+
+⚠️ **An hour went on a bug that was one wrong field.** The keypad worked as a standalone file and
+did nothing in Banco; four hypotheses (touch gate, modal z-index, service worker, focus-stealing)
+were all wrong. There are **two** create-an-item forms on the scan screen: `lazyName`/`lazyPrice`
+(:1074, :1157) after a SCANNED barcode misses — which I wired — and `otfName`/`otfPrice` (:305,
+:351), the on-the-fly form reached with no barcode, which is the one a cashier uses. Angel said
+*"Item Name"* from his first message; the form I wired says *"Product name"*. **LESSON #1 ×14.**
+The failure was SILENT — no error in Chromium's own log — so `console.log('[keypad] …')` beacons
+had to be added before anything could be found. `/pos/selftest` was built the same hour and is the
+rung that was missing: real app shell, two inputs, nothing else.
+
+### Still open on this thread
+
+| | |
+|---|---|
+| **the pad covers the Price box** | `open()` pads `.app-content`, which is not what holds a field inside a `fixed inset-0` modal. The old system keyboard pushed the screen up and Angel misses it. Fix: pad the modal instead. |
+| **debug beacons are live on prod** | `[keypad]` logs on every focus. Harmless, useful while more fields get wired, but they come out. |
+| **the readout is hard to read** | `/pos/selftest` green-on-black, too low contrast on that screen. |
+| **every other field** | department keypad (`deptPrice`), quantity, cost, discount, customer lookup, login. ~15–20 on the cashier's path — NOT 300. Each one confirmed on the tablet, a few at a time. |
+| **the system keyboard can still be swiped up** | Cannot be blocked from a web page. GNOME's OSK can be switched off (`screen-keyboard-enabled false`) and should be — but **not until our keypad covers every field**, or the uncovered ones become untypeable. |
+| **a wedged kiosk has no way out** | `--kiosk` leaves no address bar; the power button and the folio both did nothing. Recovered with `pkill -f chromium` over SSH. A cashier alone at the counter has no SSH. |
+
+*Not a bug, checked: `[keypad] gate` appearing several times is one line per page load, not a
+double-init.*
+
+---
+
+**⑳a THE MEASUREMENT BEHIND IT — measured on the real machine 2026-09-01, and the obvious fix was
 the wrong one.** Angel: *"it sure does not have the feel of the desktop."* Two separate problems
 were hiding inside that one sentence.
 
