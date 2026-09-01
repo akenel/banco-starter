@@ -14,6 +14,10 @@ Everything below serves that one sentence. The product direction is settled; the
 
 ## 📅 GO-LIVE: 1 OCTOBER 2026 — proposed, and it depends on nothing Felix has not already done
 
+> **Revisited 2026-09-02, 00:45.** October stands as the opening offer, but the date is now
+> **Felix's to choose from a menu of three** — see *Let Felix pick the date* below. **1 January has
+> an argument nobody had made: the paper books close on a whole year.**
+
 *Set 2026-09-01. The point is not the date. The point is that it is a DATE.*
 
 **The rule that chose it: go-live must not depend on the lease.** Felix has to be out of the shop by
@@ -47,6 +51,35 @@ does not come round again.
 **The August measurement sized the work against a catalogue that is mostly stock the shop has never
 touched.** ~450 no-barcode items is a weekend with a gun, not a fourteen-hour matching project.
 **Establish the shelf count before spending another day on bulk EAN work.**
+
+### Let FELIX pick the date — from a menu, and sign against it
+
+*Angel, 00:45 on 2026-09-02: 1 October is doable but tight, and he would rather not rush it.*
+
+**True — and the danger is not the later date, it is a date that moves in private.** A date Angel
+slides on his own at one in the morning will slide again. A date **Felix chooses** will not, because
+it is then his. So do not announce 1 October and quietly hope; **offer three, say what each one
+buys, and sign the contract against whichever he picks.** Angel's own words: *"just give me a date I
+can work with, and let's sign a contract now based on that."* That sentence is the whole strategy.
+
+| date | what it buys | the catch |
+|---|---|---|
+| **1 Oct** | soonest; four clear weeks of parallel running before the Christmas trade | tight — cutover rehearsal, training and the go-live all inside September |
+| **1 Nov** | comfortable; training in October while the shop is quiet | goes live one month before the busiest trade of the year |
+| **1 Jan** | ⭐ **the books close on a whole paper year, and Banco owns the whole new one** | four months out, and long dates lose their heat |
+
+**The fiscal-year argument has not been made yet and is the strongest one on the table.** Going live
+on **1 January** means the paper Kassenbücher close on a complete year and Banco starts a complete
+one — no half-year seam for Felix or his accountant to reconcile, no split VAT period, no
+explaining to anyone which system holds which month. That is not a concession for being slow; it is
+a **better plan**, and it should be presented as one.
+
+**What must NOT happen is going live in December.** Busiest trade of the year, worst possible month
+to be learning a till. If the answer is January, then: **train in November, run parallel through the
+quiet weeks, and let December be paper.**
+
+⚠️ **Whichever he picks, the contract is signed now, against that date.** A date without a signature
+is a wish, and this project has had enough of those.
 
 ### If Felix pushes back
 
