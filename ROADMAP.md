@@ -62,6 +62,36 @@ wants to work *less*, not more. **The person who adopts a system decides whether
 that is not the owner — it is whoever reaches for it on a Tuesday afternoon. Layla should be given
 ownership, not handed a test script.
 
+### What we run on today is PRE-PROD, not prod — and go-live is a CUTOVER, not a switch
+
+*Stated by Angel the evening of 2026-09-01, because it was about to be missed.*
+
+`banco.wolfhold.app/pos` is **pre-production**. It is treated as production in every way that
+matters — real catalogue, real bindings, real money-shaped numbers, no careless writes — and that
+is deliberate, because *it is meant to be exactly what production will be*. But it is **not** the
+box the shop will run on.
+
+**Go-live means a new machine.** On the date, Angel stands up a **fresh Hetzner VPS, exclusively
+for the shop**, on the shop's own domain — `artemisluzern.ch/pos` or whatever Felix picks — rooted
+to our Keycloak. Then a clean-slate build:
+
+| carried over | started empty |
+|---|---|
+| the **catalogue**, with every barcode binding earned since July | **transactions** — not one row |
+| products, prices, age classes, pack tiers | the **cash box**, opened on the go-live date with the real counted float |
+| users and roles | stock movements, day-closes, the audit log |
+
+**Why this matters to every decision before 1 October:** the pre-prod box is not something to be
+protected forever — it is something to be *learned from*. Test rows, a wrong price, a duplicate:
+annoying, worth fixing, **not fatal**, because none of it crosses the cutover except the catalogue.
+The catalogue is the one thing that does. **Guard the catalogue like production; treat the ledger
+as a rehearsal.**
+
+⚠️ **And the cutover itself is a piece of work nobody has scoped yet** — a catalogue export from
+pre-prod, a clean import on the new box, DNS, certs, the cash box opening balance, and a rollback if
+it does not come up. It is not a `deploy-prod.sh` run. It needs its own runbook and its own
+rehearsal, on a throwaway box, *before* the date. That is a WORKLIST item, not a morning.
+
 ## 🧭 What Banco is actually for — the catalogue is the business
 
 *Added 2026-09-01. Mosey of fourtwenty.ch, in Angel's recollection: **"the whole business is the

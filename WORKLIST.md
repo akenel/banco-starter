@@ -139,6 +139,23 @@ out of a `/tmp` session scratchpad on 2026-08-28. The SQL exports are checked in
 
 ### Open, in order
 
+**㉑ THE CUTOVER HAS NO RUNBOOK — and it is not a `deploy-prod.sh` run.** *(raised by Angel, evening
+of 2026-09-01, because it was about to be missed.)* `banco.wolfhold.app/pos` is **pre-prod**, not the
+box the shop will run on. At go-live Angel stands up a **fresh Hetzner VPS for the shop alone**, on
+the shop's own domain (`artemisluzern.ch/pos` or whatever Felix picks), rooted to our Keycloak — then
+a clean-slate build: **the catalogue and every barcode binding carry over; transactions, stock
+movements and the cash box start empty**, the float counted on the day. Full picture in
+[`ROADMAP.md`](ROADMAP.md#what-we-run-on-today-is-pre-prod-not-prod--and-go-live-is-a-cutover-not-a-switch).
+
+The consequence for every day between now and 1 October: **guard the catalogue like production,
+treat the ledger as a rehearsal.** A test row or a wrong price on pre-prod is worth fixing and is
+**not** fatal — none of it crosses the cutover. The catalogue is the one thing that does.
+
+What is missing: a catalogue export→import that is proved lossless (bindings included), DNS + cert
+preflight, the cash-box opening balance step, and a rollback if the new box does not come up.
+**Rehearse it on a throwaway VPS before the date**, not on the day. Sizing this is a morning's work;
+doing it is not.
+
 **⓪ THE 3% IS NOT A MATCHING PROBLEM — 91% OF THE CATALOGUE IS KEYED ON INVENTED CODES.**
 → the full measurement, and the reasoning that killed bulk name-matching:
 [`worklist-archive/2026-08-27-archive-pass.md`](worklist-archive/2026-08-27-archive-pass.md)
