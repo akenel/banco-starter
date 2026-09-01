@@ -123,6 +123,43 @@ almost entirely setup**, and doing that on a tablet is choosing the wrong tool a
 software. No POS on the market is different. Orange, Shopify and Lightspeed all assume a keyboard
 for catalogue work.
 
+## The next x86 machine will arrive with Windows on it. Wipe it.
+
+*Asked 2026-09-02. The answer is yes — with one gate before you erase anything.*
+
+**Wipe to Debian 13, the same as the X1 Tablet, and follow the same runbook**
+([`13-tablet-x1-debian.md`](13-tablet-x1-debian.md)). Not because Linux is better in the abstract —
+because **one image, one runbook, one thing to support**. The counter machine is something you will
+be SSH-ing into at 16:40 on a Saturday with a queue at the till, and at that moment the only thing
+that matters is that it is identical to the one you already know.
+
+**⛔ The gate, before you erase a single byte: boot a Debian live USB and check the hardware.**
+Wifi, touch, sleep/resume, sound, the LTE modem if it has one, and the trackpad. Twenty minutes. If
+any of it is broken on the live USB it will still be broken after the install, and *then* you own it.
+This is the whole risk of the choice, and it is entirely knowable in advance for free.
+
+**Do not dual-boot.** A counter machine that can boot into the wrong operating system will, on the
+morning nobody has time.
+
+### SWOT
+
+| | |
+|---|---|
+| **Strengths** | One image and one runbook across every counter. No licence, no activation, no forced reboot mid-shift, no update at 14:00 on a Saturday. SSH support from anywhere — the thing the monthly service fee is actually made of. Runs light on used hardware, which is the whole reason x86 is the leverage. Kiosk mode is deterministic. Full disk encryption and backups are already scripted. |
+| **Weaknesses** | Drivers are a real risk on unknown hardware — wifi chipsets, sleep/resume, LTE modems, fingerprint readers. Windows would have given a working on-screen keyboard for free. Nobody else in the shop can fix a Linux box, which makes the bus factor exactly one. Resale value of a wiped machine is lower. |
+| **Opportunities** | *"Buy a used ThinkPad, wipe it, own it"* is a far better story for a self-hoster than *"buy our terminal"* — it is the ownership thesis expressed in hardware. It also makes a spare counter machine a €200 decision instead of a €900 one, and a shop with a cold spare on the shelf is a shop that cannot be taken down by a dead laptop. |
+| **Threats** | A machine that qualifies on the live USB and then breaks on a kernel update six months later. Vendor firmware that fights Linux (some 2-in-1s). And the honest one: every hour spent qualifying hardware is an hour not spent on the catalogue, which is the actual business. |
+
+**The weakness that used to be decisive is gone.** Until 2026-09-01, *"Windows has a working
+on-screen keyboard and Debian on this tablet does not"* was a genuine reason to think twice.
+**Banco now draws its own keypad**, so the operating system no longer has to provide one — which is
+exactly what makes wiping to Debian the safe answer rather than the brave one. That is the second
+time this week the keypad has paid for itself.
+
+**One distinction, and keep it straight:** Banco does **not** require Linux. It is a web app and it
+runs perfectly well in a browser on Windows. This section is about the **counter appliance** — the
+machine you support, image and replace — not about what a customer is allowed to use.
+
 ## What to say when someone brings their own device
 
 > *"Banco runs in a browser, so it will render on almost anything. What it cannot promise is the
