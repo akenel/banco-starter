@@ -17,6 +17,57 @@
 
 ---
 
+## 🌅 TOMORROW — 2026-09-02, in order
+
+*Written at the end of an eleven-hour day so the next session does not have to reconstruct it.*
+
+**MORNING — wire the 31 demo-path fields.**
+
+```bash
+python3 scripts/keypad-inventory.py --cashier      # the list, keyed on the words on screen
+```
+
+The demo Angel will actually give — **New Sale → Shelf Intake → Checkout** — is
+**31 fields to wire, 4 already done, 3 do-not-touch.** Not 65, not 290. Wire them in small batches
+and run the proof between each:
+
+```bash
+NODE_PATH=/home/angel/repos/helixnet/node_modules node scripts/prove-keypad.js
+```
+
+**51 assertions, 0 fail, 1 known gap** is the baseline (`docs/keypad-baseline.json`). Anything that
+goes red is a regression, not a debate.
+
+⚠️ **Read `docs/keypad-inventory.md` before touching a field, and go by the LABEL, not the variable.**
+That is the entire lesson of 2026-09-01: `otfName` and `lazyName` look identical to a grep, and one
+of them is the screen a cashier stands on.
+
+⚠️ **`type="number"` must become `type="text"`** for the caret to work — and then the field needs
+`priceOnly()`-style sanitising, because the browser's own policing leaves with the type and a
+**scanner gun is a real keyboard**. `maxlength` does not work on `type=number` either.
+
+**AFTERNOON — the human half on the tablet**, folio detached, gun charged:
+[`onboarding/testsheets/2026-09-01-keypad-retest.html`](onboarding/testsheets/2026-09-01-keypad-retest.html).
+**B4 is the one the machine cannot check** — press OK and hold a beat too long. If that holds across
+31 fields, apply the same treatment to the rest (65 on the cashier path, 172 across all screens).
+
+**THEN — the meeting.** Friday afternoon, Felix. The ask is **one shift, not a verdict**: can Layla
+run 11:00–16:00 alongside paper next week. The page to put in front of him:
+**https://claude.ai/code/artifact/766b35d2-83e0-479b-8b4a-f832dfaee90e** (private — share from the
+page's own menu, or just turn the laptop round).
+
+### The state at close of 2026-09-01
+
+| | |
+|---|---|
+| **live on prod** | `6c65d7d` — the keypad on NEW ITEM's two fields, human-green on the tablet |
+| **fixed today, all human-green** | keyboard rises with no swipe · caret honoured · hold-to-backspace · caps lock · price ceiling CHF 99999.99 · `999.ab` refused from a real keyboard · OK no longer navigates out of a half-built product · the page holds still while a tap completes · phones keep their own keyboard |
+| **instruments built** | `/pos/selftest` · `scripts/keypad-inventory.py` · `scripts/prove-keypad.js` · two testsheets |
+| **decided** | go-live **1 Oct**, not tied to the lease · **Layla first, not Felix** · phones and dates left alone · the catalogue stays the shop's |
+| **not started** | the shelf count (`pos_stock_movements` still 0 rows) · a scan-test a cashier can reach · the debug `[keypad]` beacons still logging on prod |
+
+---
+
 ## ▶️ START HERE — the state at the end of Fri 2026-08-28
 
 **Three things shipped and all three are live on the shop.** None was the hard problem it looked
