@@ -1,0 +1,554 @@
+<title>Banco UAT Sheet Template</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════════════════
+   THE SHEET. Everything below this block is the reusable shell — to make a new UAT sheet,
+   change only this object. Kept in the repo as onboarding/testsheets/TEMPLATE.html.
+
+   step fields:  id · do (required) · expect · why (italic aside) · callout (boxed, for the
+                 load-bearing ones) · codes[] (tap to copy) · link {href,text}
+   ═══════════════════════════════════════════════════════════════════════════════════════ */
+const SHEET = {
+  key:      'banco-keypad-on-the-till-v1',
+  eyebrow:  'Banco POS · counter tablet',
+  title:    'The keypad, on the real machine',
+  standfirst: 'On the counter tablet <b>no browser will ever raise the system keyboard</b> — proved 2026-09-01 down to a blank HTML file with three plain inputs failing exactly like Banco. So Banco now draws its own, and it needs nothing from the operating system: the same behaviour on Debian, on an iPad, on whatever gets bought next. Two fields have it so far — <b>Item name</b> and <b>Price (CHF)</b> on NEW ITEM. Sixty-three more are waiting, and <b>this sheet is what decides whether they get it.</b> The machine already checks correctness 43 ways on every run; what it cannot judge is whether the thing is comfortable in a hand. That is the only question here.',
+  meta: [['Machine','the counter tablet — ThinkPad X1, Debian 13'],
+         ['Shop','banco.wolfhold.app','https://banco.wolfhold.app/pos/scan'],
+         ['Log in as','pam (cashier)'],
+         ['Build','6e586da'],
+         ['Budget','~15 min']],
+  safety: { title: 'Section A creates ONE real catalogue row. Name it ZZTEST.',
+            body: 'Creating an item writes a real product to the shop\'s catalogue. Call it <b>ZZTEST keypad</b> so it is unmistakable, and Section E deactivates it again. <b>Never press Checkout</b> — a completed transaction is a line in the Kassenbuch and cannot be taken back out.' },
+
+  sections: [
+
+    { id: 'A', title: 'The tablet as it actually sits — folio OFF, landscape', time: '6 min', steps: [
+      { id: 'A1',
+        do: 'Tablet on its stand, <b>folio detached</b>. Log in as <b>pam</b> → <b>New Sale</b> → <b>NEW ITEM</b>.',
+        expect: 'The form appears with <b>Item name</b> and <b>Price (CHF)</b>, both empty',
+        why: 'This is the configuration the shop runs in. The stand only holds landscape, so landscape is not one case among four — it is the case.' },
+
+      { id: 'A2',
+        do: 'Tap once inside <b>Item name</b>. Do not swipe anything.',
+        expect: 'A letter keyboard rises from the bottom <b>by itself</b>',
+        callout: 'The whole reason this exists. If you had to swipe, mark FAIL and stop — nothing below matters.',
+        why: 'Before today this field needed the keyboard dragged up by hand, every time, and only a person who knew the trick could work quickly.' },
+
+      { id: 'A3',
+        do: 'Type <b>ZZTEST keypad</b>. Use <b>⇧</b> for the capitals.',
+        expect: 'It reads exactly <code>ZZTEST keypad</code> — no doubled letters, shift releases after one',
+        why: 'A shift that latches means every product name comes out SHOUTING.' },
+
+      { id: 'A4',
+        do: 'Tap <b>ä</b>, <b>ö</b>, <b>ü</b> somewhere in the name, then remove them with backspace.',
+        expect: 'All three type, and backspace removes one character per tap',
+        callout: 'This is a Swiss shop. A keyboard that cannot type Grössen or Zündhölzli is not finished.' },
+
+      { id: 'A5',
+        do: 'Put the cursor in the <b>middle</b> of the name by tapping there. Type one letter.',
+        expect: 'It lands <b>where you tapped</b>, not at the end',
+        why: 'You found this on the prototype. Without it, fixing one letter costs the whole word.' },
+
+      { id: 'A6',
+        do: 'Hold <b>⌫</b> down.',
+        expect: 'It repeats and clears the field. <b>No menu appears.</b>',
+        why: 'Also yours — a long press used to raise the browser\'s own context menu instead of repeating.' },
+
+      { id: 'A7',
+        do: 'Retype <b>ZZTEST keypad</b>, then tap into <b>Price (CHF)</b>.',
+        expect: 'Letters are replaced by a <b>number pad</b>. No swipe, no gap, no second tap',
+        why: 'Name then price, one after the other, is the actual motion a cashier makes.' },
+
+      { id: 'A8',
+        do: 'Type <b>12.50</b>, then tap <b>9</b> once more.',
+        expect: '<b>Nothing happens.</b> Still 12.50',
+        callout: 'The quiet check. A third rappen is not a price, and the pad should simply ignore the key — no error, no toast.',
+        why: 'A feature only ever tested for firing will fire on everything.' },
+
+      { id: 'A9',
+        do: 'With the pad open, look at the <b>Save / Create</b> button.',
+        expect: 'You can <b>see it and reach it</b> — the pad has pushed the screen up, not covered it',
+        callout: 'Read this one properly. Four separate times in this repo the right thing rendered below the fold and every automated check called it fine.' },
+
+      { id: 'A10',
+        do: 'Save the item.',
+        expect: 'It saves, at <b>CHF 12.50</b>, and the pad closes',
+        callout: 'Check the price character by character. A pad that shows 12.50 and hands over 1250 passes every step above this one.',
+        why: 'What is displayed and what is stored are two different things — LESSON #13, three separate occasions.' },
+    ]},
+
+    { id: 'B', title: 'Somebody snaps the keyboard on', time: '3 min', steps: [
+      { id: 'B1',
+        do: 'Snap the <b>folio on</b>, without rebooting. Try the trackpoint.',
+        expect: 'Say what happens. <b>There is no agreed right answer</b> — this is a measurement',
+        callout: 'On 2026-09-01 the trackpoint did NOT come back after a hotplug and needed a reboot. If that repeats, it is a known issue for Felix and a note in the runbook, not something to find at the counter.',
+        why: 'Angel: "Felix wants everything idiot proof... somebody thinks, oh I\'ll just snap on the keyboard."' },
+
+      { id: 'B2',
+        do: 'Open NEW ITEM again and <b>type on the real keys</b> into Item name — include an umlaut.',
+        expect: 'Every character lands, umlauts included',
+        why: 'Our pad sets inputmode=none, which suppresses a SOFT keyboard and has no authority over a real one. The automated run proves this; you are confirming it on the actual folio.' },
+
+      { id: 'B3',
+        do: 'With the folio still on, <b>tap</b> Item name with your finger.',
+        expect: 'Say whether the pad appearing anyway is <b>helpful or annoying</b>',
+        why: 'The pad does not know a keyboard was attached. Whether that is right is a decision, and it is easier to make with the thing in your hands.' },
+    ]},
+
+    { id: 'C', title: 'The fields that must be LEFT ALONE', time: '3 min', steps: [
+      { id: 'C1',
+        do: 'Go to <b>New Sale</b> and tap the <b>barcode</b> box at the top.',
+        expect: '<b>No keypad appears.</b> Nothing happens',
+        callout: 'The scanner gun types into this as a keyboard. A pad here would throw a keyboard over half the screen on every single scan.',
+        why: 'The do-not-touch list was written before the to-do list — 18 fields across the POS.' },
+
+      { id: 'C2',
+        do: 'Scan a real product with the gun.',
+        expect: 'It rings up normally, no pad, no interference',
+        why: 'The gun sends the same key events a folio does. If our pad had changed how those fields behave, this is where it would show.' },
+
+      { id: 'C3',
+        do: 'Go to <b>Shelf intake</b> and tap its scan-or-type box.',
+        expect: '<b>No keypad.</b> You can still type into it with the folio',
+        why: 'Angel flagged this one specifically: it deliberately accepts a scan OR typing, so it must keep both.' },
+
+      { id: 'C4',
+        do: 'Ring an 18+ item, choose to record a <b>date of birth</b>, and tap the date box.',
+        expect: 'The browser\'s own <b>calendar</b> opens — tappable, no keyboard needed',
+        callout: 'This is the 18+ compliance record. "The cashier could not enter a date of birth" is a compliance failure, not an annoyance.',
+        why: 'Dates belong to the browser. All 12 in the POS are excluded on purpose, and the automated run guards against one being wired by mistake.' },
+    ]},
+
+    { id: 'D', title: 'The phone — reported, not required', time: '2 min', steps: [
+      { id: 'D1',
+        do: 'Open the same NEW ITEM form on your phone, <b>portrait</b>. Tap Item name.',
+        expect: 'Say how it feels. Measured here at <b>28px per key</b> — under half a fingertip',
+        why: 'Nobody has decided to support the phone yet. This is evidence for that decision, not a gate on today.' },
+
+      { id: 'D2',
+        do: 'Turn the phone <b>landscape</b> and tap Price.',
+        expect: 'Say how it feels. Measured at <b>91% of the screen height</b>',
+        why: 'You said landscape was the usable one and the numbers said the opposite — then you resolved it: the KEYBOARD was usable, the SCREEN was not. Worth confirming once more with that distinction in mind.' },
+    ]},
+
+    { id: 'E', title: 'Put the shop back', time: '1 min', steps: [
+      { id: 'E1',
+        do: '🗑️ <b>Clear</b> the cart if anything is in it.',
+        expect: 'Empty cart',
+        why: 'A test row left in a basket is a row someone can sell.' },
+
+      { id: 'E2',
+        do: 'Catalogue → find <b>ZZTEST keypad</b> → deactivate it.',
+        expect: 'It no longer appears at the till',
+        callout: 'Deactivate, never delete. Even a test row may already be somebody\'s sales history.' },
+    ]},
+  ],
+
+  closing: [
+    'The machine already checks <b>43 things</b> on every run — is the field marked, is it the right pad, does the value reach the model, is a scanner field left alone, is a date left alone, does it fit four screen sizes. None of that needs a human.',
+    'What it cannot judge is whether this is <b>comfortable in a hand</b>, and that does not vary per field — it varies per <b>pad</b> and per <b>device</b>. That is why this sheet is eighteen checks and not sixty-five.',
+    'If a step is <b>ISSUE</b> rather than FAIL, it worked but something was off — a key too small, a pad too tall, a delay you could feel. Those are the notes worth the most, because a cashier does this a hundred times a day.',
+    '<b>A2 decides it.</b> If the keyboard does not rise on its own, nothing else on this sheet matters.',
+  ],
+};</script>
+
+<style>
+  :root{
+    --paper:#f1f4f2; --card:#fff; --ink:#141d1b; --ink-2:#41514e; --ink-3:#71847f;
+    --rule:#dfe6e2; --rule-2:#eef2f0;
+    --accent:#136259; --accent-soft:#e2efec; --accent-ink:#0d4841;
+    --bad:#a51b1b; --bad-soft:#fbe9e9; --warn:#8a4b06; --warn-soft:#fcf0dd;
+    --good:#1c6b3a; --good-soft:#e4f2e8;
+    --shadow:0 1px 2px rgba(20,29,27,.05), 0 8px 24px -16px rgba(20,29,27,.28);
+  }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+    --paper:#0e1413; --card:#161e1c; --ink:#e8efec; --ink-2:#a3b3ae; --ink-3:#7b8c87;
+    --rule:#27332f; --rule-2:#1d2725;
+    --accent:#5cc4b4; --accent-soft:#12312d; --accent-ink:#8fdcd0;
+    --bad:#f08b8b; --bad-soft:#3a1a1a; --warn:#e5aa5c; --warn-soft:#382512;
+    --good:#7bce9c; --good-soft:#14301f;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  }}
+  :root[data-theme="dark"]{
+    --paper:#0e1413; --card:#161e1c; --ink:#e8efec; --ink-2:#a3b3ae; --ink-3:#7b8c87;
+    --rule:#27332f; --rule-2:#1d2725;
+    --accent:#5cc4b4; --accent-soft:#12312d; --accent-ink:#8fdcd0;
+    --bad:#f08b8b; --bad-soft:#3a1a1a; --warn:#e5aa5c; --warn-soft:#382512;
+    --good:#7bce9c; --good-soft:#14301f;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  }
+  *{box-sizing:border-box}
+  body{background:var(--paper); color:var(--ink); margin:0;
+       font-family:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif; font-size:16px; line-height:1.55}
+  .wrap{max-width:960px; margin:0 auto; padding:0 20px 100px}
+  h1,h2{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",sans-serif; text-wrap:balance; margin:0}
+  .mono{font-family:"IBM Plex Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums}
+
+  header{padding:40px 0 22px; border-bottom:2px solid var(--ink)}
+  .eyebrow{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.14em;
+           text-transform:uppercase; color:var(--accent); font-weight:600}
+  h1{font-size:clamp(32px,5.5vw,50px); font-weight:700; line-height:1.03; letter-spacing:-.015em; margin:10px 0 12px}
+  .standfirst{color:var(--ink-2); max-width:64ch; margin:0}
+  .meta{display:flex; flex-wrap:wrap; gap:8px 22px; margin-top:18px;
+        font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--ink-3)}
+  .meta b{color:var(--ink-2); font-weight:600}
+  .meta a{color:var(--accent)}
+
+  /* who ran it */
+  .who{display:flex; flex-wrap:wrap; gap:10px; margin-top:16px; align-items:center}
+  .who input{font:inherit; font-size:14px; padding:7px 11px; border-radius:5px;
+             border:1px solid var(--rule); background:var(--card); color:var(--ink); min-width:150px}
+  .who input:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
+  .toggle{display:inline-flex; align-items:center; gap:7px; font-size:13px; color:var(--ink-2);
+          cursor:pointer; user-select:none; margin-left:auto}
+
+  /* scoreboard */
+  .board{position:sticky; top:0; z-index:20; background:var(--paper);
+         border-bottom:1px solid var(--rule); padding:10px 0; margin-bottom:6px}
+  .board-in{display:flex; align-items:center; gap:12px; flex-wrap:wrap}
+  .bar{flex:1 1 160px; min-width:120px; height:8px; border-radius:99px; background:var(--rule);
+       overflow:hidden; display:flex}
+  .bar i{display:block; height:100%; width:0; transition:width .25s ease}
+  .bar .p{background:var(--good)} .bar .i{background:var(--warn)} .bar .f{background:var(--bad)}
+  .tally{font-family:"IBM Plex Mono",monospace; font-size:13px; color:var(--ink-2); white-space:nowrap}
+  .tally b{color:var(--ink)}
+  .clock{font-family:"IBM Plex Mono",monospace; font-size:13px; color:var(--ink-3); white-space:nowrap}
+  .verdict{font-family:"IBM Plex Sans Condensed",sans-serif; font-weight:700; font-size:13px;
+           letter-spacing:.06em; text-transform:uppercase; padding:5px 12px; border-radius:4px;
+           background:var(--rule-2); color:var(--ink-3); white-space:nowrap}
+  .verdict.go{background:var(--good-soft); color:var(--good)}
+  .verdict.issues{background:var(--warn-soft); color:var(--warn)}
+  .verdict.nogo{background:var(--bad-soft); color:var(--bad)}
+  .btn{background:none; border:1px solid var(--rule); color:var(--ink-2); font:inherit;
+       font-size:12px; padding:5px 11px; border-radius:4px; cursor:pointer; white-space:nowrap}
+  .btn:hover{border-color:var(--ink-3); color:var(--ink)}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600}
+
+  .stop{display:flex; gap:14px; align-items:flex-start; margin:20px 0 30px; padding:16px 18px;
+        background:var(--bad-soft); border-left:4px solid var(--bad); border-radius:0 6px 6px 0}
+  .stop .sym{font-size:22px} .stop p{margin:0}
+  .stop strong{font-family:"IBM Plex Sans Condensed",sans-serif; font-size:17px; display:block; margin-bottom:2px}
+  .stop small{color:var(--ink-2); font-size:13.5px}
+
+  section{margin:0 0 32px}
+  .sec-head{display:flex; align-items:center; gap:12px; padding-bottom:9px;
+            border-bottom:1px solid var(--ink)}
+  .sec-letter{font-family:"IBM Plex Mono",monospace; font-weight:600; font-size:13px;
+              color:var(--card); background:var(--ink); width:24px; height:24px; border-radius:3px;
+              display:grid; place-items:center; flex:none}
+  .sec-head h2{font-size:21px; font-weight:700; letter-spacing:-.01em; flex:1}
+  .sec-time{font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--ink-3)}
+
+  .step{border-bottom:1px solid var(--rule-2); padding:16px 0}
+  .step:last-child{border-bottom:0}
+  .step-top{display:grid; grid-template-columns:42px 1fr auto; gap:0 14px; align-items:start}
+  .sid{font-family:"IBM Plex Mono",monospace; font-size:12px; font-weight:600; color:var(--ink-3); padding-top:3px}
+  .do{margin:0 0 7px}
+  .expect{color:var(--ink-2); font-size:15px; padding-left:16px; border-left:2px solid var(--accent-soft); margin:0 0 6px}
+  .expect b{color:var(--ink)}
+  .why{color:var(--ink-3); font-size:13.5px; font-style:italic; margin:0}
+  .callout{margin:12px 0 0; padding:12px 15px; background:var(--warn-soft);
+           border-left:3px solid var(--warn); border-radius:0 5px 5px 0; font-size:14.5px}
+  .hidden-expect{padding-left:16px; border-left:2px dashed var(--rule); margin:0 0 6px}
+  .hidden-expect button{background:none; border:0; color:var(--accent); font:inherit; font-size:14px;
+                        cursor:pointer; text-decoration:underline; padding:0}
+
+  .marks{display:flex; gap:5px; flex-wrap:wrap; justify-content:flex-end}
+  .mark{font-family:"IBM Plex Sans Condensed",sans-serif; font-weight:700; font-size:12px;
+        letter-spacing:.04em; padding:7px 11px; border-radius:4px; cursor:pointer;
+        border:1px solid var(--rule); background:var(--card); color:var(--ink-3)}
+  .mark:hover{border-color:var(--ink-3)}
+  .mark:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+  .step[data-v="pass"]  .mark[data-m="pass"] {background:var(--good); border-color:var(--good); color:#fff}
+  .step[data-v="issue"] .mark[data-m="issue"]{background:var(--warn); border-color:var(--warn); color:#fff}
+  .step[data-v="fail"]  .mark[data-m="fail"] {background:var(--bad);  border-color:var(--bad);  color:#fff}
+  .step[data-v="pass"] {background:linear-gradient(90deg,var(--good-soft),transparent 38%)}
+  .step[data-v="issue"]{background:linear-gradient(90deg,var(--warn-soft),transparent 38%)}
+  .step[data-v="fail"] {background:linear-gradient(90deg,var(--bad-soft), transparent 38%)}
+  .stamp{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--ink-3); text-align:right; margin-top:4px}
+
+  .say{margin:10px 0 0 56px}
+  .say textarea{width:100%; min-height:40px; resize:vertical; padding:8px 11px; border-radius:5px;
+                border:1px solid var(--rule); background:var(--card); color:var(--ink);
+                font:inherit; font-size:14px}
+  .say textarea:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
+  .step[data-v="fail"] .say textarea, .step[data-v="issue"] .say textarea{border-color:var(--warn)}
+  .say label{display:block; font-size:11.5px; color:var(--ink-3); margin-bottom:4px;
+             font-family:"IBM Plex Mono",monospace; letter-spacing:.04em; text-transform:uppercase}
+
+  .codes{display:flex; flex-wrap:wrap; gap:6px; margin:8px 0}
+  .ean{font-family:"IBM Plex Mono",monospace; font-size:13.5px; font-weight:600;
+       background:var(--accent-soft); color:var(--accent-ink); padding:3px 9px; border-radius:4px;
+       cursor:pointer; border:1px solid transparent}
+  .ean:hover{border-color:var(--accent)}
+  .ean.copied{background:var(--good-soft); color:var(--good)}
+
+  .close{margin-top:40px; padding-top:26px; border-top:2px solid var(--ink)}
+  .close h2{font-size:23px; margin-bottom:8px}
+  .close li{color:var(--ink-2); font-size:14.5px; margin-bottom:7px}
+  .summary{margin-top:16px; padding:16px 18px; background:var(--card); border:1px solid var(--rule);
+           border-radius:8px; box-shadow:var(--shadow)}
+  .summary pre{margin:0; font-family:"IBM Plex Mono",monospace; font-size:12.5px; line-height:1.65;
+               white-space:pre-wrap; color:var(--ink-2); max-height:340px; overflow:auto}
+  .sumbar{display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; align-items:center}
+  .said{color:var(--good); font-size:12px; font-family:"IBM Plex Mono",monospace}
+
+  @media (max-width:680px){
+    .step-top{grid-template-columns:34px 1fr; gap:0 10px}
+    .marks{grid-column:2; padding-top:10px; justify-content:flex-start}
+    .say{margin-left:44px}
+  }
+  @media (prefers-reduced-motion:reduce){ *{transition:none!important} }
+  @media print{ .board,.btn,.marks,.who,.toggle{display:none!important} body{background:#fff} }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow" id="eyebrow"></div>
+    <h1 id="title"></h1>
+    <p class="standfirst" id="standfirst"></p>
+    <div class="meta" id="meta"></div>
+    <div class="who">
+      <input id="who-name" placeholder="Tested by…" autocomplete="off">
+      <input id="who-where" placeholder="Till / device…" autocomplete="off">
+      <label class="toggle"><input type="checkbox" id="training"> Training mode — hide the expected result</label>
+    </div>
+  </header>
+
+  <div class="board">
+    <div class="board-in">
+      <div class="bar"><i class="p" id="bp"></i><i class="i" id="bi"></i><i class="f" id="bf"></i></div>
+      <div class="tally"><b id="done">0</b>/<span id="total">0</span> · <span id="np">0</span>✓ <span id="ni">0</span>! <span id="nf">0</span>✕</div>
+      <div class="clock" id="clock">—</div>
+      <div class="verdict" id="verdict">Not started</div>
+      <button class="btn" id="reset" type="button">Clear</button>
+    </div>
+  </div>
+
+  <div class="stop"><div class="sym">⛔</div><p><strong id="safety-t"></strong><small id="safety-b"></small></p></div>
+
+  <div id="sheet"></div>
+
+  <div class="close">
+    <h2>Results</h2>
+    <ul id="closing"></ul>
+    <div class="summary">
+      <div class="sumbar">
+        <button class="btn primary" id="copy" type="button">Copy results</button>
+        <button class="btn" id="print" type="button">Print / PDF</button>
+        <span class="said" id="said"></span>
+      </div>
+      <pre id="sum">Nothing marked yet.</pre>
+    </div>
+  </div>
+</div>
+
+<noscript><p style="padding:20px;color:#a51b1b">This sheet needs JavaScript — it records your marks as you go.</p></noscript>
+
+<script>
+(function () {
+  var S = SHEET, state = {}, started = null, tick = null;
+  var steps = [];
+  S.sections.forEach(function (sec) { sec.steps.forEach(function (st) { steps.push(st); }); });
+
+  function load() { try { var v = JSON.parse(localStorage.getItem(S.key) || '{}'); state = v.marks || {}; started = v.started || null;
+                          if (v.who) { $('who-name').value = v.who.name || ''; $('who-where').value = v.who.where || ''; } } catch (e) {} }
+  function save() { try { localStorage.setItem(S.key, JSON.stringify({
+                          marks: state, started: started,
+                          who: { name: $('who-name').value, where: $('who-where').value } })); } catch (e) {} }
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { return String(s == null ? '' : s); }
+  function hhmmss(ms) { var t = Math.max(0, Math.round(ms / 1000));
+    return (t / 3600 | 0 ? (t / 3600 | 0) + 'h ' : '') + ((t % 3600) / 60 | 0) + 'm ' + (t % 60) + 's'; }
+
+  // ── render the sheet from SHEET ────────────────────────────────────────────────────────
+  $('eyebrow').textContent = S.eyebrow;
+  $('title').textContent = S.title;
+  $('standfirst').innerHTML = S.standfirst;
+  $('total').textContent = steps.length;
+  $('meta').innerHTML = S.meta.map(function (m) {
+    return '<span><b>' + esc(m[0]) + '</b> ' + (m[2] ? '<a href="' + m[2] + '">' + esc(m[1]) + '</a>' : esc(m[1])) + '</span>';
+  }).join('');
+  $('safety-t').textContent = S.safety.title;
+  $('safety-b').innerHTML = S.safety.body;
+  $('closing').innerHTML = (S.closing || []).map(function (c) { return '<li>' + c + '</li>'; }).join('');
+
+  $('sheet').innerHTML = S.sections.map(function (sec) {
+    return '<section><div class="sec-head"><div class="sec-letter">' + esc(sec.id) + '</div>' +
+      '<h2>' + esc(sec.title) + '</h2><div class="sec-time">' + esc(sec.time || '') + '</div></div>' +
+      sec.steps.map(function (st) {
+        var codes = (st.codes || []).map(function (c) {
+          return '<span class="ean" role="button" tabindex="0">' + esc(c) + '</span>'; }).join('');
+        return '<div class="step" data-id="' + esc(st.id) + '">' +
+          '<div class="step-top">' +
+            '<div class="sid">' + esc(st.id) + '</div>' +
+            '<div>' +
+              '<p class="do">' + st.do + '</p>' +
+              (codes ? '<div class="codes">' + codes + '</div>' : '') +
+              (st.expect ? '<p class="expect js-expect">' + st.expect + '</p>' +
+                           '<p class="hidden-expect js-hidden" style="display:none">' +
+                           '<button type="button" class="js-reveal">Show what should happen ›</button></p>' : '') +
+              (st.why ? '<p class="why">' + st.why + '</p>' : '') +
+              (st.callout ? '<div class="callout">' + st.callout + '</div>' : '') +
+            '</div>' +
+            '<div><div class="marks">' +
+              '<button class="mark" data-m="pass">PASS</button>' +
+              '<button class="mark" data-m="issue">ISSUE</button>' +
+              '<button class="mark" data-m="fail">FAIL</button>' +
+            '</div><div class="stamp js-stamp"></div></div>' +
+          '</div>' +
+          '<div class="say"><label>Notes — what you saw, what confused you</label>' +
+          '<textarea rows="1" placeholder="optional on a pass, please fill in on an issue or a fail"></textarea></div>' +
+        '</div>';
+      }).join('') + '</section>';
+  }).join('');
+
+  // ── behaviour ──────────────────────────────────────────────────────────────────────────
+  function startClock() {
+    if (!started) { started = Date.now(); save(); }
+    if (!tick) tick = setInterval(paintClock, 1000);
+    paintClock();
+  }
+  function paintClock() {
+    if (!started) { $('clock').textContent = '—'; return; }
+    var doneAll = steps.every(function (s) { return (state[s.id] || {}).v; });
+    var end = doneAll ? lastStamp() : Date.now();
+    $('clock').textContent = '⏱ ' + hhmmss(end - started) + (doneAll ? '' : '…');
+    if (doneAll && tick) { clearInterval(tick); tick = null; }
+  }
+  function lastStamp() {
+    return steps.reduce(function (m, s) { return Math.max(m, (state[s.id] || {}).at || 0); }, started || 0);
+  }
+
+  function paint() {
+    var np = 0, ni = 0, nf = 0;
+    document.querySelectorAll('.step').forEach(function (el) {
+      var st = state[el.dataset.id] || {};
+      if (st.v) el.dataset.v = st.v; else el.removeAttribute('data-v');
+      if (st.v === 'pass') np++; if (st.v === 'issue') ni++; if (st.v === 'fail') nf++;
+      var ta = el.querySelector('textarea');
+      if (ta && ta.value !== (st.note || '')) ta.value = st.note || '';
+      var stamp = el.querySelector('.js-stamp');
+      stamp.textContent = st.at ? new Date(st.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+    });
+    var n = steps.length, done = np + ni + nf;
+    $('done').textContent = done; $('np').textContent = np; $('ni').textContent = ni; $('nf').textContent = nf;
+    $('bp').style.width = (np / n * 100) + '%';
+    $('bi').style.width = (ni / n * 100) + '%';
+    $('bf').style.width = (nf / n * 100) + '%';
+    var v = $('verdict'); v.className = 'verdict';
+    if (nf) { v.classList.add('nogo'); v.textContent = 'No go'; }
+    else if (done === n && ni) { v.classList.add('issues'); v.textContent = 'Go with issues'; }
+    else if (done === n) { v.classList.add('go'); v.textContent = 'Go'; }
+    else if (!done) { v.textContent = 'Not started'; }
+    else { v.textContent = (n - done) + ' left'; }
+    paintClock();
+    $('sum').textContent = report();
+  }
+
+  function report() {
+    var np = 0, ni = 0, nf = 0, rows = [];
+    steps.forEach(function (s) {
+      var st = state[s.id] || {};
+      if (!st.v && !st.note) return;
+      if (st.v === 'pass') np++; if (st.v === 'issue') ni++; if (st.v === 'fail') nf++;
+      rows.push('  ' + (s.id + '    ').slice(0, 5) + (st.v ? st.v.toUpperCase() : '—').padEnd(6) +
+                (st.note ? '· ' + st.note.replace(/\s+/g, ' ') : ''));
+    });
+    if (!rows.length) return 'Nothing marked yet.';
+    var who = $('who-name').value.trim(), where = $('who-where').value.trim();
+    var done = np + ni + nf;
+    var head = [
+      S.title,
+      'build ' + (S.meta.find(function (m) { return m[0] === 'Build'; }) || [])[1],
+      who ? 'tested by ' + who : null,
+      where ? 'on ' + where : null,
+      started ? new Date(started).toLocaleString() : null,
+      // Elapsed, not first-mark-to-last-mark: a half-finished run was reporting "took 0m 0s"
+      // because only one step had a timestamp. A finished run freezes at the last mark.
+      started ? (done === steps.length ? 'took ' : 'running ') + hhmmss((done === steps.length ? lastStamp() : Date.now()) - started) : null,
+    ].filter(Boolean).join(' · ');
+    var verdict = nf ? 'NO GO' : (done === steps.length ? (ni ? 'GO WITH ISSUES' : 'GO') : 'INCOMPLETE');
+    return head + '\n' + '-'.repeat(Math.min(head.length, 72)) + '\n' + rows.join('\n') +
+      '\n\n' + np + ' pass · ' + ni + ' issue · ' + nf + ' fail · ' +
+      (steps.length - done) + ' not run\nVERDICT: ' + verdict;
+  }
+
+  document.querySelectorAll('.step').forEach(function (el) {
+    var id = el.dataset.id;
+    el.querySelectorAll('.mark').forEach(function (b) {
+      b.addEventListener('click', function () {
+        startClock();
+        state[id] = state[id] || {};
+        if (state[id].v === b.dataset.m) { state[id].v = null; state[id].at = null; }
+        else { state[id].v = b.dataset.m; state[id].at = Date.now(); }
+        save(); paint();
+      });
+    });
+    var ta = el.querySelector('textarea');
+    ta.addEventListener('input', function () {
+      state[id] = state[id] || {}; state[id].note = ta.value;
+      ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 220) + 'px';
+      save(); $('sum').textContent = report();
+    });
+    var rev = el.querySelector('.js-reveal');
+    if (rev) rev.addEventListener('click', function () {
+      el.querySelector('.js-expect').style.display = '';
+      el.querySelector('.js-hidden').style.display = 'none';
+    });
+  });
+
+  // Training mode: the tester says what they saw BEFORE reading what they were told to see.
+  // A sheet that shows the answer first is a checklist; one that does not is a lesson.
+  $('training').addEventListener('change', function () {
+    var on = $('training').checked;
+    document.querySelectorAll('.step').forEach(function (el) {
+      var e = el.querySelector('.js-expect'), h = el.querySelector('.js-hidden');
+      if (!e || !h) return;
+      e.style.display = on ? 'none' : '';
+      h.style.display = on ? '' : 'none';
+    });
+  });
+
+  ['who-name', 'who-where'].forEach(function (id) {
+    $(id).addEventListener('input', function () { save(); $('sum').textContent = report(); });
+  });
+
+  $('reset').addEventListener('click', function () {
+    state = {}; started = null; if (tick) { clearInterval(tick); tick = null; }
+    save(); paint();
+  });
+
+  $('copy').addEventListener('click', function () {
+    var txt = report(), done = function () {
+      $('said').textContent = 'copied'; setTimeout(function () { $('said').textContent = ''; }, 1400); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(done, fallback);
+    else fallback();
+    function fallback() {
+      var t = document.createElement('textarea'); t.value = txt; document.body.appendChild(t); t.select();
+      try { document.execCommand('copy'); done(); } catch (e) { $('said').textContent = 'select the text below and copy'; }
+      document.body.removeChild(t);
+    }
+  });
+  $('print').addEventListener('click', function () { window.print(); });
+
+  document.querySelectorAll('.ean').forEach(function (el) {
+    function copy() {
+      var txt = el.textContent.trim(), ok = function () {
+        el.classList.add('copied'); setTimeout(function () { el.classList.remove('copied'); }, 900); };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(ok, function () {});
+      else { var t = document.createElement('textarea'); t.value = txt; document.body.appendChild(t); t.select();
+             try { document.execCommand('copy'); ok(); } catch (e) {} document.body.removeChild(t); }
+    }
+    el.addEventListener('click', copy);
+    el.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); copy(); } });
+  });
+
+  load(); paint();
+  if (started) { tick = setInterval(paintClock, 1000); paintClock(); }
+})();
+</script>
