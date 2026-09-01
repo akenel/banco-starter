@@ -71,24 +71,24 @@
 | 219 | **Qty** | `deptQty` | `number` | — | numeric · whole numbers — no decimal point |
 | 305 | **Item name** | `otfName` | `text` | ✅ text | text |
 | 351 | **Price (CHF)** | `otfPrice` | `text` | ✅ decimal | decimal |
-| 384 | **Description** | `otfDescription` | `text` | — | text |
-| 388 | **Category** | `otfCategory` | `text` | — | text |
-| 515 | **—** | `—` | `text` | — | numeric |
-| 595 | **Discount %** | `discount` | `number` | — | decimal |
-| 615 | **Agreed Final Total (CHF) (Full: )** | `targetTotal` | `number` | — | decimal |
-| 730 | **Price (CHF)** | `priceEdit.price` | `number` | — | decimal |
-| 736 | **Quantity price breaks** | `row.min_qty` | `number` | — | numeric · whole numbers — no decimal point |
-| 738 | **Quantity price breaks** | `row.unit_price` | `number` | — | decimal |
-| 808 | **Price (CHF)** | `firstPrice` | `number` | — | decimal |
-| 920 | **Scanned barcode** | `lazyBarcode` | `text` | ⛔ | DO NOT TOUCH · scanner gun types here |
-| 949 | **What is it? Find it in the catalog** | `lazyLinkQuery` | `text` | — | text |
-| 1045 | **Price (CHF)** | `refPrice` | `number` | — | decimal |
-| 1074 | **Product name** | `lazyName` | `text` | ✅ text | text |
-| 1157 | **Price (CHF)** | `lazyPrice` | `text` | ✅ decimal | decimal |
-| 1161 | **Quantity** | `lazyQty` | `number` | — | numeric · whole numbers — no decimal point |
-| 1172 | **Cost / unit (CHF)** | `lazyCost` | `number` | — | decimal |
-| 1176 | **Box cost (CHF)** | `boxCost` | `number` | — | decimal |
-| 1180 | **Units in box** | `boxUnits` | `number` | — | numeric · whole numbers — no decimal point |
+| 386 | **Description** | `otfDescription` | `text` | — | text |
+| 390 | **Category** | `otfCategory` | `text` | — | text |
+| 517 | **—** | `—` | `text` | — | numeric |
+| 597 | **Discount %** | `discount` | `number` | — | decimal |
+| 617 | **Agreed Final Total (CHF) (Full: )** | `targetTotal` | `number` | — | decimal |
+| 732 | **Price (CHF)** | `priceEdit.price` | `number` | — | decimal |
+| 738 | **Quantity price breaks** | `row.min_qty` | `number` | — | numeric · whole numbers — no decimal point |
+| 740 | **Quantity price breaks** | `row.unit_price` | `number` | — | decimal |
+| 810 | **Price (CHF)** | `firstPrice` | `number` | — | decimal |
+| 922 | **Scanned barcode** | `lazyBarcode` | `text` | ⛔ | DO NOT TOUCH · scanner gun types here |
+| 951 | **What is it? Find it in the catalog** | `lazyLinkQuery` | `text` | — | text |
+| 1047 | **Price (CHF)** | `refPrice` | `number` | — | decimal |
+| 1076 | **Product name** | `lazyName` | `text` | ✅ text | text |
+| 1159 | **Price (CHF)** | `lazyPrice` | `text` | ✅ decimal | decimal |
+| 1165 | **Quantity** | `lazyQty` | `number` | — | numeric · whole numbers — no decimal point |
+| 1176 | **Cost / unit (CHF)** | `lazyCost` | `number` | — | decimal |
+| 1180 | **Box cost (CHF)** | `boxCost` | `number` | — | decimal |
+| 1184 | **Units in box** | `boxUnits` | `number` | — | numeric · whole numbers — no decimal point |
 
 ## `search.html`
 
