@@ -1119,6 +1119,31 @@ cannot run `upower` or see the host Bluetooth stack. Something on the tablet has
 reading only adds catching a gun at 15% *before* a shift instead of mid-sale. Nice, not urgent.
 Not promoted to `WORKLIST.md`; item 3 (the bulk catalogue scripts on prod) is still next.
 
+> ### 🔄 REPRICED 2026-09-01 — and the thing to build is not the battery reading
+>
+> *"Nice, not urgent"* was written before it cost anything. On 2026-09-01 a flat gun stopped
+> scanning into Shelf Intake, then into New Sale, and read as a software regression: about twenty
+> minutes, a Playwright burst against the live build, and a git archaeology dig to establish the
+> app was innocent. **A remembered verdict is a hypothesis with a timestamp on it** — this one has
+> now been measured.
+>
+> **But the cashier does not need a percentage.** Angel's own words, standing at the counter:
+> *"they would jump into that hardware check and say, hey, listen, this thing's not working. It's
+> obvious. Grab the other gun. No big deal."* The decision is **is it scanning — yes or no**, in
+> two seconds, in front of a customer. A battery number does not answer that; a **scan-test box**
+> does — focus it, pull the trigger, characters appear or they do not. It needs no agent, no
+> systemd timer and no endpoint, and it works for **any** gun, wired or Bluetooth, on any machine.
+>
+> ⚠️ **And `/pos/hardware` is MANAGER-ONLY.** The person holding a dead gun in front of a customer
+> is a cashier, and cannot reach the page that would tell them. That is LESSON #1 again — ask
+> which screen the person is standing on. Whatever gets built has to be reachable by the person
+> with the problem.
+>
+> Revised order: **1.** a scan-test a cashier can reach (free, answers the real question).
+> **2.** `navigator.getBattery()` for the TABLET's own charge (free, and a flat till is worse than
+> a flat gun — the gun has a spare). **3.** the gun's own battery via the agent in option A, which
+> is the only one needing infrastructure. Two beeps and no red flash is the tell until then.
+
 ---
 
 ## Open items
