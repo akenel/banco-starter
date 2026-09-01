@@ -325,6 +325,51 @@ async function main() {
     }
     await p.setViewportSize({ width: 1280, height: 1000 });
 
+    // ── F ─────────────────────────────────────────────────────────────────
+    // Angel, 2026-09-01: "we have to test it in portrait AND landscape, for both
+    // the mobile and the tablet... some of these screens, it might screw up."
+    // Right, and section E only measures the KEYPAD. This measures the SCREEN.
+    //
+    // The check is horizontal overflow, which is the classic tell that a layout
+    // has broken: the body is wider than the window, so the page scrolls sideways
+    // and something is off the edge where nobody will look for it. base.html's own
+    // rule is that wide content scrolls INSIDE its own container, never the page.
+    head('F · do the screens survive being turned sideways?');
+    for (const f of [
+      { name: 'tablet landscape', w: 1280, h: 800  },
+      { name: 'tablet portrait',  w: 800,  h: 1280 },
+      { name: 'phone portrait',   w: 390,  h: 844  },
+    ]) {
+      await p.setViewportSize({ width: f.w, height: f.h });
+      const broken = [];
+      for (const s of SCREENS) {
+        await p.goto(`${ROOT}${s}`, { waitUntil: 'domcontentloaded' });
+        await waitAlpine(p);
+        const over = await p.evaluate(() => {
+          const d = document.documentElement;
+          const slop = d.scrollWidth - window.innerWidth;
+          if (slop <= 2) return null;
+          // Name the widest offender, or the report is just a number to argue with.
+          let worst = null, max = 0;
+          for (const el of document.querySelectorAll('body *')) {
+            const r = el.getBoundingClientRect();
+            if (r.width > 0 && r.right > window.innerWidth + 2 && r.right > max) {
+              max = r.right;
+              worst = (el.tagName.toLowerCase()
+                    + (el.id ? '#' + el.id : '')
+                    + (el.className && typeof el.className === 'string'
+                        ? '.' + el.className.trim().split(/\s+/).slice(0, 2).join('.') : ''));
+            }
+          }
+          return { slop, worst };
+        });
+        if (over) broken.push(`${s} (+${over.slop}px: ${over.worst})`);
+      }
+      check(broken.length === 0, `${f.name} — no screen scrolls sideways`,
+            broken.length ? broken.join('  ·  ') : `${SCREENS.length} screens clean`);
+    }
+    await p.setViewportSize({ width: 1280, height: 1000 });
+
     // ── D ─────────────────────────────────────────────────────────────────
     head('D · coverage (reported, not failed — this is a progress number)');
     const cov = await p.evaluate(() => {
