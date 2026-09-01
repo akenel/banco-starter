@@ -1,0 +1,81 @@
+{% extends "pos/base.html" %}
+
+{% block title %}Device self-test - HelixPOS{% endblock %}
+{% block page_name %}Self-test{% endblock %}
+
+{#  ── WHY THIS PAGE EXISTS ────────────────────────────────────────────────────
+    The rung of the ladder that was missing on 2026-09-01. The keypad worked
+    perfectly as a standalone HTML file on the tablet and did nothing at all in
+    Banco — and there was no way to tell WHICH of the two hundred things Banco
+    does was responsible, because the only in-app test surface was the most
+    complicated screen in the application.
+
+    This page is genuinely Banco — real base.html, real Alpine, real scripts,
+    real service worker, real app-shell — and genuinely simple: two inputs and a
+    readout. Anything that works here and fails on a real screen is that screen's
+    fault. Anything that fails here is the shell's.
+
+    Angel asked for it in his own words: "I wanna sort of isolate it to a simple
+    test, one page that has a text, one page that has a numeric number input,
+    just like the new item."                                                    #}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 p-4">
+  <div class="max-w-xl mx-auto space-y-4">
+
+    <div class="card">
+      <h1 class="text-xl font-bold mb-1">Device self-test</h1>
+      <p class="text-sm text-gray-500">
+        The same two fields as <b>NEW ITEM</b>, in a page with nothing else in it.
+        Tap each box. The keypad should appear on its own, with no swipe.
+      </p>
+    </div>
+
+    <div class="card">
+      <label class="block text-sm font-medium text-gray-700 mb-1">Item Name (text)</label>
+      <input type="text" data-keypad="text" class="input-field" placeholder="tap me">
+    </div>
+
+    <div class="card">
+      <label class="block text-sm font-medium text-gray-700 mb-1">Price (CHF) (numbers)</label>
+      <input type="text" data-keypad="decimal" class="input-field text-2xl font-bold" placeholder="tap me">
+    </div>
+
+    <div class="card">
+      <h2 class="font-bold mb-2">What this device reports</h2>
+      <pre id="report" class="text-xs bg-gray-900 text-green-300 p-3 rounded-lg whitespace-pre-wrap break-all">measuring…</pre>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  // Deliberately NOT deferred and placed last: everything it reports on has
+  // already run by now, so a value here is a measurement and not a race.
+  window.addEventListener('load', function () {
+    var L = [];
+    function add(k, v) { L.push((k + '                            ').slice(0, 30) + ': ' + v); }
+
+    add('window.posKeypad',          typeof window.posKeypad);
+    add('keypad script decided',     (typeof window.posKeypad === 'object')
+                                       ? 'ACTIVE'
+                                       : 'NOT ACTIVE — it returned early');
+    add('posIsTouchDevice exists',   typeof window.posIsTouchDevice);
+    try { add('posIsTouchDevice()',  window.posIsTouchDevice ? window.posIsTouchDevice() : 'n/a'); }
+    catch (e) { add('posIsTouchDevice()', 'THREW ' + e); }
+    add('navigator.maxTouchPoints',  navigator.maxTouchPoints);
+    add('pointer:coarse',            matchMedia('(pointer: coarse)').matches);
+    add('any-pointer:coarse',        matchMedia('(any-pointer: coarse)').matches);
+    add('inputs marked',             document.querySelectorAll('[data-keypad]').length);
+    add('pads in the DOM',           document.querySelectorAll('.pk').length);
+    add('service worker',            ('serviceWorker' in navigator)
+                                       ? (navigator.serviceWorker.controller ? 'controlling this page' : 'registered, not controlling')
+                                       : 'unsupported');
+    add('userAgent',                 navigator.userAgent);
+
+    document.getElementById('report').textContent = L.join('\n');
+  });
+</script>
+{% endblock %}

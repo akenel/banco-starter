@@ -11738,6 +11738,23 @@ async def pos_scan(request: Request):
     })
 
 
+@html_router.get("/pos/selftest", response_class=HTMLResponse, name="pos_selftest")
+async def pos_selftest(request: Request):
+    """Device self-test — is this tablet's keyboard actually working?
+
+    Two inputs and a readout, inside the REAL app shell. Added 2026-09-01, after
+    the on-screen keypad worked perfectly as a standalone file on the counter
+    tablet and did nothing whatever inside Banco — with no way to tell which of
+    the app's many layers was eating it, because the only in-app test surface was
+    the most complicated screen we have.
+
+    No login gate on purpose: the person who needs this is standing at a device
+    whose keyboard does not work, which is a poor moment to ask them to type a
+    password. It reads nothing and writes nothing.
+    """
+    return templates.TemplateResponse("pos/selftest.html", {"request": request})
+
+
 @html_router.get("/pos/catalog", response_class=HTMLResponse, name="pos_catalog")
 async def pos_catalog(request: Request):
     """Catalog management dashboard (BL-88) — manager/admin CRUD over products.

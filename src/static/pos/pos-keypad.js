@@ -34,7 +34,13 @@
   var isTouch = (typeof window.posIsTouchDevice === 'function')
               ? window.posIsTouchDevice()
               : ((navigator.maxTouchPoints || 0) > 0);
-  if (!isTouch) return;
+  // Beacons. Added 2026-09-01 because this script failed SILENTLY on the counter
+  // tablet — no error, no pad, nothing in the console to say it had even run.
+  // A feature that can switch itself off must say so out loud. Grep '[keypad]'.
+  console.log('[keypad] gate: isTouch=' + isTouch
+            + ' maxTouchPoints=' + navigator.maxTouchPoints
+            + ' posIsTouchDevice=' + (typeof window.posIsTouchDevice));
+  if (!isTouch) { console.log('[keypad] STOPPED — not a touch device'); return; }
 
   var CSS = ''
     + '.pk{position:fixed;left:0;right:0;bottom:0;display:none;background:#e5e7eb;'
@@ -139,6 +145,8 @@
     var pad = (k === 'decimal' || k === 'numeric') ? num : abc;
     num.classList.toggle('on', pad === num);
     abc.classList.toggle('on', pad === abc);
+    console.log('[keypad] open kind=' + k + ' padHeight=' + pad.offsetHeight
+              + ' padZ=' + (getComputedStyle(pad).zIndex));
     // LESSON #12 — being in the DOM is not being on the screen. Clear the pad's
     // height out of the scroll area AND put the field the finger is in on screen.
     var sc = scroller();
@@ -252,6 +260,9 @@
   }
   document.addEventListener('focusin', function (e) {
     var el = target(e);
+    console.log('[keypad] focusin on <' + (e.target.tagName || '?').toLowerCase()
+              + '> data-keypad=' + (e.target.getAttribute ? e.target.getAttribute('data-keypad') : 'n/a')
+              + ' -> ' + (el ? 'MINE' : 'not mine'));
     if (el) open(el, el.getAttribute('data-keypad'));
     else if (active && e.target !== active) shut();   // focus went somewhere else
   });
@@ -261,4 +272,5 @@
   });
 
   window.posKeypad = { close: shut };
+  console.log('[keypad] active — listening for focus on [data-keypad]');
 })();
