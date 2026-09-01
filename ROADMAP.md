@@ -12,6 +12,51 @@
 
 Everything below serves that one sentence. The product direction is settled; the work is making the ownership promise *demonstrably* true and *repeatable by someone who isn't you*.
 
+## 🧭 What Banco is actually for — the catalogue is the business
+
+*Added 2026-09-01. Mosey of fourtwenty.ch, in Angel's recollection: **"the whole business is the
+bloody catalogue."** He is right, and it is the clearest statement of what this project sells.*
+
+**The north star above is about owning the SOFTWARE. This is about owning the DATA, and it is the
+half that actually decides whether a shop is free.** Look at what the reference shop owns today:
+
+| what it sells | who owns the identity data | what it costs |
+|---|---|---|
+| the Tamar range | **Tamar** — their platform, their skin, EANs withheld | CHF ~25k up front + **10–15% of every sale** through it |
+| the FourTwenty range | Mosey — but he **publishes a feed with EANs** | supply relationship |
+| 12–15 other suppliers | nobody, effectively | — |
+| items with no barcode at all | nobody | — |
+
+**The shop does not have a catalogue. It has four fragments, three of which belong to other people.**
+That is not a till problem, and it is why no product on the market fixes it: **Orange, Shopify and
+Lightspeed all BEGIN by assuming you already own your product data.** They sell a till for a
+catalogue you are presumed to have.
+
+**So the pitch is not "a nicer till". It is: at the end of this, the list is yours — whoever you buy
+from next year.** Everything hard about 2026 (the 91% minted-barcode measurement, the EAN request
+email, the image matcher, the merge tooling, never inventing an identifier) is one piece of work:
+**moving the catalogue from somebody else's asset to the shop's own.**
+
+It also explains the commercial shape without anyone behaving badly. A supplier who hands over the
+EAN list is handing over the key that lets the shop scan **anyone's** goods. Withholding it is not
+spite; it is the same logic as a channel commission. *Expect the resistance and frame the ask as
+operational — "when you ship me goods, what do you scan?" — not as a data request.*
+See [`onboarding/supplier-ean-request.md`](onboarding/supplier-ean-request.md).
+
+### Why the vertical is real
+
+A general POS cannot serve this trade, and the reasons are regulatory and structural rather than
+cosmetic:
+
+1. **18+ evidence as an append-only record** (`trg_ace_append_only`) — a Swiss compliance artefact,
+   not a checkbox.
+2. **Products with no barcode**, and the discipline of never minting a fake one (LESSON #9).
+3. **Supplier feeds from wholesalers who will not give you identity data** — the whole of August.
+4. **CBD / tobacco / nicotine tax classes driving the age gate**, derived rather than stored.
+
+⚠️ **Unverified:** that no head-shop-specific POS exists. Worth an hour of checking before the claim
+is made to anyone. *A remembered verdict is a hypothesis with a timestamp on it* (LESSON #3).
+
 ## 📍 Honest state (2026-07-22)
 
 **Solid.** A real Swiss shop runs on it today. The go-live pipeline is genuinely well-built: `deploy-prod.sh` gates on a fresh backup, a build-stamp match, and a live-HTTPS check; `go-live.py` validates hostnames, backs up `.env`, generates Caddy config, and prints the exact DNS/firewall steps; `restore-from-b2.sh` is careful (safe `.env` parsing, env-overrides-`.env`, newest-by-timestamp, row-count proof). The onboarding kit (roadmap + checklist + 7 guides + testsheet + AI coach) is thorough. The commit log is a steady stream of real hardening.
