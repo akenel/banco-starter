@@ -13,11 +13,11 @@
 > [`worklist-archive/done.md`](worklist-archive/done.md) with its commit hashes; when a thread grows
 > a long write-up, the write-up goes to the archive and a one-line pointer stays here.
 
-*Last updated: 2026-09-01 — ⑳ the keypad Banco draws itself is LIVE and human-green on the till: no browser on that tablet raises a keyboard, and `inputmode` is ignored there, which killed the 290-field fix before it shipped. Next: the modal shift, then the rest of the cashier's fields — or ⓪e's 55 placeholder prices, or CBD Flower.*
+*Last updated: 2026-09-01 (evening) — ⑳ the keypad Banco draws itself is LIVE and human-green on the till: no browser on that tablet raises a keyboard, and `inputmode` is ignored there, which killed the 290-field fix before it shipped. The week is set: **Wed the 31 fields, Thu ask Layla in the shop, Fri ask Felix.** Ask Layla FIRST — she is the one who has to stand there.*
 
 ---
 
-## 🌅 TOMORROW — 2026-09-02, in order
+## 🌅 THIS WEEK — from 2026-09-02, in order
 
 *Written at the end of an eleven-hour day so the next session does not have to reconstruct it.*
 
@@ -50,6 +50,42 @@ of them is the screen a cashier stands on.
 [`onboarding/testsheets/2026-09-01-keypad-retest.html`](onboarding/testsheets/2026-09-01-keypad-retest.html).
 **B4 is the one the machine cannot check** — press OK and hold a beat too long. If that holds across
 31 fields, apply the same treatment to the rest (65 on the cashier path, 172 across all screens).
+
+**THURSDAY — Luzern anyway, so put your head in the shop. Ask LAYLA FIRST.**
+
+Decided the evening of 2026-09-01. Layla is the one who has to stand at that counter — Felix can
+say yes on her behalf but he cannot make it work. **Ask her first.** If she is in, Friday is a
+formality; if you ask Felix first and he asks her and she balks, you have spent your one ask and
+you cannot un-spend it.
+
+Tommy in the morning (an hour or two), the shop after lunch. **Say this in the first thirty
+seconds** — it is the whole reason this is not going around Felix:
+
+> *"I'm asking Felix on Friday. I wanted to ask you first, because if you don't want it, I won't
+> ask him at all."*
+
+**The four questions.** Have them open in your hand and go through them WITH her — the two of you
+reading the same page is a conversation; handing her a page to read is a pitch.
+
+1. **"Would you want to be the one who tries it?"** — not *is it good*, not *would it work*. Would
+   **you** want it. If she says no here, stop. Everything after this is noise.
+2. **"If it's one morning, alongside the paper, and you can walk away at any point — is that
+   different?"** — where a soft no turns into a yes. The ask is small on purpose.
+3. **"What's the worst part of the till the way it is now?"** — she will say something you do not
+   know. This question is for you, not for her.
+4. **"What would make you say afterwards, that was worth it?"** — her definition of done, in her
+   words, before you have told her yours.
+
+Then stop talking and let her talk. That is the visit.
+
+⚠️ **Do NOT show her the Felix page** — it is written for an owner (costs, ownership, the lease).
+⚠️ **Do NOT demo the whole thing.** Scan one item, ring one sale, let her hold the tablet for two
+minutes. Curiosity beats a tour.
+
+✅ **The bonus:** you will be in the shop, with the tablet, on the SHOP's network. Everything proved
+this week was proved in the flat — and that has bitten before (LESSON #1: the LTE proved at home on
+an SSID Luzern does not have). An hour at that counter is worth more than a day here. Take the gun
+and the charger.
 
 **THEN — the meeting.** Friday afternoon, Felix. The ask is **one shift, not a verdict**: can Layla
 run 11:00–16:00 alongside paper next week. The page to put in front of him:
