@@ -218,7 +218,101 @@ async function main() {
       await p.waitForTimeout(150);
       const caret = await p.$eval(priceSel, el => el.value);
       check(caret === '123.50', 'a key lands AT THE CARET, not at the end', `"${caret}"`);
+
+      // THE FOLIO CASE. Angel, 2026-09-01: "somebody thinks, oh, I'll just snap on
+      // the keyboard and start using the keyboard." The pad sets inputmode="none",
+      // which suppresses a SOFT keyboard and has no authority over a real one — but
+      // that is a claim until something types. keyboard.type() sends real key events,
+      // the same ones the folio and the scanner gun produce.
+      await p.click(nameSel);
+      await p.waitForTimeout(200);
+      await p.$eval(nameSel, el => { el.value = ''; el.dispatchEvent(new Event('input', { bubbles: true })); });
+      await p.keyboard.type('Grüne Tips');
+      await p.waitForTimeout(200);
+      const typed = await p.$eval(nameSel, el => el.value);
+      const typedModel = await p.evaluate(() =>
+        String(Alpine.$data(document.querySelector('[x-data]')).otfName));
+      check(typed === 'Grüne Tips', 'a REAL keyboard still types into a keypad field',
+            `box reads "${typed}" — the folio, and the scanner gun, both send these events`);
+      check(typedModel === 'Grüne Tips', 'and Alpine received what the real keyboard typed');
     }
+
+    // ── E ─────────────────────────────────────────────────────────────────
+    // Angel, 2026-09-01, on his phone: "in landscape it's usable, actually not
+    // bad, but in portrait the keyboard is extremely small." That is a real
+    // observation and a feeling — so measure it, and it stops being a feeling.
+    //
+    // The floor is 44px, which is Apple's HIG minimum tap target and the number
+    // base.html already cites in its own phone-sizing block. Under that, a thumb
+    // hits two keys. A pad taller than ~45% of the screen is the other failure:
+    // the field you are typing INTO stops being visible, which is LESSON #12.
+    //
+    // The TABLET is the machine in the shop, so it asserts. The phone reports —
+    // nobody has decided to support it yet, and a red test for an undecided
+    // question is noise.
+    head('E · does it fit the hand? (tablet asserts · phone reports)');
+    const FORMS = [
+      { name: 'tablet landscape', w: 1280, h: 800,  assert: true  },
+      { name: 'tablet portrait',  w: 800,  h: 1280, assert: true  },
+      { name: 'phone landscape',  w: 844,  h: 390,  assert: false },
+      { name: 'phone portrait',   w: 390,  h: 844,  assert: false },
+    ];
+    for (const f of FORMS) {
+      await p.setViewportSize({ width: f.w, height: f.h });
+      await p.goto(`${ROOT}/pos/scan`, { waitUntil: 'domcontentloaded' });
+      await waitAlpine(p);
+      await p.evaluate(() => {
+        const d = Alpine.$data(document.querySelector('[x-data]'));
+        d.searchMode = 'catalog'; d.deptOpen = false;
+      });
+      await p.waitForTimeout(250);
+      // BOTH pads, because they are not the same shape and Angel's report drew the
+      // distinction precisely: "the keyboard is extremely small. Number pad is
+      // basically usable." The number pad is 3 keys across; the letters are 11.
+      // Measuring only the digits said phone-portrait was fine, which is the
+      // opposite of what he felt — the harness was answering a question nobody
+      // asked (LESSON #5).
+      for (const pad of [
+        { id: '#pk-num', kind: 'digits',  sel: 'input[data-keypad="decimal"][x-model="otfPrice"]' },
+        { id: '#pk-abc', kind: 'letters', sel: 'input[data-keypad="text"][x-model="otfName"]' },
+      ]) {
+      const sel = pad.sel;
+      if (!(await p.$(sel))) { continue; }
+      await p.click(sel);
+      await p.waitForTimeout(250);
+
+      const m = await p.evaluate(([sel, padId]) => {
+        const pad = document.querySelector(padId);
+        if (!pad || !pad.classList.contains('on')) return null;
+        const keys = [...pad.querySelectorAll('.pk-k')].map(k => k.getBoundingClientRect());
+        const field = document.querySelector(sel).getBoundingClientRect();
+        return {
+          padH:  Math.round(pad.getBoundingClientRect().height),
+          keyH:  Math.round(Math.min(...keys.map(r => r.height))),
+          keyW:  Math.round(Math.min(...keys.map(r => r.width))),
+          // is the box you are typing into still ON SCREEN, above the pad?
+          fieldVisible: field.top >= 0 && field.bottom <= (window.innerHeight - pad.getBoundingClientRect().height) + 2,
+          vh: window.innerHeight,
+        };
+      }, [sel, pad.id]);
+
+      const who = `${f.name} · ${pad.kind}`;
+      if (!m) { bad(`${who} — the pad did not open`); continue; }
+      const pct = Math.round((m.padH / m.vh) * 100);
+      const detail = `pad ${m.padH}px (${pct}% of ${m.vh}) · smallest key ${m.keyW}×${m.keyH}px`;
+      if (f.assert) {
+        check(m.keyW >= 32 && m.keyH >= 44, `${who} — keys are thumb-sized`, detail);
+        check(pct <= 45,     `${who} — pad leaves the screen usable (≤45%)`, detail);
+        check(m.fieldVisible, `${who} — the field is still visible above the pad`);
+      } else {
+        console.log(`  ℹ️  ${who} — ${detail}` +
+                    `${m.keyW < 32 ? '  ⚠️ keys narrower than a fingertip' : ''}` +
+                    `${pct > 45 ? '  ⚠️ pad over 45% of the screen' : ''}`);
+        results.push({ r: 'INFO', l: who, d: detail });
+      }
+      }
+    }
+    await p.setViewportSize({ width: 1280, height: 1000 });
 
     // ── D ─────────────────────────────────────────────────────────────────
     head('D · coverage (reported, not failed — this is a progress number)');

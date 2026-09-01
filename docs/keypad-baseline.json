@@ -1,7 +1,7 @@
 {
-  "at": "2026-09-01T15:27:23.021Z",
+  "at": "2026-09-01T15:35:12.595Z",
   "url": "http://localhost:3000",
-  "pass": 20,
+  "pass": 34,
   "fail": 0,
   "results": [
     {
@@ -100,6 +100,91 @@
       "r": "PASS",
       "l": "a key lands AT THE CARET, not at the end",
       "d": "\"123.50\""
+    },
+    {
+      "r": "PASS",
+      "l": "a REAL keyboard still types into a keypad field",
+      "d": "box reads \"Grüne Tips\" — the folio, and the scanner gun, both send these events"
+    },
+    {
+      "r": "PASS",
+      "l": "and Alpine received what the real keyboard typed"
+    },
+    {
+      "r": "PASS",
+      "l": "tablet landscape · digits — keys are thumb-sized",
+      "d": "pad 353px (44% of 800) · smallest key 417×62px"
+    },
+    {
+      "r": "PASS",
+      "l": "tablet landscape · digits — pad leaves the screen usable (≤45%)",
+      "d": "pad 353px (44% of 800) · smallest key 417×62px"
+    },
+    {
+      "r": "PASS",
+      "l": "tablet landscape · digits — the field is still visible above the pad"
+    },
+    {
+      "r": "PASS",
+      "l": "tablet landscape · letters — keys are thumb-sized",
+      "d": "pad 252px (32% of 800) · smallest key 109×54px"
+    },
+    {
+      "r": "PASS",
+      "l": "tablet landscape · letters — pad leaves the screen usable (≤45%)",
+      "d": "pad 252px (32% of 800) · smallest key 109×54px"
+    },
+    {
+      "r": "PASS",
+      "l": "tablet landscape · letters — the field is still visible above the pad"
+    },
+    {
+      "r": "PASS",
+      "l": "tablet portrait · digits — keys are thumb-sized",
+      "d": "pad 353px (28% of 1280) · smallest key 257×62px"
+    },
+    {
+      "r": "PASS",
+      "l": "tablet portrait · digits — pad leaves the screen usable (≤45%)",
+      "d": "pad 353px (28% of 1280) · smallest key 257×62px"
+    },
+    {
+      "r": "PASS",
+      "l": "tablet portrait · digits — the field is still visible above the pad"
+    },
+    {
+      "r": "PASS",
+      "l": "tablet portrait · letters — keys are thumb-sized",
+      "d": "pad 252px (20% of 1280) · smallest key 65×54px"
+    },
+    {
+      "r": "PASS",
+      "l": "tablet portrait · letters — pad leaves the screen usable (≤45%)",
+      "d": "pad 252px (20% of 1280) · smallest key 65×54px"
+    },
+    {
+      "r": "PASS",
+      "l": "tablet portrait · letters — the field is still visible above the pad"
+    },
+    {
+      "r": "INFO",
+      "l": "phone landscape · digits",
+      "d": "pad 353px (91% of 390) · smallest key 272×62px"
+    },
+    {
+      "r": "INFO",
+      "l": "phone landscape · letters",
+      "d": "pad 252px (65% of 390) · smallest key 69×54px"
+    },
+    {
+      "r": "INFO",
+      "l": "phone portrait · digits",
+      "d": "pad 353px (42% of 844) · smallest key 120×62px"
+    },
+    {
+      "r": "INFO",
+      "l": "phone portrait · letters",
+      "d": "pad 252px (30% of 844) · smallest key 28×54px"
     },
     {
       "r": "INFO",
