@@ -1135,6 +1135,27 @@ Not promoted to `WORKLIST.md`; item 3 (the bulk catalogue scripts on prod) is st
       tablet in Chromium over HTTPS, 2026-08-22:** *"the webcam button is there and it works"*
 - [ ] 📷 A small stand for the back office — packet down, both hands free, consistent light
 - [ ] Confirm with Felix that nothing on it needs saving
+### 🔴 A GUN WITH A FLAT BATTERY LOOKS EXACTLY LIKE A SOFTWARE BUG
+
+**2026-09-01, and it cost about twenty minutes.** The gun stopped scanning into Shelf Intake.
+It had worked for days. Nothing in `shelf_intake.html` or `pos-scanner.js` had changed since
+22 August, and a Playwright burst at 0ms delay — as fast as key events can be delivered, which
+is what a gun is — landed cleanly in the box on the live build. The page was innocent.
+
+**The gun was going flat.** The tell is a **double beep on scan and no red flash.** There is no
+low-battery warning anywhere, and the failure is silent enough to read as "the screen is broken".
+Angel found it by noticing the gun had *also* stopped working on New Sale — a screen that had
+worked an hour before. **One symptom on two unrelated screens means the thing they share is what
+changed.**
+
+- **Charge it and re-test before debugging anything else.** Ten minutes is enough to tell.
+- Angel's read, and it is the right one: *"the user just needs to know the gun is not scanning —
+  plug it in and start charging."* That belongs on the shop's day-one card, not in a runbook
+  nobody opens at the counter.
+- ⚠️ Worth deciding: should `/pos/hardware` show **when Banco last saw a scan**? A screen that
+  says "no scan in 3 minutes" turns a silent hardware failure into a visible one — and this is
+  the second time a hardware fault has been read as a Banco fault (the camera, 2026-08-22).
+
 - [ ] Decide the gun's keyboard layout *before* the installer asks
 - [ ] Network the QL-820NWB over **Wi-Fi** so this machine can print at all
 - [ ] Once it runs: update the device table in [`10-devices-and-roles.md`](10-devices-and-roles.md)

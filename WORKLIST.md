@@ -397,11 +397,18 @@ difference between a known quirk and a cashier concluding the till is broken.
 
 ### Still open on this thread — and ⓒ3 is NOT ours
 
-⚠️ **ⓒ3 shelf intake — the gun does not work in its main box and no pad appears.** Angel asked to
-*"undo shelf intake changes"*. **There are none to undo:** `git log d761595..HEAD -- shelf_intake.html`
-is **empty** — that file has never been touched by any of this. So it is pre-existing or has
-another cause, and undoing a change that does not exist would be theatre. Needs its own look with
-the beacons, on the tablet.
+✅ **ⓒ3 shelf intake — CLOSED, and it was the gun's battery.** Angel found it: the gun had *also*
+stopped working on New Sale, a screen that worked an hour earlier. **One symptom on two unrelated
+screens means the thing they share is what changed.** The tell is a **double beep and no red
+flash**; there is no low-battery warning at all. Nothing was changed in the app —
+`shelf_intake.html` and `pos-scanner.js` are both untouched since 22 August, the box carries no
+`data-keypad`, our keypad script returns early on any machine without a touchscreen (`typeof
+window.posKeypad === 'undefined'` on that page), and a 0ms Playwright burst lands cleanly in the
+box **on the live build**. → written up in
+[`onboarding/13-tablet-x1-debian.md`](onboarding/13-tablet-x1-debian.md).
+▶️ **Worth deciding:** should `/pos/hardware` show **when Banco last saw a scan**? "No scan in 3
+minutes" turns a silent hardware failure into a visible one. Second time a hardware fault has read
+as a Banco fault — the camera was the first, 2026-08-22.
 
 ⚠️ **ⓒ1 the create form opens holding the LAST product's name and price.** Found with the gun. Not
 a show-stopper (backspace works) but it is LESSON #13's shape again — a reset that does not reset
