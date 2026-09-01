@@ -64,8 +64,17 @@ seconds** — it is the whole reason this is not going around Felix:
 > *"I'm asking Felix on Friday. I wanted to ask you first, because if you don't want it, I won't
 > ask him at all."*
 
-**The four questions.** Have them open in your hand and go through them WITH her — the two of you
-reading the same page is a conversation; handing her a page to read is a pitch.
+**The sheet:**
+[`onboarding/testsheets/2026-09-03-ask-layla-first.html`](onboarding/testsheets/2026-09-03-ask-layla-first.html)
+— 18 steps, built on `TEMPLATE.html`, PASS/ISSUE/FAIL with a note box under every question so her
+words get written down as she says them.
+
+📱 **Open it on your PHONE, not the tablet** — the tablet is the thing she is holding. Get it there
+however you like (mail it to yourself, or `python3 -m http.server` in `onboarding/testsheets` and
+browse to the laptop). It also prints.
+
+**The four questions.** Go through them WITH her — the two of you reading the same page is a
+conversation; handing her a page to read is a pitch.
 
 1. **"Would you want to be the one who tries it?"** — not *is it good*, not *would it work*. Would
    **you** want it. If she says no here, stop. Everything after this is noise.
