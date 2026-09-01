@@ -395,6 +395,37 @@ still be in soft mode and expect both working, so we should leave it."*
 works. It is not dead, it is slow — Angel recorded a failure and then it came good. That is the
 difference between a known quirk and a cashier concluding the till is broken.
 
+### ▶️ THE DECISION TODAY ACTUALLY SURFACED: name the supported hardware
+
+**Angel, 2026-09-01, after a day of it:** *"I sold the idea of a web app works on any device, but
+that's not really true. It works, but it works rough and clunky unless you customize it for that
+device. Is that the truth?"*
+
+**Half of it.** The SCREENS are portable — Banco renders the same on Android Chrome, iPad Safari and
+Debian Chromium. Everything that hurt today lives where software meets hardware, and a *native* app
+would hit the same wall:
+
+| | Debian ThinkPad | Android tablet | iPad |
+|---|---|---|---|
+| raises its own keyboard | ❌ **the whole of 2026-09-01** | ✅ | ✅ |
+| prints Brother QL via CUPS | ✅ | ❌ | ❌ |
+| takes the gun's USB dongle | ✅ | ~ (OTG) | ❌ |
+| runs the stack locally if the network dies | ✅ | ❌ | ❌ |
+
+**So the answer is a supported-hardware list, and that is a product decision, not a retreat.**
+Square, Lightspeed and Shopify all publish one; none of them says "any tablet". It also gives Angel
+a sentence he does not currently have: when Felix buys Layla an iPad, *"that is a new configuration
+and here is what it costs to add"* — instead of a silent emergency.
+
+▶️ **Not started.** A page in `onboarding/` naming the reference kit (this tablet, this gun, this
+printer), what each part is for, and what it takes to qualify another. **The new requirement nobody
+knew this morning: the counter device must raise its own keyboard.** The next shop self-hosting
+Banco on a spare touchscreen laptop hits exactly this.
+
+⚠️ **And the rule that came out of it:** *simulate for coverage, one real device for truth.* Proved
+twice in one evening — the harness called phone-portrait fine when a thumb said otherwise, and the
+automated test for the OK-navigates bug passed with the fix REMOVED.
+
 ### Still open on this thread — and ⓒ3 is NOT ours
 
 ✅ **ⓒ3 shelf intake — CLOSED, and it was the gun's battery.** Angel found it: the gun had *also*
