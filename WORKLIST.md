@@ -13,7 +13,7 @@
 > [`worklist-archive/done.md`](worklist-archive/done.md) with its commit hashes; when a thread grows
 > a long write-up, the write-up goes to the archive and a one-line pointer stays here.
 
-*Last updated: 2026-08-30 — Filters run 1 applied (50 aliases) and its 3 duplicates merged. Next: ⓪e's 55 placeholder prices, or CBD Flower.*
+*Last updated: 2026-09-01 — the tablet's soft keyboard measured on the real machine (⑳): no browser raises it and `inputmode` is ignored there, which killed the 290-field fix before it shipped. Next: the cashier input inventory, or ⓪e's 55 placeholder prices, or CBD Flower.*
 
 ---
 
@@ -355,6 +355,60 @@ If it will not read, the answer is a SHORTER SKU, not a bigger label.
 **⑥ The vocabulary gap has no fix yet.** Angel searched *rainbow*, the feed says *rasta*. The new
 panel's empty state names the trade words (rasta, Kopf, Schliff, Kawumm) but nothing translates them.
 A synonym table is the obvious next step and has NOT been thought through.
+
+**⑳ THE TABLET'S SOFT KEYBOARD — measured on the real machine 2026-09-01, and the obvious fix was
+the wrong one.** Angel: *"it sure does not have the feel of the desktop."* Two separate problems
+were hiding inside that one sentence.
+
+**A · No browser on that tablet raises the on-screen keyboard. Not fixable in Banco.** Proved by
+elimination, on the tablet, over SSH:
+
+| | auto-raises the keyboard? |
+|---|---|
+| GDM login screen | ✅ |
+| GNOME Text Editor (native Wayland/GTK) | ✅ |
+| Banco in Chromium | ❌ |
+| Banco in Firefox | ❌ |
+| **a blank `file:///tmp/kbtest.html` with three plain inputs** | ❌ |
+
+That last row is the one that matters — **no Banco code, no CSS, no Alpine, same failure.** Our
+templates are not the cause. Tried and did NOT fix it: `gsettings … screen-keyboard-enabled true`
+(survives reboot, keep it — it is what makes GNOME's half work), a session restart, folio detached,
+a full system + Chromium update, and `--ozone-platform=wayland --enable-wayland-ime
+--wayland-text-input-version=3`. Chromium was on **XWayland** all along — it said so itself,
+`ozone_platform_x11.cc:257 Missing X server or $DISPLAY` — but forcing native Wayland changed
+nothing. The cashier must swipe the keyboard up by hand, every field, every time.
+➡️ **The only fix we control is an on-screen keypad Banco draws itself.** It also removes the
+dependency entirely, which is the point: it works the same on Debian, on an iPad, on whatever Felix
+buys next week. Not started, not scoped.
+
+**B · `inputmode` is IGNORED on this stack. `type` is what picks the keyboard.** Two fields, one
+difference, tested back to back with the keyboard already up:
+
+| field | markup | keyboard shown |
+|---|---|---|
+| cart quantity · `scan.html:515` | `type="text" inputmode="numeric"` | ❌ **letters** |
+| Agreed Final Total · `scan.html:616` | `type="number" step="0.05"` | ✅ **numeric** |
+
+⚠️ **This killed the fix I was about to ship.** 290 of ~300 inputs carry no `inputmode` and the plan
+was to add it everywhere — **290 edits that would have changed nothing on this tablet.** Only
+testing the one field already built the "right" way exposed it. Worse, that field is `type=text`
+*on purpose* (BL-16, to kill the ▲▼ arrows that duplicated the −/+ buttons) — it bought that with
+the wrong keyboard here, a trade made for a phone and never re-checked on the counter machine.
+
+**The fix that serves both:** `type="number"` for the desktop hint + keep `inputmode` for iOS/Android
++ one CSS rule to hide the spinners. **Not a find-and-replace** — `maxlength` does not work on
+`type=number` (the quantity field depends on `maxlength="4"` → needs `max="9999"`), and the
+`@input` digit-strip reads `$event.target.value`, which returns empty on an invalid `type=number`.
+
+▶️ **Next, and not yet started:** an inventory of every input on every screen a **cashier** can
+reach — screen, field, current `type`, and whether it sits low enough to end up under the keyboard —
+then a walk-through sheet from `onboarding/testsheets/TEMPLATE.html`. Angel: *"for the cashier role
+we need to test all the screens and all the inputs one at a time."*
+
+**Also found, unrelated and unfixed: a wedged kiosk has no way out.** `--kiosk` leaves no address
+bar, the power button did nothing, and re-attaching the folio did nothing. Recovered over SSH with
+`pkill -f chromium`. A cashier alone at the counter has no equivalent.
 
 **⑦ Adopting from the supplier copies its 18+ answer with no safety net**, while the till's quick-add
 applies one — same operation, two answers. And the classifier does not know the words "blunt" or
