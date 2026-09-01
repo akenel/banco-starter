@@ -348,7 +348,9 @@
 
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2"><span data-i18n="scan.price_chf">Price (CHF)</span> <span class="text-red-500">*</span></label>
-                            <input type="text" data-keypad="decimal" x-model="otfPrice" @keyup.enter="createNoCodeItem()"
+                            <input type="text" data-keypad="decimal" x-model="otfPrice"
+                                   @input="otfPrice = priceOnly($event.target.value); $event.target.value = otfPrice"
+                                   @keyup.enter="createNoCodeItem()"
                                    placeholder="0.00" class="input-field text-2xl font-bold">
                         </div>
 
@@ -1154,7 +1156,9 @@
                         <div class="grid grid-cols-2 gap-3">
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="scan.price_chf">Price (CHF)</label>
-                                <input type="text" data-keypad="decimal" x-model="lazyPrice" x-ref="lazyPriceInput" @keyup.enter="saveLazyCapture()" placeholder="0.00" class="input-field text-2xl font-bold">
+                                <input type="text" data-keypad="decimal" x-model="lazyPrice" x-ref="lazyPriceInput"
+                                       @input="lazyPrice = priceOnly($event.target.value); $event.target.value = lazyPrice"
+                                       @keyup.enter="saveLazyCapture()" placeholder="0.00" class="input-field text-2xl font-bold">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="scan.quantity">Quantity</label>
@@ -1835,6 +1839,29 @@
                     showToast('🎫 Member card lookup failed: ' + (err.message || err), 'error');
                 }
                 this.$nextTick(() => this.$refs.barcodeInput && this.$refs.barcodeInput.focus());
+            },
+
+            // A PRICE MUST BE A PRICE WHATEVER TYPED IT. Angel found this with the
+            // folio attached, 2026-09-01: "with the hard KB you can enter 999.ab,
+            // which is not good — the numeric field should auto validate no matter
+            // what the input device is."
+            //
+            // He is right and it is my regression. These fields were type="number",
+            // which the browser policed for free; I changed them to type="text" so
+            // the caret could be honoured (selectionStart is null on type=number and
+            // setSelectionRange throws), and the policing went with it. Our own pad
+            // filters as you tap, so the fault is invisible until a REAL keyboard is
+            // attached — which is exactly the case the tablet grows on a folio, and
+            // exactly what a scanner gun is.
+            //
+            // Same shape as the cart quantity field (BL-16, :515): sanitise on input,
+            // as you type, so nothing invalid can ever land rather than being
+            // complained about afterwards.
+            priceOnly(v) {
+                return String(v == null ? '' : v)
+                    .replace(/[^0-9.]/g, '')       // digits and one dot only
+                    .replace(/(\..*)\./g, '$1')    // never a second dot
+                    .replace(/^(\d*\.\d{2}).*$/, '$1');   // two rappen, never three
             },
 
             async createNoCodeItem() {

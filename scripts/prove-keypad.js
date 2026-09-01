@@ -246,6 +246,28 @@ async function main() {
       check(typed === 'Grüne Tips', 'a REAL keyboard still types into a keypad field',
             `box reads "${typed}" — the folio, and the scanner gun, both send these events`);
       check(typedModel === 'Grüne Tips', 'and Alpine received what the real keyboard typed');
+
+      // B2, found by Angel with the folio attached: our pad filters as you tap, so
+      // "999.ab" is impossible from the pad and trivial from a real keyboard. The
+      // fields were type="number" — policed by the browser for free — until I made
+      // them type="text" so the caret would work. A scanner gun is a real keyboard
+      // too, so this is not a rare case.
+      await p.click(priceSel);
+      await p.waitForTimeout(150);
+      await p.$eval(priceSel, el => { el.value = ''; el.dispatchEvent(new Event('input', { bubbles: true })); });
+      await p.keyboard.type('999.ab');
+      await p.waitForTimeout(200);
+      const junk = await p.$eval(priceSel, el => el.value);
+      const junkModel = await p.evaluate(() =>
+        String(Alpine.$data(document.querySelector('[x-data]')).otfPrice));
+      check(junk === '999.', 'a REAL keyboard cannot type letters into a price', `box reads "${junk}"`);
+      check(junkModel === '999.', 'and Alpine never saw the letters either', `otfPrice = "${junkModel}"`);
+
+      await p.$eval(priceSel, el => { el.value = ''; el.dispatchEvent(new Event('input', { bubbles: true })); });
+      await p.keyboard.type('12.5099');
+      await p.waitForTimeout(200);
+      const rappen = await p.$eval(priceSel, el => el.value);
+      check(rappen === '12.50', 'and it cannot type a third rappen either', `"${rappen}"`);
     }
 
     // ── E ─────────────────────────────────────────────────────────────────
@@ -324,6 +346,30 @@ async function main() {
       }
     }
     await p.setViewportSize({ width: 1280, height: 1000 });
+
+    // ── G ─────────────────────────────────────────────────────────────────
+    // Angel's call after running the sheet on his own phone: "the mobile phone
+    // keypad should be left alone and native. Our fixes should only be for the
+    // tablet." The measurements agreed — 28px keys in portrait, 91% of the screen
+    // in landscape. iOS and Android raise a good keyboard by themselves; the
+    // Debian tablet is the one that does not.
+    head('G · a phone keeps its own keyboard');
+    {
+      const phone = await b.newContext({
+        hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 },
+        userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) ' +
+                   'AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+      });
+      const pp = await phone.newPage();
+      // /pos/selftest has no login gate on purpose, which also keeps this check
+      // clear of the Keycloak redirect race.
+      await pp.goto(`${ROOT}/pos/selftest`, { waitUntil: 'domcontentloaded' });
+      await pp.waitForTimeout(1200);
+      const live = await pp.evaluate(() => typeof window.posKeypad === 'object');
+      const pads = await pp.evaluate(() => document.querySelectorAll('.pk').length);
+      check(!live, 'iPhone — our keypad stays OUT of the way', `posKeypad=${typeof live}, pads drawn=${pads}`);
+      await phone.close();
+    }
 
     // ── F ─────────────────────────────────────────────────────────────────
     // Angel, 2026-09-01: "we have to test it in portrait AND landscape, for both

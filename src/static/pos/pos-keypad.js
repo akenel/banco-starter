@@ -34,13 +34,33 @@
   var isTouch = (typeof window.posIsTouchDevice === 'function')
               ? window.posIsTouchDevice()
               : ((navigator.maxTouchPoints || 0) > 0);
+
+  // A PHONE IS NOT THE PROBLEM WE ARE SOLVING. Angel, 2026-09-01, after running
+  // the sheet on his own phone: "the mobile phone keypad should be left alone and
+  // native — they generally work fine. If we put ours in then we need to maintain
+  // it. Our fixes should only be for the tablet, and not change the desktop or
+  // the mobile versions."
+  //
+  // He is right, and the measurements agree: on a phone in portrait our letter
+  // keys are 28px wide — under half a fingertip — and in landscape the pad eats
+  // 91% of the screen. iOS and Android raise a perfectly good keyboard on their
+  // own; the Debian tablet is the machine that does not, and it is the only one
+  // this exists for. Every OS job we take over is a job we maintain forever.
+  //
+  // The axis is the OS, not the glass — the same distinction posIsMobileOS() was
+  // written for on 2026-08-22, when treating any touchscreen as a phone hid the
+  // camera button on this very tablet.
+  var isPhone = (typeof window.posIsMobileOS === 'function')
+              ? window.posIsMobileOS()
+              : /Mobi|Android|iPhone|iPod/i.test(navigator.userAgent || '');
   // Beacons. Added 2026-09-01 because this script failed SILENTLY on the counter
   // tablet — no error, no pad, nothing in the console to say it had even run.
   // A feature that can switch itself off must say so out loud. Grep '[keypad]'.
-  console.log('[keypad] gate: isTouch=' + isTouch
+  console.log('[keypad] gate: isTouch=' + isTouch + ' isPhone=' + isPhone
             + ' maxTouchPoints=' + navigator.maxTouchPoints
             + ' posIsTouchDevice=' + (typeof window.posIsTouchDevice));
   if (!isTouch) { console.log('[keypad] STOPPED — not a touch device'); return; }
+  if (isPhone)  { console.log('[keypad] STOPPED — phone: its own keyboard is better'); return; }
 
   var CSS = ''
     + '.pk{position:fixed;left:0;right:0;bottom:0;display:none;background:#e5e7eb;'

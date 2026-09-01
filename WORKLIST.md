@@ -375,7 +375,47 @@ The failure was SILENT — no error in Chromium's own log — so `console.log('[
 had to be added before anything could be found. `/pos/selftest` was built the same hour and is the
 rung that was missing: real app shell, two inputs, nothing else.
 
-### Still open on this thread
+### The sheet was run on the real tablet — 2026-09-01 evening, **NO GO**
+
+Angel, 47 minutes, folio off then on: **14 pass · 3 issue · 1 fail · 3 not run.** The keypad
+itself passed every step of section A — it rises on its own, shift releases, umlauts land, the
+caret works, hold-to-backspace repeats, the price box stays visible, and CHF 12.50 saved as
+CHF 12.50. What failed was **scope and validation**, both now fixed and guarded:
+
+| | |
+|---|---|
+| **D2 FAIL → fixed** | *"the mobile phone keypad should be left alone and native… our fixes should only be for the tablet."* Right, and the numbers agreed: 28px keys in portrait, 91% of the screen in landscape. Phones are now excluded by `posIsMobileOS()`. A phone raises a good keyboard by itself; the Debian tablet is the only machine that does not. |
+| **B2 → fixed, and it was MY regression** | With the folio attached you can type `999.ab`. These fields were `type="number"`, which the browser policed for free; I made them `type="text"` so the caret would work and the policing went with it. Our pad filters as you tap, so the fault is invisible until a REAL keyboard is attached — **and a scanner gun is a real keyboard.** Now sanitised on input, same shape as BL-16. |
+
+**Decided, no action:** ⓑ3 — the pad appearing even with the folio attached is *fine*. Angel:
+*"they are so good and clean it does not interfere, it only eats 25% of the screen… users will
+still be in soft mode and expect both working, so we should leave it."*
+
+**Measured, for the runbook:** a folio hot-attach needs **a few seconds** before the trackpoint
+works. It is not dead, it is slow — Angel recorded a failure and then it came good. That is the
+difference between a known quirk and a cashier concluding the till is broken.
+
+### Still open on this thread — and ⓒ3 is NOT ours
+
+⚠️ **ⓒ3 shelf intake — the gun does not work in its main box and no pad appears.** Angel asked to
+*"undo shelf intake changes"*. **There are none to undo:** `git log d761595..HEAD -- shelf_intake.html`
+is **empty** — that file has never been touched by any of this. So it is pre-existing or has
+another cause, and undoing a change that does not exist would be theatre. Needs its own look with
+the beacons, on the tablet.
+
+⚠️ **ⓒ1 the create form opens holding the LAST product's name and price.** Found with the gun. Not
+a show-stopper (backspace works) but it is LESSON #13's shape again — a reset that does not reset
+everything. `otfName`/`otfPrice` are cleared at `scan.html:1943` and `:2183`; whichever path the
+gun takes to that form is not calling either.
+
+⚠️ **ⓒ2 the barcode box gives the TEXT keyboard when typed into.** Correctly has no pad of ours —
+but 99% of what is typed there is digits, so the OS keyboard it falls back to is the wrong one.
+Noticed, not urgent.
+
+⚠️ **ⓔ1 Clear on an empty cart did nothing visible** until an item was added. Possibly a test
+artefact; possibly the same shape as the sessionStorage clear-that-clears-one-key-of-three.
+
+
 
 | | |
 |---|---|
