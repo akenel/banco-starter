@@ -322,6 +322,26 @@ async function main() {
       // suite fully GREEN. Only a finger on the tablet can confirm the fix.
       gap('holding OK on a real touchscreen', 'mouse events cannot reproduce it — human check, retest sheet');
       await p.waitForTimeout(500);
+
+      // "Press Create twice — once to get in focus and a second time to save."
+      // Same family: closing the pad reclaimed its reserved space, the page
+      // reflowed, and the button moved out from under the finger. Assert the
+      // geometry holds still across a close.
+      await p.click(priceSel);
+      await p.waitForTimeout(250);
+      // :has-text() is a Playwright locator and NOT valid CSS inside evaluate().
+      const btnTop = () => p.evaluate(() => {
+        const b = [...document.querySelectorAll('button')]
+          .find(x => /create|add|save/i.test(x.textContent || '') && x.offsetParent !== null);
+        return b ? Math.round(b.getBoundingClientRect().top) : null;
+      });
+      const before2 = await btnTop();
+      await tapKey(p, 'done');
+      await p.waitForTimeout(120);          // inside the click window
+      const after2 = await btnTop();
+      check(before2 !== null && before2 === after2,
+            'the page does NOT jump while a tap is completing',
+            `button top ${before2} -> ${after2}`);
     }
 
     // ── E ─────────────────────────────────────────────────────────────────

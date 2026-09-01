@@ -175,11 +175,23 @@
       try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {}
     }, 60);
   }
+  function padOpen() {
+    return !!((num && num.classList.contains('on')) || (abc && abc.classList.contains('on')));
+  }
+
   function shut() {
     active = null;
     if (num) num.classList.remove('on');
     if (abc) abc.classList.remove('on');
-    scroller().style.paddingBottom = '';
+    // HOLD THE LAYOUT STILL FOR A MOMENT. Angel, 2026-09-01: "I scroll to the
+    // bottom and press Create twice — once to get in focus and a second time to
+    // get it to save." Same cause as the OK-navigates bug and I missed it the
+    // first time. Reclaiming the pad's reserved space REFLOWS the page, so the
+    // button under the finger moves between pointerdown and the click, and the
+    // first tap lands on nothing. Give the click time to finish, then tidy up —
+    // and only if a pad has not opened again in the meantime.
+    var sc = scroller();
+    setTimeout(function () { if (!padOpen()) sc.style.paddingBottom = ''; }, 350);
   }
 
   // ── OK MUST NOT NAVIGATE. Angel, 2026-09-01, mid-retest ─────────────────
