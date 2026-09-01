@@ -270,3 +270,46 @@ rewrite**: only tried after the raw code found nothing, so a real apostrophe can
 a warning naming the correction, so a mis-set gun surfaces rather than hiding.
 
 Fix the gun anyway. The fallback is a safety net for shops running hardware we didn't choose.
+
+
+---
+
+## The backup gun — five minutes lost, 2026-09-01, and none of it was the gun's fault
+
+The good gun (NETUM NSL8) went flat mid-shift. Grabbing the spare — the cheap yellow Inateck
+BCST-35 — took **three to five minutes** to get working, in a situation where the whole point of a
+spare is that it takes ten seconds. Every step of it will happen again to somebody else.
+
+**1 · A Bluetooth gun holds ONE pairing, and it was still paired to a phone.** The spare had last
+been used with Angel's phone and reconnected to it the moment it woke. Plugging its dongle into the
+tablet did nothing, and there is no message anywhere saying why. *Turning the phone's Bluetooth off
+was not enough on its own* — the tablet then had to discover and pair it.
+
+**2 · The dongle and Bluetooth are different MODES, not two routes to the same place.** With the gun
+in Bluetooth mode the 2.4G dongle is inert, and vice versa. Mode is set by scanning a config
+barcode from the manual (`Inateck_BCST-35_Barcode_Scanner_User_Manual-V1.2_251117.pdf`, in this
+folder). A dongle sitting in a USB port is *not* evidence that the gun will use it.
+
+**3 · ⚠️ TWO GUNS MEANS TWO OF THE SAME GUN.** Angel's own conclusion, and it is the real lesson:
+*"basically, you wanna have two of exactly the same guns."* Different models mean different modes,
+different pairing, different dongles and different capability — all discovered under pressure, at
+the counter, in front of a customer. Two identical guns, one always charging, is one procedure
+instead of two.
+
+**4 · The cheap gun cannot read a screen.** The NETUM scans a barcode off a monitor without
+complaint; the Inateck has no chance. It is around 90% as good on paper labels and noticeably worse
+on the hard ones — crumpled, curved, low contrast. Good enough for a spare, not good enough to be
+the only gun.
+
+> **This kills the obvious design for a scan self-test.** A page that *displays* a barcode for the
+> operator to scan works for the good gun and fails for the cheap one — and the moment you most
+> need a self-test is the moment you are holding the spare. A scan test must **receive** a code,
+> not display one: an empty box that says what arrived, scanned off any product on the shelf.
+
+**5 · The cheap gun has a green light. The good one does not.** On the Inateck you can see it is
+alive. The NETUM's flat battery announced itself only as a double beep and no red flash — which is
+what made it read as a software fault for twenty minutes.
+
+**Open, and it is a genuine trade:** should the tablet keep Bluetooth on permanently? It is what
+makes the spare work instantly. It also drains the battery all day, on a machine whose own charge
+matters more than the gun's — the gun has a spare and the tablet does not.
