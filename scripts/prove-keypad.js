@@ -162,6 +162,17 @@ async function main() {
       });
       check(offenders.length === 0, `${s} — scanner fields left alone`,
             offenders.length ? 'WIRED BY MISTAKE: ' + offenders.join(', ') : 'none wired');
+
+      // A date belongs to the BROWSER. Chromium draws a tappable calendar and needs
+      // no keyboard of any kind, so a pad there would replace a working widget with
+      // a worse one. There are 12 in the POS; the one that matters is
+      // checkout.html:501, ageForm.birthdate — the 18+ date of birth, which is a
+      // compliance record, not a preference.
+      const dates = await p.evaluate(() =>
+        [...document.querySelectorAll('input[type="date"][data-keypad]')]
+          .map(el => el.getAttribute('x-model') || el.id || '?'));
+      check(dates.length === 0, `${s} — dates left to the browser's calendar`,
+            dates.length ? 'WIRED BY MISTAKE: ' + dates.join(', ') : 'none wired');
     }
 
     // ── C ─────────────────────────────────────────────────────────────────

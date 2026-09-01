@@ -1,7 +1,7 @@
 {
-  "at": "2026-09-01T15:35:12.595Z",
+  "at": "2026-09-01T15:38:35.256Z",
   "url": "http://localhost:3000",
-  "pass": 34,
+  "pass": 40,
   "fail": 0,
   "results": [
     {
@@ -41,7 +41,17 @@
     },
     {
       "r": "PASS",
+      "l": "/pos/scan — dates left to the browser's calendar",
+      "d": "none wired"
+    },
+    {
+      "r": "PASS",
       "l": "/pos/checkout — scanner fields left alone",
+      "d": "none wired"
+    },
+    {
+      "r": "PASS",
+      "l": "/pos/checkout — dates left to the browser's calendar",
       "d": "none wired"
     },
     {
@@ -51,7 +61,17 @@
     },
     {
       "r": "PASS",
+      "l": "/pos/customer-lookup — dates left to the browser's calendar",
+      "d": "none wired"
+    },
+    {
+      "r": "PASS",
       "l": "/pos/shelf-intake — scanner fields left alone",
+      "d": "none wired"
+    },
+    {
+      "r": "PASS",
+      "l": "/pos/shelf-intake — dates left to the browser's calendar",
       "d": "none wired"
     },
     {
@@ -61,7 +81,17 @@
     },
     {
       "r": "PASS",
+      "l": "/pos/my-day — dates left to the browser's calendar",
+      "d": "none wired"
+    },
+    {
+      "r": "PASS",
       "l": "/pos/selftest — scanner fields left alone",
+      "d": "none wired"
+    },
+    {
+      "r": "PASS",
+      "l": "/pos/selftest — dates left to the browser's calendar",
       "d": "none wired"
     },
     {
