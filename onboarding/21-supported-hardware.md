@@ -101,10 +101,27 @@ Full detail, including the keyboard-layout trap and both manuals:
   on two unrelated pages. **Charge it and re-test before debugging anything.**
 - **A cheap gun cannot read a barcode off a screen.** Any on-screen self-test must *receive* a code,
   not display one.
+- ⚠️ **THE GOOD GUN IS DONGLE-ONLY, AND THAT DECIDES THE COUNTER DEVICE.** The NETUM has no
+  Bluetooth — it needs a USB-A port. The Bluetooth gun that *would* work on an iPad is the cheap
+  one, and it reads **about 90%** of real stock: small EAN codes and curved packaging defeat it
+  repeatedly. **A till that fails one scan in ten is not a till.** So the device must have USB-A,
+  which rules out every iPad regardless of price, and rules out most Android tablets without a hub.
+  This is a harder constraint than printing and it is worth stating first.
 - **Set the gun's keyboard layout to match the session's**, or every hyphenated SKU silently mutates
   while EAN-13 scanning looks perfect.
 
 ---
+
+## A tablet is not a setup machine, and that is not a Banco limitation
+
+**Product setup is laptop work.** Typing names, prices, costs, categories and descriptions for
+hundreds of items is a keyboard job, on any system, with any software. A tablet is for *walking the
+shop* — shelf intake, price checks, a sale at the counter.
+
+This matters for expectations more than for engineering: **the first weeks of a shop going live are
+almost entirely setup**, and doing that on a tablet is choosing the wrong tool and then blaming the
+software. No POS on the market is different. Orange, Shopify and Lightspeed all assume a keyboard
+for catalogue work.
 
 ## What to say when someone brings their own device
 
