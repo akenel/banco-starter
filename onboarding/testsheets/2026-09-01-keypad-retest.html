@@ -51,6 +51,17 @@ const SHEET = {
         expect: '<b>12.50</b> — the extra digits are simply ignored',
         why: 'A third rappen is not a price. The pad already refused it; now the keyboard does too.' },
 
+      { id: 'B4',
+        do: 'Type a name and a price, then <b>press OK and hold your finger on it a beat longer than feels natural</b> before lifting.',
+        expect: 'The pad closes and <b>you are still on NEW ITEM</b>, with your name and price intact',
+        callout: 'This is the one the machine CANNOT check. Mouse events do not reproduce it — reverting the fix left the whole automated suite green. Only a fingertip on the tablet can tell us.',
+        why: 'Angel, mid-retest: "I held the OK a split second too long and I am hitting the Customers button. Everything I was creating is basically gone." OK sits directly over the bottom nav — measured, the element underneath it is the Customers link — and the pad closing out from under a finger let the click land there.' },
+
+      { id: 'B5',
+        do: 'Try to type a price of <b>5555555</b>.',
+        expect: 'It stops at <b>55555</b> — five digits before the point',
+        why: 'Also yours: "there is nothing that sells for over ten thousand in this shop. It should have stopped me." CHF 99999.99 is far past anything on the shelf and still refuses a stuck finger.' },
+
       { id: 'B3',
         do: 'Type a normal name and price on the real keys — include an <b>umlaut</b>.',
         expect: 'Everything lands normally',

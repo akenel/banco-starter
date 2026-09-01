@@ -71,6 +71,8 @@ const results = [];
 function ok(l, d)  { pass++; results.push({ r: 'PASS', l, d }); console.log(`  ✅ ${l}${d ? '  — ' + d : ''}`); }
 function bad(l, d) { fail++; results.push({ r: 'FAIL', l, d }); console.log(`  ❌ ${l}${d ? '  — ' + d : ''}`); }
 function check(c, l, d) { (c ? ok : bad)(c ? l : l, d); return !!c; }
+const gaps = [];
+function gap(l, d) { gaps.push(l); results.push({ r: 'GAP', l, d }); console.log(`  ⚠️  KNOWN GAP — ${l}${d ? '  — ' + d : ''}`); }
 function head(t) { console.log(`\n${t}\n${'-'.repeat(t.length)}`); }
 
 async function login(p) {
@@ -268,6 +270,58 @@ async function main() {
       await p.waitForTimeout(200);
       const rappen = await p.$eval(priceSel, el => el.value);
       check(rappen === '12.50', 'and it cannot type a third rappen either', `"${rappen}"`);
+
+      // Angel, mid-retest: "I could type 5555555, which is just crazy."
+      await p.$eval(priceSel, el => { el.value = ''; el.dispatchEvent(new Event('input', { bubbles: true })); });
+      await p.keyboard.type('5555555');
+      await p.waitForTimeout(150);
+      const capped = await p.$eval(priceSel, el => el.value);
+      check(capped === '55555', 'a price stops at CHF 99999.99', `"${capped}"`);
+
+      // OK MUST NOT NAVIGATE. The key fires on pointerdown and the pad closes
+      // instantly; a finger held a moment longer is then over the bottom nav,
+      // and the click that follows the release lands on Customers — taking a
+      // half-built product with it. Reproduced the way a slow thumb does it:
+      // press, pause, release, and let the click fall where the finger is.
+      await p.click(priceSel);
+      await p.waitForTimeout(200);
+      const urlBefore = p.url();
+      const okBox = await p.evaluate(() => {
+        const b = document.querySelector('#pk-num [data-k="done"]');
+        const r = b.getBoundingClientRect();
+        return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) };
+      });
+      // What IS assertable: the hazard itself. If someone later moves the pad clear
+      // of the nav this goes red, and that is the day the guard can be deleted.
+      const hazard = await p.evaluate(() => {
+        const ok = document.querySelector('#pk-num [data-k="done"]');
+        const r = ok.getBoundingClientRect();
+        const x = Math.round(r.left + r.width / 2), y = Math.round(r.top + r.height / 2);
+        document.querySelectorAll('.pk').forEach(el => el.classList.remove('on'));
+        const under = document.elementFromPoint(x, y);
+        const a = under && under.closest('a');
+        document.querySelector('#pk-num').classList.add('on');
+        return a ? a.getAttribute('href') : null;
+      });
+      check(hazard !== null, 'OK sits ON TOP of a nav link — so the guard is needed',
+            hazard ? `under OK: ${hazard}` : 'nothing under OK — pad no longer overlaps the nav');
+
+      const guarded = await p.evaluate(() => {
+        const b = document.querySelector('#pk-num [data-k="done"]');
+        b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+        const nav = document.querySelector('.app-bottomnav');
+        return nav ? getComputedStyle(nav).pointerEvents : 'no nav';
+      });
+      check(guarded === 'none', 'and closing makes that nav link inert', `pointer-events: ${guarded}`);
+
+      // ⚠️ THE BUG ITSELF IS NOT ASSERTABLE HERE, and pretending otherwise is worse
+      // than admitting it. Angel hit this with a fingertip held a moment too long;
+      // Playwright's mouse.down/up in a desktop context does NOT reproduce it,
+      // because preventDefault on pointerdown suppresses the synthetic click that a
+      // real touchscreen still delivers. Verified: reverting shutSafely() left this
+      // suite fully GREEN. Only a finger on the tablet can confirm the fix.
+      gap('holding OK on a real touchscreen', 'mouse events cannot reproduce it — human check, retest sheet');
+      await p.waitForTimeout(500);
     }
 
     // ── E ─────────────────────────────────────────────────────────────────
@@ -435,7 +489,7 @@ async function main() {
   }
 
   console.log('\n' + '='.repeat(74));
-  console.log(`  ${pass} pass · ${fail} fail`);
+  console.log(`  ${pass} pass · ${fail} fail${gaps.length ? ' · ' + gaps.length + ' known gap' + (gaps.length > 1 ? 's' : '') : ''}`);
   console.log('='.repeat(74) + '\n');
 
   if (SAVE) {

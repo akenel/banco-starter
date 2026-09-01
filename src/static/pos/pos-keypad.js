@@ -182,6 +182,40 @@
     scroller().style.paddingBottom = '';
   }
 
+  // ── OK MUST NOT NAVIGATE. Angel, 2026-09-01, mid-retest ─────────────────
+  // "I've held the OK a split second too long and guess what, I'm hitting the
+  //  Customers button. Everything I was creating is basically gone."
+  //
+  // OK sits at the bottom of the pad, directly over the app's bottom nav. The
+  // key fires on POINTERDOWN, the pad closes immediately, and the finger is then
+  // over Customers with nothing in between — so the click that follows the
+  // release lands on the nav and the half-built product is gone. A quick tap
+  // outruns it; a slightly held one does not. Classic element-vanishes-from-
+  // under-the-finger, and the cost is a cashier's work in front of a customer.
+  //
+  // So closing swallows the one click that follows it. 400ms is long enough for
+  // a slow release and far too short to eat a deliberate second tap.
+  // MEASURED on the till, 1280x800: the OK key's centre is at y=761 and the app's
+  // bottom nav spans 747-800, so document.elementFromPoint under OK returns
+  // <a href="/pos/customer-lookup">. The overlap is real and not incidental —
+  // both are pinned to the bottom of the screen by design.
+  //
+  // Two layers, because they fail differently: the swallow stops the click that
+  // has ALREADY been generated, and the dead nav means that even a click nobody
+  // swallowed lands on something inert. Neither can contradict the other — they
+  // are the same 400ms window, and after it both simply stop applying.
+  function shutSafely() {
+    var swallow = function (e) { e.stopPropagation(); e.preventDefault(); };
+    document.addEventListener('click', swallow, true);
+    var nav = document.querySelector('.app-bottomnav');
+    if (nav) nav.style.pointerEvents = 'none';
+    setTimeout(function () {
+      document.removeEventListener('click', swallow, true);
+      if (nav) nav.style.pointerEvents = '';
+    }, 400);
+    shut();
+  }
+
   /* ── the caret is the truth ───────────────────────────────────────────── */
   function caret(f) {
     try { return [f.selectionStart, f.selectionEnd]; }
@@ -212,15 +246,20 @@
   }
   // Judge what the box WOULD read, not the key pressed — a digit typed into the
   // middle can otherwise still produce 12.5.0.
+  // Angel, same session: "I could type 5555555, which is just crazy. There is
+  // nothing that sells for over ten thousand in this shop. It should have
+  // stopped me." Five digits before the point — CHF 99999.99 — is far past
+  // anything a headshop sells and still refuses a stuck finger. The server keeps
+  // its own ceiling; this one only has to stop the fat-finger case at the glass.
   function priceOk(f, text) {
     var c = caret(f), s = c[0], e = c[1], v = f.value;
     if (s === null) { s = e = v.length; }
-    return /^\d*(\.\d{0,2})?$/.test(v.slice(0, s) + text + v.slice(e));
+    return /^\d{0,5}(\.\d{0,2})?$/.test(v.slice(0, s) + text + v.slice(e));
   }
 
   function press(k) {
     if (!active) return;
-    if (k === 'done') { shut(); return; }
+    if (k === 'done') { shutSafely(); return; }
     if (k === 'clr')  { active.value = ''; place(active, 0); commit(active); return; }
     if (k === 'del')  { backspace(active); return; }
     if (k === 'mode') { symbols = !symbols; shift = false; drawLetters(); return; }

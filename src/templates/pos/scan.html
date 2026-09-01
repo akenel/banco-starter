@@ -1861,7 +1861,8 @@
                 return String(v == null ? '' : v)
                     .replace(/[^0-9.]/g, '')       // digits and one dot only
                     .replace(/(\..*)\./g, '$1')    // never a second dot
-                    .replace(/^(\d*\.\d{2}).*$/, '$1');   // two rappen, never three
+                    .replace(/^(\d*\.\d{2}).*$/, '$1')     // two rappen, never three
+                    .replace(/^(\d{5})\d+/, '$1');        // CHF 99999.99 is the ceiling
             },
 
             async createNoCodeItem() {
