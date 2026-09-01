@@ -12,6 +12,56 @@
 
 Everything below serves that one sentence. The product direction is settled; the work is making the ownership promise *demonstrably* true and *repeatable by someone who isn't you*.
 
+## 📅 GO-LIVE: 1 OCTOBER 2026 — proposed, and it depends on nothing Felix has not already done
+
+*Set 2026-09-01. The point is not the date. The point is that it is a DATE.*
+
+**The rule that chose it: go-live must not depend on the lease.** Felix has to be out of the shop by
+**March 2027**, has known for eighteen months, and as of tonight has **no signed lease and no decided
+location**. A move is a tempting go-live moment — but a date that does not exist cannot be a
+deadline, and the version where we wait for March is the version where March becomes May and the
+winter went on polishing.
+
+**So: run it from 1 October. Treat the move as the CATALOGUE COMPLETION event, not the start.**
+
+### Why the move is still the prize — it is the shelf-count moment
+
+A move means **every product is picked up, carried and put down again**. That is the one moment in a
+decade when scanning the whole shelf costs nothing extra, because it is already in somebody's hand.
+Walk the old shop with the gun in inventory mode as it is packed; walk the new shelves as it is
+unpacked. The shop would finish with a catalogue of **what it actually sells**, and
+`pos_stock_movements` would have its first rows ever.
+
+⚠️ **Neither Angel nor Felix had realised this.** If the move happens without Banco in the room, it
+does not come round again.
+
+### And the job is far smaller than the database suggests
+
+| | |
+|---|---|
+| rows in the catalogue | **5,447** — Tamar's dropship *range* |
+| products actually on the shelf | **~1,500–2,000** (Angel's estimate, 2026-09-01) |
+| of those, already carrying a real EAN | **~75%** |
+| genuinely with no barcode at all | **~400–500** |
+
+**The August measurement sized the work against a catalogue that is mostly stock the shop has never
+touched.** ~450 no-barcode items is a weekend with a gun, not a fourteen-hour matching project.
+**Establish the shelf count before spending another day on bulk EAN work.**
+
+### If Felix pushes back
+
+**1 November or 1 January are both fine.** What is not fine is no date. A date makes training,
+parallel running and the testsheets into a plan; without one they are hobbies. Angel's own words:
+*"as long as we had an actual date."*
+
+### Who goes first — and it is not Felix
+
+**Layla.** She is part-time, she was present and attentive through every test, she asked questions
+and followed the screens. Rafi is the manager and has the computer background, but by Angel's read
+wants to work *less*, not more. **The person who adopts a system decides whether it lives**, and
+that is not the owner — it is whoever reaches for it on a Tuesday afternoon. Layla should be given
+ownership, not handed a test script.
+
 ## 🧭 What Banco is actually for — the catalogue is the business
 
 *Added 2026-09-01. Mosey of fourtwenty.ch, in Angel's recollection: **"the whole business is the
