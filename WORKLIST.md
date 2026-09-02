@@ -179,6 +179,28 @@ out of a `/tmp` session scratchpad on 2026-08-28. The SQL exports are checked in
 
 ### Open, in order
 
+**㉒ THE PAD FIRES `change` WHEN IT CLOSES — BUT NOT WHEN YOU MOVE TO THE NEXT FIELD.** *(Angel, on
+the tablet, 2026-09-02, within an hour of the deploy. Minor, and it needs a small fix.)*
+
+**What he hit:** on Checkout he tapped into **Qty**, changed it from 1 to **5** on the new pad, then
+tapped straight across to **Target total**. The box read 5 and **price × qty stayed at 1**. Pressing
+the **+** button made it take. Screen right, basket wrong — LESSON #13's exact shape.
+
+**Cause, read in the code and not guessed:** `pos-keypad.js` `open()` does `active = el` and nothing
+else. It never closes the field it is leaving. The `change` event added this morning fires only in
+`shut()` — i.e. on **OK**, or on a tap outside the pad. **Field-to-field is the third door and it
+was never wired.** So this morning's fix covered one of the two ways a person leaves a box, and
+Angel found the other one in under an hour.
+
+**The fix:** in `open()`, if `active` exists and is not `el`, dispatch `change` on the outgoing field
+before reassigning — the same one line already in `shut()`. Then extend `prove-keypad.js` H6 to move
+between **two** probe inputs and assert the first one fired exactly one `change`. The current H6
+tests only the close path, which is precisely why it was green while this was broken.
+
+⚠️ **Check the same shape everywhere before calling it done (STANDING RULE 9).** Any field that
+finalises on `@change` rather than `@input` has this bug today: `grep -n '@change' src/templates/pos`
+— 8 in `scan.html`, 0 in `shelf_intake.html` and `checkout.html`.
+
 **㉑ THE CUTOVER HAS NO RUNBOOK — and it is not a `deploy-prod.sh` run.** *(raised by Angel, evening
 of 2026-09-01, because it was about to be missed.)* `banco.wolfhold.app/pos` is **pre-prod**, not the
 box the shop will run on. At go-live Angel stands up a **fresh Hetzner VPS for the shop alone**, on
