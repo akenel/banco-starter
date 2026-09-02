@@ -182,5 +182,112 @@ print(json.dumps([str(tier_line_total(c["tiers"], Decimal(c["price"]), c["qty"],
     console.log('  ❌ held-order check threw — treated as a FAILURE, not a warning: ' + e.message);
   }
 
-  await b.close(); process.exit((bad + mbad + hbad) ? 1 : 0);
+
+  // ── RING IT OUT — the HANDOFF, which is a fourth implementation nobody counted ──────
+  // 2026-09-02, on the tablet: the board said CHF 10.00, Angel pressed "Ring it out", and the
+  // cart it opened said CHF 12.00. The board had just been fixed; the bug had moved one screen
+  // to the right. ringOut() rebuilds a till cart by hand from the board's payload, copied six
+  // fields, and price_tiers/tier_mode were not among them — so _tierBest() found no ladder and
+  // the cart fell back to price × qty. LESSON #2: a downstream mapper discards the very field
+  // the fix upstream existed to produce.
+  //
+  // This check DRIVES THE REAL BUTTON. Asking the payload for its fields, or re-running the
+  // mapper here, would have passed against the broken build — the mapper is the thing under
+  // test, so the test may not contain a copy of it. Nothing is ever completed: reaching the
+  // checkout screen writes no row. Never press Complete on a shop's books.
+  let rbad = 0, rn = 0;
+  try {
+    const made = await p.evaluate(async () => {
+      const tok = sessionStorage.getItem('pos_token') || localStorage.getItem('pos_token');
+      const H = { 'Authorization': 'Bearer ' + tok, 'Content-Type': 'application/json' };
+      const stamp = Date.now();
+      const prod = await (await fetch('/api/v1/pos/products', { method: 'POST', headers: H,
+        body: JSON.stringify({
+          name: 'ZZPROBE ringout ' + stamp, sku: 'ZZPROBE-RO-' + stamp,
+          price: '4.00', tier_mode: 'bundle',
+          price_tiers: [{ min_qty: 3, unit_price: '10.00' }],
+          product_class: 'standard', is_active: true, stock_quantity: 99,
+        }) })).json();
+      if (!prod || !prod.id) return null;
+      const mk = await (await fetch('/api/v1/pos/kiosk/cart', { method: 'POST', headers: H,
+        body: JSON.stringify({ items: [{ product_id: prod.id, qty: 3 }], source: 'proof' }) })).json();
+      return (mk && mk.code) ? { id: prod.id, code: mk.code } : { id: prod.id, code: null };
+    });
+    if (!made || !made.code) {
+      rbad++; rn++;
+      console.log('  ❌ could not build a held order to ring out — FAILURE, not a skip:'
+                + ' a discovery step that finds nothing is a test that always passes');
+    } else {
+      // the till's own answer for this exact ladder at qty 3
+      const want = JSON.parse(execFileSync('python3', ['-c', `
+import sys, logging, json
+sys.path.insert(0, '${process.env.BANCO_REPO || '/home/angel/repos/banco-starter'}')
+logging.disable(logging.WARNING)
+from decimal import Decimal
+from src.services.pricing import tier_line_total
+print(json.dumps(str(tier_line_total([{"min_qty":3,"unit_price":"10.00"}], Decimal("4.00"), 3, mode="bundle"))))
+`], { encoding: 'utf8' }));
+
+      await p.goto('http://localhost:3000/pos/held-orders', { waitUntil: 'domcontentloaded' });
+      const card = p.locator('.card').filter({ hasText: made.code });
+      await card.first().waitFor({ timeout: 20000 });
+      const boardTxt = (await card.first().innerText()).replace(/\s+/g, ' ');
+      const boardNum = (boardTxt.match(/(\d+\.\d{2})/) || [])[1] || null;
+
+      rn++;
+      if (boardNum !== want) {
+        rbad++;
+        console.log(`  ❌ the BOARD is wrong before we even ring it: board ${boardNum} · till ${want}`);
+      }
+
+      await card.first().locator('button:has-text("Ring it out")').click();
+      await p.waitForURL('**/pos/checkout**', { timeout: 20000 });
+      // The number the cashier reads and says out loud. Read through a LOCATOR, not an in-page
+      // loop: checkout re-renders its totals after the cart loads, and an evaluate() that is
+      // still polling when that happens dies with "execution context was destroyed". A locator
+      // re-resolves instead. (Same family as the waitForFunction gotcha in TESTING.md.)
+      const totalLoc = p.locator('[data-i18n="checkout.total"]').locator('xpath=..').locator('span').last();
+      let shown = null;
+      for (let i = 0; i < 40 && shown === null; i++) {
+        try {
+          const m = ((await totalLoc.textContent({ timeout: 2000 })) || '').match(/(\d+\.\d{2})/);
+          if (m) shown = m[1];
+        } catch (e) { /* mid-render — try again */ }
+        if (shown === null) await p.waitForTimeout(250);
+      }
+
+      rn++;
+      if (shown !== want) {
+        rbad++;
+        const flat = '12.00';
+        console.log(`  ❌ ring it out · board ${boardNum} → checkout ${shown} · till ${want}`
+                  + (shown === flat ? '  (the handoff dropped the ladder — price × qty again)' : ''));
+      }
+      console.log(rbad ? `  ${rbad} of ${rn} ring-it-out checks are wrong`
+                       : `  ✅ ring it out: board ${boardNum} → checkout ${shown} → till ${want}, all three agree`);
+
+      // Put the bench back. Its own try/catch: a cleanup that fails leaves a ZZPROBE row
+      // behind, which is worth SAYING, but it is not the pricing question this check asks.
+      try {
+      await p.evaluate(async (m) => {
+        const tok = sessionStorage.getItem('pos_token') || localStorage.getItem('pos_token');
+        const H = { 'Authorization': 'Bearer ' + tok, 'Content-Type': 'application/json' };
+        sessionStorage.removeItem('pos_cart');
+        sessionStorage.removeItem('pos_kiosk_cart_code');
+        sessionStorage.removeItem('checkout_customer');
+        await fetch('/api/v1/pos/carts/' + m.code + '/claim', { method: 'POST', headers: H, body: '{}' }).catch(() => {});
+        await fetch('/api/v1/pos/products/' + m.id, { method: 'PUT', headers: H,
+          body: JSON.stringify({ name: 'ZZPROBE ringout (retired)', price: '4.00',
+                                 is_active: false, product_class: 'standard' }) }).catch(() => {});
+      }, made);
+      } catch (e) {
+        console.log('  ⚠️  cleanup failed — a ZZPROBE row may still be active: ' + e.message);
+      }
+    }
+  } catch (e) {
+    rbad++; rn++;
+    console.log('  ❌ ring-it-out check threw — a FAILURE, not a warning: ' + e.message);
+  }
+
+  await b.close(); process.exit((bad + mbad + hbad + rbad) ? 1 : 0);
 })();

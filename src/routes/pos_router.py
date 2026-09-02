@@ -12457,6 +12457,15 @@ async def _kiosk_cart_payload(db: AsyncSession, cart) -> dict:
                       # so the board can SAY why a line is cheaper than price × qty,
                       # rather than showing a number nobody can reconstruct
                       "tier_saved": f"{(flat - lt):.2f}" if lt < flat else None,
+                      # THE LADDER TRAVELS WITH THE LINE. Ring-it-out rebuilds the till cart out
+                      # of this payload, and until 2026-09-03 it had only price and qty to copy —
+                      # so the board said CHF 10.00, the cart it opened said CHF 12.00, and the
+                      # receipt said 10.00 again (the server always re-prices from the product).
+                      # Nobody was overcharged; the cashier was told the wrong number to collect,
+                      # which puts the drawer CHF 2 over at closeout. Shown != charged is the one
+                      # thing this whole ladder exists to prevent.
+                      "price_tiers": (pr.price_tiers if pr is not None else None),
+                      "tier_mode": ((pr.tier_mode or "per_unit") if pr is not None else None),
                       "product_class": it.get("product_class")})
     member, discount_pct = None, 0
     if cart.customer_id:

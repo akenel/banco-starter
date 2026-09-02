@@ -514,7 +514,13 @@ function searchApp() {
                     name: product.name,
                     price: parseFloat(product.price),
                     quantity: qty,
-                    barcode: product.barcode
+                    barcode: product.barcode,
+                    // /api/v1/pos/search has returned these two since BL-26, with a comment
+                    // saying "so the cart can preview the tier line (shown==charged)" — and this
+                    // builder dropped them on the floor anyway. Same bug as ring-it-out, second
+                    // site, found by checking the siblings (standing rule 9).
+                    price_tiers: product.price_tiers || null,
+                    tier_mode: product.tier_mode || 'per_unit'
                 });
             }
 

@@ -126,6 +126,13 @@
                         id: l.product_id, product_id: l.product_id, name: l.name,
                         quantity: l.qty, price: parseFloat(l.price),
                         product_class: l.product_class,
+                        // Carry the quantity-break ladder onto the cart line. Without these two
+                        // fields _tierBest() finds nothing, the cart re-prices at price x qty, and
+                        // the board's CHF 10.00 came back as CHF 12.00 the moment Felix rang it
+                        // out (found on the tablet 2026-09-02). The server prices from the product
+                        // either way, so this is the SCREEN agreeing with the receipt.
+                        price_tiers: l.price_tiers || null,
+                        tier_mode: l.tier_mode || 'per_unit',
                         promo_restricted: ['tobacco_nicotine', 'alcohol'].includes(l.product_class),
                     }));
                     if (!cart.length) { showToast(t('held.toast_empty') || 'This order is empty', 'warning'); return; }
