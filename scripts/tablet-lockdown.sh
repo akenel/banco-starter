@@ -29,8 +29,15 @@
 # Run it once per counter machine:
 #     sudo ./scripts/tablet-lockdown.sh
 #
+# It also sets Chromium's default search engine to Google (see the bottom of
+# this file). Felix asked for Google; a fresh Debian Chromium ships DuckDuckGo,
+# and the counter tablet is where somebody stands looking up a product they are
+# holding. Set as a MANAGED POLICY, not a preference, for the same reason as
+# everything above: a preference is one stray tap from being something else.
+#
 # To undo: rm /etc/dconf/db/local.d/00-banco-counter
 #          rm /etc/dconf/db/local.d/locks/banco-counter
+#          rm /etc/chromium*/policies/managed/00-banco-search.json
 #          dconf update
 # ---------------------------------------------------------------------------
 set -euo pipefail
@@ -94,7 +101,58 @@ LOCKS_LIST
 dconf update
 echo "  wrote $KEYFILE"
 echo "  wrote $LOCKS"
+
+# ---------------------------------------------------------------------------
+# CHROMIUM: default search engine = Google.
+#
+# Debian's Chromium ships DuckDuckGo as the default. Felix wants Google, and the
+# counter tablet is the machine somebody stands at holding a packet they cannot
+# identify — so the omnibox matters more here than it does on a desk.
+#
+# Written as a MANAGED POLICY rather than a setting inside the profile, because:
+#   - it survives a new profile, a wiped profile, and a second user account
+#   - Chromium then shows the field as managed and it cannot be changed by a tap
+#   - it needs no login to apply — it is there the first time the browser opens
+#
+# One line to change the country: www.google.ch (Swiss results, the shop is in
+# Luzern). www.google.de or www.google.com work identically — .com redirects to
+# the local domain anyway, so .ch just skips a hop.
+# ---------------------------------------------------------------------------
+SEARCH_HOST="${BANCO_SEARCH_HOST:-www.google.ch}"
+
+wrote_policy=0
+for d in /etc/chromium/policies/managed \
+         /etc/chromium-browser/policies/managed \
+         /etc/opt/chrome/policies/managed; do
+  # Both CHROMIUM paths get the file regardless of what is on disk: Debian has
+  # shipped /etc/chromium and /etc/chromium-browser at different times, the
+  # package does not necessarily create either, and a policy file sitting in a
+  # directory no browser reads costs nothing. Chrome's tree is only filled if
+  # Chrome is actually installed. Guessing wrong here fails SILENTLY — the
+  # browser simply ignores you — which is why chrome://policy is the check.
+  base="$(dirname "$(dirname "$d")")"
+  if [ "$d" != "/etc/opt/chrome/policies/managed" ] || [ -d "$base" ]; then
+    mkdir -p "$d"
+    cat > "$d/00-banco-search.json" <<JSON
+{
+  "DefaultSearchProviderEnabled": true,
+  "DefaultSearchProviderName": "Google",
+  "DefaultSearchProviderKeyword": "google",
+  "DefaultSearchProviderSearchURL": "https://${SEARCH_HOST}/search?q={searchTerms}",
+  "DefaultSearchProviderSuggestURL": "https://${SEARCH_HOST}/complete/search?output=chrome&q={searchTerms}"
+}
+JSON
+    echo "  wrote $d/00-banco-search.json"
+    wrote_policy=1
+  fi
+done
+[ "$wrote_policy" -eq 1 ] || echo "  ⚠️  no Chromium policy directory found — search engine NOT set"
+
 echo
 echo "✅ Locked. Log out and back in (or reboot) for the shell to pick it up."
 echo "   After that the accessibility toggles are greyed out and the little"
 echo "   person icon is gone — nobody can magnify the till by accident again."
+echo
+echo "🔎 Search engine: Google (${SEARCH_HOST}). QUIT Chromium fully and reopen it,"
+echo "   then check chrome://policy — DefaultSearchProviderSearchURL must be listed"
+echo "   with status OK. A reload is not enough; the browser reads policy at start."
