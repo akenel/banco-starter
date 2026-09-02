@@ -304,11 +304,23 @@
                          The person who counted the money was not named anywhere on the count —
                          and a cash record whose counter is anonymous is not much of a record.
                          The API has returned reconciled_by all along; the screen never asked. -->
+                    <!-- "opened by pam" ALONE reads like the shift is still open. Angel,
+                         2026-09-02, looking at a finished report while logged in as someone
+                         else: "it should say last closed by pam." He was reading the header as
+                         a statement about the drawer's state, which is exactly what a reader
+                         does. So say both jobs, always — one line when it was one person,
+                         two names when it was two. This report is about the SHIFT, never
+                         about whoever happens to be looking at it. -->
                     <p class="text-sm text-gray-500">
-                        <span>opened by</span>
-                        <span class="font-medium text-gray-700" x-text="report && report.opened_by || (report && report.username)"></span>
+                        <template x-if="report && (!report.reconciled_by || report.reconciled_by === (report.opened_by || report.username))">
+                            <span>opened and closed by
+                                <span class="font-medium text-gray-700" x-text="report.opened_by || report.username"></span>
+                            </span>
+                        </template>
                         <template x-if="report && report.reconciled_by && report.reconciled_by !== (report.opened_by || report.username)">
-                            <span>· counted &amp; closed by
+                            <span>opened by
+                                <span class="font-medium text-gray-700" x-text="report.opened_by || report.username"></span>
+                                · counted &amp; closed by
                                 <span class="font-medium text-gray-700" x-text="report.reconciled_by"></span>
                             </span>
                         </template>
