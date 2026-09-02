@@ -160,6 +160,62 @@ time this week the keypad has paid for itself.
 runs perfectly well in a browser on Windows. This section is about the **counter appliance** — the
 machine you support, image and replace — not about what a customer is allowed to use.
 
+## 🔴 TURN THESE OFF ON EVERY COUNTER MACHINE — they break the scanner gun
+
+*Found 2026-09-02, on the till, with a gun about to be tested. Two of them were already ON.*
+
+A barcode gun **is a keyboard**. It types thirteen digits in about fifty milliseconds and it sends a
+SHIFT with them. GNOME's accessibility toggles sit one tap away in the top bar — behind the little
+person icon — and three of them are, precisely, *"ignore keys typed quickly"*:
+
+| setting | what it does to a scan |
+|---|---|
+| **Slow keys** | a key must be **held** before it registers → most of the barcode is dropped |
+| **Bounce keys** | ignores fast repeats → `4455` arrives as `45`, silently, and the wrong product rings up |
+| **Sticky keys** | latches modifiers → the gun's SHIFT lands on the wrong character (this shop already has `sKU-`, LESSON #1) |
+| **Mouse keys** | the number pad moves the **pointer** instead of typing → no digits at all |
+| **Zoom / magnifier** | one tap, magnifies everything, **no obvious way back** on a touchscreen |
+
+Angel hit the magnifier by accident and could not undo it: *"now it's impossible to set it back — I
+think I need to reboot."* A reboot does not help; it is a saved setting.
+
+**Set them, and hide the menu that offers them:**
+
+```bash
+for k in slowkeys-enable bouncekeys-enable stickykeys-enable mousekeys-enable togglekeys-enable; do
+  gsettings set org.gnome.desktop.a11y.keyboard $k false
+done
+gsettings set org.gnome.desktop.a11y.applications screen-magnifier-enabled false
+gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled false
+gsettings set org.gnome.desktop.a11y.applications screen-reader-enabled false
+gsettings set org.gnome.desktop.a11y always-show-universal-access-status false
+```
+
+The icon disappears once every one of them is off — it is shown whenever any is on.
+
+⚠️ **This is a diagnosis trap, not just a config trap.** A gun with slow keys on looks like a
+**broken gun**: it beeps, and half the code arrives. The shop buys a second gun. Check this before
+believing any scanner fault — same family as the flat battery that cost an hour on 2026-09-01.
+
+### The other touch settings, and what they are actually worth
+
+| setting | verdict |
+|---|---|
+| **Large text** | scales GNOME's own UI, **not** the browser — it does nothing to Banco. If the till's own text is too small that is a Banco CSS job, not an OS one. |
+| **High contrast** | restyles GTK apps; the till is a web page, so again no effect on Banco. |
+| **Screen reader** | off. It reads the desktop aloud at a counter. |
+| **On-screen keyboard** | off, and it has never worked in any browser on this machine — that is the whole reason Banco draws its own keypad. |
+| **Display scaling ×1.25** | this one WOULD make every Banco target bigger, and it is `gsettings set org.gnome.desktop.interface text-scaling-factor 1.15`. It changes the layout, so it is a decision, not a default. |
+
+### And on the browser itself
+
+```
+--overscroll-history-navigation=0   # a horizontal swipe was browser BACK — mid-sale
+--disable-pinch                     # no accidental pinch-zoom on a till
+--force-device-scale-factor=1       # start at 100%, always
+--start-maximized                   # NOT --kiosk: see the section above
+```
+
 ## What to say when someone brings their own device
 
 > *"Banco runs in a browser, so it will render on almost anything. What it cannot promise is the

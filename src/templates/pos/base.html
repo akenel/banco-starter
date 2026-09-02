@@ -106,6 +106,78 @@
       window.posIntOnly   = window.posIntOnly   || function (v) { return v; };
     </script>
 
+    <!-- HALF A COUNTED DRAWER MUST NOT BE ABLE TO VANISH. Angel, 2026-09-02:
+         "you could be in edit mode and all of a sudden the screen flashes away
+         and you are back at the dashboard — they fill in half the coin counts
+         and BAMM they get thrown out." Counting a till is ten minutes of work
+         that exists nowhere but on that screen until it is submitted.
+
+         A page registers what is at stake; anything that would leave asks first.
+         Our own modal, not confirm() — a browser dialog on a kiosk tablet is a
+         gamble (some are suppressed outright) and LESSON #12 says the question
+         has to appear where the person is looking.
+         Usage:  window.posGuardLeave(function () { return dirty ? 'what is at stake' : ''; }); -->
+    <script>
+      (function () {
+        var probe = null, pending = null;
+        window.posGuardLeave = function (fn) { probe = fn; };
+        function atStake() {
+          if (!probe) return '';
+          try { return probe() || ''; } catch (e) { return ''; }
+        }
+        function box() {
+          var el = document.getElementById('pos-leave-guard');
+          if (el) return el;
+          el = document.createElement('div');
+          el.id = 'pos-leave-guard';
+          el.style.cssText = 'position:fixed;inset:0;z-index:9999;display:none;'
+            + 'background:rgba(15,23,42,.55);align-items:center;justify-content:center;padding:1rem';
+          el.innerHTML =
+            '<div style="background:#fff;border-radius:1rem;max-width:26rem;width:100%;padding:1.25rem;'
+            + 'box-shadow:0 20px 50px rgba(0,0,0,.35);font-family:inherit">'
+            + '<p style="font-size:1.1rem;font-weight:700;color:#0f172a;margin:0 0 .5rem">Leave without saving?</p>'
+            + '<p id="pos-leave-what" style="color:#334155;margin:0 0 1rem;line-height:1.5"></p>'
+            + '<div style="display:flex;gap:.6rem">'
+            + '<button id="pos-leave-stay" style="flex:1;min-height:48px;border-radius:.6rem;border:0;'
+            + 'background:#4f46e5;color:#fff;font:600 1rem inherit;cursor:pointer">Stay and finish</button>'
+            + '<button id="pos-leave-go" style="flex:1;min-height:48px;border-radius:.6rem;'
+            + 'border:1px solid #cbd5e1;background:#fff;color:#b91c1c;font:600 1rem inherit;cursor:pointer">Leave anyway</button>'
+            + '</div></div>';
+          document.body.appendChild(el);
+          el.querySelector('#pos-leave-stay').addEventListener('click', function () {
+            el.style.display = 'none'; pending = null;
+          });
+          el.querySelector('#pos-leave-go').addEventListener('click', function () {
+            var go = pending; pending = null; probe = null;    // they chose; do not ask twice
+            el.style.display = 'none';
+            if (go) window.location.href = go;
+          });
+          return el;
+        }
+        function ask(href, what) {
+          var el = box();
+          el.querySelector('#pos-leave-what').textContent = what;
+          el.style.display = 'flex';
+          pending = href;
+        }
+        document.addEventListener('click', function (e) {
+          var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+          if (!a) return;
+          var href = a.getAttribute('href') || '';
+          if (!href || href.charAt(0) === '#' || a.target === '_blank') return;
+          if (href.indexOf('javascript:') === 0) return;
+          var what = atStake();
+          if (!what) return;
+          e.preventDefault(); e.stopPropagation();
+          ask(a.href, what);
+        }, true);
+        window.addEventListener('beforeunload', function (e) {
+          if (!atStake()) return;
+          e.preventDefault(); e.returnValue = '';       // reload / close / back
+        });
+      })();
+    </script>
+
     <!-- FULL SCREEN, AND A WAY BACK. Angel, 2026-09-02: swiping down from the top
          right to check battery/wifi drops the kiosk window out of full screen and
          leaves it two-thirds wide on the left, "and a cashier could be stuck with

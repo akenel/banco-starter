@@ -49,8 +49,9 @@
                             <tr class="border-t">
                                 <td class="py-2 px-3 font-medium" x-text="d.display"></td>
                                 <td class="py-1 px-3 text-center">
-                                    <input type="number" min="0" step="1" inputmode="numeric"
-                                        x-model.number="openCounts[d.k]"
+                                    <input type="text" inputmode="numeric" data-keypad="numeric"
+                                        x-model="openCounts[d.k]"
+                                        @input="$event.target.value = window.posIntOnly($event.target.value); openCounts[d.k] = $event.target.value === '' ? 0 : Number($event.target.value)"
                                         class="w-20 text-center border rounded py-1 px-2">
                                 </td>
                                 <td class="py-2 px-3 text-right text-gray-700"
@@ -91,7 +92,7 @@
                 <p class="font-semibold text-indigo-900 mb-2" data-i18n="shift.reveal_title">Last night's reconcile</p>
                 <p class="text-sm text-indigo-800 mb-3" x-text="openReveal && openReveal.message"></p>
                 <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="shift.reveal_note_label">What happened? (filed against yesterday)</label>
-                <input type="text" x-model="openNote" class="w-full border rounded py-2 px-3"
+                <input type="text" data-keypad="text" x-model="openNote" class="w-full border rounded py-2 px-3"
                        :placeholder="t('shift.reveal_note_ph')">
                 <button @click="openDrawer(false)" :disabled="processing || !openNote.trim()"
                         class="btn-primary w-full mt-3" data-i18n="shift.reveal_open_anyway">Open the shop with this count</button>
@@ -167,7 +168,7 @@
                         record the expected figure and mark plainly that <b>nobody counted it</b>, so it can never
                         be read as a balanced box.</p>
                     <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="shift.force_reason_label">Why can it not be counted?</label>
-                    <input type="text" x-model="forceReason" class="w-full border rounded py-2 px-3"
+                    <input type="text" data-keypad="text" x-model="forceReason" class="w-full border rounded py-2 px-3"
                            :placeholder="t('shift.force_reason_ph')">
                     <div class="flex gap-2 mt-3">
                         <button @click="forceClose()" :disabled="processing || forceReason.trim().length < 10"
@@ -210,13 +211,13 @@
                         <option value="paid_out" data-i18n="shift.paid_out_opt">Paid OUT</option>
                         <option value="paid_in" data-i18n="shift.paid_in_opt">Paid IN</option>
                     </select>
-                    <input type="number" min="0" step="0.05" x-model="paid.amount" data-i18n-placeholder="shift.ph_amount" placeholder="Amount" class="w-28 border rounded py-2 px-3 text-sm">
+                    <input type="text" inputmode="decimal" data-keypad="decimal" x-model="paid.amount" @input="paid.amount = window.posMoneyOnly($event.target.value); $event.target.value = paid.amount" data-i18n-placeholder="shift.ph_amount" placeholder="Amount" class="w-28 border rounded py-2 px-3 text-sm">
                     <select x-model="paid.reason_code" class="border rounded py-2 px-3 text-sm">
                         <template x-for="rc in reasonCodes()" :key="rc.code">
                             <option :value="rc.code" x-text="rc.label"></option>
                         </template>
                     </select>
-                    <input type="text" x-model="paid.reason" data-i18n-placeholder="shift.ph_reason" placeholder="Reason (e.g. milk, float top-up)" class="flex-1 min-w-40 border rounded py-2 px-3 text-sm">
+                    <input type="text" data-keypad="text" x-model="paid.reason" data-i18n-placeholder="shift.ph_reason" placeholder="Reason (e.g. milk, float top-up)" class="flex-1 min-w-40 border rounded py-2 px-3 text-sm">
                     <button @click="addPaid()" :disabled="processing" class="btn-secondary text-sm" data-i18n="shift.record">Record</button>
                 </div>
                 <!-- The outcome, RIGHT HERE next to the button. The page-top error banner is
@@ -248,8 +249,9 @@
                                 <tr class="border-t">
                                     <td class="py-2 px-3 font-medium" x-text="d.display"></td>
                                     <td class="py-1 px-3 text-center">
-                                        <input type="number" min="0" step="1" inputmode="numeric"
-                                            x-model.number="closeCounts[d.k]"
+                                        <input type="text" inputmode="numeric" data-keypad="numeric"
+                                            x-model="closeCounts[d.k]"
+                                            @input="$event.target.value = window.posIntOnly($event.target.value); closeCounts[d.k] = $event.target.value === '' ? 0 : Number($event.target.value)"
                                             class="w-20 text-center border rounded py-1 px-2">
                                     </td>
                                     <td class="py-2 px-3 text-right text-gray-700"
@@ -280,7 +282,7 @@
                 </div>
 
                 <div x-show="!withinTol()" class="mb-4">
-                    <textarea x-model="note" rows="2" class="w-full border rounded py-2 px-3 text-sm"
+                    <textarea data-keypad="text" x-model="note" rows="2" class="w-full border rounded py-2 px-3 text-sm"
                         data-i18n-placeholder="shift.ph_what_happened" placeholder="What happened? (e.g. gave wrong change once)"></textarea>
                 </div>
 
@@ -614,5 +616,31 @@ function shiftData() {
         goDashboard() { window.location.href = '/pos/dashboard'; },
     };
 }
+
+// A counted drawer lives nowhere but this screen until it is submitted. Ten
+// minutes of counting, and a stray tap on the bottom nav used to take it.
+// Angel, 2026-09-02: "they fill in half the coin counts and BAMM they get
+// thrown out."  See the guard in base.html.
+(function () {
+  function n(v) { return Number(v) || 0; }
+  function typed(counts) {
+    if (!counts) return 0;
+    return Object.keys(counts).reduce(function (a, k) { return a + n(counts[k]); }, 0);
+  }
+  window.posGuardLeave(function () {
+    var d;
+    try { d = Alpine.$data(document.querySelector('[x-data]')); } catch (e) { return ''; }
+    if (!d || d.processing) return '';
+    var opened = typed(d.openCounts), closed = typed(d.closeCounts);
+    var coins  = opened + closed;
+    var words  = (d.openNote || '') + (d.note || '') + (d.forceReason || '');
+    if (!coins && !words.trim()) return '';
+    if (coins) {
+      return 'You have counted ' + coins + ' notes and coins into the drawer and not '
+           + 'submitted it yet. Leaving loses the count and you start again.';
+    }
+    return 'You have typed a note that has not been filed yet.';
+  });
+})();
 </script>
 {% endblock %}

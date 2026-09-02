@@ -103,11 +103,11 @@
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="text-sm text-gray-600" data-i18n="closeout.notes_chf">Notes (CHF)</label>
-                            <input type="number" step="0.10" x-model="cashCount.notes" @input="updateCashTotal()" class="input-field">
+                            <input type="text" inputmode="decimal" data-keypad="decimal" x-model="cashCount.notes" @input="cashCount.notes = window.posMoneyOnly($event.target.value); $event.target.value = cashCount.notes; updateCashTotal()" class="input-field">
                         </div>
                         <div>
                             <label class="text-sm text-gray-600" data-i18n="closeout.coins_chf">Coins (CHF)</label>
-                            <input type="number" step="0.10" x-model="cashCount.coins" @input="updateCashTotal()" class="input-field">
+                            <input type="text" inputmode="decimal" data-keypad="decimal" x-model="cashCount.coins" @input="cashCount.coins = window.posMoneyOnly($event.target.value); $event.target.value = cashCount.coins; updateCashTotal()" class="input-field">
                         </div>
                     </div>
 
@@ -159,7 +159,7 @@
 
                 <div x-show="needsAdjustment === 'yes'" class="mt-4">
                     <textarea
-                        x-model="adjustmentNote"
+                        data-keypad="text" x-model="adjustmentNote"
                         class="input-field h-24"
                         data-i18n-placeholder="closeout.note_placeholder"
                         placeholder="Describe what needs fixing..."></textarea>
@@ -419,5 +419,19 @@ ${t('closeout.thank_you')}
             }
         }
     }
+
+// Same as the drawer count: a cash count typed here and not submitted exists
+// nowhere else. See the guard in base.html.
+(function () {
+  window.posGuardLeave(function () {
+    var d;
+    try { d = Alpine.$data(document.querySelector('[x-data]')); } catch (e) { return ''; }
+    if (!d || d.processing || d.done) return '';
+    var c = d.cashCount || {};
+    var typed = String(c.notes || '').trim() || String(c.coins || '').trim();
+    if (!typed && !String(d.adjustmentNote || '').trim()) return '';
+    return 'You have counted the cash and not closed the day yet. Leaving loses the count.';
+  });
+})();
 </script>
 {% endblock %}
