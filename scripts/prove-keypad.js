@@ -763,7 +763,7 @@ async function main() {
     } else {
       // clean first: leaving with nothing typed must NOT nag
       const cleanAsks = await p.evaluate(() => {
-        window.posGo('/pos/dashboard#probe');
+        window.posGo(location.pathname + '#probe');   // same document: no real navigation
         const el = document.getElementById('pos-leave-guard');
         return !!(el && el.style.display === 'flex');
       });
@@ -797,6 +797,21 @@ async function main() {
       });
       check(stayed.hidden && stayed.here === '/pos/shift',
             'Stay and finish puts you back where you were', stayed.here);
+
+      // AND IT MUST SHUT UP ONCE THE WORK IS FILED. Angel hit this within minutes
+      // of the guard shipping: on the shift REPORT, drawer already closed, he
+      // pressed 🏠 and was told he was about to lose a count that was already
+      // saved. The counts stay in state after a close; nothing is at stake.
+      const afterFiling = await p.evaluate(() => {
+        const d = Alpine.$data(document.querySelector('[x-data]'));
+        d.mode = 'report';                      // the drawer is closed and filed
+        window.posGo(location.pathname + '#probe2');  // same document: no real navigation
+        const el = document.getElementById('pos-leave-guard');
+        return !!(el && el.style.display === 'flex');
+      });
+      check(afterFiling === false, 'and it says NOTHING once the drawer is filed',
+            afterFiling ? 'it nagged about a count that is already saved'
+                        : 'a guard that fires over saved work teaches people to click through it');
     }
 
     head('D · coverage (reported, not failed — this is a progress number)');

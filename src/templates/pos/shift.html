@@ -654,7 +654,14 @@ function shiftData() {
   window.posGuardLeave(function () {
     var d;
     try { d = Alpine.$data(document.querySelector('[x-data]')); } catch (e) { return ''; }
+    // ONLY WHILE COUNTING. Angel, 2026-09-02, minutes after this shipped: he was
+    // on the shift REPORT — the drawer already closed and filed — pressed 🏠, and
+    // was told he had counted all the bills and coins and was about to lose them.
+    // The counts are still sitting in state after a close; nothing is at stake.
+    // A guard that fires when the work is already saved is the fastest way to
+    // teach someone to click through it, and then it is not there when it counts.
     if (!d || d.processing) return '';
+    if (d.mode !== 'open' && d.mode !== 'active') return '';   // 'report' = filed
     var opened = typed(d.openCounts), closed = typed(d.closeCounts);
     var coins  = opened + closed;
     var words  = (d.openNote || '') + (d.note || '') + (d.forceReason || '');

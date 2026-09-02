@@ -427,7 +427,14 @@ ${t('closeout.thank_you')}
   window.posGuardLeave(function () {
     var d;
     try { d = Alpine.$data(document.querySelector('[x-data]')); } catch (e) { return ''; }
-    if (!d || d.processing || d.done) return '';
+    // `processing` is the real signal and the ONLY one: it goes true when the
+    // close starts and is reset only on ERROR, so on the success path it stays
+    // true through the redirect. An earlier version of this line also checked
+    // `d.done`, which does not exist on this component — a field I assumed. It
+    // happened to be harmless because processing already covered it, which is
+    // exactly how a phantom survives review. Same bug as shift.html's guard
+    // firing on the report screen, found by Angel minutes after it shipped.
+    if (!d || d.processing) return '';
     var c = d.cashCount || {};
     var typed = String(c.notes || '').trim() || String(c.coins || '').trim();
     if (!typed && !String(d.adjustmentNote || '').trim()) return '';

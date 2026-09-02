@@ -1,7 +1,7 @@
 {
-  "at": "2026-09-02T17:08:03.133Z",
+  "at": "2026-09-02T17:44:26.634Z",
   "url": "http://localhost:3000",
-  "pass": 72,
+  "pass": 73,
   "fail": 0,
   "results": [
     {
@@ -340,7 +340,7 @@
     {
       "r": "PASS",
       "l": "the manager price-fix box is ABOVE the pad, not under it",
-      "d": "field bottom 362, pad top 446"
+      "d": "field bottom 378, pad top 446"
     },
     {
       "r": "PASS",
@@ -381,6 +381,11 @@
       "r": "PASS",
       "l": "Stay and finish puts you back where you were",
       "d": "/pos/shift"
+    },
+    {
+      "r": "PASS",
+      "l": "and it says NOTHING once the drawer is filed",
+      "d": "a guard that fires over saved work teaches people to click through it"
     },
     {
       "r": "INFO",
