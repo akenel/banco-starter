@@ -516,7 +516,7 @@
                                              type=text + inputmode=numeric = a numeric keypad on mobile with NO ▲▼ spinner
                                              (those duplicated −/+). @input strips anything non-digit AS YOU TYPE so a letter
                                              or a decimal can never land; @change finalises + clamps ≥1 (not a fat-finger trap). -->
-                                        <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4"
+                                        <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2"
                                                data-keypad="numeric"
                                                :value="item.quantity"
                                                @focus="$event.target.select()"
@@ -2798,7 +2798,11 @@
             setQuantity(index, value) {
                 let q = parseInt(value, 10);
                 if (isNaN(q) || q < 1) q = 1;
-                if (q > 9999) q = 9999;   // fat-finger / stuck-key guard
+                // 99, not 9999. Angel on the till, 2026-09-02: "there is no limit on
+                // the quantity so I could type 9999 and get a stupid total." A 50-pack
+                // of papers is its own barcode with its own price, so nobody ever types
+                // 50 — past two digits it is a stuck key or a slipped finger, not a sale.
+                if (q > 99) q = 99;       // fat-finger / stuck-key guard
                 this.cart[index].quantity = q;
             },
 

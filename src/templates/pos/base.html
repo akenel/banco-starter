@@ -102,6 +102,62 @@
       window.posIntOnly   = window.posIntOnly   || function (v) { return v; };
     </script>
 
+    <!-- FULL SCREEN, AND A WAY BACK. Angel, 2026-09-02: swiping down from the top
+         right to check battery/wifi drops the kiosk window out of full screen and
+         leaves it two-thirds wide on the left, "and a cashier could be stuck with
+         the 2/3 screen for the rest of the day" — the only way back was killing
+         Chromium. Two halves to the fix and they are different halves:
+           · the tablet now launches MAXIMISED, not --kiosk, so GNOME's own bar
+             (battery, wifi, bluetooth) is always visible and nobody needs to
+             reach for that corner at all;
+           · this button is the escape hatch — one tap, no window-manager
+             knowledge, works whatever state the window is in.
+         The standard is the Fullscreen API; we are not inventing a gesture.
+         Touch and non-phone, same gate as the keypad: a laptop has a window
+         manager the person already knows, and a phone browser has its own. -->
+    <script>
+      (function () {
+        function ready(fn) {
+          if (document.readyState !== 'loading') fn();
+          else document.addEventListener('DOMContentLoaded', fn);
+        }
+        ready(function () {
+          var btn = document.getElementById('fs-toggle');
+          if (!btn) return;
+          var touch = (typeof window.posIsTouchDevice === 'function')
+                    ? window.posIsTouchDevice() : (navigator.maxTouchPoints || 0) > 0;
+          var phone = (typeof window.posIsMobileOS === 'function')
+                    ? window.posIsMobileOS() : /Mobi|Android|iPhone|iPod/i.test(navigator.userAgent || '');
+          var el = document.documentElement;
+          var can = !!(el.requestFullscreen || el.webkitRequestFullscreen);
+          if (!touch || phone || !can) return;
+          btn.hidden = false;
+
+          function on() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+          function paint() {
+            btn.textContent = on() ? '⤡' : '⛶';
+            btn.title = on() ? 'Leave full screen — brings the system bar back'
+                             : 'Full screen';
+            btn.setAttribute('aria-pressed', on() ? 'true' : 'false');
+          }
+          btn.addEventListener('click', function () {
+            try {
+              if (on()) {
+                (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+              } else {
+                var r = (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
+                if (r && r.catch) r.catch(function (e) { console.log('[fs] refused: ' + e); });
+              }
+            } catch (e) { console.log('[fs] ' + e); }
+          });
+          document.addEventListener('fullscreenchange', paint);
+          document.addEventListener('webkitfullscreenchange', paint);
+          paint();
+          console.log('[fs] toggle ready');
+        });
+      })();
+    </script>
+
     <!-- Inter font (still CDN — falls back to system sans offline; vendor in a later phase) -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
@@ -301,6 +357,18 @@
         .env-pill.env-uat { background: #0e7490; }   /* UAT / pre-prod — teal */
         .env-pill.env-sbx { background: #a21caf; }   /* sandbox — purple */
         .env-pill.env-lcl { background: #475569; }   /* local — slate */
+        /* Full-screen toggle. Touch, non-phone only — see the script below. The
+           counter tablet launches MAXIMISED so GNOME's own bar (battery, wifi,
+           bluetooth) stays visible; this is how you get the other mode back
+           without knowing anything about the window manager. */
+        .fs-toggle {
+            background: #334155; color: #cbd5e1; border: 1px solid #475569;
+            border-radius: 5px; font-size: 13px; line-height: 1;
+            padding: 3px 8px; cursor: pointer; font-family: inherit;
+            min-width: 34px; min-height: 26px;   /* a fingertip, not a mouse pointer */
+        }
+        .fs-toggle:active { background: #475569; }
+        .fs-toggle:focus-visible { outline: 2px solid #38bdf8; outline-offset: 1px; }
         .helix-status-bar .sb-build { color: #64748b; font-size: 11px; white-space: nowrap; }
         .helix-status-bar .pulse {
             width: 8px;
@@ -1787,6 +1855,8 @@
             {% elif 'local' in _e or 'dev' in _e %}{% set _ec = 'LCL' %}{% set _ecc = 'env-lcl' %}
             {% else %}{% set _ec = '' %}{% set _ecc = '' %}{% endif %}
             {% if _ec %}<span class="env-pill {{ _ecc }}" title="environment: {{ app_env }}">{{ _ec }}</span>{% endif %}
+            <button type="button" id="fs-toggle" class="fs-toggle" hidden
+                    title="Full screen" aria-label="Full screen">⛶</button>
             <span id="status-time" title="local time">--:--</span>
             <span class="sb-build" data-build-iso="{{ build_date_iso or '' }}" title="build {{ app_version }} · {{ git_sha[:7] if git_sha else 'dev' }}{% if build_date %} · deployed {{ build_date }} (your local time){% endif %}">⚙ <span id="status-version">{{ app_version or '3.3.0' }}</span></span>
         </div>

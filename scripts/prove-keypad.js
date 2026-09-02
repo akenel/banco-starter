@@ -520,7 +520,10 @@ async function main() {
     // proof run against a container built before the edit came back 51/0 having
     // seen none of it. A green from a harness that cannot see the change is
     // LESSON #5 wearing a clean shirt.
-    const DEMO = ['scan.html', 'shelf_intake.html', 'checkout.html'];
+    // customer_lookup joined on 2026-09-02: Angel's D4 failed there, not on the
+    // demo path — "create a member" is a thing a manager does and nothing on that
+    // screen had a keyboard.
+    const DEMO = ['scan.html', 'shelf_intake.html', 'checkout.html', 'customer_lookup.html'];
     const disk = {};
     for (const f of DEMO) {
       disk[f] = fs.readFileSync(path.join(REPO, 'src', 'templates', 'pos', f), 'utf8');
@@ -547,7 +550,7 @@ async function main() {
     // The static half. These read the templates, because the question is about
     // markup that a page has to be deep inside a flow to render at all — a modal,
     // a manager's price fix, an x-for row that needs a cart with something in it.
-    const TAG = /<input\b[^>]*>/g;
+    const TAG = /<(?:input|textarea)\b[^>]*>/g;
     let badType = [], badKind = [], noMode = [], stillNumberModel = [], wired = 0;
     for (const f of DEMO) {
       for (const tag of disk[f].match(TAG) || []) {
@@ -648,8 +651,57 @@ async function main() {
             ? 'no DONE needed — a real keyboard fires change on blur, and this is a blur'
             : `fired ${changed.across}× — the Qty box would keep its old value until DONE`);
 
-    // H8 · what is actually wired, counted from the templates rather than claimed.
-    console.log(`  ℹ️  demo path — ${wired} fields wired across ${DEMO.length} screens`);
+    // H7 · THE PAD COVERING THE BOX — and why there is no assertion here.
+    // Angel, step B4: "the numeric field covers the price input — you have to
+    // press OK to see what you typed." open() now measures the field against the
+    // pad and scrolls whatever ancestor can absorb the overlap (ensureAbovePad).
+    //
+    // THREE tests were written for it and all three were deleted, because each
+    // one passed with the fix REVERTED:
+    //   1. a synthetic panel pinned with position:fixed;bottom:0 — asserted the
+    //      impossible: 180px of panel under 153px of pad has nowhere to go;
+    //   2. the same panel in normal flow — p.click() scrolls an element into view
+    //      before clicking it, so the box was never under the pad when it opened;
+    //   3. the real Item name / Price / Description fields — those already push
+    //      the page up correctly (Angel's step E1 passed), so there is nothing
+    //      there to catch.
+    // The field that actually failed is inside the manager price-fix panel, which
+    // needs a cart with an item in it — a WRITE, and this suite deliberately makes
+    // none, because it also runs against the shop.
+    //
+    // So it is a gap and it is named as one. A green assertion that cannot go red
+    // is worse than no assertion: it spends the reader's trust and returns nothing.
+    gap('the pad covering a box in a nested panel',
+        'every machine version of this passed with the fix reverted — human check, step B4');
+
+    // H8 · the guard that keeps a held finger off the bottom nav must hand the
+    // screen back as soon as the FINGER LIFTS, not after a fixed 400ms. A guess
+    // at how long a finger rests is wrong for somebody in both directions.
+    const guard = await (async () => {
+      await p.evaluate(() => {
+        const el = document.createElement('input');
+        el.id = 'pk-probe3'; el.setAttribute('data-keypad', 'text');
+        el.style.cssText = 'position:fixed;top:0;left:0;z-index:99999';
+        document.body.appendChild(el);
+      });
+      await p.click('#pk-probe3');
+      await p.waitForTimeout(250);
+      const navSel = '.app-bottomnav';
+      await tapKey(p, 'done');                    // pointerdown + pointerup on OK
+      await p.waitForTimeout(60);                 // far inside the old 400ms window
+      const early = await p.evaluate(sel => {
+        const n = document.querySelector(sel);
+        return n ? getComputedStyle(n).pointerEvents : 'no-nav';
+      }, navSel);
+      await p.evaluate(() => { const e = document.getElementById('pk-probe3'); if (e) e.remove(); });
+      return early;
+    })();
+    check(guard === 'auto' || guard === 'no-nav',
+          'the nav comes back when the finger LIFTS, not on a 400ms timer',
+          `pointer-events: ${guard} at 60ms — a deliberate second tap must never be eaten`);
+
+    // H9 · what is actually wired, counted from the templates rather than claimed.
+    console.log(`  ℹ️  ${wired} boxes wired across ${DEMO.length} screens`);
     results.push({ r: 'INFO', l: 'demo path wired', d: String(wired) });
 
     head('D · coverage (reported, not failed — this is a progress number)');

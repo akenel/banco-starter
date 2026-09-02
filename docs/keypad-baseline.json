@@ -1,7 +1,7 @@
 {
-  "at": "2026-09-02T11:56:15.661Z",
+  "at": "2026-09-02T15:51:00.194Z",
   "url": "http://localhost:3000",
-  "pass": 63,
+  "pass": 64,
   "fail": 0,
   "results": [
     {
@@ -334,9 +334,19 @@
       "d": "no DONE needed — a real keyboard fires change on blur, and this is a blur"
     },
     {
+      "r": "GAP",
+      "l": "the pad covering a box in a nested panel",
+      "d": "every machine version of this passed with the fix reverted — human check, step B4"
+    },
+    {
+      "r": "PASS",
+      "l": "the nav comes back when the finger LIFTS, not on a 400ms timer",
+      "d": "pointer-events: auto at 60ms — a deliberate second tap must never be eaten"
+    },
+    {
       "r": "INFO",
       "l": "demo path wired",
-      "d": "35"
+      "d": "49"
     },
     {
       "r": "INFO",

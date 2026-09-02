@@ -212,6 +212,40 @@
     setTimeout(function () {
       try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {}
     }, 60);
+    // AND THEN CHECK IT ACTUALLY WORKED. Angel, 2026-09-02, step B4: inside the
+    // manager price-fix panel the pad covered the box — "you have to press OK to
+    // see what you typed." scrollIntoView() scrolls the NEAREST scrollable
+    // ancestor, which in a nested panel is the panel, and moving the field to the
+    // middle of a panel that is itself under the pad achieves nothing.
+    // So measure, then correct. Being scrolled is not being visible (LESSON #12).
+    setTimeout(function () { ensureAbovePad(el, pad); }, 140);
+    setTimeout(function () { ensureAbovePad(el, pad); }, 480);   // after the smooth scroll settles
+  }
+
+  /** Is the box above the pad? If not, scroll whatever it takes until it is. */
+  function ensureAbovePad(el, pad) {
+    if (active !== el) return;
+    var padTop = window.innerHeight - pad.offsetHeight;
+    var r = el.getBoundingClientRect();
+    var need = Math.round(r.bottom - (padTop - 12));
+    if (need <= 0) return;
+    // Walk out from the field and spend the overlap on whatever can absorb it —
+    // the panel first, then its parents, then the window.
+    var n = el.parentElement;
+    while (n && need > 0) {
+      var st = getComputedStyle(n);
+      var scrolls = /(auto|scroll)/.test(st.overflowY) && n.scrollHeight > n.clientHeight + 1;
+      if (scrolls) {
+        var room = n.scrollHeight - n.clientHeight - n.scrollTop;
+        var take = Math.min(need, room);
+        if (take > 0) { n.scrollTop += take; need -= take; }
+      }
+      n = n.parentElement;
+    }
+    if (need > 0) { try { window.scrollBy(0, need); } catch (e) {} }
+    var after = Math.round(el.getBoundingClientRect().bottom);
+    console.log('[keypad] ensureAbovePad padTop=' + Math.round(padTop)
+              + ' fieldBottom=' + after + (after <= padTop ? ' ok' : ' STILL COVERED'));
   }
   function padOpen() {
     return !!((num && num.classList.contains('on')) || (abc && abc.classList.contains('on')));
@@ -262,15 +296,38 @@
   // has ALREADY been generated, and the dead nav means that even a click nobody
   // swallowed lands on something inert. Neither can contradict the other — they
   // are the same 400ms window, and after it both simply stop applying.
+  // 2026-09-02, Angel on the till: "about a 3/4 second press is fine, but if you
+  // lay the finger for 2 seconds you hit the bottom menu bar and get flipped into
+  // Customers or My Day." The 400ms was a GUESS at how long a finger rests, and
+  // any guess is wrong for somebody — lengthen it and a deliberate tap on the nav
+  // dies for a second instead, which is the same annoyance pointed the other way.
+  //
+  // So stop timing and follow the gesture. The click we must eat belongs to the
+  // press that closed the pad; it ends at that press's pointerup. Anything that
+  // starts LATER is a new, deliberate tap and must go straight through, however
+  // few milliseconds later it comes. Dead time is now exactly the length of the
+  // finger press — 2 seconds or 20 — and zero afterwards.
   function shutSafely() {
-    var swallow = function (e) { e.stopPropagation(); e.preventDefault(); };
-    document.addEventListener('click', swallow, true);
     var nav = document.querySelector('.app-bottomnav');
-    if (nav) nav.style.pointerEvents = 'none';
-    setTimeout(function () {
+    var done = false;
+    var swallow = function (e) { e.stopPropagation(); e.preventDefault(); };
+    var release = function () {
+      if (done) return;
+      done = true;
       document.removeEventListener('click', swallow, true);
+      document.removeEventListener('pointerup', onUp, true);
       if (nav) nav.style.pointerEvents = '';
-    }, 400);
+    };
+    // The click follows pointerup in the same task queue turn; let it fire and
+    // be swallowed, then hand the screen back.
+    var onUp = function () { setTimeout(release, 0); };
+
+    document.addEventListener('click', swallow, true);
+    document.addEventListener('pointerup', onUp, true);
+    if (nav) nav.style.pointerEvents = 'none';
+    // Safety net only: a pointerup that never arrives (the finger leaves the
+    // digitiser sideways, a cancelled gesture) must not leave the nav dead.
+    setTimeout(release, 1500);
     shut();
   }
 
@@ -373,7 +430,9 @@
         reveals later just as well as for ones present at load ────────────── */
   function target(e) {
     var el = e.target;
-    return (el && el.matches && el.matches('input[data-keypad]')) ? el : null;
+    // textarea too — Edit member's "📝 Staff notes" is one, and a box with no
+    // keyboard is a box nobody fills in.
+    return (el && el.matches && el.matches('input[data-keypad], textarea[data-keypad]')) ? el : null;
   }
   document.addEventListener('focusin', function (e) {
     var el = target(e);
