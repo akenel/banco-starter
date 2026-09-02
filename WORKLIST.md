@@ -35,6 +35,15 @@
   (fixed 2026-09-02). Whatever sets `.input-field` wins on width and loses on height, so any
   Tailwind sizing utility on one of these boxes is a coin toss. Worth one pass over the
   cashier screens with `prove-keypad` section K extended to widths.
+- **The kiosk screen does not show the pack price.** A guest adding 3 × OCB at the kiosk sees
+  3 × CHF 4.00; the board, the cart, the checkout and the receipt all say CHF 10.00. The
+  customer is charged correctly and gets a two-franc surprise in their favour. **Angel's call,
+  2026-09-03: leave it.** His words: *"too hard to fix both kiosk without breaking the till —
+  the till works."* Logged rather than fixed, deliberately. If it is ever picked up, the kiosk
+  basket is the one screen that still prices `price × qty` itself instead of asking
+  `services/pricing.tier_line_total()`, and that is the whole fix — but it is a customer-facing
+  number, so it wants its own test sheet and its own evening, not a drive-by.
+
 
 ## 🌙 WHERE WE STOPPED — 2026-09-02, ~22:00. READ THIS FIRST.
 
