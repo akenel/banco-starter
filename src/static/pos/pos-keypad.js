@@ -27,6 +27,36 @@
 (function () {
   'use strict';
 
+  /* ── the policing a box needs once it stops being type="number" ───────────
+     Swapping type="number" → type="text" is what makes the caret work at all
+     (a number input has no selectionStart, and setSelectionRange throws on
+     it) — but the BROWSER'S OWN POLICING LEAVES WITH THE TYPE, and a scanner
+     gun is a real keyboard that can fire anything into a focused field. The
+     keypad's priceOk() only guards keys pressed on the KEYPAD; these guard
+     every other door.
+
+     Defined ABOVE the touch gate on purpose: a laptop never draws a pad and
+     still needs the policing. One implementation, used from every template —
+     scan.html's proven priceOnly() delegates here rather than keeping a
+     second copy of the same regexes. Deliberately NOT handling "12,50" today:
+     that is a behaviour change to a field Angel has already signed off, and it
+     goes in on its own, with its own assertion. See WORKLIST ⑳. */
+  function moneyOnly(v) {
+    return String(v == null ? '' : v)
+      .replace(/[^0-9.]/g, '')            // letters, spaces, a gun's stray SHIFT
+      .replace(/(\..*)\./g, '$1')         // one decimal point, not three
+      .replace(/^(\d*\.\d{2}).*$/, '$1')  // two rappen, no more
+      .replace(/^(\d{5})\d+/, '$1');      // CHF 99999.99 ceiling, same as the pad
+  }
+  function intOnly(v) {
+    return String(v == null ? '' : v)
+      .replace(/[^0-9]/g, '')             // a quantity has no point and no minus
+      .replace(/^(\d{5})\d+/, '$1')
+      .replace(/^0+(\d)/, '$1');          // no 007 crates
+  }
+  window.posMoneyOnly = moneyOnly;
+  window.posIntOnly   = intOnly;
+
   // A touchscreen is the right axis HERE — this is a layout decision, which is
   // exactly what posIsTouchDevice() says it is for. (It is NOT a proxy for "is a
   // phone"; misusing it that way is what hid the camera button on this very
@@ -180,6 +210,14 @@
   }
 
   function shut() {
+    // A REAL KEYBOARD FIRES change WHEN THE FIELD IS DONE WITH. Ours has to as
+    // well, or every field that finalises on @change silently never finalises.
+    // Found 2026-09-02 wiring the cart quantity box on scan.html: it binds
+    // :value + @change="setQuantity(...)", so typing 6 on the pad and pressing
+    // OK left "6" on the glass and the old quantity in the cart — right on the
+    // screen, wrong in the basket, which is LESSON #13's exact shape. Fired on
+    // close, not per keystroke: @change means "finished", not "typing".
+    if (active) { active.dispatchEvent(new Event('change', { bubbles: true })); }
     active = null;
     if (num) num.classList.remove('on');
     if (abc) abc.classList.remove('on');

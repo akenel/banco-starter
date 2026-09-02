@@ -46,6 +46,36 @@ of them is the screen a cashier stands on.
 `priceOnly()`-style sanitising, because the browser's own policing leaves with the type and a
 **scanner gun is a real keyboard**. `maxlength` does not work on `type=number` either.
 
+> **✅ DONE, morning of 2026-09-02 — all 31 wired, 62 pass / 0 fail.** The demo path now reads
+> **35 wired · 0 to wire · 3 barcode boxes left alone.** Sheet for the tablet:
+> [`2026-09-02-keypad-31-fields.html`](onboarding/testsheets/2026-09-02-keypad-31-fields.html).
+> **Not deployed** — prod is still on `6c65d7d`.
+>
+> Three things the morning turned up, none of them in the plan:
+>
+> 1. **A proof run came back 51 pass / 0 fail having seen NONE of the change.** Templates are baked
+>    into the image here — there is no bind mount — and I had not rebuilt. LESSON #5 in a clean
+>    shirt. `prove-keypad.js` now opens with **H0: the SERVER is running the scan.html on disk**,
+>    which names the field that is missing rather than counting; counting lied twice on the way
+>    (base.html mentions `data-keypad` in a comment, and the first version fetched whatever page
+>    sections F and G had left loaded).
+> 2. **`otfPrice` and `lazyPrice` — yesterday's two human-green fields — had no `inputmode`.** On
+>    that tablet `inputmode` is ignored, which is exactly why nobody saw it; on a phone and on a
+>    laptop it is the difference between a number keyboard and a letter one. Fixed, and there is
+>    now a check that every number box still declares one.
+> 3. **`x-model.number` eats the decimal point mid-keystroke.** It re-parses `"20."` as `20` and
+>    writes it back, so **Amount received** on Checkout could not have taken a decimal at all once
+>    it stopped being `type="number"`. Four fields had it. Checked for now.
+>
+> Two things that need Angel, not code — **neither is a blocker:**
+> - **Discount % accepts 12.5 on New Sale and refuses it on Checkout.** Not something I introduced:
+>   one was `step="0.1"` and the other `step="1"`. Both behaviours are now explicit and on the sheet
+>   (A5 and D3). Which one is right is a shop decision.
+> - **The inventory's label column is wrong wherever a `<label>` WRAPS its input** — it reads the
+>   line above, so on Shelf Intake's deal row it attributed *"Every one of these costs"* to the
+>   Buy box. The *kinds* came out right, but only because I read every one in the template. Worth
+>   fixing before anyone trusts that column for the remaining 34.
+
 **AFTERNOON — the human half on the tablet**, folio detached, gun charged:
 [`onboarding/testsheets/2026-09-01-keypad-retest.html`](onboarding/testsheets/2026-09-01-keypad-retest.html).
 **B4 is the one the machine cannot check** — press OK and hold a beat too long. If that holds across

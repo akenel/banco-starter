@@ -1,7 +1,7 @@
 {
-  "at": "2026-09-01T15:38:35.256Z",
+  "at": "2026-09-02T06:39:46.364Z",
   "url": "http://localhost:3000",
-  "pass": 40,
+  "pass": 62,
   "fail": 0,
   "results": [
     {
@@ -142,6 +142,46 @@
     },
     {
       "r": "PASS",
+      "l": "a REAL keyboard cannot type letters into a price",
+      "d": "box reads \"999.\""
+    },
+    {
+      "r": "PASS",
+      "l": "and Alpine never saw the letters either",
+      "d": "otfPrice = \"999.\""
+    },
+    {
+      "r": "PASS",
+      "l": "and it cannot type a third rappen either",
+      "d": "\"12.50\""
+    },
+    {
+      "r": "PASS",
+      "l": "a price stops at CHF 99999.99",
+      "d": "\"55555\""
+    },
+    {
+      "r": "PASS",
+      "l": "OK sits ON TOP of a nav link — so the guard is needed",
+      "d": "under OK: /pos/customer-lookup"
+    },
+    {
+      "r": "PASS",
+      "l": "and closing makes that nav link inert",
+      "d": "pointer-events: none"
+    },
+    {
+      "r": "GAP",
+      "l": "holding OK on a real touchscreen",
+      "d": "mouse events cannot reproduce it — human check, retest sheet"
+    },
+    {
+      "r": "PASS",
+      "l": "the page does NOT jump while a tap is completing",
+      "d": "button top 763 -> 763"
+    },
+    {
+      "r": "PASS",
       "l": "tablet landscape · digits — keys are thumb-sized",
       "d": "pad 353px (44% of 800) · smallest key 417×62px"
     },
@@ -217,9 +257,86 @@
       "d": "pad 252px (30% of 844) · smallest key 28×54px"
     },
     {
+      "r": "PASS",
+      "l": "iPhone — our keypad stays OUT of the way",
+      "d": "posKeypad=boolean, pads drawn=0"
+    },
+    {
+      "r": "PASS",
+      "l": "tablet landscape — no screen scrolls sideways",
+      "d": "6 screens clean"
+    },
+    {
+      "r": "PASS",
+      "l": "tablet portrait — no screen scrolls sideways",
+      "d": "6 screens clean"
+    },
+    {
+      "r": "PASS",
+      "l": "phone portrait — no screen scrolls sideways",
+      "d": "6 screens clean"
+    },
+    {
+      "r": "PASS",
+      "l": "the SERVER is running the scan.html on disk",
+      "d": "all 21 wired fields on /pos/scan are the ones on disk"
+    },
+    {
+      "r": "PASS",
+      "l": "every data-keypad names a pad that exists",
+      "d": "text · decimal · numeric"
+    },
+    {
+      "r": "PASS",
+      "l": "no wired field is still type=\"number\"",
+      "d": "a number input has no selectionStart — the caret cannot be placed in one"
+    },
+    {
+      "r": "PASS",
+      "l": "every number box still declares inputmode",
+      "d": "the type carried the phone keyboard; inputmode carries it now"
+    },
+    {
+      "r": "PASS",
+      "l": "no decimal box kept x-model.number",
+      "d": "it re-parses \"12.\" to 12 and eats the point mid-keystroke"
+    },
+    {
+      "r": "PASS",
+      "l": "the REAL sanitisers loaded, not the identity fallback",
+      "d": ""
+    },
+    {
+      "r": "PASS",
+      "l": "a money box refuses letters, a third rappen and CHF 5,555,555"
+    },
+    {
+      "r": "PASS",
+      "l": "a quantity box refuses a decimal point, a minus and a leading zero"
+    },
+    {
+      "r": "PASS",
+      "l": "data-keypad=\"numeric\" opens the NUMBER pad"
+    },
+    {
+      "r": "PASS",
+      "l": "a numeric box refuses the decimal point ON THE PAD",
+      "d": "box reads \"6\""
+    },
+    {
+      "r": "PASS",
+      "l": "closing the pad fires ONE change event",
+      "d": "fired 1× — @change handlers finalise on this"
+    },
+    {
+      "r": "INFO",
+      "l": "demo path wired",
+      "d": "35"
+    },
+    {
       "r": "INFO",
       "l": "coverage /pos/scan",
-      "d": "4/23"
+      "d": "2/4"
     }
   ]
 }

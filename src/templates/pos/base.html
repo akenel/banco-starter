@@ -92,6 +92,15 @@
          2026-09-01 — WORKLIST ⑳), so a field marked data-keypad="decimal" or
          data-keypad="text" gets one we own. Touch devices only; a laptop never sees it. -->
     <script defer src="/static/pos/pos-keypad.js?v={{ asset_v('pos/pos-keypad.js') }}"></script>
+    <!-- Identity fallbacks, defined BEFORE the deferred script so they exist even if it never
+         arrives. Money and quantity boxes are type="text" now (a number input has no caret for
+         the keypad to place), and their @input handlers call these. If pos-keypad.js 404s, an
+         unpoliced box is recoverable; a TypeError on every keystroke in the CASH RECEIVED field
+         is not. The real versions overwrite these when the deferred script runs. -->
+    <script>
+      window.posMoneyOnly = window.posMoneyOnly || function (v) { return v; };
+      window.posIntOnly   = window.posIntOnly   || function (v) { return v; };
+    </script>
 
     <!-- Inter font (still CDN — falls back to system sans offline; vendor in a later phase) -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">

@@ -40,6 +40,11 @@
  *   NODE_PATH=<dir with playwright> node scripts/prove-keypad.js
  *   NODE_PATH=... node scripts/prove-keypad.js --save   # write the baseline
  *   BANCO_URL=https://banco.wolfhold.app NODE_PATH=... node scripts/prove-keypad.js
+ *
+ * ⚠️ RUN ./scripts/rebuild.sh FIRST when you have edited a template. There is no
+ *    bind mount here — templates are baked into the image, and a run against a
+ *    stale container came back 51 pass / 0 fail having seen none of the change
+ *    (2026-09-02). Section H0 now catches that by name, but only if you look.
  */
 'use strict';
 
@@ -491,6 +496,116 @@ async function main() {
     await p.setViewportSize({ width: 1280, height: 1000 });
 
     // ── D ─────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────────
+    head('H · the 31 demo-path fields — New Sale · Shelf Intake · Checkout');
+    // Added 2026-09-02, and H0 exists because of a mistake made ten minutes before
+    // it: templates are BAKED INTO THE IMAGE here, there is no bind mount, and a
+    // proof run against a container built before the edit came back 51/0 having
+    // seen none of it. A green from a harness that cannot see the change is
+    // LESSON #5 wearing a clean shirt.
+    const DEMO = ['scan.html', 'shelf_intake.html', 'checkout.html'];
+    const disk = {};
+    for (const f of DEMO) {
+      disk[f] = fs.readFileSync(path.join(REPO, 'src', 'templates', 'pos', f), 'utf8');
+    }
+
+    // H0 · is the box we are testing actually running the code on disk?
+    //      Counting occurrences was the naive version and it lied twice: base.html
+    //      mentions data-keypad in a comment (served 24 vs disk 22), and before
+    //      that the fetch used location.href, which sections F and G had moved.
+    //      So name the fields instead — a miss says WHICH one is missing.
+    const servedSrc = await p.evaluate(u => fetch(u, { credentials: 'same-origin' }).then(r => r.text()), `${ROOT}/pos/scan`);
+    const wantModels = [...disk['scan.html'].matchAll(/<input\b[^>]*>/g)]
+      .map(m => m[0]).filter(t => /data-keypad="/.test(t))
+      .map(t => (/x-model[^=]*="([^"]+)"/.exec(t) || [, null])[1]).filter(Boolean);
+    const missing = wantModels.filter(mdl => {
+      const re = new RegExp('<input\\b[^>]*x-model[^=]*="' + mdl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '"[^>]*>');
+      const tag = re.exec(servedSrc);
+      return !tag || !/data-keypad="/.test(tag[0]);
+    });
+    check(missing.length === 0, 'the SERVER is running the scan.html on disk',
+          missing.length ? `not served with a keypad: ${missing.join(', ')} — templates are BAKED INTO THE IMAGE here, run ./scripts/rebuild.sh before believing anything below`
+                         : `all ${wantModels.length} wired fields on /pos/scan are the ones on disk`);
+
+    // The static half. These read the templates, because the question is about
+    // markup that a page has to be deep inside a flow to render at all — a modal,
+    // a manager's price fix, an x-for row that needs a cart with something in it.
+    const TAG = /<input\b[^>]*>/g;
+    let badType = [], badKind = [], noMode = [], stillNumberModel = [], wired = 0;
+    for (const f of DEMO) {
+      for (const tag of disk[f].match(TAG) || []) {
+        const kd = /data-keypad="([^"]*)"/.exec(tag);
+        if (!kd) continue;
+        wired++;
+        const kind = kd[1];
+        const where = `${f} ${(/x-model[^=]*="([^"]+)"/.exec(tag) || [, '?'])[1]}`;
+        if (!['text', 'decimal', 'numeric'].includes(kind)) badKind.push(`${where}="${kind}"`);
+        if (/type="number"/.test(tag)) badType.push(where);
+        if (kind !== 'text' && !/inputmode="/.test(tag)) noMode.push(where);
+        if (kind === 'decimal' && /x-model\.number/.test(tag)) stillNumberModel.push(where);
+      }
+    }
+    check(badKind.length === 0, 'every data-keypad names a pad that exists', badKind.join(', ') || 'text · decimal · numeric');
+    check(badType.length === 0, 'no wired field is still type="number"',
+          badType.join(', ') || 'a number input has no selectionStart — the caret cannot be placed in one');
+    check(noMode.length === 0, 'every number box still declares inputmode',
+          noMode.join(', ') || 'the type carried the phone keyboard; inputmode carries it now');
+    check(stillNumberModel.length === 0, 'no decimal box kept x-model.number',
+          stillNumberModel.join(', ') || 'it re-parses "12." to 12 and eats the point mid-keystroke');
+
+    // H5 · the sanitisers, run in the BROWSER, from the file the server shipped —
+    // not from a node eval of a regex I copied out by hand.
+    const san = await p.evaluate(() => {
+      if (typeof window.posMoneyOnly !== 'function') return null;
+      const m = window.posMoneyOnly, i = window.posIntOnly;
+      return {
+        money: [['999.ab', '999.'], ['12.5099', '12.50'], ['5555555', '55555'], ['abc', '']]
+          .map(([a, b]) => m(a) === b).every(Boolean),
+        int: [['12a3', '123'], ['1.5', '15'], ['007', '7'], ['999999', '99999']]
+          .map(([a, b]) => i(a) === b).every(Boolean),
+        identity: m.toString().indexOf('return v') === -1,
+      };
+    });
+    check(san && san.identity, 'the REAL sanitisers loaded, not the identity fallback',
+          san ? '' : 'window.posMoneyOnly is missing entirely');
+    check(san && san.money, 'a money box refuses letters, a third rappen and CHF 5,555,555');
+    check(san && san.int,   'a quantity box refuses a decimal point, a minus and a leading zero');
+
+    // H6 · a real keyboard fires `change` when it is done with a field. The cart
+    // quantity box binds :value + @change, so without this it types on the glass
+    // and never reaches the cart — right on screen, wrong in the basket.
+    const changed = await (async () => {
+      await p.evaluate(() => {
+        const el = document.createElement('input');
+        el.id = 'pk-probe'; el.setAttribute('data-keypad', 'numeric');
+        el.style.cssText = 'position:fixed;top:0;left:0;z-index:99999';
+        window.__pkChange = 0;
+        el.addEventListener('change', () => { window.__pkChange++; });
+        document.body.appendChild(el);
+      });
+      await p.click('#pk-probe');
+      await p.waitForTimeout(250);
+      const padWas = await whichPad(p);
+      await tapKey(p, '6');
+      const dot = await tapKey(p, '.');            // a numeric pad has no decimal point
+      await p.waitForTimeout(150);
+      const typed = await p.$eval('#pk-probe', el => el.value);
+      await tapKey(p, 'done');
+      await p.waitForTimeout(200);
+      const n = await p.evaluate(() => window.__pkChange);
+      await p.evaluate(() => { const e = document.getElementById('pk-probe'); if (e) e.remove(); });
+      return { padWas, typed, n, dot };
+    })();
+    check(changed.padWas === 'decimal', 'data-keypad="numeric" opens the NUMBER pad');
+    check(changed.typed === '6', 'a numeric box refuses the decimal point ON THE PAD',
+          `box reads "${changed.typed}"`);
+    check(changed.n === 1, 'closing the pad fires ONE change event',
+          `fired ${changed.n}× — @change handlers finalise on this`);
+
+    // H8 · what is actually wired, counted from the templates rather than claimed.
+    console.log(`  ℹ️  demo path — ${wired} fields wired across ${DEMO.length} screens`);
+    results.push({ r: 'INFO', l: 'demo path wired', d: String(wired) });
+
     head('D · coverage (reported, not failed — this is a progress number)');
     const cov = await p.evaluate(() => {
       const all = [...document.querySelectorAll('input, textarea')].filter(el => {
