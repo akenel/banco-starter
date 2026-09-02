@@ -299,11 +299,33 @@
             <div class="card">
                 <div class="text-center mb-4">
                     <h2 class="text-2xl font-bold text-gray-900" data-i18n="shift.shift_report">Shift Report</h2>
+                    <!-- BOTH NAMES. Angel, 2026-09-02: pam counted and closed a drawer and the
+                         report said "felix", because felix was whoever OPENED it six days earlier.
+                         The person who counted the money was not named anywhere on the count —
+                         and a cash record whose counter is anonymous is not much of a record.
+                         The API has returned reconciled_by all along; the screen never asked. -->
                     <p class="text-sm text-gray-500">
-                        <span x-text="report && report.username"></span> ·
+                        <span>opened by</span>
+                        <span class="font-medium text-gray-700" x-text="report && report.opened_by || (report && report.username)"></span>
+                        <template x-if="report && report.reconciled_by && report.reconciled_by !== (report.opened_by || report.username)">
+                            <span>· counted &amp; closed by
+                                <span class="font-medium text-gray-700" x-text="report.reconciled_by"></span>
+                            </span>
+                        </template>
+                    </p>
+                    <p class="text-sm text-gray-500">
                         <span x-text="fmtTime(report && report.opened_at)"></span> →
                         <span x-text="fmtTime(report && report.closed_at)"></span>
                         (<span x-text="report && report.hours"></span> h)
+                    </p>
+                    <!-- A drawer open for six days is not a shift, and "expected in drawer" over
+                         that span is not a daily control. Say so rather than let the number look
+                         like a day's trading. -->
+                    <p x-show="report && report.hours > 24" style="display:none"
+                       class="text-sm text-amber-700 font-semibold mt-1">
+                        ⚠️ This drawer was open for
+                        <span x-text="report ? (report.hours / 24).toFixed(1) : ''"></span> days —
+                        the figures below cover the whole period, not one day.
                     </p>
                 </div>
 
