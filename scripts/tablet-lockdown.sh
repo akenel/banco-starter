@@ -171,6 +171,22 @@ togglekeys-enable=false
 
 [org/gnome/desktop/interface]
 enable-hot-corners=false
+
+# PrtScr TAKES THE WHOLE SCREEN, straight to ~/Pictures/Screenshots.
+# GNOME 48 ships the other way round: Print opens the interactive picker with a
+# selection box, and the whole screen is Shift+Print. On a touchscreen the picker
+# means dragging a rectangle with a finger before you have anything at all, and
+# every screenshot on the 2026-09-02 test sheets was a WHOLE screen — the thing
+# that repeatedly showed what the DOM would not. Angel: "the PrtScr feature has
+# been a life saver today."
+# So they swap. The picker is still there on Shift+Print for when a crop is what
+# you want. NOT locked: this is a preference, not a hazard, and locking it would
+# take the choice away for no safety reason. Setting it as a system default means
+# a wiped profile comes back with it, which is the whole point of this file.
+[org/gnome/shell/keybindings]
+screenshot=['Print']
+show-screenshot-ui=['<Shift>Print']
+screenshot-window=['<Alt>Print']
 KEYS
 
 cat > "$LOCKS" <<'LOCKS_LIST'
