@@ -852,6 +852,106 @@ async function main() {
     console.log(`  /pos/scan — ${cov.wired} of ${cov.total} typable inputs wired`);
     results.push({ r: 'INFO', l: 'coverage /pos/scan', d: `${cov.wired}/${cov.total}` });
 
+    // J RUNS LAST, AFTER THE COUNT, and that is deliberate. The coverage line
+    // above counts the boxes on whatever /pos/scan looks like at that moment,
+    // and the sections before it have opened panels that reveal more of them.
+    // Putting this section ahead of it navigated to /pos/catalog and turned a
+    // steady "31 of 33" into "16 of 19" — then "19 of 23" once I navigated back,
+    // because a freshly loaded page is not the same page either. The number was
+    // never wrong about what it counted; it was wrong about what it SAID it
+    // counted. Move the new work, not the measurement (LESSON #5).
+    // ── J · the edit modal, with the pad open ────────────────────────────────
+    // Angel, on the tablet 2026-09-02, steps B4/B5/B7: "the overlap in landscape
+    // makes it tough to add a second tier", "it works but very clunky", "the
+    // screen gets messed up when the keypads pop up". Two of my own fixes were
+    // fighting each other inside this one modal:
+    //
+    //   1. the panel is sized max-h-[92vh] — measured against the VIEWPORT, so
+    //      lifting the overlay above the pad left a 966px panel in a 696px box.
+    //      items-center split the overflow: 135px above y=0, which nothing can
+    //      scroll to, and 135px behind the pad.
+    //   2. padding the scroller by the pad's height — right for a page, wrong
+    //      for a panel already lifted clear of the pad, and it drags a
+    //      `sticky; bottom: 0` footer up into the middle of the form, because
+    //      sticky resolves that 0 against the scroller's CONTENT box.
+    //
+    // Both are geometry, and geometry is the thing a template review cannot see
+    // (LESSON #7) and a green isVisible() will lie about (LESSON #12). So this
+    // section MEASURES RECTANGLES.
+    head('J · the manager edit modal keeps its shape when the pad opens');
+    {
+      await p.goto(`${ROOT}/pos/catalog`, { waitUntil: 'domcontentloaded' });
+      await p.waitForTimeout(2500);
+      const editBtn = p.locator('button.cat-edit:visible').first();
+      if (!(await editBtn.count())) {
+        bad('could not open the edit modal', 'no visible Edit button — this check measured nothing');
+      } else {
+        await editBtn.click();
+        await p.waitForTimeout(1200);
+        const add = p.locator('button:has-text("Add break")').first();
+        if (await add.count()) { await add.click(); await p.waitForTimeout(400); }
+        const box = p.locator('[data-keypad="decimal"]').last();
+        await box.click();
+        await p.waitForTimeout(900);
+
+        const g = await p.evaluate(() => {
+          const vis = e => e && e.getBoundingClientRect().height > 10;
+          const r = e => { const b = e.getBoundingClientRect();
+            return { top: Math.round(b.top), bottom: Math.round(b.bottom) }; };
+          const pad = [...document.querySelectorAll('div')].find(e =>
+            e.offsetHeight > 200 && getComputedStyle(e).position === 'fixed'
+            && Math.abs(e.getBoundingClientRect().bottom - window.innerHeight) < 2
+            && e.querySelector('button'));
+          const overlay = [...document.querySelectorAll('.fixed.inset-0')]
+            .filter(e => e.getBoundingClientRect().height > 100).pop();
+          const panel = overlay && overlay.firstElementChild;
+          const bars = [...document.querySelectorAll('.modal-actions')].filter(vis);
+          const bar = bars[bars.length - 1];
+          const f = document.activeElement;
+          return {
+            vh: window.innerHeight,
+            padTop: pad ? Math.round(pad.getBoundingClientRect().top) : null,
+            panel: panel ? r(panel) : null,
+            bar: bar ? r(bar) : null,
+            field: (f && f.hasAttribute && f.hasAttribute('data-keypad')) ? r(f) : null,
+          };
+        });
+
+        if (g.padTop === null || !g.panel || !g.field) {
+          bad('could not measure the edit modal',
+              `padTop=${g.padTop} panel=${!!g.panel} field=${!!g.field} — measured nothing`);
+        } else {
+          // 1. NOTHING ABOVE THE TOP OF THE SCREEN. This is the half nobody
+          //    notices: content scrolled off y=0 has no scrollbar to bring it back.
+          check(g.panel.top >= -1,
+                'the modal does not hang off the top of the screen',
+                `panel top ${g.panel.top} (was -135 before the cap)`);
+          // 2. NOTHING BEHIND THE PAD.
+          check(g.panel.bottom <= g.padTop + 1,
+                'the modal ends above the pad',
+                `panel bottom ${g.panel.bottom} · pad top ${g.padTop}`);
+          // 3. THE BOX THE FINGER IS IN IS READABLE — not merely rendered.
+          const ceiling = g.bar ? Math.min(g.bar.top, g.padTop) : g.padTop;
+          check(g.field.bottom <= ceiling + 1,
+                'the focused box is above the pad AND above the action bar',
+                `field bottom ${g.field.bottom} · lowest readable ${ceiling}`);
+          // 4. THE ACTION BAR SITS AT THE BOTTOM, NOT ACROSS THE FORM. This is
+          //    the one that goes red on the padding bug: it landed at 225 in a
+          //    panel running 8..688.
+          if (g.bar) {
+            check(g.bar.bottom >= g.panel.bottom - 24,
+                  'the Save/Discontinue bar rides the bottom of the panel',
+                  `bar ${g.bar.top}..${g.bar.bottom} · panel ends ${g.panel.bottom}`);
+          } else {
+            bad('no action bar found in the edit modal', 'cannot tell whether it covers the form');
+          }
+        }
+        await p.keyboard.press('Escape').catch(() => {});
+        await p.waitForTimeout(300);
+      }
+    }
+
+
   } catch (e) {
     bad('the run itself', e.message);
   } finally {

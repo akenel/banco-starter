@@ -212,9 +212,37 @@
     while (n && n !== document.body) {
       var st = getComputedStyle(n);
       if (st.position === 'fixed' && n.getBoundingClientRect().height > window.innerHeight * 0.7) {
-        lifted = { el: n, bottom: n.style.bottom };
+        lifted = { el: n, bottom: n.style.bottom, panels: [] };
         n.style.bottom = padH + 'px';
-        console.log('[keypad] lifted a fixed overlay by ' + padH + 'px');
+        // AND CAP THE PANEL INSIDE IT. Shrinking the overlay is only half the job:
+        // the modal panel is sized `max-h-[92vh]`, which is measured against the
+        // VIEWPORT and knows nothing about the pad. Measured on the catalog edit
+        // modal, 2026-09-02, tablet in landscape (viewport 1050, pad 354):
+        //
+        //     overlay   0..696   correctly lifted
+        //     panel  -135..831   still 966px tall — 92vh
+        //
+        // The overlay centres what does not fit, so the overflow is split in two:
+        // 135px above y=0, which NOTHING can scroll to because it is off the top
+        // of the screen, and 135px under the pad. Angel, on this exact modal:
+        // "the screen gets messed up when the keypads pop up", and on the tier
+        // rows, "the overlap makes it tough to add a second tier".
+        //
+        // So re-cap any child that is taller than the space now available. The
+        // panel already has overflow-y:auto, so a shorter box scrolls the same
+        // content — every field stays reachable and the sticky action strip
+        // lands just above the pad instead of across the middle of the form.
+        var avail = n.getBoundingClientRect().height;
+        for (var i = 0; i < n.children.length; i++) {
+          var c = n.children[i];
+          if (!c || c.nodeType !== 1) continue;
+          if (c.getBoundingClientRect().height > avail - 8) {
+            lifted.panels.push({ el: c, maxHeight: c.style.maxHeight });
+            c.style.maxHeight = Math.max(160, avail - 16) + 'px';
+          }
+        }
+        console.log('[keypad] lifted a fixed overlay by ' + padH + 'px, capped '
+                  + lifted.panels.length + ' panel(s) to ' + Math.max(160, avail - 16) + 'px');
         return;
       }
       n = n.parentElement;
@@ -223,7 +251,42 @@
   function dropFixedOverlay() {
     if (!lifted) return;
     lifted.el.style.bottom = lifted.bottom;
+    for (var i = 0; i < lifted.panels.length; i++) {
+      lifted.panels[i].el.style.maxHeight = lifted.panels[i].maxHeight;
+    }
     lifted = null;
+  }
+
+  /**
+   * The lowest y a field may reach and still be READABLE. Normally the top of the
+   * pad — but a modal can pin its own bar to the bottom of its scroll box, and a
+   * field scrolled to just above the pad then sits behind THAT instead. On the
+   * catalog edit modal the Save/Discontinue/Delete strip is `position: sticky;
+   * bottom: 0`, and it measured 368..453 with the focused box at 316..379: the
+   * box was above the pad, and its bottom half was still unreadable. LESSON #12 —
+   * "is it rendered" is not the question, "is it inside the rectangle the person
+   * is looking at" is.
+   *
+   * A sticky HEADER is not an obstruction here (it computes `bottom: auto`), and
+   * a bar the field itself lives inside is not one either.
+   */
+  function readableBottom(el, padTop) {
+    var lowest = padTop;
+    var n = el.parentElement;
+    while (n && n !== document.body) {
+      for (var i = 0; i < n.children.length; i++) {
+        var c = n.children[i];
+        if (!c || c.nodeType !== 1 || c === el || c.contains(el)) continue;
+        var cs = getComputedStyle(c);
+        if (cs.position !== 'sticky' && cs.position !== 'fixed') continue;
+        if (cs.bottom === 'auto') continue;          // top-pinned header — not in the way
+        var b = c.getBoundingClientRect();
+        if (b.height < 8 || b.bottom < 8) continue;  // hidden or collapsed
+        if (b.top < lowest) lowest = b.top;
+      }
+      n = n.parentElement;
+    }
+    return lowest;
   }
 
   /** The nearest thing that can actually scroll — the modal body, not the page. */
@@ -262,7 +325,26 @@
     dropFixedOverlay();
     liftFixedOverlay(el, pad.offsetHeight);
     var sc = scrollerFor(el);
-    sc.style.paddingBottom = (pad.offsetHeight + 24) + 'px';
+    // ONE MECHANISM OR THE OTHER, NEVER BOTH. Padding the scroller by the pad's
+    // height is how a PAGE makes room for the pad. A modal that we just lifted is
+    // already entirely above the pad, so the padding buys nothing there — and it
+    // actively breaks the panel, because a `position: sticky; bottom: 0` footer
+    // resolves its 0 against the scroller's CONTENT box, not its padding box.
+    // Measured on the catalog edit modal, 2026-09-02:
+    //
+    //     panel padding-box bottom  688
+    //     padding-bottom            378   <- added here
+    //     sticky strip lands at     688 - 378 - 85 = 225
+    //
+    // which is the middle of the form. That is the green Save bar lying across
+    // the Class/Supplier fields in Angel's screenshots — "the overlap makes it
+    // tough to add a second tier", "it works but very clunky". Both fixes were
+    // mine; applying them together is what produced the mess.
+    if (!lifted) {
+      sc.style.paddingBottom = (pad.offsetHeight + 24) + 'px';
+    } else if (sc.style.paddingBottom) {
+      sc.style.paddingBottom = '';
+    }
     setTimeout(function () {
       try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {}
     }, 60);
@@ -279,7 +361,7 @@
   /** Is the box above the pad? If not, scroll whatever it takes until it is. */
   function ensureAbovePad(el, pad) {
     if (active !== el) return;
-    var padTop = window.innerHeight - pad.offsetHeight;
+    var padTop = readableBottom(el, window.innerHeight - pad.offsetHeight);
     var r = el.getBoundingClientRect();
     var need = Math.round(r.bottom - (padTop - 12));
     if (need <= 0) return;
@@ -298,7 +380,7 @@
     }
     if (need > 0) { try { window.scrollBy(0, need); } catch (e) {} }
     var after = Math.round(el.getBoundingClientRect().bottom);
-    console.log('[keypad] ensureAbovePad padTop=' + Math.round(padTop)
+    console.log('[keypad] ensureAbovePad readableBottom=' + Math.round(padTop)
               + ' fieldBottom=' + after + (after <= padTop ? ' ok' : ' STILL COVERED'));
   }
   function padOpen() {
