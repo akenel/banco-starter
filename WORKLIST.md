@@ -17,6 +17,25 @@
 
 ---
 
+## 🔎 FOUND WHILE FIXING SOMETHING ELSE — 2026-09-02 late
+
+*Not blocking. Logged here rather than carried to Angel mid-run (standing rule: report less).*
+
+- **The tablet kiosk is recorded as a phone.** `kiosk.html` still uses `isTouch` to set
+  `source` (`phone` | `kiosk`) and to pick the welcome discount percentage — 15% phone vs
+  10% kiosk. On the counter tablet that reads `phone`, so a guest at the kiosk earns the
+  phone rate and the held-orders board shows 📱 (visible on Angel's 21:53 screenshot).
+  Focus was fixed on 2026-09-02; this half was deliberately left alone **because it moves
+  money** and wants a decision, not a patch: is a guest standing at the shop's own tablet
+  on the kiosk rate or the phone rate? Ask Felix, then change both together.
+- **`[i18n] missing key: reorder.by`** logs on every order-book line. Cosmetic, four
+  languages, five minutes.
+- **`.input-field` beats `w-16`/`h-10`.** The order book's Qty box asks for `w-16` and
+  renders full width; the supplier picker asked for `h-10` and rendered 4px of content box
+  (fixed 2026-09-02). Whatever sets `.input-field` wins on width and loses on height, so any
+  Tailwind sizing utility on one of these boxes is a coin toss. Worth one pass over the
+  cashier screens with `prove-keypad` section K extended to widths.
+
 ## 🌙 WHERE WE STOPPED — 2026-09-02, ~22:00. READ THIS FIRST.
 
 *Angel is running [`2026-09-02-untested.html`](onboarding/testsheets/2026-09-02-untested.html) on the
