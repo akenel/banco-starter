@@ -179,27 +179,26 @@ out of a `/tmp` session scratchpad on 2026-08-28. The SQL exports are checked in
 
 ### Open, in order
 
-**㉒ THE PAD FIRES `change` WHEN IT CLOSES — BUT NOT WHEN YOU MOVE TO THE NEXT FIELD.** *(Angel, on
-the tablet, 2026-09-02, within an hour of the deploy. Minor, and it needs a small fix.)*
+**㉒ THE PAD NEEDS **DONE** BEFORE A `@change` FIELD TAKES — moving straight to the next box does
+not.** *(Angel on the tablet, 2026-09-02. **Not a bug — a papercut.** He hit it, then found the
+answer himself: press DONE and the quantity takes.)*
 
-**What he hit:** on Checkout he tapped into **Qty**, changed it from 1 to **5** on the new pad, then
-tapped straight across to **Target total**. The box read 5 and **price × qty stayed at 1**. Pressing
-the **+** button made it take. Screen right, basket wrong — LESSON #13's exact shape.
+**What happens:** on Checkout, change **Qty** from 1 to 5 on the pad and tap straight across to
+**Target total** — the box reads 5 and price × qty stays at 1. Press **DONE** first and it applies.
 
-**Cause, read in the code and not guessed:** `pos-keypad.js` `open()` does `active = el` and nothing
-else. It never closes the field it is leaving. The `change` event added this morning fires only in
-`shut()` — i.e. on **OK**, or on a tap outside the pad. **Field-to-field is the third door and it
-was never wired.** So this morning's fix covered one of the two ways a person leaves a box, and
-Angel found the other one in under an hour.
+**Why, read in the code:** `open()` does `active = el` and nothing else — it never closes the field
+it is leaving. The `change` event added this morning fires in `shut()`, which is **DONE** and
+**tapping outside the pad**. Field-to-field is the third door and it was never wired. A real
+keyboard fires `change` on blur, and moving to the next field IS a blur, so ours is a door short.
+
+**Not urgent, and not on the critical path** — DONE is the natural gesture and it works. But it is a
+thing a person has to learn rather than a thing that behaves, and only `@change` fields are affected:
+`grep -n '@change' src/templates/pos` — 8 in `scan.html`, 0 in `shelf_intake.html` and `checkout.html`.
 
 **The fix:** in `open()`, if `active` exists and is not `el`, dispatch `change` on the outgoing field
-before reassigning — the same one line already in `shut()`. Then extend `prove-keypad.js` H6 to move
-between **two** probe inputs and assert the first one fired exactly one `change`. The current H6
-tests only the close path, which is precisely why it was green while this was broken.
-
-⚠️ **Check the same shape everywhere before calling it done (STANDING RULE 9).** Any field that
-finalises on `@change` rather than `@input` has this bug today: `grep -n '@change' src/templates/pos`
-— 8 in `scan.html`, 0 in `shelf_intake.html` and `checkout.html`.
+before reassigning — the same line already in `shut()`. Then extend `prove-keypad.js` H6 to move
+between **two** probe inputs and assert the first fired exactly one `change`. Today's H6 tests only
+the close path, which is why it is green either way.
 
 **㉑ THE CUTOVER HAS NO RUNBOOK — and it is not a `deploy-prod.sh` run.** *(raised by Angel, evening
 of 2026-09-01, because it was about to be missed.)* `banco.wolfhold.app/pos` is **pre-prod**, not the
