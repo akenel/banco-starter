@@ -645,6 +645,10 @@
                     loyalty_tier: c.tier_locked ? (c.loyalty_tier || 'auto') : 'auto',
                 };
                 this.showEditForm = true;
+                // The edit form arrives prefilled, so "is there text in it" says
+                // nothing. Snapshot it, and dirty means DIFFERENT from what opened.
+                this._editSnapshot = JSON.stringify(this.editForm);
+                this.editDirty = false;
             },
 
             async saveEdit() {
@@ -736,5 +740,29 @@
             }
         }
     }
+
+// A member typed in and not saved exists nowhere else — unlike Shelf Intake,
+// which restores itself from sessionStorage. Angel, 2026-09-02: "you can be
+// right in the middle of edit mode and you press the wrong button somewhere,
+// the tablet's sensitive, and bang — you're out."  Guard in base.html.
+(function () {
+  function any(o, keys) {
+    if (!o) return false;
+    return keys.some(function (k) { return String(o[k] || '').trim().length > 0; });
+  }
+  var F = ['handle', 'real_name', 'instagram', 'email', 'telegram', 'phone', 'birthdate', 'notes'];
+  window.posGuardLeave(function () {
+    var d;
+    try { d = Alpine.$data(document.querySelector('[x-data]')); } catch (e) { return ''; }
+    if (!d) return '';
+    if (d.showNewCustomerForm && any(d.newCustomer, F)) {
+      return 'You have started a new member and not saved it yet. Leaving loses what you typed.';
+    }
+    if (d.showEditForm && d.editDirty) {
+      return 'You have changed this member and not saved it yet. Leaving loses the change.';
+    }
+    return '';
+  });
+})();
 </script>
 {% endblock %}

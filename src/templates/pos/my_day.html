@@ -206,11 +206,13 @@
                     <div class="grid grid-cols-2 gap-3 mb-3">
                         <div>
                             <label class="block text-xs font-semibold text-gray-600 mb-1" data-i18n="myday.customers_approx">Customers (approx)</label>
-                            <input type="number" min="0" x-model.number="survey.footfall" class="input-field text-center">
+                            <input type="text" inputmode="numeric" data-keypad="numeric" x-model="survey.footfall"
+                                   @input="$event.target.value = window.posIntOnly($event.target.value); survey.footfall = $event.target.value === '' ? null : Number($event.target.value)"
+                                   class="input-field text-center">
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-gray-600 mb-1" data-i18n="myday.weather">Weather</label>
-                            <input type="text" x-model="survey.weather" maxlength="40"
+                            <input type="text" data-keypad="text" x-model="survey.weather" maxlength="40"
                                    placeholder="sunny, rain…" data-i18n-placeholder="myday.weather_placeholder" class="input-field">
                             <p x-show="survey.weather && survey.ai" style="display:none;" class="text-[10px] text-gray-400 mt-1" data-i18n="myday.weather_auto">🛰️ auto — from the shop's location today</p>
                         </div>
@@ -219,7 +221,7 @@
                     <!-- The note itself (this is what's saved) -->
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1" data-i18n="myday.in_a_line">In a line or two</label>
-                        <textarea x-model="survey.summary" rows="2" maxlength="500"
+                        <textarea data-keypad="text" x-model="survey.summary" rows="2" maxlength="500"
                                   placeholder="Busy afternoon, a few regulars in…" data-i18n-placeholder="myday.summary_placeholder"
                                   class="input-field text-base"></textarea>
                     </div>

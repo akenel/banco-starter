@@ -79,7 +79,7 @@
 
     <!-- manual entry: digits → barcode, words → name search. (Scanner uses the hidden input.) -->
     <form @submit.prevent="onSubmit(manual); manual=''" class="w-full max-w-md">
-      <input x-model="manual" :placeholder="t('typeHint')"
+      <input x-model="manual" data-keypad="text" :placeholder="t('typeHint')"
              class="w-full text-center text-lg px-5 py-4 rounded-2xl glass text-white placeholder-emerald-200/40 outline-none focus:ring-2 focus:ring-emerald-300">
     </form>
 
@@ -116,13 +116,13 @@
              "that name is taken, try another". Leave it blank and the shop assigns ART-AB12:
              four characters, memorable, nobody's name. Angel, 2026-08-22. -->
         <div>
-          <input x-model="form.handle" :placeholder="m('fUser')" autocomplete="off"
+          <input x-model="form.handle" data-keypad="text" :placeholder="m('fUser')" autocomplete="off"
                  class="w-full px-5 py-4 rounded-2xl glass text-white placeholder-emerald-200/40 outline-none focus:ring-2 focus:ring-emerald-300">
           <p class="text-xs text-emerald-200/40 mt-1 ml-1" x-text="m('fUserHint')"></p>
         </div>
-        <input x-model="form.real_name" :placeholder="m('fName')" class="w-full px-5 py-4 rounded-2xl glass text-white placeholder-emerald-200/40 outline-none focus:ring-2 focus:ring-emerald-300">
-        <input x-model="form.email" type="email" :placeholder="m('fEmail')" class="w-full px-5 py-4 rounded-2xl glass text-white placeholder-emerald-200/40 outline-none focus:ring-2 focus:ring-emerald-300">
-        <input x-model="form.phone" :placeholder="m('fPhone')" class="w-full px-5 py-4 rounded-2xl glass text-white placeholder-emerald-200/40 outline-none focus:ring-2 focus:ring-emerald-300">
+        <input x-model="form.real_name" data-keypad="text" :placeholder="m('fName')" class="w-full px-5 py-4 rounded-2xl glass text-white placeholder-emerald-200/40 outline-none focus:ring-2 focus:ring-emerald-300">
+        <input x-model="form.email" type="text" inputmode="email" data-keypad="text" :placeholder="m('fEmail')" class="w-full px-5 py-4 rounded-2xl glass text-white placeholder-emerald-200/40 outline-none focus:ring-2 focus:ring-emerald-300">
+        <input x-model="form.phone" type="tel" inputmode="tel" data-keypad="text" :placeholder="m('fPhone')" class="w-full px-5 py-4 rounded-2xl glass text-white placeholder-emerald-200/40 outline-none focus:ring-2 focus:ring-emerald-300">
 
         <label class="flex items-center gap-3 p-3 rounded-2xl glass cursor-pointer select-none"
                :class="form.age ? 'ring-2 ring-emerald-300' : ''">
@@ -399,13 +399,13 @@
       </div>
 
       <label class="block text-sm text-emerald-100/80 mb-1" x-text="t('fldName')"></label>
-      <input x-model="cName" type="text" :placeholder="t('fldName')"
+      <input x-model="cName" type="text" data-keypad="text" :placeholder="t('fldName')"
              class="w-full mb-4 px-4 py-3 rounded-xl bg-black/25 border border-white/15 text-lg text-white">
 
       <div class="flex gap-3 mb-4">
         <div class="flex-1">
           <label class="block text-sm text-emerald-100/80 mb-1" x-text="t('fldPrice')"></label>
-          <input x-model="cPrice" type="number" inputmode="decimal" min="0" step="0.05" placeholder="0.00"
+          <input x-model="cPrice" type="text" inputmode="decimal" data-keypad="decimal" @input="cPrice = window.posMoneyOnly($event.target.value); $event.target.value = cPrice" placeholder="0.00"
                  class="w-full px-4 py-3 rounded-xl bg-black/25 border border-white/15 text-lg text-white">
         </div>
         <div class="flex-1">

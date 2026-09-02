@@ -10,6 +10,10 @@
 #   bounce keys  fast repeats discarded          -> 4455 arrives as 45, silently
 #   sticky keys  modifiers latch                 -> the gun's SHIFT lands wrong
 #   mouse keys   numpad moves the POINTER        -> no digits at all
+# NOT on this list: the on-screen keyboard. It is locked ON, because the lock
+# screen needs it and a counter tablet with no keyboard attached cannot be
+# unlocked without it. Turning it off locked Angel out of his own machine.
+#
 #   zoom         one tap, magnifies everything, and on a touchscreen there is
 #                no obvious way back. A reboot does not help: it is a SAVED
 #                setting. Angel, 2026-09-02: "now it's impossible to set it back."
@@ -55,8 +59,13 @@ always-show-universal-access-status=false
 
 [org/gnome/desktop/a11y/applications]
 screen-magnifier-enabled=false
-screen-keyboard-enabled=false
 screen-reader-enabled=false
+# ON, and locked ON. This one is NOT a hazard and it is not optional: the LOCK
+# SCREEN uses it to let you type your password. Locked to false on 2026-09-02
+# and Angel could not log in to his own tablet without plugging a keyboard in.
+# It never appears inside a browser on this machine anyway — which is the entire
+# reason Banco draws its own keypad — so it costs the till nothing.
+screen-keyboard-enabled=true
 
 [org/gnome/desktop/a11y/keyboard]
 slowkeys-enable=false

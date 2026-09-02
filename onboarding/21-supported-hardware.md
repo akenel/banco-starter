@@ -218,6 +218,9 @@ person icon — and three of them are, precisely, *"ignore keys typed quickly"*:
 | **Mouse keys** | the number pad moves the **pointer** instead of typing → no digits at all |
 | **Zoom / magnifier** | one tap, magnifies everything, **no obvious way back** on a touchscreen |
 
+⚠️ **The on-screen keyboard is NOT on that list, and must never be.** It is the only way to type a
+password on a tablet with no keyboard attached. Lock it ON.
+
 Angel hit the magnifier by accident and could not undo it: *"now it's impossible to set it back — I
 think I need to reboot."* A reboot does not help; it is a saved setting.
 
@@ -246,7 +249,7 @@ believing any scanner fault — same family as the flat battery that cost an hou
 | **Large text** | scales GNOME's own UI, **not** the browser — it does nothing to Banco. If the till's own text is too small that is a Banco CSS job, not an OS one. |
 | **High contrast** | restyles GTK apps; the till is a web page, so again no effect on Banco. |
 | **Screen reader** | off. It reads the desktop aloud at a counter. |
-| **On-screen keyboard** | off, and it has never worked in any browser on this machine — that is the whole reason Banco draws its own keypad. |
+| **On-screen keyboard** | **ON, and locked on.** It has never worked in any browser on this machine — that is the whole reason Banco draws its own keypad — but the **LOCK SCREEN** uses it to let you type your password. It was locked *off* on 2026-09-02 and Angel could not log in to his own tablet without plugging a keyboard in. It costs the till nothing and it is the difference between a tablet you can unlock and one you cannot. |
 | **Display scaling ×1.25** | this one WOULD make every Banco target bigger, and it is `gsettings set org.gnome.desktop.interface text-scaling-factor 1.15`. It changes the layout, so it is a decision, not a default. |
 
 ### And on the browser itself
