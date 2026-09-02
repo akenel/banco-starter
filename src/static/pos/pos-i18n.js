@@ -1111,6 +1111,7 @@ window.POS_STRINGS = {
       "err_max_discount": "Maximum discount is {n}%. Ask manager for approval.",
       "err_target_exceeds": "Target exceeds full price ({n})",
       "err_target_too_low": "Target total is too low",
+      "err_target_nothing_eligible": "Nothing here can be discounted \u2014 every line is a deal price or age\u2011restricted.", "err_target_floor": "The lowest total this basket can reach is {n} \u2014 deal\u2011priced and age\u2011restricted lines never discount.",
       "toast_cart_cleared": "Cart cleared",
       "toast_cart_empty_warn": "Cart is empty",
       "confirm_abandon": "Abandon current transaction?"
@@ -3231,6 +3232,7 @@ window.POS_STRINGS = {
       "err_max_discount": "Le rabais maximum est de {n} %. Demandez l'approbation du responsable.",
       "err_target_exceeds": "L'objectif dépasse le prix plein ({n})",
       "err_target_too_low": "Le total cible est trop bas",
+      "err_target_nothing_eligible": "Rien ici ne peut \u00eatre remis\u00e9 \u2014 chaque ligne est un prix promotionnel ou soumise \u00e0 une limite d'\u00e2ge.", "err_target_floor": "Le total le plus bas possible pour ce panier est {n} \u2014 les lignes promotionnelles et soumises \u00e0 une limite d'\u00e2ge ne sont jamais remis\u00e9es.",
       "toast_cart_cleared": "Panier vidé",
       "toast_cart_empty_warn": "Panier vide",
       "confirm_abandon": "Abandonner la transaction en cours ?"
@@ -5351,6 +5353,7 @@ window.POS_STRINGS = {
       "err_max_discount": "Lo sconto massimo è {n}%. Chiedi l'approvazione del manager.",
       "err_target_exceeds": "L'obiettivo supera il prezzo pieno ({n})",
       "err_target_too_low": "Il totale obiettivo è troppo basso",
+      "err_target_nothing_eligible": "Qui non si pu\u00f2 scontare nulla \u2014 ogni riga \u00e8 un prezzo promozionale o soggetta a limiti di et\u00e0.", "err_target_floor": "Il totale pi\u00f9 basso raggiungibile per questo carrello \u00e8 {n} \u2014 le righe promozionali e con limiti di et\u00e0 non vengono mai scontate.",
       "toast_cart_cleared": "Carrello svuotato",
       "toast_cart_empty_warn": "Il carrello è vuoto",
       "confirm_abandon": "Abbandonare la transazione corrente?"
@@ -7466,6 +7469,7 @@ window.POS_STRINGS = {
       "err_max_discount": "Maximaler Rabatt ist {n}%. Frag den Manager um Freigabe.",
       "err_target_exceeds": "Ziel übersteigt den vollen Preis ({n})",
       "err_target_too_low": "Zieltotal ist zu niedrig",
+      "err_target_nothing_eligible": "Hier kann nichts rabattiert werden \u2014 jede Zeile ist ein Aktionspreis oder altersbeschr\u00e4nkt.", "err_target_floor": "Das niedrigste erreichbare Total f\u00fcr diesen Warenkorb ist {n} \u2014 Aktions\u2011 und altersbeschr\u00e4nkte Zeilen werden nie rabattiert.",
       "toast_cart_cleared": "Warenkorb geleert",
       "toast_cart_empty_warn": "Warenkorb ist leer",
       "confirm_abandon": "Aktuelle Transaktion abbrechen?"

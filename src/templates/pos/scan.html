@@ -2851,9 +2851,38 @@
                     return;
                 }
 
-                // Required discount to reach the agreed gross total.
-                // target = subtotal * (1 - discount/100)  ->  discount = (1 - target/subtotal) * 100
-                const requiredDiscount = (1 - target / fullPrice) * 100;
+                // THE DISCOUNT DOES NOT COME OFF THE WHOLE BASKET, and this function was
+                // the last place that still thought it did. Deal-priced lines (a quantity
+                // break set the price) and promo-restricted lines (tobacco, alcohol) never
+                // discount — `totals` has applied the percentage to the ELIGIBLE portion
+                // only ever since that rule went in, while this kept deriving the
+                // percentage from the FULL subtotal. So the screen solved one equation and
+                // the drawer paid out another.
+                //
+                // Angel, 2026-09-02, 23:43: typed 100.00, got 100.46.
+                //   subtotal 104.80 · eligible 94.80 (the 3-for-10 OCB pack is excluded)
+                //   was: (1 - 100/104.80) * 100      = 4.58%  ->  94.80 x 4.58% = 4.34  ->  100.46
+                //   now: (104.80 - 100) / 94.80 * 100 = 5.06%  ->  94.80 x 5.06% = 4.80  ->  100.00
+                //
+                // LESSON #2 again: a downstream filter narrowed the base and the thing
+                // computing the number was never told.
+                const eligible = cartEligibleSubtotal(this.cart, _pools);
+                if (eligible <= 0) {
+                    // Every line is deal-priced or age-restricted. No percentage reaches
+                    // the target, so SAY so rather than quietly applying one that cannot.
+                    this.discount = 0;
+                    this.discountError = t('scan.err_target_nothing_eligible');
+                    return;
+                }
+                // 100% off everything that can discount still leaves the rest standing.
+                const floorTotal = fullPrice - eligible;
+                if (target < floorTotal) {
+                    this.discount = 0;
+                    this.discountError = t('scan.err_target_floor', { n: formatPrice(floorTotal) });
+                    return;
+                }
+                // total = subtotal - eligible * d/100  ->  d = (subtotal - target) / eligible * 100
+                const requiredDiscount = (fullPrice - target) / eligible * 100;
 
                 // Round to 2 decimal places
                 const roundedDiscount = Math.round(requiredDiscount * 100) / 100;

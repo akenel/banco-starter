@@ -197,6 +197,11 @@ print(json.dumps([str(tier_line_total(c["tiers"], Decimal(c["price"]), c["qty"],
   // checkout screen writes no row. Never press Complete on a shop's books.
   let rbad = 0, rn = 0;
   try {
+    // Land on a settled page first. The section above finishes wherever it finishes, and
+    // an evaluate() that starts while a navigation is still in flight dies with "execution
+    // context was destroyed" — which then reads as a pricing failure, which it is not.
+    await p.goto('http://localhost:3000/pos/dashboard', { waitUntil: 'domcontentloaded' });
+    await p.waitForTimeout(1200);
     const made = await p.evaluate(async () => {
       const tok = sessionStorage.getItem('pos_token') || localStorage.getItem('pos_token');
       const H = { 'Authorization': 'Bearer ' + tok, 'Content-Type': 'application/json' };
@@ -289,5 +294,133 @@ print(json.dumps(str(tier_line_total([{"min_qty":3,"unit_price":"10.00"}], Decim
     console.log('  ❌ ring-it-out check threw — a FAILURE, not a warning: ' + e.message);
   }
 
-  await b.close(); process.exit((bad + mbad + hbad + rbad) ? 1 : 0);
+
+  // ── TARGET TOTAL — the agreed price the cashier types in ──────────────────────────────
+  // Angel, 2026-09-02 23:43: typed an agreed total of 100.00 and the till said 100.46.
+  // Not rounding. The percentage was derived from the FULL subtotal while `totals` has
+  // applied it to the ELIGIBLE portion ever since deal-priced and age-restricted lines
+  // stopped discounting. Two equations, one screen.
+  //
+  //   subtotal 104.80 · eligible 94.80 (a 3-for-10 pack cannot discount)
+  //   was: (1 - 100/104.80)*100      = 4.58%  ->  94.80 x 4.58% = 4.34  ->  100.46
+  //   now: (104.80 - 100)/94.80*100  = 5.06%  ->  94.80 x 5.06% = 4.80  ->  100.00
+  //
+  // Driven through the REAL box: type into Target Total, read the TOTAL line. A basket
+  // is built in sessionStorage the way the Edit-Cart path does it, and nothing is ever
+  // completed — reaching this screen writes no row.
+  let tbad = 0, tn = 0;
+  try {
+    const kit = await p.evaluate(async () => {
+      const tok = sessionStorage.getItem('pos_token') || localStorage.getItem('pos_token');
+      const H = { 'Authorization': 'Bearer ' + tok, 'Content-Type': 'application/json' };
+      const st = Date.now();
+      // Retire anything this check left behind on an earlier run, THEN create with
+      // allow_duplicate=true. Without it the name-similarity guard refuses the second
+      // run — correctly; it just has no opinion about a probe cleaning up after itself.
+      try {
+        const found = await (await fetch('/api/v1/pos/search?q=ZZPROBE%20target&limit=50', { headers: H })).json();
+        for (const old of (found.items || [])) {
+          await fetch('/api/v1/pos/products/' + old.id, { method: 'PUT', headers: H,
+            body: JSON.stringify({ name: old.name, price: String(old.price || '1.00'),
+                                   is_active: false, product_class: 'standard' }) }).catch(() => {});
+        }
+      } catch (e) { /* nothing to sweep */ }
+      const mk = async (body) => (await (await fetch('/api/v1/pos/products?allow_duplicate=true',
+        { method: 'POST', headers: H, body: JSON.stringify(body) })).json());
+      const deal = await mk({ name: 'ZZPROBE target deal ' + st, sku: 'ZZPROBE-TD-' + st,
+        price: '4.00', tier_mode: 'bundle', price_tiers: [{ min_qty: 3, unit_price: '10.00' }],
+        product_class: 'standard', is_active: true, stock_quantity: 99 });
+      const plain = await mk({ name: 'ZZPROBE target plain ' + st, sku: 'ZZPROBE-TP-' + st,
+        price: '7.90', product_class: 'standard', is_active: true, stock_quantity: 99 });
+      if (!deal.id || !plain.id) return { err: JSON.stringify({ deal, plain }).slice(0, 400) };
+      return { deal, plain };
+    });
+    if (!kit || kit.err) {
+      tbad++; tn++;
+      console.log('  \u274c could not build the target-total basket — FAILURE, not a skip: '
+                + (kit && kit.err ? kit.err : 'no response'));
+    } else {
+      // Angel's basket exactly: 3 of a 3-for-10 pack (never discounts) + 12 at 7.90.
+      await p.evaluate((k) => {
+        const cart = [
+          { id: k.deal.id, product_id: k.deal.id, name: k.deal.name, quantity: 3,
+            price: 4.00, price_tiers: k.deal.price_tiers, tier_mode: 'bundle', product_class: 'standard' },
+          { id: k.plain.id, product_id: k.plain.id, name: k.plain.name, quantity: 12,
+            price: 7.90, price_tiers: null, tier_mode: 'per_unit', product_class: 'standard' },
+        ];
+        sessionStorage.setItem('pos_cart', JSON.stringify({ cart, discount: 0, totals: {} }));
+      }, kit);
+      await p.goto('http://localhost:3000/pos/scan', { waitUntil: 'domcontentloaded' });
+      await p.waitForTimeout(2500);
+
+      const totalNow = async () => {
+        const loc = p.locator('[data-i18n="scan.total"]').locator('xpath=following-sibling::span[1]');
+        for (let i = 0; i < 40; i++) {
+          try {
+            const m = ((await loc.textContent({ timeout: 2000 })) || '').match(/(\d+\.\d{2})/);
+            if (m) return m[1];
+          } catch (e) { /* mid-render */ }
+          await p.waitForTimeout(250);
+        }
+        return null;
+      };
+
+      tn++;
+      const sub = await totalNow();
+      if (sub !== '104.80') {
+        tbad++;
+        console.log(`  \u274c the basket did not build: subtotal reads ${sub}, expected 104.80`
+                  + ' (10.00 for the pack + 94.80) — everything below would be measuring the wrong cart');
+      } else {
+        await p.locator('button:has-text("Target Total")').first().click();
+        await p.waitForTimeout(400);
+        const box = p.locator('input[placeholder^="Max"]').first();
+
+        await box.fill('100');
+        await p.waitForTimeout(700);
+        const got = await totalNow();
+        tn++;
+        if (got !== '100.00') {
+          tbad++;
+          console.log(`  \u274c target 100.00 -> till says ${got}`
+                    + (got === '100.46' ? '  (percentage taken off the whole basket, applied to part of it)' : ''));
+        } else {
+          console.log('  \u2705 target total: typed 100.00 on a 104.80 basket with a 10.00 pack in it, got 100.00');
+        }
+
+        // A target BELOW what the basket can reach must SAY so, not land somewhere else.
+        // The floor here is 10.00: the pack never discounts, whatever anyone types.
+        await box.fill('5');
+        await p.waitForTimeout(700);
+        const err = await p.locator('p.text-red-600').first().textContent().catch(() => null);
+        const low = await totalNow();
+        tn++;
+        if (!err || !err.trim() || low !== '104.80') {
+          tbad++;
+          console.log(`  \u274c an unreachable target said "${(err || '').trim()}" and left the total at ${low}`
+                    + ' — it must refuse and change nothing');
+        } else {
+          console.log(`  \u2705 an unreachable target refuses out loud: "${err.trim()}"`);
+        }
+      }
+
+      try {
+        await p.evaluate(async (k) => {
+          const tok = sessionStorage.getItem('pos_token') || localStorage.getItem('pos_token');
+          const H = { 'Authorization': 'Bearer ' + tok, 'Content-Type': 'application/json' };
+          sessionStorage.removeItem('pos_cart');
+          for (const pr of [k.deal, k.plain]) {
+            await fetch('/api/v1/pos/products/' + pr.id, { method: 'PUT', headers: H,
+              body: JSON.stringify({ name: pr.name + ' (retired)', price: pr.price,
+                                     is_active: false, product_class: 'standard' }) }).catch(() => {});
+          }
+        }, kit);
+      } catch (e) { console.log('  \u26a0\ufe0f  cleanup failed — ZZPROBE rows may still be active: ' + e.message); }
+    }
+  } catch (e) {
+    tbad++; tn++;
+    console.log('  \u274c target-total check threw — a FAILURE, not a warning: ' + e.message);
+  }
+
+  await b.close(); process.exit((bad + mbad + hbad + rbad + tbad) ? 1 : 0);
 })();
