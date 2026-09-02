@@ -342,6 +342,42 @@ None of the above counts until a person confirms it:
 
 ---
 
+## 🧊 FROZEN STATE — 2026-09-02, 19:15. This is what the tablet IS.
+
+*Written because the day went: kiosk hid the system bar → the top-right corner got dragged → the
+window stuck at two-thirds → dropping kiosk fixed that and gave us a close button → a watchdog fixed
+that. Every step was correct and every step moved the problem somewhere else. Angel: **"we make one
+change, we create two other problems."** He is right, and this is where that chain stops. Change
+nothing below unless something actually breaks.*
+
+**How the till starts** — `systemd --user`, not autostart:
+`~/.config/systemd/user/banco-till.service`, `Restart=always`, `RestartSec=3`.
+`~/.config/autostart/banco.desktop` is renamed `.disabled` so it cannot race the service.
+
+```
+/usr/bin/chromium --ozone-platform=wayland --start-maximized \
+  --overscroll-history-navigation=0 --disable-pinch --force-device-scale-factor=1 \
+  --app=https://banco.wolfhold.app/pos --noerrdialogs --disable-session-crashed-bubble
+```
+
+| what | state | why |
+|---|---|---|
+| `--kiosk` | **gone** | it hid GNOME's bar, so nobody could see the battery |
+| GNOME top bar | **visible** | battery, wifi, bluetooth, clock — the reason kiosk went |
+| the window's ✕ | **kept on purpose** | it is a fat-finger risk, but the watchdog makes it cost 3 seconds, and the Chromium icon in the dash is a second way back. Two ways back beats one |
+| ⛶ in Banco's own status bar | on, touch devices only | one tap to full screen and back, needs no window-manager knowledge |
+| zoom · slow · bounce · sticky · mouse keys | **LOCKED** | `scripts/tablet-lockdown.sh`. Not off — *unsettable*. Three of them exist to ignore keys typed quickly, which is exactly what a scanner gun does |
+| high contrast · large text · visual alerts | still toggleable | none of them touch the browser, so none of them can hurt the till |
+| swipe-back · pinch-zoom · hot corners | off | a horizontal swipe was browser BACK, mid-sale |
+| the accessibility icon | still in the top bar | GNOME 48 keeps it regardless of the setting. **Disarmed, so it stays** — the danger was never the icon |
+
+**Two things that were verified, not assumed:**
+- `gsettings set …screen-magnifier-enabled true` → **"The key is not writable."**
+- the till was killed the way the ✕ kills it → **back with a new PID inside six seconds.**
+
+**To undo any of it:** `rm /etc/dconf/db/local.d/00-banco-counter /etc/dconf/db/local.d/locks/banco-counter && dconf update`,
+`systemctl --user disable --now banco-till.service`, and rename `banco.desktop.disabled` back.
+
 ## Before you wipe — four things, in order
 
 1. ~~**Ask Felix what is on it.**~~ ✅ **Answered 2026-08-04: wipe it, nothing to save.** That was
