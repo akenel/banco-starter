@@ -1,7 +1,7 @@
 {
-  "at": "2026-09-02T15:51:00.194Z",
+  "at": "2026-09-02T16:40:36.815Z",
   "url": "http://localhost:3000",
-  "pass": 64,
+  "pass": 67,
   "fail": 0,
   "results": [
     {
@@ -162,8 +162,8 @@
     },
     {
       "r": "PASS",
-      "l": "OK sits ON TOP of a nav link — so the guard is needed",
-      "d": "under OK: /pos/customer-lookup"
+      "l": "OK is NOT sitting on top of the bottom nav",
+      "d": "nothing under OK"
     },
     {
       "r": "PASS",
@@ -183,12 +183,12 @@
     {
       "r": "PASS",
       "l": "tablet landscape · digits — keys are thumb-sized",
-      "d": "pad 353px (44% of 800) · smallest key 417×62px"
+      "d": "pad 354px (44% of 800) · smallest key 314×62px"
     },
     {
       "r": "PASS",
       "l": "tablet landscape · digits — pad leaves the screen usable (≤45%)",
-      "d": "pad 353px (44% of 800) · smallest key 417×62px"
+      "d": "pad 354px (44% of 800) · smallest key 314×62px"
     },
     {
       "r": "PASS",
@@ -197,12 +197,12 @@
     {
       "r": "PASS",
       "l": "tablet landscape · letters — keys are thumb-sized",
-      "d": "pad 252px (32% of 800) · smallest key 109×54px"
+      "d": "pad 244px (31% of 800) · smallest key 109×44px"
     },
     {
       "r": "PASS",
       "l": "tablet landscape · letters — pad leaves the screen usable (≤45%)",
-      "d": "pad 252px (32% of 800) · smallest key 109×54px"
+      "d": "pad 244px (31% of 800) · smallest key 109×44px"
     },
     {
       "r": "PASS",
@@ -211,12 +211,12 @@
     {
       "r": "PASS",
       "l": "tablet portrait · digits — keys are thumb-sized",
-      "d": "pad 353px (28% of 1280) · smallest key 257×62px"
+      "d": "pad 354px (28% of 1280) · smallest key 194×62px"
     },
     {
       "r": "PASS",
       "l": "tablet portrait · digits — pad leaves the screen usable (≤45%)",
-      "d": "pad 353px (28% of 1280) · smallest key 257×62px"
+      "d": "pad 354px (28% of 1280) · smallest key 194×62px"
     },
     {
       "r": "PASS",
@@ -225,12 +225,12 @@
     {
       "r": "PASS",
       "l": "tablet portrait · letters — keys are thumb-sized",
-      "d": "pad 252px (20% of 1280) · smallest key 65×54px"
+      "d": "pad 244px (19% of 1280) · smallest key 65×44px"
     },
     {
       "r": "PASS",
       "l": "tablet portrait · letters — pad leaves the screen usable (≤45%)",
-      "d": "pad 252px (20% of 1280) · smallest key 65×54px"
+      "d": "pad 244px (19% of 1280) · smallest key 65×44px"
     },
     {
       "r": "PASS",
@@ -239,22 +239,22 @@
     {
       "r": "INFO",
       "l": "phone landscape · digits",
-      "d": "pad 353px (91% of 390) · smallest key 272×62px"
+      "d": "pad 354px (91% of 390) · smallest key 205×62px"
     },
     {
       "r": "INFO",
       "l": "phone landscape · letters",
-      "d": "pad 252px (65% of 390) · smallest key 69×54px"
+      "d": "pad 244px (63% of 390) · smallest key 69×44px"
     },
     {
       "r": "INFO",
       "l": "phone portrait · digits",
-      "d": "pad 353px (42% of 844) · smallest key 120×62px"
+      "d": "pad 354px (42% of 844) · smallest key 91×62px"
     },
     {
       "r": "INFO",
       "l": "phone portrait · letters",
-      "d": "pad 252px (30% of 844) · smallest key 28×54px"
+      "d": "pad 244px (29% of 844) · smallest key 28×44px"
     },
     {
       "r": "PASS",
@@ -334,14 +334,23 @@
       "d": "no DONE needed — a real keyboard fires change on blur, and this is a blur"
     },
     {
-      "r": "GAP",
-      "l": "the pad covering a box in a nested panel",
-      "d": "every machine version of this passed with the fix reverted — human check, step B4"
+      "r": "PASS",
+      "l": "the manager price-fix box is reachable and wired"
     },
     {
       "r": "PASS",
-      "l": "the nav comes back when the finger LIFTS, not on a 400ms timer",
-      "d": "pointer-events: auto at 60ms — a deliberate second tap must never be eaten"
+      "l": "the manager price-fix box is ABOVE the pad, not under it",
+      "d": "field bottom 378, pad top 446"
+    },
+    {
+      "r": "PASS",
+      "l": "the nav is inert while the closing tap is still landing",
+      "d": "pointer-events: none at 50ms"
+    },
+    {
+      "r": "PASS",
+      "l": "and comes back once the finger has gone — not on a fixed 400ms timer",
+      "d": "pointer-events: auto at 310ms — dead time is the press, plus 120ms for the click"
     },
     {
       "r": "INFO",
@@ -351,7 +360,7 @@
     {
       "r": "INFO",
       "l": "coverage /pos/scan",
-      "d": "2/4"
+      "d": "19/23"
     }
   ]
 }
