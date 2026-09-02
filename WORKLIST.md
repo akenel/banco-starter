@@ -17,6 +17,55 @@
 
 ---
 
+## 🌙 WHERE WE STOPPED — 2026-09-02, ~22:00. READ THIS FIRST.
+
+*Angel is running [`2026-09-02-untested.html`](onboarding/testsheets/2026-09-02-untested.html) on the
+tablet right now and will report back at the start of the next session. **Be ready for his results —
+that is the first thing that happens.***
+
+**Live on the shop: `11aaedf`.** Reload the tablet TWICE after any deploy — the first load activates
+the new service worker, the second is served by it.
+
+| | |
+|---|---|
+| **cashier path** | **89 boxes wired · 0 to wire · 11 barcode boxes untouched**, across 12 templates. Every screen Pam can open raises a pad on every box she can type into. |
+| **proofs** | `prove-keypad.js` **73 pass · 0 fail · 1 known gap**; `prove-cart-agrees-with-till.js` green on 320 quantities, 9 mixed baskets and every tiered held order. Run `./scripts/rebuild.sh` BEFORE either — templates are baked into the image, there is no bind mount. |
+| **the one known gap** | holding OK on a real touchscreen. Mouse events cannot reproduce it; only a finger answers it. |
+| **the tablet** | frozen and documented — see the 🧊 block in [`onboarding/13-tablet-x1-debian.md`](onboarding/13-tablet-x1-debian.md). Do not fiddle. |
+
+**Fixed today, all deployed:** the keypad on the whole cashier path · the pad's OK moved to the top
+so it no longer sits over the bottom nav · tap-outside closes · the held-finger guard follows the
+gesture instead of a 400ms guess · a modal gets lifted clear of the pad · the cart quantity caps at
+99 · a half-counted drawer cannot leave without asking, and says nothing once it is filed · the
+shift report names who counted, not just who opened · **the held-orders board was charging CHF 12
+for a 3-for-10 pack** · the flaky login in all four browser proofs.
+
+**The tablet, all locked and verified:** kiosk → maximised so the system bar is visible · a ⛶
+toggle in Banco's own status bar · the till restarts itself in 3s if closed · zoom, slow keys,
+bounce keys, sticky keys and mouse keys **unsettable** (`scripts/tablet-lockdown.sh`) · the
+on-screen keyboard locked **ON**, because off is a lockout.
+
+### Open, small, not blocking
+
+- **The open-the-box screen has no button that says "recount".** The reveal is right — *"Counted CHF
+  1000.00, but last night's reconcile said CHF 1216.90 (−216.90). Add a note to open"*, with the
+  button disabled until a note exists — but the only way to recount is to silently retype. Angel
+  asked whether something had changed; nothing had. Wording, not behaviour.
+- **`paid.amount` on the drawer is not covered by the leave guard** — only the COUNT is. Angel's
+  step B4 asked the question and left it open.
+- **91 boxes still unwired on manager/admin screens** (settings 57, receiving 17, cleanup 18, audit
+  10, suppliers 8 …). None of them are on a cashier's path. **After Thursday.**
+- **㉓ Shelf Intake for a cashier — scan and report, never create.** Still the best idea of the week.
+
+### ⏰ TOMORROW IS THE GATE — Thursday 3 September, **15:00**
+
+Layla is on the afternoon shift from about three. Sheet:
+[`2026-09-03-ask-layla-first.html`](onboarding/testsheets/2026-09-03-ask-layla-first.html).
+Four questions, two minutes with the tablet in her hands, one sale keyed in **from the receipt after
+the customer has left**. Do not demo the whole thing. Do not show her the owner's page.
+
+---
+
 ## 🌅 THIS WEEK — from 2026-09-02, in order
 
 *Written at the end of an eleven-hour day so the next session does not have to reconstruct it.*
