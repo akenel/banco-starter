@@ -951,6 +951,62 @@ async function main() {
       }
     }
 
+    // ── K · no dropdown hides its own text ──────────────────────────────────
+    // Angel, 2026-09-02: "the supplier selection does not show the supplier
+    // name, it's always blank." It was not the data — prod held supplier_code
+    // 'FTW' and FTW is an active supplier — and it was not a race. The picker
+    // carried `.input-field h-10`: a 40px border-box with 16px of padding top
+    // and bottom, leaving FOUR pixels for a 27px line. A <select> clips its
+    // selected text to the content box, so it painted nothing.
+    //
+    // The Qty box beside it carries the same two classes and shows its number,
+    // because an <input> does not clip that way. That is why this looked like a
+    // data problem — and why only SELECTs are judged here; flagging inputs on
+    // the same rule would fail on boxes that render perfectly.
+    //
+    // It reproduced on my machine from the first try. I missed it through five
+    // probes because every one of them asked the DOM, which answered
+    // selectedIndex=1 and the right option text, all the way through. Only the
+    // screenshot disagreed. LESSON #12: being in the DOM is not being on screen.
+    head('K · no dropdown is too short to show what it has selected');
+    {
+      const SCREENS = ['/pos/reorder', '/pos/catalog', '/pos/shelf-intake', '/pos/checkout'];
+      let squashed = 0, looked = 0;
+      for (const url of SCREENS) {
+        await p.goto(`${ROOT}${url}`, { waitUntil: 'domcontentloaded' }).catch(() => null);
+        await p.waitForTimeout(2200);
+        const found = await p.evaluate(() => {
+          const out = [];
+          for (const el of document.querySelectorAll('select')) {
+            const r = el.getBoundingClientRect();
+            if (r.height < 1 || r.width < 1) continue;
+            const cs = getComputedStyle(el);
+            if (cs.visibility === 'hidden' || cs.display === 'none') continue;
+            let lh = parseFloat(cs.lineHeight);
+            if (!isFinite(lh)) lh = parseFloat(cs.fontSize) * 1.2;
+            const inner = r.height
+              - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom)
+              - parseFloat(cs.borderTopWidth) - parseFloat(cs.borderBottomWidth);
+            out.push({ cls: (el.className || '').toString().slice(0, 44),
+                       inner: Math.round(inner), lh: Math.round(lh), ok: inner + 0.5 >= lh });
+          }
+          return out;
+        });
+        looked += found.length;
+        for (const f of found) {
+          if (!f.ok) {
+            squashed++;
+            console.log(`  ❌ ${url} — a dropdown has ${f.inner}px for a ${f.lh}px line`
+                      + `  · class="${f.cls}"`);
+          }
+        }
+      }
+      check(squashed === 0 && looked > 0,
+            'every dropdown has room for one line of its own text',
+            looked === 0 ? 'NO dropdowns found on any screen — this check measured nothing'
+                         : `${looked} dropdowns across ${SCREENS.length} screens`);
+    }
+
 
   } catch (e) {
     bad('the run itself', e.message);

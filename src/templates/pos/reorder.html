@@ -3,6 +3,25 @@
 {% block title %}Order Book - HelixPOS - Artemis Store{% endblock %}
 
 {% block content %}
+<style>
+    /* A <select> CLIPS its selected text to the CONTENT box. An <input> does not.
+       `.input-field h-10` is a 40px border-box carrying 16px of padding top and
+       bottom, which leaves FOUR pixels for a 27px line — so the per-line supplier
+       picker rendered completely empty while the DOM cheerfully reported
+       selectedIndex=1 and the correct option text. Angel, 2026-09-02: "the
+       supplier selection does not show the supplier name, it's always blank."
+       The Qty box beside it carries the same two classes and shows its number
+       fine, which is what made this look like a data problem for an hour — and
+       it reproduced on my machine the whole time, in pixels, while every probe I
+       wrote read the DOM and said it was fine. LESSON #12, exactly.
+       Measured: content height 4px against a 27px line. */
+    select.reorder-pick {
+        height: 40px;
+        padding-top: 0;
+        padding-bottom: 0;
+        line-height: 1.2;
+    }
+</style>
 <div class="min-h-screen bg-gray-50" x-data="reorderData()" x-init="init()">
     <div class="max-w-4xl mx-auto px-4 py-8">
 
@@ -128,7 +147,7 @@
                             <!-- :selected on each option (not :value on the select) so the stored supplier
                                  shows even though the options load async after first render. -->
                             <select @change="setSupplier(it, $event.target.value)"
-                                    :disabled="!user.isManager" class="input-field h-10 flex-1 min-w-[8rem]">
+                                    :disabled="!user.isManager" class="input-field reorder-pick flex-1 min-w-[8rem]">
                                 <option value="" :selected="!it.supplier_code" data-i18n="reorder.supplier_any">— supplier —</option>
                                 <template x-for="s in suppliers" :key="s.code || s.prefix">
                                     <option :value="s.code || s.prefix" :selected="(s.code || s.prefix) === it.supplier_code"
