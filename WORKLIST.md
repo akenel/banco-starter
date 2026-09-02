@@ -179,6 +179,30 @@ out of a `/tmp` session scratchpad on 2026-08-28. The SQL exports are checked in
 
 ### Open, in order
 
+**㉓ SHELF INTAKE FOR A CASHIER — SCAN AND REPORT, NEVER CREATE.** *(Angel's idea, 2026-09-02.
+The best thing said all day, and it is not a tomorrow job.)*
+
+His words: Shelf Intake is *"such a fantastic tool and super powerful"* and the best way to check
+three or more products — but it is not fully a cashier's job. What a cashier SHOULD be able to do is
+**scan twenty codes and hand back a list**: these eighteen were found, these three were not, and the
+three are hot sellers so a manager should create them when there is time.
+
+**Why this is the right shape and not just a permission trim:** every duplicate row in this
+catalogue was born because somebody at the counter was made to CREATE under time pressure — see
+LESSON #1 and LESSON #2. *Scan and report* removes the pressure without removing the person. The
+cashier becomes the shop's best sensor for what the catalogue is missing, which is exactly the thing
+nobody currently measures.
+
+**The shape:**
+- Cashier role gets Shelf Intake with **create, edit and price change removed** — scan/paste, check,
+  and read the result.
+- Unknown codes land on a **needs-a-manager queue** with the code, the time, who scanned it, and an
+  optional one-line note (*"we sell ten a week"*). That is the handoff, as data instead of *"hey
+  Felix"*.
+- A manager sees the queue and clears it with the create flow that already exists.
+
+**Not before Thursday.** Tomorrow is a person saying yes or no, not a new screen. Size it after.
+
 **㉒ ✅ FIXED — the pad now fires `change` field-to-field, not only on DONE.** *(Angel found it on
 the tablet 2026-09-02, fixed the same afternoon.)* `open()` reassigned `active` without ever closing
 the box it was leaving, so a `@change` field — Checkout's **Qty** — kept its old value until DONE was
