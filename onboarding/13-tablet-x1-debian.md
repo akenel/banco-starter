@@ -395,7 +395,16 @@ machine it should be the thing that puts the settings back. It now is:
 |---|---|
 | you are standing at it | **restart it.** The boot job re-applies every lock and the search policy |
 | you are on your laptop | `ssh -t tablet 'sudo systemctl start banco-lockdown.service'` — same effect, no reboot |
-| it is a new machine, or the script itself changed | `./scripts/tablet-lockdown.sh --push` |
+| it is a new machine, or the script changed | `./scripts/tablet-lockdown.sh --push` |
+
+> The middle row only works **after** the first `--push` has run on that machine — that is what
+> installs the service. Before then you get `Unit banco-lockdown.service not found`, which is
+> exactly what Angel saw on 2026-09-03. `--push` is always the safe answer; it is idempotent.
+
+**Run `--push` as yourself, never with `sudo`.** `tablet` is a Host alias in *your* `~/.ssh/config`;
+root has its own config and its own keys and has never heard of it, so `sudo … --push` fails with
+`Could not resolve hostname tablet`. The script now refuses to run that way and says so. The only
+password anyone needs is the tablet's, and ssh asks for it.
 
 The dconf locks and the Chromium policy are ordinary files and do survive a restart on their own.
 The boot job is for when they do not: a package update, a half-finished reinstall, or somebody with

@@ -88,10 +88,39 @@ QUIET=0
 if [ "${1:-}" = "--push" ]; then
   HOST="${2:-tablet}"
   SELF="${BASH_SOURCE[0]:-$0}"
+  STAGE=".banco-counter-lockdown.push"
+
+  # NOT WITH SUDO. `tablet` is a Host alias in YOUR ~/.ssh/config; root has its own
+  # config and its own keys, and has never heard of it. Angel, 2026-09-03, after the
+  # first version made him reach for sudo:
+  #     sudo ./scripts/tablet-lockdown.sh --push
+  #     ssh: Could not resolve hostname tablet: Name or service not known
+  # The only password anyone needs here is the TABLET's, and ssh asks for that itself.
+  if [ "$(id -u)" -eq 0 ]; then
+    echo "Run --push as yourself, WITHOUT sudo." >&2
+    echo "  '$HOST' is a Host alias in your own ~/.ssh/config and root cannot see it," >&2
+    echo "  which is why sudo turns this into 'Could not resolve hostname $HOST'." >&2
+    echo "  The only password needed is the tablet's; ssh will ask for it." >&2
+    exit 2
+  fi
   [ -r "$SELF" ] || { echo "--push needs the script as a file, not a pipe" >&2; exit 2; }
-  echo "→ pushing $(basename "$SELF") to $HOST:$INSTALLED"
-  # shellcheck disable=SC2029  # $INSTALLED must expand HERE, it is our constant
-  ssh -t "$HOST" "sudo sh -c 'cat > $INSTALLED && chmod 755 $INSTALLED && exec $INSTALLED'" < "$SELF"
+
+  # TWO STEPS, AND THAT IS THE WHOLE FIX. The first version piped the script into
+  # `ssh -t ... sudo`, which cannot work and which I shipped having only ever tested
+  # it without the sudo:
+  #     Pseudo-terminal will not be allocated because stdin is not a terminal.
+  #     sudo: a terminal is required to read the password
+  # ssh refuses a TTY when stdin is a file, and sudo needs a TTY to prompt. So: copy
+  # first with scp (no TTY needed), THEN run with a real terminal and stdin free.
+  echo "→ copying $(basename "$SELF") to $HOST"
+  scp -q "$SELF" "$HOST:$STAGE" || { echo "copy to $HOST failed" >&2; exit 1; }
+
+  # One sudo, so one password prompt. The staged copy is moved into place and then
+  # removed — the permanent copy is $INSTALLED and nothing is left lying around.
+  # shellcheck disable=SC2029  # $INSTALLED/$STAGE must expand HERE; $HOME/$1 must not
+  ssh -t "$HOST" \
+    "sudo sh -c 'install -m 755 \"\$1\" $INSTALLED && exec $INSTALLED' _ \"\$HOME/$STAGE\"; \
+     rc=\$?; rm -f \"\$HOME/$STAGE\"; exit \$rc"
   exit $?
 fi
 
