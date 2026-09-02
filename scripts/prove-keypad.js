@@ -333,11 +333,24 @@ async function main() {
       // reflowed, and the button moved out from under the finger. Assert the
       // geometry holds still across a close.
       await p.click(priceSel);
-      await p.waitForTimeout(250);
+      // SETTLE FIRST. On prod this failed at 828 -> 766 and the pad was innocent:
+      // typing into Item name fires searchOwnedForOtf() on a 400ms debounce, and
+      // against a 5,479-product catalogue the results land BETWEEN the two
+      // measurements and push the button up. A demo catalogue returns nothing, so
+      // the same code was green locally and red on the shop — the harness
+      // accusing working code, which is LESSON #5's whole shape.
+      await p.waitForTimeout(900);
+      // And measure the SAME element twice. Re-finding "the first visible button
+      // whose text matches create|add|save" can return a different button after a
+      // reflow, which is a moving ruler, not a moving button.
       // :has-text() is a Playwright locator and NOT valid CSS inside evaluate().
-      const btnTop = () => p.evaluate(() => {
+      await p.evaluate(() => {
         const b = [...document.querySelectorAll('button')]
           .find(x => /create|add|save/i.test(x.textContent || '') && x.offsetParent !== null);
+        if (b) b.setAttribute('data-pk-ruler', '1');
+      });
+      const btnTop = () => p.evaluate(() => {
+        const b = document.querySelector('[data-pk-ruler]');
         return b ? Math.round(b.getBoundingClientRect().top) : null;
       });
       const before2 = await btnTop();
@@ -347,6 +360,10 @@ async function main() {
       check(before2 !== null && before2 === after2,
             'the page does NOT jump while a tap is completing',
             `button top ${before2} -> ${after2}`);
+      await p.evaluate(() => {
+        const b = document.querySelector('[data-pk-ruler]');
+        if (b) b.removeAttribute('data-pk-ruler');
+      });
     }
 
     // ── E ─────────────────────────────────────────────────────────────────

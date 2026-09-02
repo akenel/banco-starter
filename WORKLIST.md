@@ -49,7 +49,10 @@ of them is the screen a cashier stands on.
 > **✅ DONE, morning of 2026-09-02 — all 31 wired, 62 pass / 0 fail.** The demo path now reads
 > **35 wired · 0 to wire · 3 barcode boxes left alone.** Sheet for the tablet:
 > [`2026-09-02-keypad-31-fields.html`](onboarding/testsheets/2026-09-02-keypad-31-fields.html).
-> **Not deployed** — prod is still on `6c65d7d`.
+> **DEPLOYED 2026-09-02** — prod is on **`9f5f14e`**, all gates green, `https://banco.wolfhold.app`
+> live and healthy. Verified on the shop itself, not from the deploy log: the service worker's
+> cache is `banco-pos-9f5f14e-…` and the served `pos-keypad.js` carries the change dispatch.
+> **The proof also runs against prod: 62 pass · 0 fail · 1 known gap.**
 >
 > Three things the morning turned up, none of them in the plan:
 >
@@ -63,7 +66,14 @@ of them is the screen a cashier stands on.
 >    that tablet `inputmode` is ignored, which is exactly why nobody saw it; on a phone and on a
 >    laptop it is the difference between a number keyboard and a letter one. Fixed, and there is
 >    now a check that every number box still declares one.
-> 3. **`x-model.number` eats the decimal point mid-keystroke.** It re-parses `"20."` as `20` and
+> 3. **A measurement lied about a fix — the fourth time this pattern has been logged.** The
+>    page-does-not-jump guard was GREEN locally and RED on prod, `828 -> 766`. The pad was
+>    innocent: typing into Item name fires `searchOwnedForOtf()` on a 400ms debounce, and against
+>    a **5,479-product catalogue** the results land BETWEEN the two measurements. A demo catalogue
+>    returns nothing, so the same code passed here and failed there. The assertion also re-found
+>    *"the first visible button matching create|add|save"* each time — a moving ruler, not a moving
+>    button. Now: settle the debounce, tag one element, measure that one. `763 -> 763` on prod.
+> 4. **`x-model.number` eats the decimal point mid-keystroke.** It re-parses `"20."` as `20` and
 >    writes it back, so **Amount received** on Checkout could not have taken a decimal at all once
 >    it stopped being `type="number"`. Four fields had it. Checked for now.
 >
