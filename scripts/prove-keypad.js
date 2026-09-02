@@ -713,7 +713,17 @@ async function main() {
       const there = await p.$(sel);
       check(!!there, 'the manager price-fix box is reachable and wired');
       if (there) {
-        await p.evaluate(s => document.querySelector(s).focus({ preventScroll: true }), sel);
+        // preventScroll is the honest substitute for a click here: p.click() auto-scrolls
+        // the element into view, which is the very thing this check is measuring. But the
+        // pad now waits for a real human gesture before opening (so that a screen which
+        // autofocuses its search box does not come up half-covered), and a bare focus()
+        // is not one. So send the pointerdown a finger would send, then focus without
+        // scrolling — a tap, minus the part that would rig the measurement.
+        await p.evaluate(s => {
+          const el = document.querySelector(s);
+          el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+          el.focus({ preventScroll: true });
+        }, sel);
         await p.waitForTimeout(900);
         const m = await p.evaluate(s => {
           const pad = document.querySelector('#pk-num.on');

@@ -443,6 +443,7 @@
       _busy: false,
       camError: '',
       isTouch: false,
+      isPhone: false,      // a real phone. NOT the same as isTouch — see init().
       form: { handle: '', real_name: '', email: '', phone: '', age: false, marketing: false },
       signupErr: '',
       member: {},
@@ -576,10 +577,26 @@
         // Touch device = a guest's phone (via the QR). Don't auto-focus the hidden input there —
         // it would pop the on-screen keyboard. The laptop kiosk (hardware gun) is non-touch.
         this.isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints || 0) > 0;
+        // ...and that last sentence stopped being true. The kiosk now runs on the
+        // counter TABLET: touch, with a hardware gun on it, and no on-screen
+        // keyboard in the browser at all — which is the entire reason Banco draws
+        // its own keypad. Guarding the scanner target on `isTouch` therefore
+        // switched the gun off on the one machine that has one. Angel, 2026-09-02:
+        // "on the kiosk the default focus should always be the scan barcode input
+        // and automatically land there so it makes scanning painless."
+        // The question was never "is this touch", it is "is this a PHONE".
+        // LESSON #1 — ask which machine the person is standing at.
+        // NOTE: `isTouch` still decides source (phone|kiosk) and the welcome
+        // discount percentage below. That mislabels a tablet kiosk as a phone and
+        // is worth fixing, but it moves money, so it is on the worklist and not
+        // in this change.
+        this.isPhone = (typeof window.posIsMobileOS === 'function')
+          ? window.posIsMobileOS()
+          : /Mobi|Android|iPhone|iPod/i.test(navigator.userAgent || '');
         this.loadCart();
         try { const mm = sessionStorage.getItem('kiosk_member'); if (mm) this.myMember = JSON.parse(mm); } catch(e){}
         this.renderQR();
-        if (!this.isTouch) {
+        if (!this.isPhone) {
           this.refocus();
           setInterval(() => this.refocus(), 2500);   // keep the scanner target focused
         }
@@ -598,7 +615,7 @@
         } catch(e){ /* QR is a nice-to-have; never block the kiosk */ }
       },
 
-      refocus(){ if (this.isTouch) return; try { const el = this.$refs.scanInput; if (el && document.activeElement !== el && !this._typingManual()) el.focus(); } catch(e){} },
+      refocus(){ if (this.isPhone) return; try { const el = this.$refs.scanInput; if (el && document.activeElement !== el && !this._typingManual()) el.focus(); } catch(e){} },
       _typingManual(){ const a = document.activeElement; return a && a.tagName === 'INPUT' && a !== this.$refs.scanInput; },
 
       async startCamera(){

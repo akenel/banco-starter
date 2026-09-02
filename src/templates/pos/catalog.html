@@ -149,8 +149,13 @@
                 <div class="flex-1">
                     <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="catalog.search_label">Search</label>
                     <div class="flex gap-2">
+                        <!-- Lands here on load: this screen exists to find one product, and a gun
+                             can fire straight into it. The pad does NOT open on this focus — it
+                             waits for a real gesture (see pos-keypad.js) — so the catalogue is
+                             fully visible until somebody actually taps the box. -->
                         <input type="text" data-keypad="text" x-model="q" @input.debounce.300ms="search()"
-                               placeholder="Name, SKU or barcode…" data-i18n-placeholder="catalog.search_placeholder" class="input-field flex-1">
+                               placeholder="Name, SKU or barcode…" data-i18n-placeholder="catalog.search_placeholder" class="input-field flex-1"
+                               autofocus>
                         <!-- BL-10 (Felix): scan a barcode to pull the item up, no typing. -->
                         <button type="button" @click="startSearchScan()" class="btn-secondary flex-none px-4" title="Scan to find">📷</button>
                     </div>

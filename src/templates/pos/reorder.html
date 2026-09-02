@@ -55,7 +55,8 @@
                         <input type="text" data-keypad="text" x-model="form.title" list="reorder-products" @input="onTitleInput()"
                                @keyup.enter="onItemEnter()"
                                placeholder="Scan a barcode, or type a product name"
-                               data-i18n-placeholder="reorder.item_ph" class="input-field flex-1">
+                               data-i18n-placeholder="reorder.item_ph" class="input-field flex-1"
+                               autofocus>
                         <button type="button" @click="startItemScan()" class="btn-secondary flex-none px-4" title="Scan barcode">📷</button>
                     </div>
                     <datalist id="reorder-products">

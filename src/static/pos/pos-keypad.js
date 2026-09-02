@@ -575,12 +575,24 @@
     // keyboard is a box nobody fills in.
     return (el && el.matches && el.matches('input[data-keypad], textarea[data-keypad]')) ? el : null;
   }
+  // A PAGE THAT LANDS THE CARET SOMEWHERE IS NOT A PERSON ASKING FOR A KEYBOARD.
+  // Screens autofocus their main box so a scan or the first keystroke just lands
+  // (Angel: "it makes scanning painless and straight forward"). If that focus
+  // opened the pad, every one of those screens would come up with half of itself
+  // covered before anyone had touched anything. So the pad waits for a real
+  // human gesture; the caret is already in the box either way, which is all a
+  // barcode gun needs. Tap the box and the pad comes up exactly as before.
+  var userHasActed = false;
+  ['pointerdown', 'keydown'].forEach(function (ev) {
+    document.addEventListener(ev, function () { userHasActed = true; }, true);
+  });
+
   document.addEventListener('focusin', function (e) {
     var el = target(e);
     console.log('[keypad] focusin on <' + (e.target.tagName || '?').toLowerCase()
               + '> data-keypad=' + (e.target.getAttribute ? e.target.getAttribute('data-keypad') : 'n/a')
-              + ' -> ' + (el ? 'MINE' : 'not mine'));
-    if (el) open(el, el.getAttribute('data-keypad'));
+              + ' -> ' + (el ? (userHasActed ? 'MINE' : 'MINE, but nobody has touched the page yet') : 'not mine'));
+    if (el && userHasActed) open(el, el.getAttribute('data-keypad'));
     else if (active && e.target !== active) shut();   // focus went somewhere else
   });
   document.addEventListener('click', function (e) {
