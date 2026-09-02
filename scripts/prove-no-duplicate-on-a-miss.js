@@ -138,24 +138,52 @@ async function newPage(b) {
   return p;
 }
 
-async function login(p) {
+// ── login ───────────────────────────────────────────────────────────────────
+// Token polling that SURVIVES A REDIRECT. The old tail — waitForURL, then
+// networkidle, then ONE evaluate — raced the app: it lands on /pos/* and only
+// THEN exchanges the code for a token in JavaScript, and the callback redirect
+// can destroy the execution context mid-check. Roughly one run in four died at
+// "login produced no token" on a login that had actually worked, and on
+// 2026-09-02 that cost two false alarms in one evening — once accusing a change
+// that was fine, once landing in a commit message before the run had finished.
+// A harness that cries wolf is worse than no harness (LESSON #5).
+async function waitForToken(p, ms = 25000) {
+  const end = Date.now() + ms;
+  while (Date.now() < end) {
+    try {
+      const t = await p.evaluate(() =>
+        sessionStorage.getItem('pos_token') || localStorage.getItem('pos_token'));
+      if (t) return t;
+    } catch (e) { /* a redirect destroyed the context — look again */ }
+    await p.waitForTimeout(250);
+  }
+  return null;
+}
+
+async function loginOnce(p) {
   await p.goto(`${ROOT}/pos`, { waitUntil: 'domcontentloaded' });
   await p.waitForSelector('button:has-text("Login")', { timeout: 20000 });
-  const landed = () => p.waitForFunction(
-    () => !!(document.querySelector('#username') || sessionStorage.getItem('pos_token')
-             || localStorage.getItem('pos_token')), null, { timeout: 8000 });
   await p.click('button:has-text("Login")');
-  try { await landed(); } catch (e) { await p.click('button:has-text("Login")'); await landed(); }
+  // waitForSelector, NOT waitForFunction: clicking Login navigates CROSS-ORIGIN to
+  // Keycloak, which destroys the context a polled function runs in, so it times out
+  // even though the form arrived. A selector wait survives the navigation. An
+  // existing SSO session skips the form entirely, so a miss here is not a failure.
+  await p.waitForSelector('#username', { timeout: 12000 }).catch(() => null);
   if (await p.$('#username')) {
     await p.fill('#username', USER);
     await p.fill('#password', PASS);
     await p.click('#kc-login, input[type=submit]');
-    await p.waitForURL('**/pos/**', { timeout: 20000 });
+    await p.waitForURL('**/pos/**', { timeout: 20000 }).catch(() => null);
   }
-  await p.waitForLoadState('networkidle');
-  const authed = await p.evaluate(() =>
-    !!(sessionStorage.getItem('pos_token') || localStorage.getItem('pos_token')));
-  if (!authed) throw new Error(`login did not produce a token: ${p.url()}`);
+  return await waitForToken(p);
+}
+
+async function login(p) {
+  if (await loginOnce(p)) return;
+  // One retry, because the Login button renders BEFORE Alpine binds its handler and
+  // a click that lands in that gap does nothing at all.
+  if (await loginOnce(p)) return;
+  throw new Error(`login produced no token: ${p.url()}`);
 }
 
 async function waitAlpine(p) {
