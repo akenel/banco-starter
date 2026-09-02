@@ -367,9 +367,24 @@ nothing below unless something actually breaks.*
 | the window's ✕ | **kept on purpose** | it is a fat-finger risk, but the watchdog makes it cost 3 seconds, and the Chromium icon in the dash is a second way back. Two ways back beats one |
 | ⛶ in Banco's own status bar | on, touch devices only | one tap to full screen and back, needs no window-manager knowledge |
 | zoom · slow · bounce · sticky · mouse keys | **LOCKED** | `scripts/tablet-lockdown.sh`. Not off — *unsettable*. Three of them exist to ignore keys typed quickly, which is exactly what a scanner gun does |
+| default search engine | **Google, as policy** | same script. Debian's Chromium ships DuckDuckGo; Felix wants Google. Written to `/etc/chromium*/policies/managed/` so it survives a wiped profile and cannot be tapped away. `BANCO_SEARCH_HOST=www.google.de` to change country |
 | high contrast · large text · visual alerts | still toggleable | none of them touch the browser, so none of them can hurt the till |
 | swipe-back · pinch-zoom · hot corners | off | a horizontal swipe was browser BACK, mid-sale |
 | the accessibility icon | still in the top bar | GNOME 48 keeps it regardless of the setting. **Disarmed, so it stays** — the danger was never the icon |
+
+**Setting up a SECOND counter machine** — one line, from a laptop with this repo checked out:
+
+```bash
+ssh -t tablet 'sudo bash -s' < scripts/tablet-lockdown.sh
+```
+
+It leaves nothing on the machine and always runs the current version. Do **not** park a copy in
+`/tmp` first: that is gone at the next reboot, which is exactly what happened on 2026-09-03 between
+handing Angel the command and his running it — the test sheet came back `sudo: /tmp/tablet-lockdown.sh:
+command not found`. The script lives in `scripts/`, and that is the only copy there should be.
+
+Afterwards: log out and back in for the dconf locks, and **fully quit Chromium** (not a reload — it
+reads policy only at start) then check `chrome://policy` shows `DefaultSearchProviderSearchURL` as OK.
 
 **Two things that were verified, not assumed:**
 - `gsettings set …screen-magnifier-enabled true` → **"The key is not writable."**

@@ -29,6 +29,17 @@
 # Run it once per counter machine:
 #     sudo ./scripts/tablet-lockdown.sh
 #
+# ...or, from a laptop, straight onto a counter machine over ssh — no copy left
+# behind, and always THIS version rather than whatever was dropped there months
+# ago:
+#
+#     ssh -t tablet 'sudo bash -s' < scripts/tablet-lockdown.sh
+#
+# Do not park a copy in /tmp. Angel, 2026-09-03: "we want to keep that script in
+# case we get another tablet." A /tmp copy is gone at the next reboot — which is
+# exactly what happened between handing him the command and his running it, and
+# the sheet came back with F1 as "command not found".
+#
 # It also sets Chromium's default search engine to Google (see the bottom of
 # this file). Felix asked for Google; a fresh Debian Chromium ships DuckDuckGo,
 # and the counter tablet is where somebody stands looking up a product they are
@@ -43,7 +54,10 @@
 set -euo pipefail
 
 if [ "$(id -u)" -ne 0 ]; then
-  echo "This needs root — run:  sudo $0" >&2
+  # $0 is "bash" when this arrives over `ssh 'sudo bash -s'`, so name both ways out.
+  echo "This needs root. Either:" >&2
+  echo "    sudo ./scripts/tablet-lockdown.sh          (on the machine itself)" >&2
+  echo "    ssh -t tablet 'sudo bash -s' < scripts/tablet-lockdown.sh   (from your laptop)" >&2
   exit 1
 fi
 
