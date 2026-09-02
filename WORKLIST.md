@@ -45,54 +45,63 @@
   number, so it wants its own test sheet and its own evening, not a drive-by.
 
 
-## 🌙 WHERE WE STOPPED — 2026-09-02, ~22:00. READ THIS FIRST.
+## 🌙 WHERE WE STOPPED — 2026-09-03, ~00:50. READ THIS FIRST.
 
-*Angel is running [`2026-09-02-untested.html`](onboarding/testsheets/2026-09-02-untested.html) on the
-tablet right now and will report back at the start of the next session. **Be ready for his results —
-that is the first thing that happens.***
+**Live on the shop: `7b0f911`.** Reload the tablet TWICE after any deploy — the first load
+activates the new service worker, the second serves from it.
 
-**Live on the shop: `11aaedf`.** Reload the tablet TWICE after any deploy — the first load activates
-the new service worker, the second is served by it.
+**⏰ TODAY, Thursday 3 September, ~15:00 — the Layla gate.** She is on the afternoon shift.
+Sheet: [`2026-09-03-ask-layla-first.html`](onboarding/testsheets/2026-09-03-ask-layla-first.html).
+Ask her before Felix. Everything below is preparation for that one conversation.
 
-| | |
+### What last night fixed — all deployed, all verified red before green
+
+| what | where it bit |
 |---|---|
-| **cashier path** | **89 boxes wired · 0 to wire · 11 barcode boxes untouched**, across 12 templates. Every screen Pam can open raises a pad on every box she can type into. |
-| **proofs** | `prove-keypad.js` **73 pass · 0 fail · 1 known gap**; `prove-cart-agrees-with-till.js` green on 320 quantities, 9 mixed baskets and every tiered held order. Run `./scripts/rebuild.sh` BEFORE either — templates are baked into the image, there is no bind mount. |
-| **the one known gap** | holding OK on a real touchscreen. Mouse events cannot reproduce it; only a finger answers it. |
-| **the tablet** | frozen and documented — see the 🧊 block in [`onboarding/13-tablet-x1-debian.md`](onboarding/13-tablet-x1-debian.md). Do not fiddle. |
+| **Ring it out dropped the ladder** | board said 10.00, cart said 12.00. Receipt was always right, so nobody was overcharged — but the cashier is told the wrong number and the drawer ends CHF 2 over |
+| **Search tab dropped it too** | same bug, second door. `/search` had returned the tiers all along |
+| **Target Total** | typed 100.00, got 100.46 — percentage from the full basket, applied to the eligible part. And an unreachable target silently applied the cashier's 25% max, leaving CHF 81.10 |
+| **Edit modal geometry** | 135px above the top of the screen where nothing can scroll to it, and the Save bar lying across the form. Two of my own fixes fighting |
+| **Supplier picker blank** | 4px of content box for a 27px line. A `<select>` clips; the `<input>` beside it does not, which is why one worked |
+| **Typed barcode ≠ scanned barcode** | order book only did a lookup on the gun's trailing Enter |
+| **Landing focus** | catalog + order book now land the caret; the pad waits for a real tap. The kiosk guard said "touch = a phone", written when the kiosk was a laptop |
 
-**Fixed today, all deployed:** the keypad on the whole cashier path · the pad's OK moved to the top
-so it no longer sits over the bottom nav · tap-outside closes · the held-finger guard follows the
-gesture instead of a 400ms guess · a modal gets lifted clear of the pad · the cart quantity caps at
-99 · a half-counted drawer cannot leave without asking, and says nothing once it is filed · the
-shift report names who counted, not just who opened · **the held-orders board was charging CHF 12
-for a 3-for-10 pack** · the flaky login in all four browser proofs.
+### The tablet is now self-healing
 
-**The tablet, all locked and verified:** kiosk → maximised so the system bar is visible · a ⛶
-toggle in Banco's own status bar · the till restarts itself in 3s if closed · zoom, slow keys,
-bounce keys, sticky keys and mouse keys **unsettable** (`scripts/tablet-lockdown.sh`) · the
-on-screen keyboard locked **ON**, because off is a lockout.
+```bash
+./scripts/tablet-lockdown.sh --push          # as yourself, NEVER sudo
+```
 
-### Open, small, not blocking
+Installs to `/usr/local/sbin/banco-counter-lockdown` and enables `banco-lockdown.service`, which
+re-applies everything **at every boot**. If the tablet goes strange, **restarting it is the repair.**
+Also sets Google as the search engine (managed policy) and PrtScr to whole-screen.
+Full detail: `onboarding/13-tablet-x1-debian.md`.
 
-- **The open-the-box screen has no button that says "recount".** The reveal is right — *"Counted CHF
-  1000.00, but last night's reconcile said CHF 1216.90 (−216.90). Add a note to open"*, with the
-  button disabled until a note exists — but the only way to recount is to silently retype. Angel
-  asked whether something had changed; nothing had. Wording, not behaviour.
-- **`paid.amount` on the drawer is not covered by the leave guard** — only the COUNT is. Angel's
-  step B4 asked the question and left it open.
-- **91 boxes still unwired on manager/admin screens** (settings 57, receiving 17, cleanup 18, audit
-  10, suppliers 8 …). None of them are on a cashier's path. **After Thursday.**
-- **㉓ Shelf Intake for a cashier — scan and report, never create.** Still the best idea of the week.
+### State of the proofs
 
-### ⏰ TOMORROW IS THE GATE — Thursday 3 September, **15:00**
+| suite | result | note |
+|---|---|---|
+| `prove-keypad.js` | **78 pass · 0 fail · 1 gap** | sections J (modal geometry) and K (no dropdown too short) are new |
+| `prove-cart-agrees-with-till.js` | **5 comparisons green** | ring-it-out and target-total are new, both drive the real buttons |
+| `prove-barcode-binding.js` | **45 pass · 0 fail** | section 11 (typed code) is new |
 
-Layla is on the afternoon shift from about three. Sheet:
-[`2026-09-03-ask-layla-first.html`](onboarding/testsheets/2026-09-03-ask-layla-first.html).
-Four questions, two minutes with the tablet in her hands, one sale keyed in **from the receipt after
-the customer has left**. Do not demo the whole thing. Do not show her the owner's page.
+**`./scripts/rebuild.sh` before running any of them** — templates are baked into the image.
 
----
+### Open, and none of it blocks Thursday
+
+- The three in **FOUND WHILE FIXING SOMETHING ELSE** above. The kiosk `source`/percentage
+  mislabel is the one that moves money and wants Felix's answer.
+- The kiosk screen does not show the pack price. **Angel's call: leave it.**
+- 91 boxes unwired on manager/admin screens (settings 57, receiving 17, cleanup 18, audit 10,
+  suppliers 8). Cashier path is done.
+- ㉓ Shelf Intake scan-and-report for a cashier · ㉑ the cutover runbook · the Settings
+  tax/payments merge (Felix's complaint).
+
+### The lesson that cost the most last night
+
+I spent an hour on the blank supplier picker writing five probes that all asked the **DOM**, which
+answered `selectedIndex=1` with the correct supplier name every single time. It reproduced on my
+machine from the first try. Only a screenshot disagreed. **Take the picture first.**
 
 ## 🌅 THIS WEEK — from 2026-09-02, in order
 
