@@ -1,7 +1,7 @@
 {
-  "at": "2026-09-02T16:40:36.815Z",
+  "at": "2026-09-02T17:08:03.133Z",
   "url": "http://localhost:3000",
-  "pass": 67,
+  "pass": 72,
   "fail": 0,
   "results": [
     {
@@ -340,7 +340,7 @@
     {
       "r": "PASS",
       "l": "the manager price-fix box is ABOVE the pad, not under it",
-      "d": "field bottom 378, pad top 446"
+      "d": "field bottom 362, pad top 446"
     },
     {
       "r": "PASS",
@@ -358,9 +358,34 @@
       "d": "49"
     },
     {
+      "r": "PASS",
+      "l": "an untouched drawer screen lets you leave without a word",
+      "d": "a guard that nags when nothing is at stake is a guard people learn to dismiss"
+    },
+    {
+      "r": "PASS",
+      "l": "a counted drawer stops you on the way out",
+      "d": "the modal is up"
+    },
+    {
+      "r": "PASS",
+      "l": "and it says what is at stake, with the number",
+      "d": "\"You have counted 14 notes and coins into the drawer and not submitted it yet. Leaving lose\""
+    },
+    {
+      "r": "PASS",
+      "l": "and it has not navigated yet",
+      "d": "/pos/shift"
+    },
+    {
+      "r": "PASS",
+      "l": "Stay and finish puts you back where you were",
+      "d": "/pos/shift"
+    },
+    {
       "r": "INFO",
       "l": "coverage /pos/scan",
-      "d": "19/23"
+      "d": "31/33"
     }
   ]
 }

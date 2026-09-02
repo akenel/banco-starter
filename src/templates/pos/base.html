@@ -160,6 +160,15 @@
           el.style.display = 'flex';
           pending = href;
         }
+        // A LINK IS NOT THE ONLY WAY OUT. Shift's own 🏠 button and Closeout's
+        // "back" are window.location.href assignments, which no click handler on
+        // <a> can ever see — and 🏠 is literally the "flashes away and you are
+        // back at the dashboard" path Angel described. Route those through here.
+        window.posGo = function (href) {
+          var what = atStake();
+          if (!what) { window.location.href = href; return; }
+          ask(href, what);
+        };
         document.addEventListener('click', function (e) {
           var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
           if (!a) return;

@@ -376,7 +376,8 @@ ${t('closeout.thank_you')}
             },
 
             goBack() {
-                window.location.href = '/pos/dashboard';
+                // Guarded: a counted-but-unclosed till must not leave quietly.
+                (window.posGo || function (h) { window.location.href = h; })('/pos/dashboard');
             },
 
             printSummary() {

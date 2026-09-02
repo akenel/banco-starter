@@ -745,6 +745,60 @@ async function main() {
     console.log(`  ℹ️  ${wired} boxes wired across ${DEMO.length} screens`);
     results.push({ r: 'INFO', l: 'demo path wired', d: String(wired) });
 
+    // ─────────────────────────────────────────────────────────────────────────
+    head('I · a half-counted drawer cannot leave quietly');
+    // Angel, 2026-09-02: "they fill in half the coin counts and BAMM they get
+    // thrown out." Ten minutes of counting lives nowhere but that screen.
+    // No writes: this types into boxes and never submits.
+    await p.goto(`${ROOT}/pos/shift`, { waitUntil: 'domcontentloaded' });
+    await waitAlpine(p);
+    const shiftReady = await p.evaluate(() => {
+      try {
+        const d = Alpine.$data(document.querySelector('[x-data]'));
+        return !!(d && d.openCounts);
+      } catch (e) { return false; }
+    });
+    if (!shiftReady) {
+      gap('the drawer guard', 'the shift screen did not load for this user');
+    } else {
+      // clean first: leaving with nothing typed must NOT nag
+      const cleanAsks = await p.evaluate(() => {
+        window.posGo('/pos/dashboard#probe');
+        const el = document.getElementById('pos-leave-guard');
+        return !!(el && el.style.display === 'flex');
+      });
+      check(cleanAsks === false, 'an untouched drawer screen lets you leave without a word',
+            'a guard that nags when nothing is at stake is a guard people learn to dismiss');
+
+      await p.goto(`${ROOT}/pos/shift`, { waitUntil: 'domcontentloaded' });
+      await waitAlpine(p);
+      const dirtyAsks = await p.evaluate(() => {
+        const d = Alpine.$data(document.querySelector('[x-data]'));
+        const k = Object.keys(d.openCounts)[0];
+        d.openCounts[k] = 14;                       // fourteen notes counted in
+        window.posGo('/pos/dashboard');
+        const el = document.getElementById('pos-leave-guard');
+        return {
+          shown: !!(el && el.style.display === 'flex'),
+          says: el ? (el.querySelector('#pos-leave-what') || {}).textContent || '' : '',
+          here: location.pathname,
+        };
+      });
+      check(dirtyAsks.shown, 'a counted drawer stops you on the way out',
+            dirtyAsks.shown ? 'the modal is up' : 'it navigated away with the count');
+      check(/14/.test(dirtyAsks.says), 'and it says what is at stake, with the number',
+            `"${dirtyAsks.says.slice(0, 90)}"`);
+      check(dirtyAsks.here === '/pos/shift', 'and it has not navigated yet', dirtyAsks.here);
+
+      const stayed = await p.evaluate(() => {
+        document.getElementById('pos-leave-stay').click();
+        const el = document.getElementById('pos-leave-guard');
+        return { hidden: el.style.display === 'none', here: location.pathname };
+      });
+      check(stayed.hidden && stayed.here === '/pos/shift',
+            'Stay and finish puts you back where you were', stayed.here);
+    }
+
     head('D · coverage (reported, not failed — this is a progress number)');
     const cov = await p.evaluate(() => {
       const all = [...document.querySelectorAll('input, textarea')].filter(el => {

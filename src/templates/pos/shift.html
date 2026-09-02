@@ -613,7 +613,9 @@ function shiftData() {
             this.openedWith = null; this.openConfirmed = false;
         },
 
-        goDashboard() { window.location.href = '/pos/dashboard'; },
+        // posGo, not location.href: this button is the exact path Angel described
+        // — half a drawer counted, one tap on 🏠, and the count is gone.
+        goDashboard() { (window.posGo || function (h) { window.location.href = h; })('/pos/dashboard'); },
     };
 }
 
