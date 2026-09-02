@@ -372,16 +372,39 @@ nothing below unless something actually breaks.*
 | swipe-back · pinch-zoom · hot corners | off | a horizontal swipe was browser BACK, mid-sale |
 | the accessibility icon | still in the top bar | GNOME 48 keeps it regardless of the setting. **Disarmed, so it stays** — the danger was never the icon |
 
-**Setting up a SECOND counter machine** — one line, from a laptop with this repo checked out:
+### Setting one up, and putting one back
+
+One command, from a laptop with this repo checked out. It is the same command for a brand-new
+tablet and for a tablet somebody has messed up:
 
 ```bash
-ssh -t tablet 'sudo bash -s' < scripts/tablet-lockdown.sh
+./scripts/tablet-lockdown.sh --push          # defaults to host `tablet`
+./scripts/tablet-lockdown.sh --push counter2
 ```
 
-It leaves nothing on the machine and always runs the current version. Do **not** park a copy in
-`/tmp` first: that is gone at the next reboot, which is exactly what happened on 2026-09-03 between
-handing Angel the command and his running it — the test sheet came back `sudo: /tmp/tablet-lockdown.sh:
-command not found`. The script lives in `scripts/`, and that is the only copy there should be.
+It pushes **this** version to `/usr/local/sbin/banco-counter-lockdown`, applies everything, and
+enables `banco-lockdown.service` so the machine re-applies it at **every boot**. One ssh, one
+password prompt, nothing left in `/tmp`.
+
+**That last part is the point.** Angel, 2026-09-03: *"sometimes the tablet gets messed up… the only
+way to fix it is run that script, or you could try to reboot, but sometimes that doesn't help."*
+That is backwards — a reboot is what a shop already tries when something is odd, so on a counter
+machine it should be the thing that puts the settings back. It now is:
+
+| the tablet is strange | what to do |
+|---|---|
+| you are standing at it | **restart it.** The boot job re-applies every lock and the search policy |
+| you are on your laptop | `ssh -t tablet 'sudo systemctl start banco-lockdown.service'` — same effect, no reboot |
+| it is a new machine, or the script itself changed | `./scripts/tablet-lockdown.sh --push` |
+
+The dconf locks and the Chromium policy are ordinary files and do survive a restart on their own.
+The boot job is for when they do not: a package update, a half-finished reinstall, or somebody with
+sudo and a good reason. It is idempotent — a hundred boots write the same files.
+
+**The script lives in `scripts/`, and that is the only copy there should be.** Never park one in
+`/tmp`: it is gone at the next reboot, which is exactly what happened on 2026-09-03 between handing
+Angel the command and his running it — the test sheet came back `sudo: /tmp/tablet-lockdown.sh:
+command not found`.
 
 Afterwards: log out and back in for the dconf locks, and **fully quit Chromium** (not a reload — it
 reads policy only at start) then check `chrome://policy` shows `DefaultSearchProviderSearchURL` as OK.

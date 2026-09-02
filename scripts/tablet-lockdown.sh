@@ -26,19 +26,43 @@
 # is exactly how they got on. So this writes a system dconf profile and LOCKS the
 # keys — GNOME then greys the toggles out and they cannot be changed at all.
 #
-# Run it once per counter machine:
+# ── HOW TO RUN IT ──────────────────────────────────────────────────────────
+#
+# From your laptop, with this repo checked out — the one you want 99% of the
+# time. Pushes THIS version to the machine, installs it, applies it, and arms it
+# to re-apply at every boot:
+#
+#     ./scripts/tablet-lockdown.sh --push            (defaults to host `tablet`)
+#     ./scripts/tablet-lockdown.sh --push counter2
+#
+# On the machine itself:
+#
 #     sudo ./scripts/tablet-lockdown.sh
 #
-# ...or, from a laptop, straight onto a counter machine over ssh — no copy left
-# behind, and always THIS version rather than whatever was dropped there months
-# ago:
+# THE SCRIPT LIVES IN THIS REPO. Never park a copy in /tmp. Angel, 2026-09-03:
+# "we want to keep that script in case we get another tablet." A /tmp copy is
+# gone at the next reboot — which is exactly what happened between handing him
+# the command and his running it, and the test sheet came back with
+# "sudo: /tmp/tablet-lockdown.sh: command not found".
 #
-#     ssh -t tablet 'sudo bash -s' < scripts/tablet-lockdown.sh
+# ── WHY IT ALSO RUNS AT BOOT ───────────────────────────────────────────────
 #
-# Do not park a copy in /tmp. Angel, 2026-09-03: "we want to keep that script in
-# case we get another tablet." A /tmp copy is gone at the next reboot — which is
-# exactly what happened between handing him the command and his running it, and
-# the sheet came back with F1 as "command not found".
+# Angel, 2026-09-03: "sometimes the tablet gets messed up... the only way to fix
+# it is run that script, or you could try to reboot, but sometimes that doesn't
+# help." That is the wrong way round, and it is worth fixing rather than
+# documenting: a reboot is what a shop ALREADY tries when something is odd, and
+# on a counter machine it should be the thing that puts the settings back.
+#
+# So running this installs itself to /usr/local/sbin/banco-counter-lockdown and
+# enables banco-lockdown.service, a oneshot that re-applies everything on every
+# boot. The dconf locks and the Chromium policy are ordinary files and do
+# survive a reboot on their own — this is for the case where they do not: a
+# package update, a half-finished reinstall, or somebody with sudo and a good
+# reason. After this, "turn it off and on again" is a real repair on this
+# machine instead of a superstition.
+#
+# It is idempotent. Running it twice, or a hundred boots in a row, writes the
+# same files and changes nothing else.
 #
 # It also sets Chromium's default search engine to Google (see the bottom of
 # this file). Felix asked for Google; a fresh Debian Chromium ships DuckDuckGo,
@@ -53,11 +77,32 @@
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
+INSTALLED=/usr/local/sbin/banco-counter-lockdown
+UNIT=/etc/systemd/system/banco-lockdown.service
+QUIET=0
+
+# ── --push: run from the LAPTOP, no root here ──────────────────────────────
+# One ssh, one password prompt. The script is piped into `cat`, landed at its
+# permanent path, made executable and run — in that order, so the copy that
+# executes is the copy that will still be there tomorrow. Nothing touches /tmp.
+if [ "${1:-}" = "--push" ]; then
+  HOST="${2:-tablet}"
+  SELF="${BASH_SOURCE[0]:-$0}"
+  [ -r "$SELF" ] || { echo "--push needs the script as a file, not a pipe" >&2; exit 2; }
+  echo "→ pushing $(basename "$SELF") to $HOST:$INSTALLED"
+  # shellcheck disable=SC2029  # $INSTALLED must expand HERE, it is our constant
+  ssh -t "$HOST" "sudo sh -c 'cat > $INSTALLED && chmod 755 $INSTALLED && exec $INSTALLED'" < "$SELF"
+  exit $?
+fi
+
+if [ "${1:-}" = "--quiet" ]; then QUIET=1; fi          # how the boot unit calls us
+say() { [ "$QUIET" -eq 1 ] || echo "$@"; }
+
 if [ "$(id -u)" -ne 0 ]; then
-  # $0 is "bash" when this arrives over `ssh 'sudo bash -s'`, so name both ways out.
+  # $0 is "bash" when this arrives over a pipe, so name the ways out explicitly.
   echo "This needs root. Either:" >&2
-  echo "    sudo ./scripts/tablet-lockdown.sh          (on the machine itself)" >&2
-  echo "    ssh -t tablet 'sudo bash -s' < scripts/tablet-lockdown.sh   (from your laptop)" >&2
+  echo "    ./scripts/tablet-lockdown.sh --push [host]   (from your laptop — does everything)" >&2
+  echo "    sudo ./scripts/tablet-lockdown.sh            (on the machine itself)" >&2
   exit 1
 fi
 
@@ -70,7 +115,7 @@ mkdir -p /etc/dconf/profile /etc/dconf/db/local.d/locks
 # The profile makes the system database real. Keep any existing one intact.
 if [ ! -f "$PROFILE" ] || ! grep -q '^system-db:local' "$PROFILE" 2>/dev/null; then
   printf 'user-db:user\nsystem-db:local\n' > "$PROFILE"
-  echo "  wrote $PROFILE"
+  say "  wrote $PROFILE"
 fi
 
 cat > "$KEYFILE" <<'KEYS'
@@ -113,8 +158,8 @@ cat > "$LOCKS" <<'LOCKS_LIST'
 LOCKS_LIST
 
 dconf update
-echo "  wrote $KEYFILE"
-echo "  wrote $LOCKS"
+say "  wrote $KEYFILE"
+say "  wrote $LOCKS"
 
 # ---------------------------------------------------------------------------
 # CHROMIUM: default search engine = Google.
@@ -156,11 +201,62 @@ for d in /etc/chromium/policies/managed \
   "DefaultSearchProviderSuggestURL": "https://${SEARCH_HOST}/complete/search?output=chrome&q={searchTerms}"
 }
 JSON
-    echo "  wrote $d/00-banco-search.json"
+    say "  wrote $d/00-banco-search.json"
     wrote_policy=1
   fi
 done
-[ "$wrote_policy" -eq 1 ] || echo "  ⚠️  no Chromium policy directory found — search engine NOT set"
+[ "$wrote_policy" -eq 1 ] || say "  ⚠️  no Chromium policy directory found — search engine NOT set"
+
+# ---------------------------------------------------------------------------
+# MAKE A REBOOT A REPAIR.
+#
+# Everything above writes ordinary files that already survive a restart. This
+# part is for when they do not — a package update, a half-finished reinstall, or
+# somebody with sudo and a good reason. A counter machine should come back from
+# a power cycle in a known state, because "turn it off and on again" is what a
+# shop tries first and it should be the fix rather than a superstition.
+#
+# Self-install first: the unit has to point at a path that will still be there
+# tomorrow, not at a checkout on somebody's laptop. When this arrives over a
+# pipe there is no file to copy — but --push has already landed it at $INSTALLED
+# and is executing THAT, so the common route installs itself correctly.
+# ---------------------------------------------------------------------------
+SELF="${BASH_SOURCE[0]:-$0}"
+if [ -r "$SELF" ] && [ "$SELF" != "$INSTALLED" ]; then
+  mkdir -p "$(dirname "$INSTALLED")"
+  cp -f "$SELF" "$INSTALLED"
+  chmod 755 "$INSTALLED"
+  say "  installed $INSTALLED"
+fi
+
+if [ -x "$INSTALLED" ]; then
+  cat > "$UNIT" <<UNITFILE
+[Unit]
+Description=Banco counter lockdown — re-apply the till's settings at boot
+Documentation=https://github.com/akenel/banco-starter
+After=local-fs.target
+Before=display-manager.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=$INSTALLED --quiet
+
+[Install]
+WantedBy=multi-user.target
+UNITFILE
+  systemctl daemon-reload
+  systemctl enable banco-lockdown.service >/dev/null 2>&1 || true
+  say "  installed $UNIT (runs at every boot)"
+else
+  # Say it out loud. A boot job that silently did not get installed is worse
+  # than one that was never promised.
+  echo "  ⚠️  could not install the boot job: $INSTALLED is not there." >&2
+  echo "      Settings ARE applied, but a reboot will not re-apply them." >&2
+  echo "      Run it as a file:  sudo ./scripts/tablet-lockdown.sh" >&2
+fi
+
+if [ "$QUIET" -eq 1 ]; then exit 0; fi   # booting: no essays on the console
 
 echo
 echo "✅ Locked. Log out and back in (or reboot) for the shell to pick it up."
@@ -170,3 +266,8 @@ echo
 echo "🔎 Search engine: Google (${SEARCH_HOST}). QUIT Chromium fully and reopen it,"
 echo "   then check chrome://policy — DefaultSearchProviderSearchURL must be listed"
 echo "   with status OK. A reload is not enough; the browser reads policy at start."
+echo
+echo "🔁 This machine now re-applies all of it at every boot"
+echo "   (banco-lockdown.service). If the tablet ever goes strange, restarting it"
+echo "   IS the fix — and if you want to force it without rebooting:"
+echo "       ssh -t tablet 'sudo systemctl start banco-lockdown.service'"
