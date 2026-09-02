@@ -308,8 +308,13 @@ async function main() {
         document.querySelector('#pk-num').classList.add('on');
         return a ? a.getAttribute('href') : null;
       });
-      check(hazard !== null, 'OK sits ON TOP of a nav link — so the guard is needed',
-            hazard ? `under OK: ${hazard}` : 'nothing under OK — pad no longer overlaps the nav');
+      // INVERTED 2026-09-02. This used to assert that OK sat ON TOP of a nav link,
+      // to justify the guard. Angel's step C4: "if the number pad had the OK at
+      // the top right you would not have the bottom line problem" — so OK moved
+      // to a top strip and the overlap is gone. Removing the hazard beats racing
+      // it, and the guard below stays as belt and braces.
+      check(hazard === null, 'OK is NOT sitting on top of the bottom nav',
+            hazard ? `under OK: ${hazard} — the overlap is back` : 'nothing under OK');
 
       const guarded = await p.evaluate(() => {
         const b = document.querySelector('#pk-num [data-k="done"]');
@@ -651,28 +656,58 @@ async function main() {
             ? 'no DONE needed — a real keyboard fires change on blur, and this is a blur'
             : `fired ${changed.across}× — the Qty box would keep its old value until DONE`);
 
-    // H7 · THE PAD COVERING THE BOX — and why there is no assertion here.
-    // Angel, step B4: "the numeric field covers the price input — you have to
-    // press OK to see what you typed." open() now measures the field against the
-    // pad and scrolls whatever ancestor can absorb the overlap (ensureAbovePad).
+    // H7 · THE PAD COVERING THE BOX — the real screen this time.
+    // Angel, step C2 (twice): the pad still covered the price box in the manager
+    // price-fix panel. Three earlier attempts at this test were deleted because
+    // each passed with the fix REVERTED — they aimed at synthetic panels or at
+    // fields that already worked. This one opens the actual panel: it lives in
+    // the product-detail modal, which is `fixed inset-0` wrapping a
+    // `max-h-[90vh] overflow-y-auto` body, and that is the whole reason padding
+    // .app-content never helped.
     //
-    // THREE tests were written for it and all three were deleted, because each
-    // one passed with the fix REVERTED:
-    //   1. a synthetic panel pinned with position:fixed;bottom:0 — asserted the
-    //      impossible: 180px of panel under 153px of pad has nowhere to go;
-    //   2. the same panel in normal flow — p.click() scrolls an element into view
-    //      before clicking it, so the box was never under the pad when it opened;
-    //   3. the real Item name / Price / Description fields — those already push
-    //      the page up correctly (Angel's step E1 passed), so there is nothing
-    //      there to catch.
-    // The field that actually failed is inside the manager price-fix panel, which
-    // needs a cart with an item in it — a WRITE, and this suite deliberately makes
-    // none, because it also runs against the shop.
-    //
-    // So it is a gap and it is named as one. A green assertion that cannot go red
-    // is worse than no assertion: it spends the reader's trust and returns nothing.
-    gap('the pad covering a box in a nested panel',
-        'every machine version of this passed with the fix reverted — human check, step B4');
+    // No writes: setting detailProduct and priceEditOpen only opens a modal.
+    // user.isManager is forced because this is a LAYOUT question, not a
+    // permission one — the permission is tested elsewhere.
+    await p.setViewportSize({ width: 1280, height: 800 });
+    await p.goto(`${ROOT}/pos/scan`, { waitUntil: 'domcontentloaded' });
+    await waitAlpine(p);
+    const panel = await p.evaluate(() => {
+      const d = Alpine.$data(document.querySelector('[x-data]'));
+      d.user = Object.assign({}, d.user, { isManager: true });
+      d.detailProduct = { id: -1, name: 'ZZTEST layout probe', price: '2.00',
+                          product_class: 'general', price_tiers: [], barcode: '0000000000000' };
+      d.priceEdit = { price: '2.00', tiers: [] };
+      d.priceEditOpen = true;
+      return true;
+    }).catch(() => false);
+    if (panel) {
+      await p.waitForTimeout(400);
+      const sel = 'input[data-keypad="decimal"][x-model="priceEdit.price"]';
+      const there = await p.$(sel);
+      check(!!there, 'the manager price-fix box is reachable and wired');
+      if (there) {
+        await p.evaluate(s => document.querySelector(s).focus({ preventScroll: true }), sel);
+        await p.waitForTimeout(900);
+        const m = await p.evaluate(s => {
+          const pad = document.querySelector('#pk-num.on');
+          const el = document.querySelector(s);
+          if (!pad) return null;
+          return { bottom: Math.round(el.getBoundingClientRect().bottom),
+                   padTop: Math.round(window.innerHeight - pad.offsetHeight) };
+        }, sel);
+        check(m && m.bottom <= m.padTop,
+              'the manager price-fix box is ABOVE the pad, not under it',
+              m ? `field bottom ${m.bottom}, pad top ${m.padTop}` : 'no pad opened');
+        await tapKey(p, 'done');
+        await p.waitForTimeout(250);
+      }
+      await p.evaluate(() => {
+        const d = Alpine.$data(document.querySelector('[x-data]'));
+        d.priceEditOpen = false; d.detailProduct = null;
+      });
+    } else {
+      gap('the manager price-fix panel', 'could not be opened in this build');
+    }
 
     // H8 · the guard that keeps a held finger off the bottom nav must hand the
     // screen back as soon as the FINGER LIFTS, not after a fixed 400ms. A guess
@@ -687,18 +722,24 @@ async function main() {
       await p.click('#pk-probe3');
       await p.waitForTimeout(250);
       const navSel = '.app-bottomnav';
-      await tapKey(p, 'done');                    // pointerdown + pointerup on OK
-      await p.waitForTimeout(60);                 // far inside the old 400ms window
-      const early = await p.evaluate(sel => {
+      const read = () => p.evaluate(sel => {
         const n = document.querySelector(sel);
         return n ? getComputedStyle(n).pointerEvents : 'no-nav';
       }, navSel);
+      await tapKey(p, 'done');                    // pointerdown + pointerup on OK
+      await p.waitForTimeout(50);
+      const during = await read();                // the click has not landed yet
+      await p.waitForTimeout(260);
+      const after = await read();                 // finger long gone
       await p.evaluate(() => { const e = document.getElementById('pk-probe3'); if (e) e.remove(); });
-      return early;
+      return { during, after };
     })();
-    check(guard === 'auto' || guard === 'no-nav',
-          'the nav comes back when the finger LIFTS, not on a 400ms timer',
-          `pointer-events: ${guard} at 60ms — a deliberate second tap must never be eaten`);
+    check(guard.during === 'none' || guard.during === 'no-nav',
+          'the nav is inert while the closing tap is still landing',
+          `pointer-events: ${guard.during} at 50ms`);
+    check(guard.after === 'auto' || guard.after === 'no-nav',
+          'and comes back once the finger has gone — not on a fixed 400ms timer',
+          `pointer-events: ${guard.after} at 310ms — dead time is the press, plus 120ms for the click`);
 
     // H9 · what is actually wired, counted from the templates rather than claimed.
     console.log(`  ℹ️  ${wired} boxes wired across ${DEMO.length} screens`);

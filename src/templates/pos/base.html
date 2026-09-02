@@ -2,7 +2,11 @@
 <html lang="en" translate="no">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <!-- maximum-scale/user-scalable: a till is not a document. Angel zoomed to 40%
+         by accident once hunting a refusal, and a half-zoomed till at a counter is
+         a till nobody can read. The keypad and the type scale are already sized
+         for a fingertip. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1, user-scalable=no">
     <!-- The app has its OWN language picker (pos-i18n) — tell Chrome/Google NOT to auto-translate,
          or mobile "translate to English" stomps on the language the user actually chose. -->
     <meta name="google" content="notranslate">
@@ -416,6 +420,14 @@
             height: 100dvh; min-height: 0; margin: 0; overflow: hidden;
             display: flex; flex-direction: column;
             -webkit-tap-highlight-color: transparent; overscroll-behavior: none;
+            /* 2026-09-02, Angel on the tablet: "I find it too sensitive and get
+               thrown around a lot — it feels clunky." touch-action:manipulation
+               drops the browser's 300ms wait for a possible double-tap-to-zoom,
+               so a tap acts the moment the finger lands, and it stops a stray
+               double-tap zooming the till mid-sale. pan-y is still allowed, so
+               lists and the cart scroll exactly as before — what goes is
+               double-tap zoom and pinch, neither of which a counter wants. */
+            touch-action: manipulation;
         }
         /* content scrolls INSIDE the frame; the bars stay put */
         body.app-shell .app-content {

@@ -107,6 +107,15 @@
     + 'padding:0;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}'
     + '.pk-k:active{background:#c7d2fe}'
     + '.pk-wide{flex:2 1 0}.pk-space{flex:5 1 0}'
+    // OK lives at the TOP now — Angel's idea, step C4, and it beats every guard
+    // we wrote for the old position: "if the number pad had the OK at the top
+    // right then you would not have the bottom line problem." The OK key used to
+    // sit directly over the app's bottom nav (measured: OK centre y=761, nav
+    // 747-800 at 1280x800), so a finger held a beat too long landed on Customers.
+    // Moving it removes the overlap instead of racing it.
+    + '.pk-top{display:flex;gap:.4rem;margin-bottom:.5rem;align-items:center}'
+    + '.pk-top .pk-k{height:44px}'
+    + '.pk-gap{flex:1 1 0}'
     + '.pk-util{background:#d1d5db;font-size:1rem}'
     + '.pk-del{background:#fee2e2;color:#b91c1c}'
     + '.pk-done{background:#4f46e5;color:#fff;border-color:#4f46e5;font-size:1rem}'
@@ -141,12 +150,13 @@
     num = document.createElement('div');
     num.className = 'pk'; num.id = 'pk-num';
     num.innerHTML =
-        row(['7','8','9']) + row(['4','5','6']) + row(['1','2','3'])
+        '<div class="pk-top"><button class="pk-k pk-util" data-k="clr">C</button>'
+      + '<span class="pk-gap"></span>'
+      + '<button class="pk-k pk-done pk-wide" data-k="done">OK</button></div>'
+      + row(['7','8','9']) + row(['4','5','6']) + row(['1','2','3'])
       + '<div class="pk-row">'
       + key('.', '.') + key('0', '0')
-      + '<button class="pk-k pk-del" data-k="del">⌫</button></div>'
-      + '<div class="pk-row"><button class="pk-k pk-util" data-k="clr">C</button>'
-      + '<button class="pk-k pk-done pk-wide" data-k="done">OK</button></div>';
+      + '<button class="pk-k pk-del" data-k="del">⌫</button></div>';
 
     abc = document.createElement('div');
     abc.className = 'pk'; abc.id = 'pk-abc';
@@ -173,16 +183,58 @@
       if (i === 2) html += '<button class="pk-k pk-del" data-k="del">⌫</button>';
       html += '</div>';
     });
-    html += '<div class="pk-row">'
-          + '<button class="pk-k pk-util" data-k="mode">' + (symbols ? 'abc' : '123') + '</button>'
-          + '<button class="pk-k pk-space" data-k=" ">space</button>'
-          + '<button class="pk-k pk-done pk-wide" data-k="done">OK</button></div>';
-    abc.innerHTML = html;
+    abc.innerHTML =
+        '<div class="pk-top">'
+      + '<button class="pk-k pk-util" data-k="mode">' + (symbols ? 'abc' : '123') + '</button>'
+      + '<button class="pk-k pk-space" data-k=" ">space</button>'
+      + '<button class="pk-k pk-done pk-wide" data-k="done">OK</button></div>'
+      + html;
   }
 
   /* ── open / close ─────────────────────────────────────────────────────── */
   function scroller() {
     return document.querySelector('.app-content') || document.scrollingElement || document.body;
+  }
+
+  // THE BOX MIGHT NOT BE ON THE PAGE AT ALL. Angel, step C2, 2026-09-02: the pad
+  // still covered the price box in the manager price-fix panel — and that panel
+  // lives inside the product-detail MODAL, which is `fixed inset-0 flex
+  // items-center` wrapping a `max-h-[90vh] overflow-y-auto` body. So:
+  //   · reserving space on .app-content does nothing — the modal is not in it;
+  //   · the window cannot scroll — the overlay is fixed;
+  //   · scrolling the modal's own body moves the CONTENT, while the modal's
+  //     bottom edge stays exactly where it was, under the pad.
+  // The only thing that helps is making the overlay itself shorter, so its
+  // centring re-centres what is left in the space above the pad.
+  var lifted = null;
+  function liftFixedOverlay(el, padH) {
+    var n = el.parentElement;
+    while (n && n !== document.body) {
+      var st = getComputedStyle(n);
+      if (st.position === 'fixed' && n.getBoundingClientRect().height > window.innerHeight * 0.7) {
+        lifted = { el: n, bottom: n.style.bottom };
+        n.style.bottom = padH + 'px';
+        console.log('[keypad] lifted a fixed overlay by ' + padH + 'px');
+        return;
+      }
+      n = n.parentElement;
+    }
+  }
+  function dropFixedOverlay() {
+    if (!lifted) return;
+    lifted.el.style.bottom = lifted.bottom;
+    lifted = null;
+  }
+
+  /** The nearest thing that can actually scroll — the modal body, not the page. */
+  function scrollerFor(el) {
+    var n = el.parentElement;
+    while (n && n !== document.body) {
+      var st = getComputedStyle(n);
+      if (/(auto|scroll)/.test(st.overflowY) && n.scrollHeight > n.clientHeight + 1) return n;
+      n = n.parentElement;
+    }
+    return scroller();
   }
   function open(el, k) {
     if (!num) build();
@@ -207,7 +259,9 @@
               + ' padZ=' + (getComputedStyle(pad).zIndex));
     // LESSON #12 — being in the DOM is not being on the screen. Clear the pad's
     // height out of the scroll area AND put the field the finger is in on screen.
-    var sc = scroller();
+    dropFixedOverlay();
+    liftFixedOverlay(el, pad.offsetHeight);
+    var sc = scrollerFor(el);
     sc.style.paddingBottom = (pad.offsetHeight + 24) + 'px';
     setTimeout(function () {
       try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {}
@@ -259,6 +313,7 @@
     // OK left "6" on the glass and the old quantity in the cart — right on the
     // screen, wrong in the basket, which is LESSON #13's exact shape. Fired on
     // close, not per keystroke: @change means "finished", not "typing".
+    var leaving = active;
     if (active) { active.dispatchEvent(new Event('change', { bubbles: true })); }
     active = null;
     if (num) num.classList.remove('on');
@@ -270,8 +325,10 @@
     // button under the finger moves between pointerdown and the click, and the
     // first tap lands on nothing. Give the click time to finish, then tidy up —
     // and only if a pad has not opened again in the meantime.
-    var sc = scroller();
-    setTimeout(function () { if (!padOpen()) sc.style.paddingBottom = ''; }, 350);
+    var sc = leaving ? scrollerFor(leaving) : scroller();
+    setTimeout(function () {
+      if (!padOpen()) { sc.style.paddingBottom = ''; dropFixedOverlay(); }
+    }, 350);
   }
 
   // ── OK MUST NOT NAVIGATE. Angel, 2026-09-01, mid-retest ─────────────────
@@ -318,9 +375,11 @@
       document.removeEventListener('pointerup', onUp, true);
       if (nav) nav.style.pointerEvents = '';
     };
-    // The click follows pointerup in the same task queue turn; let it fire and
-    // be swallowed, then hand the screen back.
-    var onUp = function () { setTimeout(release, 0); };
+    // The click follows pointerup, but not reliably in the same task — releasing
+    // at pointerup+0ms could hand the screen back BEFORE the click arrived, which
+    // is worse than the timer it replaced. A short tail closes that race: a human
+    // cannot deliberately tap again inside 120ms, so nothing real is ever eaten.
+    var onUp = function () { setTimeout(release, 120); };
 
     document.addEventListener('click', swallow, true);
     document.addEventListener('pointerup', onUp, true);
@@ -446,6 +505,14 @@
     var el = target(e);
     if (el) open(el, el.getAttribute('data-keypad'));
   });
+
+  document.addEventListener('pointerdown', function (e) {
+    if (!active) return;
+    var t = e.target;
+    if (t && t.closest && (t.closest('.pk') || t.closest('input[data-keypad], textarea[data-keypad]'))) return;
+    console.log('[keypad] tap outside — closing');
+    shut();
+  }, true);
 
   window.posKeypad = { close: shut };
   console.log('[keypad] active — listening for focus on [data-keypad]');
