@@ -12419,14 +12419,44 @@ async def _gen_cart_code(db: AsyncSession) -> str:
 async def _kiosk_cart_payload(db: AsyncSession, cart) -> dict:
     """Held-order view: priced lines, total, and the member's welcome discount (if unspent)."""
     from src.db.models.customer_model import CustomerModel
+    # QUANTITY BREAKS APPLY HERE TOO. Until 2026-09-02 this priced every line as a
+    # flat price × qty and never looked at price_tiers or tier_mode — so the kiosk
+    # showed the customer "3× CHF 3.33 −17%", they added three, and the cashier's
+    # board quoted CHF 12.00 for a pack the shop advertises at CHF 10.00. Two
+    # francs OVER, against the shop's own printed rule, on the one screen a
+    # customer never sees. Angel found it poking at the kiosk after a test sheet.
+    #
+    # The cart JSON stores only product_id/name/price/qty — the tier fields never
+    # travelled with it — so load the products and price them the way the till
+    # does, through the one shared function (services/pricing.tier_line_total).
+    # Second copy of a pricing rule = second answer; there is only ever one.
+    from src.services.pricing import tier_line_total
+    _ids = [it.get("product_id") for it in (cart.items or []) if it.get("product_id")]
+    _prods = {}
+    if _ids:
+        _rows = (await db.execute(select(ProductModel).where(ProductModel.id.in_(_ids)))).scalars().all()
+        _prods = {str(pr.id): pr for pr in _rows}
+
     lines, total = [], Decimal("0.00")
     for it in (cart.items or []):
         qty = int(it.get("qty") or 0)
-        price = Decimal(str(it.get("price") or 0))
-        lt = (price * qty).quantize(Decimal("0.01"))
+        pr = _prods.get(str(it.get("product_id") or ""))
+        # The product row is the source of truth for price and tiers, exactly as it
+        # is at the till. The cart's own `price` is a snapshot from when the customer
+        # tapped add, and is only a fallback for a product that has since gone.
+        price = Decimal(str(pr.price)) if (pr is not None and pr.price is not None) \
+            else Decimal(str(it.get("price") or 0))
+        if pr is not None and pr.price_tiers:
+            lt = tier_line_total(pr.price_tiers, price, qty, pr.tier_mode or "per_unit")
+        else:
+            lt = (price * qty).quantize(Decimal("0.01"))
+        flat = (price * qty).quantize(Decimal("0.01"))
         total += lt
         lines.append({"product_id": it.get("product_id"), "name": it.get("name"),
                       "price": f"{price:.2f}", "qty": qty, "line_total": f"{lt:.2f}",
+                      # so the board can SAY why a line is cheaper than price × qty,
+                      # rather than showing a number nobody can reconstruct
+                      "tier_saved": f"{(flat - lt):.2f}" if lt < flat else None,
                       "product_class": it.get("product_class")})
     member, discount_pct = None, 0
     if cart.customer_id:

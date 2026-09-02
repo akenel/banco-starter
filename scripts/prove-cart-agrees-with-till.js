@@ -85,5 +85,102 @@ print(json.dumps([[str(x) for x in allocate_pool(T, Decimal("2.00"), q)] for q i
   });
   console.log(mbad ? `  ${mbad} of ${mixCases.length} mixed baskets disagree`
                    : `  ✅ cart and till agree on all ${mixCases.length} mixed baskets, line by line`);
-  await b.close(); process.exit((bad + mbad) ? 1 : 0);
+
+  // ── THE HELD-ORDERS BOARD — the THIRD implementation ─────────────────────────────────
+  // Found 2026-09-02 by Angel, poking at the kiosk after a test sheet. The kiosk showed a
+  // customer "3× CHF 3.33 −17%" for OCB Black Slim Rolls; they added three; the cashier's
+  // board quoted CHF 12.00 for a pack the shop advertises at CHF 10.00. Two francs OVER,
+  // against the shop's own printed rule, on the one screen the customer never sees again.
+  //
+  // Cause: _kiosk_cart_payload did `price * qty` and never looked at price_tiers. This
+  // suite compared the till to the cart preview and never asked the third screen — the
+  // exact shape of LESSON #6, "a harness cannot see what it never constructs".
+  let hbad = 0, hn = 0;
+  try {
+    const held = await p.evaluate(async () => {
+      const tok = sessionStorage.getItem('pos_token') || localStorage.getItem('pos_token');
+      const H = { 'Authorization': 'Bearer ' + tok, 'Content-Type': 'application/json' };
+      // /products does not expose price_tiers at all — the first version of this
+      // check asked it, found nothing, and printed "not checked" while a real
+      // pricing bug sat in production. A discovery step that cannot find its
+      // subject is a test that always passes.
+      //
+      // /catalog/price-check DOES list every tiered row — and on the demo stack it
+      // returns ZERO, because every tiered product there is inactive. So the local
+      // stack could never exercise tier pricing end to end, which is exactly why
+      // this class of bug only ever showed up on the shop. BUILD THE SUBJECT: mint
+      // a ZZPROBE product with a real ladder, use it, and deactivate it after.
+      let list = ((await (await fetch('/api/v1/pos/catalog/price-check', { headers: H })).json()).items || [])
+        .filter(x => Array.isArray(x.price_tiers) && x.price_tiers.length);
+      const minted = [];
+      if (!list.length) {
+        const stamp = Date.now();
+        const made = await (await fetch('/api/v1/pos/products', { method: 'POST', headers: H,
+          body: JSON.stringify({
+            name: 'ZZPROBE tier board ' + stamp, sku: 'ZZPROBE-TB-' + stamp,
+            price: '4.00', tier_mode: 'bundle',
+            price_tiers: [{ min_qty: 3, unit_price: '10.00' }],
+            product_class: 'standard', is_active: true, stock_quantity: 99,
+          }) })).json();
+        if (made && made.id) {
+          minted.push(made.id);
+          list = [{ id: made.id, name: made.name, price: made.price,
+                    price_tiers: made.price_tiers, tier_mode: made.tier_mode }];
+        }
+      }
+      const out = [];
+      for (const prod of list.slice(0, 3)) {
+        const qty = Math.max(...prod.price_tiers.map(t => Number(t.min_qty)));   // reach the top rung
+        const mk = await (await fetch('/api/v1/pos/kiosk/cart', { method: 'POST', headers: H,
+          body: JSON.stringify({ items: [{ product_id: prod.id, qty }], source: 'proof' }) })).json();
+        if (!mk || !mk.code) continue;
+        const detail = await (await fetch('/api/v1/pos/carts/' + mk.code, { headers: H })).json();
+        out.push({ name: prod.name, id: prod.id, qty, price: String(prod.price),
+                   tiers: prod.price_tiers, mode: prod.tier_mode || 'per_unit',
+                   board_total: detail.total });
+      }
+      // put the bench back
+      for (const id of minted) {
+        await fetch('/api/v1/pos/products/' + id, { method: 'PUT', headers: H,
+          body: JSON.stringify({ name: 'ZZPROBE tier board (retired)', price: '4.00',
+                                 is_active: false, product_class: 'standard' }) }).catch(() => {});
+      }
+      return out;
+    });
+    if (!held.length) {
+      hbad++; hn++;
+      console.log('  ❌ no tiered product reachable — the held-order check could not run,'
+                + ' which is a FAILURE, not a shrug: it is how a real pricing bug stayed hidden');
+    } else {
+      const want = JSON.parse(execFileSync('python3', ['-c', `
+import sys, logging, json
+sys.path.insert(0, '${process.env.BANCO_REPO || '/home/angel/repos/banco-starter'}')
+logging.disable(logging.WARNING)
+from decimal import Decimal
+from src.services.pricing import tier_line_total
+CASES = json.loads(sys.stdin.read())
+print(json.dumps([str(tier_line_total(c["tiers"], Decimal(c["price"]), c["qty"], mode=c["mode"]))
+                  for c in CASES]))
+`], { encoding: 'utf8', input: JSON.stringify(held) }));
+      held.forEach((h, i) => {
+        hn++;
+        const flat = (Number(h.price) * h.qty).toFixed(2);
+        if (h.board_total !== want[i]) {
+          hbad++;
+          console.log(`  ❌ held order · ${h.name} ×${h.qty}: board ${h.board_total} · till ${want[i]}`
+                    + (h.board_total === flat ? '  (board is charging price × qty — the tier was dropped)' : ''));
+        }
+      });
+      console.log(hbad ? `  ${hbad} of ${hn} held orders are priced wrong`
+                       : `  ✅ the held-orders board agrees with the till on all ${hn} tiered orders`);
+    }
+  } catch (e) {
+    // An exception here used to print a warning and pass. Two always-passing paths
+    // in one check (this and the empty-discovery one) is how a live pricing bug
+    // stays invisible: the suite is green and has measured nothing.
+    hbad++; hn++;
+    console.log('  ❌ held-order check threw — treated as a FAILURE, not a warning: ' + e.message);
+  }
+
+  await b.close(); process.exit((bad + mbad + hbad) ? 1 : 0);
 })();
