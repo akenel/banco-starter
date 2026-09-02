@@ -33,7 +33,7 @@
                          onItemEnter() spots an all-digit barcode and looks it up; otherwise Enter/typing
                          just searches by name. So scan OR type both add an item. -->
                     <div class="flex gap-2">
-                        <input type="text" x-model="form.title" list="reorder-products" @input="onTitleInput()"
+                        <input type="text" data-keypad="text" x-model="form.title" list="reorder-products" @input="onTitleInput()"
                                @keyup.enter="onItemEnter()"
                                placeholder="Scan a barcode, or type a product name"
                                data-i18n-placeholder="reorder.item_ph" class="input-field flex-1">
@@ -47,7 +47,7 @@
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="reorder.qty">Qty</label>
-                        <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" x-model="form.qty"
+                        <input type="text" inputmode="numeric" data-keypad="numeric" pattern="[0-9]*" maxlength="4" x-model="form.qty"
                                @input="$event.target.value = $event.target.value.replace(/[^0-9]/g,''); form.qty = $event.target.value"
                                class="input-field">
                     </div>
@@ -74,7 +74,7 @@
                 </div>
                 <div x-show="form.reason==='customer_request'">
                     <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="reorder.customer_note">Who / note</label>
-                    <input type="text" x-model="form.customer_note" placeholder="e.g. Larry wanted the extra thing"
+                    <input type="text" data-keypad="text" x-model="form.customer_note" placeholder="e.g. Larry wanted the extra thing"
                            data-i18n-placeholder="reorder.customer_note_ph" class="input-field">
                 </div>
                 <button @click="add()" :disabled="saving" class="btn-success">
@@ -121,7 +121,7 @@
                         </div>
                         <div class="flex items-center flex-wrap gap-2 mt-3">
                             <label class="text-xs text-gray-500" data-i18n="reorder.qty">Qty</label>
-                            <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" :value="it.qty"
+                            <input type="text" inputmode="numeric" data-keypad="numeric" pattern="[0-9]*" maxlength="4" :value="it.qty"
                                    @input="$event.target.value = $event.target.value.replace(/[^0-9]/g,'')"
                                    @change="setQty(it, $event.target.value)"
                                    :disabled="!user.isManager" class="input-field w-16 h-10 text-center">

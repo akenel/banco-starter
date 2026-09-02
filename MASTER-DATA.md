@@ -139,3 +139,27 @@ human holding the product, is ordinary use of a public page.
 
 None of this is a rewrite. The model was right; the import filled it in wrong, and the capture
 screens were throwing away facts they already had.
+
+---
+
+## The pack deal is for PLAIN paper only — confirmed with Rafi three times
+
+*Angel, 2026-09-02: "OCB with tips or filters do not get a pack deal — it's only the plain rolls
+and plain KS papers. I asked Rafi 3 times to confirm that."*
+
+**The rule:** a quantity break belongs on **plain King Size papers** and **plain rolls**. Anything
+with **tips or filters in the pack does not get one**, whatever the brand.
+
+**Why this is written down rather than left in the data:** the catalogue looks WRONG at a glance.
+`OCB Black Slim Rolls` carries `[{min_qty: 3, unit_price: "10.00"}]` and `OCB black Slim Rolls mit
+Filter` carries nothing at all — two near-identical names, one tiered, one flat. That reads like
+missing data, and the obvious "fix" is to copy the ladder across. **Do not.** It is a pricing
+decision the shop has made and re-confirmed.
+
+**It also makes the work easier, which is the point Angel was making:** you do not have to reason
+about which packs deserve a ladder. Plain gets one. Anything with tips or filters does not.
+
+*(Found while chasing a real bug: the held-orders board was quoting CHF 12.00 for a 3-for-10 pack
+because it priced `price × qty` and ignored tiers. Fixed 2026-09-02 — the two OCB rows were the
+thing that made the catalogue look broken when it was not.)*
+

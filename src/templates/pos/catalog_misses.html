@@ -238,14 +238,15 @@
                   <span x-show="m.lookup && m.lookup.crowd" class="text-slate-700 font-semibold">
                     — rewrite it: this came from a barcode database</span>
                 </label>
-                <input type="text" x-model="m.newName" class="input-field"
+                <input type="text" data-keypad="text" x-model="m.newName" class="input-field"
                        :class="m.lookup && (m.lookup.exact === false || m.lookup.crowd) ? 'border-rose-400' : ''"
                        placeholder="what is on the packet">
               </div>
               <div class="flex items-end gap-2 flex-wrap">
                 <div>
                   <label class="block text-xs text-gray-600 mb-1">Your price (CHF)</label>
-                  <input type="number" step="0.05" min="0" x-model="m.newPrice"
+                  <input type="text" inputmode="decimal" data-keypad="decimal" x-model="m.newPrice"
+                         @input="m.newPrice = window.posMoneyOnly($event.target.value); $event.target.value = m.newPrice"
                          @keyup.enter="createFromLookup(m)" placeholder="0.00"
                          class="input-field text-lg font-bold" style="max-width:9rem">
                 </div>

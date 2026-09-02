@@ -149,7 +149,7 @@
                 <div class="flex-1">
                     <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="catalog.search_label">Search</label>
                     <div class="flex gap-2">
-                        <input type="text" x-model="q" @input.debounce.300ms="search()"
+                        <input type="text" data-keypad="text" x-model="q" @input.debounce.300ms="search()"
                                placeholder="Name, SKU or barcode…" data-i18n-placeholder="catalog.search_placeholder" class="input-field flex-1">
                         <!-- BL-10 (Felix): scan a barcode to pull the item up, no typing. -->
                         <button type="button" @click="startSearchScan()" class="btn-secondary flex-none px-4" title="Scan to find">📷</button>
@@ -513,7 +513,7 @@
                 <div x-show="!mergePick">
                     <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="catalog.merge_find">Which row is the same product?</label>
                     <div class="flex gap-2">
-                        <input type="text" x-model="mergeQuery" @keydown.enter="mergeSearch()"
+                        <input type="text" data-keypad="text" x-model="mergeQuery" @keydown.enter="mergeSearch()"
                                class="input-field flex-1" placeholder="name, SKU or barcode"
                                data-i18n-placeholder="catalog.merge_ph">
                         <button @click="mergeSearch()" :disabled="mergeBusy" class="btn-secondary flex-none">
@@ -649,7 +649,7 @@
                             🔗 Or paste the product page — the AI reads name, price, photo and the EAN
                         </label>
                         <div class="flex gap-2">
-                            <input type="url" x-model="pageUrl" @keydown.enter.prevent="readPageFacts()"
+                            <input type="text" inputmode="url" data-keypad="text" x-model="pageUrl" @keydown.enter.prevent="readPageFacts()"
                                    placeholder="https://… (the maker's own page is best)"
                                    class="input-field flex-1 min-w-0 text-sm">
                             <button type="button" @click="readPageFacts()" :disabled="pageBusy || !(pageUrl||'').trim()"
@@ -679,7 +679,7 @@
                 <div class="grid md:grid-cols-2 gap-4">
                     <div class="md:col-span-2">
                         <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="catalog.form_name">Name *</label>
-                        <input type="text" x-model="form.name" class="input-field" placeholder="Product name" data-i18n-placeholder="catalog.name_placeholder">
+                        <input type="text" data-keypad="text" x-model="form.name" class="input-field" placeholder="Product name" data-i18n-placeholder="catalog.name_placeholder">
                         <!-- BL-34: the "search similar" everywhere. Any create OR edit — find this item
                              already in the catalog / at a supplier and grab the right photo + details. -->
                         <button type="button" @click="searchSimilar()" :disabled="!(form.name||'').trim() || snapBusy"
@@ -690,7 +690,7 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="catalog.form_sku">SKU *</label>
-                        <input type="text" x-model="form.sku" class="input-field font-mono" :readonly="editing"
+                        <input type="text" data-keypad="text" x-model="form.sku" class="input-field font-mono" :readonly="editing"
                                :class="editing ? 'bg-gray-100' : ''">
                     </div>
                     <div>
@@ -707,7 +707,9 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="catalog.form_price">Price (CHF) *</label>
-                        <input type="number" step="0.05" min="0" x-model="form.price" class="input-field text-xl font-bold">
+                        <input type="text" inputmode="decimal" data-keypad="decimal" x-model="form.price"
+                               @input="form.price = window.posMoneyOnly($event.target.value); $event.target.value = form.price"
+                               class="input-field text-xl font-bold">
                         <!-- Non-destructive supplier reference: what the supplier suggested (RRP), kept on
                              adopt so you can price to BEAT it instead of losing it. Read-only. -->
                         <p class="text-xs mt-1" x-show="form.supplier_price != null && parseFloat(form.supplier_price) > 0"
@@ -834,7 +836,9 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="catalog.form_cost">Cost (CHF)</label>
-                        <input type="number" step="0.05" min="0" x-model="form.cost" class="input-field">
+                        <input type="text" inputmode="decimal" data-keypad="decimal" x-model="form.cost"
+                               @input="form.cost = window.posMoneyOnly($event.target.value); $event.target.value = form.cost"
+                               class="input-field">
                         <p class="text-xs mt-1" x-show="parseFloat(form.cost) > 0 && parseFloat(form.price) > 0"
                            :class="parseFloat(form.cost) > parseFloat(form.price) ? 'text-red-600 font-semibold' : 'text-gray-500'">
                             <span x-show="parseFloat(form.cost) > parseFloat(form.price)" data-i18n="catalog.cost_above_price">⚠️ Cost is above price — you'd sell at a loss. </span>
@@ -859,9 +863,13 @@
                         <template x-for="(row, i) in (form.price_tiers||[])" :key="i">
                             <div class="flex items-center gap-2 mb-2">
                                 <span class="text-xs text-gray-500 flex-none" x-text="form.tier_mode === 'bundle' ? t('catalog.tiers_buy') : t('catalog.tiers_from')">From</span>
-                                <input type="number" step="1" min="1" x-model="row.min_qty" placeholder="qty" class="input-field w-20 text-sm">
+                                <input type="text" inputmode="numeric" data-keypad="numeric" x-model="row.min_qty"
+                                       @input="row.min_qty = window.posIntOnly($event.target.value); $event.target.value = row.min_qty"
+                                       placeholder="qty" class="input-field w-20 text-sm">
                                 <span class="text-xs text-gray-500 flex-none" x-text="form.tier_mode === 'bundle' ? t('catalog.tiers_for') : '→'">→</span>
-                                <input type="number" step="0.05" min="0" x-model="row.unit_price" placeholder="0.00" class="input-field w-24 text-sm">
+                                <input type="text" inputmode="decimal" data-keypad="decimal" x-model="row.unit_price"
+                                       @input="row.unit_price = window.posMoneyOnly($event.target.value); $event.target.value = row.unit_price"
+                                       placeholder="0.00" class="input-field w-24 text-sm">
                                 <span class="text-xs text-gray-400 flex-none" x-text="form.tier_mode === 'bundle' ? t('catalog.tiers_total') : t('catalog.tiers_each')">each</span>
                                 <button type="button" @click="form.price_tiers.splice(i,1)" class="text-red-500 hover:text-red-700 flex-none text-lg leading-none" title="remove">×</button>
                             </div>
@@ -886,7 +894,7 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1"><span data-i18n="catalog.form_category">Category</span>
                             <span class="text-xs text-gray-400 font-normal" data-i18n="catalog.form_category_hint">— what it is (on the wall)</span></label>
-                        <input type="text" x-model="form.category" list="catlist" class="input-field" placeholder="Pick existing or type new" data-i18n-placeholder="catalog.category_placeholder">
+                        <input type="text" data-keypad="text" x-model="form.category" list="catlist" class="input-field" placeholder="Pick existing or type new" data-i18n-placeholder="catalog.category_placeholder">
                         <datalist id="catlist">
                             <template x-for="name in allCategoryNames()" :key="name">
                                 <option :value="name"></option>
@@ -910,7 +918,7 @@
                         <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="catalog.form_supplier">Supplier</label>
                         <!-- pick from known suppliers (datalist) — still tolerant of an existing value
                              that isn't a formal supplier row (e.g. "Artemis"), so no data is lost. -->
-                        <input type="text" x-model="form.supplier_name" list="catalog-supplier-list" class="input-field" placeholder="(optional)" data-i18n-placeholder="catalog.optional_placeholder">
+                        <input type="text" data-keypad="text" x-model="form.supplier_name" list="catalog-supplier-list" class="input-field" placeholder="(optional)" data-i18n-placeholder="catalog.optional_placeholder">
                         <datalist id="catalog-supplier-list">
                             <template x-for="s in suppliers" :key="s.id || s.code || s.name"><option :value="s.name"></option></template>
                         </datalist>
@@ -945,7 +953,7 @@
                                 <input type="file" accept="image/*" :capture="posCaptureAttr()" class="hidden" @change="onPhoto($event)" :disabled="uploadingPhoto">
                             </label>
                         </div>
-                        <input type="text" x-model="form.image_url" x-show="gallery.length===0 && pendingPhotos.length===0"
+                        <input type="text" data-keypad="text" x-model="form.image_url" x-show="gallery.length===0 && pendingPhotos.length===0"
                                class="input-field mt-2 text-xs text-gray-500" placeholder="…or paste an image URL (https://…)" data-i18n-placeholder="catalog.image_url_placeholder">
                     </div>
                     <div class="md:col-span-2">
@@ -953,7 +961,7 @@
                             <span data-i18n="catalog.form_description">Description</span>
                             <span x-show="enriching" class="ml-2 text-xs text-teal-600 animate-pulse">🌐 <span data-i18n="catalog.enriching">pulling full details from the supplier…</span></span>
                         </label>
-                        <textarea x-model="form.description" rows="2" class="input-field" placeholder="(optional)" data-i18n-placeholder="catalog.optional_placeholder"></textarea>
+                        <textarea data-keypad="text" x-model="form.description" rows="2" class="input-field" placeholder="(optional)" data-i18n-placeholder="catalog.optional_placeholder"></textarea>
                     </div>
                     <!-- No min/max/reorder thresholds: Banco runs zero perpetual inventory.
                          Reorder guidance comes from sales velocity (v2), not a count. -->
@@ -1144,7 +1152,7 @@
                         <span class="normal-case font-normal text-gray-400" data-i18n="catalog.ref_search_hint">— try one word: a colour, a brand, a shape</span>
                     </div>
                     <div class="flex gap-2">
-                        <input x-model="refQ" @keydown.enter.prevent="searchReference()"
+                        <input data-keypad="text" x-model="refQ" @keydown.enter.prevent="searchReference()"
                                class="input-field flex-1" :placeholder="t('catalog.ref_search_ph')"
                                placeholder="rasta · kawumm · black leaf · grinder…">
                         <button @click="searchReference()" :disabled="refBusy"

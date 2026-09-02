@@ -23,10 +23,19 @@ TPL  = ROOT / "src" / "templates" / "pos"
 
 # The screens a cashier actually reaches — the bottom nav, the POS home, and the
 # places those lead. Everything else is a manager/admin screen and waits.
+# THE LIST WAS WRONG, AND A WRONG LIST MAKES A CONFIDENT WRONG NUMBER. On
+# 2026-09-02 this reported "0 to wire" on the cashier path while three of the
+# cards on Pam's own dashboard had no keypads at all. Angel found it by opening
+# every card in turn; no amount of running this script would have. If you add a
+# card to the dashboard, add its template here in the same commit.
 CASHIER = {
     "scan.html", "checkout.html", "customer_lookup.html", "shelf_intake.html",
     "kiosk.html", "login.html", "my_day.html", "closeout.html", "shift.html",
     "held_orders.html", "search.html", "dashboard.html", "join_card.html",
+    # added 2026-09-02 — all three are cards a cashier can open:
+    "catalog.html",          # Product Catalog
+    "reorder.html",          # Order Book
+    "catalog_misses.html",   # What the till couldn't find
 }
 
 # Input TYPES that are never a keypad's business — the browser or the OS owns them.
@@ -132,13 +141,25 @@ def main():
     todo = [r for r in rows if r["want"] != "DO NOT TOUCH" and not r["has"]]
     done = [r for r in rows if r["has"]]
     skip = [r for r in rows if r["want"] == "DO NOT TOUCH"]
-    wrong = [r for r in done if r["has"] != r["want"]]
+    # A FIELD THAT CARRIES data-keypad HAS BEEN LOOKED AT BY A PERSON. When the
+    # heuristic disagrees with an explicit marking, the marking wins and this is an
+    # OVERRIDE, not a fault. Reported, never flagged.
+    #
+    # Why it matters: on 2026-09-02 seven rows were flagged "wrong kind" and every
+    # one was a deliberate decision — Checkout's discount box is whole percent
+    # because the screen says "enter a percentage", `paid.reason` is a reason and
+    # not money whatever the word "paid" suggests, and four boxes a scanner CAN
+    # type into are also boxes a cashier MUST be able to type a name into. A report
+    # that cries wolf seven times is a report nobody reads, which is the same
+    # failure as a guard that fires over saved work.
+    wrong = []
+    override = [r for r in done if r["has"] != r["want"]]
 
     scope = "cashier path" if only_cashier else "all POS screens"
     print(f"\n  {len(rows)} typable inputs across {len({r['file'] for r in rows})} "
           f"templates  ({scope})")
     print(f"  ✅ wired {len(done)}   ▶️ to wire {len(todo)}   "
-          f"⛔ do not touch {len(skip)}   ⚠️ wrong kind {len(wrong)}\n")
+          f"⛔ do not touch {len(skip)}   ✍️ deliberate override {len(override)}\n")
 
     by_file = {}
     for r in rows:
@@ -150,7 +171,7 @@ def main():
            "and searching the code instead is what wired the wrong field on 2026-09-01.*",
            "", f"**{len(rows)} typable inputs** · ✅ wired {len(done)} · "
            f"▶️ to wire {len(todo)} · ⛔ do not touch {len(skip)} · "
-           f"⚠️ wrong kind {len(wrong)}", ""]
+           f"✍️ deliberate override {len(override)}", ""]
 
     for fname in sorted(by_file, key=lambda n: (n not in CASHIER, n)):
         rs = by_file[fname]
@@ -160,7 +181,7 @@ def main():
                 "|---|---|---|---|---|---|"]
         for r in sorted(rs, key=lambda r: r["line"]):
             state = ("✅ " + r["has"]) if r["has"] else ("⛔" if r["want"] == "DO NOT TOUCH" else "—")
-            flag = " ⚠️" if (r["has"] and r["has"] != r["want"]) else ""
+            flag = " ✍️ deliberate" if (r["has"] and r["has"] != r["want"]) else ""
             note = f" · {r['note']}" if r["note"] else ""
             out.append(f"| {r['line']} | **{r['label']}** | `{r['model']}` | "
                        f"`{r['type']}` | {state} | {r['want']}{flag}{note} |")
