@@ -593,12 +593,19 @@ async function main() {
     // and never reaches the cart — right on screen, wrong in the basket.
     const changed = await (async () => {
       await p.evaluate(() => {
-        const el = document.createElement('input');
-        el.id = 'pk-probe'; el.setAttribute('data-keypad', 'numeric');
-        el.style.cssText = 'position:fixed;top:0;left:0;z-index:99999';
-        window.__pkChange = 0;
-        el.addEventListener('change', () => { window.__pkChange++; });
-        document.body.appendChild(el);
+        window.__pkChange = 0; window.__pkChange2 = 0;
+        const mk = (id, n) => {
+          const el = document.createElement('input');
+          el.id = id; el.setAttribute('data-keypad', 'numeric');
+          el.style.cssText = `position:fixed;top:${n * 40}px;left:0;z-index:99999`;
+          el.addEventListener('change', () => { window['__pkChange' + (n || '')]++; });
+          document.body.appendChild(el);
+        };
+        mk('pk-probe', 0);
+        // A SECOND box, because moving to the next field is the other way out and
+        // it is the one that was broken: open() reassigned `active` without ever
+        // closing what it was leaving. A one-probe test cannot see that door.
+        mk('pk-probe2', 2);
       });
       await p.click('#pk-probe');
       await p.waitForTimeout(250);
@@ -610,14 +617,36 @@ async function main() {
       await tapKey(p, 'done');
       await p.waitForTimeout(200);
       const n = await p.evaluate(() => window.__pkChange);
-      await p.evaluate(() => { const e = document.getElementById('pk-probe'); if (e) e.remove(); });
-      return { padWas, typed, n, dot };
+
+      // …and now the field-to-field door: type in probe 2, tap into probe 1, and
+      // probe 2 must have fired exactly once WITHOUT anyone pressing DONE.
+      await p.evaluate(() => { window.__pkChange = 0; window.__pkChange2 = 0; });
+      await p.click('#pk-probe2');
+      await p.waitForTimeout(250);
+      await tapKey(p, '5');
+      await p.waitForTimeout(120);
+      await p.click('#pk-probe');
+      await p.waitForTimeout(250);
+      const across = await p.evaluate(() => window.__pkChange2);
+      await tapKey(p, 'done');
+      await p.waitForTimeout(200);
+
+      await p.evaluate(() => {
+        for (const id of ['pk-probe', 'pk-probe2']) {
+          const e = document.getElementById(id); if (e) e.remove();
+        }
+      });
+      return { padWas, typed, n, dot, across };
     })();
     check(changed.padWas === 'decimal', 'data-keypad="numeric" opens the NUMBER pad');
     check(changed.typed === '6', 'a numeric box refuses the decimal point ON THE PAD',
           `box reads "${changed.typed}"`);
     check(changed.n === 1, 'closing the pad fires ONE change event',
           `fired ${changed.n}× — @change handlers finalise on this`);
+    check(changed.across === 1, 'moving to the NEXT box also fires change on the one you left',
+          changed.across === 1
+            ? 'no DONE needed — a real keyboard fires change on blur, and this is a blur'
+            : `fired ${changed.across}× — the Qty box would keep its old value until DONE`);
 
     // H8 · what is actually wired, counted from the templates rather than claimed.
     console.log(`  ℹ️  demo path — ${wired} fields wired across ${DEMO.length} screens`);

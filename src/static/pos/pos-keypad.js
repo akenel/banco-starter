@@ -186,6 +186,14 @@
   }
   function open(el, k) {
     if (!num) build();
+    // MOVING TO THE NEXT BOX IS ALSO LEAVING THIS ONE. A real keyboard fires
+    // `change` on blur, and a tap into the next field IS a blur — so the third
+    // door needs the same line shut() has. Angel, 2026-09-02, on the tablet:
+    // changed Qty to 5, tapped across to Target total, and price × qty stayed
+    // at 1 until he pressed DONE. DONE always worked; this is the other way out.
+    if (active && active !== el) {
+      active.dispatchEvent(new Event('change', { bubbles: true }));
+    }
     active = el; kind = k;
     // Set here, never in the template: if this script fails to load, the field
     // must fall back to behaving exactly as it did before, not to having no

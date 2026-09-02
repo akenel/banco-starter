@@ -1,7 +1,7 @@
 {
-  "at": "2026-09-02T06:39:46.364Z",
+  "at": "2026-09-02T11:56:15.661Z",
   "url": "http://localhost:3000",
-  "pass": 62,
+  "pass": 63,
   "fail": 0,
   "results": [
     {
@@ -327,6 +327,11 @@
       "r": "PASS",
       "l": "closing the pad fires ONE change event",
       "d": "fired 1× — @change handlers finalise on this"
+    },
+    {
+      "r": "PASS",
+      "l": "moving to the NEXT box also fires change on the one you left",
+      "d": "no DONE needed — a real keyboard fires change on blur, and this is a blur"
     },
     {
       "r": "INFO",

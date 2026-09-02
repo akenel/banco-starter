@@ -179,26 +179,16 @@ out of a `/tmp` session scratchpad on 2026-08-28. The SQL exports are checked in
 
 ### Open, in order
 
-**㉒ THE PAD NEEDS **DONE** BEFORE A `@change` FIELD TAKES — moving straight to the next box does
-not.** *(Angel on the tablet, 2026-09-02. **Not a bug — a papercut.** He hit it, then found the
-answer himself: press DONE and the quantity takes.)*
+**㉒ ✅ FIXED — the pad now fires `change` field-to-field, not only on DONE.** *(Angel found it on
+the tablet 2026-09-02, fixed the same afternoon.)* `open()` reassigned `active` without ever closing
+the box it was leaving, so a `@change` field — Checkout's **Qty** — kept its old value until DONE was
+pressed. A real keyboard fires `change` on blur and a tap into the next field IS a blur. One line in
+`open()`, mirroring the one already in `shut()`.
 
-**What happens:** on Checkout, change **Qty** from 1 to 5 on the pad and tap straight across to
-**Target total** — the box reads 5 and price × qty stays at 1. Press **DONE** first and it applies.
-
-**Why, read in the code:** `open()` does `active = el` and nothing else — it never closes the field
-it is leaving. The `change` event added this morning fires in `shut()`, which is **DONE** and
-**tapping outside the pad**. Field-to-field is the third door and it was never wired. A real
-keyboard fires `change` on blur, and moving to the next field IS a blur, so ours is a door short.
-
-**Not urgent, and not on the critical path** — DONE is the natural gesture and it works. But it is a
-thing a person has to learn rather than a thing that behaves, and only `@change` fields are affected:
-`grep -n '@change' src/templates/pos` — 8 in `scan.html`, 0 in `shelf_intake.html` and `checkout.html`.
-
-**The fix:** in `open()`, if `active` exists and is not `el`, dispatch `change` on the outgoing field
-before reassigning — the same line already in `shut()`. Then extend `prove-keypad.js` H6 to move
-between **two** probe inputs and assert the first fired exactly one `change`. Today's H6 tests only
-the close path, which is why it is green either way.
+The test that would have caught it now exists: **H6 moves between TWO probe boxes** and asserts the
+one you left fired exactly one `change` with nobody pressing DONE. **Watched go red on purpose** —
+the line reverted inside the running container gives `fired 0×`. A one-probe test could never see
+that door, which is why it was green while this was broken.
 
 **㉑ THE CUTOVER HAS NO RUNBOOK — and it is not a `deploy-prod.sh` run.** *(raised by Angel, evening
 of 2026-09-01, because it was about to be missed.)* `banco.wolfhold.app/pos` is **pre-prod**, not the
