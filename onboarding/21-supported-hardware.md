@@ -160,6 +160,48 @@ time this week the keypad has paid for itself.
 runs perfectly well in a browser on Windows. This section is about the **counter appliance** — the
 machine you support, image and replace — not about what a customer is allowed to use.
 
+## The till must come back by itself
+
+*2026-09-02. Dropping `--kiosk` was right — it is what makes GNOME's own bar (battery, wifi,
+bluetooth) visible, and that is a real requirement at a counter. But it came with a **title bar and
+a close button**, visible in the screenshot Angel took at 19:05. One tap and the till is gone, and a
+cashier has no way to bring it back.*
+
+So the till runs as a **user service that restarts itself**, not as an autostart entry:
+
+`~/.config/systemd/user/banco-till.service`
+```ini
+[Unit]
+Description=Banco POS till
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/chromium --ozone-platform=wayland --start-maximized \
+  --overscroll-history-navigation=0 --disable-pinch --force-device-scale-factor=1 \
+  --app=https://<shop>/pos --noerrdialogs --disable-session-crashed-bubble
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=graphical-session.target
+```
+
+```bash
+systemctl --user daemon-reload && systemctl --user enable --now banco-till.service
+mv ~/.config/autostart/banco.desktop ~/.config/autostart/banco.desktop.disabled   # or it races the service
+```
+
+**Proved, not assumed:** the process was killed the way the ✕ would kill it, and came back with a new
+PID inside six seconds. It also covers a crash, an out-of-memory kill, and a cashier who closes the
+window to "clean up".
+
+⚠️ **Do not go back to `--kiosk` to hide the close button.** That trade was already made and lost:
+kiosk hides the system bar → nobody can see the battery → somebody drags the top-right corner →
+the window ends up two-thirds wide with no way back on a touchscreen. The restart is the cheaper
+half of that trade.
+
 ## 🔴 TURN THESE OFF ON EVERY COUNTER MACHINE — they break the scanner gun
 
 *Found 2026-09-02, on the till, with a gun about to be tested. Two of them were already ON.*
