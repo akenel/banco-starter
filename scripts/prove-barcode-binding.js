@@ -455,6 +455,40 @@ async function fillNewItem(p, name, price) {
       check(taken.pending === '', 'and the pending code is handed over, not duplicated');
     }
 
+    // ---------------------------------------------------------------------
+    head('11 · a code TYPED into the order book resolves, same as one SCANNED');
+    // Angel, 2026-09-03, step E4: "scanning works for the OCB Black Slim Rolls with the
+    // gun, but typing 30062092 doesn't find it — on New Sale I type the code in and it
+    // works fine." Both true. The gun types the digits AND an Enter, and only the Enter
+    // handler did a barcode lookup; the live matcher searched by NAME and then linked a
+    // product only when `p.name === form.title`, which a barcode can never equal.
+    //
+    // Two doors onto one question, and only the door with a machine behind it worked.
+    // The test therefore uses the door a PERSON uses: type the digits, press nothing.
+    // Section 8 switched this row OFF on purpose, and /products/barcode/{code} answers
+    // 400 for an inactive product — so without this the check would go red for a reason
+    // that has nothing to do with what it is asking. Put the fixture back first.
+    psql(`update products set is_active = true where name='${NAME_A}'`);
+    await goto(p, '/pos/reorder');
+    await p.waitForTimeout(1200);
+    const obBox = p.locator('input[placeholder^="Scan a barcode"]').first();
+    if (!(await obBox.count())) {
+      bad('the order book item box is not on the page', 'this check measured nothing');
+    } else {
+      await obBox.click();
+      await obBox.type(CODE_A, { delay: 60 });   // no Enter — thumbs, not a gun
+      await p.waitForTimeout(2200);
+      const typed = await obBox.inputValue();
+      check(typed === NAME_A,
+            'typing the code fills in the product, with no Enter pressed',
+            `box reads "${typed}"`);
+      // ...and the thing that made it worth fixing: the line is LINKED, so the order
+      // knows which product it is about rather than carrying a string of digits.
+      const linked = await p.evaluate(() =>
+        /linked to catalog/i.test(document.body.innerText));
+      check(linked, 'and the line is linked to the catalogue, not left as free text');
+    }
+
   } catch (e) {
     bad('the run threw', e.message);
     console.error(e);

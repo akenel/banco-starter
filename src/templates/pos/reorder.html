@@ -281,6 +281,15 @@
                 this.form.product_id = null;
                 const q = (this.form.title || '').trim();
                 if (q.length < 2) { this.productMatches = []; return; }
+                // TYPING A CODE IS THE SAME QUESTION AS SCANNING ONE. Angel, 2026-09-03,
+                // step E4: "scanning works for the OCB Black Slim Rolls with the gun, but
+                // typing 30062092 doesn't find it — on New Sale I type the code in and it
+                // works fine." He is right, and the reason is below: the name search runs,
+                // finds nothing called "30062092", and this function only ever linked a
+                // product when `p.name === this.form.title` — an exact NAME match, which a
+                // barcode can never be. Only the gun's trailing Enter reached the barcode
+                // lookup. Two ways to ask one question, and only one of them worked.
+                if (/^\d{8,}$/.test(q) && await this.resolveBarcode(q, false)) return;
                 try {
                     const res = await API.get('/api/v1/pos/search?q=' + encodeURIComponent(q) + '&limit=8');
                     this.productMatches = res.items || [];
@@ -298,6 +307,18 @@
             async onItemEnter() {
                 const v = (this.form.title || '').trim();
                 if (!/^\d{8,}$/.test(v)) return;
+                await this.resolveBarcode(v, true);
+            },
+
+            /**
+             * One barcode lookup, used by BOTH doors: the gun (which types the digits and
+             * an Enter) and a person typing the code with their thumbs. `announce` is the
+             * only difference — Enter is a finished question and deserves an answer either
+             * way, while typing is mid-thought and must not fire a "not in catalog" toast
+             * on every one of the thirteen keystrokes it takes to get there.
+             * Returns true when it filled the form in.
+             */
+            async resolveBarcode(v, announce) {
                 try {
                     const p = await API.get('/api/v1/pos/products/barcode/' + encodeURIComponent(v));
                     if (p && p.id) {
@@ -306,11 +327,13 @@
                         if (!this.form.supplier_code && p.supplier_name) this.form.supplier_code = p.supplier_name;
                         this.productMatches = [];
                         showToast(t('reorder.scanned') || ('✓ ' + p.name), 'success');
+                        return true;
                     }
                 } catch (e) {
                     // 404 = not in the catalog; keep the typed code so the manager can add it free-text.
-                    showToast(t('reorder.scan_miss') || 'Barcode not in catalog — type a name', 'warning');
+                    if (announce) showToast(t('reorder.scan_miss') || 'Barcode not in catalog — type a name', 'warning');
                 }
+                return false;
             },
 
             // BL-27: 📷 camera scan (shared PosScanner) → drop the barcode in the item field and
