@@ -17,6 +17,99 @@
 
 ---
 
+## 📸 CONTACT SHEET, BATCH 1 — 11 shots off the real tablet, 2026-09-03 15:20–15:23
+
+*Angel drove; the copilot looked at every picture at full 2160×1440. Method was correct: whole
+screen, real data, one coherent flow, and he stopped AT the 18+ gate — no sale was completed, no
+line written to the Kassenbücher. This is the section the contact sheet exists to produce.*
+
+### ⓐ THE SCALE FACTOR — the tablet's browser viewport is **1440 × ~895 CSS px**
+
+Measured, not guessed: the cart's `−`/`+` stepper is `w-12 h-12` (48 × 48 CSS px) and renders
+**72 × 72 device px** in `15-23-04.png`. 72 / 48 = **devicePixelRatio 1.5**. So 2160 device / 1.5 =
+**1440 CSS px wide**; page area starts at device y≈97 (GNOME bar + title bar), giving
+(1440 − 97) / 1.5 ≈ **895 CSS px tall**.
+
+**Every geometry proof runs at 1280×800.** It is 160 CSS px too narrow and 95 too short — so its
+fold sits HIGHER than the real one (its "below the fold" verdicts are pessimistic) and its columns
+are NARROWER (its "fits on one line" verdicts are optimistic — the dangerous direction). Re-point
+`prove-keypad` sections J/K/L at 1440×895 and find out how much of last night's green survives.
+
+### ⓑ VAT IS WRONG ON CHECKOUT WHENEVER A PACK DEAL OR TIER BREAK IS IN THE BASKET
+
+**Found in the pictures, confirmed in the code.** Cart screen said `incl. VAT (8.1%): CHF 0.75`;
+Checkout, same basket, same `TOTAL: CHF 10.00`, said **`CHF 0.82`**. One of them is wrong and it is
+Checkout.
+
+`src/templates/pos/checkout.html` ~line 946 — the VAT split iterates the cart with
+
+```js
+const lineGross = (it.price || 0) * (it.quantity || 0) * factor;
+```
+
+…but `subtotal` twelve lines above it was built from **`this._pools[i] ?? tierLineTotal(it)`** — the
+POOLED price. For the 3-for-CHF-5.00 OCB pack, `it.price × qty` is `2.00 × 3 = 6.00` while the pooled
+line is `5.00`. So the VAT loop sums **11.90** where the subtotal saw **10.90**:
+
+```
+factor  = 10.00 / 10.90            = 0.917431
+VAT sum = 11.90 × 0.917431         = 10.9174
+VAT     = 10.9174 × 8.1 / 108.1    = 0.818  → CHF 0.82   ← what the screen showed
+correct = 10.00  × 8.1 / 108.1     = 0.749  → CHF 0.75
+```
+
+The arithmetic reproduces the screenshot to the rappen. **This is LESSON #2 again** — a second way
+to ask the same question, never tested against the first — and **LESSON #13**: two computations of
+one truth, and the one the receipt renders from is the wrong one. It overstates VAT on every basket
+containing a pack deal or a tier break. That is a Swiss tax line. **Fix: use the pooled line total
+in the VAT loop, and add a proof that a pooled basket's checkout VAT equals `total × r/(100+r)`.**
+
+### ⓒ The rest, ranked — all visible in the batch, none yet fixed
+
+1. **`mm/dd/yyyy`** — the 18+ gate's Date of birth is a native `<input type="date">` rendering in
+   **US order** on a Swiss till (`15-23-26.png`). A cashier typing 03.09.2000 enters 9 March.
+   Age-gate input in the wrong date order is a compliance defect, not a cosmetic one.
+2. **The card payment tile has no label** (`15-23-23.png`) — `Cash · [blank] · Debit · TWINT`.
+   It is the one that was *selected*, and the only one a cashier cannot name.
+3. **Total + Checkout are clipped by the bottom tab bar at two cart lines** (`15-22-23.png`) —
+   `TOTAL: CHF 10.9…` cut through the middle. The cart column grows under the fixed nav.
+   The classic LESSON #12 shape, on the money row this time.
+4. **The on-screen keyboard buries the search results** (`15-22-12.png`) — typing `cbd` shows
+   *"Showing 20 of 366 matches"* and **one and a half rows**. You must dismiss the pad to see what
+   you searched for. And **the red chat bubble sits on top of the `n` key.**
+5. **Login page: "HelixPOS / Artemis Store" is white on near-white** (`15-20-33.png`) — the shop's
+   own name is invisible, and so is the footer line under the build stamp.
+6. **The dashboard shows Keycloak role names to the shop owner** (`15-21-01.png`) —
+   `default-roles-kc-pos-realm-dev, pos-cashier, pos-admin, pos-manager`. Also the green
+   *"Login successful!"* toast lands ON the user chip it is next to.
+7. **Cleanup Queue row truncates mid-word** (`15-21-01.png`) — *"Finish setting up quick-added
+   prod…"* and *"5395 products to finis"*.
+8. **Checkout's discount chips don't reflect the discount already applied** (`15-23-12.png`) —
+   Target Total had set **15.25%**, and `None / 5% / 10% / 15% / Custom` shows nothing selected.
+   *"Your max discount: 100%"* is developer copy on a cashier's screen.
+9. The left-hand product list cuts its last row in half (`15-23-04.png`) — a fixed max-height that
+   does not stop on a row boundary, so the pack always looks like it is missing something.
+
+### ⓓ What batch 1 did NOT cover — the three that were the whole point
+
+He shot a coherent sale flow (login → dashboard → scan → search → cart → deal → Target Total →
+checkout → 18+ gate), which is worth more than 16 scattered states. But **shots 4, 5 and 6 of "the
+six that matter most" are missing**, and they are the ones that would settle last night's work:
+
+- **④ Order Book, scrolled to "To order"** — the `Qty [64px] [supplier] [Ordered]` row. This is the
+  790px → 64px fix. Nobody has seen it on the real screen.
+- **⑤ Manage Catalog, edit modal open on a real product** (do not save) — modal top and Save bar.
+- **⑥ Same modal, keypad open on a price field** — *is the focused box above the pad?* The entire
+  question section J was written to answer, and section J was measuring a screen that does not exist.
+
+Also still unshot: 7 (new-item form), 9 (keypad on Amount received), 10 (supplier dropdown open),
+11–12 (catalog landing, two price breaks), 13 (Receiving box form), 14–16 (Shelf Intake, My Day, Kiosk).
+
+**Method note for batch 2:** GNOME's own *"Screenshot captured"* notification appears in
+`15-23-26.png`, covering the top strip. Wait ~4s after a PrtScr before taking the next one.
+
+---
+
 ## 🔎 FOUND WHILE FIXING SOMETHING ELSE — 2026-09-02 late
 
 *Not blocking. Logged here rather than carried to Angel mid-run (standing rule: report less).*
