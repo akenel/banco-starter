@@ -870,11 +870,11 @@
                                 <span class="text-xs text-gray-500 flex-none" x-text="form.tier_mode === 'bundle' ? t('catalog.tiers_buy') : t('catalog.tiers_from')">From</span>
                                 <input type="text" inputmode="numeric" data-keypad="numeric" x-model="row.min_qty"
                                        @input="row.min_qty = window.posIntOnly($event.target.value); $event.target.value = row.min_qty"
-                                       placeholder="qty" class="input-field w-20 text-sm">
+                                       placeholder="qty" class="input-field input-compact w-20">
                                 <span class="text-xs text-gray-500 flex-none" x-text="form.tier_mode === 'bundle' ? t('catalog.tiers_for') : '→'">→</span>
                                 <input type="text" inputmode="decimal" data-keypad="decimal" x-model="row.unit_price"
                                        @input="row.unit_price = window.posMoneyOnly($event.target.value); $event.target.value = row.unit_price"
-                                       placeholder="0.00" class="input-field w-24 text-sm">
+                                       placeholder="0.00" class="input-field input-compact w-24">
                                 <span class="text-xs text-gray-400 flex-none" x-text="form.tier_mode === 'bundle' ? t('catalog.tiers_total') : t('catalog.tiers_each')">each</span>
                                 <button type="button" @click="form.price_tiers.splice(i,1)" class="text-red-500 hover:text-red-700 flex-none text-lg leading-none" title="remove">×</button>
                             </div>

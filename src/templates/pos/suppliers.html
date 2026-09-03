@@ -62,7 +62,7 @@
                 <div>
                     <label class="sup-lbl" data-i18n-html="suppliers.trade_discount_label">Trade discount <span class="text-gray-400 font-normal">(% off retail — auto-fills cost)</span></label>
                     <div class="flex items-center gap-2">
-                        <input type="number" min="0" max="100" step="1" x-model.number="form.trade_discount_pct" placeholder="30" class="input-field w-28">
+                        <input type="number" min="0" max="100" step="1" x-model.number="form.trade_discount_pct" placeholder="30" class="input-field input-compact w-28">
                         <span class="text-gray-500 font-semibold">%</span>
                     </div>
                     <p x-show="form.trade_discount_pct > 0" class="sup-ok" style="display:none;">

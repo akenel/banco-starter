@@ -30,11 +30,19 @@
   on the kiosk rate or the phone rate? Ask Felix, then change both together.
 - **`[i18n] missing key: reorder.by`** logs on every order-book line. Cosmetic, four
   languages, five minutes.
-- **`.input-field` beats `w-16`/`h-10`.** The order book's Qty box asks for `w-16` and
-  renders full width; the supplier picker asked for `h-10` and rendered 4px of content box
-  (fixed 2026-09-02). Whatever sets `.input-field` wins on width and loses on height, so any
-  Tailwind sizing utility on one of these boxes is a coin toss. Worth one pass over the
-  cashier screens with `prove-keypad` section K extended to widths.
+- ~~**`.input-field` beats `w-16`/`h-10`.**~~ **DONE 2026-09-03.** It was not a coin toss —
+  it was source order. `tailwind.css` is linked at the top of `pos/base.html`; `.input-field`
+  is declared in the `<style>` block below it, and both are a single class, so `.input-field`
+  won **every property it declares**: width, padding, font-size. The Order Book's per-line Qty
+  asked for `w-16` (64px) and rendered **790px**, wrapping a one-line row onto three.
+  Fix: `width` moved into `:where(.input-field)` (zero specificity, so any `w-*` wins) plus a
+  new `.input-compact` modifier for small boxes, whose 1.25rem side padding would otherwise
+  leave 20px of content for a four-digit quantity. Six boxes on five screens, all verified in
+  a browser. `prove-keypad` section **L** now measures requested-vs-rendered on every screen.
+  **Still open, deliberately: 49 dead `text-*` classes on POS inputs.** Honouring them would
+  *shrink* 49 boxes on a fat-finger tablet, so that is a look decision for Angel, not a fix.
+  `isotto/` and `camper/` have their own `.input-field` with the same latent bug (9 boxes);
+  untouched — different apps, different day.
 - **The kiosk screen does not show the pack price.** A guest adding 3 × OCB at the kiosk sees
   3 × CHF 4.00; the board, the cart, the checkout and the receipt all say CHF 10.00. The
   customer is charged correctly and gets a two-franc surprise in their favour. **Angel's call,

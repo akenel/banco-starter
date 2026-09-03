@@ -360,7 +360,6 @@
 
         /* Input styling - BIG for fat fingers (real CSS — @apply is dead in this plain block) */
         .input-field {
-            width: 100%;
             padding: 1rem 1.25rem;          /* tall touch target */
             font-size: 1.125rem;             /* text-lg */
             line-height: 1.5;
@@ -371,6 +370,38 @@
             transition: border-color .2s ease, box-shadow .2s ease;
             -webkit-appearance: none;
             appearance: none;
+        }
+        /* WIDTH IS LAYOUT, NOT IDENTITY — and it must LOSE to a utility class.
+           tailwind.css is linked at the top of this <head>; `.input-field` is declared
+           here, AFTER it. Both are a single class, so on equal specificity SOURCE ORDER
+           decided every fight and `.input-field { width:100% }` beat every `w-*` in the
+           app — silently, with the class still sitting there in the markup.
+           Six boxes asked for a small width and rendered full width. The worst was the
+           Order Book's per-line Qty: `w-16` (64px) rendering at 790px, which wrapped a
+           one-line row onto three and cost a third of the visible list on the counter.
+           Angel, 2026-09-02: "the order book's Qty box asks for w-16 and renders full
+           width". Measured 2026-09-03: 790px -> 64px.
+           `:where()` has ZERO specificity, so a bare `.input-field` still gets 100% and
+           any `w-*` on the element now wins. Do not fold this back into the block above. */
+        :where(.input-field) { width: 100%; }
+
+        /* A SMALL inline box — a qty, a percent, a tier break.
+           `.input-field` is tuned for a full-width touch target: 1.25rem of side padding
+           and an 18px line. Put that on a 64px box and 40px of it is padding, leaving
+           room for ONE digit in a field that takes four. That is why every one of these
+           was written as `w-16 py-1 text-sm` — the author asked for small three times —
+           and why all three were ignored: `.input-field` declares padding and font-size,
+           so `py-1` and `text-sm` lost the same source-order fight as `w-*`.
+           This modifier is declared after `.input-field`, wins on specificity, and is the
+           ONLY supported way to make one of these boxes small. Height still comes from
+           padding + line-height: an `h-*` here collapses the content box (LESSON #12 —
+           `.input-field h-10` left FOUR pixels for a 27px line and the supplier picker
+           rendered blank while the DOM reported the right value). */
+        .input-field.input-compact {
+            padding: .375rem .5rem;
+            font-size: 1rem;
+            line-height: 1.25;
+            border-radius: .5rem;
         }
         .input-field::placeholder { color: #9ca3af; }
         .input-field:focus {

@@ -144,7 +144,7 @@
                             <input type="text" inputmode="numeric" data-keypad="numeric" pattern="[0-9]*" maxlength="4" :value="it.qty"
                                    @input="$event.target.value = $event.target.value.replace(/[^0-9]/g,'')"
                                    @change="setQty(it, $event.target.value)"
-                                   :disabled="!user.isManager" class="input-field w-16 h-10 text-center">
+                                   :disabled="!user.isManager" class="input-field input-compact w-16 h-10 text-center">
                             <!-- :selected on each option (not :value on the select) so the stored supplier
                                  shows even though the options load async after first render. -->
                             <select @change="setSupplier(it, $event.target.value)"

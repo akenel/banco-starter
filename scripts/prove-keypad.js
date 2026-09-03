@@ -1017,6 +1017,88 @@ async function main() {
                          : `${looked} dropdowns across ${SCREENS.length} screens`);
     }
 
+    // ---- L · a box is the size its markup asks for -------------------------
+    // Companion to K, and the same root cause seen from the other side.
+    // tailwind.css is linked at the top of pos/base.html; `.input-field` is
+    // declared in the <style> block BELOW it. Both are one class, so on equal
+    // specificity SOURCE ORDER decided every fight, and `.input-field` won every
+    // property it declares — width, padding, font-size. Six boxes across the POS
+    // asked for a small width and rendered full width, with the class still
+    // sitting in the markup looking like it worked.
+    //
+    // The worst was the Order Book's per-line Qty: `w-16` (64px) rendering at
+    // 790px, which wrapped a one-line row onto THREE and cost a third of the
+    // visible list on a counter tablet. Angel had already reported it in words
+    // — "the order book's Qty box asks for w-16 and renders full width" — and it
+    // sat there because nothing measured it. Fixed 2026-09-03 by moving width
+    // into `:where(.input-field)` (zero specificity) and adding `.input-compact`
+    // for the small boxes, whose padding would otherwise eat them.
+    //
+    // L2 is the trap that fix opens: a 64px box carrying `.input-field`'s 1.25rem
+    // side padding has ~20px of content for a four-digit quantity. Narrow WITHOUT
+    // `input-compact` is a bug even though every width now measures correct.
+    head('L · every sized box renders the width its markup asks for');
+    {
+      const SCREENS = ['/pos/reorder', '/pos/receiving', '/pos/suppliers',
+                       '/pos/checkout', '/pos/shelf-intake', '/pos/catalog'];
+      let wrong = 0, squeezed = 0, looked = 0;
+      for (const url of SCREENS) {
+        await p.goto(`${ROOT}${url}`, { waitUntil: 'domcontentloaded' }).catch(() => null);
+        await p.waitForTimeout(2200);
+        // Two of the six live in the edit-product modal (the price-tier row), so
+        // this check is blind to them unless it opens the thing first.
+        if (url === '/pos/catalog') {
+          const edit = p.locator('button.cat-edit').first();
+          if (await edit.count()) {
+            await edit.click().catch(() => null);
+            await p.waitForTimeout(1500);
+            const add = p.locator('button:has-text("Add break")').first();
+            if (await add.count()) { await add.click().catch(() => null); await p.waitForTimeout(600); }
+          }
+        }
+        const found = await p.evaluate(() => {
+          // Tailwind's scale in px at a 16px root. Only fixed widths — a
+          // fraction or `w-full` is relative and has nothing to compare against.
+          const SCALE = { 'w-12': 48, 'w-14': 56, 'w-16': 64, 'w-20': 80, 'w-24': 96,
+                          'w-28': 112, 'w-32': 128, 'w-36': 144, 'w-40': 160 };
+          const out = [];
+          for (const el of document.querySelectorAll('.input-field')) {
+            const r = el.getBoundingClientRect();
+            if (r.width < 1 || r.height < 1) continue;
+            const cs = getComputedStyle(el);
+            if (cs.visibility === 'hidden' || cs.display === 'none') continue;
+            const cls = (el.className || '').toString();
+            const asked = cls.split(/\s+/).find(c => SCALE[c]) || null;
+            out.push({ asked, want: asked ? SCALE[asked] : null,
+                       got: Math.round(r.width),
+                       compact: /(^|\s)input-compact(\s|$)/.test(cls),
+                       cls: cls.slice(0, 46) });
+          }
+          return out;
+        });
+        for (const f of found) {
+          looked++;
+          if (f.asked && Math.abs(f.got - f.want) > 6) {
+            wrong++;
+            console.log(`  \u274c ${url} \u2014 asked ${f.asked} (${f.want}px), rendered ${f.got}px`
+                      + `  \u00b7 class="${f.cls}"`);
+          }
+          if (f.got < 120 && !f.compact) {
+            squeezed++;
+            console.log(`  \u274c ${url} \u2014 ${f.got}px wide with full padding and no`
+                      + ` input-compact  \u00b7 class="${f.cls}"`);
+          }
+        }
+      }
+      check(wrong === 0 && looked > 0,
+            'a width utility on an input is honoured, not silently ignored',
+            looked === 0 ? 'NO .input-field found on any screen \u2014 this measured nothing'
+                         : `${looked} boxes across ${SCREENS.length} screens`);
+      check(squeezed === 0,
+            'no narrow box is left with the full-width padding that would eat it',
+            'a box under 120px needs .input-compact');
+    }
+
 
   } catch (e) {
     bad('the run itself', e.message);
