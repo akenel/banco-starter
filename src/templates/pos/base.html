@@ -75,177 +75,32 @@
     <!-- Tailwind CSS — REAL compiled build (build/tailwind → src/static/pos/tailwind.css), not the
          in-browser Play engine. Rebuild after adding classes: see build/tailwind/README. Kills the
          "cdn.tailwindcss.com should not be used in production" warning + the 451KB runtime compile. -->
-    <link rel="stylesheet" href="/static/pos/tailwind.css?v={{ asset_v('pos/tailwind.css') }}">
+    <!-- ── BANCO'S OWN STYLES GO FIRST, AND THIS ORDER IS LOAD-BEARING ────────────────
+         Every rule below is a single class, and so is every Tailwind utility. On equal
+         specificity the LATER rule wins — so while this block sat AFTER tailwind.css, a
+         `w-16` on an `.input-field`, a `bg-green-600` on a `.card` and a `text-sm` on a
+         `.btn-secondary` all lost silently to the base class, in the markup and in the
+         head, with nothing anywhere saying so.
 
+         It cost three separate days. 2026-09-02: an Order Book quantity box asked for
+         `w-16` (64px) and rendered at 790px, wrapping a one-line row onto three.
+         2026-09-03: the SELECTED payment tile painted white on white — `bg-green-600`
+         lost to `.card`, `text-white` had no competitor and won, and "Visa/MC" was
+         rendered, correct and invisible. The same census found the VAT rate selector,
+         8.1% against 2.6%, with its "✓ SELECTED" line in the same state, and 199
+         elements in all where a base class silently overruled the markup.
 
-    <!-- Alpine.js for reactive components -->
-    <script defer src="/static/vendor/alpine.min.js"></script>
+         `:where()` is NOT the fix, and was tried twice: it drops a rule to ZERO
+         specificity, and Tailwind's preflight sets `background-color:transparent` and
+         `padding:0` on `button` and `input` at (0,0,1) — so a zeroed base class loses to
+         the RESET as well, and the buttons collapse. Source order is the only lever that
+         puts these rules exactly where they belong: above the element resets, below the
+         utilities.
 
-    <!-- html2canvas: lets the feedback widget grab a screenshot of the current screen -->
-    <script src="/static/vendor/html2canvas.min.js"></script>
-
-    <!-- P1 offline catalog: IndexedDB mirror so the till can scan + price with no network -->
-    <script src="/static/pos/catalog-cache.js"></script>
-
-    <!-- PHASE 2 (Go-Italian) i18n string catalog: EN + IT + DE. Loaded in <head> so
-         POS_STRINGS is a global before the engine (defined below) runs its detection. -->
-    <script src="/static/pos/pos-i18n.js?v={{ asset_v('pos/pos-i18n.js') }}"></script>
-
-    <!-- The keypad Banco draws itself. On the counter tablet NO browser raises the
-         system on-screen keyboard (Chromium AND Firefox, proved on a blank HTML file
-         2026-09-01 — WORKLIST ⑳), so a field marked data-keypad="decimal" or
-         data-keypad="text" gets one we own. Touch devices only; a laptop never sees it. -->
-    <script defer src="/static/pos/pos-keypad.js?v={{ asset_v('pos/pos-keypad.js') }}"></script>
-    <!-- Identity fallbacks, defined BEFORE the deferred script so they exist even if it never
-         arrives. Money and quantity boxes are type="text" now (a number input has no caret for
-         the keypad to place), and their @input handlers call these. If pos-keypad.js 404s, an
-         unpoliced box is recoverable; a TypeError on every keystroke in the CASH RECEIVED field
-         is not. The real versions overwrite these when the deferred script runs. -->
-    <script>
-      window.posMoneyOnly = window.posMoneyOnly || function (v) { return v; };
-      window.posIntOnly   = window.posIntOnly   || function (v) { return v; };
-    </script>
-
-    <!-- HALF A COUNTED DRAWER MUST NOT BE ABLE TO VANISH. Angel, 2026-09-02:
-         "you could be in edit mode and all of a sudden the screen flashes away
-         and you are back at the dashboard — they fill in half the coin counts
-         and BAMM they get thrown out." Counting a till is ten minutes of work
-         that exists nowhere but on that screen until it is submitted.
-
-         A page registers what is at stake; anything that would leave asks first.
-         Our own modal, not confirm() — a browser dialog on a kiosk tablet is a
-         gamble (some are suppressed outright) and LESSON #12 says the question
-         has to appear where the person is looking.
-         Usage:  window.posGuardLeave(function () { return dirty ? 'what is at stake' : ''; }); -->
-    <script>
-      (function () {
-        var probe = null, pending = null;
-        window.posGuardLeave = function (fn) { probe = fn; };
-        function atStake() {
-          if (!probe) return '';
-          try { return probe() || ''; } catch (e) { return ''; }
-        }
-        function box() {
-          var el = document.getElementById('pos-leave-guard');
-          if (el) return el;
-          el = document.createElement('div');
-          el.id = 'pos-leave-guard';
-          el.style.cssText = 'position:fixed;inset:0;z-index:9999;display:none;'
-            + 'background:rgba(15,23,42,.55);align-items:center;justify-content:center;padding:1rem';
-          el.innerHTML =
-            '<div style="background:#fff;border-radius:1rem;max-width:26rem;width:100%;padding:1.25rem;'
-            + 'box-shadow:0 20px 50px rgba(0,0,0,.35);font-family:inherit">'
-            + '<p style="font-size:1.1rem;font-weight:700;color:#0f172a;margin:0 0 .5rem">Leave without saving?</p>'
-            + '<p id="pos-leave-what" style="color:#334155;margin:0 0 1rem;line-height:1.5"></p>'
-            + '<div style="display:flex;gap:.6rem">'
-            + '<button id="pos-leave-stay" style="flex:1;min-height:48px;border-radius:.6rem;border:0;'
-            + 'background:#4f46e5;color:#fff;font:600 1rem inherit;cursor:pointer">Stay and finish</button>'
-            + '<button id="pos-leave-go" style="flex:1;min-height:48px;border-radius:.6rem;'
-            + 'border:1px solid #cbd5e1;background:#fff;color:#b91c1c;font:600 1rem inherit;cursor:pointer">Leave anyway</button>'
-            + '</div></div>';
-          document.body.appendChild(el);
-          el.querySelector('#pos-leave-stay').addEventListener('click', function () {
-            el.style.display = 'none'; pending = null;
-          });
-          el.querySelector('#pos-leave-go').addEventListener('click', function () {
-            var go = pending; pending = null; probe = null;    // they chose; do not ask twice
-            el.style.display = 'none';
-            if (go) window.location.href = go;
-          });
-          return el;
-        }
-        function ask(href, what) {
-          var el = box();
-          el.querySelector('#pos-leave-what').textContent = what;
-          el.style.display = 'flex';
-          pending = href;
-        }
-        // A LINK IS NOT THE ONLY WAY OUT. Shift's own 🏠 button and Closeout's
-        // "back" are window.location.href assignments, which no click handler on
-        // <a> can ever see — and 🏠 is literally the "flashes away and you are
-        // back at the dashboard" path Angel described. Route those through here.
-        window.posGo = function (href) {
-          var what = atStake();
-          if (!what) { window.location.href = href; return; }
-          ask(href, what);
-        };
-        document.addEventListener('click', function (e) {
-          var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
-          if (!a) return;
-          var href = a.getAttribute('href') || '';
-          if (!href || href.charAt(0) === '#' || a.target === '_blank') return;
-          if (href.indexOf('javascript:') === 0) return;
-          var what = atStake();
-          if (!what) return;
-          e.preventDefault(); e.stopPropagation();
-          ask(a.href, what);
-        }, true);
-        window.addEventListener('beforeunload', function (e) {
-          if (!atStake()) return;
-          e.preventDefault(); e.returnValue = '';       // reload / close / back
-        });
-      })();
-    </script>
-
-    <!-- FULL SCREEN, AND A WAY BACK. Angel, 2026-09-02: swiping down from the top
-         right to check battery/wifi drops the kiosk window out of full screen and
-         leaves it two-thirds wide on the left, "and a cashier could be stuck with
-         the 2/3 screen for the rest of the day" — the only way back was killing
-         Chromium. Two halves to the fix and they are different halves:
-           · the tablet now launches MAXIMISED, not --kiosk, so GNOME's own bar
-             (battery, wifi, bluetooth) is always visible and nobody needs to
-             reach for that corner at all;
-           · this button is the escape hatch — one tap, no window-manager
-             knowledge, works whatever state the window is in.
-         The standard is the Fullscreen API; we are not inventing a gesture.
-         Touch and non-phone, same gate as the keypad: a laptop has a window
-         manager the person already knows, and a phone browser has its own. -->
-    <script>
-      (function () {
-        function ready(fn) {
-          if (document.readyState !== 'loading') fn();
-          else document.addEventListener('DOMContentLoaded', fn);
-        }
-        ready(function () {
-          var btn = document.getElementById('fs-toggle');
-          if (!btn) return;
-          var touch = (typeof window.posIsTouchDevice === 'function')
-                    ? window.posIsTouchDevice() : (navigator.maxTouchPoints || 0) > 0;
-          var phone = (typeof window.posIsMobileOS === 'function')
-                    ? window.posIsMobileOS() : /Mobi|Android|iPhone|iPod/i.test(navigator.userAgent || '');
-          var el = document.documentElement;
-          var can = !!(el.requestFullscreen || el.webkitRequestFullscreen);
-          if (!touch || phone || !can) return;
-          btn.hidden = false;
-
-          function on() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
-          function paint() {
-            btn.textContent = on() ? '⤡' : '⛶';
-            btn.title = on() ? 'Leave full screen — brings the system bar back'
-                             : 'Full screen';
-            btn.setAttribute('aria-pressed', on() ? 'true' : 'false');
-          }
-          btn.addEventListener('click', function () {
-            try {
-              if (on()) {
-                (document.exitFullscreen || document.webkitExitFullscreen).call(document);
-              } else {
-                var r = (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
-                if (r && r.catch) r.catch(function (e) { console.log('[fs] refused: ' + e); });
-              }
-            } catch (e) { console.log('[fs] ' + e); }
-          });
-          document.addEventListener('fullscreenchange', paint);
-          document.addEventListener('webkitfullscreenchange', paint);
-          paint();
-          console.log('[fs] toggle ready');
-        });
-      })();
-    </script>
-
-    <!-- Inter font (still CDN — falls back to system sans offline; vendor in a later phase) -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-
+         So: a utility on an element WINS, always. If a base class must beat one, that is
+         a deliberate act with its own selector — see `.is-chosen` at the foot of this
+         block. `scripts/prove-utilities-win.js` holds the invariant, measured on the
+         rendered page. Do not move this back below tailwind.css. -->
     <style>
         :root {
             font-family: 'Inter', sans-serif;
@@ -630,6 +485,178 @@
         .is-chosen-teal  { --chosen: #0d9488; }
 
     </style>
+
+    <link rel="stylesheet" href="/static/pos/tailwind.css?v={{ asset_v('pos/tailwind.css') }}">
+
+
+    <!-- Alpine.js for reactive components -->
+    <script defer src="/static/vendor/alpine.min.js"></script>
+
+    <!-- html2canvas: lets the feedback widget grab a screenshot of the current screen -->
+    <script src="/static/vendor/html2canvas.min.js"></script>
+
+    <!-- P1 offline catalog: IndexedDB mirror so the till can scan + price with no network -->
+    <script src="/static/pos/catalog-cache.js"></script>
+
+    <!-- PHASE 2 (Go-Italian) i18n string catalog: EN + IT + DE. Loaded in <head> so
+         POS_STRINGS is a global before the engine (defined below) runs its detection. -->
+    <script src="/static/pos/pos-i18n.js?v={{ asset_v('pos/pos-i18n.js') }}"></script>
+
+    <!-- The keypad Banco draws itself. On the counter tablet NO browser raises the
+         system on-screen keyboard (Chromium AND Firefox, proved on a blank HTML file
+         2026-09-01 — WORKLIST ⑳), so a field marked data-keypad="decimal" or
+         data-keypad="text" gets one we own. Touch devices only; a laptop never sees it. -->
+    <script defer src="/static/pos/pos-keypad.js?v={{ asset_v('pos/pos-keypad.js') }}"></script>
+    <!-- Identity fallbacks, defined BEFORE the deferred script so they exist even if it never
+         arrives. Money and quantity boxes are type="text" now (a number input has no caret for
+         the keypad to place), and their @input handlers call these. If pos-keypad.js 404s, an
+         unpoliced box is recoverable; a TypeError on every keystroke in the CASH RECEIVED field
+         is not. The real versions overwrite these when the deferred script runs. -->
+    <script>
+      window.posMoneyOnly = window.posMoneyOnly || function (v) { return v; };
+      window.posIntOnly   = window.posIntOnly   || function (v) { return v; };
+    </script>
+
+    <!-- HALF A COUNTED DRAWER MUST NOT BE ABLE TO VANISH. Angel, 2026-09-02:
+         "you could be in edit mode and all of a sudden the screen flashes away
+         and you are back at the dashboard — they fill in half the coin counts
+         and BAMM they get thrown out." Counting a till is ten minutes of work
+         that exists nowhere but on that screen until it is submitted.
+
+         A page registers what is at stake; anything that would leave asks first.
+         Our own modal, not confirm() — a browser dialog on a kiosk tablet is a
+         gamble (some are suppressed outright) and LESSON #12 says the question
+         has to appear where the person is looking.
+         Usage:  window.posGuardLeave(function () { return dirty ? 'what is at stake' : ''; }); -->
+    <script>
+      (function () {
+        var probe = null, pending = null;
+        window.posGuardLeave = function (fn) { probe = fn; };
+        function atStake() {
+          if (!probe) return '';
+          try { return probe() || ''; } catch (e) { return ''; }
+        }
+        function box() {
+          var el = document.getElementById('pos-leave-guard');
+          if (el) return el;
+          el = document.createElement('div');
+          el.id = 'pos-leave-guard';
+          el.style.cssText = 'position:fixed;inset:0;z-index:9999;display:none;'
+            + 'background:rgba(15,23,42,.55);align-items:center;justify-content:center;padding:1rem';
+          el.innerHTML =
+            '<div style="background:#fff;border-radius:1rem;max-width:26rem;width:100%;padding:1.25rem;'
+            + 'box-shadow:0 20px 50px rgba(0,0,0,.35);font-family:inherit">'
+            + '<p style="font-size:1.1rem;font-weight:700;color:#0f172a;margin:0 0 .5rem">Leave without saving?</p>'
+            + '<p id="pos-leave-what" style="color:#334155;margin:0 0 1rem;line-height:1.5"></p>'
+            + '<div style="display:flex;gap:.6rem">'
+            + '<button id="pos-leave-stay" style="flex:1;min-height:48px;border-radius:.6rem;border:0;'
+            + 'background:#4f46e5;color:#fff;font:600 1rem inherit;cursor:pointer">Stay and finish</button>'
+            + '<button id="pos-leave-go" style="flex:1;min-height:48px;border-radius:.6rem;'
+            + 'border:1px solid #cbd5e1;background:#fff;color:#b91c1c;font:600 1rem inherit;cursor:pointer">Leave anyway</button>'
+            + '</div></div>';
+          document.body.appendChild(el);
+          el.querySelector('#pos-leave-stay').addEventListener('click', function () {
+            el.style.display = 'none'; pending = null;
+          });
+          el.querySelector('#pos-leave-go').addEventListener('click', function () {
+            var go = pending; pending = null; probe = null;    // they chose; do not ask twice
+            el.style.display = 'none';
+            if (go) window.location.href = go;
+          });
+          return el;
+        }
+        function ask(href, what) {
+          var el = box();
+          el.querySelector('#pos-leave-what').textContent = what;
+          el.style.display = 'flex';
+          pending = href;
+        }
+        // A LINK IS NOT THE ONLY WAY OUT. Shift's own 🏠 button and Closeout's
+        // "back" are window.location.href assignments, which no click handler on
+        // <a> can ever see — and 🏠 is literally the "flashes away and you are
+        // back at the dashboard" path Angel described. Route those through here.
+        window.posGo = function (href) {
+          var what = atStake();
+          if (!what) { window.location.href = href; return; }
+          ask(href, what);
+        };
+        document.addEventListener('click', function (e) {
+          var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+          if (!a) return;
+          var href = a.getAttribute('href') || '';
+          if (!href || href.charAt(0) === '#' || a.target === '_blank') return;
+          if (href.indexOf('javascript:') === 0) return;
+          var what = atStake();
+          if (!what) return;
+          e.preventDefault(); e.stopPropagation();
+          ask(a.href, what);
+        }, true);
+        window.addEventListener('beforeunload', function (e) {
+          if (!atStake()) return;
+          e.preventDefault(); e.returnValue = '';       // reload / close / back
+        });
+      })();
+    </script>
+
+    <!-- FULL SCREEN, AND A WAY BACK. Angel, 2026-09-02: swiping down from the top
+         right to check battery/wifi drops the kiosk window out of full screen and
+         leaves it two-thirds wide on the left, "and a cashier could be stuck with
+         the 2/3 screen for the rest of the day" — the only way back was killing
+         Chromium. Two halves to the fix and they are different halves:
+           · the tablet now launches MAXIMISED, not --kiosk, so GNOME's own bar
+             (battery, wifi, bluetooth) is always visible and nobody needs to
+             reach for that corner at all;
+           · this button is the escape hatch — one tap, no window-manager
+             knowledge, works whatever state the window is in.
+         The standard is the Fullscreen API; we are not inventing a gesture.
+         Touch and non-phone, same gate as the keypad: a laptop has a window
+         manager the person already knows, and a phone browser has its own. -->
+    <script>
+      (function () {
+        function ready(fn) {
+          if (document.readyState !== 'loading') fn();
+          else document.addEventListener('DOMContentLoaded', fn);
+        }
+        ready(function () {
+          var btn = document.getElementById('fs-toggle');
+          if (!btn) return;
+          var touch = (typeof window.posIsTouchDevice === 'function')
+                    ? window.posIsTouchDevice() : (navigator.maxTouchPoints || 0) > 0;
+          var phone = (typeof window.posIsMobileOS === 'function')
+                    ? window.posIsMobileOS() : /Mobi|Android|iPhone|iPod/i.test(navigator.userAgent || '');
+          var el = document.documentElement;
+          var can = !!(el.requestFullscreen || el.webkitRequestFullscreen);
+          if (!touch || phone || !can) return;
+          btn.hidden = false;
+
+          function on() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+          function paint() {
+            btn.textContent = on() ? '⤡' : '⛶';
+            btn.title = on() ? 'Leave full screen — brings the system bar back'
+                             : 'Full screen';
+            btn.setAttribute('aria-pressed', on() ? 'true' : 'false');
+          }
+          btn.addEventListener('click', function () {
+            try {
+              if (on()) {
+                (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+              } else {
+                var r = (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
+                if (r && r.catch) r.catch(function (e) { console.log('[fs] refused: ' + e); });
+              }
+            } catch (e) { console.log('[fs] ' + e); }
+          });
+          document.addEventListener('fullscreenchange', paint);
+          document.addEventListener('webkitfullscreenchange', paint);
+          paint();
+          console.log('[fs] toggle ready');
+        });
+      })();
+    </script>
+
+    <!-- Inter font (still CDN — falls back to system sans offline; vendor in a later phase) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
 
     {% block extra_head %}{% endblock %}
 </head>

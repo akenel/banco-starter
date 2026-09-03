@@ -249,8 +249,55 @@ so it measured the Alpine BINDING and reported the wrong attribute. Corrected to
 `(?<![-:\w])class="`, it found all eleven. A measuring tool that mismeasures quietly is the same
 shape as everything else on this page.
 
-**Still open, unchanged:** the ~190 `font-size` / `padding` collisions. They change how things
-LOOK, not whether they can be read — a look decision for Angel, not a defect.
+~~**Still open:** the ~190 `font-size` / `padding` collisions.~~ **Done — see ⓒ3 below.**
+
+### ⓒ3 ~~199 elements where a base class silently overrules the markup~~ — **FIXED at the source**
+
+Angel: *"lets do the 190 font fixes."* Done — but not one at a time. All of them were one line
+in one file.
+
+**The cause, for the third time in three days.** Banco's `<style>` block sat **after**
+`tailwind.css` in the same `<head>`. Every base class is a single class and so is every utility,
+so on equal specificity the later rule won — and `w-16` on an `.input-field`, `bg-green-600` on a
+`.card`, `text-sm` on a `.btn-secondary` all lost, with nothing in the markup or the head saying
+so. 2026-09-02 it was a 790px quantity box. 2026-09-03 it was a payment tile painted white on
+white. The census that found the tile found 199 in total.
+
+**The fix is the `<style>` block moved above the `<link>`.** That is the only lever that puts these
+rules where they belong — above Tailwind's element resets, below its utilities. `:where()` was
+tried twice and is wrong both times: zero specificity also loses to preflight's `padding:0` and
+`background-color:transparent` on `button` and `input`, and the controls collapse.
+
+**Measured, before and after, on 15 screens at the tablet's real 1440×895 viewport** — 587
+elements carrying a base class:
+
+| | |
+|---|---|
+| changed | **157 of 587** |
+| font-size | 105 — and most got **BIGGER**: `16→18` ×32, `18→24` ×9, `18→20` ×8; `16→14` ×45 is the rest |
+| height | 94 · width 40 · padding 46 |
+| more than 50% wider | **0** |
+| tappable controls that fell below the 44px thumb floor | **10 — all one button** |
+
+That one button was Suppliers' `✏️ Edit` (`text-sm px-3 py-2`), 58px → 38px, ten rows of it. The
+utility was always the author's intent; the FLOOR is the shop's, so `py-2` → `py-3` puts it at
+46px. It was the only tappable control in the entire POS that crossed the line. (`min-h-[44px]`
+was the first attempt — arbitrary values are not in the pre-built `tailwind.css`, so it would have
+been a class that does nothing at all.)
+
+**A finding came free with it:** the login page's `HelixPOS / Artemis Store` — contact-sheet
+finding #5, *"the shop's own name is invisible"* — was the same bug. Its dark background was being
+overridden by a base class; the title is legible now without anyone touching that screen.
+
+**`scripts/prove-utilities-win.js`** — new, 4 checks over **792 class checks on 14 screens**. It
+does NOT read the head: checking the order of two tags would pass on a build where the utility
+lost for some other reason. It reads the class name, looks up what that utility must produce, and
+measures the rendered element. Moved the block back below `tailwind.css` on purpose and watched it
+name 75 elements. It also asserts the thumb floor, so honouring the markup can never quietly
+shrink a control past what a finger can hit again.
+
+All suites green after: `prove-keypad` 80 · 0 · 1 known gap, `prove-chosen-is-visible` 11 · 0,
+`prove-swiss-dates` 18 · 0, `prove-cart-agrees-with-till` 8 sections.
 
 ### ⓒ The rest, ranked — all visible in the batch, none yet fixed
 
@@ -265,7 +312,7 @@ LOOK, not whether they can be read — a look decision for Angel, not a defect.
 4. **The on-screen keyboard buries the search results** (`15-22-12.png`) — typing `cbd` shows
    *"Showing 20 of 366 matches"* and **one and a half rows**. You must dismiss the pad to see what
    you searched for. And **the red chat bubble sits on top of the `n` key.**
-5. **Login page: "HelixPOS / Artemis Store" is white on near-white** (`15-20-33.png`) — the shop's
+5. ~~**Login page: "HelixPOS / Artemis Store" is white on near-white**~~ — **FIXED as a side effect of ⓒ3.** (`15-20-33.png`) — the shop's
    own name is invisible, and so is the footer line under the build stamp.
 6. **The dashboard shows Keycloak role names to the shop owner** (`15-21-01.png`) —
    `default-roles-kc-pos-realm-dev, pos-cashier, pos-admin, pos-manager`. Also the green

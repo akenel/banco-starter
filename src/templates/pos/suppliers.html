@@ -134,7 +134,17 @@
                         </div>
                     </div>
                     <div class="flex items-center gap-2 flex-none" x-show="canManage">
-                        <button @click="openEdit(s)" class="btn-secondary text-sm px-3 py-2" data-i18n="suppliers.edit">✏️ Edit</button>
+                        <!-- min-h-[44px]: `text-sm px-3 py-2` used to be ignored — `.btn-secondary` sat after
+                             tailwind.css and won on source order, so this rendered at the base 58px.
+                             With the cascade corrected on 2026-09-03 the markup finally applies and the
+                             button lands at 38px, under the fat-finger floor this repo already enforces
+                             in prove-keypad (44px). py-2 -> py-3 puts it back at 46px. The utility was
+                             always the author's intent; the FLOOR is the shop's. Measured, not assumed:
+                             10 of these on the page, and across 15 POS screens they were the ONLY
+                             tappable controls that crossed the line when the cascade was corrected.
+                             (`min-h-[44px]` was the first attempt — arbitrary values are not in the
+                             pre-built tailwind.css, so it would have been a class that does nothing.) -->
+                        <button @click="openEdit(s)" class="btn-secondary text-sm px-3 py-3" data-i18n="suppliers.edit">✏️ Edit</button>
                         <button @click="deactivate(s)" class="text-sm px-3 py-2 rounded-lg font-semibold text-red-700 bg-red-50 hover:bg-red-100" data-i18n="suppliers.deactivate">Deactivate</button>
                     </div>
                 </div>
