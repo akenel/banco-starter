@@ -136,9 +136,67 @@ person is asking?):
    decided by the server in the same breath as the price, and the kiosk applies the percentage to
    that. Both are asserted in the proof now.
 
+### ⓒ1 ~~`mm/dd/yyyy` on the 18+ date of birth~~ — **FIXED** for every date a cashier TYPES
+
+**Measured before fixing, because the obvious answer is wrong.** A native `<input type="date">`
+takes its format from the **browser's UI locale**, and nothing on the page can change it — four
+inputs (inherited `lang="en"`, `lang="de-CH"`, `lang="de"`, `lang="fr-CH"`) screenshotted in two
+browser contexts rendered **eight identical boxes**. Setting Chromium's `--lang` would fix Angel's
+tablet and no other device; a Swiss till must read `dd.mm.yyyy` on whatever someone opens it with.
+
+**And the tablet made it worse than a format bug.** This shop's tablet raises no system keyboard —
+that is why `pos-keypad.js` exists — and `type="date"` carries no `data-keypad`. So the ONE field
+where a cashier must enter a birthdate had **no way to type at all**, only a calendar to spin back
+forty years, mislabelled `mm/dd/yyyy`. LESSON #1: ask where the person is STANDING.
+
+So the five DOB fields are Banco's own boxes now — masked text, `data-keypad="decimal"`, and the
+model still holds ISO `yyyy-mm-dd` so nothing downstream changed:
+
+| screen | field |
+|---|---|
+| `checkout.html` | the 18+ age gate — `ageForm.birthdate` |
+| `customer_lookup.html` | sign up a member — `newCustomer.birthdate` |
+| `customer_lookup.html` | edit a member — `editForm.birthdate` |
+| `settings.html` | new staff card — `newEmp.date_of_birth` |
+| `settings.html` | edit staff card — `e._card.date_of_birth` |
+
+Helpers live beside `posMoneyOnly`/`posIntOnly` in `pos-keypad.js` (above the touch gate, so a
+laptop gets them too): `posDateMask` · `posDateToISO` · `posISOToDate`. A pasted ISO date is
+caught before punctuation is stripped, and `31.02.1990` / `29.02.2023` / `31.12.1899` are refused
+rather than stored — a regex that only counts digits would hand the age gate a birthday nobody has.
+Placeholder is a new `common.date_placeholder` in all four languages (`TT.MM.JJJJ` · `dd.mm.yyyy`
+· `jj.mm.aaaa` · `gg.mm.aaaa`).
+
+**`scripts/prove-swiss-dates.js`** — new, 18 checks. The one that matters: it types `03092000`
+into the real box and asserts the record reads **`2000-09-03`** — September, the month that was
+typed. Read the other way it is 9 March, and that is the only input where the two orders differ.
+Reverted `checkout.html` on purpose and watched it name the field.
+
+**Two things the work turned up, both worth more than the fix:**
+
+1. **My own harness passed on a 404.** Section B asked "does this page have any native date
+   input?" against `/pos/customer_lookup` — which is not a route (it is `customer-lookup`). The
+   page came back 404, contained no inputs of any kind, and the check reported a clean pass. It
+   now asserts the status AND a count of Banco boxes each page must MEET. LESSON #5, in a file
+   whose header comment was about exactly this, within the hour.
+2. **`prove-keypad.js` was ENFORCING the belief that caused the bug.** Its section B read:
+   *"A date belongs to the BROWSER. Chromium draws a tappable calendar and needs no keyboard of
+   any kind, so a pad there would replace a working widget with a worse one."* Both halves false
+   on the machine the cashier stands at — and the check made the wrong thing mandatory. It now
+   asserts the absence of the native input instead. LESSON #3: a remembered verdict is a
+   hypothesis with a timestamp on it.
+
+**Deliberately NOT converted — the six report date-range filters** (`transactions.html` ×2,
+`product_sales.html` ×2, `audit.html` ×2). Different job: they are picked from a calendar rather
+than typed, they are driven by preset buttons ("last 7 days") that write ISO into the model, and a
+wrong-order date there shows an obviously wrong report instead of recording a wrong age. They still
+render in the browser's locale and should still be dealt with — but as their own piece, with the
+presets in mind. **Also untouched: `isotto/`, `camper/`, `backlog/`** carry their own `type="date"`
+fields; different apps, not this shop's till.
+
 ### ⓒ The rest, ranked — all visible in the batch, none yet fixed
 
-1. **`mm/dd/yyyy`** — the 18+ gate's Date of birth is a native `<input type="date">` rendering in
+1. ~~**`mm/dd/yyyy`**~~ — **FIXED, see ⓒ1 above.** The 18+ gate's Date of birth was a native `<input type="date">` rendering in
    **US order** on a Swiss till (`15-23-26.png`). A cashier typing 03.09.2000 enters 9 March.
    Age-gate input in the wrong date order is a compliance defect, not a cosmetic one.
 2. **The card payment tile has no label** (`15-23-23.png`) — `Cash · [blank] · Debit · TWINT`.

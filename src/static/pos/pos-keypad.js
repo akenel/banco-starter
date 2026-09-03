@@ -54,8 +54,61 @@
       .replace(/^(\d{5})\d+/, '$1')
       .replace(/^0+(\d)/, '$1');          // no 007 crates
   }
+  /* ── SWISS DATES, AND WHY THE NATIVE WIDGET COULD NOT DO IT ─────────────────
+     2026-09-03, on the tablet: the 18+ age gate's Date of birth field rendered
+     `mm/dd/yyyy`. On a Swiss till. A cashier under a queue types 03.09.2000 and
+     records 9 March — an age-gate field in the wrong order is a compliance
+     defect, not a cosmetic one.
+
+     MEASURED before fixing, because the obvious answer is wrong: a native
+     `<input type="date">` takes its format from the BROWSER'S UI LOCALE, and
+     nothing on the page can change it. Screenshotted four inputs — inherited
+     `lang="en"`, `lang="de-CH"`, `lang="de"`, `lang="fr-CH"` — in two browser
+     contexts, and all eight rendered IDENTICALLY. The `lang` attribute does
+     nothing here. Setting Chromium's --lang would fix Angel's tablet and no
+     other device; a Swiss till must read dd.mm.yyyy on whatever someone opens
+     it with.
+
+     AND the tablet made it worse: this shop's tablet raises no system keyboard
+     (that is why this file exists), and `type="date"` carries no data-keypad —
+     so the ONE field where a cashier must type a birthdate had no way to type
+     at all, only a calendar to spin back forty years. As a text box with
+     data-keypad="decimal" it gets Banco's own pad.
+
+     The MODEL still holds ISO `yyyy-mm-dd`, so nothing downstream changes. */
+  function dateMask(v) {
+    var s = String(v == null ? '' : v);
+    // A pasted ISO date is a real thing a person does (copied out of a record).
+    // Catch it BEFORE stripping punctuation, or 1990-12-31 masks to "19.90.1231".
+    var iso = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (iso) return iso[3] + '.' + iso[2] + '.' + iso[1];
+    var d = s.replace(/[^0-9]/g, '').slice(0, 8);
+    if (d.length <= 2) return d;
+    if (d.length <= 4) return d.slice(0, 2) + '.' + d.slice(2);
+    return d.slice(0, 2) + '.' + d.slice(2, 4) + '.' + d.slice(4);
+  }
+  // dd.mm.yyyy -> yyyy-mm-dd, or '' if it is not a REAL day. The round-trip through
+  // Date is what rejects 31.02.1990 and 00.00.0000 — a regex that only counts digits
+  // would hand the server a birthdate nobody has, and the age gate would believe it.
+  function dateToISO(v) {
+    var m = String(v == null ? '' : v).match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+    if (!m) return '';
+    var dd = +m[1], mm = +m[2], yy = +m[3];
+    if (mm < 1 || mm > 12 || dd < 1 || dd > 31 || yy < 1900 || yy > 2200) return '';
+    var d = new Date(Date.UTC(yy, mm - 1, dd));
+    if (d.getUTCFullYear() !== yy || d.getUTCMonth() !== mm - 1 || d.getUTCDate() !== dd) return '';
+    return m[3] + '-' + m[2] + '-' + m[1];
+  }
+  function isoToDate(v) {
+    var m = String(v == null ? '' : v).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    return m ? (m[3] + '.' + m[2] + '.' + m[1]) : '';
+  }
+
   window.posMoneyOnly = moneyOnly;
   window.posIntOnly   = intOnly;
+  window.posDateMask  = dateMask;
+  window.posDateToISO = dateToISO;
+  window.posISOToDate = isoToDate;
 
   // A touchscreen is the right axis HERE — this is a layout decision, which is
   // exactly what posIsTouchDevice() says it is for. (It is NOT a proxy for "is a

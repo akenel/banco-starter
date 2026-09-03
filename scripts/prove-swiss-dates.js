@@ -1,0 +1,165 @@
+// Every date a person TYPES into Banco is dd.mm.yyyy, and the value recorded is the day
+// they meant.
+//
+// WHY THIS FILE EXISTS. 2026-09-03, Angel photographed the tablet mid-sale: the 18+ age
+// gate's Date of birth field read `mm/dd/yyyy`. On a Swiss till. A cashier under a queue
+// types 03.09.2000 and records 9 March — an age-gate field in the wrong order is a
+// compliance defect, not a cosmetic one, and NOTHING in the DOM says it is wrong. The
+// element is `<input type="date">`; the value it holds is ISO either way. Only a picture,
+// or this, can tell.
+//
+// MEASURED FIRST (scratchpad, same day): a native date input takes its format from the
+// BROWSER'S UI LOCALE. Four inputs — inherited lang="en", lang="de-CH", lang="de",
+// lang="fr-CH" — screenshotted in two browser contexts rendered eight identical boxes.
+// The `lang` attribute does nothing. So these fields are Banco's own text boxes now, and
+// this proves the whole round trip: what is typed, what is shown, what is stored.
+//
+// NOTHING IS EVER SAVED. The age gate is opened, the box is typed into, and the run ends.
+// Never press Complete on a shop's books.
+const { chromium } = require('playwright');
+
+// Each page names how many Banco date boxes it MUST have. Without that number the
+// "no native date input" check below passes on a 404, an error page, or a template that
+// lost the field entirely — which it did on the first run of this file: /pos/customer_lookup
+// (underscore) is not a route, the page came back 404, and the check reported a clean pass
+// on a screen that did not exist. LESSON #5, in my own harness, within an hour of writing
+// the comment about it. A count the page must MEET is what makes the absence meaningful.
+const PAGES = [
+  { url: '/pos/checkout',        label: 'the 18+ age gate',  boxes: 1 },
+  { url: '/pos/customer-lookup', label: 'sign up a member',  boxes: 2 },
+  { url: '/pos/settings',        label: 'staff card',        boxes: 2 },
+];
+
+(async () => {
+  const b = await chromium.launch();
+  // The tablet's real viewport — 2160x1440 at devicePixelRatio 1.5, measured off Angel's
+  // own screenshot by the w-12 stepper rendering at 72 device px. The proofs used to run
+  // at 1280x800, which is a screen nobody in this shop is standing in front of.
+  const ctx = await b.newContext({ viewport: { width: 1440, height: 895 } });
+  const p = await ctx.newPage();
+  let pass = 0, fail = 0;
+  const check = (ok, what, detail) => {
+    if (ok) { pass++; console.log('  ✅ ' + what); }
+    else { fail++; console.log('  ❌ ' + what + (detail ? '\n       ' + detail : '')); }
+  };
+
+  await p.goto('http://localhost:3000/pos', { waitUntil: 'domcontentloaded' });
+  if (await p.$('button:has-text("Login")')) { await p.click('button:has-text("Login")'); await p.waitForTimeout(3500); }
+  if (await p.$('#username')) {
+    await p.fill('#username', 'ralph'); await p.fill('#password', 'ralph');
+    await p.click('#kc-login, input[type=submit]'); await p.waitForURL('**/pos/**', { timeout: 20000 });
+  }
+
+  // ── A · THE HELPERS, against the days that break a naive parser ───────────────────────
+  // A regex that only counts digits accepts 31.02.1990 and hands the age gate a birthday
+  // nobody has. These run in the PAGE, against the shipped file — not a copy pasted here.
+  console.log('\n── A · the mask and the parser ──');
+  const helpers = await p.evaluate(() => {
+    const out = { missing: [] };
+    for (const fn of ['posDateMask', 'posDateToISO', 'posISOToDate'])
+      if (typeof window[fn] !== 'function') out.missing.push(fn);
+    if (out.missing.length) return out;
+    out.mask = [['3', '3'], ['31', '31'], ['311', '31.1'], ['3112', '31.12'],
+                ['31121990', '31.12.1990'], ['311219901', '31.12.1990'],
+                ['1990-12-31', '31.12.1990'], ['31.12.1990', '31.12.1990']]
+      .map(([i, w]) => [i, w, window.posDateMask(i)]);
+    out.iso = [['31.12.1990', '1990-12-31'], ['01.01.2000', '2000-01-01'],
+               ['29.02.2024', '2024-02-29'], ['29.02.2023', ''], ['31.02.1990', ''],
+               ['00.00.0000', ''], ['3.12.1990', ''], ['31.12.1899', '']]
+      .map(([i, w]) => [i, w, window.posDateToISO(i)]);
+    return out;
+  });
+  check(!helpers.missing.length, 'the date helpers are on the page',
+        'missing: ' + (helpers.missing || []).join(', ') + ' — pos-keypad.js did not load');
+  if (!helpers.missing.length) {
+    const mbad = helpers.mask.filter(([, w, g]) => w !== g);
+    check(!mbad.length, `the mask writes dd.mm.yyyy as you type (${helpers.mask.length} cases)`,
+          mbad.map(([i, w, g]) => `"${i}" → "${g}", expected "${w}"`).join('\n       '));
+    const ibad = helpers.iso.filter(([, w, g]) => w !== g);
+    check(!ibad.length, `a day that does not exist is refused, not stored (${helpers.iso.length} cases)`,
+          ibad.map(([i, w, g]) => `"${i}" → "${JSON.stringify(g)}", expected ${JSON.stringify(w)}`).join('\n       '));
+  }
+
+  // ── B · NO NATIVE DATE INPUT SURVIVES ON A SCREEN A CASHIER TYPES INTO ────────────────
+  // The thing being prevented is a REGRESSION: `type="date"` is the natural thing to write,
+  // it looks right in the source, and it is wrong on every Swiss device whose browser is
+  // not set to a Swiss locale. So the assertion is about the type, not about one field.
+  console.log('\n── B · no field falls back to the browser\'s locale ──');
+  // Read the SERVED HTML, not the live DOM. Half of these fields sit inside a modal or an
+  // x-for that has no rows yet, so a DOM sweep finds them only when something else has
+  // already gone right — and reports a clean page when the field was deleted. The template
+  // is what this section is about.
+  for (const pg of PAGES) {
+    const html = await p.evaluate(async (u) => {
+      const r = await fetch(u, { credentials: 'same-origin' });
+      return { status: r.status, body: await r.text() };
+    }, pg.url);
+    check(html.status === 200, `${pg.url} loads`,
+          'status ' + html.status + ' — every check below would pass on an empty page');
+    const ours = (html.body.match(/data-i18n-placeholder="common\.date_placeholder"/g) || []).length;
+    check(ours === pg.boxes, `${pg.label} (${pg.url}) has its ${pg.boxes} Banco date box(es)`,
+          'found ' + ours + ' — a field that vanished cannot be caught by looking for what is absent');
+    const natives = (html.body.match(/<input[^>]*type="date"/g) || []);
+    check(natives.length === 0, `${pg.label} (${pg.url}) has no native date input`,
+          'found ' + natives.length + ': ' + natives.join(' · ').slice(0, 300)
+          + ' — these render in the BROWSER\'s locale, not the shop\'s');
+  }
+
+  // ── C · TYPE A SWISS DATE INTO THE REAL BOX AND SEE WHAT GETS RECORDED ────────────────
+  // The whole point. 03.09.2000 is the date that tells the two orders apart: read as
+  // dd.mm it is 3 September, read as mm/dd it is 9 March. Everything else could pass
+  // while still being wrong.
+  console.log('\n── C · 03.09.2000 typed at the till is 3 September, not 9 March ──');
+  await p.goto('http://localhost:3000/pos/customer-lookup', { waitUntil: 'domcontentloaded' });
+  await p.waitForTimeout(1800);
+  // Open the sign-up form through its own button — the panel is x-show, so the field is in
+  // the DOM either way, but a box the cashier cannot reach is not a fixed box.
+  const opener = p.locator('[data-i18n="customer.add_new_crack"]').first();
+  check(await opener.count() > 0, 'the sign-up form has a button on it');
+  if (await opener.count()) { await opener.click(); await p.waitForTimeout(700); }
+  const box2 = p.locator('input[data-i18n-placeholder="common.date_placeholder"]:visible').first();
+  check(await box2.count() > 0, 'the sign-up form has a Banco date box',
+        'no input carrying data-i18n-placeholder="common.date_placeholder" on this page');
+  if (await box2.count()) {
+    // Type DIGITS, the way a person does — the dots are the mask's job, and if the mask is
+    // not wired the typed string arrives as "03092000" and nothing here will accept it.
+    await box2.click({ force: true });
+    await box2.type('03092000', { delay: 40 });
+    await p.waitForTimeout(400);
+    const shown = await box2.inputValue();
+    check(shown === '03.09.2000', 'typing 03092000 shows 03.09.2000',
+          'the box shows "' + shown + '"');
+    const stored = await p.evaluate(() => {
+      const d = Alpine.$data(document.querySelector('[x-data]'));
+      return (d.newCustomer && d.newCustomer.birthdate) || null;
+    });
+    check(stored === '2000-09-03', 'and records 2000-09-03 — September, the month that was typed',
+          'recorded "' + stored + '"' + (stored === '2000-03-09' ? '  (MONTH AND DAY ARE SWAPPED)' : ''));
+
+    // A REFUSAL MUST BE A REFUSAL. 31.02 is a day that does not exist; the box may show
+    // what was typed, but nothing may reach the record.
+    await box2.fill('');
+    await box2.type('31021990', { delay: 30 });
+    await p.waitForTimeout(300);
+    const bogus = await p.evaluate(() => {
+      const d = Alpine.$data(document.querySelector('[x-data]'));
+      return (d.newCustomer && d.newCustomer.birthdate) || '';
+    });
+    check(bogus === '', '31.02.1990 is not recorded as anything',
+          'recorded "' + bogus + '" for a day that does not exist');
+  }
+
+  // ── D · THE PLACEHOLDER SAYS THE ORDER, IN THE SHOP'S LANGUAGE ────────────────────────
+  // "is it rendered" is not the question — a placeholder nobody can read is the same as no
+  // placeholder. Read what the box actually shows, after i18n has run.
+  console.log('\n── D · the box says what order it wants ──');
+  const ph = await box2.count() ? await box2.getAttribute('placeholder') : null;
+  check(/^(TT\.MM\.JJJJ|dd\.mm\.yyyy|jj\.mm\.aaaa|gg\.mm\.aaaa)$/.test(ph || ''),
+        `the placeholder spells out the order ("${ph}")`,
+        'a date box that does not say its order is a guess the cashier has to make');
+
+  console.log('\n==========================================');
+  console.log(`  ${pass} passed · ${fail} failed`);
+  await b.close();
+  process.exit(fail ? 1 : 0);
+})();

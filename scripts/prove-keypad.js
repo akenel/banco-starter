@@ -197,15 +197,26 @@ async function main() {
       check(offenders.length === 0, `${s} — scanner fields left alone`,
             offenders.length ? 'WIRED BY MISTAKE: ' + offenders.join(', ') : 'none wired');
 
-      // A date belongs to the BROWSER. Chromium draws a tappable calendar and needs
-      // no keyboard of any kind, so a pad there would replace a working widget with
-      // a worse one. There are 12 in the POS; the one that matters is
-      // checkout.html:501, ageForm.birthdate — the 18+ date of birth, which is a
-      // compliance record, not a preference.
+      // ── THIS CHECK USED TO SAY THE OPPOSITE, AND IT WAS WRONG ──────────────────
+      // It read: "A date belongs to the BROWSER. Chromium draws a tappable calendar
+      // and needs no keyboard of any kind, so a pad there would replace a working
+      // widget with a worse one." Both halves were false on the machine the cashier
+      // stands at, and the check enforced the false belief.
+      //
+      // 2026-09-03, from a photograph of the tablet: the 18+ date of birth rendered
+      // `mm/dd/yyyy`. A native date input takes its format from the BROWSER'S UI
+      // LOCALE — measured, four `lang` variants across two contexts, eight identical
+      // boxes — so no page can make it Swiss. And the "working widget" is a calendar
+      // a cashier must spin back forty years, on a tablet that raises no keyboard,
+      // which is the whole reason this file exists.
+      //
+      // So a date on a cashier screen is a Banco text box with a pad, and what has
+      // to be enforced is the ABSENCE of the native one. LESSON #3: a remembered
+      // verdict is a hypothesis with a timestamp on it.
       const dates = await p.evaluate(() =>
-        [...document.querySelectorAll('input[type="date"][data-keypad]')]
+        [...document.querySelectorAll('input[type="date"]')]
           .map(el => el.getAttribute('x-model') || el.id || '?'));
-      check(dates.length === 0, `${s} — dates left to the browser's calendar`,
+      check(dates.length === 0, `${s} — no native date input (they render in the BROWSER's locale)`,
             dates.length ? 'WIRED BY MISTAKE: ' + dates.join(', ') : 'none wired');
     }
 

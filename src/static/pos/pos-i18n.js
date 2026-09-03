@@ -55,6 +55,7 @@ window.POS_STRINGS = {
     },
     "common": {
       "cancel": "Cancel",
+      "date_placeholder": "dd.mm.yyyy",
       "loading": "Loading…",
       "edit": "Edit",
       "error": "Error"
@@ -2171,6 +2172,7 @@ window.POS_STRINGS = {
     },
     "common": {
       "cancel": "Annuler",
+      "date_placeholder": "jj.mm.aaaa",
       "loading": "Chargement…",
       "edit": "Modifier",
       "error": "Erreur"
@@ -4297,6 +4299,7 @@ window.POS_STRINGS = {
     },
     "common": {
       "cancel": "Annulla",
+      "date_placeholder": "gg.mm.aaaa",
       "loading": "Caricamento…",
       "edit": "Modifica",
       "error": "Errore"
@@ -6413,6 +6416,7 @@ window.POS_STRINGS = {
     },
     "common": {
       "cancel": "Abbrechen",
+      "date_placeholder": "TT.MM.JJJJ",
       "loading": "Wird geladen…",
       "edit": "Bearbeiten",
       "error": "Fehler"
