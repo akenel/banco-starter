@@ -584,6 +584,51 @@
         @media print {
             .app-bottomnav, .helix-status-bar, .lpfb-btn { display: none !important; }
         }
+        /* ── A CONTROL THAT IS CHOSEN — and why it needs its own class ──────────────
+           `.card` and `.btn-secondary` are single-class rules sitting AFTER
+           tailwind.css in this same <head>. On equal specificity SOURCE ORDER decides,
+           so `bg-green-600` in an Alpine :class binding LOSES to
+           `.card { background-color:#fff }` — while `text-white`, which `.card` does not
+           declare, wins. White text on a white card.
+
+           2026-09-03, from a photograph of the tablet: the SELECTED payment tile showed
+           a card emoji, a green border, and NO LABEL. "Visa/MC" was in the markup, was
+           rendered, was correct — and was invisible, while the three unselected tiles
+           beside it read perfectly. Nothing in the DOM was wrong.
+
+           A census of the pattern found EIGHT such controls, and the payment tile was
+           not the worst of them: the dine-in / takeaway pair is the VAT RATE selector,
+           8.1% against 2.6%, and its "✓ SELECTED" line went white-on-white too. On the
+           Order Book the two Reason buttons use `.btn-secondary`, which declares BOTH
+           background and colour — so the chosen one lost both and looked exactly like
+           the one beside it.
+
+           Declared LAST IN THIS BLOCK, after every base class it has to beat — the first
+           cut of this fix put it directly above `.card`, which is the one place it could
+           not work, and the proof below showed a 1.0:1 ratio on the "fixed" build. Given
+           a variable so
+           a screen can pick its own colour without a new specificity fight. Use this
+           rather than a raw `bg-*` in a binding on any element that also carries a base
+           class. `scripts/prove-chosen-is-visible.js` clicks each of these controls and
+           measures the contrast of the text against what is actually painted behind it —
+           because "the label is in the DOM" is not the question a cashier is asking.
+           LESSON #9: the .input-field width sweep on 2026-09-02 was this same bug, and
+           its siblings were not checked. */
+        .is-chosen {
+            background-color: var(--chosen, #4f46e5);
+            background-image: none;
+            color: #fff;
+        }
+        /* `.btn-secondary:hover` sets `background-color:#f9fafb` at specificity (0,2,0),
+           which beats a bare `.is-chosen` at (0,1,0) — so on a LAPTOP, with the mouse
+           resting on the button it just clicked, the chosen Order Book reason went white
+           on near-white again. The touchscreen never showed it; the proof did, on the
+           build that had just been declared fixed. A pseudo-class is a specificity bump
+           you do not see in the class list. */
+        .is-chosen:hover { background-color: var(--chosen, #4f46e5); filter: brightness(.93); }
+        .is-chosen-green { --chosen: #16a34a; }
+        .is-chosen-teal  { --chosen: #0d9488; }
+
     </style>
 
     {% block extra_head %}{% endblock %}

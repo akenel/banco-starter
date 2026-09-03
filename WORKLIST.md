@@ -194,12 +194,70 @@ render in the browser's locale and should still be dealt with — but as their o
 presets in mind. **Also untouched: `isotto/`, `camper/`, `backlog/`** carry their own `type="date"`
 fields; different apps, not this shop's till.
 
+### ⓒ2 ~~The card payment tile has no label~~ — **FIXED**, and it was eight controls, not one
+
+The label was never missing. `<p class="font-semibold">Visa/MC</p>` is right there in the markup,
+rendered, correct — and painted **white on white**.
+
+`.card { background-color:#fff }` is declared in `base.html`'s `<style>` **after** `tailwind.css`
+is linked in the same `<head>`. Both are single-class rules, so on equal specificity source order
+decides: the binding's `bg-green-600` LOST, and `text-white` — which `.card` does not declare —
+WON. **This is the `.input-field` bug of 2026-09-02 in a different class, and I did not check the
+siblings.** LESSON #9, by the letter.
+
+**A census of the pattern found 199 elements** where a base class silently overrides a utility.
+Most are `font-size` and `padding` — the look decision already logged and still Angel's call. The
+subset that HIDES DATA is the paint properties, and there the census found **eight controls whose
+chosen state is invisible or indistinguishable**:
+
+| where | control | what the cashier saw |
+|---|---|---|
+| `checkout.html` ×4 | Cash · Visa/MC · Debit · TWINT | the chosen tile: emoji, green border, no label |
+| `checkout.html` ×2 | **Dine in / Takeaway — the VAT RATE selector, 8.1% vs 2.6%** | the chosen one, and its "✓ SELECTED" line, white on white |
+| `reorder.html` ×2 | Restock / Customer order | `.btn-secondary` declares BOTH background and colour, so the chosen one lost both and looked exactly like the other |
+
+The payment tile Angel photographed was not the worst of them. Picking a VAT rate you cannot see
+you have picked is a tax field.
+
+**The fix:** a `.is-chosen` class declared **last** in the style block, after every base class it
+has to beat, taking its colour from a `--chosen` variable so a screen can pick its own without a
+new specificity fight. The bindings now say `is-chosen is-chosen-green` instead of a raw `bg-*`.
+
+**`scripts/prove-chosen-is-visible.js`** — new, 11 checks. It CLICKS each control and measures the
+**WCAG contrast of the label against the background actually painted behind it**, walking up
+through transparent ancestors the way the screen composites. Floor 3.0:1. Every DOM assertion
+passes on this bug — the element exists, has text, is `visible`, and its class list contains both
+`bg-green-600` and `text-white`. Only a person looking at it disagrees, and now only this.
+
+**Three faults it caught in the "fixed" build, in order:**
+
+1. **I declared `.is-chosen` directly above `.card`** — the one position where it cannot work. The
+   comment I had just written said "declared LAST, after every base class it has to beat". The
+   proof reported 1.0:1 on the build I had called fixed.
+2. **The harness set up the basket on the wrong page.** `/pos/checkout` with an empty cart bounces
+   to `/pos/scan`, so `sessionStorage` was written after the redirect and the reload came back to
+   a page with no payment tiles — four checks reporting "the control is on the screen: no". A
+   setup step that runs after the redirect it exists to prevent is not a setup step.
+3. **`.btn-secondary:hover` beat it on a laptop.** A pseudo-class is a specificity bump that does
+   not appear in the class list: `(0,2,0)` against `(0,1,0)`. With the mouse resting on the button
+   it had just clicked, the Order Book's chosen reason went white on near-white again. The
+   touchscreen would never have shown it.
+
+**And a fault in the census tool itself, worth keeping:** the first scan found only 2 collisions
+because its `\bclass="` regex was matching `:class="` — a word boundary sits between `:` and `c`,
+so it measured the Alpine BINDING and reported the wrong attribute. Corrected to
+`(?<![-:\w])class="`, it found all eleven. A measuring tool that mismeasures quietly is the same
+shape as everything else on this page.
+
+**Still open, unchanged:** the ~190 `font-size` / `padding` collisions. They change how things
+LOOK, not whether they can be read — a look decision for Angel, not a defect.
+
 ### ⓒ The rest, ranked — all visible in the batch, none yet fixed
 
 1. ~~**`mm/dd/yyyy`**~~ — **FIXED, see ⓒ1 above.** The 18+ gate's Date of birth was a native `<input type="date">` rendering in
    **US order** on a Swiss till (`15-23-26.png`). A cashier typing 03.09.2000 enters 9 March.
    Age-gate input in the wrong date order is a compliance defect, not a cosmetic one.
-2. **The card payment tile has no label** (`15-23-23.png`) — `Cash · [blank] · Debit · TWINT`.
+2. ~~**The card payment tile has no label**~~ — **FIXED, see ⓒ2 above.** It was eight controls, not one. (`15-23-23.png`) — `Cash · [blank] · Debit · TWINT`.
    It is the one that was *selected*, and the only one a cashier cannot name.
 3. **Total + Checkout are clipped by the bottom tab bar at two cart lines** (`15-22-23.png`) —
    `TOTAL: CHF 10.9…` cut through the middle. The cart column grows under the fixed nav.

@@ -139,7 +139,7 @@
                 <h2 class="text-xl font-semibold text-gray-900 mb-4">🍽️ <span data-i18n="checkout.service">Service</span></h2>
                 <div class="grid grid-cols-2 gap-4">
                     <button @click="setConsumption('dine_in')"
-                        :class="consumption === 'dine_in' ? 'bg-indigo-600 text-white border-4 border-indigo-700 shadow-lg scale-[1.02]' : 'bg-white text-gray-800 border-2 border-gray-300'"
+                        :class="consumption === 'dine_in' ? 'is-chosen border-4 border-indigo-700 shadow-lg scale-[1.02]' : 'bg-white text-gray-800 border-2 border-gray-300'"
                         class="card py-5 text-center cursor-pointer hover:shadow-lg transition">
                         <span class="text-3xl mb-1 block">🍽️</span>
                         <p class="font-bold text-lg" data-i18n="checkout.dine_in">Dine in</p>
@@ -147,7 +147,7 @@
                         <p class="text-xs font-bold mt-1" x-show="consumption === 'dine_in'">✓ <span data-i18n="checkout.selected">SELECTED</span></p>
                     </button>
                     <button @click="setConsumption('takeaway')"
-                        :class="consumption === 'takeaway' ? 'bg-teal-600 text-white border-4 border-teal-700 shadow-lg scale-[1.02]' : 'bg-white text-gray-800 border-2 border-gray-300'"
+                        :class="consumption === 'takeaway' ? 'is-chosen is-chosen-teal border-4 border-teal-700 shadow-lg scale-[1.02]' : 'bg-white text-gray-800 border-2 border-gray-300'"
                         class="card py-5 text-center cursor-pointer hover:shadow-lg transition">
                         <span class="text-3xl mb-1 block">🥡</span>
                         <p class="font-bold text-lg" data-i18n="checkout.takeaway">Takeaway</p>
@@ -272,28 +272,28 @@
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <button
                         @click="selectPayment('cash')"
-                        :class="paymentMethod === 'cash' ? 'bg-green-600 text-white border-4 border-green-700 shadow-lg' : 'bg-white text-gray-800 border-2 border-gray-300'"
+                        :class="paymentMethod === 'cash' ? 'is-chosen is-chosen-green border-4 border-green-700 shadow-lg' : 'bg-white text-gray-800 border-2 border-gray-300'"
                         class="card py-6 text-center cursor-pointer hover:shadow-lg transition">
                         <span class="text-4xl mb-2 block">💵</span>
                         <p class="font-semibold" data-i18n="cash.cash">Cash</p>
                     </button>
                     <button
                         @click="selectPayment('visa')"
-                        :class="paymentMethod === 'visa' ? 'bg-green-600 text-white border-4 border-green-700 shadow-lg' : 'bg-white text-gray-800 border-2 border-gray-300'"
+                        :class="paymentMethod === 'visa' ? 'is-chosen is-chosen-green border-4 border-green-700 shadow-lg' : 'bg-white text-gray-800 border-2 border-gray-300'"
                         class="card py-6 text-center cursor-pointer hover:shadow-lg transition">
                         <span class="text-4xl mb-2 block">💳</span>
                         <p class="font-semibold">Visa/MC</p>
                     </button>
                     <button
                         @click="selectPayment('debit')"
-                        :class="paymentMethod === 'debit' ? 'bg-green-600 text-white border-4 border-green-700 shadow-lg' : 'bg-white text-gray-800 border-2 border-gray-300'"
+                        :class="paymentMethod === 'debit' ? 'is-chosen is-chosen-green border-4 border-green-700 shadow-lg' : 'bg-white text-gray-800 border-2 border-gray-300'"
                         class="card py-6 text-center cursor-pointer hover:shadow-lg transition">
                         <span class="text-4xl mb-2 block">🏦</span>
                         <p class="font-semibold" data-i18n="cash.debit">Debit</p>
                     </button>
                     <button
                         @click="selectPayment('twint')"
-                        :class="paymentMethod === 'twint' ? 'bg-green-600 text-white border-4 border-green-700 shadow-lg' : 'bg-white text-gray-800 border-2 border-gray-300'"
+                        :class="paymentMethod === 'twint' ? 'is-chosen is-chosen-green border-4 border-green-700 shadow-lg' : 'bg-white text-gray-800 border-2 border-gray-300'"
                         class="card py-6 text-center cursor-pointer hover:shadow-lg transition">
                         <span class="text-4xl mb-2 block">📱</span>
                         <p class="font-semibold">TWINT</p>
