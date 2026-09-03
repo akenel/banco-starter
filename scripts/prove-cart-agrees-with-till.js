@@ -594,5 +594,183 @@ print(json.dumps(str(tier_line_total([{"min_qty":3,"unit_price":"10.00"}], Decim
   }
 
 
-  await b.close(); process.exit((bad + mbad + hbad + rbad + tbad + vbad) ? 1 : 0);
+
+  // ── THE GUEST'S OWN BASKET — the screen where the customer decides to buy ─────────────
+  // The kiosk product page ADVERTISES the ladder ("3× CHF 3.33 −17%", the p.tiers block) and
+  // then, until 2026-09-03, its basket summed `price × qty` in JavaScript and quoted the guest
+  // the full undiscounted price for exactly that pack. Found by checking the siblings after the
+  // checkout VAT bug — LESSON #9, one bad total means look at the others.
+  //
+  // Two screens up this suite already covers the BOARD and the RING-OUT. Neither could see this
+  // one: both read the server's payload, and this number never came from the server at all.
+  // A harness cannot see what it never constructs (LESSON #6) — so this drives the real kiosk,
+  // taps the real + button, and reads the number the customer reads.
+  //
+  // The kiosk is PUBLIC — no login, no token. The basket writes nothing until "Send to counter",
+  // which is never pressed here.
+  let kbad = 0, kn = 0;
+  try {
+    const kkit = await p.evaluate(async () => {
+      const tok = sessionStorage.getItem('pos_token') || localStorage.getItem('pos_token');
+      const H = { 'Authorization': 'Bearer ' + tok, 'Content-Type': 'application/json' };
+      const st = Date.now();
+      try {
+        const found = await (await fetch('/api/v1/pos/search?q=ZZPROBE%20kiosk&limit=50', { headers: H })).json();
+        for (const old of (found.items || [])) {
+          await fetch('/api/v1/pos/products/' + old.id, { method: 'PUT', headers: H,
+            body: JSON.stringify({ name: old.name, price: String(old.price || '1.00'),
+                                   is_active: false, product_class: 'standard' }) }).catch(() => {});
+        }
+      } catch (e) { /* nothing to sweep */ }
+      // A REAL in-store EAN-13, check digit and all. The first attempt at this used
+      // '2' + a timestamp and the barcode guard refused it — correctly, and loudly:
+      // "fails its own check digit, which almost always means a misread". A probe that
+      // needs `allow_nonstandard` to plant its own subject is a probe testing a path no
+      // scanner takes, so compute the digit instead of overriding the guard.
+      const ean13 = (twelve) => {
+        let sum = 0;
+        for (let i = 0; i < 12; i++) sum += Number(twelve[i]) * (i % 2 ? 3 : 1);
+        return twelve + String((10 - (sum % 10)) % 10);
+      };
+      const bc = ean13(('2' + String(st)).slice(0, 12).padEnd(12, '0'));
+      // A ladder whose deal price is NOT a round multiple of the flat price, so a basket
+      // priced the wrong way cannot coincidentally land on the right number.
+      const prod = await (await fetch('/api/v1/pos/products?allow_duplicate=true', { method: 'POST', headers: H,
+        body: JSON.stringify({ name: 'ZZPROBE kiosk deal ' + st, sku: 'ZZPROBE-KD-' + st, barcode: bc,
+          price: '4.00', tier_mode: 'bundle', price_tiers: [{ min_qty: 3, unit_price: '10.00' }],
+          product_class: 'standard', is_active: true, stock_quantity: 99 }) })).json();
+      return (prod && prod.id) ? { ...prod, barcode: bc }
+                               : { err: JSON.stringify(prod).slice(0, 400) };
+    });
+    if (!kkit || kkit.err) {
+      kbad++; kn++;
+      console.log('  ❌ could not build the kiosk product — FAILURE, not a skip: '
+                + (kkit && kkit.err ? kkit.err : 'no response'));
+    } else {
+      // The till's own answer for 3 of this ladder. Asked of the server, never recomputed here.
+      const want = JSON.parse(execFileSync('python3', ['-c', `
+import sys, logging, json
+sys.path.insert(0, '${process.env.BANCO_REPO || '/home/angel/repos/banco-starter'}')
+logging.disable(logging.WARNING)
+from decimal import Decimal
+from src.services.pricing import tier_line_total
+print(json.dumps(str(tier_line_total([{"min_qty":3,"unit_price":"10.00"}], Decimal("4.00"), 3, mode="bundle"))))
+`], { encoding: 'utf8' }));
+      const flat = '12.00';   // what price x qty would say — the wrong answer, named so the failure can point at it
+
+      // A SEPARATE, LOGGED-OUT context. The kiosk is a guest station; running it in the
+      // cashier's tab would prove it works for someone holding a token, which is nobody.
+      const guestCtx = await b.newContext();
+      const g = await guestCtx.newPage();
+      await g.goto('http://localhost:3000/pos/kiosk', { waitUntil: 'domcontentloaded' });
+      await g.waitForTimeout(1500);
+      // Open the product the way a guest does — scan its barcode into the always-focused input.
+      await g.evaluate(async (bc) => {
+        const d = Alpine.$data(document.querySelector('[x-data]'));
+        if (typeof d.lookup === 'function') await d.lookup(bc);
+      }, kkit.barcode);
+      await g.waitForTimeout(1200);
+
+      // Fall back to opening it by id if the barcode round-trip did not land — the point of
+      // this check is the BASKET, and a lookup that misses must not read as a pricing failure.
+      const opened = await g.evaluate(async (id) => {
+        const d = Alpine.$data(document.querySelector('[x-data]'));
+        if (!d.p || !d.p.id) { const r = await fetch('/api/v1/pos/kiosk/view?product_id=' + id);
+                               if (r.ok) { d.p = await r.json(); d.view = 'product'; } }
+        return !!(d.p && d.p.id);
+      }, kkit.id);
+      kn++;
+      if (!opened) {
+        kbad++;
+        console.log('  ❌ could not open the ZZPROBE product on the kiosk — the basket check could not run');
+      } else {
+        // Tap + to three, then Add — the real buttons, not a cart written into storage.
+        await g.evaluate(() => {
+          const d = Alpine.$data(document.querySelector('[x-data]'));
+          d.pQty = 3; d.addToOrder();
+        });
+        // The quote is a round trip; give it room, then read what the guest reads.
+        await g.waitForTimeout(1500);
+        const readMoney = async (loc) => {
+          for (let i = 0; i < 40; i++) {
+            try { const m = ((await loc.textContent({ timeout: 2000 })) || '').match(/(\d+\.\d{2})/); if (m) return m[1]; }
+            catch (e) { /* mid-render */ }
+            await g.waitForTimeout(250);
+          }
+          return null;
+        };
+        const sub = await readMoney(g.locator('text=/CHF \\d+\\.\\d{2}/').last());
+        const guestTotal = await g.evaluate(() => {
+          const d = Alpine.$data(document.querySelector('[x-data]'));
+          return { total: d.cartTotal, after: d.cartAfter, line: d.lineTotal(d.cart[0]),
+                   saved: d.cartSaved, flat: d.cartFlat, eligible: String(d.cartEligible) };
+        });
+        kn++;
+        if (guestTotal.total !== want) {
+          kbad++;
+          console.log(`  ❌ the guest's basket says ${guestTotal.total} · the till says ${want}`
+                    + (guestTotal.total === flat ? '  (price × qty — the ladder the product page just advertised was dropped)' : ''));
+        }
+        kn++;
+        if (guestTotal.line !== want) {
+          kbad++;
+          console.log(`  ❌ the guest's LINE says ${guestTotal.line} · the till says ${want}`);
+        }
+        kn++;
+        if (guestTotal.saved === '0.00') {
+          kbad++;
+          console.log('  ❌ the basket charges the deal price but does not SAY a deal happened —'
+                    + ' a cheaper number with no explanation reads as a mistake');
+        }
+        // THE COLUMN A CUSTOMER READS MUST ADD UP. The first cut of this fix showed the subtotal
+        // already net of the deal and a "− CHF 2.00" line under it, so the panel read
+        // 10.00 − 2.00 = 10.00 and looked like a bug. Only the screenshot showed it.
+        kn++;
+        if ((parseFloat(guestTotal.flat) - parseFloat(guestTotal.saved)).toFixed(2) !== guestTotal.total) {
+          kbad++;
+          console.log(`  ❌ the basket does not add up: ${guestTotal.flat} − ${guestTotal.saved} ≠ ${guestTotal.total}`);
+        }
+        // A DEAL-PRICED LINE IS DISCOUNT-FINAL at the till, so a member percentage must not be
+        // promised on it here. Eligible must be 0.00 for a basket that is nothing but a pack.
+        kn++;
+        if (parseFloat(guestTotal.eligible) !== 0) {
+          kbad++;
+          console.log(`  ❌ a basket holding only a deal-priced pack reports ${guestTotal.eligible} as`
+                    + ' discount-eligible — a member would be quoted less here than the till will charge');
+        }
+
+        // And the number on the SCREEN, not just in the data — the whole reason this file exists.
+        kn++;
+        // The CART section specifically. The first version of this took the last <section>
+        // containing "CHF" and got the PRODUCT page — which does contain the right number, in
+        // the ladder it advertises, so a broken basket would have passed. Ask for the screen
+        // the guest is standing on, by the x-show that decides it is the visible one.
+        const cartSec = g.locator('section[x-show="view===\'cart\'"]');
+        const shown = (await cartSec.innerText()).replace(/\s+/g, ' ');
+        if (!shown.includes(want)) {
+          kbad++;
+          console.log(`  ❌ ${want} is in the kiosk's data but not on its screen: "${shown.slice(0, 160)}"`);
+        }
+        if (!kbad) console.log(`  ✅ the guest's own basket agrees with the till: 3 × 4.00 with a 3-for-10 ladder`
+                             + ` reads CHF ${guestTotal.total} on the kiosk, saving ${guestTotal.saved}, and the till says ${want}`);
+      }
+      await guestCtx.close();
+
+      try {
+        await p.evaluate(async (k) => {
+          const tok = sessionStorage.getItem('pos_token') || localStorage.getItem('pos_token');
+          const H = { 'Authorization': 'Bearer ' + tok, 'Content-Type': 'application/json' };
+          await fetch('/api/v1/pos/products/' + k.id, { method: 'PUT', headers: H,
+            body: JSON.stringify({ name: k.name + ' (retired)', price: '4.00',
+                                   is_active: false, product_class: 'standard' }) }).catch(() => {});
+        }, kkit);
+      } catch (e) { console.log('  ⚠️  cleanup failed — a ZZPROBE row may still be active: ' + e.message); }
+    }
+  } catch (e) {
+    kbad++; kn++;
+    console.log('  ❌ kiosk-basket check threw — a FAILURE, not a warning: ' + e.message);
+  }
+
+
+  await b.close(); process.exit((bad + mbad + hbad + rbad + tbad + vbad + kbad) ? 1 : 0);
 })();

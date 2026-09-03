@@ -78,20 +78,63 @@ one truth, and the one the receipt renders from is the wrong one. It overstates 
 containing a pack deal or a tier break. That is a Swiss tax line. **Fix: use the pooled line total
 in the VAT loop, and add a proof that a pooled basket's checkout VAT equals `total × r/(100+r)`.**
 
-### ⓑ2 The sibling, found by checking the pattern — **the kiosk's own basket ignores the ladder**
+### ⓑ2 ~~The sibling — the kiosk's own basket ignores the ladder~~ — **FIXED**
 
-LESSON #9. `src/templates/pos/kiosk.html:556`:
+LESSON #9. `src/templates/pos/kiosk.html` summed `price × qty` in JavaScript while the product
+page **two taps earlier** advertised the ladder (`3× CHF 3.33 −17%`, the `p.tiers` block). The
+guest was quoted the full price for the deal the shop had just promised them.
 
-```js
-_cartNum(){ return this.cart.reduce((s, l) => s + parseFloat(l.price || 0) * (l.qty || 0), 0); },
-```
+**The fix was not to teach the kiosk about tiers.** That would have been the FIFTH implementation
+of one pricing rule — `services/pricing.py`, the till's `base.html`, the held-orders board, the
+ring-it-out handoff, and now the guest basket — and every previous copy of it drifted within days:
 
-The kiosk product page **advertises the ladder** (`3× CHF 3.33 −17%`, the `p.tiers` block at
-line 267) and then its own basket quotes `price × qty` with no ladder at all. The held-orders
-BOARD was fixed on 2026-09-02 and the ring-out handoff after it, so the cashier now sees the right
-number — but the guest still reads the undiscounted one on the screen where they decided to buy.
-Quoting HIGH, so nobody is overcharged; it just silently withdraws the offer it made two taps ago.
-**Not fixed — next in the queue, one at a time.**
+| when | which copy | what it quoted |
+|---|---|---|
+| 2026-09-02 | the held-orders board | CHF 12.00 for a CHF 10.00 pack — two francs over, on a screen the customer never sees |
+| 2026-09-03 | the ring-it-out handoff | copied six fields, `price_tiers` not among them — re-inflated one screen later |
+| 2026-09-03 | the guest's own basket | the full price for the deal it advertised two taps earlier |
+
+So instead: the board's pricing loop was **extracted** into `_price_kiosk_lines()` (one function,
+three callers) and a new **public `POST /kiosk/quote`** lets the guest basket ask it. Writes
+nothing, needs no auth, exposes nothing a shelf label does not — the price of a public product at
+a quantity. The kiosk now shows the line's real total, `3 × CHF 4.00` underneath it, and
+*"Pack price — you save CHF 2.00"* in all four languages, and the basket footer names the saving.
+
+If the quote does not come back, it falls back to `price × qty` — the old wrong number, but wrong
+**high**, never below what the till will charge. A guest is never promised a price the counter
+won't honour.
+
+Reverted on purpose and watched it go red: `the guest's basket says 12.00 · the till says 10.00
+(price × qty — the ladder the product page just advertised was dropped)`.
+
+**And the red run caught a fault in the harness itself** — the "is it on the SCREEN" check took
+the last `<section>` containing "CHF" and got the PRODUCT page, which contains the right number
+inside the ladder it advertises. A broken basket would have passed that check. It now asks for
+the cart section by the `x-show` that decides it is the visible one. LESSON #5: a harness will
+accuse working code and absolve broken code with equal confidence.
+
+**Still open on this thread, logged not fixed:** `_price_kiosk_lines` prices each line
+independently and never pools ACROSS lines the way `allocate_pool` does at the till. The kiosk
+merges same-product taps into one line so it cannot arise there, but two *different* products
+that share a ladder (two paper variants) would pool at the counter and not on the board — the
+board would quote high. Same direction as everything else on this list; not yet proven either way.
+
+**Two more, found by LOOKING AT THE PICTURE of the fixed screen** — neither would have shown up
+in any assertion I had written, and both are LESSON #12 (does the number answer the question the
+person is asking?):
+
+1. **The column did not add up.** First cut showed `Zwischensumme CHF 10.00 · Mengenrabatt
+   − CHF 2.00 · Zu zahlen CHF 10.00` — the subtotal was already net of the deal, so a customer
+   reads 10 − 2 = 10 and concludes the till is broken. The subtotal is now the FLAT sum, taken
+   from the quote as `total + saved` so the three numbers can never fail to reconcile:
+   `12.00 · − 2.00 · 10.00`.
+2. **The member discount was promised on a line the till will refuse.** `cartDiscount` took the
+   member percentage off the WHOLE basket, but a volume-priced line is discount-final at the
+   counter and tobacco/alcohol never take a promotional discount at all. A member holding a deal
+   pack was therefore quoted **less** on the kiosk than the counter would charge — the one
+   direction that becomes an argument at the till. `/kiosk/quote` now returns `eligible`,
+   decided by the server in the same breath as the price, and the kiosk applies the percentage to
+   that. Both are asserted in the proof now.
 
 ### ⓒ The rest, ranked — all visible in the batch, none yet fixed
 

@@ -12416,34 +12416,37 @@ async def _gen_cart_code(db: AsyncSession) -> str:
     return "".join(secrets.choice(_CART_ALPHABET) for _ in range(6))
 
 
-async def _kiosk_cart_payload(db: AsyncSession, cart) -> dict:
-    """Held-order view: priced lines, total, and the member's welcome discount (if unspent)."""
-    from src.db.models.customer_model import CustomerModel
-    # QUANTITY BREAKS APPLY HERE TOO. Until 2026-09-02 this priced every line as a
-    # flat price × qty and never looked at price_tiers or tier_mode — so the kiosk
-    # showed the customer "3× CHF 3.33 −17%", they added three, and the cashier's
-    # board quoted CHF 12.00 for a pack the shop advertises at CHF 10.00. Two
-    # francs OVER, against the shop's own printed rule, on the one screen a
-    # customer never sees. Angel found it poking at the kiosk after a test sheet.
-    #
-    # The cart JSON stores only product_id/name/price/qty — the tier fields never
-    # travelled with it — so load the products and price them the way the till
-    # does, through the one shared function (services/pricing.tier_line_total).
-    # Second copy of a pricing rule = second answer; there is only ever one.
+async def _price_kiosk_lines(db: AsyncSession, items) -> tuple[list, Decimal]:
+    """Price a list of {product_id, qty, [name], [price], [product_class]} the way the TILL does.
+
+    THE ONE PLACE the kiosk side prices a basket. Three screens now call it — the held-order
+    board, the ring-it-out handoff, and the guest's own basket on the kiosk itself — because
+    each time one of them grew its own copy of the ladder it grew its own answer with it:
+
+      * 2026-09-02 — the BOARD priced flat price × qty and quoted CHF 12.00 for a pack the
+        shop advertises at CHF 10.00, two francs OVER, on a screen the customer never sees.
+      * 2026-09-03 — the HANDOFF copied six fields out of the board's payload and price_tiers
+        was not among them, so ringing it out re-inflated the same pack one screen later.
+      * 2026-09-03 — the GUEST'S OWN BASKET (kiosk.html) advertised "3× CHF 3.33 −17%" on the
+        product page and then summed price × qty in the cart, quoting the customer the full
+        price for the deal it had promised them two taps earlier.
+
+    Second copy of a pricing rule = second answer; there is only ever one. The product ROW is
+    the source of truth for price and tiers, exactly as it is at the till — a cart's own stored
+    `price` is a snapshot from when the customer tapped add, and is only a fallback for a
+    product that has since gone.
+    """
     from src.services.pricing import tier_line_total
-    _ids = [it.get("product_id") for it in (cart.items or []) if it.get("product_id")]
+    _ids = [it.get("product_id") for it in (items or []) if it.get("product_id")]
     _prods = {}
     if _ids:
         _rows = (await db.execute(select(ProductModel).where(ProductModel.id.in_(_ids)))).scalars().all()
         _prods = {str(pr.id): pr for pr in _rows}
 
     lines, total = [], Decimal("0.00")
-    for it in (cart.items or []):
+    for it in (items or []):
         qty = int(it.get("qty") or 0)
         pr = _prods.get(str(it.get("product_id") or ""))
-        # The product row is the source of truth for price and tiers, exactly as it
-        # is at the till. The cart's own `price` is a snapshot from when the customer
-        # tapped add, and is only a fallback for a product that has since gone.
         price = Decimal(str(pr.price)) if (pr is not None and pr.price is not None) \
             else Decimal(str(it.get("price") or 0))
         if pr is not None and pr.price_tiers:
@@ -12452,9 +12455,10 @@ async def _kiosk_cart_payload(db: AsyncSession, cart) -> dict:
             lt = (price * qty).quantize(Decimal("0.01"))
         flat = (price * qty).quantize(Decimal("0.01"))
         total += lt
-        lines.append({"product_id": it.get("product_id"), "name": it.get("name"),
+        lines.append({"product_id": it.get("product_id"),
+                      "name": it.get("name") or (pr.name if pr is not None else None),
                       "price": f"{price:.2f}", "qty": qty, "line_total": f"{lt:.2f}",
-                      # so the board can SAY why a line is cheaper than price × qty,
+                      # so a screen can SAY why a line is cheaper than price × qty,
                       # rather than showing a number nobody can reconstruct
                       "tier_saved": f"{(flat - lt):.2f}" if lt < flat else None,
                       # THE LADDER TRAVELS WITH THE LINE. Ring-it-out rebuilds the till cart out
@@ -12466,7 +12470,18 @@ async def _kiosk_cart_payload(db: AsyncSession, cart) -> dict:
                       # thing this whole ladder exists to prevent.
                       "price_tiers": (pr.price_tiers if pr is not None else None),
                       "tier_mode": ((pr.tier_mode or "per_unit") if pr is not None else None),
-                      "product_class": it.get("product_class")})
+                      # From the ROW first, the cart's snapshot only as a fallback — the quote
+                      # path has no snapshot at all, and this field decides whether a member
+                      # discount may touch the line (tobacco/alcohol never take one).
+                      "product_class": (getattr(pr, "product_class", None) if pr is not None else None)
+                                       or it.get("product_class") or "standard"})
+    return lines, total
+
+
+async def _kiosk_cart_payload(db: AsyncSession, cart) -> dict:
+    """Held-order view: priced lines, total, and the member's welcome discount (if unspent)."""
+    from src.db.models.customer_model import CustomerModel
+    lines, total = await _price_kiosk_lines(db, cart.items or [])
     member, discount_pct = None, 0
     if cart.customer_id:
         member = await db.get(CustomerModel, cart.customer_id)
@@ -12496,6 +12511,55 @@ class KioskCartUpsert(BaseModel):
     customer_id: Optional[str] = None
     source: str = "kiosk"
     lang: str = "de"
+
+
+class KioskQuote(BaseModel):
+    """What the guest currently has in their hands. Ids and quantities only — never a price."""
+    items: list[KioskCartItem] = []
+
+
+@router.post("/kiosk/quote")
+async def kiosk_quote(body: KioskQuote, db: AsyncSession = Depends(get_db_session)):
+    """PUBLIC — price a guest's basket WITHOUT creating an order. No auth, writes nothing.
+
+    Why this exists: the kiosk product page advertises the quantity ladder ("3× CHF 3.33 −17%")
+    and the guest's own basket used to sum `price × qty` in JavaScript, so it quoted the FULL
+    price for the deal it had promised two taps earlier. The obvious fix — teach the kiosk's
+    JavaScript about tiers — would have been the FIFTH implementation of one pricing rule, and
+    every previous copy of it has drifted (see `_price_kiosk_lines`). So the kiosk asks the
+    same function the till and the board ask, and there is nothing left to drift.
+
+    Returns only what a shelf label already says out loud — the price of a public product at a
+    quantity — so it exposes nothing `/kiosk/lookup` does not. Inactive products are priced at
+    zero rather than 404ing the whole basket: a guest holding a discontinued item should see the
+    rest of their order, and the till re-prices everything at the counter regardless.
+    """
+    from src.services.catalog_taxonomy import class_promo_restricted
+    items = [{"product_id": it.product_id, "qty": max(0, min(99, int(it.qty or 0)))}
+             for it in (body.items or [])[:50]]
+    lines, total = await _price_kiosk_lines(db, items)
+    flat = sum(Decimal(l["price"]) * l["qty"] for l in lines) if lines else Decimal("0.00")
+    # WHAT A MEMBER DISCOUNT MAY TOUCH — the same rule the till enforces, decided here rather
+    # than guessed at by the kiosk. A line already priced by a quantity break is discount-final,
+    # and tobacco/alcohol never take a promotional discount (Swiss law). The guest basket used
+    # to take its member percentage off the WHOLE basket, so a member with a deal pack in hand
+    # was quoted LESS than the counter would charge — the one direction that turns into an
+    # argument at the till. Quoting high is a missed sale; quoting low is a broken promise.
+    eligible = Decimal("0.00")
+    for l in lines:
+        if l["tier_saved"]:
+            continue                                   # a volume price is already the deal
+        if class_promo_restricted(l.get("product_class") or "standard"):
+            continue                                   # tobacco / alcohol
+        eligible += Decimal(l["line_total"])
+    return {
+        "items": [{"product_id": l["product_id"], "qty": l["qty"], "price": l["price"],
+                   "line_total": l["line_total"], "tier_saved": l["tier_saved"]} for l in lines],
+        "total": f"{total:.2f}",
+        "saved": f"{(flat - total):.2f}" if total < flat else "0.00",
+        "eligible": f"{eligible:.2f}",
+        "currency": await _store_currency(db),
+    }
 
 
 @router.post("/kiosk/cart")

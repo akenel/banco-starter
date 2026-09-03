@@ -181,7 +181,13 @@
             </div>
             <div class="flex-1 min-w-0">
               <div class="font-semibold text-sm clamp2" x-text="l.name"></div>
-              <div class="price font-bold text-sm" x-text="'CHF ' + l.price"></div>
+              <!-- THE LINE'S REAL TOTAL, not price x qty. When a quantity break fires, say so
+                   and say what it took off — a cheaper number with no explanation reads as a
+                   mistake, and the guest was shown the ladder on the page before this one. -->
+              <div class="price font-bold text-sm" x-text="'CHF ' + lineTotal(l)"></div>
+              <div class="text-emerald-100/60 text-xs" x-show="l.qty > 1" x-text="l.qty + ' × CHF ' + l.price"></div>
+              <div class="text-emerald-300 text-xs font-semibold" x-show="lineSaved(l)"
+                   x-text="cf('saveDeal', {amt: lineSaved(l)})" style="display:none;"></div>
             </div>
             <div class="flex items-center gap-2 flex-none">
               <button @click="updateQty(idx, -1)" class="w-9 h-9 rounded-lg glass text-lg">−</button>
@@ -193,7 +199,10 @@
       </div>
 
       <div x-show="cart.length > 0" class="mt-6 glass rounded-2xl p-4 space-y-1">
-        <div class="flex justify-between text-emerald-100/80"><span x-text="c('subtotal')"></span><span x-text="'CHF ' + cartTotal"></span></div>
+        <div class="flex justify-between text-emerald-100/80"><span x-text="c('subtotal')"></span><span x-text="'CHF ' + cartFlat"></span></div>
+        <div x-show="cartSaved !== '0.00'" style="display:none;" class="flex justify-between text-emerald-300 text-sm">
+          <span x-text="c('savedTotal')"></span><span x-text="'− CHF ' + cartSaved"></span>
+        </div>
         <div x-show="cartDiscountPct > 0" class="flex justify-between text-emerald-300" style="display:none;">
           <span x-text="cf('save', {pct: cartDiscountPct})"></span><span x-text="'− CHF ' + cartDiscount"></span>
         </div>
@@ -449,6 +458,8 @@
       member: {},
       cart: [],           // [{product_id, name, price, qty, image_url}]
       myMember: null,     // {id, handle, discount_pct} once they've signed up this session
+      quote: null,        // the SERVER's price for the current basket — see refreshQuote()
+      quoteSig: '',       // which basket that quote was asked about; a stale one is never shown
       cartCode: '',       // the in-progress held-order code (cleared after each send)
       sentCode: '',       // the code shown on the "order sent" screen
       pQty: 1,            // quantity stepper on the product view
@@ -538,26 +549,99 @@
       CART: {
         de:{ add:'Zur Bestellung', cart:'Deine Bestellung', empty:'Dein Korb ist leer', items:'Art.',
              subtotal:'Zwischensumme', save:'Mitglied spart {pct}%', total:'Zu zahlen', send:'An die Kasse senden', sending:'Wird gesendet…',
-             sentTitle:'Bestellung gesendet!', showCode:'Zeig diesen Code an der Kasse', memberNote:'{pct}% Mitgliederrabatt wird an der Kasse abgezogen', keepShopping:'Weiter', more:'Das könnte dir auch gefallen' },
+             sentTitle:'Bestellung gesendet!', showCode:'Zeig diesen Code an der Kasse', memberNote:'{pct}% Mitgliederrabatt wird an der Kasse abgezogen', keepShopping:'Weiter', more:'Das könnte dir auch gefallen',
+             saveDeal:'Mengenrabatt — du sparst CHF {amt}', savedTotal:'Mengenrabatt' },
         fr:{ add:'Ajouter', cart:'Votre commande', empty:'Votre panier est vide', items:'art.',
              subtotal:'Sous-total', save:'Membre −{pct}%', total:'À payer', send:'Envoyer à la caisse', sending:'Envoi…',
-             sentTitle:'Commande envoyée !', showCode:'Montrez ce code à la caisse', memberNote:'{pct}% de remise membre appliquée à la caisse', keepShopping:'Continuer', more:'Vous aimerez aussi' },
+             sentTitle:'Commande envoyée !', showCode:'Montrez ce code à la caisse', memberNote:'{pct}% de remise membre appliquée à la caisse', keepShopping:'Continuer', more:'Vous aimerez aussi',
+             saveDeal:'Prix de gros — vous économisez CHF {amt}', savedTotal:'Prix de gros' },
         it:{ add:'Aggiungi', cart:'Il tuo ordine', empty:'Il carrello è vuoto', items:'art.',
              subtotal:'Subtotale', save:'Socio −{pct}%', total:'Da pagare', send:'Invia alla cassa', sending:'Invio…',
-             sentTitle:'Ordine inviato!', showCode:'Mostra questo codice alla cassa', memberNote:'{pct}% di sconto socio applicato alla cassa', keepShopping:'Continua', more:'Potrebbe piacerti anche' },
+             sentTitle:'Ordine inviato!', showCode:'Mostra questo codice alla cassa', memberNote:'{pct}% di sconto socio applicato alla cassa', keepShopping:'Continua', more:'Potrebbe piacerti anche',
+             saveDeal:'Prezzo quantità — risparmi CHF {amt}', savedTotal:'Prezzo quantità' },
         en:{ add:'Add to order', cart:'Your order', empty:'Your basket is empty', items:'items',
              subtotal:'Subtotal', save:'Member saves {pct}%', total:'To pay', send:'Send to counter', sending:'Sending…',
-             sentTitle:'Order sent!', showCode:'Show this code to the cashier', memberNote:'{pct}% member discount applied at the till', keepShopping:'Keep shopping', more:'You might also like' },
+             sentTitle:'Order sent!', showCode:'Show this code to the cashier', memberNote:'{pct}% member discount applied at the till', keepShopping:'Keep shopping', more:'You might also like',
+             saveDeal:'Pack price — you save CHF {amt}', savedTotal:'Pack price' },
       },
       c(k){ return (this.CART[this.lang] || this.CART.en)[k] || (this.CART.en[k] || k); },
       cf(k, vars){ let s = this.c(k); for (const a in (vars||{})) s = s.split('{'+a+'}').join(vars[a]); return s; },
 
       get cartQty(){ return this.cart.reduce((n, l) => n + (l.qty || 0), 0); },
-      _cartNum(){ return this.cart.reduce((s, l) => s + parseFloat(l.price || 0) * (l.qty || 0), 0); },
+
+      // ── THE BASKET'S PRICE COMES FROM THE SERVER ──────────────────────────────────────
+      // This used to be `price * qty`, full stop. The product page two taps earlier
+      // ADVERTISES the ladder — the `p.tiers` block renders "3× CHF 3.33 −17%" — and then
+      // the basket quoted the guest the full undiscounted price for exactly that pack.
+      // Found 2026-09-03 by checking the siblings after the checkout VAT bug (LESSON #9).
+      //
+      // The obvious fix would have been to teach this file about price_tiers. That would
+      // have been the FIFTH implementation of one pricing rule (services/pricing.py, the
+      // till's base.html, the held-orders board, the ring-it-out handoff, here) and every
+      // previous copy of it has drifted within days of being written. So the kiosk ASKS —
+      // POST /kiosk/quote runs the same `_price_kiosk_lines` the board and the till use,
+      // writes nothing, needs no auth, and there is no second answer left to drift.
+      //
+      // WHAT HAPPENS IF THE QUOTE DOES NOT COME BACK: we fall back to price × qty, which is
+      // the old wrong number — but wrong HIGH, never below what the till will charge. A
+      // guest is never promised a price the counter won't honour. It is the fail-safe
+      // direction, not a fix; a kiosk that cannot reach its own server has bigger problems
+      // (it cannot send the order either).
+      _cartSig(){ return this.cart.map(l => l.product_id + ':' + (l.qty || 0)).join('|'); },
+      _cartFlat(){ return this.cart.reduce((s, l) => s + parseFloat(l.price || 0) * (l.qty || 0), 0); },
+      async refreshQuote(){
+        const sig = this._cartSig();
+        if (!this.cart.length) { this.quote = null; this.quoteSig = sig; return; }
+        try {
+          const r = await fetch('/api/v1/pos/kiosk/quote', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ items: this.cart.map(l => ({ product_id: l.product_id, qty: l.qty })) }),
+          });
+          if (!r.ok) throw new Error('quote ' + r.status);
+          const q = await r.json();
+          // A quote is only valid for the basket it was asked about. Between the fetch and
+          // the reply the guest may have tapped + twice, and rendering a stale total against
+          // a changed basket is the cached-shadow bug all over again (LESSON #13) — so the
+          // answer is stamped with the basket it answers, and checked before it is shown.
+          if (sig === this._cartSig()) { this.quote = q; this.quoteSig = sig; }
+        } catch(e) { this.quote = null; this.quoteSig = sig; }
+      },
+      _quoteFresh(){ return !!(this.quote && this.quoteSig === this._cartSig()); },
+      _cartNum(){ return this._quoteFresh() ? parseFloat(this.quote.total) : this._cartFlat(); },
+      // What this line actually costs, and what the deal took off it — so the basket can SAY
+      // "3 for CHF 5.00, you save CHF 1.00" instead of showing a number nobody can rebuild.
+      qLine(l){
+        if (!this._quoteFresh()) return null;
+        return (this.quote.items || []).find(x => x.product_id === l.product_id) || null;
+      },
+      lineTotal(l){
+        const q = this.qLine(l);
+        return q ? q.line_total : (parseFloat(l.price || 0) * (l.qty || 0)).toFixed(2);
+      },
+      lineSaved(l){ const q = this.qLine(l); return (q && q.tier_saved) ? q.tier_saved : null; },
+      get cartSaved(){ return this._quoteFresh() ? this.quote.saved : '0.00'; },
+      // THE SUBTOTAL IS THE FLAT SUM, so the column a customer reads actually adds up:
+      //   Zwischensumme 12.00 / Mengenrabatt −2.00 / Zu zahlen 10.00.
+      // The first version of this fix showed the subtotal ALREADY net of the deal and then a
+      // "− CHF 2.00" line under it, so it read 10.00 − 2.00 = 10.00 and looked like a bug.
+      // Taken from the quote (total + saved), never recomputed from the client's snapshot
+      // prices, so the three numbers can never fail to reconcile.
+      get cartFlat(){
+        return this._quoteFresh()
+          ? (parseFloat(this.quote.total) + parseFloat(this.quote.saved)).toFixed(2)
+          : this._cartFlat().toFixed(2);
+      },
       get cartTotal(){ return this._cartNum().toFixed(2); },
       get cartDiscountPct(){ return (this.myMember && this.myMember.discount_pct) || 0; },
-      get cartDiscount(){ return (this._cartNum() * this.cartDiscountPct / 100).toFixed(2); },
-      get cartAfter(){ return (this._cartNum() * (1 - this.cartDiscountPct / 100)).toFixed(2); },
+      // A MEMBER DISCOUNT DOES NOT TOUCH EVERY LINE. A volume price is already the deal, and
+      // tobacco/alcohol never take a promotional discount (Swiss law) — so the till applies the
+      // percentage to the ELIGIBLE portion only. This used to take it off the whole basket, so a
+      // member holding a deal pack was quoted LESS here than the counter would charge. Quoting
+      // high is a missed sale; quoting low is an argument at the till. The eligible figure is
+      // decided by the server in the same breath as the price — never guessed at here.
+      get cartEligible(){ return this._quoteFresh() ? parseFloat(this.quote.eligible) : this._cartNum(); },
+      get cartDiscount(){ return (this.cartEligible * this.cartDiscountPct / 100).toFixed(2); },
+      get cartAfter(){ return (this._cartNum() - parseFloat(this.cartDiscount)).toFixed(2); },
 
       init(){
         // Assisted (staff) mode: launched from a cashier's dashboard (?staff=1) with a POS session
@@ -899,6 +983,7 @@
         if (ex) { ex.qty = Math.min(99, ex.qty + this.pQty); }
         else { this.cart.push({ product_id: this.p.id, name: this.p.name, price: this.p.price || '0.00', qty: this.pQty, image_url: this.p.image_url || '' }); }
         this.persistCart();
+        this.refreshQuote();
         this.bumpIdle();
         this.openCart();
       },
@@ -909,6 +994,7 @@
         if (l.qty <= 0) this.cart.splice(idx, 1);
         else l.qty = Math.min(99, l.qty);
         this.persistCart();
+        this.refreshQuote();
         this.bumpIdle();
       },
       openCart(){ this.view = 'cart'; this.bumpIdle(); },
@@ -941,6 +1027,7 @@
             this.sentCode = res.data.code;   // shown on the "sent" screen
             this.cartCode = '';              // each send = a brand-new order next time
             this.cart = [];
+            this.quote = null; this.quoteSig = '';   // the answer to a basket that no longer exists
             this.persistCart();
             this.view = 'sent';
           }
@@ -949,7 +1036,12 @@
       },
 
       persistCart(){ try { sessionStorage.setItem('kiosk_cart', JSON.stringify(this.cart)); } catch(e){} },
-      loadCart(){ try { const c = JSON.parse(sessionStorage.getItem('kiosk_cart') || '[]'); if (Array.isArray(c)) this.cart = c; } catch(e){} },
+      loadCart(){
+        try { const c = JSON.parse(sessionStorage.getItem('kiosk_cart') || '[]'); if (Array.isArray(c)) this.cart = c; } catch(e){}
+        // A basket restored from sessionStorage carries the SNAPSHOT prices it was saved with.
+        // Re-price it, or the first thing a returning guest reads is the old flat sum.
+        if (this.cart.length) this.refreshQuote();
+      },
 
       printCard(){
         if (!this.p.id) return;
