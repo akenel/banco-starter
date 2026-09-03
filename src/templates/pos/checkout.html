@@ -943,8 +943,38 @@
                 const STD = POSConfig.vat_rate;                       // 8.1
                 const RED = POSConfig.vat_rate_reduced != null ? POSConfig.vat_rate_reduced : 2.6;
                 let vatStd = 0, vatRed = 0;
-                this.cartData.cart.forEach(it => {
-                    const lineGross = (it.price || 0) * (it.quantity || 0) * factor;
+                this.cartData.cart.forEach((it, i) => {
+                    // THE LINE'S REAL TOTAL — the pooled / tier-break price, i.e. the very number
+                    // `subtotal` twelve lines above was summed from. This used to read
+                    // `it.price * it.quantity`, which is the price BEFORE any deal.
+                    //
+                    // 2026-09-03, found by looking at a photograph of the tablet. Basket:
+                    // 3x OCB King Size slim black on a "3 for CHF 5.00" pack + 1x CBD Joint 5.90,
+                    // Target Total set to CHF 10.00. The cart screen said `incl. VAT: CHF 0.75`
+                    // and this screen said `CHF 0.82` for the same total, because:
+                    //     subtotal (pooled)  = 5.00 + 5.90 = 10.90
+                    //     this loop (raw)    = 6.00 + 5.90 = 11.90   <-- a DIFFERENT basket
+                    //     factor             = 10.00 / 10.90 = 0.917431
+                    //     11.90 * factor     = 10.9174  ->  VAT 0.82   (shown)
+                    //     10.00              = 10.0000  ->  VAT 0.75   (true)
+                    // `factor` is calibrated against the POOLED subtotal, so feeding it unpooled
+                    // lines re-inflates every deal by exactly the discount the deal gave. It
+                    // overstated the VAT on every basket containing a pack deal or a tier break.
+                    //
+                    // The books were never wrong — the server rolls up its own stored `line_total`
+                    // (already tier-priced) through `vat_resolver.split_vat`, where sum(lines)
+                    // IS the subtotal by construction. This was the SCREEN disagreeing with the
+                    // receipt: LESSON #2 (a second way to ask one question, never tested against
+                    // the first) and LESSON #13 (two computations of one truth; the wrong one
+                    // renders). `scripts/prove-cart-agrees-with-till.js` now holds the invariant, in its own
+                    // section: the VAT line must equal `total * r / (100 + r)` on BOTH screens, with
+                    // a pack deal in the basket and with no discount at all.
+                    //
+                    // Use `cartLineTotal`'s rule, off the pools already computed at the top of
+                    // recalc(). The point is not "a more correct price" — it is that this loop
+                    // and the subtotal MUST see the same basket, so sum(lineGross) === gross.
+                    const lineNet = (i in this._pools) ? this._pools[i] : tierLineTotal(it);
+                    const lineGross = lineNet * factor;
                     // Cafe food/drink is 8.1% dine-in, 2.6% takeaway; everything else 8.1%.
                     const reduced = (it.product_class === 'cafe_food' && this.consumption === 'takeaway');
                     const rate = reduced ? RED : STD;

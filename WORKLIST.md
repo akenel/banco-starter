@@ -35,7 +35,7 @@ fold sits HIGHER than the real one (its "below the fold" verdicts are pessimisti
 are NARROWER (its "fits on one line" verdicts are optimistic — the dangerous direction). Re-point
 `prove-keypad` sections J/K/L at 1440×895 and find out how much of last night's green survives.
 
-### ⓑ VAT IS WRONG ON CHECKOUT WHENEVER A PACK DEAL OR TIER BREAK IS IN THE BASKET
+### ⓑ ~~VAT IS WRONG ON CHECKOUT WHENEVER A PACK DEAL OR TIER BREAK IS IN THE BASKET~~ — **FIXED**
 
 **Found in the pictures, confirmed in the code.** Cart screen said `incl. VAT (8.1%): CHF 0.75`;
 Checkout, same basket, same `TOTAL: CHF 10.00`, said **`CHF 0.82`**. One of them is wrong and it is
@@ -58,11 +58,40 @@ VAT     = 10.9174 × 8.1 / 108.1    = 0.818  → CHF 0.82   ← what the screen 
 correct = 10.00  × 8.1 / 108.1     = 0.749  → CHF 0.75
 ```
 
+**FIXED 2026-09-03.** The VAT loop now takes each line's pooled/tier total — the same number
+`subtotal` is summed from — so `sum(lineGross) === gross` by construction. Reverted on purpose
+first and watched it go red: `checkout: total 10.90 but VAT 0.89, expected 0.82` and
+`checkout, discounted: total 10.31 but VAT 0.84, expected 0.77`. Green after. New section in
+`scripts/prove-cart-agrees-with-till.js` holds the invariant on BOTH screens, with a pack deal in
+the basket and **with no discount at all** — the bug did not need one, and a repro that only fired
+under a discount would have pointed the fix at the discount. Regressions clean: `prove-keypad`
+80 pass · 0 fail · 1 known gap, `prove-till-explains-the-deal` 39 · 0.
+
+**The books were never wrong** — the server rolls up its own stored `line_total` (already
+tier-priced) through `vat_resolver.split_vat`, where `sum(lines)` IS the subtotal by construction.
+This was the SCREEN disagreeing with the receipt, which is still a wrong VAT line read out to a
+customer, but no Kassenbuch entry was ever affected.
+
 The arithmetic reproduces the screenshot to the rappen. **This is LESSON #2 again** — a second way
 to ask the same question, never tested against the first — and **LESSON #13**: two computations of
 one truth, and the one the receipt renders from is the wrong one. It overstates VAT on every basket
 containing a pack deal or a tier break. That is a Swiss tax line. **Fix: use the pooled line total
 in the VAT loop, and add a proof that a pooled basket's checkout VAT equals `total × r/(100+r)`.**
+
+### ⓑ2 The sibling, found by checking the pattern — **the kiosk's own basket ignores the ladder**
+
+LESSON #9. `src/templates/pos/kiosk.html:556`:
+
+```js
+_cartNum(){ return this.cart.reduce((s, l) => s + parseFloat(l.price || 0) * (l.qty || 0), 0); },
+```
+
+The kiosk product page **advertises the ladder** (`3× CHF 3.33 −17%`, the `p.tiers` block at
+line 267) and then its own basket quotes `price × qty` with no ladder at all. The held-orders
+BOARD was fixed on 2026-09-02 and the ring-out handoff after it, so the cashier now sees the right
+number — but the guest still reads the undiscounted one on the screen where they decided to buy.
+Quoting HIGH, so nobody is overcharged; it just silently withdraws the offer it made two taps ago.
+**Not fixed — next in the queue, one at a time.**
 
 ### ⓒ The rest, ranked — all visible in the batch, none yet fixed
 

@@ -422,5 +422,177 @@ print(json.dumps(str(tier_line_total([{"min_qty":3,"unit_price":"10.00"}], Decim
     console.log('  \u274c target-total check threw — a FAILURE, not a warning: ' + e.message);
   }
 
-  await b.close(); process.exit((bad + mbad + hbad + rbad + tbad) ? 1 : 0);
+
+  // ── THE VAT LINE — the fifth implementation, and the one that ends up on a receipt ────
+  // Angel photographed the tablet on 2026-09-03. Same basket, same TOTAL of CHF 10.00, and
+  // the two screens disagreed about the tax inside it: the cart said CHF 0.75, checkout said
+  // CHF 0.82. checkout.html's per-line VAT loop read `it.price * it.quantity` — the price
+  // BEFORE the deal — while the `factor` it multiplied by had been calibrated against the
+  // POOLED subtotal. So every pack deal in the basket got re-inflated by exactly the saving
+  // it had just given, and the VAT line was overstated on every basket containing one.
+  //
+  // The BOOKS were never wrong: the server rolls up its own stored line_totals through
+  // vat_resolver.split_vat, where sum(lines) IS the subtotal by construction. This was the
+  // screen disagreeing with the receipt — LESSON #13.
+  //
+  // THE INVARIANT, and why it is stated this way: for an all-standard basket the contained
+  // VAT is a pure function of the TOTAL, `total * r / (100 + r)`. Both numbers are read off
+  // the screen and the rate is read from POSConfig, so nothing here re-implements the thing
+  // under test (LESSON #5) — the check is that a screen agrees with its own total.
+  // The basket build is asserted first: a self-consistent VAT on the WRONG total would pass.
+  //
+  // Note there is NO discount in the first pass. The bug did not need one — with the pack
+  // priced 5.00 and read as 6.00, factor is 1 and the VAT is still wrong (0.89 vs 0.82).
+  // A repro that only fires under a discount would have pointed the fix at the discount.
+  let vbad = 0, vn = 0;
+  try {
+    await p.goto('http://localhost:3000/pos/dashboard', { waitUntil: 'domcontentloaded' });
+    await p.waitForTimeout(1200);
+    const vkit = await p.evaluate(async () => {
+      const tok = sessionStorage.getItem('pos_token') || localStorage.getItem('pos_token');
+      const H = { 'Authorization': 'Bearer ' + tok, 'Content-Type': 'application/json' };
+      const st = Date.now();
+      try {   // sweep anything an earlier run left active, so allow_duplicate is not needed twice
+        const found = await (await fetch('/api/v1/pos/search?q=ZZPROBE%20vat&limit=50', { headers: H })).json();
+        for (const old of (found.items || [])) {
+          await fetch('/api/v1/pos/products/' + old.id, { method: 'PUT', headers: H,
+            body: JSON.stringify({ name: old.name, price: String(old.price || '1.00'),
+                                   is_active: false, product_class: 'standard' }) }).catch(() => {});
+        }
+      } catch (e) { /* nothing to sweep */ }
+      const mk = async (body) => (await (await fetch('/api/v1/pos/products?allow_duplicate=true',
+        { method: 'POST', headers: H, body: JSON.stringify(body) })).json());
+      // Angel's exact basket: a "3 for 5.00" pack at 2.00 each, plus one plain 5.90 line.
+      const deal = await mk({ name: 'ZZPROBE vat deal ' + st, sku: 'ZZPROBE-VD-' + st,
+        price: '2.00', tier_mode: 'bundle', price_tiers: [{ min_qty: 3, unit_price: '5.00' }],
+        product_class: 'standard', is_active: true, stock_quantity: 99 });
+      const plain = await mk({ name: 'ZZPROBE vat plain ' + st, sku: 'ZZPROBE-VP-' + st,
+        price: '5.90', product_class: 'standard', is_active: true, stock_quantity: 99 });
+      if (!deal.id || !plain.id) return { err: JSON.stringify({ deal, plain }).slice(0, 400) };
+      return { deal, plain };
+    });
+    if (!vkit || vkit.err) {
+      vbad++; vn++;
+      console.log('  ❌ could not build the VAT basket — FAILURE, not a skip: '
+                + (vkit && vkit.err ? vkit.err : 'no response'));
+    } else {
+      await p.evaluate((k) => {
+        const cart = [
+          { id: k.deal.id, product_id: k.deal.id, name: k.deal.name, quantity: 3,
+            price: 2.00, price_tiers: k.deal.price_tiers, tier_mode: 'bundle', product_class: 'standard' },
+          { id: k.plain.id, product_id: k.plain.id, name: k.plain.name, quantity: 1,
+            price: 5.90, price_tiers: null, tier_mode: 'per_unit', product_class: 'standard' },
+        ];
+        sessionStorage.setItem('pos_cart', JSON.stringify({ cart, discount: 0, totals: {} }));
+      }, vkit);
+      await p.goto('http://localhost:3000/pos/scan', { waitUntil: 'domcontentloaded' });
+      await p.waitForTimeout(2500);
+
+      // Read a money figure off a locator, retrying while Alpine re-renders (the same
+      // execution-context trap the ring-out check documents).
+      const money = async (loc) => {
+        for (let i = 0; i < 40; i++) {
+          try {
+            const m = ((await loc.textContent({ timeout: 2000 })) || '').match(/(\d+\.\d{2})/);
+            if (m) return m[1];
+          } catch (e) { /* mid-render */ }
+          await p.waitForTimeout(250);
+        }
+        return null;
+      };
+      const rate = await p.evaluate(() => Number(POSConfig.vat_rate));
+      const contained = (t) => (Number(t) * rate / (100 + rate)).toFixed(2);
+
+      const scanTotal = p.locator('[data-i18n="scan.total"]').locator('xpath=following-sibling::span[1]');
+      const scanVatEl = p.locator('[data-i18n="scan.total"]')
+                         .locator('xpath=../following-sibling::div[1]/span[2]');
+      const sTot = await money(scanTotal);
+      const sVat = await money(scanVatEl);
+
+      vn++;
+      if (sTot !== '10.90') {
+        vbad++;
+        console.log(`  ❌ the VAT basket did not build: cart total reads ${sTot}, expected 10.90`
+                  + ' (5.00 for the 3-pack + 5.90) — everything below would be measuring the wrong cart');
+      } else {
+        vn++;
+        if (sVat !== contained(sTot)) {
+          vbad++;
+          console.log(`  ❌ cart screen: total ${sTot} but VAT ${sVat}, and ${rate}% of that total is ${contained(sTot)}`);
+        }
+
+        // Drive the REAL button. Reading sessionStorage or calling recalc() here would test a
+        // copy of the path instead of the path (the ring-out lesson, one section up).
+        await p.locator('button:has-text("Checkout")').first().click();
+        await p.waitForURL('**/pos/checkout**', { timeout: 20000 });
+        const coTotal = p.locator('[data-i18n="checkout.total"]').locator('xpath=..').locator('span').last();
+        const coVatEl = p.locator('[data-i18n="checkout.incl_vat"]').locator('xpath=../..').locator('span').last();
+        const cTot = await money(coTotal);
+        const cVat = await money(coVatEl);
+
+        vn++;
+        if (cTot !== sTot) {
+          vbad++;
+          console.log(`  ❌ the two screens disagree on the TOTAL: cart ${sTot} · checkout ${cTot}`);
+        }
+        vn++;
+        if (cVat !== contained(cTot)) {
+          vbad++;
+          console.log(`  ❌ checkout: total ${cTot} but VAT ${cVat}, and ${rate}% of that total is ${contained(cTot)}`
+                    + '  (the VAT loop is reading price × qty, not the pooled line — the deal is being un-discounted)');
+        }
+        vn++;
+        if (cVat !== sVat) {
+          vbad++;
+          console.log(`  ❌ the two screens disagree on the VAT inside the same total: cart ${sVat} · checkout ${cVat}`);
+        }
+
+        // Now with a discount on top, so the `factor` path is exercised too and not just the
+        // factor === 1 case. The pack is deal-priced and never discounts, so the 10% lands on
+        // the 5.90 line only — which is the arrangement that made the two equations diverge.
+        const chip = p.locator('button:has-text("10%")').first();
+        if (await chip.count()) {
+          await chip.click();
+          await p.waitForTimeout(800);
+          const dTot = await money(coTotal);
+          const dVat = await money(coVatEl);
+          vn++;
+          if (dTot !== '10.31') {
+            vbad++;
+            console.log(`  ❌ 10% off a 10.90 basket whose 5.00 pack cannot discount should be 10.31, got ${dTot}`);
+          }
+          vn++;
+          if (dVat !== contained(dTot)) {
+            vbad++;
+            console.log(`  ❌ checkout, discounted: total ${dTot} but VAT ${dVat}, expected ${contained(dTot)}`);
+          }
+        } else {
+          vn++; vbad++;
+          console.log('  ❌ no 10% discount chip on checkout — the discounted half of this check could not run');
+        }
+
+        if (!vbad) console.log(`  ✅ the VAT line agrees with its own total on both screens: `
+                             + `cart ${sTot}/${sVat} → checkout ${cTot}/${cVat}, at ${rate}% inclusive, with a pack deal in the basket`);
+      }
+
+      try {
+        await p.evaluate(async (k) => {
+          const tok = sessionStorage.getItem('pos_token') || localStorage.getItem('pos_token');
+          const H = { 'Authorization': 'Bearer ' + tok, 'Content-Type': 'application/json' };
+          sessionStorage.removeItem('pos_cart');
+          for (const pr of [k.deal, k.plain]) {
+            await fetch('/api/v1/pos/products/' + pr.id, { method: 'PUT', headers: H,
+              body: JSON.stringify({ name: pr.name + ' (retired)', price: pr.price,
+                                     is_active: false, product_class: 'standard' }) }).catch(() => {});
+          }
+        }, vkit);
+      } catch (e) { console.log('  ⚠️  cleanup failed — ZZPROBE rows may still be active: ' + e.message); }
+    }
+  } catch (e) {
+    vbad++; vn++;
+    console.log('  ❌ VAT-line check threw — a FAILURE, not a warning: ' + e.message);
+  }
+
+
+  await b.close(); process.exit((bad + mbad + hbad + rbad + tbad + vbad) ? 1 : 0);
 })();
