@@ -974,17 +974,18 @@ price nobody agreed to.*
    completed a sale on this build; every test all week stops at the payment button. Without it,
    Layla's shift is the first real sale this code has rung. **Tell Felix before, not after** — it
    leaves two lines in the Kassenbücher.
-2. **The mm/dd date filters** — the last blocking item that needs building rather than tidying.
-   Seven screens now (six report filters + Cleanup). Needs a small Banco calendar: the browser's
-   own picker takes its format from the BROWSER's locale and nothing on the page can change it.
-   Layla's own words: *"is there no swiss date picker, can we load one, this will be terrible
-   without it."*
+2. ~~**The mm/dd date filters**~~ — **FIXED, see ⓒ2 below.** All seven, plus a month grid on each
+   of the six. `04446b1`. Needs Layla's eyes:
+   `onboarding/testsheets/2026-09-04-swiss-dates-everywhere.html` — 22 steps, folio OFF.
 3. **Re-run the keyboard-buries-search test with the folio OFF.** The last result does not count —
    the pad never appeared, and the pad is the subject of the test. Section 0 of the golden template
    now catches this class of mistake.
 4. **The discount chips** — Target Total applies 15.25% and no chip lights up; plus *"Your max
    discount: 100%"* is developer copy on a cashier's screen.
 5. **The half-cut product row** and **Layla's sticky Find Product header** — both small, both hers.
+6. **The counter visit — section ⓞ.** Same trip as item 1. Everything this week was proved in a
+   flat; the shop's light, network, counter height and the fact that there is **no chair** have not
+   been in the loop. An hour there is worth more than another day of fixes from here.
 
 ### The method changes made today, so they are not lost
 
@@ -998,6 +999,145 @@ price nobody agreed to.*
   fail, it is not verification.* Four times today a probe passed because it could not see the bug —
   including twice on the same warning line, where the fix and the absence of the fix produced
   identical output. Say "unverified" rather than reporting green as proof.
+
+---
+
+## ⓞ THE COUNTER VISIT — GO BEFORE THE SHIFT, NOT ON IT — 2026-09-04 evening
+
+*Found on a kitchen table, not at the shop. Angel stood the tablet up in landscape, looked down at
+it the way a cashier would, and it was unreadable — and **there is no chair behind that counter**,
+so Layla would have to pick the tablet up for every sale. `WHERE-WE-ARE.html` already carried the
+warning in prose (*"everything this week was proved in the flat"*); this is that warning turned into
+things you can actually check.*
+
+**This is LESSON #1 again and it is the cheapest instance of it yet** — a mount costs CHF 25, and
+it was caught three weeks early instead of on Layla's shift. Same shape as the folio keyboard that
+invalidated two runs, and as the LTE proved at home on an SSID Luzern does not have: *tested in the
+posture the tester happened to have, not the posture she will have.*
+
+### The one decision that touches the code — LANDSCAPE, LOCKED
+
+Every geometry proof runs at **1440 × 895** (measured off the device pixel ratio, section ⓐ).
+Portrait is ~895 × 1440 and moves the fold, the pinned Save bar, the cart total and the keypad that
+owns the bottom of the screen. **Choose a landscape stand and lock rotation in the OS**, so a bump
+mid-sale cannot reflow the UI in front of a customer — and so this week's geometry work stays true.
+The testsheet rig already has an orientation selector; this is the decision that pins it.
+
+### Take with you
+
+- **A cheap adjustable tablet stand (~CHF 25).** Do NOT buy the real one first — the right angle and
+  height depend on Layla's height, the counter height and where their lights are, none of which can
+  be worked out from here. Find the geometry at the counter, photograph it, then buy the weighted
+  one (Bouncepad / Compulocks / Heckler / Durable / Kensington, ~CHF 80–300). **Weighted matters:**
+  a light stand slides on every tap. A counter-edge clamp or VESA arm is worth considering — counter
+  space is the scarcest thing at any till.
+- **A matte anti-glare screen protector (~CHF 20).** A glossy panel lying flat is aimed straight at
+  the ceiling lights. Tilting to 60–75° fixes most of it; the film fixes the rest.
+- **The gun, the folio (to leave OFF), and Layla.**
+
+### The checklist
+
+**Light** — shop lights ON and the street door open; daylight is a second source and it moves
+through the day.
+- Readable **without leaning in**, standing where she stands?
+- Re-look at this week's contrast work under those lights: the 139 disabled buttons, the 111 CSS
+  classes, the refusal text. Every one of those judgements was made under flat lighting.
+- Is the tablet's brightness capped by auto-brightness or a power-saving mode?
+
+**Reach and geometry**
+- Can she work the till **while facing a customer**, or does she have to turn away? Turning away
+  from a customer is the thing owners hate.
+- Where does the Worldline terminal sit relative to the tablet — can she work both without shuffling?
+- Is there a socket, and does the cable reach without crossing where she stands?
+
+**Network** — the LTE lesson wearing a different hat.
+- Their wifi **at the counter**, and the dead spot behind it.
+- Does the tablet roam or cling? Anything captive-portal?
+
+**The gun**
+- At the counter's angle, over their network, on their surface — not held at reading height in a chair.
+
+**Noise**
+- Is the scan beep audible over the shop's music and the door?
+
+### Do the controlled sales on the SAME trip
+
+Item 1 below and this are one visit. Four sales, not one — that button is the first execution of the
+Kassenbuch write, the transaction number sequence, the receipt render, the shift totals, the drawer,
+the credits award and the VAT split on a stored record:
+
+1. **Cash, plain** — the drawer path.
+2. **Card** — the one rehearsal the manual (unintegrated) path gets.
+3. **With a pack deal in the basket** — where the VAT bug lived; a stored record is not a screen.
+4. **With a member attached** — the credits award writes to a second place.
+
+Then refund them. **The refund path is also first-time, is manager-only, and hands back CASH even on
+a card sale** — so a refunded card sale takes money out of the drawer. Watch that land in the shift
+close. Tell Felix beforehand: it is a rehearsal so that his shop's first real sale is not this
+code's first sale.
+
+---
+
+## ⓒ2 ~~`mm/dd/yyyy` on the six report FILTERS~~ — **FIXED** — 2026-09-04 night · `04446b1`
+
+*Layla, 17:21, on Transaction History: "the same screen prints `Showing 04.09.2026` one line under
+a filter that says `09/04/2026`."*
+
+**The interesting part is not the fix, it is why they were missed.** ⓒ1 fixed the five fields a
+cashier TYPES into and `prove-swiss-dates.js` was written to stop it coming back — with an
+exclusion, in these words:
+
+> `type="date"` is deliberately NOT swept: the six report range-filters still use it and are their
+> own piece of work (they are picker-driven, with preset buttons, and nobody types into them).
+
+Every clause of that is true and the conclusion is wrong. **Being picker-driven is not a defence —
+the PICKER is what renders in the browser's locale.** The exclusion sat in the file whose entire
+subject is that widget, three lines under a comment invoking standing rule 9, for one day.
+LESSON #9 is now ×5 and this is the clearest instance of it: *a remembered decision to skip
+something is a hypothesis, and this one had its expiry condition written into it and never checked.*
+
+**What shipped**
+
+| where | what it was |
+|---|---|
+| `transactions.html` | From · To — the screen a cashier opens with a customer waiting |
+| `product_sales.html` | From · To |
+| `audit.html` | From · To, inside the Custom range row |
+| `cleanup.html` | the seventh — `shortDate()`, a bare `toLocaleDateString()` with no locale |
+
+The six are Banco date boxes now (masked text · `data-keypad="date"` · model still ISO). The
+seventh was a different bug in the same coat: not a widget but a line of code that asked the
+BROWSER what country it was in, three lines above its own comment about not shadowing the money
+seam. It goes through `formatDate()` — the one date/time seam — like everything else.
+
+**`src/static/pos/pos-datepicker.js` — new, the month grid Banco draws itself.** Angel's call:
+*"mask plus the month grid"*, and the two halves cover each other. The mask makes every box
+dd.mm.yyyy on any device; the grid is the only half that works for someone who does not know
+today's date offhand — nobody types their way to "last Tuesday". Monday-first, months named from
+`_cfg('locale')` so an Italian till reads *settembre* without a new string, six fixed rows so the
+footer never slides out from under a thumb, flips above the field when it would run off the glass,
+and closes the keypad on open. **It draws on every device, unlike the keypad** — the thing it
+replaces was wrong on the laptop too.
+
+**Three things the work turned up**
+
+1. **A filter has no Save button to grey out.** `31.02.2026` is two halves that are each legal, so
+   the parser refuses it and records nothing — which without a red box means the screen shows a
+   date while the filter holds none, with nothing on the glass to say which is true. LESSON #13's
+   exact shape. `posMarkBad` is wired to all six, and the x-effect clears the red as well as
+   writing the value, or a preset pressed after a typo leaves a red box over a good filter.
+2. **The date helpers had no identity shims** while money and quantity did — and the date ones are
+   called from an **x-effect**, which Alpine runs on the first paint. An effect that throws there
+   never registers its dependencies and never runs again, silently, for the life of the page. That
+   is exactly what emptied Felix's member birthdate this morning. Shims added in `base.html`.
+3. **Breaking the proof on purpose caught a fault in the proof.** Reverting the From filter to a
+   native picker and rebuilding turned M, O and P red as intended — and left *"the box reads
+   12.09.2026"* GREEN, because the generic selector had simply moved on to the To box: reading one
+   field while asserting about another's model. Tightened with a count. LESSON #4 earns its keep
+   every single time it is actually done.
+
+`prove-swiss-dates.js` sections M–Q, **+33 checks → 75 pass / 0 fail**; `prove-keypad.js` still
+81/0. Screenshots of all three screens with the grid open are in the session scratchpad.
 
 ---
 
