@@ -508,6 +508,67 @@ screen.
 
 ---
 
+## ⓖ A REFUSAL NOBODY CAN SEE — 139 BUTTONS, AND 33.33.3333 — 2026-09-04
+
+*Felix's second retest. Two ISSUEs, both the same shape, and both bigger than the field he was
+standing on.*
+
+### ⓖ1 The disabled button that does not look disabled — **139 of them**
+
+Felix: *"you can not close out the day with that false number and close does not work but no
+warning and not really greyed out — the Close out my day button does not look at all greyed out."*
+
+He is right and it was never one button. **`.btn-primary`, `.btn-secondary`, `.btn-danger` and
+`.btn-success` carried no disabled styling of any kind**, so every `:disabled` binding in the POS
+painted a live, full-colour, hoverable control that silently did nothing when pressed —
+**139 bindings across 22 screens** (catalog 21 · settings 20 · cleanup 16 · scan 12 · checkout 10 ·
+…). The logic was right everywhere; the screen said nothing anywhere. LESSON #12.
+
+Fixed in `base.html`: `opacity .45`, `grayscale(.65)`, `cursor: not-allowed`, and the hover/active
+`transform: scale()` killed so a dead button cannot grow under a finger as though it were about to
+work. Declared after the `:hover` rules — same specificity, source order decides.
+
+### ⓖ2 `33.33.3333` in a live member record, with Save fully green
+
+Felix: *"the year 4 digit allows any number — we need to block this, nobody is 99 years old coming
+into this shop and year 3333 is obviously false … apparently accepts any date even if completely
+invalid."*
+
+**It was worse than he could see.** `posDateToISO` already refused it, so the model held `''` — the
+birthdate would have **saved as nothing at all** while the screen showed a date, and the enrol
+payload drops empty strings by design. LESSON #13, the stored copy and the screen disagreeing, on
+an age record.
+
+Three layers now, because one is not enough:
+
+1. **The impossible digit never appears.** `clampDateDigits` — no day begins 4–9, nothing follows a
+   3 but 0 or 1, no month begins 2–9, nobody was born in year 3xxx. Typing `33333333` leaves `3`.
+2. **A birthdate is narrower than a date.** `posBirthdateISO` = a real day, not in the future, not
+   more than 120 years ago. The old floor was 1900–**2200** — a birth year for nobody. Kept
+   separate from `posDateToISO`, because a rule that fits a birthday would be wrong on a delivery
+   date. Test cases are built from *today*, never a literal year.
+3. **What gets past both, the box says out loud.** `31.02.2000` is two halves that are each legal,
+   so no keystroke rule can catch it — the box turns red and a line appears under it, in all four
+   languages, and both clear the moment the date is real.
+
+### The proofs
+
+- `prove-swiss-dates.js` **32 → 38**: the clamp (6 cases), the birthdate range (4), and section J
+  which types `31.02.2000` and measures the hint with `getBoundingClientRect()` against
+  `innerHeight` — *rendered* is not the question, LESSON #12, and this repo has shipped a refusal
+  at y=1372 in a 1050px viewport with `isVisible()` true throughout.
+- `prove-chosen-is-visible.js` **11 → 13**: toggles `disabled` on a real button and compares what
+  the screen paints in each state, so it passes on any mechanism that makes the difference visible
+  and none that does not.
+- Both watched red first: the button check reported `opacity=1 filter=none` in both states, and
+  section J reported "no hint element is showing at all".
+
+**Still open:** ⓕ1 is now closed by ⓖ1/ⓖ2. ⓕ2 (the clock picker) Felix has withdrawn —
+*"i understand the clock picker issue so no worries the time is working"*. ⓕ4 (the stale
+`keypad-inventory.py` recommendation) stands.
+
+---
+
 ## 🔎 FOUND WHILE FIXING SOMETHING ELSE — 2026-09-02 late
 
 *Not blocking. Logged here rather than carried to Angel mid-run (standing rule: report less).*

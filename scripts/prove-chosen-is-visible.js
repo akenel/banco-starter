@@ -183,6 +183,48 @@ const FLOOR = 3.0;
     }
   }
 
+  // ── AND A BUTTON THAT WILL NOT WORK MUST NOT LOOK LIKE ONE THAT WILL ────────────────
+  // 2026-09-04, Felix, after typing 25:30 into a shift: "you can not close out the day
+  // with that false number and close does not work, but no warning and not really greyed
+  // out — the Close out my day button does not look at all greyed out."
+  //
+  // He found one. It was 139, across 22 screens: .btn-primary/.btn-secondary/.btn-danger/
+  // .btn-success carried NO disabled styling at all, so every `:disabled` binding in the
+  // POS painted a live, full-colour, hoverable control that silently did nothing. Same
+  // family as everything else in this file — the state is correct and invisible.
+  //
+  // Measured by TOGGLING the attribute on one real button and comparing what the screen
+  // paints in each state, so this passes on any mechanism that makes the difference
+  // visible and fails on none that does not.
+  console.log('\n── a disabled button looks disabled ──');
+  await p.goto('http://localhost:3000/pos/my-day', { waitUntil: 'domcontentloaded' });
+  await p.waitForTimeout(1800);
+  const btn = p.locator('button.btn-success').first();
+  if (!(await btn.count())) {
+    check(false, 'the Close out my day button is on the screen',
+          'no button.btn-success on /pos/my-day — a check that cannot find its subject always passes');
+  } else {
+    const seen = await btn.evaluate((el) => {
+      const read = () => {
+        const s = getComputedStyle(el);
+        return { opacity: s.opacity, filter: s.filter, cursor: s.cursor };
+      };
+      const was = el.disabled;
+      el.disabled = false; const on = read();
+      el.disabled = true;  const off = read();
+      el.disabled = was;
+      return { on, off };
+    });
+    const differs = seen.on.opacity !== seen.off.opacity
+                 || seen.on.filter !== seen.off.filter;
+    check(differs, 'the same button paints differently once it is disabled',
+          `enabled  opacity=${seen.on.opacity} filter=${seen.on.filter}\n       `
+          + `disabled opacity=${seen.off.opacity} filter=${seen.off.filter}`
+          + '  — identical: the refusal is invisible and the button reads as broken');
+    check(seen.off.cursor === 'not-allowed', 'and the pointer says so too',
+          'cursor is "' + seen.off.cursor + '" while disabled');
+  }
+
   await p.evaluate(() => sessionStorage.removeItem('pos_cart'));
   console.log('\n==========================================');
   console.log(`  ${pass} passed · ${fail} failed`);

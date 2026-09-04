@@ -56,6 +56,8 @@ window.POS_STRINGS = {
     "common": {
       "cancel": "Cancel",
       "date_placeholder": "dd.mm.yyyy",
+      "not_a_date": "That is not a real date.",
+      "not_a_time": "That is not a time on the clock.",
       "loading": "Loading…",
       "edit": "Edit",
       "error": "Error"
@@ -2173,6 +2175,8 @@ window.POS_STRINGS = {
     "common": {
       "cancel": "Annuler",
       "date_placeholder": "jj.mm.aaaa",
+      "not_a_date": "Ce n'est pas une date réelle.",
+      "not_a_time": "Ce n'est pas une heure de la journée.",
       "loading": "Chargement…",
       "edit": "Modifier",
       "error": "Erreur"
@@ -4300,6 +4304,8 @@ window.POS_STRINGS = {
     "common": {
       "cancel": "Annulla",
       "date_placeholder": "gg.mm.aaaa",
+      "not_a_date": "Non è una data reale.",
+      "not_a_time": "Non è un orario dell'orologio.",
       "loading": "Caricamento…",
       "edit": "Modifica",
       "error": "Errore"
@@ -6417,6 +6423,8 @@ window.POS_STRINGS = {
     "common": {
       "cancel": "Abbrechen",
       "date_placeholder": "TT.MM.JJJJ",
+      "not_a_date": "Das ist kein echtes Datum.",
+      "not_a_time": "Das ist keine Uhrzeit.",
       "loading": "Wird geladen…",
       "edit": "Bearbeiten",
       "error": "Fehler"

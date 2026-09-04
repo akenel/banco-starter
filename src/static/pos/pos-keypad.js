@@ -79,13 +79,45 @@
      data-keypad="decimal" it gets Banco's own pad.
 
      The MODEL still holds ISO `yyyy-mm-dd`, so nothing downstream changes. */
+  /* ── AND THE DIGITS THAT CANNOT BE PART OF ANY DATE NEVER GO IN ────────────
+     2026-09-04, Felix, having just watched the box accept 33.33.3333 with the
+     Save button sitting there fully green: "the year 4 digit allows any number
+     — we need to block this, nobody is 99 years old coming into this shop and
+     year 3333 is obviously false."
+
+     Worse than he knew: the PARSER already refused it, so the model held '' —
+     the birthdate would have saved as NOTHING while the screen showed a date.
+     LESSON #13, the stored copy and the screen disagreeing, on an age record.
+
+     So the mask refuses the digit at the door. No day begins 4–9; nothing
+     follows a 3 but 0 or 1; no month begins 2–9; nobody was born in year 3xxx.
+     A digit that cannot be part of any date simply does not appear, which is
+     the same silence the 8-digit ceiling already uses and which Felix accepted
+     there. What clamping CANNOT catch — 31.02.2000, two halves that are each
+     legal — is what markBad() below paints red. */
+  function clampDateDigits(d) {
+    var out = '';
+    for (var i = 0; i < d.length && out.length < 8; i++) {
+      var c = d.charAt(i), n = +c, k = out.length;
+      if (k === 0 && n > 3) continue;                            // no day starts 4-9
+      if (k === 1 && out.charAt(0) === '3' && n > 1) continue;   // 32..39
+      if (k === 1 && out.charAt(0) === '0' && n === 0) continue; // day 00
+      if (k === 2 && n > 1) continue;                            // no month starts 2-9
+      if (k === 3 && out.charAt(2) === '1' && n > 2) continue;   // month 13..19
+      if (k === 3 && out.charAt(2) === '0' && n === 0) continue; // month 00
+      if (k === 4 && n !== 1 && n !== 2) continue;               // year 1xxx or 2xxx
+      out += c;
+    }
+    return out;
+  }
+
   function dateMask(v) {
     var s = String(v == null ? '' : v);
     // A pasted ISO date is a real thing a person does (copied out of a record).
     // Catch it BEFORE stripping punctuation, or 1990-12-31 masks to "19.90.1231".
     var iso = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
     if (iso) return iso[3] + '.' + iso[2] + '.' + iso[1];
-    var d = s.replace(/[^0-9]/g, '').slice(0, 8);
+    var d = clampDateDigits(s.replace(/[^0-9]/g, '')).slice(0, 8);
     if (d.length <= 2) return d;
     if (d.length <= 4) return d.slice(0, 2) + '.' + d.slice(2);
     return d.slice(0, 2) + '.' + d.slice(2, 4) + '.' + d.slice(4);
@@ -144,11 +176,49 @@
     return m[1] + ':' + m[2];
   }
 
+  /* ── A BIRTHDATE IS A DATE IN THE PAST, OF SOMEBODY WHO COULD WALK IN ──────
+     dateToISO() answers "is this a real day". This answers the question the
+     18+ gate is actually asking. 1900..2200 was the old range and 2200 is a
+     birth year for nobody; a card issued to a 130-year-old is a typo, not a
+     customer. Kept separate from dateToISO on purpose — not every date field
+     in Banco is a birthday, and a rule that fits this one would be wrong on a
+     delivery date. */
+  function birthdateISO(v) {
+    var iso = dateToISO(v);
+    if (!iso) return '';
+    var today = new Date().toISOString().slice(0, 10);
+    if (iso > today) return '';                              // nobody is born tomorrow
+    if (+iso.slice(0, 4) < new Date().getUTCFullYear() - 120) return '';
+    return iso;
+  }
+
+  /* ── AND WHEN IT IS STILL WRONG, THE BOX SAYS SO WHERE THE BOX IS ──────────
+     Felix, twice in one morning: "no warning". Clamping stops the impossible
+     digit; this catches what gets past it — 31.02.2000 is two halves that are
+     each perfectly legal. Only fires once the box is FULL (8 digits, or 4 for
+     a time), so nobody is shouted at halfway through typing.
+
+     Plain DOM, deliberately: these five boxes live in five different Alpine
+     components, and threading a reactive flag through each is more moving
+     parts than a class toggle. It also behaves identically whether the digits
+     came from Banco's pad or the folio keyboard, which is exactly the split
+     that hid the last bug. */
+  function markBad(el, ok, need) {
+    if (!el) return;
+    var digits = String(el.value == null ? '' : el.value).replace(/[^0-9]/g, '').length;
+    var bad = !ok && digits >= (need || 8);
+    el.classList.toggle('pos-bad', bad);
+    var hint = el.parentElement && el.parentElement.querySelector('[data-bad-hint]');
+    if (hint) hint.hidden = !bad;
+  }
+
   window.posMoneyOnly = moneyOnly;
   window.posIntOnly   = intOnly;
   window.posDateMask  = dateMask;
   window.posDateToISO = dateToISO;
   window.posISOToDate = isoToDate;
+  window.posBirthdateISO = birthdateISO;
+  window.posMarkBad = markBad;
   window.posTimeMask  = timeMask;
   window.posTimeValue = timeValue;
 

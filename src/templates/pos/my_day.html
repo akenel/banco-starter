@@ -129,9 +129,10 @@
                         </label>
                         <input type="text" data-keypad="time" maxlength="5" inputmode="numeric"
                                placeholder="HH:MM"
-                               @input="$el.value = window.posTimeMask($el.value); form.start_time = window.posTimeValue($el.value)"
+                               @input="$el.value = window.posTimeMask($el.value); form.start_time = window.posTimeValue($el.value); window.posMarkBad($el, form.start_time, 4)"
                                x-effect="if (window.posTimeValue($el.value) !== form.start_time) $el.value = form.start_time || ''"
                                class="input-field text-center">
+                        <p data-bad-hint hidden class="pos-bad-hint" data-i18n="common.not_a_time">That is not a time on the clock.</p>
                         <button @click="form.start_time = nowHHMM()" class="text-xs text-indigo-600 hover:underline mt-1" data-i18n="myday.set_to_now">Set to now</button>
                     </div>
                     <div>
@@ -141,9 +142,10 @@
                         </label>
                         <input type="text" data-keypad="time" maxlength="5" inputmode="numeric"
                                placeholder="HH:MM"
-                               @input="$el.value = window.posTimeMask($el.value); form.end_time = window.posTimeValue($el.value)"
+                               @input="$el.value = window.posTimeMask($el.value); form.end_time = window.posTimeValue($el.value); window.posMarkBad($el, form.end_time, 4)"
                                x-effect="if (window.posTimeValue($el.value) !== form.end_time) $el.value = form.end_time || ''"
                                class="input-field text-center">
+                        <p data-bad-hint hidden class="pos-bad-hint" data-i18n="common.not_a_time">That is not a time on the clock.</p>
                         <button @click="form.end_time = nowHHMM()" class="text-xs text-indigo-600 hover:underline mt-1" data-i18n="myday.set_to_now">Set to now</button>
                     </div>
                 </div>

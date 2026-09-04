@@ -67,6 +67,21 @@ const PAGES = [
                ['29.02.2024', '2024-02-29'], ['29.02.2023', ''], ['31.02.1990', ''],
                ['00.00.0000', ''], ['3.12.1990', ''], ['31.12.1899', '']]
       .map(([i, w]) => [i, w, window.posDateToISO(i)]);
+    // The digits that can never be part of a date do not appear at all. Felix typed
+    // 33.33.3333 into a live member record and the Save button sat there fully green.
+    out.clamp = [['33333333', '3'], ['4', ''], ['39', '3'], ['030933333', '03.09'],
+                 ['0000', '0'], ['03092000', '03.09.2000']]
+      .map(([i, w]) => [i, w, window.posDateMask(i)]);
+    // And a birthdate is narrower than a date. Built from TODAY, never a literal —
+    // a hardcoded year passes for a while and then quietly stops meaning anything.
+    const yr = new Date().getUTCFullYear();
+    const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    out.birth = [['03.09.2000', '2000-09-03'],
+                 [('0' + (new Date(Date.now() + 86400000).getUTCDate())).slice(-2) + '.'
+                  + ('0' + (new Date(Date.now() + 86400000).getUTCMonth() + 1)).slice(-2) + '.'
+                  + tomorrow.slice(0, 4), ''],
+                 ['01.01.' + (yr - 130), ''], ['01.01.' + (yr - 40), (yr - 40) + '-01-01']]
+      .map(([i, w]) => [i, w, window.posBirthdateISO(i)]);
     return out;
   });
   check(!helpers.missing.length, 'the date helpers are on the page',
@@ -78,6 +93,12 @@ const PAGES = [
     const ibad = helpers.iso.filter(([, w, g]) => w !== g);
     check(!ibad.length, `a day that does not exist is refused, not stored (${helpers.iso.length} cases)`,
           ibad.map(([i, w, g]) => `"${i}" → "${JSON.stringify(g)}", expected ${JSON.stringify(w)}`).join('\n       '));
+    const cbad = helpers.clamp.filter(([, w, g]) => w !== g);
+    check(!cbad.length, `a digit that cannot start a day, a month or a year never appears (${helpers.clamp.length} cases)`,
+          cbad.map(([i, w, g]) => `typing "${i}" leaves "${g}", expected "${w}"`).join('\n       '));
+    const bbad = helpers.birth.filter(([, w, g]) => w !== g);
+    check(!bbad.length, `a birthdate is in the past and inside a human lifetime (${helpers.birth.length} cases)`,
+          bbad.map(([i, w, g]) => `"${i}" → ${JSON.stringify(g)}, expected ${JSON.stringify(w)}`).join('\n       '));
   }
 
   // ── B · NO NATIVE DATE INPUT SURVIVES ON A SCREEN A CASHIER TYPES INTO ────────────────
@@ -331,6 +352,58 @@ const PAGES = [
   check(rx.value === '03.09.2000', 'and it still stops at eight digits, however long the finger rests',
         rx.err || 'the box reads "' + rx.value + '"');
   await tctx.close();
+
+  // ── J · WHAT CLAMPING CANNOT CATCH, THE BOX SAYS OUT LOUD ────────────────────────────
+  // 31.02.2000 is two halves that are each legal, so no keystroke rule can stop it. The
+  // parser has always refused it — silently, which is the problem: the model went empty
+  // while the screen showed a date, and Save stayed green. LESSON #13 on an age record.
+  //
+  // "Is it rendered" is not the question. LESSON #12: it has to be inside the rectangle
+  // the person is looking at, and the only thing that answers that is
+  // getBoundingClientRect() against innerHeight — a refusal has already been shipped in
+  // this repo at y=1372 in a 1050px viewport with isVisible() returning true throughout.
+  console.log('\n── J · a date that is not a date says so, where the box is ──');
+  await p.goto('http://localhost:3000/pos/customer-lookup', { waitUntil: 'domcontentloaded' });
+  await p.waitForTimeout(1800);
+  const jopen = p.locator('[data-i18n="customer.add_new_crack"]').first();
+  if (await jopen.count()) { await jopen.click(); await p.waitForTimeout(700); }
+  const jbox = p.locator('input[data-i18n-placeholder="common.date_placeholder"]:visible').first();
+  if (!(await jbox.count())) {
+    check(false, 'the sign-up date box is on the screen');
+  } else {
+    await jbox.click({ force: true });
+    await jbox.fill(''); await jbox.type('31022000', { delay: 40 });
+    await p.waitForTimeout(400);
+    const r = await jbox.evaluate((el) => {
+      const hint = el.parentElement && el.parentElement.querySelector('[data-bad-hint]');
+      const hr = hint && !hint.hidden ? hint.getBoundingClientRect() : null;
+      return {
+        shown: el.value,
+        red: el.classList.contains('pos-bad'),
+        hintOnScreen: !!(hr && hr.height > 0 && hr.top >= 0 && hr.bottom <= window.innerHeight),
+        hintY: hr ? Math.round(hr.top) : null,
+        viewport: window.innerHeight,
+        text: hint ? hint.textContent.trim().slice(0, 40) : null,
+      };
+    });
+    check(r.shown === '31.02.2000', '31.02.2000 can still be TYPED — no keystroke rule can catch it',
+          'the box shows "' + r.shown + '"');
+    check(r.red, 'and the box turns red', 'the box carries no .pos-bad class — it looks like any other');
+    check(r.hintOnScreen,
+          'and it says why, inside the viewport the person is looking at',
+          r.hintY === null ? 'no hint element is showing at all'
+            : `the hint sits at y=${r.hintY} in a ${r.viewport}px viewport — rendered, and not on the screen`);
+
+    // And it goes away again. A warning that sticks after the fix is a warning nobody reads.
+    await jbox.fill(''); await jbox.type('03092000', { delay: 40 });
+    await p.waitForTimeout(400);
+    const clean = await jbox.evaluate((el) => {
+      const hint = el.parentElement && el.parentElement.querySelector('[data-bad-hint]');
+      return { red: el.classList.contains('pos-bad'), hint: !!(hint && !hint.hidden) };
+    });
+    check(!clean.red && !clean.hint, 'and both clear the moment the date is a real one',
+          'red=' + clean.red + ' hint=' + clean.hint);
+  }
 
   console.log('\n==========================================');
   console.log(`  ${pass} passed · ${fail} failed`);

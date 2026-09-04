@@ -178,6 +178,41 @@
         .btn-secondary:hover { background-color: #f9fafb; box-shadow: 0 4px 6px -1px rgba(0,0,0,.1); }
         .btn-secondary:focus { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #d1d5db; }
 
+        /* ── A DISABLED BUTTON HAS TO LOOK DISABLED ────────────────────────────────
+           2026-09-04, Felix, typing 25:30 into a shift: "you can not close out the
+           day with that false number and close does not work but no warning and not
+           really greyed out — the Close out my day button does not look at all
+           greyed out." He is right, and it was never one button: these four classes
+           carried NO disabled styling of any kind, so every `:disabled` binding in
+           the POS rendered as a live, full-colour, hoverable control that silently
+           did nothing when pressed. **139 of them, across 22 screens.**
+
+           A refusal the person cannot see is not a refusal — it is the button being
+           broken (LESSON #12). Declared after the :hover rules on purpose: same
+           specificity, so source order decides, and a disabled button must not grow
+           under a finger as if it were about to work. */
+        .btn-primary:disabled, .btn-secondary:disabled,
+        .btn-danger:disabled,  .btn-success:disabled {
+            opacity: .45; filter: grayscale(.65); cursor: not-allowed;
+            box-shadow: none;
+        }
+        .btn-primary:disabled:hover, .btn-secondary:disabled:hover,
+        .btn-danger:disabled:hover,  .btn-success:disabled:hover,
+        .btn-primary:disabled:active, .btn-secondary:disabled:active,
+        .btn-danger:disabled:active,  .btn-success:disabled:active {
+            transform: none; box-shadow: none;
+        }
+
+        /* A box holding something that is NOT a real date or time. Set from
+           pos-keypad.js on every keystroke — no Alpine state to thread through five
+           different components, and it works the same whether the digits came from
+           the pad or a folio keyboard. */
+        .pos-bad, input.pos-bad {
+            border-color: #dc2626 !important; background-color: #fef2f2;
+            box-shadow: 0 0 0 1px #dc2626;
+        }
+        .pos-bad-hint { color: #b91c1c; font-size: .8125rem; margin-top: .25rem; }
+
         /* Card styling — real CSS (@apply is dead in this plain <style>) */
         .card {
             background-color: #fff;
