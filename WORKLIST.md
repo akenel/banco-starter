@@ -1093,8 +1093,10 @@ exclusion, in these words:
 Every clause of that is true and the conclusion is wrong. **Being picker-driven is not a defence —
 the PICKER is what renders in the browser's locale.** The exclusion sat in the file whose entire
 subject is that widget, three lines under a comment invoking standing rule 9, for one day.
-LESSON #9 is now ×5 and this is the clearest instance of it: *a remembered decision to skip
-something is a hypothesis, and this one had its expiry condition written into it and never checked.*
+It is **standing rule 9** that says one bad
+endpoint means checking its siblings — and **LESSON #3** (now ×5) that says why this one survived:
+*a remembered decision is a hypothesis with a timestamp on it.* This one had its reasoning written
+down beside it and was never re-read against the question "is that still the right call?".
 
 **What shipped**
 

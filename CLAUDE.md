@@ -200,13 +200,20 @@ pattern below, bump the count here. A pattern at ×7 is telling you something a 
    judging. A tier is a filter with extra steps, and a flag is a filter you cannot see. A SECOND
    way to ask the same question must be tested against the FIRST, never against your own
    expectations — pick the input where a wrong predicate has to differ.*
-3. **×4 · A remembered failure is a hypothesis with a timestamp on it.** The Brother driver that had
+3. **×5 · A remembered failure is a hypothesis with a timestamp on it — and so is a remembered
+   decision to SKIP something.** The Brother driver that had
    been fixed upstream; the spec-parser note that was backwards for three days; the bfcache cart bug
    I predicted from a missing guard and Angel disproved in ten seconds; and the tablet camera written
    off on 2026-08-05 as "nothing attached to the other end" — ACPI declares **two fitted sensors**,
    and the August verdict had inferred absent hardware from absent log lines. *Re-measure before
    repeating a verdict. Absence in a log is not absence in the world — ask the registry that knows,
-   and write the expiry condition into the note.*
+   and write the expiry condition into the note.* On 2026-09-04 the same shape as an
+   EXCLUSION: `prove-swiss-dates.js` deliberately did not sweep `type="date"` because "the six
+   report range-filters are picker-driven, with preset buttons, and nobody types into them" — every
+   clause true, and the conclusion wrong, because the PICKER is what renders in the browser's
+   locale. It sat in the file whose whole subject is that widget, three lines under a comment
+   invoking standing rule 9, until Layla read `Showing 04.09.2026` one line under a filter saying
+   `09/04/2026`. *When the note is an exclusion, its expiry condition is the first thing to test.*
 4. **×4 · Break the guard on purpose before claiming it holds — and break the COMBINATION,
    not just the fields.** A test that counted occurrences matched its own `def` line. A deploy
    preflight that rejected "localhost" passed happily on `https://` with the host unset. And on
@@ -216,7 +223,8 @@ pattern below, bump the count here. A pattern at ×7 is telling you something a 
    guard, and it is the more confident half.* A test that counted occurrences
    matched its own `def` line. Reverting each guard one at a time has caught something every time it
    has been done. *If you did not watch it go red, you do not know it works.*
-5. **×5 · A measurement harness will accuse working code as confidently as it reports the truth.**
+5. **×6 · A measurement harness will accuse working code as confidently as it reports the truth —
+   and will PASS on the very bug it was written to catch.**
    The rounding proof; the partial prod copy that manufactured a 24-product compliance scare; and on
    2026-08-28 a timer that started when a card **scrolled into view** rather than when a decision was
    made, reporting *128s per decision → 180 hours* for a method that actually runs at 8–13s and ~9
@@ -231,6 +239,12 @@ pattern below, bump the count here. A pattern at ×7 is telling you something a 
    see; and I quoted *"49 test failures before and after"* as evidence when 30 test files were
    merely failing to reach a database — run properly it is **2,488 pass / 12 fail**. I had already
    called those errors "pre-existing" and never asked WHY, which is the question that fixes them.
+   And on 2026-09-04, breaking a fresh guard on purpose (LESSON #4, which paid off again) exposed
+   the fault in the guard itself: with the From filter reverted to a native picker, the check
+   *"the box reads 12.09.2026"* went GREEN, because the generic selector had moved on to the TO
+   box — reading one field while asserting about another's model. *A pass that survives the bug it
+   guards is worse than no check. Count the subjects before anything below them is allowed to mean
+   anything.*
 6. **×3 · A test that finishes inside five minutes cannot see a five-minute timeout.** Silent
    token refresh had NEVER worked in the sandbox — issuer mismatch, `localhost:8090` vs
    `keycloak:8080` — so every session hard-logged-out the moment the access token expired. Every
@@ -294,5 +308,5 @@ pattern below, bump the count here. A pattern at ×7 is telling you something a 
 
 ---
 
-*Last updated: 2026-08-28*
+*Last updated: 2026-09-04*
 *"You can't clone SAP. You can clone this."*

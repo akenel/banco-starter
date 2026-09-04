@@ -989,3 +989,67 @@ I had even called the 30 collection errors "pre-existing" — correctly — and 
 which is the question that would have fixed them. *A failure you have explained away is not a
 failure you have understood. Before quoting a test count as evidence, prove the harness can see the
 thing it is counting.* Now in `WORKLIST.md` under "How to prove it before claiming it".
+
+
+---
+
+## 2026-09-04, night — the exclusion that was true in every clause and wrong in its conclusion
+
+Layla, 17:21, on Transaction History — the screen a cashier opens with a customer standing there
+asking for a receipt:
+
+> "the same screen prints `Showing 04.09.2026` one line under a filter that says `09/04/2026`"
+
+The day before, five date fields had been converted off the native `<input type="date">` because it
+takes its format from the **browser's** UI locale and nothing on the page can change it. A proof was
+written the same day to stop it coming back. That proof contained this comment:
+
+> `type="date"` is deliberately NOT swept: the six report range-filters still use it and are their
+> own piece of work (they are picker-driven, with preset buttons, and nobody types into them).
+
+**Every clause of that is true.** They *are* picker-driven. They *do* have preset buttons. Nobody
+*does* type into them. And the conclusion is wrong, because **the picker is the thing that renders
+in the browser's locale** — being picker-driven is the disease, not the immunity. The exclusion sat
+in the file whose entire subject is that widget, three lines below a comment invoking standing
+rule 9, for one day, until a person read a screen.
+
+### 1. A DECISION TO SKIP SOMETHING IS A HYPOTHESIS TOO (Pattern 3, ×5)
+
+Pattern 3 was written about remembered *failures* — the Brother driver, the tablet camera, the
+bfcache bug. This is the same shape pointed the other way: a remembered **decision**, with its
+reasoning written down beside it, never re-read against the question *is that still the right
+call?* The note even contained the words that disprove it. *Write the expiry condition into the
+note — and when the note is an exclusion, the expiry condition is the first thing to test.*
+
+### 2. A FILTER HAS NO SAVE BUTTON TO GREY OUT
+
+The age gate's answer to `31.02.2026` was to paint the box red and disable Save. A filter has
+nothing to disable, so the refusal was invisible by construction: the box shows a date, the parser
+records nothing, the list quietly filters on nothing. **The screen and the query disagreeing, with
+nothing on the glass to say which one is true** — LESSON 13, on a screen with no save at all. The
+red box is wired to all six now, and the effect that repaints from the model clears the red as well
+as the value, or a preset pressed after a typo leaves a warning standing over a perfectly good
+filter.
+
+### 3. THE DATE HELPERS HAD NO SHIMS, AND THEY ARE THE ONES CALLED FROM AN EFFECT
+
+`base.html` has carried identity fallbacks for `posMoneyOnly`/`posIntOnly` since the keypad shipped,
+so a 404 on the script degrades to an unpoliced box rather than a TypeError per keystroke. The date
+helpers had none — and they are called from an **x-effect**, which Alpine runs on the first paint.
+An effect that throws on its first pass never registers its dependencies and therefore never runs
+again: dead silently and permanently. That is precisely what emptied Felix's member birthdate on
+the morning of the same day. The more dangerous call site had the weaker guard.
+
+### 4. AND THE BREAK-IT-ON-PURPOSE PASS CAUGHT A FAULT IN THE PROOF (Pattern 5, ×6)
+
+Reverting the From filter to a native picker and rebuilding turned three sections red as intended.
+It also left one check **green**: *"and the box reads 12.09.2026"*. With the From field gone, the
+generic selector had simply moved on to the **To** box — so the check was reading one field while
+asserting about another field's model, and passed on the build it existed to catch. A pass that
+survives the bug it guards is worse than no check at all. Fixed with a count of the boxes before
+anything below it is allowed to mean something, which is the same repair section B of that file
+needed after its first run.
+
+*This is the fourth time reverting a guard on purpose has found something, and it has now found
+something every single time it has been done.*
+
