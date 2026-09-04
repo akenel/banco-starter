@@ -21,7 +21,10 @@
    inputs that lack it — the plan before this was tested — would have changed
    nothing on the machine the cashier stands at. See WORKLIST ⑳.
 
-   USE: put data-keypad="decimal" or data-keypad="text" on an input. That is all.
+   USE: put data-keypad="decimal", "numeric", "date", "time" or "text" on an
+   input. That is all. The four digit kinds draw the same number pad and
+   differ only in what they will let you type: money, whole numbers, eight
+   digits behind a dd.mm.yyyy mask, four behind HH:MM.
         Touch devices only — a laptop with a real keyboard never sees it.
    ═══════════════════════════════════════════════════════════════════════════ */
 (function () {
@@ -407,7 +410,7 @@
     // keyboard at all. (On an iPad this is also what stops the OS keyboard
     // appearing UNDER our own pad.)
     el.setAttribute('inputmode', 'none');
-    var pad = (k === 'decimal' || k === 'numeric') ? num : abc;
+    var pad = (k === 'decimal' || k === 'numeric' || k === 'date' || k === 'time') ? num : abc;
     num.classList.toggle('on', pad === num);
     abc.classList.toggle('on', pad === abc);
     console.log('[keypad] open kind=' + k + ' padHeight=' + pad.offsetHeight
@@ -605,6 +608,34 @@
     return /^\d{0,5}(\.\d{0,2})?$/.test(v.slice(0, s) + text + v.slice(e));
   }
 
+  /* ── A MASKED BOX IS NOT A PRICE, AND priceOk() JUDGED IT AS ONE ───────────
+     2026-09-04, Felix on the tablet: "when I use the soft numeric keypad I can
+     only type in 3 numbers and the last minute is blocked, but if I press the
+     hard keyboard the last digit is entered."
+
+     He is describing priceOk(). It tests the string the box WOULD read against
+     /^\d{0,5}(\.\d{0,2})?$/ — the right rule for money and nonsense for a box
+     whose own mask puts punctuation in. Typing 0954 into a time box goes
+     0 → 09 → "09:5" (the mask inserted the colon) → and the fourth digit is
+     judged as "09:54", which has a colon in it, so the pad silently refuses it.
+
+     THE DATE FIELDS HAVE IT WORSE and had it since yesterday: 03.09.2000 dies
+     at "03.09" — six digits refused — so a birthdate could NEVER be completed
+     on the only input method this tablet has. I proved those fields with
+     page.type(), which is the hardware keyboard. Felix passed them with the
+     folio attached. Neither of us used the pad that exists BECAUSE the tablet
+     raises no keyboard. LESSON #1: the layer I could reach was not the layer
+     he stands on.
+
+     So the pad now polices by KIND. Money keeps the money rule; a masked box is
+     judged on the only thing that is really bounded about it — how many DIGITS
+     it holds, whatever the mask does with them in between. */
+  function digitsOk(f, text, max) {
+    var c = caret(f), s = c[0], e = c[1], v = f.value;
+    if (s === null) { s = e = v.length; }
+    return (v.slice(0, s) + text + v.slice(e)).replace(/[^0-9]/g, '').length <= max;
+  }
+
   function press(k) {
     if (!active) return;
     if (k === 'done') { shutSafely(); return; }
@@ -617,6 +648,12 @@
       else if (caps) { caps = false; shift = false; }
       else { shift = true; shiftAt = now; }
       drawLetters();
+      return;
+    }
+    if (kind === 'date' || kind === 'time') {
+      if (!/^[0-9]$/.test(k)) return;                   // the mask writes the . and the :
+      if (!digitsOk(active, k, kind === 'date' ? 8 : 4)) return;
+      insert(active, k);
       return;
     }
     if (kind === 'decimal' || kind === 'numeric') {

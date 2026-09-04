@@ -270,6 +270,68 @@ const PAGES = [
         'found: ' + ampm.join(' · '));
 
 
+  // ── I · AND IT CAN BE TYPED ON THE TABLET'S OWN PAD, WHICH IS THE ONLY WAY IN ────────
+  // The section that should have existed yesterday. Every check above types with
+  // page.type() — that is a HARDWARE KEYBOARD. This shop's tablet raises none; it has
+  // Banco's pad and nothing else, which is the entire reason pos-keypad.js exists. So a
+  // date field could be green on every assertion in this file and impossible to fill in
+  // at the counter, and on 2026-09-03 it was: priceOk() judged the masked value against
+  // the MONEY regex, and 03.09.2000 died at "03.09". Felix found it in ten minutes with
+  // the pad; four sections of this file and 80 checks of prove-keypad.js did not.
+  //
+  // Needs its own context: the pad refuses to initialise unless the device reports touch.
+  console.log('\n── I · a date and a time typed on Banco\'s own keypad ──');
+  const tctx = await b.newContext({ hasTouch: true, viewport: { width: 1440, height: 895 } });
+  const tp = await tctx.newPage();
+  await tp.goto('http://localhost:3000/pos', { waitUntil: 'domcontentloaded' });
+  if (await tp.$('button:has-text("Login")')) { await tp.click('button:has-text("Login")'); await tp.waitForTimeout(3500); }
+  if (await tp.$('#username')) {
+    await tp.fill('#username', 'ralph'); await tp.fill('#password', 'ralph');
+    await tp.click('#kc-login, input[type=submit]'); await tp.waitForURL('**/pos/**', { timeout: 20000 });
+  }
+
+  // Taps, not clicks. The keys fire on pointerdown; HTMLElement.click() dispatches a
+  // click and nothing else, so a probe that "presses" the pad that way reports every key
+  // as accepted while the real pad refuses them. It cost half an hour to notice.
+  async function padType(sel, digits) {
+    const el = tp.locator(sel).first();
+    if (!(await el.count())) return { err: 'field not found: ' + sel };
+    await el.scrollIntoViewIfNeeded().catch(() => {});
+    await el.tap().catch(async () => { await el.click({ force: true }); });
+    await tp.waitForTimeout(700);
+    if (!(await tp.evaluate(() => !!document.querySelector('.pk.on')))) return { err: 'the pad did not open' };
+    await tp.locator('.pk.on [data-k="clr"]').tap().catch(() => {});
+    await tp.waitForTimeout(200);
+    for (const d of digits) {
+      await tp.locator('.pk.on [data-k="' + d + '"]').tap().catch(() => {});
+      await tp.waitForTimeout(130);
+    }
+    return { value: await el.inputValue() };
+  }
+
+  await tp.goto('http://localhost:3000/pos/my-day', { waitUntil: 'domcontentloaded' });
+  await tp.waitForTimeout(1800);
+  const rt = await padType('input[placeholder="HH:MM"]', '0954');
+  check(rt.value === '09:54', 'a time typed ON THE PAD arrives whole — 0954 → 09:54',
+        rt.err || 'the box reads "' + rt.value + '" — the pad refused a digit the mask had already earned');
+
+  await tp.goto('http://localhost:3000/pos/customer-lookup', { waitUntil: 'domcontentloaded' });
+  await tp.waitForTimeout(1800);
+  // Its own button, the same one section C uses — the panel is x-show, so the field is in
+  // the DOM either way and a probe that skips this "finds" a box no cashier can reach.
+  const topener = tp.locator('[data-i18n="customer.add_new_crack"]').first();
+  if (await topener.count()) { await topener.tap().catch(async () => { await topener.click(); }); await tp.waitForTimeout(800); }
+  const DSEL = 'input[data-i18n-placeholder="common.date_placeholder"]:visible';
+  const rd = await padType(DSEL, '03092000');
+  check(rd.value === '03.09.2000', 'a birthdate typed ON THE PAD arrives whole — 03092000 → 03.09.2000',
+        rd.err || 'the box reads "' + rd.value + '" — a date that cannot be finished is an age gate that cannot be used');
+
+  // And the ceiling still holds: a stuck finger must not write a ninth digit.
+  const rx = await padType(DSEL, '030920001111');
+  check(rx.value === '03.09.2000', 'and it still stops at eight digits, however long the finger rests',
+        rx.err || 'the box reads "' + rx.value + '"');
+  await tctx.close();
+
   console.log('\n==========================================');
   console.log(`  ${pass} passed · ${fail} failed`);
   await b.close();

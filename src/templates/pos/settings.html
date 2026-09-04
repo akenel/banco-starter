@@ -348,7 +348,7 @@
                             <div><label class="lbl" data-i18n="settings.first_name_req">First name *</label><input type="text" x-model="newEmp.first_name" class="input-field text-lg"></div>
                             <div><label class="lbl" data-i18n="settings.last_name_req">Last name *</label><input type="text" x-model="newEmp.last_name" class="input-field text-lg"></div>
                             <div><label class="lbl" data-i18n="settings.ahv_req">AHV number *</label><input type="text" x-model="newEmp.ahv_number" class="input-field text-lg font-mono" placeholder="756.XXXX.XXXX.XX"></div>
-                            <div><label class="lbl" data-i18n="settings.dob_req">Date of birth *</label><input type="text" data-keypad="decimal" maxlength="10" inputmode="numeric"
+                            <div><label class="lbl" data-i18n="settings.dob_req">Date of birth *</label><input type="text" data-keypad="date" maxlength="10" inputmode="numeric"
                                    placeholder="TT.MM.JJJJ" data-i18n-placeholder="common.date_placeholder"
                                    @input="$el.value = window.posDateMask($el.value); newEmp.date_of_birth = window.posDateToISO($el.value)"
                                    x-effect="if (window.posDateToISO($el.value) !== newEmp.date_of_birth) $el.value = window.posISOToDate(newEmp.date_of_birth)"
@@ -446,7 +446,7 @@
                                     <div><label class="lbl" data-i18n="settings.email">Email</label><input type="email" x-model="e._card.email" class="input-field text-lg"></div>
                                     <div><label class="lbl" data-i18n="settings.phone">Phone</label><input type="text" x-model="e._card.phone" class="input-field text-lg"></div>
                                     <div><label class="lbl" data-i18n="settings.ahv">AHV number</label><input type="text" x-model="e._card.ahv_number" class="input-field text-lg font-mono"></div>
-                                    <div><label class="lbl" data-i18n="settings.dob">Date of birth</label><input type="text" data-keypad="decimal" maxlength="10" inputmode="numeric"
+                                    <div><label class="lbl" data-i18n="settings.dob">Date of birth</label><input type="text" data-keypad="date" maxlength="10" inputmode="numeric"
                                            placeholder="TT.MM.JJJJ" data-i18n-placeholder="common.date_placeholder"
                                            @input="$el.value = window.posDateMask($el.value); e._card.date_of_birth = window.posDateToISO($el.value)"
                                            x-effect="if (window.posDateToISO($el.value) !== e._card.date_of_birth) $el.value = window.posISOToDate(e._card.date_of_birth)"

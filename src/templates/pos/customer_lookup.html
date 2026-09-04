@@ -132,7 +132,7 @@
                          birthday rewards fast-follow. NO gender field — age needs only DOB. -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="customer.dob_label">Date of birth</label>
-                        <input type="text" data-keypad="decimal" maxlength="10" inputmode="numeric"
+                        <input type="text" data-keypad="date" maxlength="10" inputmode="numeric"
                                placeholder="TT.MM.JJJJ" data-i18n-placeholder="common.date_placeholder"
                                @input="$el.value = window.posDateMask($el.value); newCustomer.birthdate = window.posDateToISO($el.value)"
                                x-effect="if (window.posDateToISO($el.value) !== newCustomer.birthdate) $el.value = window.posISOToDate(newCustomer.birthdate)"
@@ -250,7 +250,7 @@
                         <div><label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="customer.email_label">Email</label><input type="text" inputmode="email" data-keypad="text" x-model="editForm.email" class="w-full px-3 py-2 border rounded-lg"></div>
                         <div><label class="block text-sm font-medium text-gray-700 mb-1">Telegram</label><input type="text" data-keypad="text" x-model="editForm.telegram" class="w-full px-3 py-2 border rounded-lg"></div>
                         <div><label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="customer.phone_label">Phone</label><input type="tel" inputmode="tel" data-keypad="text" x-model="editForm.phone" class="w-full px-3 py-2 border rounded-lg"></div>
-                        <div><label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="customer.dob_label">Date of birth</label><input type="text" data-keypad="decimal" maxlength="10" inputmode="numeric"
+                        <div><label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="customer.dob_label">Date of birth</label><input type="text" data-keypad="date" maxlength="10" inputmode="numeric"
                                placeholder="TT.MM.JJJJ" data-i18n-placeholder="common.date_placeholder"
                                @input="$el.value = window.posDateMask($el.value); editForm.birthdate = window.posDateToISO($el.value)"
                                x-effect="if (window.posDateToISO($el.value) !== editForm.birthdate) $el.value = window.posISOToDate(editForm.birthdate)"

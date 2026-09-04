@@ -445,6 +445,63 @@ never been seen by a person. Shots ④⑤⑥ of the batch-1 list are now taken.
 
 ---
 
+## ⓕ THE PAD JUDGED A MASKED BOX AS IF IT WERE MONEY — 2026-09-04
+
+*Felix, retesting the 24-hour clock: "when I use the soft numeric keypad I can only type in 3
+numbers and the last minute is blocked, but if I press the hard keyboard the last digit is
+entered." He is attached to the folio, so he had a keyboard. On the tablet alone he would have had
+nothing.*
+
+**`priceOk()` was policing every digit kind.** It tests the string the box WOULD read against
+`/^\d{0,5}(\.\d{0,2})?$/` — correct for money, nonsense for a box whose own mask inserts
+punctuation. Typing `0954` into a time box goes `0` → `09` → `09:5` (the mask added the colon) →
+and the fourth digit is judged as `"09:54"`, which contains a colon, so **the pad silently refuses
+it**. No error, no sound, nothing on the screen: the key just does nothing.
+
+**And the DATE fields had it worse, since yesterday.** `03.09.2000` dies at `"03.09"` — six digits
+refused — so on this tablet **a birthdate could never be completed at all**, on the 18+ age gate,
+the member sign-up and the staff card. Measured through the real pad, both before and after:
+
+| typed on the pad | before | after |
+|---|---|---|
+| `0954` into Start time | `09:5` | `09:54` |
+| `03092000` into a DOB | `03.09` | `03.09.2000` |
+| `030920001111` into a DOB | `03.09` | `03.09.2000` (ceiling holds) |
+
+**How it got through.** Every check in `prove-swiss-dates.js` types with `page.type()` — that is a
+HARDWARE KEYBOARD. This shop's tablet raises none; it has Banco's pad and nothing else, which is
+the whole reason `pos-keypad.js` exists. And Felix passed the date fields yesterday **with the
+folio attached**. Neither of us used the one input method the shop actually has. LESSON #1 again,
+and the sharpest instance yet: the field was green on nine assertions and impossible to fill in.
+
+**The fix:** the pad polices by KIND. `data-keypad="date"` and `"time"` are new kinds that draw the
+same number pad and are judged on the only thing genuinely bounded about a masked box — **how many
+DIGITS it holds**, 8 and 4, whatever the mask does with them in between. Money keeps the money
+rule. Six fields moved: `my_day.html` ×2 to `time`, and the five DOB boxes from `decimal` to
+`date`.
+
+**`prove-swiss-dates.js` grew section I — 29 → 32 checks** — which opens a SECOND browser context
+with `hasTouch: true` and types through the pad by TAPPING the keys. (The keys fire on
+`pointerdown`; `HTMLElement.click()` dispatches a click and nothing else, so the first probe
+reported every key accepted while the real pad refused them.) Watched all three go red by putting
+`priceOk` back on the new kinds — they reported `09:5` and `03.09`, the exact strings on Felix's
+screen.
+
+**Still open from that run, not fixed:**
+- ⓕ1 **An invalid time shows nothing next to the box.** `25:00` sat in Finish time looking
+  ordinary; the only signal is the green button greying out further down the page. LESSON #12 —
+  the outcome is not where the person is looking.
+- ⓕ2 **Felix asked for a clock picker** — *"a normal clock picker like we had before the AM PM
+  method … more tablet friendly."* Worth saying plainly: the picker we had before **is** the native
+  widget, and it is the AM/PM one. His reason for wanting it was that the pad would not let him
+  finish typing, which is now fixed — four taps enters a time. Recommend retesting the pad first;
+  a Banco-drawn hour/minute picker is a real build and would also make the time boxes behave
+  differently from the date boxes beside them. **Angel's call.**
+- ⓕ3 **B1/B2 of the clock sheet were never run** — the shift was still open, so Close Shift had
+  nothing to show. Retest after this.
+
+---
+
 ## 🔎 FOUND WHILE FIXING SOMETHING ELSE — 2026-09-02 late
 
 *Not blocking. Logged here rather than carried to Angel mid-run (standing rule: report less).*
