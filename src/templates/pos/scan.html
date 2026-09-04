@@ -30,16 +30,34 @@
                 <div class="card">
                     <h2 class="text-xl font-bold text-gray-900 mb-4" data-i18n="scan.find_product">Find Product</h2>
 
-                    <!-- Mode Selector -->
+                    <!-- Mode Selector.
+                         EACH ONE PUTS THE CURSOR IN ITS OWN BOX. Angel on the tablet,
+                         2026-09-04: "when you press Barcode or Search or New item the focus
+                         should always go to the input block — often i start scanning and realise
+                         nothing is actually getting scanned in even though the scanner beeps."
+
+                         That is the worst shape a failure can take: the gun says yes, the basket
+                         says nothing, and there is no error anywhere because a keystroke with no
+                         focused field is not an error. readyForNextScan() has done this since
+                         2026-08-21 for the four paths that END a capture — the three buttons that
+                         START one never did.
+
+                         focus() is deliberately inside $nextTick: these inputs live in x-show
+                         panels, and focusing one before Alpine has flipped `searchMode` focuses a
+                         display:none element, which cannot fail and cannot work. That exact trap
+                         is written up on readyForNextScan() below and it caught this file once
+                         already. New item is the exception and deliberately focuses nothing:
+                         its panel opens on the department BUTTONS, and the price box does not
+                         exist until one is pressed — openDepartment() focuses it there. -->
                     <div class="flex gap-2 mb-4">
                         <button
-                            @click="searchMode = 'barcode'"
+                            @click="searchMode = 'barcode'; $nextTick(() => $refs.barcodeInput && $refs.barcodeInput.focus())"
                             :class="searchMode === 'barcode' ? 'btn-primary' : 'btn-secondary'"
                             class="flex-1 py-3">
                             📊 <span data-i18n="scan.mode_barcode">Barcode</span>
                         </button>
                         <button
-                            @click="searchMode = 'search'"
+                            @click="searchMode = 'search'; $nextTick(() => $refs.searchInputBox && $refs.searchInputBox.focus())"
                             :class="searchMode === 'search' ? 'btn-primary' : 'btn-secondary'"
                             class="flex-1 py-3">
                             🔍 <span data-i18n="scan.mode_search">Search</span>
@@ -82,6 +100,7 @@
                         <input
                             type="text" data-keypad="text"
                             x-model="searchInput"
+                            x-ref="searchInputBox"
                             @input.debounce.300ms="searchProducts()"
                             placeholder="Type product name..."
                             data-i18n-placeholder="scan.ph_product_search"
@@ -470,7 +489,19 @@
                     <div x-show="cart.length > 0" x-cloak style="display:none"
                          class="cart-pinned sticky top-0 z-10 bg-white pt-1 pb-3 mb-3 border-b">
                         <div class="flex items-baseline justify-between mb-1">
-                            <span class="text-lg font-bold text-gray-900" data-i18n="scan.total">TOTAL:</span>
+                            <span class="text-lg font-bold text-gray-900">
+                                <span data-i18n="scan.total">TOTAL:</span>
+                                <!-- Angel, after running the sheet: "one thing we could make stick
+                                     is Cart (# items)". On the SAME line as the total, so the
+                                     pinned block gains no height — he had just told me the 114px
+                                     it already costs was acceptable, and a count is not worth a
+                                     second line of the list. Counted once, here; the heading below
+                                     no longer repeats it. -->
+                                <span class="text-sm font-semibold text-gray-500">
+                                    · <span x-text="cart.length"></span>
+                                    <span data-i18n="scan.items">items</span>
+                                </span>
+                            </span>
                             <span class="text-3xl font-extrabold text-indigo-600" x-text="formatPrice(totals.total)"></span>
                         </div>
                         <!-- Only when the two numbers DIFFER. On most sales subtotal and total are
@@ -500,7 +531,7 @@
                     </div>
 
                     <h2 class="text-xl font-bold text-gray-900 mb-4">
-                        🛒 <span data-i18n="scan.cart">Cart</span> (<span x-text="cart.length"></span> <span data-i18n="scan.items">items</span>)
+                        🛒 <span data-i18n="scan.cart">Cart</span>
                     </h2>
 
                     <!-- Empty cart message -->
