@@ -980,8 +980,8 @@ price nobody agreed to.*
 3. **Re-run the keyboard-buries-search test with the folio OFF.** The last result does not count —
    the pad never appeared, and the pad is the subject of the test. Section 0 of the golden template
    now catches this class of mistake.
-4. **The discount chips** — Target Total applies 15.25% and no chip lights up; plus *"Your max
-   discount: 100%"* is developer copy on a cashier's screen.
+4. ~~**The discount chips**~~ — **FIXED, `7fc7f44`.** The Custom chip carries the live figure and
+   lights up; "Your max discount: 100%" is gone. Needs Layla's eyes — no sheet yet.
 5. **The half-cut product row** and **Layla's sticky Find Product header** — both small, both hers.
 6. **The counter visit — section ⓞ.** Same trip as item 1. Everything this week was proved in a
    flat; the shop's light, network, counter height and the fact that there is **no chair** have not
@@ -1140,6 +1140,70 @@ replaces was wrong on the laptop too.
 
 `prove-swiss-dates.js` sections M–Q, **+33 checks → 75 pass / 0 fail**; `prove-keypad.js` still
 81/0. Screenshots of all three screens with the grid open are in the session scratchpad.
+
+---
+
+## ⓒ3 LAYLA'S RUN OF THE DATE SHEET — 19 pass · 1 issue · 4 not run — 2026-09-04 21:08–21:31
+
+*23 minutes on the tablet, folio OFF, gun in hand, landscape, build `b623 · 4151bc8`. She marked
+B1 "i like it", B7 and B8 "nice". **And then she found five more dates in the twelve minutes after
+the sheet ended**, which is worth more than the nineteen passes.*
+
+### What she found that the sheet did not ask about
+
+| where | what it said | why the greps missed it |
+|---|---|---|
+| Sales Reports | `Today — 2026-09-04` | raw ISO straight out of the API — no formatter call to grep for |
+| **18+ Age Gate record** | `09/04/2026, 11:53 AM` | `toLocaleString(undefined, …)` — the browser's locale wearing an explicit argument |
+| 18+ record, Period line | `2026-08-05 — 2026-09-04` | raw ISO again |
+| day-end closeout ×2 | raw ISO **on the printed document** | not on any screen the sheet visited |
+| delivery slip ×2 | raw ISO | same |
+
+The 18+ record is the one that matters: it has a **Print** button, it is the shop's compliance
+document, and it cannot be edited or deleted by anyone. It was printing an American date and a
+12-hour clock.
+
+**The method lesson is the whole point.** Every check written that night was a grep, and a grep can
+only look for a shape somebody already thought of. `data.from` rendered raw is not a name any
+heuristic flags; `toLocaleString(undefined, …)` did not match a pattern written an hour earlier for
+`toLocaleString()`. **Layla found both by looking at the screen.** So `prove-swiss-dates.js` grew
+**section N2**, which reads the rendered text of seven reports and fails on any slashed date — the
+only check in that file that does not care HOW the string was produced. It is the one that would
+have caught all five.
+
+Breaking the compliance record on purpose turned N and N2 red together, and showed something else:
+**the AM/PM half of N2 can never go red in this harness** — headless Chromium renders 24-hour
+whatever locale it falls back to (LESSON #6, already written into that file about the clock). It is
+labelled a backstop now, not evidence.
+
+And `prove-classes-exist.js` caught the chip fix on the way past: `bg-blue-300` and four `ring-*`
+colours had **no rule anywhere**, so the "lit" chip rendered white. That is the 131-dead-classes
+trap, and I walked into it four days after it was written up.
+
+### D2 — the window walks off the screen · **NOT A BANCO BUG, and worth fixing anyway**
+
+Her screenshot at 21:29: the POS window sitting mostly off the right edge of the tablet, a strip of
+app and a field of desktop wallpaper. *"i will reboot to resolve this issue — only thing a cashier
+could do — i see it happen earlier today."*
+
+It is a **title bar**. Chromium is running windowed, so a stray touch-drag moves the window, and a
+touchscreen has no easy way to drag it back. Nothing in Banco can prevent that.
+
+**The fix is one flag on the tablet, not code here:** launch Chromium with `--kiosk` (or at minimum
+`--start-fullscreen --window-position=0,0`) in its `.desktop` / autostart entry. No title bar, no
+drag, nothing to walk off. Belongs with section ⓞ's counter visit — same trip, same ten minutes.
+**Until it is done, "reboot" really is the cashier's only move, and she worked that out herself.**
+
+### Still open from that run
+
+- **C5 · C6 · D1 · D2 not marked** — the Cleanup date check and the closing "find a receipt for a
+  day" step were never run. Worth a short re-run *after* the fixes above land, on the same sheet.
+- **A number is not a date, and these still ask the browser:** `cleanup.html` formats its gap counts
+  with a bare `.toLocaleString()` (7 of them) while `search.html` passes `POSConfig.locale` for the
+  same job. `1'234` vs `1,234`. Cosmetic, one line each, nobody has complained.
+- **A raw ISO inside a server-built string:** the refusal notes on the 18+ record read
+  *"[recorded late — the till could not reach the server at 2026-09-03 18:29]"*. Built in Python, so
+  no template fix reaches it. On the compliance record, so it should read Swiss.
 
 ---
 
