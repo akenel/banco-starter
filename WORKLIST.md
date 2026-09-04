@@ -346,21 +346,26 @@ logout is *desirable*; a quiet Tuesday afternoon one is not.
 
 ## 📌 Standing facts worth not re-learning
 
-- **A NAME ON A TESTSHEET IS THE LOGIN IT WAS RUN UNDER, NOT A SECOND PAIR OF EYES.** Every physical
-  test in this repo to date — every sheet, every tablet screenshot, every "confirmed by Felix / Layla
-  / Pam" — is **Angel**, on the real tablet, signed in as that role. The staff are real people; they
-  have not run a sheet yet. He said so plainly on 2026-09-04 and it had been in the record all along
-  (sheet 2, step 0.2: *"its me angel signed in as Lalya"*).
-  **Two things follow, and both matter.**
-  *One:* the practice is sound and should continue. Running as a cashier is not theatre — the role
-  changes what the screen does (the discount ceiling only appears below 100%, and step A8 tested
-  exactly that), and writing the sheet in a named person's voice is what keeps it about a counter
-  instead of a codebase.
-  *Two:* **"human-green" is true — "independently confirmed" is not.** A person on the real hardware
-  did find every one of these, which is the bar that matters and the reason the count of found bugs
-  is what it is. But the author of the software is also its tester, and an author cannot be surprised
-  by his own work the way a stranger can. That gap is the argument for ⓞ, the counter visit, and it
-  is the one thing on this list no amount of proof scripts can close.
+- **THE THREE NAMES ARE ROLES, AND THE ROLE IS THE POINT.** Angel runs every sheet himself on the
+  real tablet, signed in as whichever role the sheet is about:
+
+  | signed in as | the part being tested |
+  |---|---|
+  | **Felix** | owner / administrator — settings, staff cards, no discount ceiling |
+  | **Layla** | cashier–manager — the counter, plus what a manager may override |
+  | **Pam** | pure cashier — the narrowest permissions, the ones most easily got wrong |
+
+  **This is deliberate role coverage, not a stand-in for absent people.** What the screen does
+  depends on the role — the discount ceiling renders only for someone who HAS one, which is exactly
+  what step A8 checked — and signing in as the person the feature is for is how you find out whether
+  it appears correctly for them. It has never once thrown up a role bug, which is the result you
+  want from it. Writing the sheet in that person's voice is also what keeps it about a counter
+  instead of a codebase. **Keep doing it.**
+
+  One thing to keep straight when reading a count on this page: **"a human confirmed it on the real
+  hardware" is true; "independently confirmed" is not** — the author is also the tester. That is not
+  a flaw in the method, it is the argument for ⓞ, getting the shop's own staff in front of it before
+  the shift.
 - **The app image bakes `src/` in — there is no bind mount.** `docker compose restart app` restarts
   the **old** code and says nothing. Any change under `src/` needs `./scripts/rebuild.sh`.
 - **Prod authenticates against the DEMO realm** (`kc-pos-realm-dev`, users felix/pam/ralph),
