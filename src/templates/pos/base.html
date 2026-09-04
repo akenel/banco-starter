@@ -244,7 +244,18 @@
             border-color: #dc2626 !important; background-color: #fef2f2;
             box-shadow: 0 0 0 1px #dc2626;
         }
-        .pos-bad-hint { color: #b91c1c; font-size: .8125rem; margin-top: .25rem; }
+        /* ABOVE the box, not below it. Layla, 2026-09-04, on the second attempt at this:
+           "should push up to see full warning message" — the keypad's top edge was slicing
+           the line, and my first fix (re-measure when the hint appears) could not be proved:
+           two probes passed identically with the fix and without it, because this laptop's
+           page geometry leaves the field higher than the tablet's does. A timing fix I
+           cannot see fail is a timing fix I cannot say works.
+
+           So the dependency is gone instead of tuned. The pad already guarantees the
+           FIELD's bottom clears it; anything sitting ABOVE the field is therefore clear
+           too, on any screen, at any scroll position, with no re-measure at all. It also
+           does literally what she asked for. */
+        .pos-bad-hint { color: #b91c1c; font-size: .8125rem; margin-bottom: .25rem; }
 
         /* Card styling — real CSS (@apply is dead in this plain <style>) */
         .card {

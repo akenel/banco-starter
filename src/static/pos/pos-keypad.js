@@ -216,6 +216,23 @@
     el.classList.toggle('pos-bad', bad);
     var hint = el.parentElement && el.parentElement.querySelector('[data-bad-hint]');
     if (hint) hint.hidden = !bad;
+
+    /* AND IF THAT JUST MADE THE FIELD TALLER, CHECK IT STILL FITS. Layla, 2026-09-04,
+       second run: the warning was STILL sliced by the top of the pad on the tablet, on a
+       build where I had "fixed" exactly that.
+
+       revealBottom() was right and useless. ensureAbovePad() runs 140ms and 480ms after the
+       pad OPENS — and the hint does not exist then. It appears seconds later, when the
+       fourth digit makes the value invalid, and nothing re-measured. My own check passed
+       because that page happened to be scrolled so the hint fitted anyway: the assertion
+       was true and proved nothing, which is the fault I have written up five times this
+       week and just committed again.
+
+       The moment the content grows IS the moment to re-check. */
+    if (bad && hint && active === el && padOpen()) {
+      var pad = (kind === 'decimal' || kind === 'numeric' || kind === 'date' || kind === 'time') ? num : abc;
+      if (pad) setTimeout(function () { ensureAbovePad(el, pad); }, 60);
+    }
     return bad;
   }
 

@@ -348,12 +348,12 @@
                             <div><label class="lbl" data-i18n="settings.first_name_req">First name *</label><input type="text" x-model="newEmp.first_name" class="input-field text-lg"></div>
                             <div><label class="lbl" data-i18n="settings.last_name_req">Last name *</label><input type="text" x-model="newEmp.last_name" class="input-field text-lg"></div>
                             <div><label class="lbl" data-i18n="settings.ahv_req">AHV number *</label><input type="text" x-model="newEmp.ahv_number" class="input-field text-lg font-mono" placeholder="756.XXXX.XXXX.XX"></div>
-                            <div><label class="lbl" data-i18n="settings.dob_req">Date of birth *</label><input type="text" data-keypad="date" maxlength="10" inputmode="numeric"
+                            <div><label class="lbl" data-i18n="settings.dob_req">Date of birth *</label><p data-bad-hint hidden class="pos-bad-hint" data-i18n="common.not_a_date">That is not a real date.</p>
+                        <input type="text" data-keypad="date" maxlength="10" inputmode="numeric"
                                    placeholder="TT.MM.JJJJ" data-i18n-placeholder="common.date_placeholder"
                                    @input="$el.value = window.posDateMask($el.value); newEmp.date_of_birth = window.posBirthdateISO($el.value); newEmpDobBad = window.posMarkBad($el, newEmp.date_of_birth, 8)"
                                    x-effect="if (window.posBirthdateISO($el.value) !== newEmp.date_of_birth) $el.value = window.posISOToDate(newEmp.date_of_birth)"
-                                   class="input-field text-lg">
-                        <p data-bad-hint hidden class="pos-bad-hint" data-i18n="common.not_a_date">That is not a real date.</p></div>
+                                   class="input-field text-lg"></div>
                             <div><label class="lbl" data-i18n="settings.email_req">Email *</label><input type="email" x-model="newEmp.email" class="input-field text-lg"></div>
                             <div><label class="lbl" data-i18n="settings.phone">Phone</label><input type="text" x-model="newEmp.phone" class="input-field text-lg"></div>
                             <div><label class="lbl" data-i18n="settings.street_req">Street *</label><input type="text" x-model="newEmp.street" class="input-field text-lg"></div>
@@ -447,12 +447,12 @@
                                     <div><label class="lbl" data-i18n="settings.email">Email</label><input type="email" x-model="e._card.email" class="input-field text-lg"></div>
                                     <div><label class="lbl" data-i18n="settings.phone">Phone</label><input type="text" x-model="e._card.phone" class="input-field text-lg"></div>
                                     <div><label class="lbl" data-i18n="settings.ahv">AHV number</label><input type="text" x-model="e._card.ahv_number" class="input-field text-lg font-mono"></div>
-                                    <div><label class="lbl" data-i18n="settings.dob">Date of birth</label><input type="text" data-keypad="date" maxlength="10" inputmode="numeric"
+                                    <div><label class="lbl" data-i18n="settings.dob">Date of birth</label><p data-bad-hint hidden class="pos-bad-hint" data-i18n="common.not_a_date">That is not a real date.</p>
+                        <input type="text" data-keypad="date" maxlength="10" inputmode="numeric"
                                            placeholder="TT.MM.JJJJ" data-i18n-placeholder="common.date_placeholder"
                                            @input="$el.value = window.posDateMask($el.value); e._card.date_of_birth = window.posBirthdateISO($el.value); e._dobBad = window.posMarkBad($el, e._card.date_of_birth, 8)"
                                            x-effect="if (window.posBirthdateISO($el.value) !== e._card.date_of_birth) $el.value = window.posISOToDate(e._card.date_of_birth)"
-                                           class="input-field text-lg">
-                        <p data-bad-hint hidden class="pos-bad-hint" data-i18n="common.not_a_date">That is not a real date.</p></div>
+                                           class="input-field text-lg"></div>
                                     <div><label class="lbl" data-i18n="settings.street">Street</label><input type="text" x-model="e._card.street" class="input-field text-lg"></div>
                                     <div class="grid grid-cols-2 gap-3">
                                         <div><label class="lbl" data-i18n="settings.postal">Postal</label><input type="text" x-model="e._card.postal_code" class="input-field text-lg"></div>

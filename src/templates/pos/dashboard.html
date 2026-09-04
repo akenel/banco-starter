@@ -442,7 +442,18 @@
                         });
                         // Clear the hash from URL for cleaner display (and to hide tokens)
                         window.history.replaceState({}, document.title, '/pos/dashboard');
-                        showToast(t('dashboard.login_successful'), 'success');
+                        // NO TOAST HERE. Layla, 2026-09-04: the green "Login successful!"
+                        // landed on the user chip. Moving it down cleared the status bar and
+                        // put it on the dashboard's OWN header instead — the same collision,
+                        // one row lower, because every screen has different furniture at the
+                        // top and a fixed offset cannot know about it.
+                        //
+                        // So look at what it said. It announced "Login successful!" on a page
+                        // whose first element is "Welcome, pam! 👋" — you have just logged in,
+                        // you are looking at the proof, and the toast covers the one thing on
+                        // the header that tells you WHO you logged in as. It was never adding
+                        // anything; it was only ever able to take something away.
+                        // The string stays in pos-i18n.js; nothing else uses it today.
                     }
                 }
 

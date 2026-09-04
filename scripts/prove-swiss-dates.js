@@ -377,9 +377,14 @@ const PAGES = [
     const r = await jbox.evaluate((el) => {
       const hint = el.parentElement && el.parentElement.querySelector('[data-bad-hint]');
       const hr = hint && !hint.hidden ? hint.getBoundingClientRect() : null;
+      const fr = el.getBoundingClientRect();
       return {
         shown: el.value,
         red: el.classList.contains('pos-bad'),
+        // Structural, not positional: if the warning is above the field then the pad — which
+        // already guarantees the field's BOTTOM is clear — cannot reach it, on any screen at
+        // any scroll position. The timing fix this replaces could not be proved either way.
+        hintAboveField: !!(hr && hr.bottom <= fr.top + 1),
         hintOnScreen: !!(hr && hr.height > 0 && hr.top >= 0 && hr.bottom <= window.innerHeight),
         hintY: hr ? Math.round(hr.top) : null,
         viewport: window.innerHeight,
@@ -389,6 +394,10 @@ const PAGES = [
     check(r.shown === '31.02.2000', '31.02.2000 can still be TYPED — no keystroke rule can catch it',
           'the box shows "' + r.shown + '"');
     check(r.red, 'and the box turns red', 'the box carries no .pos-bad class — it looks like any other');
+    check(r.hintAboveField,
+          'and the warning sits ABOVE the box, where a keypad can never slice it',
+          'the hint is below the field — on a tablet the pad covers the bottom of the screen,'
+          + ' and this is the position Layla found sliced in half twice');
     check(r.hintOnScreen,
           'and it says why, inside the viewport the person is looking at',
           r.hintY === null ? 'no hint element is showing at all'

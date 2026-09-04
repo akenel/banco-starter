@@ -508,12 +508,12 @@
                 <input type="text" data-keypad="text" x-model="ageForm.handle" placeholder="Name / handle" data-i18n-placeholder="checkout.name_handle_placeholder"
                        class="input-field mb-2">
                 <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="checkout.dob_label">Date of birth</label>
-                <input type="text" data-keypad="date" maxlength="10" inputmode="numeric"
+                <p data-bad-hint hidden class="pos-bad-hint" data-i18n="common.not_a_date">That is not a real date.</p>
+                        <input type="text" data-keypad="date" maxlength="10" inputmode="numeric"
                        placeholder="TT.MM.JJJJ" data-i18n-placeholder="common.date_placeholder"
                        @input="$el.value = window.posDateMask($el.value); ageForm.birthdate = window.posBirthdateISO($el.value); ageDobBad = window.posMarkBad($el, ageForm.birthdate, 8)"
                        x-effect="if (window.posBirthdateISO($el.value) !== ageForm.birthdate) $el.value = window.posISOToDate(ageForm.birthdate)"
                        class="input-field mb-1">
-                        <p data-bad-hint hidden class="pos-bad-hint" data-i18n="common.not_a_date">That is not a real date.</p>
                 <label class="flex items-center gap-2 text-xs text-gray-600 mb-2 mt-1">
                     <input type="checkbox" x-model="ageForm.marketing_consent" class="w-4 h-4">
                     <span data-i18n="checkout.marketing_consent">Send offers (SMS/email) — optional</span>
