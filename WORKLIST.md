@@ -899,6 +899,55 @@ cursor back in the item box.
 
 ---
 
+## ⓜ BIRTH YEAR INSTEAD OF A FULL BIRTHDATE — OPEN, DO NOT BUILD — 2026-09-04
+
+*Angel's idea, analysed and parked by his own call: **"i will ask felix tomorrow if he brings the
+issue up … if somebody complains about it, fine, then we'll fix it. Other than that let's just
+leave it. We've done a lot of work there, so it's better that we don't break anything and make our
+life more complicated for nothing."** That is the right call and this entry exists so the thinking
+is not lost, not so someone picks it up.*
+
+**The idea.** Members give a birth YEAR, not a full date. Faster to type (4 digits, not 8), more
+anonymous, and — Felix's own point — *"the members don't wanna be known at all, they just want
+their codes."*
+
+**The shop already works this way.** Of 22 active members: **4 have a birthdate · 3 have a cashier
+attestation and no birthdate · 15 have neither.** The till is already running on "the cashier
+looked at the ID", not on stored dates.
+
+**The one hard edge, and it decides the whole design.** On 2026-09-04, someone born in 2008 is 18
+if born in January and 17 if born in December. A year cannot decide age for exactly the cohort the
+gate exists to catch. Two ways to resolve it in code, both bad: assume January → sell to
+17-year-olds; assume December → refuse genuine adults, which is a lost sale and an argument at the
+counter.
+
+**The design that would work**, using machinery that already exists (`member_of_age()` reads DOB
+when present, else `age_confirmed`):
+
+| birth year | outcome |
+|---|---|
+| ≤ current − 19 | unambiguously of age → instant pass |
+| **= current − 18** | ambiguous → falls through to "check the ID and confirm" |
+| ≥ current − 17 | refuse |
+
+Faster, more private, and no less correct: the one ambiguous year lands on the human holding the ID.
+
+**What must NOT be done:** store the year as `YYYY-01-01` in `birthdate`. That writes a false
+precise date into a compliance record. It needs its own nullable `birth_year` column, with
+`birthdate` kept for anyone who volunteers one.
+
+**Scope if it is ever built:** ~half a day with proofs. Column + migration (4 rows today), the age
+logic, the API schemas, the age report, three member-facing boxes. **Staff cards do not change** —
+a full DOB there serves AHV and employment, a different purpose entirely.
+
+**The question for Felix, if he raises it:** *what is the record FOR?* If it is proof of diligence
+in a test purchase, year + attestation is still proof of diligence. If it only ever feeds the gate,
+year-only is strictly better. Not a legal opinion — that is his call, possibly his Treuhänder's.
+The obligation is not to SELL to a minor; it is not an obligation to record birthdates, and the
+paper till records nothing at all.
+
+---
+
 ## 🔎 FOUND WHILE FIXING SOMETHING ELSE — 2026-09-02 late
 
 *Not blocking. Logged here rather than carried to Angel mid-run (standing rule: report less).*
