@@ -307,6 +307,15 @@ All suites green after: `prove-keypad` 80 · 0 · 1 known gap, `prove-chosen-is-
 2. ~~**The card payment tile has no label**~~ — **FIXED, see ⓒ2 above.** It was eight controls, not one. (`15-23-23.png`) — `Cash · [blank] · Debit · TWINT`.
    It is the one that was *selected*, and the only one a cashier cannot name.
 3. **Total + Checkout are clipped by the bottom tab bar at two cart lines** (`15-22-23.png`) —
+   ⚠️ **2026-09-04: I CANNOT REPRODUCE THIS ON THE CURRENT BUILD, and I am not calling it fixed.**
+   Measured on `/pos/scan` at the tablet's 1440×895 with carts of 1, 2, 3, 5 and 8 lines, scrolled
+   to the bottom every time: `TOTAL` sits at y 554–586 with the nav at 842 — a **256px gap**, at
+   every length. The rows do render (6 model lines → 6 in the DOM). Most likely it went away with
+   the 2026-09-03 cascade fix, which changed which padding rule wins on `.app-content`.
+   **That is exactly the shape of the login-page claim I got wrong yesterday**, so it stays OPEN
+   until a person sees it on the tablet. His screenshot was build `b575`; we are on `b599`.
+   Superseded in any case by the layout Angel proposed on 2026-09-04 — totals at the TOP — which
+   makes the whole class of bug impossible.
    `TOTAL: CHF 10.9…` cut through the middle. The cart column grows under the fixed nav.
    The classic LESSON #12 shape, on the money row this time.
 4. **The on-screen keyboard buries the search results** (`15-22-12.png`) — typing `cbd` shows
