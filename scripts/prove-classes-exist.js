@@ -295,15 +295,25 @@ function census() {
       document.body.appendChild(el);
       const bg = getComputedStyle(el).backgroundImage;
       document.body.removeChild(el);
-      // An invalid linear-gradient() computes to "none" — which is exactly what a missing
-      // `from-*` produces, because from-* is what DEFINES --tw-gradient-stops.
-      if (!bg || bg === 'none' || !bg.includes('gradient')) out.push({ cls, bg });
+      // "Is it a gradient" is NOT the question, and asking only that shipped a broken one
+      // to prod on 2026-09-04: a lone `from-*` in a stylesheet loading after tailwind.css
+      // clobbers the three-stop --tw-gradient-stops that `via-*` had already set, and the
+      // UAT login computed to `linear-gradient(to right bottom, rgb(14,116,144),
+      // rgba(14,116,144,0))` — cyan fading to nothing. A gradient. Not the one designed.
+      //
+      // So count the STOPS and require one per from-/via-/to- class the markup asked for,
+      // and refuse a fully transparent final stop when a `to-` was named.
+      const want = cls.split(/\s+/).filter(c => /^(from|via|to)-/.test(c)).length;
+      const stops = (bg.match(/rgba?\([^)]*\)/g) || []);
+      const lastTransparent = stops.length > 0 && /,\s*0\s*\)$/.test(stops[stops.length - 1]);
+      if (!bg || bg === 'none' || !bg.includes('gradient')) out.push({ cls, bg, why: 'no gradient at all' });
+      else if (stops.length < want) out.push({ cls, bg, why: `${stops.length} colour stops, the markup names ${want}` });
+      else if (lastTransparent && /(^|\s)to-/.test(cls)) out.push({ cls, bg, why: 'the last stop is fully transparent, but a to- colour was named' });
     }
     return out;
   }, palettes);
   check(broken.length === 0, 'every environment paints an actual gradient behind the login card',
-        broken.map(x => `  "${x.cls}" computes to ${x.bg}`
-                      + ' — white text on whatever the body happens to be').join('\n       '));
+        broken.map(x => `  "${x.cls}" — ${x.why}\n         computes to ${x.bg}`).join('\n       '));
 
   console.log('\n==========================================');
   console.log(`  ${pass} passed · ${fail} failed`);
