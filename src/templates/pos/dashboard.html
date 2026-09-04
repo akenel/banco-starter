@@ -548,9 +548,7 @@
                 this.shiftTime = `${hours}h ${minutes}m`;
             },
 
-            roleDisplay() {
-                return this.user.posRoles.join(', ');
-            },
+            // roleDisplay() lives in base.html now — one implementation, one word.
 
             formatPrice(amount) {
                 return formatPrice(amount);

@@ -551,9 +551,8 @@
                 return formatPrice(amount);
             },
 
-            roleDisplay() {
-                return this.user.posRoles?.join(', ') || t('transactions.role_user');
-            },
+            // roleDisplay() lives in base.html now — one implementation, and it prints a
+            // word rather than a list of realm slugs.
 
             // ---- export: print / PDF / semicolon-CSV (Felix's "in the books" report) ----
             rangeLabel() {

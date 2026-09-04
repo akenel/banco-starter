@@ -540,12 +540,32 @@
     setTimeout(function () { ensureAbovePad(el, pad); }, 480);   // after the smooth scroll settles
   }
 
-  /** Is the box above the pad? If not, scroll whatever it takes until it is. */
+  /* THE FIELD IS NOT THE ONLY THING THAT HAS TO BE VISIBLE. Layla, 2026-09-04, typing
+     25:25 into Finish time: the box went red exactly as designed and the line under it —
+     "That is not a time on the clock." — was sliced in half by the top edge of the pad.
+     She asked for the warning to be "pulled up a little higher so it is fully readable".
+
+     The warning was in the right place. What was wrong is that this function measured the
+     INPUT's bottom edge and nothing else, so it scrolled the box clear of the pad and left
+     the explanation underneath it. LESSON #12 for the fifth time, one notch finer each
+     time: it is not "is the field on screen", it is "is everything the field needs to say
+     on screen". Any box with a hint beneath it is covered by this, not just the clock. */
+  function revealBottom(el) {
+    var bottom = el.getBoundingClientRect().bottom;
+    var host = el.parentElement;
+    var hint = host && host.querySelector('[data-bad-hint]');
+    if (hint && !hint.hidden) {
+      var hb = hint.getBoundingClientRect();
+      if (hb.height > 0 && hb.bottom > bottom) bottom = hb.bottom;
+    }
+    return bottom;
+  }
+
+  /** Is the box — and whatever it needs to say — above the pad? If not, scroll until it is. */
   function ensureAbovePad(el, pad) {
     if (active !== el) return;
     var padTop = readableBottom(el, window.innerHeight - pad.offsetHeight);
-    var r = el.getBoundingClientRect();
-    var need = Math.round(r.bottom - (padTop - 12));
+    var need = Math.round(revealBottom(el) - (padTop - 12));
     if (need <= 0) return;
     // Walk out from the field and spend the overlap on whatever can absorb it —
     // the panel first, then its parents, then the window.
@@ -561,7 +581,7 @@
       n = n.parentElement;
     }
     if (need > 0) { try { window.scrollBy(0, need); } catch (e) {} }
-    var after = Math.round(el.getBoundingClientRect().bottom);
+    var after = Math.round(revealBottom(el));
     console.log('[keypad] ensureAbovePad readableBottom=' + Math.round(padTop)
               + ' fieldBottom=' + after + (after <= padTop ? ' ok' : ' STILL COVERED'));
   }

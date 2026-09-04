@@ -473,6 +473,9 @@
         }
         /* legacy pages used min-h-screen to fill the VIEWPORT; now they fill the CONTENT area */
         body.app-shell .app-content .min-h-screen { min-height: 100%; }
+        /* Toasts clear the top bar. See showToast(). */
+        .pos-toast { top: calc(28px + env(safe-area-inset-top) + 12px); }
+
         /* the existing status bar becomes the TOP bar (flex order, no longer bottom-fixed) */
         body.app-shell .helix-status-bar {
             order: 0; position: static !important; bottom: auto !important; flex: 0 0 auto;
@@ -915,10 +918,37 @@
                     username: payload.preferred_username || 'Unknown',
                     email: payload.email || '',
                     roles: payload.realm_access?.roles || [],
-                    posRoles: (payload.realm_access?.roles || []).filter(r =>
-                        r.includes('pos-') || ['💰️ pos-cashier', '👔️ pos-manager', '🛠️ pos-developer', '📊️ pos-auditor', '👑️ pos-admin'].includes(r)
-                    )
+                    // `r.includes('pos-')` alone is why Layla's header read
+                    //     layla | default-roles-kc-pos-realm-dev-1, pos-cashier, pos-manager
+                    // The REALM is called kc-pos-realm-dev-1, so Keycloak's own
+                    // "default-roles-<realm>" entry contains the substring "pos-" and walked
+                    // straight through the filter. Permissions were never affected — hasRole()
+                    // asks for 'pos-admin' and that string is not in there — but it was on a
+                    // cashier's screen all afternoon looking like something broken.
+                    posRoles: (payload.realm_access?.roles || [])
+                        .filter(r => !/^default-roles/i.test(r))
+                        .filter(r =>
+                            r.includes('pos-') || ['💰️ pos-cashier', '👔️ pos-manager', '🛠️ pos-developer', '📊️ pos-auditor', '👑️ pos-admin'].includes(r)
+                        )
                 };
+            },
+
+            // WHAT THE PERSON IS, not what the realm calls them. dashboard.html and
+            // transactions.html each had their own `posRoles.join(', ')`, which printed
+            // "pos-cashier, pos-manager" — a list of slugs, of which only the highest one
+            // means anything to the person reading it. One implementation, one word.
+            roleDisplay() {
+                const RANK = [
+                    ['pos-admin',     'Owner'],
+                    ['pos-manager',   'Manager'],
+                    ['pos-auditor',   'Auditor'],
+                    ['pos-developer', 'Developer'],
+                    ['pos-cashier',   'Cashier'],
+                ];
+                for (const [role, label] of RANK) {
+                    if (this.hasRole(role)) return label;
+                }
+                return 'User';
             },
 
             hasRole(role) {
@@ -1604,6 +1634,13 @@
             });
         }
 
+        // The templates call this bare in x-text, so it has to be a global like formatPrice
+        // and groupedCategories — not a method on AuthHelper, which is where the first cut
+        // put it and produced "roleDisplay is not defined" on two screens.
+        function roleDisplay() {
+            try { return AuthHelper.roleDisplay(); } catch (e) { return 'User'; }
+        }
+
         function cartSavedTotal(cart) {
             try {
                 return (cartDeals(cart) || []).reduce(function (s, d) {
@@ -1915,7 +1952,12 @@
             // max-w so a long message wraps into a readable block instead of stretching the
             // full width of the screen, and z-[60] so it is never painted under a modal or the
             // sticky header. 2026-08-27: a correct, well-worded refusal was invisible in practice.
-            toast.className = `fixed top-4 right-4 max-w-md ${colors[type]} text-white px-6 py-4 rounded-lg shadow-lg z-[60] transform transition-all duration-300`;
+            // NOT top-4. In app-shell mode .helix-status-bar is the TOP bar and the user
+            // chip lives in its right-hand end — exactly where a 16px-from-the-top toast
+            // lands. Layla, 2026-09-04: the green "Login successful!" sat on her own name.
+            // Cleared by the bar's height plus the notch, so it can never collide again
+            // however tall the safe area turns out to be on a given tablet.
+            toast.className = `pos-toast fixed right-4 max-w-md ${colors[type]} text-white px-6 py-4 rounded-lg shadow-lg z-[60] transform transition-all duration-300`;
             toast.textContent = message;
             toast.style.transform = 'translateX(400px)';
 
