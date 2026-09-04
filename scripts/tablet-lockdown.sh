@@ -145,6 +145,29 @@ if [ "${1:-}" = "--push" ]; then
   fi
   [ -r "$SELF" ] || { echo "--push needs the script as a file, not a pipe" >&2; exit 2; }
 
+  # AND IT NEEDS A REAL TERMINAL, checked BEFORE anything is copied.
+  #
+  # This is the third version of the same failure and the first one that says so
+  # up front. `ssh -t` cannot allocate a pseudo-terminal when stdin is not one,
+  # and sudo on the far end cannot prompt without one — so run from inside an
+  # editor, an agent shell or a script and you get this, half way through, after
+  # the file has already been copied:
+  #
+  #     Pseudo-terminal will not be allocated because stdin is not a terminal.
+  #     sudo: a terminal is required to read the password
+  #
+  # Hit on 2026-09-05 running it through Claude Code's `!` prefix. Nothing is
+  # broken by it and the staged copy is cleaned up either way — but a command
+  # that fails after doing half its work teaches you not to trust it, so it now
+  # refuses at the door and names the fix.
+  if [ ! -t 0 ]; then
+    echo "--push needs a real terminal — sudo on '$HOST' has to ask you for its password." >&2
+    echo "  Run it in an ordinary terminal window (not through an editor or agent shell):" >&2
+    echo "      ./scripts/tablet-lockdown.sh --push $HOST$REMOTE_FLAGS" >&2
+    echo "  Or, already on the machine:  sudo ./scripts/tablet-lockdown.sh$REMOTE_FLAGS" >&2
+    exit 2
+  fi
+
   # TWO STEPS, AND THAT IS THE WHOLE FIX. The first version piped the script into
   # `ssh -t ... sudo`, which cannot work and which I shipped having only ever tested
   # it without the sudo:
