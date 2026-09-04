@@ -312,9 +312,10 @@ All suites green after: `prove-keypad` 80 · 0 · 1 known gap, `prove-chosen-is-
 4. **The on-screen keyboard buries the search results** (`15-22-12.png`) — typing `cbd` shows
    *"Showing 20 of 366 matches"* and **one and a half rows**. You must dismiss the pad to see what
    you searched for. And **the red chat bubble sits on top of the `n` key.**
-5. **Login page: "HelixPOS / Artemis Store" is white on near-white** — **STILL BROKEN. I called this
-   fixed on 2026-09-03 and it was not.** (`15-20-33.png`, and again `2026-09-04 09-52-14.png`.)
-   Cause found 2026-09-04 — see ⓔ below. It is not the cascade; it is three missing classes.
+5. ~~**Login page: "HelixPOS / Artemis Store" is white on near-white**~~ — **FIXED for real,
+   `b599`.** Three missing classes (`from-cyan-700`, `bg-cyan-900`, `text-cyan-50`), then a
+   two-stop gradient after the addendum clobbered `via-*`. Title contrast now 5.4:1, measured on
+   prod. I called this fixed on 2026-09-03 when it was not — see ⓔ and ⓙ.
 6. **The dashboard shows Keycloak role names to the shop owner** (`15-21-01.png`) —
    `default-roles-kc-pos-realm-dev, pos-cashier, pos-admin, pos-manager`. Also the green
    *"Login successful!"* toast lands ON the user chip it is next to.
