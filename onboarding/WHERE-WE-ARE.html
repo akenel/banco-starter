@@ -91,8 +91,8 @@
   it is. <b>The distinction that matters on this page is between <i>a person has looked at it</i> and
   <i>it is deployed</i>.</b> Those are not the same thing, and today proved it twice.</p>
   <div class="meta">
-    <span><b>Build</b> b609 · 5d1f199</span>
-    <span><b>Updated</b> 4 Sep 2026, 18:05</span>
+    <span><b>Build</b> b612 · 5f49a4c</span>
+    <span><b>Updated</b> 4 Sep 2026, 18:36</span>
     <span><b>Shop</b> banco.wolfhold.app</span>
     <span><b>Go-live</b> 1 Oct</span>
     <span><b>Plan</b> Layla first, one shift 11:00–16:00, alongside paper</span>
@@ -100,10 +100,10 @@
 </header>
 
 <div class="board">
-  <div class="tile good"><div class="n">13</div><div class="k">shipped today</div></div>
+  <div class="tile good"><div class="n">16</div><div class="k">shipped today</div></div>
   <div class="tile good"><div class="n">11</div><div class="k">confirmed by a person</div></div>
-  <div class="tile warn"><div class="n">2</div><div class="k">deployed, untested</div></div>
-  <div class="tile bad"><div class="n">7</div><div class="k">still open</div></div>
+  <div class="tile warn"><div class="n">5</div><div class="k">deployed, untested</div></div>
+  <div class="tile bad"><div class="n">4</div><div class="k">still open</div></div>
   <div class="tile"><div class="n">4</div><div class="k">parked / decisions</div></div>
 </div>
 
@@ -150,15 +150,9 @@
 <section>
   <div class="sec-head"><h2>2 · She will ask about these</h2><span class="note">visible, survivable</span></div>
 
-  <div class="row"><span class="pill p-open">still open</span><div class="body">
-    <div class="t">The header shows Keycloak role names</div>
-    <div class="d"><span class="mono">layla | default-roles-kc-pos-realm-dev-1, pos-cashier, pos-manager</span>
-    — on her screen this afternoon. It reads as something broken to anyone who does not know what Keycloak is.</div>
-    <div class="who">confirmed 4 Sep 17:32</div></div></div>
+  
 
-  <div class="row"><span class="pill p-open">still open</span><div class="body">
-    <div class="t">The "Login successful!" toast lands on the user chip</div>
-    <div class="who">confirmed 4 Sep 17:35</div></div></div>
+  
 
   <div class="row"><span class="pill p-open">still open</span><div class="body">
     <div class="t">The knowledge base has no door</div>
@@ -166,10 +160,7 @@
     screen in the POS. Layla could only reach it by typing the URL on a laptop. A whole feature with no entry point.</div>
     <div class="who">Layla asked where it was; that was the answer</div></div></div>
 
-  <div class="row"><span class="pill p-open">minor</span><div class="body">
-    <div class="t">The invalid-time warning sits a little low</div>
-    <div class="d">It is on screen and readable, but Layla would pull it up so it is fully visible without
-    thinking about it. LESSON #12, one notch finer than the last three times.</div></div></div>
+  
 
   <div class="row"><span class="pill p-done">gone</span><div class="body">
     <div class="t">Cleanup Queue truncating mid-word</div>
@@ -179,9 +170,11 @@
 
 <section>
   <div class="sec-head"><h2>3 · Deployed today, nobody has looked</h2><span class="note">the gap that matters</span></div>
-  <div class="callout"><b>This is the row on the page to read twice.</b> Both of these are live on the shop
-  right now and neither has been in front of a person. The first one is the fix for the worst bug found all
-  day — a scanner gun silently charging a customer for eight of the wrong thing.</div>
+  <div class="callout"><b>This is the row on the page to read twice.</b> Five fixes are live on the shop right
+  now and none has been in front of a person. The first is the fix for the worst bug found all day — a scanner
+  gun silently charging a customer for eight of the wrong thing. One sheet clears all five:
+  <span class="mono">onboarding/testsheets/2026-09-04-section-three.html</span>. It needs the <b>real gun</b>
+  and the <b>folio detached</b>.</div>
 
   <div class="row"><span class="pill p-untested">untested</span><div class="body">
     <div class="t">The gun no longer re-presses the Add button <span class="mono">5d1f199</span></div>
@@ -189,14 +182,34 @@
     <b>quantity 8, CHF 120.00</b>, while not one packet of papers reached the cart. Focus stayed on the Add
     button; a gun is a keyboard, and its closing ENTER pressed that button again, once per scan. She wrote
     <i>"this is more my fault"</i>. It was not.</div>
-    <div class="who">fixed and deployed 18:01 · needs the real gun</div></div></div>
+    <div class="who">deployed 18:01 · needs the real gun</div></div></div>
 
   <div class="row"><span class="pill p-untested">untested</span><div class="body">
     <div class="t">The highlight follows the line you scanned <span class="mono">79a031a</span></div>
-    <div class="d">Re-scan something already in the basket and the ring now moves to <i>that</i> line and brings
-    it into view. It used to sit on whichever row was added last — highlighting the one part of the cart that
-    had not changed.</div>
+    <div class="d">Re-scan something already in the basket and the ring moves to <i>that</i> line and brings it
+    into view. It used to sit on whichever row was added last — highlighting the one part of the cart that had
+    not changed.</div>
     <div class="who">Angel's finding · deployed 16:55</div></div></div>
+
+  <div class="row"><span class="pill p-untested">untested</span><div class="body">
+    <div class="t">The header says <b>Manager</b>, not a realm slug <span class="mono">5f49a4c</span></div>
+    <div class="d">The filter tested for the text "pos-" and the realm is called
+    <span class="mono">kc-pos-realm-dev-1</span>, so Keycloak's own default-roles entry contained "pos-" and
+    walked through. Permissions were never affected. One word now, and one implementation instead of two.</div>
+    <div class="who">deployed 18:34</div></div></div>
+
+  <div class="row"><span class="pill p-untested">untested</span><div class="body">
+    <div class="t">The login toast clears the user chip <span class="mono">5f49a4c</span></div>
+    <div class="d">It was pinned 16px from the top of the screen, which in this layout is exactly where the
+    user chip lives.</div>
+    <div class="who">deployed 18:34</div></div></div>
+
+  <div class="row"><span class="pill p-untested">untested</span><div class="body">
+    <div class="t">The invalid-time warning is no longer sliced <span class="mono">5f49a4c</span></div>
+    <div class="d">It was already in the right place — the <b>keypad</b> was cutting it. The pad lifted the box
+    clear of itself and left the explanation underneath. It now lifts the box and whatever it needs to say,
+    which covers every field with a hint, not just the clock. LESSON #12 for the fifth time.</div>
+    <div class="who">Layla's B5 · deployed 18:34</div></div></div>
 </section>
 
 <section>
