@@ -808,6 +808,27 @@ Rolling → Tobacco & Shisha → CBD & Hemp → Lifestyle & Gifts → Grow & Lab
 A→Z inside each, and **zero blank selectable rows** (the empty first child of each optgroup is
 Alpine's `<template>` placeholder, not an option).
 
+### ⓚ1 The ring followed the newest ROW, not the line you scanned — fixed same day
+
+Angel, running the sheet: *"i scan 5 items and go back and scan the first item again and it adds to
+qty but the focus is not on that item — when you scan an item the focus should be on that item."*
+
+He is right, and the first cut was a **proxy pretending to be the thing**: the highlight was bound
+to `index === cart.length - 1`, which means "the newest ROW". Re-scan something already in the
+basket and the quantity rises on line 1 while the ring sits on line 5 — the screen highlights the
+one part of the cart that did NOT change. It never scrolled either, because the watcher keyed on
+cart **length**, and a re-scan does not change the length.
+
+Now keyed on `lastTouchedId`, set inside `addToCart()` — one funnel, both branches, so a new line
+and a quantity bump are treated the same. `increaseQuantity()` sets it too: the + button is equally
+"the line you just changed", and `block:'nearest'` means a row already on screen does not jump.
+
+**`lastTouchedTick` is not decoration.** Scanning the SAME item twice leaves `lastTouchedId`
+unchanged, and an Alpine watcher on an unchanged value never fires — so the second scan of a
+repeated item would not have scrolled. Measured: 5 scans → ring on line 5; re-scan item 1 → ring
+moves to line 1, qty 2; re-scan again → ring holds, qty 3; Clear → no ring; + on line 1 → ring
+line 1.
+
 ### Logged, not done — Angel's own options 2 and 3
 
 - ⓚ2 **Offer only the categories that contain what was typed.** Today the dropdown lists all 52

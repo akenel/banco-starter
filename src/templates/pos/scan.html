@@ -562,7 +562,8 @@
                     <div x-show="cart.length > 0" class="flex flex-col gap-3 mb-4">
                         <template x-for="(item, index) in cart" :key="index">
                             <div class="cart-row bg-gray-50 rounded-lg p-3"
-                                 :class="index === cart.length - 1 ? 'ring-2 ring-indigo-400' : ''">
+                                 :data-cart-id="item.id"
+                                 :class="item.id === lastTouchedId ? 'ring-2 ring-indigo-400' : ''">
                                 <div class="flex justify-between items-start mb-2">
                                     <div class="flex items-start gap-3 flex-1 min-w-0">
                                         <!-- Small product thumb — a ≥44px button; tap to see the picture bigger. -->
@@ -1387,6 +1388,8 @@
             user: {},
             transactionId: 'New Sale',   // replaced on init() with the real next TXN-…-NNNN
             searchMode: 'barcode', // 'barcode', 'search', or 'catalog'
+            lastTouchedId: null,   // the cart line the last scan (or +) landed on
+            lastTouchedTick: 0,    // bumped on every touch, so re-scanning the SAME line still fires
 
             // Barcode mode
             barcodeInput: '',
@@ -1530,12 +1533,12 @@
                 // With 3-5 lines on 90% of sales the whole list usually fits and this never
                 // fires. It is here for the tenth item, which is exactly when a cashier is least
                 // able to go hunting.
-                this.$watch('cart.length', (n, old) => {
-                    if (n <= (old || 0)) return;                 // removals should not yank the page
+                this.$watch('lastTouchedTick', () => {
                     this.$nextTick(() => {
-                        const rows = document.querySelectorAll('.cart-row');
-                        const newest = rows[rows.length - 1];     // chronological: newest is last
-                        if (newest) newest.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                        const row = this.lastTouchedId != null
+                            ? document.querySelector('.cart-row[data-cart-id="' + CSS.escape(String(this.lastTouchedId)) + '"]')
+                            : null;
+                        if (row) row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
                     });
                 });
                 const userInfo = AuthHelper.getUserInfo();
@@ -2809,6 +2812,22 @@
                         quantity: qty
                     });
                 }
+                // THE LINE YOU JUST SCANNED, not the line most recently created. Angel,
+                // 2026-09-04: "i scan 5 items and go back and scan the first item again and it
+                // adds to qty but the focus is not on that item — when you scan an item the
+                // focus should be on that item."
+                //
+                // He is right and the first cut of this was a proxy pretending to be the thing:
+                // the ring was bound to `index === cart.length - 1`, which means "the newest
+                // ROW". Re-scan something already in the basket and the quantity goes up on
+                // line 1 while the ring sits on line 5 — the screen highlights the one part of
+                // the cart that did NOT change. It also never scrolled, because the watcher
+                // keyed on cart.LENGTH and a re-scan does not change the length.
+                //
+                // The tick is not decoration: scanning the SAME item twice leaves lastTouchedId
+                // unchanged, and a watcher on an unchanged value never fires.
+                this.lastTouchedId = product.id;
+                this.lastTouchedTick++;
                 return true;    // the detail modal only closes itself when this is true
             },
 
@@ -2892,6 +2911,11 @@
 
             increaseQuantity(index) {
                 this.cart[index].quantity++;
+                // Same meaning as a scan: this is the line you just changed. No jarring jump —
+                // scrollIntoView with block:'nearest' does nothing to a row already on screen,
+                // and you cannot press + on a row you cannot see.
+                this.lastTouchedId = this.cart[index].id;
+                this.lastTouchedTick++;
             },
 
             decreaseQuantity(index) {
@@ -3027,6 +3051,7 @@
             },
             confirmClearCart() {
                 this.cart = [];
+                this.lastTouchedId = null;      // nothing is the last thing you touched
                 this.discount = 0;
                 this.showClearModal = false;
                 // New sale → drop the old idempotency key, so a previous (maybe-committed-but-
