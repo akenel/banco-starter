@@ -31,6 +31,10 @@ const SINGLE_WORD = new Set(`block inline flex grid hidden contents table absolu
 const MARKERS = new Set([
   'group',   // Tailwind reads it only as the ancestor in `.group:hover .group-hover\\:x`
   'sheet',   // postcard.html styles that link with `.toolbar a`, by TAG — no rule needed
+  // Hooks for JS and for these proofs, not for styling. Added 2026-09-04, when this check
+  // went red on them within an hour of shipping — which is the check working, not failing.
+  'cart-pinned',  // the sticky total block on scan.html; found by querySelector, styled by utilities
+  'cart-row',     // one cart line; the scan watcher scrolls the newest one into view
 ]);
 
 function pageStyles(txt) {

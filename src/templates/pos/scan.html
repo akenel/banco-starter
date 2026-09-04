@@ -451,6 +451,54 @@
             <!-- RIGHT: Shopping Cart -->
             <div class="space-y-6">
                 <div class="card">
+                    <!-- THE MONEY, AT THE TOP, AND IT STAYS THERE. Angel, 2026-09-04:
+                         "the totals checkout lines we have at the bottom of the cart should maybe
+                         be at the top always and list the items below … bring the totals to the
+                         top IMHO will make this a little more idiot proof and easier to use."
+
+                         It also ends a whole class of bug rather than one instance of it. On
+                         2026-09-03 he photographed `TOTAL: CHF 10.9…` sliced in half by the bottom
+                         tab bar; the same shape put a Create button at y=1618 in August. Nothing
+                         pinned to the TOP can be hidden by a bar at the BOTTOM, at any cart
+                         length, on any screen.
+
+                         `sticky` inside .app-content, not `fixed` — fixed would fight the nav.
+                         Only the TOTAL, the deal saving and the two buttons live here: he was
+                         explicit that pinning the subtotal, the VAT and the discount controls too
+                         "starts to be a wall that eats the list", and with 3–5 lines on 90% of
+                         sales the list is what people are actually reading. -->
+                    <div x-show="cart.length > 0" x-cloak style="display:none"
+                         class="cart-pinned sticky top-0 z-10 bg-white pt-1 pb-3 mb-3 border-b">
+                        <div class="flex items-baseline justify-between mb-1">
+                            <span class="text-lg font-bold text-gray-900" data-i18n="scan.total">TOTAL:</span>
+                            <span class="text-3xl font-extrabold text-indigo-600" x-text="formatPrice(totals.total)"></span>
+                        </div>
+                        <!-- Only when the two numbers DIFFER. On most sales subtotal and total are
+                             the same figure, and printing CHF 34.70 twice at the top of the screen
+                             is noise on the one row that has to be read at a glance. When a deal or
+                             a discount is in play it matters, and then it appears. The full
+                             breakdown — subtotal, discount, VAT — stays at the bottom beside the
+                             controls that produce it. -->
+                        <div x-show="cartSavedTotal(cart) > 0 || totals.subtotal !== totals.total"
+                             x-cloak style="display:none"
+                             class="flex items-baseline justify-between text-sm mb-3">
+                            <span class="text-gray-500">
+                                <span data-i18n="scan.subtotal">Subtotal:</span>
+                                <span class="font-semibold" x-text="formatPrice(totals.subtotal)"></span>
+                            </span>
+                            <span x-show="cartSavedTotal(cart) > 0" class="font-semibold text-emerald-700"
+                                  x-text="t('scan.deals_saved').replace('{amount}', formatPrice(cartSavedTotal(cart)))"></span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <button @click="clearCart()" class="btn-danger">
+                                🗑️ <span data-i18n="scan.clear">Clear</span>
+                            </button>
+                            <button @click="goToCheckout()" class="btn-success">
+                                💵 <span data-i18n="scan.checkout">Checkout</span>
+                            </button>
+                        </div>
+                    </div>
+
                     <h2 class="text-xl font-bold text-gray-900 mb-4">
                         🛒 <span data-i18n="scan.cart">Cart</span> (<span x-text="cart.length"></span> <span data-i18n="scan.items">items</span>)
                     </h2>
@@ -462,9 +510,20 @@
                     </div>
 
                     <!-- Cart items -->
-                    <div x-show="cart.length > 0" class="space-y-3 mb-4">
+                    <!-- CHRONOLOGICAL. First item first, the way the receipt prints it.
+                         Newest-first was tried on 2026-09-04 and Angel pulled it the same
+                         afternoon: "the first item is the first item, the second comes second —
+                         lets not mess with sequencing." He is right, and for a better reason than
+                         the one he gave: the receipt was never at risk (it was flex-col-reverse,
+                         so the array and the DOM stayed 0..n and only the PAINT order flipped),
+                         but a screen that lists a basket in a different order from the paper is
+                         friction on every single query at the counter.
+                         What newest-first was for is still here — the ring on the last line
+                         added. -->
+                    <div x-show="cart.length > 0" class="flex flex-col gap-3 mb-4">
                         <template x-for="(item, index) in cart" :key="index">
-                            <div class="bg-gray-50 rounded-lg p-3">
+                            <div class="cart-row bg-gray-50 rounded-lg p-3"
+                                 :class="index === cart.length - 1 ? 'ring-2 ring-indigo-400' : ''">
                                 <div class="flex justify-between items-start mb-2">
                                     <div class="flex items-start gap-3 flex-1 min-w-0">
                                         <!-- Small product thumb — a ≥44px button; tap to see the picture bigger. -->
@@ -640,25 +699,17 @@
                                 <span>Discount (<span x-text="discount"></span>%):</span>
                                 <span class="font-semibold" x-text="'-' + formatPrice(totals.discountAmount)"></span>
                             </div>
-                            <div class="border-t pt-2 flex justify-between">
-                                <span class="text-lg font-bold" data-i18n="scan.total">TOTAL:</span>
-                                <span class="text-2xl font-extrabold text-indigo-600" x-text="formatPrice(totals.total)"></span>
-                            </div>
-                            <div class="flex justify-between text-sm text-gray-500">
+                            <!-- No TOTAL here any more: it is pinned at the top of this card.
+                                 Two renderings of one number is how a screen ends up arguing with
+                                 itself. What stays is the BREAKDOWN — subtotal, discount, VAT —
+                                 which is what a cashier reads when a customer queries the figure. -->
+                            <div class="flex justify-between text-sm text-gray-500 border-t pt-2">
                                 <span>incl. VAT (<span x-text="_cfg('vat_rate')"></span>%):</span>
                                 <span x-text="formatPrice(totals.vat)"></span>
                             </div>
                         </div>
 
-                        <!-- Action Buttons -->
-                        <div class="grid grid-cols-2 gap-3 mt-4">
-                            <button @click="clearCart()" class="btn-danger">
-                                🗑️ <span data-i18n="scan.clear">Clear</span>
-                            </button>
-                            <button @click="goToCheckout()" class="btn-success">
-                                💵 <span data-i18n="scan.checkout">Checkout</span>
-                            </button>
-                        </div>
+                        <!-- Clear and Checkout are pinned at the top of the card now. -->
                     </div>
                 </div>
             </div>
@@ -1432,6 +1483,22 @@
             targetTotal: '',
 
             init() {
+                // A SCAN MUST SHOW YOU THE LINE IT JUST MADE. The list is chronological, so the
+                // newest row is at the BOTTOM — and with the total pinned at the top, a cashier
+                // reading the money is looking at the opposite end of the card from the thing
+                // that just changed. Bring the new row to them.
+                //
+                // With 3-5 lines on 90% of sales the whole list usually fits and this never
+                // fires. It is here for the tenth item, which is exactly when a cashier is least
+                // able to go hunting.
+                this.$watch('cart.length', (n, old) => {
+                    if (n <= (old || 0)) return;                 // removals should not yank the page
+                    this.$nextTick(() => {
+                        const rows = document.querySelectorAll('.cart-row');
+                        const newest = rows[rows.length - 1];     // chronological: newest is last
+                        if (newest) newest.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                    });
+                });
                 const userInfo = AuthHelper.getUserInfo();
                 if (!userInfo) {
                     window.location.href = '/pos';

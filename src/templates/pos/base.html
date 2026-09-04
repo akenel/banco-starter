@@ -1545,6 +1545,19 @@
 
         // Every deal group in the basket: lines that pool, plus a lone bundle line whose own
         // ladder has kicked in. Used for the summary block AND by dealInfo() below.
+        // TOTAL SAVED ACROSS EVERY DEAL IN THE BASKET. One line, pinned at the top of the
+        // cart next to the total, because "what did they save" is the second question a
+        // customer asks and the first thing a cashier wants to be able to say out loud.
+        // Sums cartDeals() rather than recomputing — a second way of working out the same
+        // number is a second number waiting to disagree with the first (LESSON #2).
+        function cartSavedTotal(cart) {
+            try {
+                return (cartDeals(cart) || []).reduce(function (s, d) {
+                    return s + (parseFloat(d.saved) || 0);
+                }, 0);
+            } catch (e) { return 0; }
+        }
+
         function cartDeals(cart) {
             const groups = {};
             (cart || []).forEach((it, i) => {
