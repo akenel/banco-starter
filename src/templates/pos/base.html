@@ -203,6 +203,39 @@
             transform: none; box-shadow: none;
         }
 
+        /* ── THE SHOP'S OWN MARK, BEHIND THE LOGIN CARD ───────────────────────────
+           Felix asked for a personal touch on the first screen anyone sees. This is
+           the Artemis star pulled out of the shop's real logo — the star ALONE, not
+           the wordmark: the card already says "Artemis Store", and putting
+           "Artemis Kräuter & Düfte" behind it is text behind text (rendered and
+           rejected on 2026-09-04).
+
+           Opacity .30 rather than a whisper, because this tablet lives on a shop
+           floor under lights and in daylight, and glare eats low-contrast detail
+           first. A personal touch nobody can see is not one.
+
+           Bleeding off the bottom-right corner on purpose: the card sits centred and
+           the heading sits above it, so the one part of the screen that must stay
+           quiet is the middle. --login-mark-opacity is the single number to turn if
+           it ever wants to be louder or softer. */
+        /* absolute + overflow:hidden, NOT fixed. A fixed overlay covers the VIEWPORT,
+           and the gradient panel is only part of it — so the star bled out of the green
+           and onto the white strip below the fold. Clipped to its own container instead. */
+        .login-bg { position: relative; isolation: isolate; overflow: hidden; }
+        .login-bg::after {
+            content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 0;
+            background: url('/static/artemis-star.png') no-repeat right -12vh bottom -12vh;
+            background-size: auto 80vh;
+            opacity: var(--login-mark-opacity, .30);
+        }
+        /* The card and the heading must sit ON TOP of it, never under. */
+        .login-bg > * { position: relative; z-index: 1; }
+        /* A phone kiosk is much narrower than the till: scale the mark to the SHORT
+           edge there, or a 80vh star fills the whole screen sideways. */
+        @media (max-width: 640px) {
+            .login-bg::after { background-size: auto 42vh; background-position: right -6vh bottom -6vh; }
+        }
+
         /* A box holding something that is NOT a real date or time. Set from
            pos-keypad.js on every keystroke — no Alpine state to thread through five
            different components, and it works the same whether the digits came from

@@ -737,7 +737,24 @@ correctly ignores, and it reported "no pad opened" instead of passing on nothing
 
 ### Still open
 
-- ⓙ2 **The login background is a design decision, not a bug any more.** Three renders sent to Angel:
+- ⓙ2 ~~**The login background**~~ — **DONE.** Angel: *"lets do something simple for the login screen
+  its the first thing they see so they will want some sort of personal touch — do B or C whatever
+  you think is better."* **C**, at `opacity .30`, because that tablet lives on a shop floor under
+  lights and in daylight and glare eats low-contrast detail first; a personal touch nobody can see
+  is not one. `--login-mark-opacity` is the single number to turn.
+
+  It is the shop's **own star**, extracted from the real logo by connected component — the star
+  alone, never the wordmark, because the card already says "Artemis Store" and putting
+  "Artemis Kräuter & Düfte" behind it is text behind text (rendered, looked at, rejected).
+  Scoped to `.login-bg`, not hung off `min-h-screen`, or the `::after` would land on every screen
+  in the POS that uses that class. `position:absolute` + `overflow:hidden` after the first cut used
+  `fixed` and the star bled out of the green onto the white strip below the fold — caught in the
+  render, not by a check. Phone kiosk scales to 42vh so an 80vh star does not fill a narrow screen.
+
+  `onboarding/LOGIN-BACKGROUND-PROMPT.md` keeps the generated-image route open if he ever wants
+  something richer; nothing is wired to it.
+
+- ⓙ2-old **The earlier note said this was still a decision.** Three renders sent to Angel:
   the gradient as designed, and the Artemis leaf as a watermark at two strengths. Scaling the mark
   to fill the screen was tried and is genuinely bad — it swamps the card. Note the mark is a 512px
   PNG (soft at full size, invisible at watermark opacity), and that "light green" would need the

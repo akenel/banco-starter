@@ -25,7 +25,11 @@
 {# Settings override hook: a per-env value from StoreSettings (login_bg) wins when present,
    otherwise the organic default above. Wiring the setting is a one-liner in the route. #}
 {% set _bg = login_bg | default(_bg, true) %}
-<div class="min-h-screen flex items-center justify-center bg-gradient-to-br {{ _bg }} p-4">
+{# The shop's own star, low behind the card. Felix, 2026-09-04: "its the first thing
+   they see so they will want some sort of personal touch." A scoped class, NOT a
+   utility on min-h-screen — the ::after would otherwise land on every screen in the
+   POS that uses that class. Styled in base.html. #}
+<div class="login-bg min-h-screen flex items-center justify-center bg-gradient-to-br {{ _bg }} p-4">
     <div class="max-w-md w-full">
         <!-- Logo/Branding -->
         <div class="text-center mb-8">
