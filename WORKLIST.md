@@ -67,6 +67,17 @@ not a defect. The sheets themselves:
 3. **The counter visit + the `--kiosk` flag** — ⓞ below. Two problems on one trip: everything this
    week was proved in a flat, and Chromium runs windowed on the tablet so a touch-drag walks the
    window off screen (Layla's D2 — she worked out for herself that a reboot was her only move).
+4. **The receipt QR — spec written, not built.**
+   [`onboarding/receipt-qr-spec.html`](onboarding/receipt-qr-spec.html). Every receipt fetches its QR
+   from **`api.qrserver.com`** and points at `/join` → La Piazza. It should be drawn by Banco and
+   point at the shop's own site from `store_settings.website`. The renderer already exists —
+   `_qr_data_uri()`, server-side, measured to 10mm against both guns — so this wires three built
+   things together and adds no component. **Not blocking**, but it prints on every receipt from day
+   one, and the failure mode is a broken image box exactly when the wifi is already down.
+   ⚠️ **One decision still open:** when `website` is blank, the spec falls back to the La Piazza
+   invite — which means a THIRD-PARTY shop cloning the starter prints Angel's community on their
+   customers' receipts by default. Probably wrong. No QR at all may be the right default, with La
+   Piazza opt-in. **Angel's call before it is built.**
 
 ### The method note worth keeping from tonight
 

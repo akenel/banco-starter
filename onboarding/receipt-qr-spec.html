@@ -1,0 +1,273 @@
+<title>Receipt QR — spec</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+  :root{
+    --paper:#f1f4f2; --card:#fff; --ink:#141d1b; --ink-2:#41514e; --ink-3:#71847f;
+    --rule:#dfe6e2; --rule-2:#eef2f0;
+    --accent:#136259; --accent-soft:#e2efec; --accent-ink:#0d4841;
+    --bad:#a51b1b; --bad-soft:#fbe9e9; --warn:#8a4b06; --warn-soft:#fcf0dd;
+    --good:#1c6b3a; --good-soft:#e4f2e8;
+    --shadow:0 1px 2px rgba(20,29,27,.05), 0 8px 24px -16px rgba(20,29,27,.28);
+  }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+    --paper:#0e1413; --card:#161e1c; --ink:#e8efec; --ink-2:#a3b3ae; --ink-3:#7b8c87;
+    --rule:#27332f; --rule-2:#1d2725;
+    --accent:#5cc4b4; --accent-soft:#12312d; --accent-ink:#8fdcd0;
+    --bad:#f08b8b; --bad-soft:#3a1a1a; --warn:#e5aa5c; --warn-soft:#382512;
+    --good:#7bce9c; --good-soft:#14301f;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  }}
+  :root[data-theme="dark"]{
+    --paper:#0e1413; --card:#161e1c; --ink:#e8efec; --ink-2:#a3b3ae; --ink-3:#7b8c87;
+    --rule:#27332f; --rule-2:#1d2725;
+    --accent:#5cc4b4; --accent-soft:#12312d; --accent-ink:#8fdcd0;
+    --bad:#f08b8b; --bad-soft:#3a1a1a; --warn:#e5aa5c; --warn-soft:#382512;
+    --good:#7bce9c; --good-soft:#14301f;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--paper); color:var(--ink); margin:0;
+       font-family:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif; font-size:16px; line-height:1.55}
+  .wrap{max-width:1000px; margin:0 auto; padding:0 20px 90px}
+  h1,h2,h3{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",sans-serif; text-wrap:balance; margin:0}
+  .mono{font-family:"IBM Plex Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums; font-size:.92em}
+  header{padding:40px 0 22px; border-bottom:2px solid var(--ink)}
+  .eyebrow{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.14em;
+           text-transform:uppercase; color:var(--accent); font-weight:600}
+  h1{font-size:clamp(30px,5vw,46px); font-weight:700; line-height:1.05; letter-spacing:-.015em; margin:10px 0 12px}
+  .standfirst{color:var(--ink-2); max-width:66ch; margin:0}
+  .meta{display:flex; flex-wrap:wrap; gap:8px 22px; margin-top:18px;
+        font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--ink-3)}
+  .meta b{color:var(--ink-2); font-weight:600}
+
+  section{margin:34px 0 0}
+  .sec-head{display:flex; align-items:baseline; gap:12px; padding-bottom:9px; border-bottom:1px solid var(--ink)}
+  .sec-head h2{font-size:22px; font-weight:700; letter-spacing:-.01em}
+  .sec-head .note{font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--ink-3)}
+  .lead{color:var(--ink-2); margin:12px 0 4px; max-width:70ch}
+  h3{font-size:16px; margin:22px 0 6px}
+
+  .row{display:flex; gap:14px; align-items:flex-start; padding:13px 0; border-bottom:1px solid var(--rule-2)}
+  .row:last-child{border-bottom:0}
+  .pill{flex:none; font-family:"IBM Plex Sans Condensed",sans-serif; font-weight:700; font-size:11px;
+        letter-spacing:.05em; text-transform:uppercase; padding:4px 9px; border-radius:4px; margin-top:2px; white-space:nowrap}
+  .p-done{background:var(--good-soft); color:var(--good)}
+  .p-untested{background:var(--warn-soft); color:var(--warn)}
+  .p-open{background:var(--bad-soft); color:var(--bad)}
+  .p-park{background:var(--rule-2); color:var(--ink-3)}
+  .row .body{flex:1; min-width:0}
+  .row .t{font-weight:600}
+  .row .d{color:var(--ink-2); font-size:14.5px; margin-top:3px}
+  .who{font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--ink-3); margin-top:4px}
+
+  .callout{margin:16px 0; padding:14px 17px; background:var(--warn-soft);
+           border-left:3px solid var(--warn); border-radius:0 6px 6px 0; font-size:15px}
+  .callout.stop{background:var(--bad-soft); border-left-color:var(--bad)}
+  .callout.ok{background:var(--good-soft); border-left-color:var(--good)}
+  .callout b{font-family:"IBM Plex Sans Condensed",sans-serif}
+
+  table{width:100%; border-collapse:collapse; margin:14px 0; font-size:14.5px}
+  th,td{text-align:left; padding:8px 10px; border-bottom:1px solid var(--rule-2); vertical-align:top}
+  th{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.07em;
+     text-transform:uppercase; color:var(--ink-3); border-bottom:1px solid var(--rule)}
+  .scroll{overflow-x:auto}
+  pre{background:var(--card); border:1px solid var(--rule); border-radius:8px; padding:13px 15px;
+      overflow-x:auto; font-family:"IBM Plex Mono",monospace; font-size:13px; line-height:1.5; margin:12px 0}
+  code{font-family:"IBM Plex Mono",monospace; font-size:.92em}
+  ul,ol{margin:10px 0; padding-left:22px} li{margin:5px 0; color:var(--ink-2)}
+  li b, li strong{color:var(--ink)}
+  footer{margin-top:44px; padding-top:24px; border-top:2px solid var(--ink); color:var(--ink-2); font-size:14.5px}
+  @media print{ body{background:#fff} }
+</style>
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">Banco POS · spec</div>
+  <h1>The receipt QR points at the shop</h1>
+  <p class="standfirst">Today every receipt carries a <b>“Come find us on La Piazza”</b> QR that is fetched
+  from a third-party image service and points at a Banco permalink. It should carry the shop’s own invite,
+  point at the shop’s own website, take that address from Store Settings — and be drawn by Banco, so a
+  receipt still prints when the wifi is down.</p>
+  <div class="meta">
+    <span><b>Written</b> 4 Sep 2026</span>
+    <span><b>Screen</b> receipt, every sale</span>
+    <span><b>Files</b> receipt.html · pos_router.py · pos-i18n.js</span>
+    <span><b>Blocks go-live?</b> no — but it prints on every receipt from day one</span>
+  </div>
+</header>
+
+<section>
+  <div class="sec-head"><h2>1 · What is there now</h2><span class="note">read before changing</span></div>
+
+  <p class="lead"><code>src/templates/pos/receipt.html</code> — the block below the VAT line:</p>
+
+<pre>212  &lt;p … data-i18n="receipt.lapiazza_title"&gt;🏛️ Come find us on La Piazza&lt;/p&gt;
+213  &lt;p … data-i18n="receipt.lapiazza_sub"&gt;Scan to join the community — …&lt;/p&gt;
+215  &lt;img :src="joinQrUrl()" alt="Join La Piazza"&gt;
+
+569  joinQrUrl() {
+570      const permalink = window.location.origin + '/join';
+571      // TODO(prod-hardening): self-host the QR (vendored lib / server endpoint) — a printed
+572      // receipt shouldn't depend on the net; the image service is fine for the test.
+573      return 'https://api.qrserver.com/v1/create-qr-code/?size=140x140&amp;margin=0&amp;data=' + …
+574  },</pre>
+
+  <p class="lead">So the current chain is <span class="mono">receipt → api.qrserver.com → /join → 302 → La Piazza</span>.
+  The <code>/join</code> route is <code>pos_router.py:13148</code>, <span class="mono">banco_join_lapiazza</span>.</p>
+
+  <div class="callout stop"><b>The TODO is the real finding.</b> It says the image service “is fine for the
+  test.” It is no longer a test. A receipt whose QR is fetched from someone else’s server fails in three ways
+  at a counter: it is a <b>broken image box</b> the moment the shop’s wifi drops — the exact scenario the
+  service worker and the IndexedDB catalogue mirror were built to survive; it sends every render to a third
+  party, which is off-message for a product sold on <i>you own this</i>; and when that service is slow, the
+  hole in the receipt appears with a customer standing there.</div>
+</section>
+
+<section>
+  <div class="sec-head"><h2>2 · The decision</h2><span class="note">and why, so it is not re-argued</span></div>
+
+  <h3>Destination: the shop’s own website, directly — not through <code>/join</code></h3>
+  <p class="lead">Keeping the Banco-owned redirect was tempting, because <b>a printed QR is permanent</b> and a
+  redirect you own can be repointed without reprinting. It loses on one thing: <b>a phone shows the URL before
+  the customer taps it.</b> A caption that names <span class="mono">artemisluzern.ch</span> over a preview
+  reading <span class="mono">banco.wolfhold.app/join</span> looks like a redirect someone should not trust.
+  Print and preview must agree. <i>(If the community funnel later matters more than that, the fallback path
+  below already keeps <code>/join</code> alive and this can be reversed in one line.)</i></p>
+
+  <h3>Caption follows the destination</h3>
+  <p class="lead">If it lands on the shop’s site, “Come find us on La Piazza” is describing somewhere else.
+  New copy, all four locales:</p>
+<pre>receipt.site_title   Kräuter &amp; Düfte seit 1999
+receipt.site_sub     Scan to visit us at artemisluzern.ch</pre>
+  <p class="lead">The sub-line should render the <b>host from settings</b>, not a hardcoded string — otherwise
+  the next shop prints Artemis’ domain under their own QR.</p>
+
+  <h3>The address comes from Store Settings</h3>
+  <p class="lead"><code>store_settings.website</code> already exists —
+  <code>src/db/models/store_settings_model.py:119</code>, <i>“Store website URL”</i> — and is editable at
+  <b>Settings → Contact &amp; Links</b>. It currently holds <span class="mono">artemisluzern.ch</span>.
+  <b>Do not hardcode the domain in the template.</b> This is the starter; the next shop is not Artemis, and a
+  customer’s domain baked into a template is what turns a starter into a one-customer fork.</p>
+</section>
+
+<section>
+  <div class="sec-head"><h2>3 · Normalising the address</h2><span class="note">the part that fails silently</span></div>
+
+  <div class="callout"><b>The stored value has no scheme.</b> The setting is
+  <span class="mono">artemisluzern.ch</span>. A QR containing a bare hostname is not reliably treated as a
+  URL — some scanner apps show it as plain text with nothing to tap. Encoding the field as-is produces a QR
+  that scans, looks fine, and does nothing. Normalise before encoding.</div>
+
+  <p class="lead"><b>Measured 4 Sep 2026</b>, so the canonical form is not a guess:</p>
+  <div class="scroll"><table>
+    <tr><th>requested</th><th>result</th></tr>
+    <tr><td class="mono">https://artemisluzern.ch</td><td class="mono">301 → https://www.artemisluzern.ch/</td></tr>
+    <tr><td class="mono">http://artemisluzern.ch</td><td class="mono">301 → https://www.artemisluzern.ch/</td></tr>
+    <tr><td class="mono">https://www.artemisluzern.ch</td><td class="mono">200 ✓ canonical</td></tr>
+  </table></div>
+
+  <p class="lead">Rules:</p>
+  <ul>
+    <li>No scheme → prepend <code>https://</code>. Never <code>http://</code>.</li>
+    <li>Encode the address that answers <b>200 without redirecting</b> — here the <span class="mono">www</span>
+      form. One less round trip for someone scanning on a weak signal outside the shop.</li>
+    <li>Trim whitespace and a trailing slash before comparing; store what the shop typed, encode what resolves.</li>
+    <li>Anything that is not a plausible host after normalising → treat as unset (see the fallback).</li>
+  </ul>
+</section>
+
+<section>
+  <div class="sec-head"><h2>4 · Behaviour</h2><span class="note">one table, both shops</span></div>
+  <div class="scroll"><table>
+    <tr><th><code>website</code></th><th>QR encodes</th><th>caption</th></tr>
+    <tr><td>set</td><td class="mono">https://www.&lt;host&gt;/</td>
+        <td>the shop’s own invite, host rendered from settings</td></tr>
+    <tr><td>blank / unusable</td><td class="mono">&lt;origin&gt;/join</td>
+        <td>today’s La Piazza copy, unchanged</td></tr>
+  </table></div>
+  <p class="lead">The fallback is what keeps the starter honest: a shop that clones Banco and has not filled in
+  a website gets the community invite rather than a dead QR, and a shop that has one never prints somebody
+  else’s.</p>
+</section>
+
+<section>
+  <div class="sec-head"><h2>5 · Drawing the QR</h2><span class="note">the answer already exists</span></div>
+
+  <div class="callout ok"><b>Do not vendor a JS library and do not add an endpoint.</b>
+  <code>_qr_data_uri(payload, logo_url)</code> — <code>pos_router.py</code>, just above
+  <span class="mono">/pos/products/{id}/label</span> — already renders a QR PNG as a data URI, server-side,
+  using the <code>qrcode</code> package that is already in <code>requirements.txt</code>. It picks
+  <b>ERROR_CORRECT_H</b> when there is a logo to punch through and <b>M</b> when there is not, and it returns
+  <span class="mono">""</span> rather than raising, because a label with no code still beats a 500 at the
+  counter. It is <b>measured against both of the shop’s guns, 2026-07-29, readable down to 10mm.</b></div>
+
+  <p class="lead">Reuse it. A data URI is the right shape here for the same reason it was right for the label:
+  <b>no network at print time</b>, no third party, no latency, and it survives the offline case the service
+  worker exists to cover.</p>
+
+  <p class="lead"><b>One thing for the implementer to confirm:</b> <code>joinQrUrl()</code> is an Alpine method,
+  so the receipt builds this client-side. The QR content is stable — it only changes when Store Settings
+  change — so the cleanest wiring is for the server to hand the finished data URI down <b>in the same
+  store-settings payload the receipt already loads</b> (alongside <code>address_line1</code>,
+  <code>city</code> and the rest), rather than adding a fetch that would reintroduce the network dependency
+  this change exists to remove.</p>
+</section>
+
+<section>
+  <div class="sec-head"><h2>6 · Copy, in four languages</h2><span class="note">or a Romandie prospect notices</span></div>
+  <p class="lead">The strings are i18n keys — <code>receipt.lapiazza_title</code> and
+  <code>receipt.lapiazza_sub</code> in <code>src/static/pos/pos-i18n.js</code>. New keys need <b>DE, FR, IT and
+  EN</b>, and the old keys stay, because the fallback path still uses them.</p>
+  <div class="callout">This repo has shipped an English value inside the FR locale before —
+  <span class="mono">"8:00 AM"</span> in <code>closeout.html</code>, while DE and IT already said
+  <span class="mono">8:00</span>. The receipt is the one piece of Banco a <b>customer</b> takes home, and four
+  working languages is a sales asset worth protecting. Check all four, not the two you read.</div>
+</section>
+
+<section>
+  <div class="sec-head"><h2>7 · Done means</h2><span class="note">human-green, off paper</span></div>
+  <div class="row"><span class="pill p-open">must</span><div class="body">
+    <div class="t">A phone scans it off a printed receipt and lands on the shop’s site</div>
+    <div class="d">Not off the screen — <b>off thermal paper</b>. Use the sheets that already exist:
+    <code>LEAF-QR-SIZE-TEST.html</code>, <code>HALO-QR-TEST.html</code>,
+    <code>LOGO-QR-SCAN-TEST.html</code>. Never a new one.</div></div></div>
+  <div class="row"><span class="pill p-open">must</span><div class="body">
+    <div class="t">Pull the network cable and print again</div>
+    <div class="d">The QR still renders. This is the whole point of the change, and it is the one check that
+    would have caught the current bug.</div></div></div>
+  <div class="row"><span class="pill p-open">must</span><div class="body">
+    <div class="t">Blank the Website field in Settings and reprint</div>
+    <div class="d">Falls back to <code>/join</code> with the La Piazza copy. No dead QR, no empty box.</div></div></div>
+  <div class="row"><span class="pill p-open">must</span><div class="body">
+    <div class="t">Watch it fail first</div>
+    <div class="d">Put the bare host back — no scheme — and confirm the scan degrades the way the spec claims.
+    A check never watched to go red is not verification.</div></div></div>
+  <div class="row"><span class="pill p-open">must</span><div class="body">
+    <div class="t">All four locales rendered and read</div>
+    <div class="d">DE · FR · IT · EN, on the receipt, not in the locale file.</div></div></div>
+  <div class="row"><span class="pill p-park">check</span><div class="body">
+    <div class="t">What the print stylesheet does with the “PAID” watermark</div>
+    <div class="d">It is large and diagonal on screen. On thermal it either drops or eats ink. Look once while
+    the receipt is open anyway.</div></div></div>
+</section>
+
+<section>
+  <div class="sec-head"><h2>8 · Out of scope</h2><span class="note">so it does not grow</span></div>
+  <ul>
+    <li><b>Tracking.</b> A <code>?utm_source=receipt</code> would tell the shop whether anyone ever scans it.
+      Worth deciding later; it lengthens the payload trivially and changes nothing structural.</li>
+    <li><b>Per-transaction codes.</b> The current design is deliberately a one-way funnel with no tie-back to
+      the POS. Leave it that way.</li>
+    <li><b>Facebook and Instagram.</b> Both fields exist and are empty. One QR, not three.</li>
+    <li><b>The <code>Payment Method: VISA</code> line.</b> The receipt, the Z-report and the Banana CSV all
+      read the same field, so it moves with the Cash/Card/TWINT decision — not with this.</li>
+  </ul>
+</section>
+
+<footer>
+  Written 4 Sep 2026 against build <span class="mono">b629</span>. Domain behaviour measured the same day.
+  The QR renderer, the settings field and the QR test sheets all already existed — this spec adds no new
+  component, it wires three that were built and never joined up.
+</footer>
+</div>
