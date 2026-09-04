@@ -89,10 +89,12 @@
   <p class="standfirst">Everything that stands between here and <b>Layla running one shift</b>, and everything
   that was closed getting there. Ranked by whether a cashier hits it at the counter — not by how interesting
   it is. <b>The distinction that matters on this page is between <i>a person has looked at it</i> and
-  <i>it is deployed</i>.</b> Those are not the same thing, and today proved it twice.</p>
+  <i>it is deployed</i>.</b> Those are not the same thing, and today proved it twice.
+  <b>As of tonight the blocking list is down to one item</b> — and the one that is left is a
+  <i>re-run</i>, not a fix.</p>
   <div class="meta">
-    <span><b>Build</b> b615+ · see last deploy</span>
-    <span><b>Updated</b> 4 Sep 2026, 20:05</span>
+    <span><b>Build</b> b629 · 6cc1bb5</span>
+    <span><b>Updated</b> 4 Sep 2026, 23:30</span>
     <span><b>Shop</b> banco.wolfhold.app</span>
     <span><b>Go-live</b> 1 Oct</span>
     <span><b>Plan</b> Layla first, one shift 11:00–16:00, alongside paper</span>
@@ -100,51 +102,41 @@
 </header>
 
 <div class="board">
-  <div class="tile good"><div class="n">19</div><div class="k">shipped today</div></div>
-  <div class="tile good"><div class="n">19</div><div class="k">confirmed by a person</div></div>
-  <div class="tile warn"><div class="n">0</div><div class="k">deployed, untested</div></div>
-  <div class="tile bad"><div class="n">6</div><div class="k">still open</div></div>
-  <div class="tile"><div class="n">4</div><div class="k">parked / decisions</div></div>
+  <div class="tile good"><div class="n">33</div><div class="k">shipped today</div></div>
+  <div class="tile good"><div class="n">32</div><div class="k">confirmed by a person</div></div>
+  <div class="tile warn"><div class="n">1</div><div class="k">deployed, unlooked-at</div></div>
+  <div class="tile bad"><div class="n">4</div><div class="k">still open</div></div>
+  <div class="tile"><div class="n">5</div><div class="k">parked / decisions</div></div>
 </div>
 
 <section>
   <div class="sec-head"><h2>1 · Blocking the shift</h2><span class="note">she hits these at the counter</span></div>
   <p class="lead">These cost Layla time or credibility in front of a customer.</p>
 
-  <div class="row"><span class="pill p-open">still open</span><div class="body">
-    <div class="t">Date filters render <span class="mono">mm/dd/yyyy</span></div>
-    <div class="d">Transactions, Product Sales, Audit — six native pickers — and now <b>Cleanup</b> as a seventh.
-    The same screen prints <span class="mono">Showing 04.09.2026</span> one line under a filter that says
-    <span class="mono">09/04/2026</span>. Transaction History is where a cashier goes to find a receipt for
-    someone standing there. Needs a small Banco calendar: the browser's own picker takes its format from the
-    <i>browser's</i> locale and nothing on the page can change it.</div>
-    <div class="who">found by Layla · confirmed still open 4 Sep 17:21</div></div></div>
+  <div class="callout ok"><b>Four of the five cleared tonight</b>, each one confirmed on the tablet by the
+  person who reported it — the date filters, the discount chips, the half-cut row and the pinned controls.
+  What is left below is one <b>re-run</b> and one <b>tablet setting</b>. Neither is unwritten code.</div>
 
   <div class="row"><span class="pill p-open">not tested</span><div class="body">
     <div class="t">The on-screen keyboard buries the search results</div>
     <div class="d">Typing <span class="mono">cbd</span> showed "Showing 20 of 366 matches" and one and a half
-    rows on 3 Sep. <b>The retest does not count</b> — it was run with the folio keyboard attached, so Banco's
-    own pad never appeared, and the pad is the entire subject of the test. Needs re-running with the folio off.</div>
+    rows on 3 Sep. <b>The retest still does not count</b> — it was run with the folio keyboard attached, so
+    Banco's own pad never appeared, and the pad is the entire subject of the test. This is the last blocking
+    item and it has now been carried three days. <b>It needs no code — it needs one run with the folio off.</b>
+    Note that the half-row half of that complaint was fixed tonight and confirmed by Pam, so the re-run is
+    about the <i>pad</i> covering the list, nothing else.</div>
     <div class="who">needs a re-run · folio DETACHED</div></div></div>
 
-  <div class="row"><span class="pill p-open">still open</span><div class="body">
-    <div class="t">Checkout's discount chips don't reflect a discount already applied</div>
-    <div class="d">Target Total sets 15.25% and <span class="mono">None / 5% / 10% / 15% / Custom</span> shows
-    nothing selected. A cashier cannot tell what the customer is being charged. Also
-    <span class="mono">"Your max discount: 100%"</span> is developer copy on a cashier's screen.</div>
-    <div class="who">step not completed on the last run — worth a deliberate look</div></div></div>
-
-  <div class="row"><span class="pill p-open">still open</span><div class="body">
-    <div class="t">The left-hand product list cuts its last row in half</div>
-    <div class="d">A fixed max-height that does not stop on a row boundary, so every pack looks like it is
-    missing something. Small, constant, and it quietly undermines trust in the screen.</div></div></div>
-
-  <div class="row"><span class="pill p-open">new</span><div class="body">
-    <div class="t">The <i>Find Product</i> controls scroll away</div>
-    <div class="d">Layla: the Barcode / Search / New item buttons, the input and the category picker all scroll
-    off when the results list is long. She asks for the same sticky treatment the cart total got — same
-    reasoning: the controls you reach for constantly should not move.</div>
-    <div class="who">Layla, 4 Sep 17:32</div></div></div>
+  <div class="row"><span class="pill p-open">not our code</span><div class="body">
+    <div class="t">The POS window walks off the right of the screen</div>
+    <div class="d">Layla, 4 Sep 21:29, mid-sheet: a strip of the till and a field of desktop wallpaper.
+    <i>"i will reboot to resolve this issue — only thing a cashier could do — i see it happen earlier today."</i>
+    <b>She was right, and nothing in Banco can prevent it:</b> Chromium is running in a normal window with a
+    title bar, so a stray touch drags it away and a touchscreen gives you no easy way to drag it back.
+    <b>The fix is one flag on the tablet</b> — launch Chromium with <span class="mono">--kiosk</span> (or at
+    minimum <span class="mono">--start-fullscreen --window-position=0,0</span>) in its autostart entry. No
+    title bar, no drag, nothing to walk off. Belongs with the counter visit below — same trip, ten minutes.</div>
+    <div class="who">Layla, 4 Sep 21:29 · diagnosed, not yet applied</div></div></div>
 </section>
 
 <section>
@@ -160,6 +152,18 @@
     screen in the POS. Layla could only reach it by typing the URL on a laptop. A whole feature with no entry point.</div>
     <div class="who">Layla asked where it was; that was the answer</div></div></div>
 
+  <div class="row"><span class="pill p-open">new</span><div class="body">
+    <div class="t">The category picker lists all 52 categories, whatever you searched</div>
+    <div class="d">Pam, on the panel she had just called "way better": <i>"would be good to narrow the cats
+    where only search term is applicable so cat list is shortened."</i> <b>The shop has 52 active categories
+    and the dropdown lists every one of them, always.</b> A search for <span class="mono">papers</span>
+    touches <b>6</b>; <span class="mono">elements</span> touches <b>5</b>. So she scrolls a 52-line picker
+    to choose between five answers, on a touchscreen, with a customer waiting. Continues the grouped picker
+    that shipped this afternoon — that one nested them into sections, this narrows them to the ones the
+    search actually hit. Should degrade to today's behaviour rather than hide anything:
+    <span class="mono">raw</span> touches 26 and <span class="mono">king</span> 21.</div>
+    <div class="who">Pam, 4 Sep 23:12 · measured on the shop's 5,427 active products</div></div></div>
+
   
 
   <div class="row"><span class="pill p-done">gone</span><div class="body">
@@ -169,12 +173,13 @@
 </section>
 
 <section>
-  <div class="sec-head"><h2>3 · Deployed but unlooked-at</h2><span class="note">empty, and that is the point</span></div>
-  <div class="callout ok"><b>Nothing is sitting here.</b> Every one of the nineteen fixes shipped on
-  4 September has been in front of a person on the real tablet — the last five cleared by Layla at 19:13
-  and 19:53, including the scanner-gun bug that was silently charging a customer for eight of the wrong
-  thing. <b>This section existing and being empty is the whole point of it.</b> A fix that is deployed and
-  unlooked-at is not finished, and twice today something was called fixed when it was not.</div>
+  <div class="sec-head"><h2>3 · Deployed but unlooked-at</h2><span class="note">one, and it is named</span></div>
+  <div class="callout warn"><b>One thing is sitting here, and it is here because the test could not be run,
+  not because nobody tried.</b> The <b>delivery-slip date on Receiving</b> was fixed tonight in two places in
+  one file. Layla's step B8 came back <span class="mono">ISSUE · not available</span> — there was no slip in
+  the system to look at. Everything else that shipped today has been in front of a person on the real tablet.
+  <b>A fix that is deployed and unlooked-at is not finished</b>, and this page would rather name one than
+  round it down to zero.</div>
 </section>
 
 <section>
@@ -196,7 +201,21 @@
     <tr><td>Total and Checkout pinned at the top of the cart</td><td class="mono">7bdbea5</td><td>Felix — "buttery"</td></tr>
     <tr><td>Mode buttons put the cursor in their own box</td><td class="mono">6e16cd2</td><td>pam</td></tr>
     <tr><td>The Search tab's grouped category picker</td><td class="mono">0ec9cc7</td><td>pam</td></tr>
+    <tr><td colspan="3" style="padding-top:14px"><b>— and then the night shift —</b></td></tr>
+    <tr><td>Swiss dates on all six report filters, + a month grid Banco draws itself</td><td class="mono">04446b1</td><td>Layla</td></tr>
+    <tr><td>Cleanup's "last sold" date · a red box when a filter date is not real</td><td class="mono">04446b1</td><td>Layla</td></tr>
+    <tr><td>The discount chips carry the figure that is being charged</td><td class="mono">7fc7f44</td><td>Layla</td></tr>
+    <tr><td>"Your max discount: 100%" — developer copy, gone</td><td class="mono">7fc7f44</td><td>Layla</td></tr>
+    <tr><td><b>The 18+ record printed 09/04/2026, 11:53 AM</b> — a Swiss compliance document</td><td class="mono">7fc7f44</td><td><b>Layla found it</b></td></tr>
+    <tr><td>Sales Reports · the 18+ Period line · the closeout Z-report · Product Sales' range label</td><td class="mono">7fc7f44</td><td>Layla</td></tr>
+    <tr><td>The delivery-slip date, twice in one file</td><td class="mono">7fc7f44</td><td class="warn">no slip to test on</td></tr>
+    <tr><td>The product list ends on a whole row</td><td class="mono">10c674c</td><td>Pam</td></tr>
+    <tr><td>The Find Product controls stay put — "i love it"</td><td class="mono">10c674c</td><td>Pam</td></tr>
   </table></div>
+  <p class="lead" style="margin-top:12px"><b>Five of the nine night-shift rows were found by Layla in the
+  twelve minutes AFTER a testsheet ended</b>, looking at screens nobody had asked her to look at. Every
+  automated check we had was a search through the code for a shape somebody had already thought of. There is
+  a new one now that reads the rendered page the way she did.</p>
 </section>
 
 <section>
@@ -208,6 +227,16 @@
     payment button, deliberately, because a completed transaction is a line in the Kassenbücher. Without this,
     Layla's shift is the first real sale this code has rung — with a customer standing there. Agreed for
     tomorrow. It leaves two entries in the books that Felix should be told about beforehand, not after.</div></div></div>
+
+  <div class="row"><span class="pill p-done">asked &amp; answered</span><div class="body">
+    <div class="t">The till shows two products at a time</div>
+    <div class="d">A result row is <b>118px</b> and the list box is <b>384px</b>, so a twenty-match search
+    shows <b>two</b> and then scrolls. Snapping to whole rows did not cause that — it made it visible. It
+    was queued as a layout change <i>I</i> would have made on my own reasoning, and instead the testsheet
+    asked Pam the question directly. She looked at it on the tablet: <i>"its fine IMHO."</i>
+    <b>So the box stays as it is.</b> Two minutes of asking beat a day of moving a screen that had just been
+    signed off twice.</div>
+    <div class="who">Pam, 4 Sep 23:14 · step A7, a question rather than a test</div></div></div>
 
   <div class="row"><span class="pill p-park">parked</span><div class="body">
     <div class="t">Birth year instead of a full birthdate</div>
@@ -241,11 +270,21 @@
   <div class="callout stop"><b>One thing that is on no list.</b> Everything this week was proved in the flat.
   The shop's network, the shop's lighting and the shop's counter have not been in the loop since the tablet was
   set up — and that exact gap has bitten before, when LTE was proved at home on an SSID Luzern does not have.
-  <b>An hour at that counter before the shift is worth more than another day of fixes from here.</b></div>
+  <b>An hour at that counter before the shift is worth more than another day of fixes from here.</b>
+  <br><br><b>And it now has a second job.</b> The <span class="mono">--kiosk</span> flag in section 1 is a
+  ten-minute change on that tablet, and until it is done "reboot" really is a cashier's only move when the
+  window walks off the screen. Two problems, one trip.</div>
 </section>
 
 <footer>
-  <b>The counts, so they can be reconciled later:</b> <b>19 distinct fixes across 16 commits</b> — several
+  <b>The counts, so they can be reconciled later:</b> <b>33 distinct fixes across 19 commits</b> — 19 by
+  20:05 and <b>14 on the night shift across 3 commits</b> (<span class="mono">04446b1</span> ·
+  <span class="mono">7fc7f44</span> · <span class="mono">10c674c</span>). <b>32 of the 33 confirmed by a
+  person on the real tablet</b>; the one exception is the delivery-slip date, which had no slip to be tested
+  against and is named in section 3 rather than rounded away. Three UAT sheets ran tonight —
+  <b>54 pass · 5 issue · 0 fail</b>, and every issue was a request or a missing test fixture, not a defect.
+  Automated: <b>97 dates · 15 chips · 12 list · 81 keypad · 5 classes</b>, each with a deliberate break test
+  watched going red. The earlier count stands as written: several
   commits carried more than one (139 dead buttons and <span class="mono">33.33.3333</span> shipped together;
   so did the 111 CSS classes and the chat bubble; so did the role slug, the toast and the sliced warning).
   <b>All 19 confirmed by a person on the real tablet</b>, which is why "deployed, untested" reads zero.<br><br>
