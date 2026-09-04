@@ -127,16 +127,21 @@
     about the <i>pad</i> covering the list, nothing else.</div>
     <div class="who">needs a re-run · folio DETACHED</div></div></div>
 
-  <div class="row"><span class="pill p-open">not our code</span><div class="body">
+  <div class="row"><span class="pill p-open">still open</span><div class="body">
     <div class="t">The POS window walks off the right of the screen</div>
-    <div class="d">Layla, 4 Sep 21:29, mid-sheet: a strip of the till and a field of desktop wallpaper.
-    <i>"i will reboot to resolve this issue — only thing a cashier could do — i see it happen earlier today."</i>
-    <b>She was right, and nothing in Banco can prevent it:</b> Chromium is running in a normal window with a
-    title bar, so a stray touch drags it away and a touchscreen gives you no easy way to drag it back.
-    <b>The fix is one flag on the tablet</b> — launch Chromium with <span class="mono">--kiosk</span> (or at
-    minimum <span class="mono">--start-fullscreen --window-position=0,0</span>) in its autostart entry. No
-    title bar, no drag, nothing to walk off. Belongs with the counter visit below — same trip, ten minutes.</div>
-    <div class="who">Layla, 4 Sep 21:29 · diagnosed, not yet applied</div></div></div>
+    <div class="d">Layla, 4 Sep 21:29: a strip of the till and a field of desktop wallpaper.
+    <i>"i will reboot to resolve this issue — only thing a cashier could do."</i> The title bar is a
+    drag handle on a touchscreen, and once the edge is off the glass a finger cannot get it back.
+    <b>The obvious fix is the wrong one and has already been tried:</b> <span class="mono">--kiosk</span>
+    hides GNOME's own bar, which takes the battery indicator with it, which is <i>why</i> people reach
+    for the top-right corner and drag — so kiosk is the cause of this symptom, not the cure. That is
+    written in <span class="mono">~/.config/systemd/user/banco-till.service</span> on the tablet, and
+    it was ignored at 00:12 on 5 Sep: a kiosk autostart was added, raced the till service that was
+    already there, and put the machine into a <b>48-restart loop</b> a minute after a reboot. Undone;
+    the lockdown script now removes those files.
+    <b>Next thing to try — on the machine, not in a script:</b> a GNOME window rule that keeps it
+    maximised, or an undecorated window from the compositor side rather than from Chromium.</div>
+    <div class="who">Layla, 4 Sep 21:29 · wrong fix attempted and reverted 5 Sep 00:12–00:40</div></div></div>
 </section>
 
 <section>

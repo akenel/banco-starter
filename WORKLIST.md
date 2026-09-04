@@ -64,9 +64,19 @@ not a defect. The sheets themselves:
 2. **Pam's category-dropdown request** — ⓒ5 below. The shop has **52 active categories** and the
    picker lists all of them; a search for `papers` touches **6**. Continues ⓚ (archived), which
    grouped them into sections; this narrows them to the ones the search actually hit.
-3. **The counter visit + the `--kiosk` flag** — ⓞ below. Two problems on one trip: everything this
-   week was proved in a flat, and Chromium runs windowed on the tablet so a touch-drag walks the
-   window off screen (Layla's D2 — she worked out for herself that a reboot was her only move).
+3. **One `--push` of `scripts/tablet-lockdown.sh` from a REAL terminal.** Not urgent, not risky:
+   it deletes the leftover `/usr/local/bin/banco-kiosk`, `banco-kiosk.desktop` ×2 and
+   `/etc/default/banco-kiosk` that the 00:12 experiment wrote. The tablet is already safe — a
+   user-level override neutralises the autostart and `banco-till.service` owns the screen again —
+   this is tidying, not a fix.
+4. **The counter visit** — ⓞ below. Everything this week was proved in a flat.
+   **And the window-drag bug is still open**, with the obvious answer now ruled out in writing:
+   `--kiosk` HIDES GNOME's bar, which takes the battery indicator with it, which is why people reach
+   for the top-right corner and drag. Kiosk is the cause of Layla's symptom, not the cure — it is
+   written in `banco-till.service` on the tablet and I overrode it at 00:12 and put the machine in a
+   **48-restart loop**. See `onboarding/21-supported-hardware.md`, which now carries the reasoning.
+   Next thing to try, **on the machine before it goes in any script**: a GNOME window rule that keeps
+   it maximised, or an undecorated window from the compositor rather than from Chromium.
 4. **The receipt QR — spec written, not built.**
    [`onboarding/receipt-qr-spec.html`](onboarding/receipt-qr-spec.html). Every receipt fetches its QR
    from **`api.qrserver.com`** and points at `/join` → La Piazza. It should be drawn by Banco and

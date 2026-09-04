@@ -1053,3 +1053,57 @@ needed after its first run.
 *This is the fourth time reverting a guard on purpose has found something, and it has now found
 something every single time it has been done.*
 
+
+---
+
+## 2026-09-05, 00:12 — I read the repo and not the machine, and looped the till 48 times
+
+Angel asked to lock the tablet down so the window would stop walking off the screen. `--kiosk`
+removes the title bar, so I added a kiosk launcher and a system autostart to
+`scripts/tablet-lockdown.sh`, pushed it, and he rebooted. Within a minute the tablet was starting a
+new Chromium **every three seconds** — restart counter **48** — with sessions piling up while he
+watched. *"we better undo those changes… can we kill it."*
+
+### Two things were already true on that machine, in plain words, and I did not look
+
+1. **There was already a launcher.** `~/.config/systemd/user/banco-till.service` starts the till and
+   restarts it if it is closed. My kiosk window opened first, so that service's Chromium found a
+   running instance, printed *"Opening in existing browser session"*, exited **0** — and
+   `Restart=always` started it again. The loop was two launchers racing, and it could not have
+   happened with one.
+2. **`--kiosk` had been tried and rejected, and the reason was in the unit file:**
+
+   > `--start-maximized`, NOT `--kiosk`: kiosk hides GNOME's own bar, which is why nobody could see
+   > the battery, which is why the top-right corner got dragged, which is how the window ended up
+   > two-thirds wide with no way back.
+
+   So kiosk is **the cause of the symptom I was fixing**. Layla's off-screen window is what happens
+   when a cashier drags a title bar to reach a status bar that kiosk took away.
+
+### The lesson, and it is not "be more careful"
+
+**"Use what exists — never invent a second one" and "read before edit" are applied to the REPO and
+have never been applied to the DEPLOYMENT SURFACE.** Every rule in `CLAUDE.md` about grepping for
+siblings assumes the thing that already solves the problem is a file in this checkout. Here it was a
+systemd unit on a laptop in Luzern, with its rationale in a comment, and a doc in this very repo
+(`onboarding/21-supported-hardware.md`) that still said *"Chromium kiosk"* because nobody had gone
+back to correct it after the decision changed.
+
+*Before changing how a MACHINE behaves: read what is already running on it. `systemctl --user
+list-units`, the autostart directories, and the unit files' own comments. The machine is a source
+file you did not write and did not read.*
+
+**And the documentation drifted the other way, which is what let me believe myself.** The repo said
+kiosk was the plan; the tablet said kiosk had been abandoned and why. When a doc and a running
+machine disagree, **the machine is the newer document.** `21-supported-hardware.md` now says so.
+
+### What went right, and is worth keeping
+
+The recovery took under half an hour and needed no password: a **user-level** `~/.config/autostart`
+override with `Hidden=true` beats a root-owned `/etc/xdg/autostart` entry, so the autostart could be
+killed over plain ssh while the machine was still looping. Worth remembering — root is not always the
+fastest way to stop something root started.
+
+The script now **removes** what it wrote, so one `--push` cleans a machine that got it. A change that
+cannot be undone by the same tool that made it is only half shipped.
+
