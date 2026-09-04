@@ -132,7 +132,8 @@ the answers. Reach for the named file; do not go looking, and do not build a fre
 
 | when Angel asks for… | use exactly this |
 |---|---|
-| **a test sheet** | `onboarding/testsheets/TEMPLATE.html` — steps-as-data, PASS/**ISSUE**/FAIL, per-step notes, timer, training mode. Copy it, fill the `STEPS` array. **Never a new format.** Built sheets sit beside it as examples. |
+| **a test sheet** | `onboarding/testsheets/TEMPLATE.html` — steps-as-data, PASS/**ISSUE**/FAIL, per-step notes, timer, training mode, **and a section 0 the shell prepends for you**. Copy it, fill the `sections` array and `setup.needs`. **Never a new format.** Built sheets sit beside it as examples. |
+| **the conditions a sheet depends on** | `setup: { needs: [...] }` in the SHEET object. The shell turns it into **step 0.2**, and the three rig selectors (folio · gun · orientation) ride in the copied report — or it prints **DEVICE STATE NOT RECORDED**. Added 2026-09-04 after two runs were invalidated for having the folio keyboard attached: the on-screen pad never appeared and the pad was the subject of the test. A PASS had to be thrown out and the date fields passed for a day while unusable on the tablet alone. |
 | **anything Angel has to READ** | **HTML, never markdown.** Angel, 2026-09-04: *"it's very difficult to read those MD files … all test sheets should be an HTML, it's ten times easier"* — and *"i prefer html testsheet always"*. `onboarding/WHERE-WE-ARE.html` is the pattern for a status page. If a `.md` and an `.html` would say the same thing, **delete the `.md`**: two copies of one list is how the list stops being true, and this repo lost time to that shape twice on 2026-09-04. |
 | **a browser proof** | extend a `scripts/prove-*.js` — 21 exist. Playwright is borrowed via `NODE_PATH`, not vendored. See `TESTING.md`. |
 | **a server-side proof** | extend a `scripts/prove-*.py` — 5 exist. |

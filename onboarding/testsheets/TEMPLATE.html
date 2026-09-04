@@ -22,6 +22,15 @@ const SHEET = {
   safety: { title: 'Never press Checkout.',
             body: 'Every basket ends with 🗑️ Clear. A completed transaction is a line in the Kassenbuch and cannot be taken back out.' },
 
+  // ── SECTION 0 IS ADDED FOR YOU. You do not write it; the shell prepends it. ───────────
+  //  Why: on 2026-09-04 two runs were invalidated AFTER the fact because the tester had the
+  //  folio keyboard attached — so Banco's own on-screen pad never appeared, and the pad was
+  //  the entire subject of the test. One PASS had to be thrown out, and the date fields had
+  //  passed for a full day while being unusable on the tablet alone.
+  //  `needs` is the list of conditions THIS sheet depends on. Say them out loud and the
+  //  tester confirms them as step 0.2, in the record, before anything else is marked.
+  setup: { needs: ['the folio keyboard DETACHED', 'the scanner gun in your hand', 'landscape'] },
+
   // ── the steps ──────────────────────────────────────────────────────────────────────────
   //  do       what to DO. Click for click — assume the reader has never seen the screen.
   //  expect   what should happen. One observable thing. If you cannot write it as something
@@ -101,9 +110,12 @@ const SHEET = {
 
   /* who ran it */
   .who{display:flex; flex-wrap:wrap; gap:10px; margin-top:16px; align-items:center}
-  .who input{font:inherit; font-size:14px; padding:7px 11px; border-radius:5px;
-             border:1px solid var(--rule); background:var(--card); color:var(--ink); min-width:150px}
-  .who input:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
+  .who input, .who select{font:inherit; font-size:14px; padding:7px 11px; border-radius:5px;
+             border:1px solid var(--rule); background:var(--card); color:var(--ink)}
+  .who input{min-width:150px}
+  .who select{min-width:0; cursor:pointer}
+  .who select:invalid, .who select[data-empty="1"]{color:var(--ink-3)}
+  .who input:focus-visible, .who select:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
   .toggle{display:inline-flex; align-items:center; gap:7px; font-size:13px; color:var(--ink-2);
           cursor:pointer; user-select:none; margin-left:auto}
 
@@ -216,6 +228,23 @@ const SHEET = {
     <div class="who">
       <input id="who-name" placeholder="Tested by…" autocomplete="off">
       <input id="who-where" placeholder="Till / device…" autocomplete="off">
+      <!-- The three that have actually invalidated a run. They ride in the copied report, so
+           a result can never again be read back without knowing how it was produced. -->
+      <select id="who-folio" title="Folio keyboard">
+        <option value="">folio…?</option>
+        <option value="folio OFF">folio OFF</option>
+        <option value="folio ON">folio ON</option>
+      </select>
+      <select id="who-gun" title="Scanner gun">
+        <option value="">gun…?</option>
+        <option value="gun in hand">gun in hand</option>
+        <option value="no gun">no gun</option>
+      </select>
+      <select id="who-orient" title="Orientation">
+        <option value="">orientation…?</option>
+        <option value="landscape">landscape</option>
+        <option value="portrait">portrait</option>
+      </select>
       <label class="toggle"><input type="checkbox" id="training"> Training mode — hide the expected result</label>
     </div>
   </header>
@@ -253,14 +282,50 @@ const SHEET = {
 <script>
 (function () {
   var S = SHEET, state = {}, started = null, tick = null;
+
+  /* ── SECTION 0, PREPENDED BY THE SHELL SO NO SHEET CAN FORGET IT ────────────────────
+     2026-09-04: two runs were invalidated after the fact because the tester had the folio
+     keyboard attached, so Banco's own on-screen pad never appeared — and the pad was the
+     subject of the test. One PASS had to be thrown out; the date fields had passed for a
+     whole day while being unusable on the tablet alone.
+     The conditions are now a STEP, marked like any other and carried in the report, so a
+     result can never again be read back without knowing how it was produced. */
+  var buildMeta = (S.meta || []).find(function (m) { return m[0] === 'Build'; });
+  var setupSteps = [{
+    id: '0.1',
+    do: 'Pull down to reload <b>twice</b>, then read the build stamp on the login screen.',
+    expect: buildMeta ? ('It reads <b>' + buildMeta[1] + '</b>')
+                      : 'It matches the build this sheet was written for',
+    why: 'The tablet caches the app in a service worker: the first reload fetches the new build, ' +
+         'the second runs it. Any other stamp and every mark below is about a different build.',
+  }];
+  if (S.setup && S.setup.needs && S.setup.needs.length) {
+    setupSteps.push({
+      id: '0.2',
+      do: 'Confirm the tablet is set up the way this sheet needs: <b>'
+          + S.setup.needs.join('</b>, <b>') + '</b>. Set the three boxes above to match.',
+      expect: 'All three set, and the tablet actually in that state',
+      callout: 'Not paperwork. A sheet run in the wrong configuration produces marks that look '
+             + 'like evidence and are not — and nobody can tell afterwards.',
+    });
+  }
+  S = Object.assign({}, S, {
+    sections: [{ id: '0', title: 'Before you start', time: '1 min', steps: setupSteps }]
+              .concat(S.sections)
+  });
+
   var steps = [];
   S.sections.forEach(function (sec) { sec.steps.forEach(function (st) { steps.push(st); }); });
 
   function load() { try { var v = JSON.parse(localStorage.getItem(S.key) || '{}'); state = v.marks || {}; started = v.started || null;
-                          if (v.who) { $('who-name').value = v.who.name || ''; $('who-where').value = v.who.where || ''; } } catch (e) {} }
+                          if (v.who) { $('who-name').value = v.who.name || ''; $('who-where').value = v.who.where || '';
+                                       $('who-folio').value = v.who.folio || ''; $('who-gun').value = v.who.gun || '';
+                                       $('who-orient').value = v.who.orient || ''; } } catch (e) {} }
   function save() { try { localStorage.setItem(S.key, JSON.stringify({
                           marks: state, started: started,
-                          who: { name: $('who-name').value, where: $('who-where').value } })); } catch (e) {} }
+                          who: { name: $('who-name').value, where: $('who-where').value,
+                                 folio: $('who-folio').value, gun: $('who-gun').value,
+                                 orient: $('who-orient').value } })); } catch (e) {} }
   function $(id) { return document.getElementById(id); }
   function esc(s) { return String(s == null ? '' : s); }
   function hhmmss(ms) { var t = Math.max(0, Math.round(ms / 1000));
@@ -362,12 +427,17 @@ const SHEET = {
     });
     if (!rows.length) return 'Nothing marked yet.';
     var who = $('who-name').value.trim(), where = $('who-where').value.trim();
+    // The device state rides in the header of every report. On 2026-09-04 a PASS had to be
+    // thrown out because nobody could tell, afterwards, that the folio had been attached.
+    var rig = ['who-folio', 'who-gun', 'who-orient']
+                .map(function (id) { return $(id).value; }).filter(Boolean).join(' · ');
     var done = np + ni + nf;
     var head = [
       S.title,
       'build ' + (S.meta.find(function (m) { return m[0] === 'Build'; }) || [])[1],
       who ? 'tested by ' + who : null,
       where ? 'on ' + where : null,
+      rig || 'DEVICE STATE NOT RECORDED',
       started ? new Date(started).toLocaleString() : null,
       // Elapsed, not first-mark-to-last-mark: a half-finished run was reporting "took 0m 0s"
       // because only one step had a timestamp. A finished run freezes at the last mark.
@@ -415,8 +485,9 @@ const SHEET = {
     });
   });
 
-  ['who-name', 'who-where'].forEach(function (id) {
+  ['who-name', 'who-where', 'who-folio', 'who-gun', 'who-orient'].forEach(function (id) {
     $(id).addEventListener('input', function () { save(); $('sum').textContent = report(); });
+    $(id).addEventListener('change', function () { save(); $('sum').textContent = report(); });
   });
 
   $('reset').addEventListener('click', function () {
