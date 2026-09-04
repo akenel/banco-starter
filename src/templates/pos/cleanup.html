@@ -1279,9 +1279,15 @@
                 } finally { p._saving = false; }
             },
 
+            // THE SEVENTH DATE, and the same bug wearing different clothes. The six above it
+            // were native pickers; this one is a bare toLocaleDateString() with NO locale
+            // argument, which asks the BROWSER what country it is in — so a "last sold" on a
+            // Swiss shop's own catalogue printed 9/4/2026 on Angel's laptop. formatDate() is
+            // the ONE date/time seam (base.html), keyed off _cfg('locale'), exactly as the
+            // comment three lines below this one says about money. I wrote that comment and
+            // then shadowed the date seam in the same file.
             shortDate(iso) {
-                if (!iso) return '';
-                try { return new Date(iso).toLocaleDateString(); } catch (e) { return iso.slice(0, 10); }
+                return formatDate(iso);
             },
             // Deliberately NOT a local formatter. This page used to define its own
             //   formatPrice(v) { return 'CHF ' + v.toFixed(2) }

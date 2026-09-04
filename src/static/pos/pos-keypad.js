@@ -214,7 +214,17 @@
     var digits = String(el.value == null ? '' : el.value).replace(/[^0-9]/g, '').length;
     var bad = !ok && digits >= (need || 8);
     el.classList.toggle('pos-bad', bad);
-    var hint = el.parentElement && el.parentElement.querySelector('[data-bad-hint]');
+    // Look one level further out than the box's own parent. A date field wrapped in
+    // `.pos-datefield` (the calendar button needs a positioning context — see
+    // pos-datepicker.js) has a parent that contains the input and nothing else, so a
+    // hint written as its SIBLING in the original markup would silently stop being
+    // found and the red warning would never appear. Nothing depends on that today;
+    // the whole point is that adding a hint to a date box must not be a trap.
+    var scope = el.parentElement;
+    if (scope && scope.classList.contains('pos-datefield') && scope.parentElement) {
+      scope = scope.parentElement;
+    }
+    var hint = scope && scope.querySelector('[data-bad-hint]');
     if (hint) hint.hidden = !bad;
 
     /* AND IF THAT JUST MADE THE FIELD TALLER, CHECK IT STILL FITS. Layla, 2026-09-04,

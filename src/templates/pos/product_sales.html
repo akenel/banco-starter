@@ -58,11 +58,32 @@
                 <div class="flex flex-wrap gap-2 items-end w-full sm:w-auto sm:ml-auto">
                     <div class="flex-1 min-w-0">
                         <label class="block text-xs text-gray-500" data-i18n="product_sales.from">From</label>
-                        <input type="date" x-model="dateFrom" @change="activePreset='custom'" class="input-field py-1 w-full">
+                        <!-- Banco's own date box — see transactions.html for the why. The native
+                             widget renders in the BROWSER's locale, which on this screen sat one
+                             line under a heading printing the same day the Swiss way. -->
+                        <div class="pos-datefield">
+                            <input type="text" data-keypad="date" maxlength="10" inputmode="numeric"
+                                   data-i18n-placeholder="common.date_placeholder" placeholder="dd.mm.yyyy"
+                                   class="input-field py-1 w-full"
+                                   @input="$el.value = window.posDateMask($el.value); dateFrom = window.posDateToISO($el.value); window.posMarkBad($el, dateFrom, 8)"
+                                   @change="activePreset='custom'"
+                                   x-effect="if (window.posDateToISO($el.value) !== dateFrom) { $el.value = window.posISOToDate(dateFrom); window.posMarkBad($el, dateFrom, 8); }">
+                            <button type="button" class="pos-cal-btn" data-cal
+                                    aria-label="Pick a date">📅</button>
+                        </div>
                     </div>
                     <div class="flex-1 min-w-0">
                         <label class="block text-xs text-gray-500" data-i18n="product_sales.to">To</label>
-                        <input type="date" x-model="dateTo" @change="activePreset='custom'" class="input-field py-1 w-full">
+                        <div class="pos-datefield">
+                            <input type="text" data-keypad="date" maxlength="10" inputmode="numeric"
+                                   data-i18n-placeholder="common.date_placeholder" placeholder="dd.mm.yyyy"
+                                   class="input-field py-1 w-full"
+                                   @input="$el.value = window.posDateMask($el.value); dateTo = window.posDateToISO($el.value); window.posMarkBad($el, dateTo, 8)"
+                                   @change="activePreset='custom'"
+                                   x-effect="if (window.posDateToISO($el.value) !== dateTo) { $el.value = window.posISOToDate(dateTo); window.posMarkBad($el, dateTo, 8); }">
+                            <button type="button" class="pos-cal-btn" data-cal
+                                    aria-label="Pick a date">📅</button>
+                        </div>
                     </div>
                     <button @click="load()" class="btn-primary py-1 w-full sm:w-auto" data-i18n="product_sales.apply">Apply</button>
                 </div>

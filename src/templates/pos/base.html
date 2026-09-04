@@ -602,6 +602,12 @@
          that has already thrown. -->
     <script defer src="/static/pos/pos-keypad.js?v={{ asset_v('pos/pos-keypad.js') }}"></script>
 
+    <!-- The month grid for date FILTERS (Transactions, Product Sales, Audit). Deferred and
+         AFTER the keypad on purpose: it calls posDateToISO/posISOToDate to read and write
+         the box, and it closes the pad through window.posKeypad.close() before it opens.
+         Nobody types their way to "last Tuesday" — see the header of the file. -->
+    <script defer src="/static/pos/pos-datepicker.js?v={{ asset_v('pos/pos-datepicker.js') }}"></script>
+
     <!-- Alpine.js for reactive components -->
     <script defer src="/static/vendor/alpine.min.js"></script>
 
@@ -623,6 +629,21 @@
     <script>
       window.posMoneyOnly = window.posMoneyOnly || function (v) { return v; };
       window.posIntOnly   = window.posIntOnly   || function (v) { return v; };
+      // AND THE DATE HELPERS, for the same reason and a sharper one. Money boxes call
+      // theirs from @input, which is late enough that the real version has always landed.
+      // The date boxes also call posDateToISO/posISOToDate from an **x-effect**, which
+      // Alpine runs on the FIRST paint — and an effect that throws takes the whole
+      // component down, so the screen behind it never renders at all. That failure mode
+      // is written up ten lines above this block; these are what stop it being fatal.
+      // Deliberately conservative: an empty ISO records nothing, which is recoverable.
+      // A date silently accepted in an unknown order is not.
+      window.posDateMask     = window.posDateMask     || function (v) { return v; };
+      window.posDateToISO    = window.posDateToISO    || function ()  { return ''; };
+      window.posISOToDate    = window.posISOToDate    || function ()  { return ''; };
+      window.posBirthdateISO = window.posBirthdateISO || function ()  { return ''; };
+      window.posTimeMask     = window.posTimeMask     || function (v) { return v; };
+      window.posTimeValue    = window.posTimeValue    || function ()  { return ''; };
+      window.posMarkBad      = window.posMarkBad      || function ()  { return false; };
     </script>
 
     <!-- HALF A COUNTED DRAWER MUST NOT BE ABLE TO VANISH. Angel, 2026-09-02:

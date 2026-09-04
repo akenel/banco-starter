@@ -87,7 +87,16 @@
         <div>
           <label class="text-[11px] font-bold text-gray-400 uppercase block mb-1">From</label>
           <div class="flex gap-1.5 items-center">
-            <input type="date" x-model="r.fromD" class="input-field text-xs" style="width:auto">
+            <!-- Banco's own date box (see transactions.html). The wrapper carries the width
+                 the input used to set for itself: it is a flex item next to the two spinners,
+                 and a block that sizes to `width:auto` content collapses next to them. -->
+            <div class="pos-datefield" style="width:10.5rem">
+              <input type="text" data-keypad="date" maxlength="10" inputmode="numeric"
+                     data-i18n-placeholder="common.date_placeholder" placeholder="dd.mm.yyyy"
+                     class="input-field text-xs"
+                     @input="$el.value = window.posDateMask($el.value); r.fromD = window.posDateToISO($el.value); window.posMarkBad($el, r.fromD, 8)"
+                     x-effect="if (window.posDateToISO($el.value) !== r.fromD) { $el.value = window.posISOToDate(r.fromD); window.posMarkBad($el, r.fromD, 8); }"><button type="button" class="pos-cal-btn" data-cal aria-label="Pick a date">📅</button>
+            </div>
             <div class="spin"><button type="button" @click="bump('fromH',-1)" class="spb">▼</button><input type="number" min="0" max="23" x-model.number="r.fromH" @input="clampT()" class="spi" title="hour"><button type="button" @click="bump('fromH',1)" class="spb">▲</button></div>
             <span class="text-gray-400 font-bold">:</span>
             <div class="spin"><button type="button" @click="bump('fromM',-5)" class="spb">▼</button><input type="number" min="0" max="59" x-model.number="r.fromM" @input="clampT()" class="spi" title="minute"><button type="button" @click="bump('fromM',5)" class="spb">▲</button></div>
@@ -96,7 +105,13 @@
         <div>
           <label class="text-[11px] font-bold text-gray-400 uppercase block mb-1">To</label>
           <div class="flex gap-1.5 items-center">
-            <input type="date" x-model="r.toD" class="input-field text-xs" style="width:auto">
+            <div class="pos-datefield" style="width:10.5rem">
+              <input type="text" data-keypad="date" maxlength="10" inputmode="numeric"
+                     data-i18n-placeholder="common.date_placeholder" placeholder="dd.mm.yyyy"
+                     class="input-field text-xs"
+                     @input="$el.value = window.posDateMask($el.value); r.toD = window.posDateToISO($el.value); window.posMarkBad($el, r.toD, 8)"
+                     x-effect="if (window.posDateToISO($el.value) !== r.toD) { $el.value = window.posISOToDate(r.toD); window.posMarkBad($el, r.toD, 8); }"><button type="button" class="pos-cal-btn" data-cal aria-label="Pick a date">📅</button>
+            </div>
             <div class="spin"><button type="button" @click="bump('toH',-1)" class="spb">▼</button><input type="number" min="0" max="23" x-model.number="r.toH" @input="clampT()" class="spi" title="hour"><button type="button" @click="bump('toH',1)" class="spb">▲</button></div>
             <span class="text-gray-400 font-bold">:</span>
             <div class="spin"><button type="button" @click="bump('toM',-5)" class="spb">▼</button><input type="number" min="0" max="59" x-model.number="r.toM" @input="clampT()" class="spi"><button type="button" @click="bump('toM',5)" class="spb">▲</button></div>

@@ -56,6 +56,9 @@ window.POS_STRINGS = {
     "common": {
       "cancel": "Cancel",
       "date_placeholder": "dd.mm.yyyy",
+      "cal_today": "Today",
+      "cal_clear": "Clear",
+      "cal_close": "Close",
       "not_a_date": "That is not a real date.",
       "not_a_time": "That is not a time on the clock.",
       "loading": "Loading…",
@@ -2175,6 +2178,9 @@ window.POS_STRINGS = {
     "common": {
       "cancel": "Annuler",
       "date_placeholder": "jj.mm.aaaa",
+      "cal_today": "Aujourd'hui",
+      "cal_clear": "Effacer",
+      "cal_close": "Fermer",
       "not_a_date": "Ce n'est pas une date réelle.",
       "not_a_time": "Ce n'est pas une heure de la journée.",
       "loading": "Chargement…",
@@ -4304,6 +4310,9 @@ window.POS_STRINGS = {
     "common": {
       "cancel": "Annulla",
       "date_placeholder": "gg.mm.aaaa",
+      "cal_today": "Oggi",
+      "cal_clear": "Cancella",
+      "cal_close": "Chiudi",
       "not_a_date": "Non è una data reale.",
       "not_a_time": "Non è un orario dell'orologio.",
       "loading": "Caricamento…",
@@ -6423,6 +6432,9 @@ window.POS_STRINGS = {
     "common": {
       "cancel": "Abbrechen",
       "date_placeholder": "TT.MM.JJJJ",
+      "cal_today": "Heute",
+      "cal_clear": "Löschen",
+      "cal_close": "Schliessen",
       "not_a_date": "Das ist kein echtes Datum.",
       "not_a_time": "Das ist keine Uhrzeit.",
       "loading": "Wird geladen…",

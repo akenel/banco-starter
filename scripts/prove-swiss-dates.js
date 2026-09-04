@@ -238,9 +238,17 @@ const PAGES = [
   check(natT.length === 0, '/pos/my-day has no native time input',
         'found ' + natT.length + ': ' + natT.join(' · ').slice(0, 240));
 
-  // The sweep, because the next one will not be on My Day. `type="date"` is deliberately
-  // NOT swept: the six report range-filters still use it and are their own piece of work
-  // (they are picker-driven, with preset buttons, and nobody types into them).
+  // The sweep, because the next one will not be on My Day.
+  //
+  // THIS COMMENT USED TO EXCLUDE `type="date"`, in these words: "the six report
+  // range-filters still use it and are their own piece of work (they are picker-driven,
+  // with preset buttons, and nobody types into them)." Every clause of that is true and
+  // the conclusion was wrong, which is the most expensive kind of wrong. Being
+  // picker-driven is not a defence — the PICKER is what renders in the browser's locale.
+  // Layla, 2026-09-04 17:21, on Transaction History: "the same screen prints
+  // Showing 04.09.2026 one line under a filter that says 09/04/2026." The exclusion sat
+  // here for a day, in the file whose whole subject is that widget, directly under a
+  // comment invoking standing rule 9. Section M below is the sweep it should have been.
   const fs = require('fs'), path = require('path');
   const dir = 'src/templates/pos';
   const offenders = fs.readdirSync(dir).filter(f => f.endsWith('.html'))
@@ -540,6 +548,225 @@ const PAGES = [
     });
     check(good === false, 'and a real birthdate turns it back on',
           'the button is still disabled with 03.09.2000 in the box — a gate that never opens is a broken form');
+  }
+
+  // ══ THE FILTERS ═══════════════════════════════════════════════════════════════════════
+  // Added 2026-09-04 (night) for the six survivors — Transactions, Product Sales and Audit
+  // From/To — plus the seventh, a bare toLocaleDateString() on Cleanup. Sections A–L above
+  // proved the TYPING half of a date field. A filter is the other half: nobody types their
+  // way to "last Tuesday", they look at a month and point at a day.
+
+  // ── M · NO REPORT FILTER FALLS BACK TO THE BROWSER'S LOCALE ──────────────────────────
+  // Two assertions per page, because either alone is a lie (section B learned this on a
+  // 404): the native widget must be GONE, and Banco's box must be THERE, counted.
+  // dd.mm.yyyy from an ISO day, for the expectations below. Deliberately NOT
+  // window.posISOToDate: an expectation computed with the same function as the subject
+  // agrees with itself even when both are wrong, which is a harness proving nothing
+  // (LESSON #5). Four lines of arithmetic that cannot share a bug with the shipped code.
+  const swiss = (iso) => iso ? iso.slice(8, 10) + '.' + iso.slice(5, 7) + '.' + iso.slice(0, 4) : '';
+
+  console.log('\n── M · the six report filters are Banco date boxes ──');
+  const FILTERS = [
+    { url: '/pos/transactions',   label: 'Transaction History', boxes: 2 },
+    { url: '/pos/reports/products', label: 'Product Sales',     boxes: 2 },
+    { url: '/pos/audit',          label: 'Audit',               boxes: 2 },
+  ];
+  for (const pg of FILTERS) {
+    const html = await p.evaluate(async (u) => {
+      const r = await fetch(u, { credentials: 'same-origin' });
+      return { status: r.status, body: await r.text() };
+    }, pg.url);
+    check(html.status === 200, `${pg.url} loads`,
+          'status ' + html.status + ' — every check below would pass on an empty page');
+    const ours = (html.body.match(/data-i18n-placeholder="common\.date_placeholder"/g) || []).length;
+    check(ours === pg.boxes, `${pg.label} has its ${pg.boxes} Banco date boxes`,
+          'found ' + ours);
+    const cals = (html.body.match(/data-cal\b/g) || []).length;
+    check(cals === pg.boxes, `${pg.label} has a 📅 on each of them`,
+          'found ' + cals + ' — the mask alone leaves "last Tuesday" as eight digits to work out');
+  }
+  // The sweep. A seventh file is what this is for.
+  const dateOffenders = fs.readdirSync(dir).filter(f => f.endsWith('.html'))
+    .filter(f => /<input[^>]*type="date"/.test(fs.readFileSync(path.join(dir, f), 'utf8')));
+  check(dateOffenders.length === 0, `no template under ${dir} carries a native date input`,
+        'found in: ' + dateOffenders.join(', '));
+
+  // ── N · AND NO SCREEN ASKS THE BROWSER WHAT COUNTRY IT IS IN ─────────────────────────
+  // The same bug one layer up, and the seventh instance of it. `toLocaleDateString()` with
+  // no argument reads the BROWSER's locale — which is how Cleanup printed "last sold
+  // 9/4/2026" on a Swiss shop's own catalogue. base.html has had the ONE date/time seam
+  // since the i18n work (formatDate/formatTime/formatDateTime, keyed off _cfg('locale')).
+  // A grep, not a render: the call is wrong before anything draws it.
+  console.log('\n── N · every date on screen goes through the shop\'s locale seam ──');
+  const bare = [];
+  for (const f of fs.readdirSync(dir).filter(f => f.endsWith('.html'))) {
+    const body = fs.readFileSync(path.join(dir, f), 'utf8');
+    // Bare = no argument at all. `toLocaleDateString(_cfg('locale'))` is the seam itself.
+    const hits = (body.match(/toLocale(Date|Time)?String\(\s*\)/g) || []);
+    // .toLocaleString() on a NUMBER is thousands separators, not a date — Cleanup counts
+    // gaps with it. Only flag the ones that follow a Date.
+    const dateHits = (body.match(/(new Date\([^)]*\)|Date\.\w+\([^)]*\))\s*\.toLocale(Date|Time)?String\(\s*\)/g) || []);
+    if (dateHits.length) bare.push(f + ': ' + dateHits.join(' · '));
+    void hits;
+  }
+  check(bare.length === 0, 'no POS template formats a date without saying whose locale it is',
+        bare.join('\n       ') + ' — use formatDate(), the seam base.html already has');
+
+  // ── O · THE GRID OPENS ON THE SCREEN, AND POINTING AT A DAY MOVES THE FILTER ─────────
+  // The half a mask cannot do. And "it opened" is not the claim — LESSON #12: the claim is
+  // that it is INSIDE THE RECTANGLE the person is looking at, which is
+  // getBoundingClientRect() against innerHeight. This repo has shipped a refusal at y=1372
+  // in a 1050px viewport with isVisible() true throughout.
+  console.log('\n── O · the month grid, on Transaction History ──');
+  await p.goto('http://localhost:3000/pos/transactions', { waitUntil: 'load' });
+  await p.waitForTimeout(2000);
+  // COUNT THE BOXES BEFORE POINTING AT ONE. Found by breaking this on purpose: with the
+  // From filter reverted to a native picker, "the box reads 12.09.2026" went GREEN — the
+  // generic selector had simply moved on to the TO box, and the check was reading one
+  // field while asserting about another's model. A pass that survives the bug it is
+  // guarding is worse than no check (LESSON #5). Two boxes, in order, or nothing below
+  // this line means anything.
+  const nboxes = await p.locator('.pos-datefield input[data-keypad="date"]').count();
+  check(nboxes === 2, 'Transaction History has both date boxes on screen, From then To',
+        'found ' + nboxes + ' — the checks below name boxes[0] as the From filter');
+  const cal = p.locator('[data-cal]').first();
+  check(await cal.count() > 0, 'the From filter has a 📅 button on it');
+  if (await cal.count()) {
+    await cal.click();
+    await p.waitForTimeout(400);
+    const grid = await p.evaluate(() => {
+      const el = document.querySelector('.pos-cal.on');
+      if (!el) return { open: false };
+      const r = el.getBoundingClientRect();
+      const wk = [...el.querySelectorAll('.pos-cal-wk span')].map(s => s.textContent);
+      // The title in the TENANT's language, built the same way the page builds it — never
+      // a hardcoded "September", which would pass on an English till and fail in Lugano.
+      const loc = (typeof _cfg === 'function' ? _cfg('locale') : 'de-CH');
+      const now = new Date();
+      return {
+        open: true,
+        onScreen: r.top >= 0 && r.bottom <= window.innerHeight
+               && r.left >= 0 && r.right <= window.innerWidth,
+        rect: [Math.round(r.top), Math.round(r.bottom)], viewport: window.innerHeight,
+        title: el.querySelector('.pos-cal-title').textContent.trim(),
+        wk: wk,
+        mondayFirst: wk[0] === new Intl.DateTimeFormat(loc, { weekday: 'short' })
+                                  .format(new Date(Date.UTC(2026, 0, 5))),
+        days: el.querySelectorAll('.pos-cal-d').length,
+        today: !!el.querySelector('.pos-cal-d.today'),
+        padOpen: !!document.querySelector('.pk.on'),
+        locale: loc,
+        expectTitle: new Intl.DateTimeFormat(loc, { month: 'long', year: 'numeric' }).format(now),
+      };
+    });
+    check(grid.open, 'tapping 📅 opens a month grid');
+    if (grid.open) {
+      check(grid.onScreen, 'and the whole grid is inside the viewport',
+            `it spans y=${grid.rect[0]}..${grid.rect[1]} in a ${grid.viewport}px viewport`
+            + ' — a calendar with its last two weeks off the glass is a calendar without today on it');
+      check(grid.title === grid.expectTitle,
+            `the month is named in the shop's language ("${grid.title}", locale ${grid.locale})`,
+            `it says "${grid.title}", the tenant locale wants "${grid.expectTitle}"`);
+      check(grid.mondayFirst, `the week starts on Monday (${grid.wk.join(' ')})`,
+            'a Swiss calendar starting on Sunday is read wrong at a glance by everyone using it');
+      check(grid.days === 42, 'six full rows, always — the footer never moves under the finger',
+            'found ' + grid.days + ' day cells');
+      check(grid.today, 'and today is marked');
+      check(!grid.padOpen, 'and Banco\'s keypad is not left covering it',
+            'the pad is still up — two things owning the bottom of the screen is how the last'
+            + ' three "I could not read it" reports happened');
+    }
+
+    // POINT AT A DAY. The 12th of whatever month is showing: a day that exists in every
+    // month, is never today, and is never in the leading or trailing week — so it can only
+    // be the cell that was actually clicked.
+    const before = await p.evaluate(() => Alpine.$data(document.querySelector('[x-data]')).filterFrom);
+    const want = await p.evaluate(() => {
+      const el = document.querySelector('.pos-cal.on .pos-cal-d:not(.oth)[data-iso$="-12"]');
+      return el ? el.dataset.iso : null;
+    });
+    check(!!want, 'the 12th of the shown month is a cell you can point at');
+    if (want) {
+      await p.click('.pos-cal.on .pos-cal-d[data-iso="' + want + '"]');
+      await p.waitForTimeout(600);
+      const after = await p.evaluate(() => {
+        const d = Alpine.$data(document.querySelector('[x-data]'));
+        const box = document.querySelector('.pos-datefield input[data-keypad="date"]');
+        return { model: d.filterFrom, box: box.value, still: !!document.querySelector('.pos-cal.on') };
+      });
+      check(after.model === want,
+            `pointing at the 12th records ${want} — the day that was pointed at`,
+            `the filter holds ${JSON.stringify(after.model)} (it was ${JSON.stringify(before)})`);
+      check(nboxes === 2 && after.box === swiss(want),
+            `and the box reads ${swiss(want)} — Swiss order, on the screen`,
+            'the box reads ' + JSON.stringify(after.box));
+      check(!after.still, 'and the calendar gets out of the way once a day is chosen',
+            'it is still open, over the results the cashier just filtered');
+    }
+  }
+
+  // ── P · A PRESET STILL SHOWS UP IN THE BOX ───────────────────────────────────────────
+  // LESSON #13, on this screen. The date lives in TWO places now — the model the API is
+  // called with, and the text in the box — and the preset buttons write only the first.
+  // The x-effect is what carries it across. If it ever throws on its first pass it dies
+  // silently and permanently (section K), and the box would sit blank over a filtered
+  // list: the screen and the query disagreeing, which is the shape that cost a member's
+  // birthdate on 2026-09-04.
+  console.log('\n── P · pressing a preset puts its dates in the boxes ──');
+  const preset = p.locator('button:has-text("Today")').first();
+  if (!(await preset.count())) {
+    check(false, 'Transaction History has a Today preset',
+          'no button found — a check that cannot find its subject always passes');
+  } else {
+    await preset.click();
+    await p.waitForTimeout(900);
+    const r = await p.evaluate(() => {
+      const d = Alpine.$data(document.querySelector('[x-data]'));
+      const boxes = [...document.querySelectorAll('.pos-datefield input[data-keypad="date"]')];
+      return { from: d.filterFrom, to: d.filterTo, boxes: boxes.map(b => b.value) };
+    });
+    check(r.boxes[0] === swiss(r.from) && r.boxes[1] === swiss(r.to),
+          `the boxes follow the preset (${r.boxes.join(' → ')})`,
+          `the filter runs ${r.from}..${r.to} and the boxes read ${JSON.stringify(r.boxes)}`
+          + ' — a blank box over a filtered list is the screen disagreeing with the query');
+  }
+
+  // ── Q · AND A FILTER THAT IS NOT A DATE SAYS SO ─────────────────────────────────────
+  // Section J proves this on the age gate. The filters needed it for a sharper reason: they
+  // have no Save button to grey out, so a refused date is invisible by default — the box
+  // shows 31.02.2026 and the filter silently holds NOTHING. The screen and the query
+  // disagreeing, with nothing on the glass to say which one is lying (LESSON #13).
+  console.log('\n── Q · a filter date that is not a date turns red ──');
+  await p.goto('http://localhost:3000/pos/transactions', { waitUntil: 'load' });
+  await p.waitForTimeout(2000);
+  const qbox = p.locator('.pos-datefield input[data-keypad="date"]').first();
+  await qbox.click({ force: true });
+  await qbox.fill(''); await qbox.type('31022026', { delay: 40 });
+  await p.waitForTimeout(400);
+  const q = await p.evaluate(() => {
+    const el = document.querySelector('.pos-datefield input[data-keypad="date"]');
+    return { shown: el.value, red: el.classList.contains('pos-bad'),
+             model: Alpine.$data(document.querySelector('[x-data]')).filterFrom };
+  });
+  check(q.shown === '31.02.2026', '31.02.2026 can still be typed into a filter', 'the box shows ' + q.shown);
+  check(q.model === '', 'and the filter holds nothing rather than a day that does not exist',
+        'the filter holds ' + JSON.stringify(q.model));
+  check(q.red, 'and the box is red, so the cashier can see which of the two is true',
+        'the box carries no .pos-bad — it looks exactly like a working filter');
+
+  // AND THE RED LETS GO WHEN A PRESET OVERWRITES IT. Found while writing this: the x-effect
+  // repaints the box from the model and would have left the red behind, so a preset pressed
+  // after a typo showed a good date in a red box for the rest of the session.
+  const qpre = p.locator('button:has-text("Last 7 days")').first();
+  if (await qpre.count()) {
+    await qpre.click();
+    await p.waitForTimeout(800);
+    const q2 = await p.evaluate(() => {
+      const el = document.querySelector('.pos-datefield input[data-keypad="date"]');
+      return { v: el.value, red: el.classList.contains('pos-bad') };
+    });
+    check(!q2.red, `and a preset clears the red along with the value (${q2.v})`,
+          'the box still reads red over ' + q2.v + ' — a warning that outlives its cause is one nobody reads');
   }
 
   console.log('\n==========================================');

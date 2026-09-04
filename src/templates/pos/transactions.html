@@ -66,11 +66,46 @@
             <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 <div>
                     <label class="text-sm font-semibold text-gray-700" data-i18n="transactions.filter_from">From:</label>
-                    <input type="date" x-model="filterFrom" @change="onRangeChange()" class="input-field">
+                    <!-- BANCO'S OWN DATE BOX, not the browser's. Layla, 2026-09-04 17:21, on this
+                         very screen: "the same screen prints Showing 04.09.2026 one line under a
+                         filter that says 09/04/2026." A native date input takes its
+                         format from the BROWSER'S UI locale and nothing on the page can change it
+                         (measured 2026-09-03 — four lang values, two contexts, eight identical
+                         mm/dd/yyyy boxes). Transaction History is where a cashier goes with a
+                         customer standing there, so this one is not cosmetic.
+                         @input masks + records ISO · @change reloads (what the native widget did
+                         on every pick) · x-effect is what puts a PRESET back in the box.
+
+                         AND posMarkBad PAINTS THE BOX RED. 31.02.2026 is two halves that are each
+                         legal, so no keystroke rule catches it — the parser refuses it and records
+                         NOTHING, which without the paint means the box shows a date while the
+                         filter has none. That is LESSON #13's exact shape and it cost a member's
+                         birthdate this morning. The x-effect clears the red as well as writing the
+                         value, or a preset pressed after a bad date leaves a red box over a
+                         perfectly good filter. -->
+                    <div class="pos-datefield">
+                        <input type="text" data-keypad="date" maxlength="10" inputmode="numeric"
+                               data-i18n-placeholder="common.date_placeholder" placeholder="dd.mm.yyyy"
+                               class="input-field"
+                               @input="$el.value = window.posDateMask($el.value); filterFrom = window.posDateToISO($el.value); window.posMarkBad($el, filterFrom, 8)"
+                               @change="onRangeChange()"
+                               x-effect="if (window.posDateToISO($el.value) !== filterFrom) { $el.value = window.posISOToDate(filterFrom); window.posMarkBad($el, filterFrom, 8); }">
+                        <button type="button" class="pos-cal-btn" data-cal
+                                aria-label="Pick a date">📅</button>
+                    </div>
                 </div>
                 <div>
                     <label class="text-sm font-semibold text-gray-700" data-i18n="transactions.filter_to">To:</label>
-                    <input type="date" x-model="filterTo" @change="onRangeChange()" class="input-field">
+                    <div class="pos-datefield">
+                        <input type="text" data-keypad="date" maxlength="10" inputmode="numeric"
+                               data-i18n-placeholder="common.date_placeholder" placeholder="dd.mm.yyyy"
+                               class="input-field"
+                               @input="$el.value = window.posDateMask($el.value); filterTo = window.posDateToISO($el.value); window.posMarkBad($el, filterTo, 8)"
+                               @change="onRangeChange()"
+                               x-effect="if (window.posDateToISO($el.value) !== filterTo) { $el.value = window.posISOToDate(filterTo); window.posMarkBad($el, filterTo, 8); }">
+                        <button type="button" class="pos-cal-btn" data-cal
+                                aria-label="Pick a date">📅</button>
+                    </div>
                 </div>
                 <div>
                     <label class="text-sm font-semibold text-gray-700" data-i18n="transactions.filter_status">Status:</label>
