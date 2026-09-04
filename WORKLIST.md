@@ -982,7 +982,8 @@ price nobody agreed to.*
    now catches this class of mistake.
 4. ~~**The discount chips**~~ — **FIXED, `7fc7f44`.** The Custom chip carries the live figure and
    lights up; "Your max discount: 100%" is gone. Needs Layla's eyes — no sheet yet.
-5. **The half-cut product row** and **Layla's sticky Find Product header** — both small, both hers.
+5. ~~**The half-cut product row** and **Layla's sticky Find Product header**~~ — **FIXED,
+   `10c674c`.** Two things came out of it that need a decision, not a fix — see ⓒ4.
 6. **The counter visit — section ⓞ.** Same trip as item 1. Everything this week was proved in a
    flat; the shop's light, network, counter height and the fact that there is **no chair** have not
    been in the loop. An hour there is worth more than another day of fixes from here.
@@ -1204,6 +1205,53 @@ drag, nothing to walk off. Belongs with section ⓞ's counter visit — same tri
 - **A raw ISO inside a server-built string:** the refusal notes on the 18+ record read
   *"[recorded late — the till could not reach the server at 2026-09-03 18:29]"*. Built in Python, so
   no template fix reaches it. On the compliance record, so it should read Swiss.
+
+---
+
+## ⓒ4 THE LIST, THE CONTROLS — AND TWO THINGS THAT NEED ANGEL, NOT A FIX — 2026-09-04 night
+
+**Both of Layla's last two are done (`10c674c`).** The results box now ends on a row boundary,
+measured from the rows themselves; the Find Product panel is pinned, except in New item mode
+where a sticky panel taller than the screen would hide its own Create button.
+`scripts/prove-nothing-is-cut-in-half.js`, 12 checks. Reverting the snap turns it red at
+**44px of a 118px row showing** — Layla's "one and a half rows" as a number.
+
+### ① The till shows a cashier TWO products at a time, out of twenty. Decision needed.
+
+Measured, not guessed: a result row is **118px** and the cap is `max-h-96` = **384px**. Snapping
+to whole rows is right and it does not create this — it makes it visible. With her real search
+("Showing 20 of 366 matches") the cashier sees **two**, then scrolls.
+
+Raising the cap is a **layout decision, not a bug fix**, and it interacts with the pinned panel
+above it (~330px on the tablet), so the two have to be judged together on the real screen.
+Roughly `max-h-96` → `max-h-[55vh]` would show four or five. **Not doing it unilaterally** — it
+moves a screen that has just been signed off twice tonight, and it is the kind of change that
+should be looked at on the tablet, not reasoned about here.
+
+### ② An unexplained 402 against a 332
+
+A two-row list reports `scrollHeight 402` against a content height that adds up to **332**, so the
+box keeps a scrollbar it should not need. Every row is whole either way — the thing she reported
+is fixed — and measured on a freshly loaded page the same box reports 332/332 with no cap at all.
+It only appears at the end of a run that has already rendered and scrolled twenty rows.
+
+**The check does not assert it, and says out loud that it does not.** A green nobody can explain
+is worth less than an honest gap; the alternative was to quietly loosen the assertion until it
+passed, which is how a suite stops meaning anything.
+
+### ③ Two method notes worth keeping
+
+- **A screenshot caught what the assertion could not.** Both the fix and its check treated
+  `padding-bottom` as room to give. It is not: a scrolling box's content passes THROUGH its
+  padding and is visible down to the border. The check had therefore defined the cut line 24px
+  too high — exactly where the fix had put the last row — and passed cleanly over a **visible
+  16px sliver** of the next row. LESSON #12, and the fourth time this week a picture has been the
+  only instrument that worked.
+- **CSS scroll-snapping was tried and removed.** `scroll-snap-type: y proximity` broke the resting
+  case it was meant to strengthen; `mandatory` hijacks a fast flick and fights the finger. Neither
+  could be feel-tested on the tablet tonight, and **a scroll behaviour nobody has felt is not one
+  to ship.** If the list ever needs to rest on a boundary mid-scroll, that is the door — but it
+  needs a thumb on it first.
 
 ---
 
