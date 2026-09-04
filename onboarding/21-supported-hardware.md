@@ -21,13 +21,49 @@ none of them says *"any tablet"*. Neither do we. **"Runs on this documented kit"
 
 | | what | why it is the one |
 |---|---|---|
-| **Counter device** | ThinkPad X1 Tablet · Debian 13 · GNOME 48 · Chromium kiosk | a full x86 computer: prints via CUPS, takes the gun's USB dongle, and can run the whole stack locally if the network dies |
+| **Counter device** | ThinkPad X1 Tablet · Debian 13 · GNOME 48 · Chromium **maximised, not kiosk** (see below) | a full x86 computer: prints via CUPS, takes the gun's USB dongle, and can run the whole stack locally if the network dies |
 | **Scanner** | NETUM NSL8 · **two of them**, one always charging | reads a screen as well as paper, and copes with crumpled and curved labels |
 | **Label printer** | Brother QL-820NWB over Bluetooth · `printer-driver-ptouch` | the only path that has actually produced labels — `brother_ql` and `brother_ql_next` printed zero |
 | **Browser** | Chromium 84+ | below that, optional chaining is a *syntax* error and a whole `<script>` block silently refuses to parse |
 
 Everything else is unqualified. That is not a judgement about the hardware; it means nobody has
 run the sheets on it.
+
+---
+
+## 🔴 THE TILL RUNS MAXIMISED, NOT IN KIOSK MODE — AND THAT IS A DECISION
+
+**`--kiosk` hides GNOME's own top bar.** That takes the battery indicator away with it, and a cashier
+who cannot see the battery reaches for the top-right corner of the screen — which on a touchscreen
+drags the window. That is how the till ended up two-thirds wide with no way back, and it is what
+Layla photographed on 2026-09-04 at 21:29: a strip of POS and a field of wallpaper, with *"reboot"*
+as her only move.
+
+So the counter launcher is `~/.config/systemd/user/banco-till.service`:
+
+```
+ExecStart=/usr/bin/chromium --ozone-platform=wayland --start-maximized \
+  --overscroll-history-navigation=0 --disable-pinch --force-device-scale-factor=1 \
+  --app=https://banco.wolfhold.app/pos --noerrdialogs --disable-session-crashed-bubble
+Restart=always
+RestartSec=3
+```
+
+`--app` already removes the tab strip and the omnibox; `--start-maximized` keeps the status bar
+visible; `Restart=always` means a cashier who taps the close button gets the till back in three
+seconds instead of a desktop.
+
+**Do not add a second launcher.** On 2026-09-05 a `--kiosk` autostart was added to
+`scripts/tablet-lockdown.sh` and the machine went into a restart loop within a minute — **48
+restarts** — because two launchers were racing: the kiosk window opened first, so the till service's
+Chromium found a running instance, printed *"Opening in existing browser session"*, exited 0, and
+`Restart=always` started it again. The lockdown script now actively removes those files, and its
+header says it must never learn to start the till.
+
+**Still open:** the window can still be dragged, because the title bar is still there. The answer is
+not kiosk. Options worth trying, in order of cheapness — a GNOME window rule that keeps it
+maximised, or `--window-position=0,0` with the window un-decorated by the compositor rather than by
+Chromium. **Try it on the machine before it goes in a script.**
 
 ---
 
@@ -75,7 +111,7 @@ Nothing here is a reason not to change. It is the price list.
 | prints to the Brother QL via CUPS | ✅ | ❌ | ❌ |
 | takes the scanner's USB dongle | ✅ | ~ needs OTG | ❌ Bluetooth only |
 | runs the stack locally when the network dies | ✅ | ❌ | ❌ |
-| kiosk lockdown | ✅ `--kiosk` | ~ | ~ Guided Access |
+| kiosk lockdown | ✅ possible, and **deliberately not used** — see below | ~ | ~ Guided Access |
 | you own it outright | ✅ | ~ | ❌ |
 
 **A newer tablet does not remove the problems — it swaps them.** The keyboard hole closes and the

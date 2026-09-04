@@ -35,11 +35,11 @@
 #     ./scripts/tablet-lockdown.sh --push            (defaults to host `tablet`)
 #     ./scripts/tablet-lockdown.sh --push counter2
 #
-# Add --kiosk-autostart to have the till OPEN BY ITSELF at login (what the shop
-# wants on the day; off while the tablet is also being used to read testsheets):
-#
-#     ./scripts/tablet-lockdown.sh --push tablet --kiosk-autostart
-#     ./scripts/tablet-lockdown.sh --push tablet --no-kiosk-autostart
+# THIS SCRIPT DOES NOT START THE TILL and must not learn to. That job belongs to
+# ~/.config/systemd/user/banco-till.service, which already existed and already
+# restarts the browser if it is closed. A --kiosk launcher was added here on
+# 2026-09-05 and put the tablet into a 48-restart loop inside a minute — see the
+# block near the bottom of this file, which now removes it again.
 #
 # On the machine itself:
 #
@@ -79,8 +79,6 @@
 # To undo: rm /etc/dconf/db/local.d/00-banco-counter
 #          rm /etc/dconf/db/local.d/locks/banco-counter
 #          rm /etc/chromium*/policies/managed/00-banco-search.json
-#          rm /usr/local/bin/banco-kiosk /usr/share/applications/banco-kiosk.desktop
-#          rm -f /etc/xdg/autostart/banco-kiosk.desktop /etc/default/banco-kiosk
 #          dconf update
 #          (and `systemctl disable --now banco-lockdown.service` to stop it
 #           coming back at the next boot)
@@ -90,26 +88,6 @@ set -euo pipefail
 INSTALLED=/usr/local/sbin/banco-counter-lockdown
 UNIT=/etc/systemd/system/banco-lockdown.service
 QUIET=0
-# Opt-in: does the till open by itself at login? Off by default, because this
-# tablet is still being used to read testsheets and take screenshots.
-#
-# THE CHOICE HAS TO BE REMEMBERED, and the first version of this did not do it.
-# The boot unit calls this script with only `--quiet`, so an unremembered
-# default of 0 would have DELETED the autostart entry on every reboot — the
-# machine quietly undoing the operator's decision, at the one moment (a power
-# cycle before opening) when nobody is watching. So it is stored, and the flags
-# are how you change it.
-KIOSK_STATE=/etc/default/banco-kiosk
-# shellcheck source=/dev/null
-[ -r "$KIOSK_STATE" ] && . "$KIOSK_STATE"
-KIOSK_AUTOSTART="${BANCO_KIOSK_AUTOSTART:-0}"
-for a in "$@"; do
-  case "$a" in
-    --kiosk-autostart)    KIOSK_AUTOSTART=1 ;;
-    --no-kiosk-autostart) KIOSK_AUTOSTART=0 ;;
-  esac
-done
-
 # ── --push: run from the LAPTOP, no root here ──────────────────────────────
 # One ssh, one password prompt. The script is piped into `cat`, landed at its
 # permanent path, made executable and run — in that order, so the copy that
@@ -118,31 +96,6 @@ if [ "${1:-}" = "--push" ]; then
   HOST="${2:-tablet}"
   SELF="${BASH_SOURCE[0]:-$0}"
 
-  # Anything after the host is forwarded to the remote run — from a fixed list,
-  # so nothing arbitrary is ever pasted into a command line on that machine.
-  REMOTE_FLAGS=""
-  for a in "${@:3}"; do
-    case "$a" in
-      --kiosk-autostart|--no-kiosk-autostart) REMOTE_FLAGS="$REMOTE_FLAGS $a" ;;
-      *) echo "unknown flag for --push: $a" >&2
-         echo "  supported: --kiosk-autostart | --no-kiosk-autostart" >&2; exit 2 ;;
-    esac
-  done
-  STAGE=".banco-counter-lockdown.push"
-
-  # NOT WITH SUDO. `tablet` is a Host alias in YOUR ~/.ssh/config; root has its own
-  # config and its own keys, and has never heard of it. Angel, 2026-09-03, after the
-  # first version made him reach for sudo:
-  #     sudo ./scripts/tablet-lockdown.sh --push
-  #     ssh: Could not resolve hostname tablet: Name or service not known
-  # The only password anyone needs here is the TABLET's, and ssh asks for that itself.
-  if [ "$(id -u)" -eq 0 ]; then
-    echo "Run --push as yourself, WITHOUT sudo." >&2
-    echo "  '$HOST' is a Host alias in your own ~/.ssh/config and root cannot see it," >&2
-    echo "  which is why sudo turns this into 'Could not resolve hostname $HOST'." >&2
-    echo "  The only password needed is the tablet's; ssh will ask for it." >&2
-    exit 2
-  fi
   [ -r "$SELF" ] || { echo "--push needs the script as a file, not a pipe" >&2; exit 2; }
 
   # AND IT NEEDS A REAL TERMINAL, checked BEFORE anything is copied.
@@ -163,8 +116,8 @@ if [ "${1:-}" = "--push" ]; then
   if [ ! -t 0 ]; then
     echo "--push needs a real terminal — sudo on '$HOST' has to ask you for its password." >&2
     echo "  Run it in an ordinary terminal window (not through an editor or agent shell):" >&2
-    echo "      ./scripts/tablet-lockdown.sh --push $HOST$REMOTE_FLAGS" >&2
-    echo "  Or, already on the machine:  sudo ./scripts/tablet-lockdown.sh$REMOTE_FLAGS" >&2
+    echo "      ./scripts/tablet-lockdown.sh --push $HOST" >&2
+    echo "  Or, already on the machine:  sudo ./scripts/tablet-lockdown.sh" >&2
     exit 2
   fi
 
@@ -182,7 +135,7 @@ if [ "${1:-}" = "--push" ]; then
   # removed — the permanent copy is $INSTALLED and nothing is left lying around.
   # shellcheck disable=SC2029  # $INSTALLED/$STAGE must expand HERE; $HOME/$1 must not
   ssh -t "$HOST" \
-    "sudo sh -c 'install -m 755 \"\$1\" $INSTALLED && exec $INSTALLED$REMOTE_FLAGS' _ \"\$HOME/$STAGE\"; \
+    "sudo sh -c 'install -m 755 \"\$1\" $INSTALLED && exec $INSTALLED' _ \"\$HOME/$STAGE\"; \
      rc=\$?; rm -f \"\$HOME/$STAGE\"; exit \$rc"
   exit $?
 fi
@@ -316,97 +269,48 @@ done
 [ "$wrote_policy" -eq 1 ] || say "  ⚠️  no Chromium policy directory found — search engine NOT set"
 
 # ---------------------------------------------------------------------------
-# KIOSK: A WINDOW CANNOT WALK OFF A SCREEN IT DOES NOT HAVE.
+# NO KIOSK MODE HERE — AND THIS BLOCK EXISTS TO REMOVE IT AGAIN.
 #
-# Layla, 2026-09-04 21:29, mid-testsheet: a screenshot of the till sitting
-# mostly off the right-hand edge of the tablet — a strip of POS and a field of
-# desktop wallpaper. "i will reboot to resolve this issue -- only thing a
-# cashier could do -- i see it happen earlier today."
+# 2026-09-05, 00:12. I added a --kiosk launcher and a system autostart to this
+# script, to fix Layla's window walking off the right of the screen. It put the
+# tablet into a restart loop within a minute of the reboot: 48 restarts, a new
+# Chromium every three seconds, and Angel watching sessions pile up.
 #
-# She was right on both counts. Chromium was running in an ORDINARY WINDOW with
-# a title bar, and a title bar on a touchscreen is a drag handle: one stray
-# swipe moves the window, and once its edge is off the glass there is no
-# comfortable way to drag it back with a finger. Nothing inside Banco can
-# prevent that — no amount of CSS reaches outside the viewport — and a reboot
-# genuinely was the only move available to her.
+# TWO THINGS WERE ALREADY TRUE ON THAT MACHINE AND I DID NOT LOOK.
 #
-# --kiosk removes the title bar, so there is nothing to grab, and fullscreens
-# the window, so there is nowhere to go. That is the whole fix.
+# 1. THERE WAS ALREADY A LAUNCHER. `~/.config/systemd/user/banco-till.service`
+#    starts the till and restarts it if it is closed. Adding a second launcher
+#    is what caused the loop: my kiosk window opened first, so the till service's
+#    Chromium found a running instance, printed "Opening in existing browser
+#    session", exited 0 — and Restart=always started it again. Forever.
 #
-# WHY A LAUNCHER AND NOT A CHROMIUM POLICY. There is no managed policy for
-# "always fullscreen" — kiosk is a command-line mode, so it has to live in
-# whatever STARTS the browser. Hence /usr/local/bin/banco-kiosk plus a menu
-# entry, both written here so they are re-made at every boot like everything
-# else in this file.
+# 2. --kiosk HAD ALREADY BEEN TRIED AND REJECTED, with the reason written in
+#    that unit file, in these words:
 #
-# THE WAY OUT, because a kiosk with no exit is its own outage: Alt+F4 closes
-# it, and ssh is always there. The ordinary Chromium launcher is left exactly
-# as it was — this ADDS a way to run the till, it does not take one away. That
-# matters tonight: the same tablet is still being used to take screenshots and
-# read testsheets, and locking it to one window would trade one annoyance for
-# a worse one.
+#        --start-maximized, NOT --kiosk: kiosk hides GNOME's own bar, which is
+#        why nobody could see the battery, which is why the top-right corner got
+#        dragged, which is how the window ended up two-thirds wide with no way
+#        back.
 #
-# AUTOSTART IS OPT-IN. Pass --kiosk-autostart (or BANCO_KIOSK_AUTOSTART=1) to
-# have it come up at login, which is what the shop wants on the day. Without
-# it, nothing about how this machine boots changes.
+#    So kiosk is not merely a different choice — it is the CAUSE of the exact
+#    symptom I was trying to fix. Layla's off-screen window is what happens when
+#    a cashier drags a title bar to reach a status bar that kiosk took away.
+#
+# The standing rule is "use what exists — never invent a second one", and I
+# applied it to the repo and not to the machine. The answer was on the tablet,
+# in a file, in plain words.
+#
+# So this block now UNDOES the experiment, so that one --push cleans a machine
+# that got it. It is idempotent and harmless on a machine that never did.
+# If you are ever tempted again: the launcher is banco-till.service, and the
+# window-dragging fix belongs there, not here.
 # ---------------------------------------------------------------------------
-KIOSK_BIN=/usr/local/bin/banco-kiosk
-KIOSK_URL="${BANCO_KIOSK_URL:-https://banco.wolfhold.app/pos}"
-
-cat > "$KIOSK_BIN" <<KIOSKSH
-#!/bin/sh
-# Banco POS, fullscreen and un-draggable. Written by scripts/tablet-lockdown.sh.
-# Change the URL: BANCO_KIOSK_URL=… sudo ./scripts/tablet-lockdown.sh
-# Get out with Alt+F4.
-URL="\${BANCO_KIOSK_URL:-${KIOSK_URL}}"
-
-# Debian has shipped this binary under three names over the years, and guessing
-# wrong fails as "command not found" on a counter machine at opening time.
-BIN=""
-for b in chromium chromium-browser google-chrome google-chrome-stable; do
-  if command -v "\$b" >/dev/null 2>&1; then BIN="\$b"; break; fi
+for f in /usr/local/bin/banco-kiosk \
+         /usr/share/applications/banco-kiosk.desktop \
+         /etc/xdg/autostart/banco-kiosk.desktop \
+         /etc/default/banco-kiosk; do
+  if [ -e "$f" ]; then rm -f "$f" && say "  removed $f  (the 2026-09-05 kiosk experiment)"; fi
 done
-if [ -z "\$BIN" ]; then
-  echo "banco-kiosk: no chromium/chrome on this machine" >&2
-  exit 1
-fi
-
-# --kiosk        no title bar (nothing to drag), fullscreen (nowhere to go)
-# --app=URL      no tab strip, no omnibox — the till is not a browsing session
-# --no-first-run no "welcome to Chromium" wizard in front of a customer
-# Deliberately NOT here: --ozone-platform=wayland and friends. They were
-# measured on this exact tablet on 2026-09-01 while hunting the missing
-# on-screen keyboard and changed nothing; carrying flags that do nothing is how
-# a launcher becomes folklore.
-exec "\$BIN" --kiosk --app="\$URL" --no-first-run "\$@"
-KIOSKSH
-chmod 755 "$KIOSK_BIN"
-say "  wrote $KIOSK_BIN  ->  $KIOSK_URL"
-
-cat > /usr/share/applications/banco-kiosk.desktop <<DESKTOP
-[Desktop Entry]
-Type=Application
-Name=Banco POS (till)
-Comment=The till, fullscreen. No title bar to drag off the screen. Alt+F4 to leave.
-Exec=$KIOSK_BIN
-Icon=chromium
-Terminal=false
-Categories=Office;
-StartupNotify=true
-DESKTOP
-say "  wrote /usr/share/applications/banco-kiosk.desktop"
-
-if [ "$KIOSK_AUTOSTART" -eq 1 ]; then
-  mkdir -p /etc/xdg/autostart
-  cp -f /usr/share/applications/banco-kiosk.desktop /etc/xdg/autostart/banco-kiosk.desktop
-  say "  wrote /etc/xdg/autostart/banco-kiosk.desktop (the till opens at login)"
-else
-  rm -f /etc/xdg/autostart/banco-kiosk.desktop
-fi
-# Remember it, so the boot job re-applies the decision instead of erasing it.
-mkdir -p "$(dirname "$KIOSK_STATE")"
-printf '# written by scripts/tablet-lockdown.sh — 1 = the till opens at login\nBANCO_KIOSK_AUTOSTART=%s\n' \
-  "$KIOSK_AUTOSTART" > "$KIOSK_STATE"
 
 # ---------------------------------------------------------------------------
 # MAKE A REBOOT A REPAIR.
