@@ -1216,17 +1216,16 @@ where a sticky panel taller than the screen would hide its own Create button.
 `scripts/prove-nothing-is-cut-in-half.js`, 12 checks. Reverting the snap turns it red at
 **44px of a 118px row showing** — Layla's "one and a half rows" as a number.
 
-### ① The till shows a cashier TWO products at a time, out of twenty. Decision needed.
+### ① ~~The till shows TWO products at a time~~ — **ASKED AND ANSWERED, 23:10. Leave it alone.**
 
-Measured, not guessed: a result row is **118px** and the cap is `max-h-96` = **384px**. Snapping
-to whole rows is right and it does not create this — it makes it visible. With her real search
-("Showing 20 of 366 matches") the cashier sees **two**, then scrolls.
+A result row is **118px** and the cap is `max-h-96` = **384px**, so the list shows two at a time
+out of twenty. The sheet asked Pam the question directly (step A7) instead of my guessing, and
+she looked at it on the tablet and said: *"its fine IMHO"*. **So the box stays as it is.**
 
-Raising the cap is a **layout decision, not a bug fix**, and it interacts with the pinned panel
-above it (~330px on the tablet), so the two have to be judged together on the real screen.
-Roughly `max-h-96` → `max-h-[55vh]` would show four or five. **Not doing it unilaterally** — it
-moves a screen that has just been signed off twice tonight, and it is the kind of change that
-should be looked at on the tablet, not reasoned about here.
+Worth keeping for the pattern, not the pixels: this was queued as a layout change I would have
+made on my own reasoning — it "obviously" wanted to be taller — and the person who has to stand
+in front of it does not want it. Two minutes of asking beat a day of moving a screen that had
+just been signed off twice.
 
 ### ② An unexplained 402 against a 332
 
@@ -1252,6 +1251,57 @@ passed, which is how a suite stops meaning anything.
   could be feel-tested on the tablet tonight, and **a scroll behaviour nobody has felt is not one
   to ship.** If the list ever needs to rest on a boundary mid-scroll, that is the door — but it
   needs a thumb on it first.
+
+---
+
+## ⓒ5 PAM'S RUN — 14 pass · 3 issue · 0 fail — 2026-09-04 23:02–23:20 · **THE DECK IS CLEAR**
+
+*18 minutes on the tablet, folio OFF, landscape, `b629 · 6cc1bb5`. Her words: A1 **"buttery — IMHO
+well done"**, B1 **"imho the search works way better this way — i love it"**, B4 **"yes, top bar is
+not sticky — works fine"**.*
+
+**All five blocking items are done.** Zero fails across three sheets tonight (19+1, 21+1, 14+3 —
+every issue a request or a missing test fixture, none a defect).
+
+### The three issues, and what they actually are
+
+**A6 · "can you find me a test item name for this"** and **A7 · "maybe you can give me some real
+tests samples"** — the same ask twice, and a fair one: I wrote steps that needed a long product
+name and a big result set and left her to find them. **Fixed here, from the shop's own catalogue
+(5,427 active), so the next sheet can name them instead of asking:**
+
+| type this | matches | categories it touches |
+|---|---:|---:|
+| `elfbar` | 244 | 6 |
+| `raw` | 230 | 26 |
+| `king` | 147 | 21 |
+| `cbd` | 123 | 11 |
+| `papers` | 24 | 6 |
+| `elements` | 20 | 5 |
+
+**For the wrapping-row step, search `elements`** — it returns *"Elements Papers - Ultra Thin
+Papers - King Size Slim - Blättchen - 32 Blättchen - Sugar Gum"*, **91 characters**, the longest
+active name in the shop. Runners-up if that one is ever retired: the RAW Connoisseur (90) and
+*CHOC OVO Crunchy (Nouveau) 20g — Le plaisir du chocolat croustillant avec Ovomaltine* (84).
+
+*The lesson is small and repeats: a step that says "find a product with a long name" hands the
+tester my homework. **Name the sample.** Both testers hit it in the same session.*
+
+### B2 · NEW — narrow the category dropdown to the categories the search actually hit
+
+Pam, on the pinned panel: *"this is exactly why you need it — look for a term and easy search with
+categories — would be good to narrow the cats where only search term is applicable so cat list is
+shortened."*
+
+Not a bug; a real improvement to the thing she just said she loves. **The numbers make the case:
+the shop has 52 active categories and the dropdown lists all of them, always.** Searching `papers`
+touches **6**. Searching `elements`, **5**. So she scrolls a 52-line picker to choose between five
+answers, on a touchscreen, with a customer waiting.
+
+Shape of it: `searchProducts()` already has the result set — group its categories and offer those
+first (or only), with a way back to all 52. Note `raw` touches **26** and `king` **21**, so this
+does not always shorten much; the fix should degrade to today's behaviour rather than hide
+anything. **Not started.**
 
 ---
 
