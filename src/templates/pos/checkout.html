@@ -381,7 +381,7 @@
 
                 <!-- Quick Round + Treat -- always available once cash is on the counter -->
                 <div x-show="cashReceived > 0 && (!tenderCcy || tenderCcy === homeCcy())" class="mb-4">
-                    <h3 class="text-md font-semibold text-gray-700 mb-2">🎯 <span data-i18n="checkout.quick_options">Quick Options</span></h3>
+                    <h3 class="text-base font-semibold text-gray-700 mb-2">🎯 <span data-i18n="checkout.quick_options">Quick Options</span></h3>
                     <div class="grid grid-cols-2 gap-2">
                         <button x-show="changeAmount > 0" @click="applyQuickRound()"
                             class="bg-yellow-100 hover:bg-yellow-200 p-3 rounded-lg text-left">
@@ -398,7 +398,7 @@
 
                 <!-- Treats (Pink Punch Model) -- always free giveaways -->
                 <div x-show="showChangeProducts" x-transition class="bg-pink-50 rounded-lg p-4 mb-4">
-                    <h3 class="text-md font-semibold text-pink-800 mb-3">🍭 <span data-i18n="checkout.pick_treat">Pick a treat — on the house</span></h3>
+                    <h3 class="text-base font-semibold text-pink-800 mb-3">🍭 <span data-i18n="checkout.pick_treat">Pick a treat — on the house</span></h3>
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
                         <template x-for="product in changeProducts" :key="product.name">
                             <button @click="addChangeProduct(product)"

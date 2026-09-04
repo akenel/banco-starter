@@ -663,6 +663,90 @@ enabled — the record would save and the birthdate would become NULL*.
 
 ---
 
+## ⓙ THE 131 NO-OP CLASSES — CLOSED, AND THE CHAT BUBBLE WAS SOMETHING ELSE — 2026-09-04
+
+*Angel: "the 131 no-op CSS classes, which cover the invisible login background and likely the chat
+bubble sitting on the keypad. lets do it." Settings deferred by his call — admin work, one-time,
+and it should be done with a proper keyboard.*
+
+### What was wrong
+
+`src/static/pos/tailwind.css` is a pre-built, frozen 92KB file from 12 July. No config, no build
+step, no safelist. **A class written in a template that is not already in that file does nothing,
+silently**, and the markup reads as if it works. There is no error and no visual hint.
+
+The final census found **111 classes with no rule anywhere** — measured in a browser, not grepped.
+Not cosmetics: `left-1/2` + `-translate-x-1/2` that did not centre, four `z-*` that never applied,
+kiosk modal scrims that did not darken, ~15 guest-facing text colours, and `from-cyan-700`, which
+is the whole reason Felix's tablet showed the shop's own name in white on near-white for two days.
+
+### The fix — an addendum, not a rebuild
+
+`scripts/make-css-addendum.py` generates `src/static/pos/tailwind-addendum.css` (**151 rules**),
+linked immediately after `tailwind.css` so it sits with the other utilities. Rebuilding the whole
+stylesheet would mean a different Tailwind version and a different reset, moving every screen at
+once — 2026-09-03 already moved 157 elements and that is enough for one week. This adds only what
+was missing, so the blast radius is exactly the classes that previously did nothing.
+
+**Values come from `tailwind.css` itself** wherever a sibling shade already ships (126 colours do)
+— same build, same numbers, no memory involved. The 18 that appear nowhere come from the Tailwind
+v3 table and are checked for **monotonicity** against the shades the file does carry, so a
+mistyped digit shows up as a palette that goes light-dark-light rather than being quietly wrong.
+
+### `scripts/prove-classes-exist.js` — 5 checks over 809 distinct classes
+
+Two kinds of assertion, deliberately different: **plain utilities** must CHANGE a computed property
+on an injected element; **variants** (`hover:`, `sm:`, `group-hover:`) cannot be measured that way,
+so for those the assertion is a matching selector in the CSSOM — weaker, and stated as such rather
+than pretended. It reads the templates, so a class added tomorrow is covered tomorrow.
+
+**Four bugs in my own harness, each caught by breaking it on purpose:**
+
+1. The custom-property fallback tested `--tw-*` for *non-emptiness*, and preflight sets those on
+   `*` — so it absolved every dead class and the whole check reported clean on a stylesheet missing
+   133 rules. **A false GREEN, found only because the red test was run.**
+2. A bare `<div>` is already `display:block` with no border, so `block`, `m-0` and `border-0`
+   changed nothing on it and eleven good utilities read as dead. Fixed with a second, deliberately
+   odd baseline at `:where()` specificity — the right tool here, and the wrong tool for base
+   classes on 2026-09-03. Same zero specificity, opposite requirement.
+3. That probe was `position:absolute`, which **blockifies** display, so `.block` still read dead.
+4. The census skipped Alpine `:class` bindings — where `bg-rose-50`, `space-y-2` and `pl-1` were
+   hiding — then over-corrected and harvested `cash`, `visa` and `twint` as if comparison operands
+   were class names.
+
+And one in the generator: its "is this class already present?" test was a **substring** match, so
+`.bg-rose-50` matched `.bg-rose-500` and seven classes were skipped as present. The browser check
+caught what the file grep could not.
+
+`divide-gray-200` is left deliberately alone: it sets `border-color` to the very grey preflight
+already defaults to. Present, correct, invisible — so the check fails a class only when **no rule
+exists anywhere**, not merely when nothing moves.
+
+### ⓙ1 The chat bubble — I predicted wrong
+
+It is **not** a missing class. `.lpfb-btn` is `position:fixed; bottom:104px; z-index:70`; the
+keypad is `z-index:60`. It was always going to sit on the keys, on every screen, for every field —
+the `n` key of the letter pad on 2026-09-03 and the `0` key of the number pad in the **catalog
+price editor** on 2026-09-04, which is the worst place on the till to lose a digit.
+
+Fixed by marking the document while the pad is up (`html.pk-open`) and hiding the button; nobody
+files feedback mid-keystroke. `prove-keypad.js` gains section **M**, which measures overlapping
+**rectangles** rather than z-index — so the next fixed widget that lands on the keys is caught even
+if its stacking is different. Its own first cut used `focus()`, which the pad's `userHasActed` gate
+correctly ignores, and it reported "no pad opened" instead of passing on nothing.
+
+### Still open
+
+- ⓙ2 **The login background is a design decision, not a bug any more.** Three renders sent to Angel:
+  the gradient as designed, and the Artemis leaf as a watermark at two strengths. Scaling the mark
+  to fill the screen was tried and is genuinely bad — it swamps the card. Note the mark is a 512px
+  PNG (soft at full size, invisible at watermark opacity), and that "light green" would need the
+  white title recoloured. `login_bg` is already a settings hook, so whichever he picks can be
+  per-shop rather than baked in. **Angel's call.**
+- ⓙ3 **Settings' 55 unwired inputs** — deferred by Angel, with a good reason.
+
+---
+
 ## 🔎 FOUND WHILE FIXING SOMETHING ELSE — 2026-09-02 late
 
 *Not blocking. Logged here rather than carried to Angel mid-run (standing rule: report less).*

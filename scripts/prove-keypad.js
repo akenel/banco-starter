@@ -1115,6 +1115,53 @@ async function main() {
     }
 
 
+    // ── M · NOTHING FLOATS ON TOP OF THE KEYS ────────────────────────────────────────
+    // Off the tablet twice: the red feedback bubble on the `n` key of the letter pad
+    // (2026-09-03) and on the `0` key of the number pad in the catalog PRICE editor
+    // (2026-09-04). position:fixed at bottom:104px with z-index:70 against a pad at
+    // z-index:60 — it was always going to win, on every screen, for every field. I
+    // predicted this would turn out to be one of the missing CSS classes. It was not.
+    //
+    // Measured as RECTANGLES, not z-index: what matters is whether a fixed thing covers
+    // a key a finger has to hit, and the next widget with a different z-index would too.
+    head('M · nothing floats on top of the keys');
+    {
+      await p.goto(`${ROOT}/pos/catalog`, { waitUntil: 'domcontentloaded' });
+      await p.waitForTimeout(1800);
+      // A TAP, not focus(). The pad has a userHasActed gate on focusin — deliberately, so
+      // it never springs up on a page that autofocuses something. A synthetic focus event
+      // gets past neither, which is why the first cut of this section reported "no pad
+      // opened" and would have passed forever on a screen with no keypad at all.
+      const box = p.locator('input[data-keypad]:visible').first();
+      if (await box.count()) {
+        await box.scrollIntoViewIfNeeded().catch(() => {});
+        await box.tap().catch(async () => { await box.click({ force: true }); });
+      }
+      await p.waitForTimeout(900);
+      const r = await p.evaluate(() => {
+        const pad = document.querySelector('.pk.on');
+        if (!pad) return { err: 'no pad opened, so nothing was measured' };
+        const pr = pad.getBoundingClientRect();
+        const hits = [];
+        for (const el of document.querySelectorAll('body *')) {
+          const cs = getComputedStyle(el);
+          if (cs.position !== 'fixed' || cs.display === 'none' || cs.visibility === 'hidden') continue;
+          if (el.closest('.pk') || parseFloat(cs.opacity) === 0) continue;
+          const b = el.getBoundingClientRect();
+          if (b.width < 4 || b.height < 4) continue;
+          const inter = Math.max(0, Math.min(b.right, pr.right) - Math.max(b.left, pr.left))
+                      * Math.max(0, Math.min(b.bottom, pr.bottom) - Math.max(b.top, pr.top));
+          if (inter > 100) hits.push(`${el.className || el.tagName} covers ${Math.round(inter)}px² of the pad`);
+        }
+        return { hits };
+      });
+      if (r.err) check(false, 'the pad opened so something could be measured against it', r.err);
+      else check(r.hits.length === 0, 'no fixed element covers any part of the open keypad',
+                 r.hits.join('\n       ') + '\n       a finger aiming at a key hits that instead');
+      await p.evaluate(() => { const b = document.querySelector('.pk.on [data-k="done"]'); if (b) b.click(); });
+      await p.waitForTimeout(400);
+    }
+
   } catch (e) {
     bad('the run itself', e.message);
   } finally {

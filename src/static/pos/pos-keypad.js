@@ -490,6 +490,16 @@
     var pad = (k === 'decimal' || k === 'numeric' || k === 'date' || k === 'time') ? num : abc;
     num.classList.toggle('on', pad === num);
     abc.classList.toggle('on', pad === abc);
+    // THE RED CHAT BUBBLE SITS ON THE PAD. Twice off the tablet: on 2026-09-03 it
+    // covered the `n` key of the letter pad, and on 2026-09-04 the `0` key of the
+    // number pad — in the CATALOG PRICE editor, which is the worst place on the
+    // whole till to lose a digit. Nothing to do with the missing classes I
+    // predicted it would be: the feedback button is position:fixed at bottom:104px
+    // with z-index:70, and the pad is z-index:60. It was ALWAYS going to sit on
+    // top, on every screen, for every field.
+    // A person mid-keystroke is not filing feedback. Mark the document while the
+    // pad is up and let base.html take the button out of the way.
+    document.documentElement.classList.add('pk-open');
     console.log('[keypad] open kind=' + k + ' padHeight=' + pad.offsetHeight
               + ' padZ=' + (getComputedStyle(pad).zIndex));
     // LESSON #12 — being in the DOM is not being on the screen. Clear the pad's
@@ -572,6 +582,7 @@
     active = null;
     if (num) num.classList.remove('on');
     if (abc) abc.classList.remove('on');
+    document.documentElement.classList.remove('pk-open');
     // HOLD THE LAYOUT STILL FOR A MOMENT. Angel, 2026-09-01: "I scroll to the
     // bottom and press Create twice — once to get in focus and a second time to
     // get it to save." Same cause as the OK-navigates bug and I missed it the
