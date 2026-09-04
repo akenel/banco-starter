@@ -479,6 +479,60 @@ const PAGES = [
         'the box reads ' + JSON.stringify(clock.box) + ' while the model holds '
         + JSON.stringify(clock.model) + ' — the same dead-effect shape, on the clock');
 
+  // ── L · AND A BAD DATE CANNOT BE SAVED ───────────────────────────────────────────────
+  // Felix, an hour after the red box shipped: "can be saved with invalid date — so the
+  // save should be greyed out IMHO." He is right, and painting alone could never do it: a
+  // CSS class on an input is invisible to Alpine, so the Save button had no way to know.
+  // The record saved and the birthdate silently became NULL — the one outcome nobody can
+  // spot afterwards, and exactly what happened to member k2 this morning.
+  //
+  // So markBad() returns its verdict, the template stores it in a reactive flag, and the
+  // button binds :disabled to it. This asserts the BUTTON, not the flag — a check that
+  // reads the flag would pass on a binding nobody wired up.
+  console.log('\n── L · a date that is not a date cannot be saved ──');
+  await p.goto('http://localhost:3000/pos/customer-lookup', { waitUntil: 'load' });
+  await p.waitForTimeout(2000);
+  const lopen = p.locator('[data-i18n="customer.add_new_crack"]').first();
+  if (await lopen.count()) { await lopen.click(); await p.waitForTimeout(700); }
+  const lbox = p.locator('input[data-i18n-placeholder="common.date_placeholder"]:visible').first();
+  const lbtn = p.locator('button:has-text("Create"), button[data-i18n*="create"]').first();
+  if (!(await lbox.count())) {
+    check(false, 'the sign-up date box is on the screen');
+  } else {
+    // Tick 18+ first, so the ONLY thing standing between this form and a save is the date.
+    await p.evaluate(() => {
+      const d = Alpine.$data(document.querySelector('[x-data]'));
+      if (d.newCustomer) d.newCustomer.age_confirmed = true;
+    });
+    await lbox.click({ force: true });
+    await lbox.fill(''); await lbox.type('31022000', { delay: 40 });
+    await p.waitForTimeout(400);
+    const bad = await p.evaluate(() => {
+      const btns = [...document.querySelectorAll('button')]
+        .filter(b => b.offsetParent !== null && /create|sign ?up|speichern|erstellen/i.test(b.textContent));
+      const b = btns[0];
+      return b ? { text: b.textContent.trim().slice(0, 30), disabled: b.disabled,
+                   opacity: getComputedStyle(b).opacity } : null;
+    });
+    check(bad && bad.disabled === true,
+          'with 31.02.2000 in the box, the create button is DISABLED',
+          bad ? `"${bad.text}" is enabled — the record would save and the birthdate would become NULL`
+              : 'no create button found — a check that cannot find its subject always passes');
+    check(bad && bad.opacity !== '1', 'and it is visibly greyed, not just dead',
+          bad ? 'opacity is ' + bad.opacity : '');
+
+    // And it lets go again.
+    await lbox.fill(''); await lbox.type('03092000', { delay: 40 });
+    await p.waitForTimeout(400);
+    const good = await p.evaluate(() => {
+      const b = [...document.querySelectorAll('button')]
+        .filter(x => x.offsetParent !== null && /create|sign ?up|speichern|erstellen/i.test(x.textContent))[0];
+      return b ? b.disabled : null;
+    });
+    check(good === false, 'and a real birthdate turns it back on',
+          'the button is still disabled with 03.09.2000 in the box — a gate that never opens is a broken form');
+  }
+
   console.log('\n==========================================');
   console.log(`  ${pass} passed · ${fail} failed`);
   await b.close();

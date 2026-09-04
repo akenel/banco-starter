@@ -134,7 +134,7 @@
                         <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="customer.dob_label">Date of birth</label>
                         <input type="text" data-keypad="date" maxlength="10" inputmode="numeric"
                                placeholder="TT.MM.JJJJ" data-i18n-placeholder="common.date_placeholder"
-                               @input="$el.value = window.posDateMask($el.value); newCustomer.birthdate = window.posBirthdateISO($el.value); window.posMarkBad($el, newCustomer.birthdate, 8)"
+                               @input="$el.value = window.posDateMask($el.value); newCustomer.birthdate = window.posBirthdateISO($el.value); newDobBad = window.posMarkBad($el, newCustomer.birthdate, 8)"
                                x-effect="if (window.posBirthdateISO($el.value) !== newCustomer.birthdate) $el.value = window.posISOToDate(newCustomer.birthdate)"
                                class="w-full px-3 py-2 border rounded-lg">
                         <p data-bad-hint hidden class="pos-bad-hint" data-i18n="common.not_a_date">That is not a real date.</p>
@@ -154,7 +154,7 @@
                     </label>
                 </div>
                 <div class="mt-4 flex gap-2">
-                    <button @click="createCustomer()" :disabled="!newCustomer.age_confirmed"
+                    <button @click="createCustomer()" :disabled="!newCustomer.age_confirmed || newDobBad"
                             class="btn-success" :class="!newCustomer.age_confirmed ? 'opacity-50 cursor-not-allowed' : ''" data-i18n="customer.create_profile">✅ Create Profile</button>
                     <button @click="showNewCustomerForm = false" class="btn-secondary" data-i18n="customer.cancel">Cancel</button>
                 </div>
@@ -253,7 +253,7 @@
                         <div><label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="customer.phone_label">Phone</label><input type="tel" inputmode="tel" data-keypad="text" x-model="editForm.phone" class="w-full px-3 py-2 border rounded-lg"></div>
                         <div><label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="customer.dob_label">Date of birth</label><input type="text" data-keypad="date" maxlength="10" inputmode="numeric"
                                placeholder="TT.MM.JJJJ" data-i18n-placeholder="common.date_placeholder"
-                               @input="$el.value = window.posDateMask($el.value); editForm.birthdate = window.posBirthdateISO($el.value); window.posMarkBad($el, editForm.birthdate, 8)"
+                               @input="$el.value = window.posDateMask($el.value); editForm.birthdate = window.posBirthdateISO($el.value); editDobBad = window.posMarkBad($el, editForm.birthdate, 8)"
                                x-effect="if (window.posBirthdateISO($el.value) !== editForm.birthdate) $el.value = window.posISOToDate(editForm.birthdate)"
                                class="w-full px-3 py-2 border rounded-lg">
                         <p data-bad-hint hidden class="pos-bad-hint" data-i18n="common.not_a_date">That is not a real date.</p></div>
@@ -284,7 +284,7 @@
                     </div>
                     <p class="text-xs text-gray-500 mt-1" data-i18n="customer.tier_override_hint">Pick a tier to override it; "Auto" lets lifetime spend decide. Tobacco &amp; alcohol are never discounted.</p>
                     <div class="mt-5 flex items-center gap-2">
-                        <button @click="saveEdit()" :disabled="editSaving" class="btn-success flex-1" :class="editSaving ? 'opacity-50' : ''" data-i18n="customer.save">💾 Save</button>
+                        <button @click="saveEdit()" :disabled="editSaving || editDobBad" class="btn-success flex-1" :class="editSaving ? 'opacity-50' : ''" data-i18n="customer.save">💾 Save</button>
                         <button @click="showEditForm=false" class="btn-secondary" data-i18n="customer.cancel">Cancel</button>
                         <button x-show="isManagerOrAdmin" @click="deactivateMember()" class="btn-danger ml-auto" data-i18n="customer.deactivate">🚫 Deactivate</button>
                     </div>
@@ -404,6 +404,8 @@
             showEditForm: false,          // ✏️ edit-member modal
             editSaving: false,
             isManagerOrAdmin: false,      // gates the Deactivate button
+            newDobBad: false,
+            editDobBad: false,
             editForm: { handle:'', real_name:'', email:'', phone:'', instagram:'', telegram:'', birthdate:'', notes:'', loyalty_tier:'auto', marketing_consent:false, age_confirmed:false },
             newCustomer: {
                 handle: '',
@@ -660,6 +662,7 @@
                     // "Auto" unless the tier was manually locked — then prefill the locked tier.
                     loyalty_tier: c.tier_locked ? (c.loyalty_tier || 'auto') : 'auto',
                 };
+                this.editDobBad = false;   // a fresh form is never mid-error
                 this.showEditForm = true;
                 // The edit form arrives prefilled, so "is there text in it" says
                 // nothing. Snapshot it, and dirty means DIFFERENT from what opened.
@@ -669,6 +672,11 @@
 
             async saveEdit() {
                 if (!this.editForm.handle.trim()) { showToast(t('customer.handle_required'), 'warning'); return; }
+                // Belt as well as braces. The greyed button is what the cashier SEES; this is
+                // what stops a birthdate silently becoming NULL if the flag is ever wrong.
+                // Felix, 2026-09-04: "can be saved with invalid date." It saved the record and
+                // dropped the date, which is the one outcome nobody can spot afterwards.
+                if (this.editDobBad) { showToast(t('common.not_a_date'), 'warning'); return; }
                 this.editSaving = true;
                 try {
                     await API.put('/api/v1/customers/' + this.customer.id, this.editForm);

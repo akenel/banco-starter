@@ -203,13 +203,20 @@
      parts than a class toggle. It also behaves identically whether the digits
      came from Banco's pad or the folio keyboard, which is exactly the split
      that hid the last bug. */
+  // RETURNS the verdict as well as painting it. 2026-09-04, Felix, an hour after the
+  // red box shipped: "can be saved with invalid date — so the save should be greyed out
+  // IMHO." He is right, and painting alone could never do that: a class on an element is
+  // invisible to Alpine, so the Save button had no way to know. The caller stores what
+  // comes back in a reactive flag and binds :disabled to it — the paint says WHY, the
+  // flag stops the press.
   function markBad(el, ok, need) {
-    if (!el) return;
+    if (!el) return false;
     var digits = String(el.value == null ? '' : el.value).replace(/[^0-9]/g, '').length;
     var bad = !ok && digits >= (need || 8);
     el.classList.toggle('pos-bad', bad);
     var hint = el.parentElement && el.parentElement.querySelector('[data-bad-hint]');
     if (hint) hint.hidden = !bad;
+    return bad;
   }
 
   window.posMoneyOnly = moneyOnly;

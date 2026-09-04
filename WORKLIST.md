@@ -626,6 +626,43 @@ reported the four errors and `the box reads "" while the record holds "2000-02-0
 
 ---
 
+## ⓘ THE RED BOX DID NOT STOP THE SAVE — 2026-09-04
+
+*Felix, an hour after the red box shipped: "can be saved with invalid date — so the save should be
+greyed out IMHO." He is right, and it is the same defect as ⓖ2 one layer up: I made the refusal
+VISIBLE and never made it BINDING.*
+
+`saveEdit()` checked the handle and nothing else. A red box saved happily, the server took the
+record, and the birthdate silently became NULL — which is precisely how member **k2** ended up with
+no birthday this morning. Painting alone could never have stopped it: a CSS class on an input is
+invisible to Alpine, so the Save button had no way to know.
+
+`posMarkBad()` now RETURNS its verdict; each template stores it in a reactive flag and the button
+binds `:disabled` to it. **Five buttons, one per date field:** member create, member edit, the 18+
+gate signup, new staff card, staff card edit. `saveEdit()` also refuses in the handler — the greyed
+button is what the cashier sees, the handler is what stops a NULL if a flag is ever wrong.
+
+`prove-swiss-dates.js` **42 → 45**, section L. It asserts **the BUTTON**, not the flag — a check
+that read the flag would pass on a binding nobody wired up — and that it comes back on for a real
+date, because a gate that never opens is a broken form. Watched red: *"✅ Create Profile" is
+enabled — the record would save and the birthdate would become NULL*.
+
+### Also from that run — logged, not fixed
+
+- ⓘ1 **Settings is the last screen with no keypad.** Felix, creating a staff card: *"the date was
+  the only soft keypad, all others are the old method … this is a whole set of tests and changes
+  just for the setting screens."* Correct, and already known: `settings.html` is **55 typed inputs
+  with 2 wired**. It is the largest single block of the ~172 still unwired and deserves its own
+  piece of work, not a corner of someone else's.
+- ⓘ2 **Settings' intro line is wrong about permissions.** Felix: *"the line at top says you can
+  edit store settings except discounts, but also staff — they cannot change either. Very minor,
+  because they don't see that."* One sentence of copy.
+- ⓘ3 **No concern on the new staff card.** Checked presence only, never values: all **5** employee
+  rows have a `date_of_birth`, including the one created 2026-09-04 11:13 UTC, and it carries an
+  AHV number too. It saved correctly.
+
+---
+
 ## 🔎 FOUND WHILE FIXING SOMETHING ELSE — 2026-09-02 late
 
 *Not blocking. Logged here rather than carried to Angel mid-run (standing rule: report less).*
