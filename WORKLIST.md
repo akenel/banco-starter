@@ -948,6 +948,59 @@ paper till records nothing at all.
 
 ---
 
+## ⓝ CLOSE OF 2026-09-04 — where to pick up
+
+**19 fixes shipped, every one found by a person on the real tablet. All five suites green.**
+Final build **`b615+` (see the last deploy)**. `onboarding/WHERE-WE-ARE.html` is the readable
+status page and the source of truth for what is left — the markdown version was deleted so nobody
+has to wonder which is current.
+
+### The rule Layla gave us, now applied
+
+*"having the warning about the input is a good idea for all warnings and saves us a lot of time
+fooling around."* She is right and it generalises: **on a touch till the keypad owns the bottom of
+the screen, so below a field is structurally the wrong place for anything that must be read.**
+
+Checked for siblings (rule 9). Five inline warnings sit under keypad-wired fields; **three moved**:
+the discount refusal on the cart (the line that said *"Requires 95.23% discount"* on 2026-08-22
+while quietly applying 25% anyway), the same refusal in Target Total mode, and the price refusal on
+shelf intake. **Two deliberately left**: a quota note and the green "discount applied"
+confirmation — *a confirmation you miss costs nothing; a refusal you miss is a customer charged a
+price nobody agreed to.*
+
+### What is next, in order
+
+1. **The controlled sale and refund on prod** — agreed for today, not done. Nothing has ever
+   completed a sale on this build; every test all week stops at the payment button. Without it,
+   Layla's shift is the first real sale this code has rung. **Tell Felix before, not after** — it
+   leaves two lines in the Kassenbücher.
+2. **The mm/dd date filters** — the last blocking item that needs building rather than tidying.
+   Seven screens now (six report filters + Cleanup). Needs a small Banco calendar: the browser's
+   own picker takes its format from the BROWSER's locale and nothing on the page can change it.
+   Layla's own words: *"is there no swiss date picker, can we load one, this will be terrible
+   without it."*
+3. **Re-run the keyboard-buries-search test with the folio OFF.** The last result does not count —
+   the pad never appeared, and the pad is the subject of the test. Section 0 of the golden template
+   now catches this class of mistake.
+4. **The discount chips** — Target Total applies 15.25% and no chip lights up; plus *"Your max
+   discount: 100%"* is developer copy on a cashier's screen.
+5. **The half-cut product row** and **Layla's sticky Find Product header** — both small, both hers.
+
+### The method changes made today, so they are not lost
+
+- **The golden template** now prepends **section 0**: the build stamp, and `setup.needs` — the rig
+  this sheet depends on — confirmed as a marked step. Three selectors (folio · gun · orientation)
+  ride in the copied report, or it prints **DEVICE STATE NOT RECORDED**. Two runs were invalidated
+  today for exactly this and nobody could tell afterwards.
+- **Anything Angel has to read is HTML, never markdown**, and if both would say the same thing the
+  markdown is deleted rather than kept alongside.
+- **The standing honesty rule that cost the most today:** *if a check has never been watched to
+  fail, it is not verification.* Four times today a probe passed because it could not see the bug —
+  including twice on the same warning line, where the fix and the absence of the fix produced
+  identical output. Say "unverified" rather than reporting green as proof.
+
+---
+
 ## 🔎 FOUND WHILE FIXING SOMETHING ELSE — 2026-09-02 late
 
 *Not blocking. Logged here rather than carried to Angel mid-run (standing rule: report less).*

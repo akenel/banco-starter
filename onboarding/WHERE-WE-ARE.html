@@ -91,8 +91,8 @@
   it is. <b>The distinction that matters on this page is between <i>a person has looked at it</i> and
   <i>it is deployed</i>.</b> Those are not the same thing, and today proved it twice.</p>
   <div class="meta">
-    <span><b>Build</b> b612 · 5f49a4c</span>
-    <span><b>Updated</b> 4 Sep 2026, 18:36</span>
+    <span><b>Build</b> b615+ · see last deploy</span>
+    <span><b>Updated</b> 4 Sep 2026, 20:05</span>
     <span><b>Shop</b> banco.wolfhold.app</span>
     <span><b>Go-live</b> 1 Oct</span>
     <span><b>Plan</b> Layla first, one shift 11:00–16:00, alongside paper</span>
@@ -100,9 +100,9 @@
 </header>
 
 <div class="board">
-  <div class="tile good"><div class="n">16</div><div class="k">shipped today</div></div>
-  <div class="tile good"><div class="n">11</div><div class="k">confirmed by a person</div></div>
-  <div class="tile warn"><div class="n">5</div><div class="k">deployed, untested</div></div>
+  <div class="tile good"><div class="n">19</div><div class="k">shipped today</div></div>
+  <div class="tile good"><div class="n">19</div><div class="k">confirmed by a person</div></div>
+  <div class="tile warn"><div class="n">0</div><div class="k">deployed, untested</div></div>
   <div class="tile bad"><div class="n">6</div><div class="k">still open</div></div>
   <div class="tile"><div class="n">4</div><div class="k">parked / decisions</div></div>
 </div>
@@ -169,47 +169,12 @@
 </section>
 
 <section>
-  <div class="sec-head"><h2>3 · Deployed today, nobody has looked</h2><span class="note">the gap that matters</span></div>
-  <div class="callout"><b>This is the row on the page to read twice.</b> Five fixes are live on the shop right
-  now and none has been in front of a person. The first is the fix for the worst bug found all day — a scanner
-  gun silently charging a customer for eight of the wrong thing. One sheet clears all five:
-  <span class="mono">onboarding/testsheets/2026-09-04-section-three.html</span>. It needs the <b>real gun</b>
-  and the <b>folio detached</b>.</div>
-
-  <div class="row"><span class="pill p-untested">untested</span><div class="body">
-    <div class="t">The gun no longer re-presses the Add button <span class="mono">5d1f199</span></div>
-    <div class="d">Layla searched, added a grinder, then scanned papers — and the grinder climbed to
-    <b>quantity 8, CHF 120.00</b>, while not one packet of papers reached the cart. Focus stayed on the Add
-    button; a gun is a keyboard, and its closing ENTER pressed that button again, once per scan. She wrote
-    <i>"this is more my fault"</i>. It was not.</div>
-    <div class="who">deployed 18:01 · needs the real gun</div></div></div>
-
-  <div class="row"><span class="pill p-untested">untested</span><div class="body">
-    <div class="t">The highlight follows the line you scanned <span class="mono">79a031a</span></div>
-    <div class="d">Re-scan something already in the basket and the ring moves to <i>that</i> line and brings it
-    into view. It used to sit on whichever row was added last — highlighting the one part of the cart that had
-    not changed.</div>
-    <div class="who">Angel's finding · deployed 16:55</div></div></div>
-
-  <div class="row"><span class="pill p-untested">untested</span><div class="body">
-    <div class="t">The header says <b>Manager</b>, not a realm slug <span class="mono">5f49a4c</span></div>
-    <div class="d">The filter tested for the text "pos-" and the realm is called
-    <span class="mono">kc-pos-realm-dev-1</span>, so Keycloak's own default-roles entry contained "pos-" and
-    walked through. Permissions were never affected. One word now, and one implementation instead of two.</div>
-    <div class="who">deployed 18:34</div></div></div>
-
-  <div class="row"><span class="pill p-untested">untested</span><div class="body">
-    <div class="t">The login toast clears the user chip <span class="mono">5f49a4c</span></div>
-    <div class="d">It was pinned 16px from the top of the screen, which in this layout is exactly where the
-    user chip lives.</div>
-    <div class="who">deployed 18:34</div></div></div>
-
-  <div class="row"><span class="pill p-untested">untested</span><div class="body">
-    <div class="t">The invalid-time warning is no longer sliced <span class="mono">5f49a4c</span></div>
-    <div class="d">It was already in the right place — the <b>keypad</b> was cutting it. The pad lifted the box
-    clear of itself and left the explanation underneath. It now lifts the box and whatever it needs to say,
-    which covers every field with a hint, not just the clock. LESSON #12 for the fifth time.</div>
-    <div class="who">Layla's B5 · deployed 18:34</div></div></div>
+  <div class="sec-head"><h2>3 · Deployed but unlooked-at</h2><span class="note">empty, and that is the point</span></div>
+  <div class="callout ok"><b>Nothing is sitting here.</b> Every one of the nineteen fixes shipped on
+  4 September has been in front of a person on the real tablet — the last five cleared by Layla at 19:13
+  and 19:53, including the scanner-gun bug that was silently charging a customer for eight of the wrong
+  thing. <b>This section existing and being empty is the whole point of it.</b> A fix that is deployed and
+  unlooked-at is not finished, and twice today something was called fixed when it was not.</div>
 </section>
 
 <section>
@@ -265,6 +230,14 @@
   <div class="sec-head"><h2>6 · What "ready" means</h2></div>
   <div class="callout ok"><b>Section 1 clear, section 2 at least looked at, and section 3 tested by a person.</b>
   Nothing in sections 4 or 5 stops a cashier ringing a sale.</div>
+  <div class="callout ok"><b>The rule Layla gave us today, now in the codebase.</b> <i>"Having the warning
+  above the input is a good idea for all warnings and saves us a lot of time fooling around."</i> On a touch
+  till the keypad owns the bottom of the screen, so <b>below a field is structurally the wrong place for
+  anything that has to be read</b>. Five inline warnings sat under keypad-wired fields; three moved — both
+  discount refusals on the cart and the price refusal on shelf intake. Two stayed on purpose: a quota note
+  and a green "applied" confirmation. <b>A confirmation you miss costs nothing; a refusal you miss is a
+  customer charged a price nobody agreed to.</b></div>
+
   <div class="callout stop"><b>One thing that is on no list.</b> Everything this week was proved in the flat.
   The shop's network, the shop's lighting and the shop's counter have not been in the loop since the tablet was
   set up — and that exact gap has bitten before, when LTE was proved at home on an SSID Luzern does not have.

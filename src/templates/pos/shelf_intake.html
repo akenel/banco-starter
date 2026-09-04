@@ -284,6 +284,9 @@
                     <p x-show="(tierWarning(k) || {}).fix" style="display:none"
                        class="text-[11px] text-gray-600 leading-tight" x-text="(tierWarning(k) || {}).fix"></p>
                   </div>
+                  <!-- ABOVE the box, same rule as the cart: the pad covers the bottom of the screen.
+                       A price refusal a cashier cannot read is a price they will re-type wrong. -->
+                  <p x-show="k.priceError" style="display:none" class="text-[11px] text-red-600 mb-0.5" x-text="k.priceError"></p>
                   <div x-show="k.editing" style="display:none" class="flex items-center gap-1 justify-end">
                     <input type="text" inputmode="decimal" data-keypad="decimal" x-model="k.newPrice"
                            @input="k.newPrice = window.posMoneyOnly($event.target.value); $event.target.value = k.newPrice"
@@ -294,7 +297,7 @@
                             class="px-2 py-1 rounded-lg bg-indigo-600 text-white font-bold disabled:opacity-50">✔</button>
                     <button @click="k.editing=false" class="px-1 text-gray-400">✕</button>
                   </div>
-                  <p x-show="k.priceError" style="display:none" class="text-[11px] text-red-600 mt-0.5" x-text="k.priceError"></p>
+
                   <p x-show="k.priceSaved" style="display:none" class="text-[11px] text-green-700 font-semibold mt-0.5">✓ saved</p>
                 </div>
 

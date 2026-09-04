@@ -705,6 +705,14 @@
                                 <span data-i18n="scan.discount_pct_label">Discount %</span>
                                 <span x-show="!user.isAdmin" class="text-yellow-600" x-text="t('scan.max_pct', {n: maxDiscount})"></span>
                             </label>
+                            <!-- ABOVE the box. Layla, 2026-09-04, after the same fix on the clock:
+                                 "having the warning about the input is a good idea for all warnings
+                                 and saves us a lot of time fooling around." On a touch till the pad
+                                 owns the bottom of the screen, so below a field is structurally the
+                                 wrong place for anything that has to be read. And this one is a
+                                 MONEY refusal — it is the line that said "requires 95.23% discount"
+                                 on 2026-08-22 while quietly applying 25% anyway. -->
+                            <p x-show="discountError" class="text-sm text-red-600 mb-1" x-text="discountError"></p>
                             <input
                                 type="text"
                                 inputmode="decimal"
@@ -713,7 +721,6 @@
                                 @input="discount = window.posMoneyOnly($event.target.value); $event.target.value = discount; validateDiscount(); targetTotal = ''"
                                 class="input-field"
                                 placeholder="0">
-                            <p x-show="discountError" class="text-sm text-red-600 mt-1" x-text="discountError"></p>
                         </div>
 
                         <!-- Target Total Mode -->
@@ -724,6 +731,7 @@
                                     (Full: <span x-text="formatPrice(totals.subtotal)"></span>)
                                 </span>
                             </label>
+                            <p x-show="discountError" class="text-sm text-red-600 mb-1" x-text="discountError"></p>
                             <input
                                 type="text"
                                 inputmode="decimal"
@@ -735,7 +743,6 @@
                             <p x-show="targetTotal && discount > 0" class="text-sm text-green-600 mt-1">
                                 = <span x-text="discount.toFixed(2)"></span>% discount applied
                             </p>
-                            <p x-show="discountError" class="text-sm text-red-600 mt-1" x-text="discountError"></p>
                         </div>
 
                         <!-- Totals -->
