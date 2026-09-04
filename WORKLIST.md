@@ -312,8 +312,9 @@ All suites green after: `prove-keypad` 80 · 0 · 1 known gap, `prove-chosen-is-
 4. **The on-screen keyboard buries the search results** (`15-22-12.png`) — typing `cbd` shows
    *"Showing 20 of 366 matches"* and **one and a half rows**. You must dismiss the pad to see what
    you searched for. And **the red chat bubble sits on top of the `n` key.**
-5. ~~**Login page: "HelixPOS / Artemis Store" is white on near-white**~~ — **FIXED as a side effect of ⓒ3.** (`15-20-33.png`) — the shop's
-   own name is invisible, and so is the footer line under the build stamp.
+5. **Login page: "HelixPOS / Artemis Store" is white on near-white** — **STILL BROKEN. I called this
+   fixed on 2026-09-03 and it was not.** (`15-20-33.png`, and again `2026-09-04 09-52-14.png`.)
+   Cause found 2026-09-04 — see ⓔ below. It is not the cascade; it is three missing classes.
 6. **The dashboard shows Keycloak role names to the shop owner** (`15-21-01.png`) —
    `default-roles-kc-pos-realm-dev, pos-cashier, pos-admin, pos-manager`. Also the green
    *"Login successful!"* toast lands ON the user chip it is next to.
@@ -342,6 +343,97 @@ Also still unshot: 7 (new-item form), 9 (keypad on Amount received), 10 (supplie
 
 **Method note for batch 2:** GNOME's own *"Screenshot captured"* notification appears in
 `15-23-26.png`, covering the top strip. Wait ~4s after a PrtScr before taking the next one.
+
+---
+
+## ⓔ THE FROZEN STYLESHEET IS MISSING 131 CLASSES THE TEMPLATES ASK FOR — 2026-09-04
+
+*Found by Felix's UAT run of `2026-09-04-the-look-on-the-tablet.html` — 10 pass · 3 issue · 0 fail.
+He marked the login screen ISSUE and read it as a wishlist item ("light green background, a cannabis
+leaf, Felix would love that"). It is not a wishlist item. It is still the bug from batch 1, and I
+had written it up as fixed.*
+
+### The correction first
+
+WORKLIST said *"a finding came free with it: the login page's HelixPOS / Artemis Store … is legible
+now without anyone touching that screen."* **That was wrong.** The cascade fix had nothing to do
+with it. I checked it on a dev box, where `HX_ENVIRONMENT` is `local` — and `login.html` picks its
+palette **per environment**:
+
+| env | classes | in `tailwind.css`? |
+|---|---|---|
+| prod | `from-emerald-700 via-teal-800 to-slate-900` | ✅ |
+| staging | `from-amber-600 via-orange-700 to-rose-900` | ✅ |
+| sandbox | `from-fuchsia-600 via-purple-700 to-indigo-900` | ✅ |
+| local/dev | `from-slate-700 via-gray-800 to-zinc-900` | ✅ |
+| default | `from-indigo-700 via-purple-800 to-slate-900` | ✅ |
+| **uat** | `from-cyan-700 via-teal-800 to-slate-900` | **`from-cyan-700` MISSING** |
+
+`via-*` sets `--tw-gradient-stops: var(--tw-gradient-from), #115e59, var(--tw-gradient-to)`. With
+`--tw-gradient-from` never defined the whole `linear-gradient()` is invalid, so **no background
+paints at all** and the white text lands on the near-white body. `bg-cyan-900` and `text-cyan-50`
+are missing too, which is why the `UAT` pill is grey with dark text instead of dark with light.
+
+**It is UAT-only. It fixes itself at go-live.** And it is on the shop's tablet today, on the first
+screen anybody sees, during acceptance testing. LESSON #1, exactly: green on the layer I could
+reach (a dev box) said nothing about the layer Felix stands on (the tablet, on UAT).
+
+### The pattern behind it — and it is 131 wide
+
+`src/static/pos/tailwind.css` is a **vendored, pre-built, frozen 92KB file dated 12 July**. There is
+no config, no build step, no safelist — that is the deliberate "no node build here" call. So **any
+class a template asks for that is not already in that file does nothing, silently**, with the
+markup reading as if it works. `min-h-[44px]` bit me this way on 2026-09-03 and I treated it as a
+one-off.
+
+A census of every `class="…"` in `src/templates/pos/`, checked against `tailwind.css` **and** every
+`<style>` block: **973 distinct classes used · 131 produce nothing.** The ones that are not merely
+cosmetic:
+
+- `left-1/2` + `-translate-x-1/2` (cleanup, kiosk) — **centring that does not centre.**
+- `z-30` · `z-[65]` · `z-[90]` · `z-[95]` (audit, kiosk, receiving, cleanup) — **stacking order
+  that never applies.** Prime suspect for the red chat bubble sitting on top of the keypad.
+- `bg-black/20` `/25` `/55` (kiosk) — **modal scrims that do not darken.**
+- ~15 `text-emerald-*/NN` opacity colours (kiosk) — a large part of the **guest-facing** palette.
+- `max-h-[88vh]` (receiving) — a modal height cap that does not cap.
+- `line-clamp-4` (catalog), `w-36`, `h-44`, `h-64`, `w-44`, `text-[92px]`, `text-[120px]`.
+
+**The fix is a guard, not 131 edits.** A script that reads every class out of the templates and
+fails when one is absent from the served CSS — then the missing ones get added to the vendored file
+(or swapped for ones that exist) once, and it can never happen quietly again. This is the same
+shape as `prove-utilities-win.js` but one level lower: that one proves a class that EXISTS wins;
+this proves the class exists at all.
+
+### Also from Felix's run
+
+- ⓔ1 **`<input type="time">` renders AM/PM** (`10-11-07.png`) — My Day → Close out my day →
+  Start time / Finish time show `09:54 AM` and `--:-- --`. **Two fields, `my_day.html:130,138`.**
+  This is the exact sibling of the `type="date"` bug fixed 24 hours earlier in ⓒ1, and standing
+  rule 9 says I should have grepped `type="time"` the moment I fixed `type="date"`. I did not.
+  Swiss shops run a 24-hour clock. (`camper/appointments.html:445` has a third, its own app.)
+- ⓔ2 **Order Book's item suggestion list stays open after you pick one** (`10-20-45.png`) — it
+  floats over "✓ linked to catalog" and the Qty label. Felix: *"once the item is selected it looks
+  like the residual is still there."* The `.is-chosen` part of that step passed — Restock is solid
+  indigo and readable.
+- ⓔ3 **The red chat bubble sits on the `0` key** of the numeric keypad, in the catalog price editor
+  (`10-22-49.png`). Batch 1 had it on the `n` key of the text keyboard. On a **price** pad it is
+  worse. See the `z-*` finding above.
+- ⓔ4 **Not a Banco feature:** Felix liked that dragging sideways goes back a screen and called it
+  new. That is Chromium's history gesture. `base.html:1900` already treats it as a hazard and hangs
+  a beforeunload guard on it to stop a stray swipe throwing away a cart.
+- ⓔ5 **Keypad on Suppliers — known, not new.** Felix noted the Suppliers inputs raise no pad. That
+  screen is in "the rest": 31 fields wired, ~172 across all screens. Census today:
+  `settings.html` 55 typed fields / 2 wired · `receiving.html` 12 / 0 · `cleanup.html` 8 / 0 ·
+  `suppliers.html` 8 / 0 · `audit.html` 5 / 0.
+
+### Human-green at last
+
+**C1 · C2 · C3 all PASS on the real tablet** — the 790px Qty box, the catalog edit panel top and
+its pinned Save bar, and the price field sitting above the keypad with the digits visible
+(`10-21-52`, `10-22-03`, `10-22-49`). That thread has been script-green since 2026-09-02 and had
+never been seen by a person. Shots ④⑤⑥ of the batch-1 list are now taken.
+
+**B2 · B3 PASS** — the selected payment tile reads `Visa/MC`, the other three are untouched.
 
 ---
 
