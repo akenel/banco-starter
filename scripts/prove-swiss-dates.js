@@ -1,5 +1,5 @@
-// Every date a person TYPES into Banco is dd.mm.yyyy, and the value recorded is the day
-// they meant.
+// Every date a person TYPES into Banco is dd.mm.yyyy, every time is a 24-hour clock, and
+// the value recorded is the day and the hour they meant.
 //
 // WHY THIS FILE EXISTS. 2026-09-03, Angel photographed the tablet mid-sale: the 18+ age
 // gate's Date of birth field read `mm/dd/yyyy`. On a Swiss till. A cashier under a queue
@@ -157,6 +157,118 @@ const PAGES = [
   check(/^(TT\.MM\.JJJJ|dd\.mm\.yyyy|jj\.mm\.aaaa|gg\.mm\.aaaa)$/.test(ph || ''),
         `the placeholder spells out the order ("${ph}")`,
         'a date box that does not say its order is a guess the cashier has to make');
+
+
+  // ══ THE CLOCK ═════════════════════════════════════════════════════════════════════════
+  // Added 2026-09-04, one day after the dates, because it is the SAME BUG and I did not
+  // grep for it. Felix on the tablet: My Day's "Close out my day" read `09:54 AM`. A Swiss
+  // shift record does not say AM.
+  //
+  // THIS HARNESS CANNOT SEE THE SYMPTOM. Headless Chromium renders `<input type="time">`
+  // as 24-hour in en-US, de-CH and fr-CH alike — measured, three contexts, one screenshot,
+  // all identical. Nothing I can write in Playwright would ever have gone red on the bug
+  // that was actually on the tablet (LESSON #6: ask what your harness is structurally blind
+  // to). So these sections assert the ABSENCE of the native widget and the presence of ours
+  // — the shape of the fix, not the symptom, because the symptom is off-limits to me.
+
+  // ── E · THE CLOCK HELPERS, against times that are not on any clock ────────────────────
+  console.log('\n── E · the time mask and the parser ──');
+  await p.goto('http://localhost:3000/pos/my-day', { waitUntil: 'domcontentloaded' });
+  await p.waitForTimeout(1500);
+  const th = await p.evaluate(() => {
+    const out = { missing: [] };
+    for (const fn of ['posTimeMask', 'posTimeValue'])
+      if (typeof window[fn] !== 'function') out.missing.push(fn);
+    if (out.missing.length) return out;
+    out.mask = [['0', '0'], ['09', '09'], ['095', '09:5'], ['0954', '09:54'],
+                ['09544', '09:54'], ['09:54', '09:54'], ['9:54 AM', '95:4']]
+      .map(([i, w]) => [i, w, window.posTimeMask(i)]);
+    out.val = [['09:54', '09:54'], ['00:00', '00:00'], ['23:59', '23:59'],
+               ['24:00', ''], ['25:00', ''], ['09:74', ''], ['9:54', ''], ['', '']]
+      .map(([i, w]) => [i, w, window.posTimeValue(i)]);
+    return out;
+  });
+  check(!th.missing.length, 'the time helpers are on the page',
+        'missing: ' + (th.missing || []).join(', ') + ' — pos-keypad.js did not load');
+  if (!th.missing.length) {
+    const bad1 = th.mask.filter(([, w, g]) => w !== g);
+    check(!bad1.length, `the mask writes HH:MM as you type (${th.mask.length} cases)`,
+          bad1.map(([i, w, g]) => `"${i}" -> "${g}", expected "${w}"`).join('\n       '));
+    const bad2 = th.val.filter(([, w, g]) => w !== g);
+    check(!bad2.length, `an hour that is not on a clock is refused, not stored (${th.val.length} cases)`,
+          bad2.map(([i, w, g]) => `"${i}" -> ${JSON.stringify(g)}, expected ${JSON.stringify(w)}`).join('\n       '));
+  }
+
+  // ── F · NO NATIVE TIME INPUT ANYWHERE A PERSON TYPES ──────────────────────────────────
+  // Two assertions, because either alone is a lie: the native widget must be GONE, and
+  // ours must be THERE. A template that lost both fields passes the first and fails the
+  // second, which is the whole reason section B grew a count on its first run.
+  console.log('\n── F · no clock falls back to the browser\'s locale ──');
+  const md = await p.evaluate(async () => {
+    const r = await fetch('/pos/my-day', { credentials: 'same-origin' });
+    return { status: r.status, body: await r.text() };
+  });
+  check(md.status === 200, '/pos/my-day loads',
+        'status ' + md.status + ' — every check below would pass on an empty page');
+  const ourTimes = (md.body.match(/window\.posTimeMask\(/g) || []).length;
+  check(ourTimes >= 2, 'Close out my day has its 2 Banco time boxes',
+        'found ' + ourTimes + ' — a field that vanished cannot be caught by looking for what is absent');
+  const natT = (md.body.match(/<input[^>]*type="time"/g) || []);
+  check(natT.length === 0, '/pos/my-day has no native time input',
+        'found ' + natT.length + ': ' + natT.join(' · ').slice(0, 240));
+
+  // The sweep, because the next one will not be on My Day. `type="date"` is deliberately
+  // NOT swept: the six report range-filters still use it and are their own piece of work
+  // (they are picker-driven, with preset buttons, and nobody types into them).
+  const fs = require('fs'), path = require('path');
+  const dir = 'src/templates/pos';
+  const offenders = fs.readdirSync(dir).filter(f => f.endsWith('.html'))
+    .filter(f => /<input[^>]*type="time"/.test(fs.readFileSync(path.join(dir, f), 'utf8')));
+  check(offenders.length === 0, `no template under ${dir} carries a native time input`,
+        'found in: ' + offenders.join(', '));
+
+  // ── G · TYPE A TIME AT THE TILL AND SEE WHAT GETS RECORDED ────────────────────────────
+  // Nothing is submitted. The form is filled and the run ends — My Day writes a shift row
+  // only on its own save button, which this never touches.
+  console.log('\n── G · 0954 typed at the till is 09:54, and 2530 is nothing ──');
+  const box = p.locator('input[placeholder="HH:MM"]').first();
+  if (!(await box.count())) {
+    check(false, 'the Start time box is on the screen',
+          'no input[placeholder="HH:MM"] — a check that cannot find its subject always passes');
+  } else {
+    await box.scrollIntoViewIfNeeded().catch(() => {});
+    await box.click({ force: true }).catch(() => {});
+    await box.fill(''); await box.type('0954', { delay: 40 });
+    await p.waitForTimeout(250);
+    const shown = await box.inputValue();
+    check(shown === '09:54', 'the box shows 09:54 — colon placed as you type',
+          'it shows "' + shown + '"');
+    const stored = await box.evaluate(el => {
+      const d = window.Alpine && Alpine.$data(el);
+      return d ? d.form.start_time : null;
+    });
+    check(stored === '09:54', 'the shift record gets "09:54", 24-hour, no AM',
+          'the model holds ' + JSON.stringify(stored));
+
+    await box.fill(''); await box.type('2530', { delay: 40 });
+    await p.waitForTimeout(250);
+    const stored2 = await box.evaluate(el => {
+      const d = window.Alpine && Alpine.$data(el);
+      return d ? d.form.start_time : null;
+    });
+    check(stored2 === '', 'typing 25:30 records NOTHING rather than a time nobody worked',
+          'the model holds ' + JSON.stringify(stored2) + ' — 25:30 is not an hour of any day');
+  }
+
+  // ── H · AND NO AM/PM SURVIVES AS A LITERAL IN THE SHIPPED STRINGS ─────────────────────
+  // closeout.html shipped "8:00 AM" as an i18n VALUE in English and French. A grep, not a
+  // render: the string is what is wrong, and it is wrong before anything draws it.
+  console.log('\n── H · no AM/PM left in the strings ──');
+  const i18n = fs.readFileSync('src/static/pos/pos-i18n.js', 'utf8');
+  const ampm = (i18n.match(/"[^"]*\d\s?[AP]M"/g) || []);
+  check(ampm.length === 0, 'no shipped string carries a 12-hour time',
+        'found: ' + ampm.join(' · '));
+
 
   console.log('\n==========================================');
   console.log(`  ${pass} passed · ${fail} failed`);

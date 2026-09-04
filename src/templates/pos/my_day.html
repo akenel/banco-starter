@@ -127,7 +127,11 @@
                             <span data-i18n="myday.start_time">Start time</span>
                             <span title="When you walked in this morning." class="text-gray-400 cursor-help">ⓘ</span>
                         </label>
-                        <input type="time" x-model="form.start_time" class="input-field text-center">
+                        <input type="text" data-keypad="numeric" maxlength="5" inputmode="numeric"
+                               placeholder="HH:MM"
+                               @input="$el.value = window.posTimeMask($el.value); form.start_time = window.posTimeValue($el.value)"
+                               x-effect="if (window.posTimeValue($el.value) !== form.start_time) $el.value = form.start_time || ''"
+                               class="input-field text-center">
                         <button @click="form.start_time = nowHHMM()" class="text-xs text-indigo-600 hover:underline mt-1" data-i18n="myday.set_to_now">Set to now</button>
                     </div>
                     <div>
@@ -135,7 +139,11 @@
                             <span data-i18n="myday.finish_time">Finish time</span>
                             <span title="When you're walking out. You can put the time you're about to leave." class="text-gray-400 cursor-help">ⓘ</span>
                         </label>
-                        <input type="time" x-model="form.end_time" class="input-field text-center">
+                        <input type="text" data-keypad="numeric" maxlength="5" inputmode="numeric"
+                               placeholder="HH:MM"
+                               @input="$el.value = window.posTimeMask($el.value); form.end_time = window.posTimeValue($el.value)"
+                               x-effect="if (window.posTimeValue($el.value) !== form.end_time) $el.value = form.end_time || ''"
+                               class="input-field text-center">
                         <button @click="form.end_time = nowHHMM()" class="text-xs text-indigo-600 hover:underline mt-1" data-i18n="myday.set_to_now">Set to now</button>
                     </div>
                 </div>

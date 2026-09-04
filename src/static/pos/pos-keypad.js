@@ -104,11 +104,50 @@
     return m ? (m[3] + '.' + m[2] + '.' + m[1]) : '';
   }
 
+  /* ── AND THE SAME THING WITH THE CLOCK, ONE DAY LATER ──────────────────────
+     2026-09-04, Felix on the tablet: My Day's "Close out my day" showed Start
+     time `09:54 AM` and Finish time `--:-- --`. Switzerland runs a 24-hour
+     clock; a shift record that says AM is the wrong document.
+
+     Identical mechanism to the dates above, and I did not go looking for it
+     when I fixed those — standing rule 9 says one bad `type="date"` means grep
+     for its siblings, and `type="time"` is the sibling. A native time widget
+     takes its format from the BROWSER'S UI LOCALE and nothing on the page can
+     change it. Banco's OWN clock was already correct: formatTime() runs on the
+     tenant regime's locale (a CH tenant -> de-CH), which is why the top bar
+     read 10:11 in the very same screenshot. Only the two native widgets
+     disagreed, and they are the two a person types into.
+
+     AND NO PROOF OF MINE COULD HAVE FOUND IT. Headless Chromium renders
+     type="time" as 24-hour in en-US, de-CH and fr-CH alike — measured, three
+     browser contexts, one screenshot, all identical. The harness is blind to
+     this by construction (LESSON #6), so the assertion that guards it is the
+     ABSENCE of the native widget, exactly as it is for dates.
+
+     The MODEL still holds "HH:MM" — the same string the server already gets,
+     so nothing downstream changes. */
+  function timeMask(v) {
+    var d = String(v == null ? '' : v).replace(/[^0-9]/g, '').slice(0, 4);
+    if (d.length <= 2) return d;
+    return d.slice(0, 2) + ':' + d.slice(2);
+  }
+  // "HH:MM" -> "HH:MM", or '' if it is not an hour of an actual day. 25:00 and
+  // 09:74 are four digits in the right shape and no time at all; a shift that
+  // starts at 25:00 is a payroll row nobody can explain.
+  function timeValue(v) {
+    var m = String(v == null ? '' : v).match(/^(\d{2}):(\d{2})$/);
+    if (!m) return '';
+    if (+m[1] > 23 || +m[2] > 59) return '';
+    return m[1] + ':' + m[2];
+  }
+
   window.posMoneyOnly = moneyOnly;
   window.posIntOnly   = intOnly;
   window.posDateMask  = dateMask;
   window.posDateToISO = dateToISO;
   window.posISOToDate = isoToDate;
+  window.posTimeMask  = timeMask;
+  window.posTimeValue = timeValue;
 
   // A touchscreen is the right axis HERE — this is a layout decision, which is
   // exactly what posIsTouchDevice() says it is for. (It is NOT a proxy for "is a
