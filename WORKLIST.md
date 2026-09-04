@@ -774,6 +774,51 @@ correctly ignores, and it reported "no pad opened" instead of passing on nothing
 
 ---
 
+## ⓚ THE SEARCH TAB'S CATEGORY PICKER — 2026-09-04
+
+*Angel, photographing the till: "when you pick the categories, it just lists them all kind of not
+alphabetically, but not showing the nice subsections we have. And so it's just this long list."*
+
+**The good version already existed one screen over.** `/api/v1/pos/search/categories` returns a
+`group` for every category and has said in its own docstring since it was written that this is
+there *"so the catalog filter can nest categories under group headers (a 2-level `<optgroup>`
+picker) instead of a flat ~52-long list"*. `catalog.html` did exactly that. `scan.html` dropped the
+field in the line that mapped the response:
+
+```js
+this.categories = (cats || []).map(c => ({ name: c.name, count: c.count }));   // group discarded
+```
+
+So the Search tab showed 52 categories flat, ordered by SIZE — E-Liquids (699) first, Rolling
+Papers eleven rows down.
+
+**Fixed by hoisting, not copying.** `groupedCategories()` now lives in `base.html` and both screens
+call it; two implementations of one grouping is how two screens quietly stop agreeing about what a
+group is.
+
+**And the order list was dead.** `catalog.html` ranked groups by
+`["Headshop", "Papers & Co", "CBD", "Vape & Co", "Shisha", "Lifestyle", "Grow"]` — **not one of
+those names exists in this shop's data**. The real values are Vape · Smoking Gear · Papers & Rolling
+· Tobacco & Shisha · CBD & Hemp · Lifestyle & Gifts · Grow & Lab · Cafe & Food · Unsorted / System.
+Every group fell through to "unranked: alphabetical", so the ranking had never once applied. Named
+for real and ordered the way a till reaches for them.
+
+Verified with prod's actual category shape injected into the page: Vape → Smoking Gear → Papers &
+Rolling → Tobacco & Shisha → CBD & Hemp → Lifestyle & Gifts → Grow & Lab → Other/Ungrouped last,
+A→Z inside each, and **zero blank selectable rows** (the empty first child of each optgroup is
+Alpine's `<template>` placeholder, not an option).
+
+### Logged, not done — Angel's own options 2 and 3
+
+- ⓚ2 **Offer only the categories that contain what was typed.** Today the dropdown lists all 52
+  with whole-catalogue counts regardless of the search box. Type `cbd` and it should offer CBD
+  Flower and CBD & Hemp with the counts for THOSE matches — which is what "narrow it down to a
+  hundred items, not the entire catalog" actually means. Needs the endpoint to take the query.
+- ⓚ3 **259 active products sit in `Unsorted / System`**, across 17 categories. However good the
+  picker gets, those are items nobody will find by category. A data-quality tail, its own job.
+
+---
+
 ## 🔎 FOUND WHILE FIXING SOMETHING ELSE — 2026-09-02 late
 
 *Not blocking. Logged here rather than carried to Angel mid-run (standing rule: report less).*

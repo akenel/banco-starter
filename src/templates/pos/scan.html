@@ -105,10 +105,18 @@
                             placeholder="Type product name..."
                             data-i18n-placeholder="scan.ph_product_search"
                             class="input-field">
+                        <!-- Two-level picker, the same one Manage Catalog uses: categories nested
+                             under their section (Vape, Smoking Gear, Papers & Rolling …), A→Z
+                             inside each. The option :value stays the canonical English category
+                             name, so the filter behaves exactly as it did. -->
                         <select x-model="searchCategory" @change="searchProducts()" class="input-field">
                             <option value="" data-i18n="scan.all_categories">All categories</option>
-                            <template x-for="c in categories" :key="c.name">
-                                <option :value="c.name" x-text="c.name + ' (' + c.count + ')'"></option>
+                            <template x-for="g in groupedCategories(categories)" :key="g.group">
+                                <optgroup :label="catLabel(g.label)">
+                                    <template x-for="c in g.cats" :key="c.name">
+                                        <option :value="c.name" x-text="catLabel(c.name) + ' (' + c.count + ')'"></option>
+                                    </template>
+                                </optgroup>
                             </template>
                         </select>
                         <p class="text-sm text-gray-600">
@@ -2741,7 +2749,10 @@
             async loadCategories() {
                 try {
                     const cats = await API.get('/api/v1/pos/search/categories');
-                    this.categories = (cats || []).map(c => ({ name: c.name, count: c.count }));
+                    // KEEP THE GROUP. This line used to drop it, which is the entire reason the
+                    // Search tab showed 52 categories flat and sorted by size while Manage
+                    // Catalog — same endpoint — showed them nested under their sections.
+                    this.categories = (cats || []).map(c => ({ name: c.name, count: c.count, group: c.group }));
                 } catch (e) { console.warn('categories unavailable', e); }
             },
 

@@ -1550,6 +1550,60 @@
         // customer asks and the first thing a cashier wants to be able to say out loud.
         // Sums cartDeals() rather than recomputing — a second way of working out the same
         // number is a second number waiting to disagree with the first (LESSON #2).
+        /* ── ONE CATEGORY PICKER, SHARED ──────────────────────────────────────────────
+           /api/v1/pos/search/categories returns a `group` for every category and has said
+           in its own docstring since it was written that this exists "so the catalog filter
+           can nest categories under group headers (a 2-level <optgroup> picker) instead of a
+           flat ~52-long list". catalog.html did that. scan.html threw the group away in the
+           line that mapped the response, so the Search tab showed all 52 flat and sorted by
+           SIZE — E-Liquids (699) first, Rolling Papers eleven rows down. Angel, 2026-09-04:
+           "it just lists them all kind of not alphabetically, but not showing the nice
+           subsections we have."
+
+           Hoisted here rather than copied into scan.html: two implementations of one
+           grouping is how two screens quietly stop agreeing about what a group is.
+
+           THE ORDER LIST WAS DEAD. catalog.html ranked groups by
+           ["Headshop", "Papers & Co", "CBD", "Vape & Co", "Shisha", "Lifestyle", "Grow"] and
+           not one of those names exists in the data — the real values are Vape, Smoking Gear,
+           Papers & Rolling, Tobacco & Shisha, CBD & Hemp, Lifestyle & Gifts, Grow & Lab,
+           Cafe & Food and Unsorted / System. Every group fell through to "unranked:
+           alphabetical", so the ranking had never once applied. Named for real below, and
+           ordered the way a till reaches for them rather than by the alphabet. */
+        const POS_CAT_GROUP_ORDER = [
+            'Vape', 'Smoking Gear', 'Papers & Rolling', 'Tobacco & Shisha',
+            'CBD & Hemp', 'Lifestyle & Gifts', 'Grow & Lab', 'Cafe & Food',
+        ];
+        const POS_UNGROUPED_KEY = '__ungrouped__';
+
+        // [{group, label, cats:[...]}] for an <optgroup> picker. Categories A→Z inside each
+        // group; groups follow the order above, then any unknown real group alphabetically,
+        // then Ungrouped last. An unknown group sorting alphabetically is the RIGHT fallback:
+        // a new group appearing in the data must still show up, just not jump the queue.
+        function groupedCategories(categories) {
+            const buckets = {};
+            for (const c of (categories || [])) {
+                const g = (c.group && String(c.group).trim()) || '';
+                const key = g || POS_UNGROUPED_KEY;
+                if (!buckets[key]) buckets[key] = { label: g || 'Other / Ungrouped', cats: [] };
+                buckets[key].cats.push(c);
+            }
+            const keys = Object.keys(buckets).sort(function (a, b) {
+                if (a === POS_UNGROUPED_KEY) return 1;
+                if (b === POS_UNGROUPED_KEY) return -1;
+                const ia = POS_CAT_GROUP_ORDER.indexOf(a), ib = POS_CAT_GROUP_ORDER.indexOf(b);
+                if (ia !== -1 && ib !== -1) return ia - ib;
+                if (ia !== -1) return -1;
+                if (ib !== -1) return 1;
+                return a.localeCompare(b);
+            });
+            return keys.map(function (key) {
+                return { group: key, label: buckets[key].label,
+                         cats: buckets[key].cats.slice().sort(function (x, y) {
+                             return x.name.localeCompare(y.name); }) };
+            });
+        }
+
         function cartSavedTotal(cart) {
             try {
                 return (cartDeals(cart) || []).reduce(function (s, d) {
