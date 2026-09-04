@@ -42,6 +42,22 @@ not a defect. The sheets themselves:
 
 ### Pick up here, in this order
 
+0. **BUILD `scripts/worklist-check.py` — Angel's call, 2026-09-04 23:40, do this first.**
+   *"a 500 line worklist should be a reasonable limit or time to archive."* **Yes — and the number is
+   not what failed.** The rule was 150, then 280. The file hit **1,734 → 1,201 → 2,307** and has never
+   once been met; tonight it grew a thousand lines in one session while the rule sat at the top of the
+   file. A rule broken three times is not fixed by being made easier, it is fixed by being TRIGGERED.
+   So: **the limit becomes 500** (honestly what the live file needs to hold), and it gets an alarm.
+
+   ~15 lines. Print the line count, and count the sections still in the LIVE file whose header carries
+   `FIXED`, `CLOSED` or `~~`. Over **500 lines** *or* more than **two closed threads** still sitting
+   here → print **"archive pass due"** and name them. Wire it into the SESSION START list in
+   `CLAUDE.md` so the first thing every session does is say it out loud.
+
+   *The real rule was already written in this file — "when a thread closes, it moves the same day" —
+   and it is the one that got ignored, not the line count. This is the difference between a limit and
+   an alarm.*
+
 1. **② Re-run the keyboard-buries-search test with the folio OFF.** The only blocking item still
    open, and it has been carried three days. The last result does not count — the pad never
    appeared, and the pad is the subject of the test.
