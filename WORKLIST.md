@@ -77,7 +77,18 @@ not a defect. The sheets themselves:
    **48-restart loop**. See `onboarding/21-supported-hardware.md`, which now carries the reasoning.
    Next thing to try, **on the machine before it goes in any script**: a GNOME window rule that keeps
    it maximised, or an undecorated window from the compositor rather than from Chromium.
-4. **The receipt QR — spec written, not built.**
+4. **⚠️ ESTABLISH ONE FACT BEFORE THE FELIX MEETING: does the shop have a Worldline terminal at the
+   counter TODAY, or does it arrive with go-live?** It decides the payment-button question below —
+   if the terminal is already there its settlement IS the card breakdown; if not, the paper
+   breakdown is the only one they have. Ask it before deciding anything.
+5. **The Felix conversation — four decisions that are HIS, written up, none agreed yet.**
+   [`onboarding/the-felix-conversation.html`](onboarding/the-felix-conversation.html): the payment
+   buttons (**Cash · Card · TWINT**, plus an ask-card-type setting so he can flip it himself),
+   Worldline as **Phase 2** with the reasoning and the script, split tender parked, and the trial
+   terms — **FAIL = free defect · ISSUE = quoted change**, agreed BEFORE the trial starts. Also the
+   two asks worth more than they cost: one day's Banana CSV through his Treuhänder, and his real
+   chart-of-accounts codes.
+6. **The receipt QR — spec written, not built.**
    [`onboarding/receipt-qr-spec.html`](onboarding/receipt-qr-spec.html). Every receipt fetches its QR
    from **`api.qrserver.com`** and points at `/join` → La Piazza. It should be drawn by Banco and
    point at the shop's own site from `store_settings.website`. The renderer already exists —
@@ -331,6 +342,29 @@ FR/IT need a speaker, not a guess.
    `a202c32` — `kc-prd` ships `"users": []` and the first admin is made by hand), and treat all
    six published passwords as burned regardless. The other five still have live published
    passwords today.
+
+
+---
+
+
+## 🔭 SMALL, FOUND WHILE TALKING — 2026-09-04/05
+
+- **`<select>` is the next native control to bite.** Seven date pickers, `type="date"`, `type="time"`
+  and the keyboard have all had to be replaced because **the tablet's browser renders them and its
+  locale is not ours to set**. A `<select>` on a touch device draws an OS picker by the same rule —
+  the Find Product category picker is one. **Thirty seconds with the folio OFF** tells you whether
+  it is an eighth item or a non-issue. Cheaper to check than to be surprised by.
+- **Sweep the four locales for missing keys.** `[i18n] missing key: reorder.by` logs on every order
+  book line, and `"8:00 AM"` shipped as an i18n VALUE in EN and FR. **Four working languages is a
+  sales asset** — it is the differentiator for Romandie and Ticino, where the app can go but Angel
+  cannot — and the first English string a French-speaking prospect finds discredits the rest.
+- **Credits + cash is a split tender you already shipped.** A member paying CHF 12.00 with CHF 4.20
+  of credits is a two-tender sale by any other name. If that path is not clean the cashier rings it
+  full cash and adjusts credits by hand, and the member ledger and the cash book stop agreeing.
+  Probe before the trial. (Real split tender stays parked — and is billable if Felix asks.)
+- **A feature is not done until you can name the screen it is reachable from.** `/pos/kb-approvals`
+  was the fifth or sixth instance of a working page with no door. At that count the fix is a rule in
+  the definition of done, not another instance.
 
 
 ---

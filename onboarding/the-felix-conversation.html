@@ -1,0 +1,396 @@
+<title>The Felix Conversation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+  :root{
+    --paper:#f1f4f2; --card:#fff; --ink:#141d1b; --ink-2:#41514e; --ink-3:#71847f;
+    --rule:#dfe6e2; --rule-2:#eef2f0;
+    --accent:#136259; --accent-soft:#e2efec; --accent-ink:#0d4841;
+    --bad:#a51b1b; --bad-soft:#fbe9e9; --warn:#8a4b06; --warn-soft:#fcf0dd;
+    --good:#1c6b3a; --good-soft:#e4f2e8;
+    --shadow:0 1px 2px rgba(20,29,27,.05), 0 8px 24px -16px rgba(20,29,27,.28);
+  }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+    --paper:#0e1413; --card:#161e1c; --ink:#e8efec; --ink-2:#a3b3ae; --ink-3:#7b8c87;
+    --rule:#27332f; --rule-2:#1d2725;
+    --accent:#5cc4b4; --accent-soft:#12312d; --accent-ink:#8fdcd0;
+    --bad:#f08b8b; --bad-soft:#3a1a1a; --warn:#e5aa5c; --warn-soft:#382512;
+    --good:#7bce9c; --good-soft:#14301f;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  }}
+  :root[data-theme="dark"]{
+    --paper:#0e1413; --card:#161e1c; --ink:#e8efec; --ink-2:#a3b3ae; --ink-3:#7b8c87;
+    --rule:#27332f; --rule-2:#1d2725;
+    --accent:#5cc4b4; --accent-soft:#12312d; --accent-ink:#8fdcd0;
+    --bad:#f08b8b; --bad-soft:#3a1a1a; --warn:#e5aa5c; --warn-soft:#382512;
+    --good:#7bce9c; --good-soft:#14301f;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--paper); color:var(--ink); margin:0;
+       font-family:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif; font-size:16px; line-height:1.55}
+  .wrap{max-width:1000px; margin:0 auto; padding:0 20px 90px}
+  h1,h2,h3{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",sans-serif; text-wrap:balance; margin:0}
+  .mono{font-family:"IBM Plex Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums; font-size:.92em}
+  header{padding:40px 0 22px; border-bottom:2px solid var(--ink)}
+  .eyebrow{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.14em;
+           text-transform:uppercase; color:var(--accent); font-weight:600}
+  h1{font-size:clamp(30px,5vw,46px); font-weight:700; line-height:1.05; letter-spacing:-.015em; margin:10px 0 12px}
+  .standfirst{color:var(--ink-2); max-width:66ch; margin:0}
+  .meta{display:flex; flex-wrap:wrap; gap:8px 22px; margin-top:18px;
+        font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--ink-3)}
+  .meta b{color:var(--ink-2); font-weight:600}
+
+  section{margin:34px 0 0}
+  .sec-head{display:flex; align-items:baseline; gap:12px; padding-bottom:9px; border-bottom:1px solid var(--ink)}
+  .sec-head h2{font-size:22px; font-weight:700; letter-spacing:-.01em}
+  .sec-head .note{font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--ink-3)}
+  .lead{color:var(--ink-2); margin:12px 0 4px; max-width:70ch}
+  h3{font-size:16px; margin:22px 0 6px}
+
+  .row{display:flex; gap:14px; align-items:flex-start; padding:13px 0; border-bottom:1px solid var(--rule-2)}
+  .row:last-child{border-bottom:0}
+  .pill{flex:none; font-family:"IBM Plex Sans Condensed",sans-serif; font-weight:700; font-size:11px;
+        letter-spacing:.05em; text-transform:uppercase; padding:4px 9px; border-radius:4px; margin-top:2px; white-space:nowrap}
+  .p-done{background:var(--good-soft); color:var(--good)}
+  .p-untested{background:var(--warn-soft); color:var(--warn)}
+  .p-open{background:var(--bad-soft); color:var(--bad)}
+  .p-park{background:var(--rule-2); color:var(--ink-3)}
+  .row .body{flex:1; min-width:0}
+  .row .t{font-weight:600}
+  .row .d{color:var(--ink-2); font-size:14.5px; margin-top:3px}
+
+  .callout{margin:16px 0; padding:14px 17px; background:var(--warn-soft);
+           border-left:3px solid var(--warn); border-radius:0 6px 6px 0; font-size:15px}
+  .callout.stop{background:var(--bad-soft); border-left-color:var(--bad)}
+  .callout.ok{background:var(--good-soft); border-left-color:var(--good)}
+  .callout b{font-family:"IBM Plex Sans Condensed",sans-serif}
+
+  blockquote{margin:14px 0; padding:13px 18px; background:var(--accent-soft);
+             border-left:3px solid var(--accent); border-radius:0 6px 6px 0;
+             color:var(--accent-ink); font-size:15.5px}
+  blockquote p{margin:0 0 9px} blockquote p:last-child{margin:0}
+
+  table{width:100%; border-collapse:collapse; margin:14px 0; font-size:14.5px}
+  th,td{text-align:left; padding:8px 10px; border-bottom:1px solid var(--rule-2); vertical-align:top}
+  th{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.07em;
+     text-transform:uppercase; color:var(--ink-3); border-bottom:1px solid var(--rule)}
+  .scroll{overflow-x:auto}
+  code{font-family:"IBM Plex Mono",monospace; font-size:.92em}
+  ul,ol{margin:10px 0; padding-left:22px} li{margin:6px 0; color:var(--ink-2)}
+  li b, li strong{color:var(--ink)}
+  footer{margin-top:44px; padding-top:24px; border-top:2px solid var(--ink); color:var(--ink-2); font-size:14.5px}
+  @media print{ body{background:#fff} }
+</style>
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">Banco POS · the conversation still to have</div>
+  <h1>The Felix conversation</h1>
+  <p class="standfirst">Four decisions that are <b>his</b>, one fact that has to be established before
+  any of them can be settled, and the sentences to say. Worked out 4–5 Sep 2026. None of this is code —
+  it is what gets agreed before the trial month starts, and it is the difference between a trial that
+  ends and a trial that never does.</p>
+  <div class="meta">
+    <span><b>Written</b> 5 Sep 2026</span>
+    <span><b>Status</b> nothing here is agreed with Felix yet</span>
+    <span><b>Go-live</b> 1 Oct</span>
+  </div>
+</header>
+
+<section>
+  <div class="sec-head"><h2>0 · Establish this first</h2><span class="note">it decides section 1</span></div>
+  <div class="callout stop"><b>Does the shop have a Worldline terminal at the counter TODAY, or does it
+  arrive with go-live?</b> Everything below assumes the terminal produces its own daily settlement,
+  itemised by scheme, which is where the real card breakdown comes from. If the terminal is not in yet,
+  the paper breakdown is genuinely the only one they have and the button decision changes. <b>Ask before
+  deciding anything in section 1.</b></div>
+  <p class="lead">Second question, same conversation, and it costs him nothing to answer:
+  <i>“What do people actually pay with in your shop — cash, card, TWINT, roughly what split?”</i>
+  He knows. It beats guessing, and it is the kind of question that makes him feel asked rather than sold to.</p>
+</section>
+
+<section>
+  <div class="sec-head"><h2>1 · The payment buttons</h2><span class="note">his complaint, and he is right</span></div>
+
+  <p class="lead">Felix: <i>“too many buttons.”</i> Four tenders today — Cash, Visa, Debit, TWINT — and
+  the cashier picks one, then does the Worldline step separately. He wants one button, cash or card.</p>
+
+  <h3>The decision: <b>Cash · Card · TWINT</b> — three, not four, not two</h3>
+  <div class="scroll"><table>
+    <tr><th>tender</th><th>own button?</th><th>why</th></tr>
+    <tr><td><b>Cash</b></td><td>yes</td><td>The only one that touches the physical drawer count.</td></tr>
+    <tr><td><b>TWINT</b></td><td>yes</td><td>The terminal shows a different flow for it, so the cashier
+      <b>knows</b> with certainty. It is also the tender Felix most wants tracked.</td></tr>
+    <tr><td><b>Visa vs Debit</b></td><td><b>no</b></td><td>Same terminal, same settlement, same payout —
+      and the cashier is <b>guessing</b>. Debit Mastercard looks like a Mastercard, Visa Debit looks
+      like a Visa, a phone tapping shows her nothing.</td></tr>
+  </table></div>
+
+  <div class="callout ok"><b>The rule behind it:</b> a tender earns its own button if and only if it
+  changes <b>where the money physically lands</b>, or <b>who you reconcile against at close</b> — and
+  the cashier can actually tell. Visa vs Debit fails all three.</div>
+
+  <h3>The argument that wins it — and it is an accounting argument, not a screen one</h3>
+  <p class="lead">Those buttons are not just feeding a screen. They feed <b>rows in the Z-report and in
+  the Banana CSV</b> (Cash · TWINT · Visa · Debit · Bank transfer · Crypto · Other). So the honest
+  framing is:</p>
+  <ul>
+    <li>Today, when she taps “Visa” for a Visa Debit, <b>both</b> rows in the accounting file are wrong
+      even though the sum is right — and the disagreement is unprovable, so end-of-day arguments have no
+      resolution.</li>
+    <li>Merging them into one <b>Card</b> line makes the file <b>more honest</b>, because it stops
+      asserting a distinction nobody can substantiate.</li>
+    <li>When Worldline is integrated, the terminal supplies the brand and the rows come back <b>for
+      real</b>, with nobody tapping anything.</li>
+  </ul>
+
+  <h3>And make it a setting, so the argument does not need winning</h3>
+  <p class="lead">One switch in Settings: <b>ask the cashier for card type — on / off.</b> On for the
+  trial, so Felix keeps exactly the breakdown he has on paper today and loses nothing. If the taps slow
+  Layla down, or he watches a shift and changes his mind, <b>he flips it himself</b> — no release, no
+  argument. When Worldline goes in it goes off for good.</p>
+  <p class="lead"><b>Keep the data model exactly as it is.</b> The payment-type field stays capable of
+  holding visa / mastercard / debit / twint. You are not deleting the capability, only no longer asking
+  a human to guess it. No migration, no schema change, historic rows stay valid.</p>
+
+  <div class="callout">Normally “make it configurable” is how you get a settings swamp. This one earns
+  it: a genuine buyer/builder disagreement, display-only, and a natural end state.</div>
+
+  <p class="lead"><b>Downstream, so it is not a surprise:</b> the receipt line
+  <span class="mono">Payment Method: VISA</span>, the Z-report rows and the Banana CSV all read the same
+  field. They move together with this decision.</p>
+</section>
+
+<section>
+  <div class="sec-head"><h2>2 · Worldline is Phase 2</h2><span class="note">and never say “when Worldline is in, the buttons go”</span></div>
+
+  <p class="lead">Two things are being bundled and must be separated:</p>
+  <ol>
+    <li><b>Recording that a sale was paid by card</b> — payment type on the transaction, card total on
+      the shift close. <b>Not optional</b>, in from day one, already built and simulated.</li>
+    <li><b>Terminal automation</b> — Banco pushes the amount, the terminal answers, the sale completes
+      itself. Saves typing and a typo. <b>An optimisation.</b></li>
+  </ol>
+
+  <div class="callout ok"><b>The argument that wins, and it is not about scope:</b> an unintegrated
+  terminal is a <b>separate failure domain</b>. If Banco is down, wedged or mid-restart, the shop still
+  takes card, because the terminal is standalone and does not care. Integrate on day one and the shop’s
+  ability to take money is coupled to the newest software in the building. Small shops run standalone
+  terminals permanently, by choice, for exactly this reason.</div>
+
+  <p class="lead">Secondary but real: the lead time is <b>Worldline’s</b>, not yours — sandbox slots, a
+  test terminal, their process — and scheduling 1 Oct behind a third party is how 1 Oct slips. And
+  sandbox-green would not settle it anyway; it would be re-verified on the real terminal, on the shop’s
+  network, at go-live. That is <b>LESSON #1 with a card reader attached</b>.</p>
+
+  <p class="lead">Consistent with a decision already made: the refund path hands back <b>cash even on a
+  card sale</b> — <i>“simpler for accounting”</i>. That only makes sense in a world where the terminal is
+  not driven by Banco. The design has been heading here already.</p>
+
+  <div class="callout stop"><b>Name the cost before he finds it.</b> Every evening someone ties the
+  terminal’s own daily total to Banco’s card total. If they differ, someone hunts. It is a minute a day
+  and <b>he will feel it every single day.</b> It is the strongest argument for integration and he will
+  hit it in week one. Say it first — a skeptic believes your upside only after you have handed him the
+  downside yourself.</div>
+
+  <h3>What to say</h3>
+  <blockquote>
+    <p>“Card payments are in from day one — Banco records them, and the card total is on your shift close
+    so you can tie it to the terminal’s own report. What I’m <i>not</i> doing yet is having Banco drive
+    the terminal.</p>
+    <p>Reason: I don’t want your card payments depending on my software while my software is still new.
+    Standalone, the terminal keeps working even if Banco doesn’t.</p>
+    <p>The cost is you tie two totals together each evening. It takes a minute. Trade with me: run four
+    weeks. If that minute is annoying you, we do the Worldline integration then — and by then I’ll have
+    their sandbox and a test terminal, and it’ll be a clean piece of work instead of a risk stacked on
+    top of go-live.”</p>
+  </blockquote>
+
+  <div class="callout"><b>The sentence to avoid:</b> <i>“I’ll remove those buttons once Worldline is
+  enabled.”</i> That hands him the reply “fine — wire up Worldline now.” Never let the thing he dislikes
+  be curable by the thing you don’t want to do yet. The buttons are a <b>setting</b>; the integration is
+  a <b>risk decision</b>. Two separate conversations, said separately.</div>
+
+  <p class="lead"><b>Take Worldline’s sandbox offer — and schedule it for after go-live.</b> Declining
+  reads as avoidance; scheduling reads as a plan, and it keeps the relationship warm for when you need
+  it. <b>Do not discuss what the integration costs on the day.</b> It is a separate ticket, priced after
+  a dry run — same rule as the go-live itself, and commercially better for you as its own line.</p>
+</section>
+
+<section>
+  <div class="sec-head"><h2>3 · Split tender</h2><span class="note">parked, and billable if he asks</span></div>
+  <p class="lead">Angel’s call, 4 Sep: <i>“a nightmare waiting to happen — leave it, settle it later if
+  it comes up.”</i> Agreed. Literal half-cash-half-card is rare in ordinary retail and rarer in
+  Switzerland. If Felix asks for it, <b>it is a quoted change, not a defect.</b></p>
+  <div class="callout"><b>But one form of it already exists and is not called split tender:</b> Banco has
+  member credits. A member with CHF 4.20 of credits against a CHF 12.00 sale <b>is</b> a two-tender sale
+  whether or not it is named one. If that path is not clean, the cashier rings it full cash and adjusts
+  the credits by hand — and the member ledger and the cash book quietly stop agreeing. <b>Worth probing
+  before the trial; it is the split tender you already shipped.</b></div>
+</section>
+
+<section>
+  <div class="sec-head"><h2>4 · The terms</h2><span class="note">agree these BEFORE the trial, not after</span></div>
+
+  <p class="lead">The plan is sound: release, one-month trial, changes billable. One word will cost money
+  if it survives —</p>
+  <blockquote><p>“I charge for every one <b>unless it’s obviously my fault.</b>”</p></blockquote>
+  <p class="lead"><b>“Obviously” will be litigated on every single item, by a perfectionist, for free,
+  forever.</b> You will not agree on where it sits and there is no rule to point at. Don’t fix it with a
+  better adjective — fix it with the vocabulary already in the testsheets, which he has already used:</p>
+
+  <div class="callout ok">
+    <b>FAIL</b> — <i>I could not complete the task.</i> That is a defect. Fixed free.<br>
+    <b>ISSUE</b> — <i>it worked, I want it different.</i> That is a change. Quoted.
+  </div>
+
+  <p class="lead">It is objective enough to survive an argument, and it puts the classification on the
+  <b>observation</b> rather than on whose fault it was.</p>
+
+  <ul>
+    <li><b>Write down what the trial is testing before it starts.</b> Otherwise everything you did not
+      build becomes “but I assumed it would,” and against an unbounded scope the perfectionist always
+      wins. A perfectionist does not naturally emit a “done” signal — <b>you have to define the finish
+      line in advance.</b></li>
+    <li><b>Never give changes away by default.</b> Price them, then discount visibly:
+      <i>“that’s about two hours, CHF X — first one’s on me.”</i> Free-by-default teaches him the list
+      costs nothing. A visible discount teaches him it has a price and you are being generous with it.</li>
+    <li><b>The “confirmed by” column is the acceptance record.</b> Every fix, a name, a date, a build.
+      Keep it running through the trial month — in October it is what you point at.</li>
+    <li><b>Go-live is the billable ticket</b>, priced after a dry run, never quoted on the trial day.</li>
+  </ul>
+</section>
+
+<section>
+  <div class="sec-head"><h2>5 · What to expect from him</h2><span class="note">so the silence is not misread</span></div>
+
+  <p class="lead"><b>He will never say “excellent.”</b> He is not evaluating the software; he is
+  evaluating his own exposure — every button is a thing a cashier can do that he has to deal with later.
+  That scan has no output for “good,” which is exactly why the VAT never gets a word. <b>His approval is
+  behavioural:</b> he lets Layla near it, he stops proposing alternatives, he starts asking what it costs
+  and when. Waiting for the sentence will burn a lot of energy for no information.</p>
+
+  <h3>The pen-and-paper thing is not hypocrisy — it is the best brief he has given</h3>
+  <p class="lead">Paper is forgiving because <b>mistakes stay visible</b>: scratched out, arrow drawn,
+  correction readable by anyone, nothing hidden and nothing final. A computer removes both. So
+  “idiot-proof” is not a request for polish — it is <b>“I can see the mistake, and it can be undone.”</b>
+  That is a product requirement and it is a good one.</p>
+  <p class="lead"><b>Be straight about the goal:</b> “no way a cashier can screw up” is not achievable by
+  anyone, including paper. <b>“Every screw-up is visible and reversible”</b> is — and that is the version
+  worth promising, because you can deliver it.</p>
+
+  <p class="lead">Refunds and voids are <b>manager-only</b> (role-gated, with a test pinning it). That is
+  the seam where he will say paper wins. Sell it as control, not friction:</p>
+  <blockquote><p>“On paper, Layla scratches it out and you never know it happened. Here she has to call
+  you — and you see every one. That’s not the system getting in her way, that’s you getting your eyes on
+  it.”</p></blockquote>
+
+  <h3>How to run the meeting</h3>
+  <ul>
+    <li><b>Don’t show him screens.</b> A screen is the only thing you have handed him to react to, so he
+      reacts to the buttons. <b>Show a scenario:</b> Layla rings the wrong item — watch what happens.
+      That is the question he is actually asking.</li>
+    <li><b>Give him a job: try to break it.</b> A perfectionist with a destructive task is engaged and
+      genuinely useful. A perfectionist with nothing to do audits your fonts.</li>
+    <li><b>Ask a closed question at the end</b> — <i>“can Layla run one shift on this?”</i> — never
+      “what do you think,” which is an open invitation to the list.</li>
+    <li><b>Lead with the scoreboard, not the raw list.</b> A long unsorted ISSUE list reads as “this
+      software is bad” even at 10 pass / 3 issue / 0 fail.</li>
+    <li><b>The 20 tiles are not hers.</b> If “too many buttons” is aimed at the dashboard:
+      <i>“That screen is yours. Hers has five.”</i> — Scan · Cart · Catalog · Customers · My Day.</li>
+    <li><b>Functionality that works is invisible.</b> He will never notice the VAT fix by looking. If you
+      want credit for it, you have to say it happened.</li>
+  </ul>
+
+  <div class="callout"><b>The uncomfortable one, and he may raise it:</b> self-hosting swaps vendor risk
+  for a <b>bus factor of one</b>, and that one is you. From where he sits, “the vendor might vanish” and
+  “this guy might get ill or get busy” are the same risk in different clothes. A good part of his
+  perfectionism is probably pricing that. Which means the runbook, the backups, the restore drill and
+  the go-live kit are not hardening chores <b>after</b> the product — for Felix they are what makes it
+  buyable. Decide whether that goes in the conversation out loud rather than hoping he doesn’t ask.</div>
+</section>
+
+<section>
+  <div class="sec-head"><h2>6 · Where Banco actually stands</h2><span class="note">an honest read, 5 Sep</span></div>
+  <p class="lead">Not in a different league on <b>function for this vertical</b>. Probably ahead of a
+  generic install on what this shop does daily; behind on integration breadth and operational maturity.</p>
+  <div class="scroll"><table>
+    <tr><th>ahead</th><th>behind</th></tr>
+    <tr><td>Age verification with an evidence record — refusals, attestations, audit trail. Most POS have
+      a checkbox or nothing.</td>
+      <td>Terminal integration — deliberate, but the most visible gap when a competitor demos beside you.</td></tr>
+    <tr><td>Four languages, natively, in a four-language country.</td>
+      <td><b>Offline writes.</b> P2 in <code>sw.js</code>’s own comments — the till browses offline and
+      cannot finalise a sale.</td></tr>
+    <tr><td>Pooled tier pricing agreed across till, cart, kiosk and the held-orders board.</td>
+      <td>Receipt and label printing, still being wired.</td></tr>
+    <tr><td><b>Banana CSV with the 5-rappen <span class="mono">Rundungsdifferenz</span> on its own
+      line</b>, giveaways as COGS, a VAT block that does not double-count on import. Most products dump a
+      flat CSV.</td>
+      <td>Support and continuity — the bus-factor point above.</td></tr>
+    <tr><td>Ownership. Nobody else in the market offers it at all.</td><td></td></tr>
+  </table></div>
+
+  <div class="callout"><b>The competitor to watch is not the top three.</b> It is the bottom — SumUp and
+  friends hand a small shop a reader and a free POS app. For a one-counter headshop, “free, works
+  tomorrow, no setup” is far more dangerous than an enterprise product with a five-figure
+  implementation. The answer to them is the age gate, the four languages, the tiers and the ownership —
+  <b>not polish</b>, which you will not out-spend them on and do not need to.</div>
+
+  <p class="lead"><b>On look and feel:</b> the criticism you are getting is about <i>polish</i>, not
+  <i>usability</i> — “too many buttons,” not “I can’t find anything.” You only earn the first kind after
+  the second has stopped. The remaining gap against a mature product is <b>consistency across forty
+  screens</b>, which is hours, not genius. And the bugs found this week — VAT only on pooled baskets, a
+  keypad that fails on one browser, off-axis glare — are <b>late-stage bugs</b>. Toy projects never reach
+  them, because nobody uses them hard enough.</p>
+</section>
+
+<section>
+  <div class="sec-head"><h2>7 · Two asks that are worth more than they cost</h2><span class="note">both are also sales assets</span></div>
+  <div class="row"><span class="pill p-open">ask him</span><div class="body">
+    <div class="t">One day’s Banana CSV through his Treuhänder</div>
+    <div class="d">The export is built and thoughtful and <b>has never been imported into a real Banana
+    ledger by a real bookkeeper.</b> Account and VatCode are deliberately blank pending his chart of
+    accounts. Twenty minutes of someone else’s time converts the last unverified claim into a proven one
+    — and <b>a Treuhänder who says “this imports cleanly” is a reference</b>, not just a test result.</div></div></div>
+  <div class="row"><span class="pill p-open">ask him</span><div class="body">
+    <div class="t">His real chart-of-accounts codes</div>
+    <div class="d">Then the CSV ships pre-filled instead of needing mapping in Banana’s import dialogue
+    every time. Small change, removes a recurring step from his month.</div></div></div>
+</section>
+
+<section>
+  <div class="sec-head"><h2>8 · Not about Felix — the market question</h2><span class="note">research, not a pipeline</span></div>
+  <p class="lead">Walking into headshops and asking questions is the highest-value thing a solo founder
+  can do, and it is not impolite. But the first ten visits answer <b>one</b> question, and it decides the
+  next year: <b>is Felix’s pain common, or is Felix’s pain Felix’s?</b> Ten conversations settles it. A
+  hundred is not needed.</p>
+  <ul>
+    <li><b>Never ask “would you like one?”</b> Hypotheticals produce polite yes-es that predict nothing.
+      Ask about the past and the present, never the future.</li>
+    <li>Ask instead: <i>“What do you use to ring things up?” · “When was the last time it annoyed you?”
+      · “How do you do your end of day?” · “What do you do about the age check?” · “Who set it up — can
+      you change anything yourself?”</i> and the one that <b>is</b> the whole pitch:
+      <i>“If it broke tomorrow, who do you call?”</i></li>
+    <li><b>Open as a peer, not a vendor:</b> “I built the till for a shop in Luzern — I’m trying to work
+      out whether it’s useful to anybody else or specific to them.” <b>Ask Felix before naming his
+      shop</b>, and never to a shop in the same city.</li>
+    <li>Mid-morning or the dead afternoon hour, weekday. Never Saturday. <b>Don’t demo on visit one</b> —
+      listen, take a card, leave; the demo is visit two.</li>
+    <li><b>Write each visit up the same day, same questions, same order.</b> Twenty recorded consistently
+      is a dataset. Twenty remembered is a vibe.</li>
+    <li><b>The higher-leverage channel is the wholesaler</b> whose feed is already integrated — their rep
+      visits every one of these shops, knows the owners, and can say “the system that already knows our
+      catalogue.” Same shape: <b>CannaTrade</b> and the trade fairs, fifty owners in one room who came to
+      talk. Romandie and Ticino are servable but not walk-in-able without French — that is an argument
+      for a distributor, not a write-off.</li>
+  </ul>
+</section>
+
+<footer>
+  Worked out over 4–5 Sep 2026. <b>Nothing here has been agreed with Felix.</b> Section 0 gates section 1;
+  everything else stands on its own. The counter visit is <code>WORKLIST.md</code> §ⓞ and the receipt QR
+  is <a href="receipt-qr-spec.html">receipt-qr-spec.html</a>.
+</footer>
+</div>
