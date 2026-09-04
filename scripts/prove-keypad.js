@@ -602,13 +602,17 @@ async function main() {
         wired++;
         const kind = kd[1];
         const where = `${f} ${(/x-model[^=]*="([^"]+)"/.exec(tag) || [, '?'])[1]}`;
-        if (!['text', 'decimal', 'numeric'].includes(kind)) badKind.push(`${where}="${kind}"`);
+        // 'date' and 'time' joined the list on 2026-09-04. They draw the same number pad
+        // as 'numeric' and differ only in what they will accept: a masked box is judged on
+        // how many DIGITS it holds (8 and 4), because its own mask puts the . and the : in
+        // and the money rule threw the next key away for having punctuation in it.
+        if (!['text', 'decimal', 'numeric', 'date', 'time'].includes(kind)) badKind.push(`${where}="${kind}"`);
         if (/type="number"/.test(tag)) badType.push(where);
         if (kind !== 'text' && !/inputmode="/.test(tag)) noMode.push(where);
         if (kind === 'decimal' && /x-model\.number/.test(tag)) stillNumberModel.push(where);
       }
     }
-    check(badKind.length === 0, 'every data-keypad names a pad that exists', badKind.join(', ') || 'text · decimal · numeric');
+    check(badKind.length === 0, 'every data-keypad names a pad that exists', badKind.join(', ') || 'text · decimal · numeric · date · time');
     check(badType.length === 0, 'no wired field is still type="number"',
           badType.join(', ') || 'a number input has no selectionStart — the caret cannot be placed in one');
     check(noMode.length === 0, 'every number box still declares inputmode',

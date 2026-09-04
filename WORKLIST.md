@@ -497,6 +497,12 @@ screen.
   finish typing, which is now fixed — four taps enters a time. Recommend retesting the pad first;
   a Banco-drawn hour/minute picker is a real build and would also make the time boxes behave
   differently from the date boxes beside them. **Angel's call.**
+- ⓕ4 **`scripts/keypad-inventory.py` now gives stale advice.** It reads the live `data-keypad`
+  correctly (`✅date`) but its "should be" column still recommends `numeric` for the five DOB
+  boxes — i.e. it recommends the setting that was just proved broken. Its label detection also
+  names two `my_day.html` lines "Date of birth" when they are the time boxes. The doc is a
+  reference, not a guard (the guard is `prove-keypad.js`, updated), but a reference that
+  recommends the bug is how the next one gets written. One heuristic, not urgent.
 - ⓕ3 **B1/B2 of the clock sheet were never run** — the shift was still open, so Close Shift had
   nothing to show. Retest after this.
 
