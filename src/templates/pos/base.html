@@ -666,6 +666,85 @@
       window.posMarkBad      = window.posMarkBad      || function ()  { return false; };
     </script>
 
+    <!-- A LIST THAT SCROLLS MUST NOT STOP HALFWAY THROUGH A ROW. Layla, 2026-09-04: the
+         till's product results "cut the last row in half — every pack looks like it is missing
+         something." Not cosmetic in the way it sounds: a half-drawn row reads as a half-loaded
+         screen, and a cashier who does not trust a list scrolls it twice before believing it.
+
+         The cause is a fixed cap (`max-h-96` = 384px) that knows nothing about how tall a row
+         is. ANY fixed number is wrong for any row height that does not divide it, and the row
+         height here is not even constant — a product name that wraps to two lines makes a
+         taller row.
+
+         So the cap becomes a whole number of rows, measured from the rows themselves. Nothing
+         is guessed and nothing is hardcoded; a wrapped name simply moves the measurement.
+
+         Usage:  <div class="card max-h-96 overflow-y-auto" data-row-snap>
+                   <h3>…</h3>
+                   <div class="space-y-2" data-row-snap-rows> …rows… </div>
+                 </div>
+
+         The original cap is remembered on the first run and never exceeded — this only ever
+         makes a box SHORTER, by exactly the sliver that was showing. -->
+    <script>
+      (function () {
+        function measure(box, rows) {
+          var b = box.getBoundingClientRect(), st = box.scrollTop;
+          var top = function (el) { return el.getBoundingClientRect().top - b.top + st; };
+          var first = top(rows[0]);
+          var row = rows[0].getBoundingClientRect().height;
+          // The PITCH between two rows, not one row's height: `space-y-2` puts 8px between
+          // them, and a cap that forgets the gap is off by 8px a row — which is its own sliver.
+          var pitch = top(rows[1]) - first;
+          return { first: first, row: row, pitch: pitch, gap: pitch - row };
+        }
+        function snap(box) {
+          var cs = getComputedStyle(box);
+          if (box._snapCap == null) {
+            var css = parseFloat(cs.maxHeight);
+            box._snapCap = isFinite(css) ? css : 0;   // no cap in the CSS, nothing to snap
+          }
+          if (!box._snapCap) return;
+          var wrap = box.querySelector('[data-row-snap-rows]') || box.lastElementChild;
+          var rows = wrap ? Array.prototype.filter.call(wrap.children, function (n) {
+            return n.nodeType === 1 && n.getBoundingClientRect().height > 0;
+          }) : [];
+          // One row cannot be sliced by a cap it never reaches, and two are needed for a pitch.
+          if (rows.length < 2) { box.style.maxHeight = ''; return; }
+          var m = measure(box, rows);
+          if (!(m.pitch > 0)) return;
+          // PADDING-BOTTOM IS NOT ROOM TO GIVE. The first version added it to the height, on the
+          // reasoning that a card's padding should sit under the last row. It does not: once a
+          // box scrolls, its content passes THROUGH the padding region and is visible there,
+          // right down to the border. So the 24px of padding was 24px of the next row showing
+          // — a 16px sliver of row three, which is precisely the bug being fixed.
+          //
+          // A screenshot is what caught it. The assertion had defined the cut line as
+          // `bottom - paddingBottom`, so it was measuring the exact line the fix should have
+          // landed on and reporting success either way. LESSON #12: rendered is not visible,
+          // and only a picture settles it.
+          var n = Math.floor((box._snapCap - m.first + m.gap) / m.pitch);
+          if (n < 1) n = 1;
+          // The whole list fits inside the cap — there is no bottom edge to be cut by.
+          if (n >= rows.length) { box.style.maxHeight = ''; return; }
+          var want = Math.round(m.first + n * m.pitch - m.gap) + 'px';
+          if (box.style.maxHeight !== want) box.style.maxHeight = want;
+        }
+        var queued = false;
+        function sweep() { queued = false; document.querySelectorAll('[data-row-snap]').forEach(snap); }
+        function ask() { if (!queued) { queued = true; requestAnimationFrame(sweep); } }
+        window.posRowSnap = ask;
+        // The rows come from an x-for that renders after this script runs, change again on every
+        // search, and change HEIGHT a third time when a lazy image lands. One observer on the
+        // document covers all three without each list having to remember to call anything.
+        document.addEventListener('DOMContentLoaded', function () {
+          ask();
+          new MutationObserver(ask).observe(document.body, { childList: true, subtree: true });
+          window.addEventListener('resize', ask);
+        });
+      })();
+    </script>
+
     <!-- HALF A COUNTED DRAWER MUST NOT BE ABLE TO VANISH. Angel, 2026-09-02:
          "you could be in edit mode and all of a sudden the screen flashes away
          and you are back at the dashboard — they fill in half the coin counts

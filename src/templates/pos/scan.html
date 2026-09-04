@@ -26,8 +26,23 @@
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <!-- LEFT: Product Search & Add -->
             <div class="space-y-6">
-                <!-- Search Methods -->
-                <div class="card">
+                <!-- Search Methods.
+                     PINNED, the same treatment the cart total got. Layla, 2026-09-04: the
+                     Barcode / Search / New item buttons, the box she types in and the category
+                     picker "all scroll off when the results list is long", and she asked for the
+                     same fix by name. Her reasoning is the reasoning: the controls you reach for
+                     constantly should not move.
+
+                     `sticky top-0`, not `fixed` — inside .app-content, so it cannot fight the
+                     bottom nav (that argument is written up on the cart total below).
+
+                     AND NOT IN `catalog` MODE. A sticky element TALLER than the viewport pins its
+                     top at 0 and puts its own bottom permanently out of reach — and the New item
+                     panel is exactly that: department keys, a price box, a whole create form. It
+                     would pin the top of the form and make the Create button unreachable, which
+                     is a far worse bug than the one being fixed. Barcode and Search are both
+                     short; those are the two that pin. -->
+                <div class="card" :class="searchMode === 'catalog' ? '' : 'sticky top-0 z-20'">
                     <h2 class="text-xl font-bold text-gray-900 mb-4" data-i18n="scan.find_product">Find Product</h2>
 
                     <!-- Mode Selector.
@@ -430,10 +445,15 @@
                     </div>
                 </div>
 
-                <!-- Search Results (for search mode) -->
-                <div x-show="searchMode === 'search' && searchResults.length > 0" class="card max-h-96 overflow-y-auto">
+                <!-- Search Results (for search mode).
+                     data-row-snap: the 384px cap now lands on a row boundary instead of through
+                     the middle of one. Layla, 2026-09-04: "every pack looks like it is missing
+                     something." See the utility in base.html — it measures the rows rather than
+                     assuming a height, because a product name that wraps makes a taller row. -->
+                <div x-show="searchMode === 'search' && searchResults.length > 0" class="card max-h-96 overflow-y-auto"
+                     data-row-snap>
                     <h3 class="text-lg font-bold text-gray-900 mb-3" data-i18n="scan.products">Products</h3>
-                    <div class="space-y-2">
+                    <div class="space-y-2" data-row-snap-rows>
                         <template x-for="product in searchResults" :key="product.id">
                             <div @click="openDetail(product)" title="Tap for details"
                                  class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer">
