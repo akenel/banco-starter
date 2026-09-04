@@ -406,7 +406,15 @@ this proves the class exists at all.
 
 ### Also from Felix's run
 
-- ⓔ1 **`<input type="time">` renders AM/PM** (`10-11-07.png`) — My Day → Close out my day →
+- ⓔ1 ~~**`<input type="time">` renders AM/PM**~~ — **FIXED `e0572c7`, live `b585`.** Both fields are
+  Banco boxes now (`posTimeMask` / `posTimeValue`, beside the date helpers above the touch gate), so
+  they also got the keypad they never had — `type="time"` carries no `data-keypad`, which meant on
+  this tablet there was no way to type a start time at all. `closeout.html` also shipped `"8:00 AM"`
+  as an i18n VALUE in EN and FR while DE and IT already said `8:00`. `prove-swiss-dates.js` 18 → 29
+  checks, all four new sections watched red first; it also sweeps every template for `type="time"`
+  so the next one is caught wherever it lands. **No proof could have found the original:** headless
+  Chromium draws `type="time"` as 24-hour in en-US, de-CH and fr-CH alike (measured, three
+  contexts). Sheet: `onboarding/testsheets/2026-09-04-the-24-hour-clock.html`. Original finding: (`10-11-07.png`) — My Day → Close out my day →
   Start time / Finish time show `09:54 AM` and `--:-- --`. **Two fields, `my_day.html:130,138`.**
   This is the exact sibling of the `type="date"` bug fixed 24 hours earlier in ⓒ1, and standing
   rule 9 says I should have grepped `type="time"` the moment I fixed `type="date"`. I did not.
