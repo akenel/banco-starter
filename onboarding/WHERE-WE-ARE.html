@@ -1,0 +1,267 @@
+<title>Where We Are</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+  :root{
+    --paper:#f1f4f2; --card:#fff; --ink:#141d1b; --ink-2:#41514e; --ink-3:#71847f;
+    --rule:#dfe6e2; --rule-2:#eef2f0;
+    --accent:#136259; --accent-soft:#e2efec; --accent-ink:#0d4841;
+    --bad:#a51b1b; --bad-soft:#fbe9e9; --warn:#8a4b06; --warn-soft:#fcf0dd;
+    --good:#1c6b3a; --good-soft:#e4f2e8;
+    --shadow:0 1px 2px rgba(20,29,27,.05), 0 8px 24px -16px rgba(20,29,27,.28);
+  }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+    --paper:#0e1413; --card:#161e1c; --ink:#e8efec; --ink-2:#a3b3ae; --ink-3:#7b8c87;
+    --rule:#27332f; --rule-2:#1d2725;
+    --accent:#5cc4b4; --accent-soft:#12312d; --accent-ink:#8fdcd0;
+    --bad:#f08b8b; --bad-soft:#3a1a1a; --warn:#e5aa5c; --warn-soft:#382512;
+    --good:#7bce9c; --good-soft:#14301f;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  }}
+  :root[data-theme="dark"]{
+    --paper:#0e1413; --card:#161e1c; --ink:#e8efec; --ink-2:#a3b3ae; --ink-3:#7b8c87;
+    --rule:#27332f; --rule-2:#1d2725;
+    --accent:#5cc4b4; --accent-soft:#12312d; --accent-ink:#8fdcd0;
+    --bad:#f08b8b; --bad-soft:#3a1a1a; --warn:#e5aa5c; --warn-soft:#382512;
+    --good:#7bce9c; --good-soft:#14301f;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--paper); color:var(--ink); margin:0;
+       font-family:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif; font-size:16px; line-height:1.55}
+  .wrap{max-width:1000px; margin:0 auto; padding:0 20px 90px}
+  h1,h2,h3{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",sans-serif; text-wrap:balance; margin:0}
+  .mono{font-family:"IBM Plex Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums; font-size:.92em}
+  header{padding:40px 0 22px; border-bottom:2px solid var(--ink)}
+  .eyebrow{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.14em;
+           text-transform:uppercase; color:var(--accent); font-weight:600}
+  h1{font-size:clamp(30px,5vw,46px); font-weight:700; line-height:1.05; letter-spacing:-.015em; margin:10px 0 12px}
+  .standfirst{color:var(--ink-2); max-width:66ch; margin:0}
+  .meta{display:flex; flex-wrap:wrap; gap:8px 22px; margin-top:18px;
+        font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--ink-3)}
+  .meta b{color:var(--ink-2); font-weight:600}
+
+  .board{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin:26px 0 6px}
+  .tile{background:var(--card); border:1px solid var(--rule); border-radius:10px; padding:14px 16px; box-shadow:var(--shadow)}
+  .tile .n{font-family:"IBM Plex Sans Condensed",sans-serif; font-weight:700; font-size:30px; line-height:1}
+  .tile .k{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.09em;
+           text-transform:uppercase; color:var(--ink-3); margin-top:6px}
+  .tile.good .n{color:var(--good)} .tile.warn .n{color:var(--warn)} .tile.bad .n{color:var(--bad)}
+
+  section{margin:34px 0 0}
+  .sec-head{display:flex; align-items:baseline; gap:12px; padding-bottom:9px; border-bottom:1px solid var(--ink)}
+  .sec-head h2{font-size:22px; font-weight:700; letter-spacing:-.01em}
+  .sec-head .note{font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--ink-3)}
+  .lead{color:var(--ink-2); margin:12px 0 4px; max-width:70ch}
+
+  .row{display:flex; gap:14px; align-items:flex-start; padding:13px 0; border-bottom:1px solid var(--rule-2)}
+  .row:last-child{border-bottom:0}
+  .pill{flex:none; font-family:"IBM Plex Sans Condensed",sans-serif; font-weight:700; font-size:11px;
+        letter-spacing:.05em; text-transform:uppercase; padding:4px 9px; border-radius:4px; margin-top:2px; white-space:nowrap}
+  .p-done{background:var(--good-soft); color:var(--good)}
+  .p-untested{background:var(--warn-soft); color:var(--warn)}
+  .p-open{background:var(--bad-soft); color:var(--bad)}
+  .p-park{background:var(--rule-2); color:var(--ink-3)}
+  .row .body{flex:1; min-width:0}
+  .row .t{font-weight:600}
+  .row .d{color:var(--ink-2); font-size:14.5px; margin-top:3px}
+  .who{font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--ink-3); margin-top:4px}
+
+  .callout{margin:16px 0; padding:14px 17px; background:var(--warn-soft);
+           border-left:3px solid var(--warn); border-radius:0 6px 6px 0; font-size:15px}
+  .callout.stop{background:var(--bad-soft); border-left-color:var(--bad)}
+  .callout.ok{background:var(--good-soft); border-left-color:var(--good)}
+  .callout b{font-family:"IBM Plex Sans Condensed",sans-serif}
+
+  table{width:100%; border-collapse:collapse; margin:14px 0; font-size:14.5px}
+  th,td{text-align:left; padding:8px 10px; border-bottom:1px solid var(--rule-2); vertical-align:top}
+  th{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.07em;
+     text-transform:uppercase; color:var(--ink-3); border-bottom:1px solid var(--rule)}
+  .scroll{overflow-x:auto}
+  footer{margin-top:44px; padding-top:24px; border-top:2px solid var(--ink); color:var(--ink-2); font-size:14.5px}
+  @media print{ body{background:#fff} .tile{box-shadow:none} }
+</style>
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">Banco POS · status</div>
+  <h1>Where we are</h1>
+  <p class="standfirst">Everything that stands between here and <b>Layla running one shift</b>, and everything
+  that was closed getting there. Ranked by whether a cashier hits it at the counter — not by how interesting
+  it is. <b>The distinction that matters on this page is between <i>a person has looked at it</i> and
+  <i>it is deployed</i>.</b> Those are not the same thing, and today proved it twice.</p>
+  <div class="meta">
+    <span><b>Build</b> b609 · 5d1f199</span>
+    <span><b>Updated</b> 4 Sep 2026, 18:05</span>
+    <span><b>Shop</b> banco.wolfhold.app</span>
+    <span><b>Go-live</b> 1 Oct</span>
+    <span><b>Plan</b> Layla first, one shift 11:00–16:00, alongside paper</span>
+  </div>
+</header>
+
+<div class="board">
+  <div class="tile good"><div class="n">13</div><div class="k">shipped today</div></div>
+  <div class="tile good"><div class="n">11</div><div class="k">confirmed by a person</div></div>
+  <div class="tile warn"><div class="n">2</div><div class="k">deployed, untested</div></div>
+  <div class="tile bad"><div class="n">7</div><div class="k">still open</div></div>
+  <div class="tile"><div class="n">4</div><div class="k">parked / decisions</div></div>
+</div>
+
+<section>
+  <div class="sec-head"><h2>1 · Blocking the shift</h2><span class="note">she hits these at the counter</span></div>
+  <p class="lead">These cost Layla time or credibility in front of a customer.</p>
+
+  <div class="row"><span class="pill p-open">still open</span><div class="body">
+    <div class="t">Date filters render <span class="mono">mm/dd/yyyy</span></div>
+    <div class="d">Transactions, Product Sales, Audit — six native pickers — and now <b>Cleanup</b> as a seventh.
+    The same screen prints <span class="mono">Showing 04.09.2026</span> one line under a filter that says
+    <span class="mono">09/04/2026</span>. Transaction History is where a cashier goes to find a receipt for
+    someone standing there. Needs a small Banco calendar: the browser's own picker takes its format from the
+    <i>browser's</i> locale and nothing on the page can change it.</div>
+    <div class="who">found by Layla · confirmed still open 4 Sep 17:21</div></div></div>
+
+  <div class="row"><span class="pill p-open">not tested</span><div class="body">
+    <div class="t">The on-screen keyboard buries the search results</div>
+    <div class="d">Typing <span class="mono">cbd</span> showed "Showing 20 of 366 matches" and one and a half
+    rows on 3 Sep. <b>The retest does not count</b> — it was run with the folio keyboard attached, so Banco's
+    own pad never appeared, and the pad is the entire subject of the test. Needs re-running with the folio off.</div>
+    <div class="who">needs a re-run · folio DETACHED</div></div></div>
+
+  <div class="row"><span class="pill p-open">still open</span><div class="body">
+    <div class="t">Checkout's discount chips don't reflect a discount already applied</div>
+    <div class="d">Target Total sets 15.25% and <span class="mono">None / 5% / 10% / 15% / Custom</span> shows
+    nothing selected. A cashier cannot tell what the customer is being charged. Also
+    <span class="mono">"Your max discount: 100%"</span> is developer copy on a cashier's screen.</div>
+    <div class="who">step not completed on the last run — worth a deliberate look</div></div></div>
+
+  <div class="row"><span class="pill p-open">still open</span><div class="body">
+    <div class="t">The left-hand product list cuts its last row in half</div>
+    <div class="d">A fixed max-height that does not stop on a row boundary, so every pack looks like it is
+    missing something. Small, constant, and it quietly undermines trust in the screen.</div></div></div>
+
+  <div class="row"><span class="pill p-open">new</span><div class="body">
+    <div class="t">The <i>Find Product</i> controls scroll away</div>
+    <div class="d">Layla: the Barcode / Search / New item buttons, the input and the category picker all scroll
+    off when the results list is long. She asks for the same sticky treatment the cart total got — same
+    reasoning: the controls you reach for constantly should not move.</div>
+    <div class="who">Layla, 4 Sep 17:32</div></div></div>
+</section>
+
+<section>
+  <div class="sec-head"><h2>2 · She will ask about these</h2><span class="note">visible, survivable</span></div>
+
+  <div class="row"><span class="pill p-open">still open</span><div class="body">
+    <div class="t">The header shows Keycloak role names</div>
+    <div class="d"><span class="mono">layla | default-roles-kc-pos-realm-dev-1, pos-cashier, pos-manager</span>
+    — on her screen this afternoon. It reads as something broken to anyone who does not know what Keycloak is.</div>
+    <div class="who">confirmed 4 Sep 17:32</div></div></div>
+
+  <div class="row"><span class="pill p-open">still open</span><div class="body">
+    <div class="t">The "Login successful!" toast lands on the user chip</div>
+    <div class="who">confirmed 4 Sep 17:35</div></div></div>
+
+  <div class="row"><span class="pill p-open">still open</span><div class="body">
+    <div class="t">The knowledge base has no door</div>
+    <div class="d"><span class="mono">/pos/kb-approvals</span> exists as a working page and is linked from no
+    screen in the POS. Layla could only reach it by typing the URL on a laptop. A whole feature with no entry point.</div>
+    <div class="who">Layla asked where it was; that was the answer</div></div></div>
+
+  <div class="row"><span class="pill p-open">minor</span><div class="body">
+    <div class="t">The invalid-time warning sits a little low</div>
+    <div class="d">It is on screen and readable, but Layla would pull it up so it is fully visible without
+    thinking about it. LESSON #12, one notch finer than the last three times.</div></div></div>
+
+  <div class="row"><span class="pill p-done">gone</span><div class="body">
+    <div class="t">Cleanup Queue truncating mid-word</div>
+    <div class="d">No longer truncates. The dates on that screen are still wrong, which is counted above.</div>
+    <div class="who">confirmed by Layla, 4 Sep 17:36</div></div></div>
+</section>
+
+<section>
+  <div class="sec-head"><h2>3 · Deployed today, nobody has looked</h2><span class="note">the gap that matters</span></div>
+  <div class="callout"><b>This is the row on the page to read twice.</b> Both of these are live on the shop
+  right now and neither has been in front of a person. The first one is the fix for the worst bug found all
+  day — a scanner gun silently charging a customer for eight of the wrong thing.</div>
+
+  <div class="row"><span class="pill p-untested">untested</span><div class="body">
+    <div class="t">The gun no longer re-presses the Add button <span class="mono">5d1f199</span></div>
+    <div class="d">Layla searched, added a grinder, then scanned papers — and the grinder climbed to
+    <b>quantity 8, CHF 120.00</b>, while not one packet of papers reached the cart. Focus stayed on the Add
+    button; a gun is a keyboard, and its closing ENTER pressed that button again, once per scan. She wrote
+    <i>"this is more my fault"</i>. It was not.</div>
+    <div class="who">fixed and deployed 18:01 · needs the real gun</div></div></div>
+
+  <div class="row"><span class="pill p-untested">untested</span><div class="body">
+    <div class="t">The highlight follows the line you scanned <span class="mono">79a031a</span></div>
+    <div class="d">Re-scan something already in the basket and the ring now moves to <i>that</i> line and brings
+    it into view. It used to sit on whichever row was added last — highlighting the one part of the cart that
+    had not changed.</div>
+    <div class="who">Angel's finding · deployed 16:55</div></div></div>
+</section>
+
+<section>
+  <div class="sec-head"><h2>4 · Closed today</h2><span class="note">every one found on the real tablet</span></div>
+  <div class="scroll"><table>
+    <tr><th>what</th><th>build</th><th>confirmed by</th></tr>
+    <tr><td>VAT on checkout read the pooled line total</td><td class="mono">5dbc5a1</td><td>Felix</td></tr>
+    <tr><td>The kiosk basket asks the till what it costs</td><td class="mono">e896a9d</td><td>Felix</td></tr>
+    <tr><td>Every date a cashier types is dd.mm.yyyy</td><td class="mono">7d1c8fe</td><td>Felix</td></tr>
+    <tr><td>You can see which control you picked — 8 of them</td><td class="mono">d7881ab</td><td>Felix</td></tr>
+    <tr><td>Banco's styles load above Tailwind — 157 elements</td><td class="mono">0f56409</td><td>Felix</td></tr>
+    <tr><td>The shift clock is 24-hour</td><td class="mono">e0572c7</td><td>Felix</td></tr>
+    <tr><td>The pad lets you finish a date, not just start one</td><td class="mono">eea345b</td><td>Felix</td></tr>
+    <tr><td>139 buttons that looked alive when they were dead</td><td class="mono">ec9c9fe</td><td>Felix</td></tr>
+    <tr><td>The red box now stops the save</td><td class="mono">668e052</td><td>Felix</td></tr>
+    <tr><td>Every date box can see what was already stored</td><td class="mono">f76674b</td><td>Felix</td></tr>
+    <tr><td>111 CSS classes that did nothing · chat bubble off the keys</td><td class="mono">64aaf2d</td><td>Layla</td></tr>
+    <tr><td>The shop's own star behind the login card</td><td class="mono">755c208</td><td>Angel</td></tr>
+    <tr><td>Total and Checkout pinned at the top of the cart</td><td class="mono">7bdbea5</td><td>Felix — "buttery"</td></tr>
+    <tr><td>Mode buttons put the cursor in their own box</td><td class="mono">6e16cd2</td><td>pam</td></tr>
+    <tr><td>The Search tab's grouped category picker</td><td class="mono">0ec9cc7</td><td>pam</td></tr>
+  </table></div>
+</section>
+
+<section>
+  <div class="sec-head"><h2>5 · Decisions, not defects</h2></div>
+
+  <div class="row"><span class="pill p-park">tomorrow</span><div class="body">
+    <div class="t">One controlled sale on prod, refunded immediately</div>
+    <div class="d"><b>Nothing has ever completed a sale on this build.</b> Every test all week stops at the
+    payment button, deliberately, because a completed transaction is a line in the Kassenbücher. Without this,
+    Layla's shift is the first real sale this code has rung — with a customer standing there. Agreed for
+    tomorrow. It leaves two entries in the books that Felix should be told about beforehand, not after.</div></div></div>
+
+  <div class="row"><span class="pill p-park">parked</span><div class="body">
+    <div class="t">Birth year instead of a full birthdate</div>
+    <div class="d">Faster, more private, and the shop already works that way — of 22 active members, 4 have a
+    birthdate, 3 have a cashier attestation and no birthdate, 15 have neither. Held because a year cannot decide
+    age for one cohort (born 2008 is 18 in January and 17 in December) and because working compliance code
+    should not be touched for a hypothetical. <b>Ask Felix only if he raises it.</b></div></div></div>
+
+  <div class="row"><span class="pill p-park">Angel's call</span><div class="body">
+    <div class="t">Settings' 55 typed inputs have no keypad</div>
+    <div class="d">Deferred with a good reason: one-time admin work, done with a proper keyboard, not a cashier
+    screen. It is the largest single block of the ~172 fields still unwired.</div></div></div>
+
+  <div class="row"><span class="pill p-park">Felix's call</span><div class="body">
+    <div class="t">The kiosk <span class="mono">source</span> / welcome-percentage mislabel</div>
+    <div class="d">Moves money, so it is not ours to close.</div></div></div>
+</section>
+
+<section>
+  <div class="sec-head"><h2>6 · What "ready" means</h2></div>
+  <div class="callout ok"><b>Section 1 clear, section 2 at least looked at, and section 3 tested by a person.</b>
+  Nothing in sections 4 or 5 stops a cashier ringing a sale.</div>
+  <div class="callout stop"><b>One thing that is on no list.</b> Everything this week was proved in the flat.
+  The shop's network, the shop's lighting and the shop's counter have not been in the loop since the tablet was
+  set up — and that exact gap has bitten before, when LTE was proved at home on an SSID Luzern does not have.
+  <b>An hour at that counter before the shift is worth more than another day of fixes from here.</b></div>
+</section>
+
+<footer>
+  Built from <span class="mono">WORKLIST.md</span> and the day's testsheets, 4 Sep 2026. <b>This page is the
+  source of truth for what is left.</b> The markdown version it replaces was deleted rather than kept alongside
+  — Angel, 4 Sep: <i>"delete the .md then no one has to wonder."</i> Two copies of one list is exactly how the
+  list stops being true, and this repo lost an afternoon to that shape twice today.
+</footer>
+</div>

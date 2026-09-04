@@ -133,6 +133,7 @@ the answers. Reach for the named file; do not go looking, and do not build a fre
 | when Angel asks for… | use exactly this |
 |---|---|
 | **a test sheet** | `onboarding/testsheets/TEMPLATE.html` — steps-as-data, PASS/**ISSUE**/FAIL, per-step notes, timer, training mode. Copy it, fill the `STEPS` array. **Never a new format.** Built sheets sit beside it as examples. |
+| **anything Angel has to READ** | **HTML, never markdown.** Angel, 2026-09-04: *"it's very difficult to read those MD files … all test sheets should be an HTML, it's ten times easier"* — and *"i prefer html testsheet always"*. `onboarding/WHERE-WE-ARE.html` is the pattern for a status page. If a `.md` and an `.html` would say the same thing, **delete the `.md`**: two copies of one list is how the list stops being true, and this repo lost time to that shape twice on 2026-09-04. |
 | **a browser proof** | extend a `scripts/prove-*.js` — 21 exist. Playwright is borrowed via `NODE_PATH`, not vendored. See `TESTING.md`. |
 | **a server-side proof** | extend a `scripts/prove-*.py` — 5 exist. |
 | **a deploy / backup / restore / go-live** | the script in `scripts/` that already does it. Never a fresh one. |
