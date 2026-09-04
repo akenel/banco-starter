@@ -524,6 +524,29 @@
     <link rel="stylesheet" href="/static/pos/tailwind.css?v={{ asset_v('pos/tailwind.css') }}">
 
 
+    <!-- The keypad Banco draws itself. On the counter tablet NO browser raises the
+         system on-screen keyboard (Chromium AND Firefox, proved on a blank HTML file
+         2026-09-01 — WORKLIST ⑳), so a field marked data-keypad="decimal", "text",
+         "date" or "time" gets one we own. Touch devices only; a laptop never sees it.
+
+         IT LOADS BEFORE ALPINE, and that is load-bearing. Both tags are `defer`, so
+         they run in document order — and while this sat BELOW Alpine, every x-effect
+         that calls one of its helpers threw `window.posBirthdateISO is not a function`
+         during Alpine's first pass. An Alpine effect that throws on its first run never
+         registers its dependencies, so it never runs again: silently, permanently dead,
+         four errors in the console at load and nothing on any screen.
+
+         What that cost: 2026-09-04, Felix opened a member whose birthday IS on file and
+         the Date of birth box was EMPTY — for every one of the five date fields and both
+         time fields, since the day each shipped. Every proof types INTO these boxes; not
+         one ever loaded a stored value OUT of the model and looked. The @input path was
+         always fine, which is exactly why it hid.
+
+         The identity shims below were the right instinct in the wrong place — they cover
+         @input, which runs long after this script has landed. Nothing can shim an effect
+         that has already thrown. -->
+    <script defer src="/static/pos/pos-keypad.js?v={{ asset_v('pos/pos-keypad.js') }}"></script>
+
     <!-- Alpine.js for reactive components -->
     <script defer src="/static/vendor/alpine.min.js"></script>
 
@@ -537,11 +560,6 @@
          POS_STRINGS is a global before the engine (defined below) runs its detection. -->
     <script src="/static/pos/pos-i18n.js?v={{ asset_v('pos/pos-i18n.js') }}"></script>
 
-    <!-- The keypad Banco draws itself. On the counter tablet NO browser raises the
-         system on-screen keyboard (Chromium AND Firefox, proved on a blank HTML file
-         2026-09-01 — WORKLIST ⑳), so a field marked data-keypad="decimal" or
-         data-keypad="text" gets one we own. Touch devices only; a laptop never sees it. -->
-    <script defer src="/static/pos/pos-keypad.js?v={{ asset_v('pos/pos-keypad.js') }}"></script>
     <!-- Identity fallbacks, defined BEFORE the deferred script so they exist even if it never
          arrives. Money and quantity boxes are type="text" now (a number input has no caret for
          the keypad to place), and their @input handlers call these. If pos-keypad.js 404s, an

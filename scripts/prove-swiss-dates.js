@@ -405,6 +405,80 @@ const PAGES = [
           'red=' + clean.red + ' hint=' + clean.hint);
   }
 
+  // ── K · A DATE THAT IS ON FILE HAS TO APPEAR IN THE BOX ──────────────────────────────
+  // The whole class of check this file did not have. Every other section TYPES INTO a
+  // box; not one ever loaded a stored value OUT of the model and looked at the screen.
+  //
+  // 2026-09-04, Felix opened a member whose birthday IS on file (2000-02-02, confirmed in
+  // the database) and the Date of birth box was EMPTY. Not lost — the record was perfect.
+  // The x-effect that paints a stored value into the box had thrown
+  // `window.posBirthdateISO is not a function` during Alpine's first pass, because
+  // pos-keypad.js was DEFERRED BELOW alpine.min.js. An Alpine effect that throws on its
+  // first run never registers its dependencies and therefore never runs again — dead
+  // silently and permanently, for all five date fields and both time fields, from the day
+  // each shipped. Four errors in the console at load; nothing on any screen.
+  //
+  // So this section asserts the load path AND the console, because the console was
+  // shouting the answer the whole time and no proof was listening.
+  console.log('\n── K · a birthdate on file appears in the box ──');
+  const boot = [];
+  const onErr = (e) => boot.push(String(e.message || e).slice(0, 140));
+  p.on('pageerror', onErr);
+  await p.goto('http://localhost:3000/pos/customer-lookup', { waitUntil: 'load' });
+  await p.waitForTimeout(2200);
+  p.off('pageerror', onErr);
+  const helperErrs = boot.filter(m => /window\.pos[A-Za-z]* is not a function/.test(m));
+  check(helperErrs.length === 0,
+        'the page loads with no "window.pos… is not a function"',
+        helperErrs.join(' · ') + '  — an x-effect that throws on its first pass never runs again;'
+        + ' pos-keypad.js must be BEFORE alpine.min.js');
+
+  const probe = await p.evaluate(async () => {
+    const handle = 'ZZPROBE' + Date.now().toString().slice(-6);
+    try {
+      const r = await API.post('/api/v1/customers',
+        { handle: handle, birthdate: '2000-02-02', age_confirmed: true });
+      return { id: r.id, handle: r.handle };
+    } catch (e) { return { err: String(e && e.message || e) }; }
+  });
+  if (probe.err) {
+    check(false, 'a probe member with a birthdate could be created', probe.err);
+  } else {
+    const painted = await p.evaluate(async (id) => {
+      const d = Alpine.$data(document.querySelector('[x-data]'));
+      d.customer = { id: id };
+      await d.editCustomer();
+      await new Promise(r => setTimeout(r, 900));
+      const box = [...document.querySelectorAll('input[data-keypad="date"]')]
+        .find(e => e.closest('[x-show="showEditForm"]'));
+      return { model: d.editForm.birthdate, box: box ? box.value : null };
+    }, probe.id);
+    check(painted.model === '2000-02-02', 'the edit form loads the stored birthdate',
+          'editForm.birthdate is ' + JSON.stringify(painted.model) + ' — the API or the loader, not the box');
+    check(painted.box === '02.02.2000',
+          'and the BOX SHOWS 02.02.2000 — Swiss order, on the screen',
+          'the box reads ' + JSON.stringify(painted.box)
+          + ' while the record holds ' + JSON.stringify(painted.model)
+          + '  — a birthdate on file that reads as blank is one a cashier will re-ask for');
+    // Leave nothing behind. This runs against the dev database, but a probe row that
+    // survives is a row somebody can trip over.
+    await p.evaluate(async (id) => { try { await API.delete('/api/v1/customers/' + id); } catch (e) {} }, probe.id);
+  }
+
+  // Same class of check on the clock: My Day fills Start time from your login.
+  await p.goto('http://localhost:3000/pos/my-day', { waitUntil: 'load' });
+  await p.waitForTimeout(2000);
+  const clock = await p.evaluate(async () => {
+    const d = Alpine.$data(document.querySelector('[x-data]'));
+    d.form.start_time = '07:45';
+    await new Promise(r => setTimeout(r, 500));
+    const box = document.querySelector('input[placeholder="HH:MM"]');
+    return { model: d.form.start_time, box: box ? box.value : null };
+  });
+  check(clock.box === '07:45', 'a time set in the model appears in the time box too',
+        'the box reads ' + JSON.stringify(clock.box) + ' while the model holds '
+        + JSON.stringify(clock.model) + ' — the same dead-effect shape, on the clock');
+
   console.log('\n==========================================');
   console.log(`  ${pass} passed · ${fail} failed`);
   await b.close();

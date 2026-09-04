@@ -569,6 +569,63 @@ Three layers now, because one is not enough:
 
 ---
 
+## ⓗ THE DEAD EFFECT — EVERY DATE BOX HAS BEEN BLIND SINCE THE DAY IT SHIPPED — 2026-09-04
+
+*Felix, C1 of the third sheet: "i created K3 new member on the fly at checkout and entered a valid
+date age and when i go back after i see the date is blank, it never carried it though."*
+
+**The record was perfect.** `prod-query`: `k3 · birthdate 2000-02-02 · age_confirmed t`. The server
+stored exactly what he typed. **The Edit member modal renders it blank.**
+
+### The cause, and it is one line
+
+`pos-keypad.js` was `defer`-loaded **below** `alpine.min.js`. Deferred scripts run in document
+order, so Alpine initialised first and evaluated every `x-effect` — including the one that paints a
+stored date into its box — while `window.posBirthdateISO` did not yet exist. **An Alpine effect
+that throws on its first run never registers its dependencies, so it never runs again.** Silently,
+permanently dead. Four `window.posBirthdateISO is not a function` errors in the console on every
+page load, and nothing visible on any screen.
+
+That is **all five date fields and both time fields, from the day each shipped** — the 18+ age
+gate, member sign-up, member edit, both staff-card fields, and My Day's two clocks. None of them
+has ever displayed a value that was already on file.
+
+**The fix is the `<script>` tag moved above Alpine's.** Same shape as the CSS fix on 2026-09-03:
+two tags, source order, nothing else. The identity shims sitting right there
+(`window.posMoneyOnly = window.posMoneyOnly || …`) were the right instinct in the wrong place —
+they cover `@input`, which runs long after the deferred script has landed. Nothing can shim an
+effect that has already thrown.
+
+### Why nothing caught it
+
+**Every proof types INTO a box. Not one ever loaded a stored value OUT of the model and looked.**
+42 checks across `prove-swiss-dates.js` and the entire `@input` path was healthy the whole time,
+which is exactly why it hid — the field worked perfectly for the thing every test did to it.
+LESSON #1 in a new costume, and a new one worth writing down:
+
+> **The console was shouting the answer on every page load and no proof was listening.**
+
+`prove-swiss-dates.js` **38 → 42**, new section K: it asserts no `window.pos… is not a function`
+at load, creates a probe member with a birthdate, opens the edit form and asserts **the box shows
+`02.02.2000`**, then deletes the probe. Watched red by putting the script back below Alpine — it
+reported the four errors and `the box reads "" while the record holds "2000-02-02"`.
+
+### Also from that run
+
+- ⓗ1 **Catalog's Save stays green with an empty Price — and that is the design, not a bug.**
+  Felix: *"the notification is seen but a price is needed but save is still bright green???"* **My
+  sheet was wrong**, not the screen. Catalog deliberately validates on press and puts the refusal
+  in a red box **beside the button** — the pattern chosen on 2026-08-27 after Angel zoomed to 40%
+  hunting for a toast. A disabled button with no stated reason is worse than a live one that
+  explains when pressed. **Open question for Angel:** should validate-on-press screens grey the
+  button as well? Not changed unasked.
+- ⓗ2 **No sale was rung.** `ageSignup()` ends in `completeTransaction()`, and the sheet said not to
+  complete a sale — worth checking rather than assuming. `transactions` has **0 rows in the last
+  four hours**. The books are clean.
+- ⓗ3 Felix's D1: PASS. B4: *"the date input imho is fine"*.
+
+---
+
 ## 🔎 FOUND WHILE FIXING SOMETHING ELSE — 2026-09-02 late
 
 *Not blocking. Logged here rather than carried to Angel mid-run (standing rule: report less).*
