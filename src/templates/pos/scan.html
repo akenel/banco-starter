@@ -101,6 +101,7 @@
                             type="text" data-keypad="text"
                             x-model="searchInput"
                             x-ref="searchInputBox"
+                            @keyup.enter="scanIntoSearch()"
                             @input.debounce.300ms="searchProducts()"
                             placeholder="Type product name..."
                             data-i18n-placeholder="scan.ph_product_search"
@@ -458,8 +459,16 @@
                                     </p>
                                     <p class="text-lg font-bold text-indigo-600" x-text="formatPrice(product.price)"></p>
                                 </div>
+                                <!-- $el.blur() IS THE BUG FIX, not tidiness. Layla, 2026-09-04:
+                                     she searched, added a grinder, then scanned papers — and the
+                                     GRINDER went to quantity 8. A scanner gun is a keyboard: it
+                                     types the digits (which land nowhere, because a button holds
+                                     no value) and then sends ENTER, and Enter on a focused button
+                                     presses it again. Every scan added another grinder, silently,
+                                     with the right product never entering the cart at all.
+                                     She wrote "this is more my fault". It was not. -->
                                 <button
-                                    @click.stop="addToCart(product)"
+                                    @click.stop="addToCart(product); $el.blur(); $nextTick(() => $refs.searchInputBox && $refs.searchInputBox.focus())"
                                     class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-semibold">
                                     ➕ <span data-i18n="scan.add">Add</span>
                                 </button>
@@ -1781,6 +1790,21 @@
             // Four paths end a capture and only one of them got even half of this right. At a
             // queue that is a tap per customer, which is the kind of friction nobody reports as a
             // bug — they just decide the till is slow.
+            // A GUN SHOULD WORK WHEREVER YOU ARE STANDING. Focus lands in the search box
+            // after adding from a result list, so the next scan types its digits there and ends
+            // with ENTER. Treat a digits-only burst as what it plainly is — a barcode — and send
+            // it down the barcode path instead of leaving it sitting in a search field.
+            // Anything else on Enter is left alone: a person typing "cbd" and pressing Enter
+            // means "search", and the debounce has already done that.
+            scanIntoSearch() {
+                const q = String(this.searchInput || '').trim();
+                if (!/^\d{6,14}$/.test(q)) return;      // not a code; let the search stand
+                this.searchInput = '';
+                this.barcodeInput = q;
+                this.searchMode = 'barcode';
+                this.searchByBarcode();
+            },
+
             readyForNextScan() {
                 this.searchMode = 'barcode';
                 this.barcodeInput = '';        // BL-129: never let the next scan concatenate

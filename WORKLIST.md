@@ -840,6 +840,65 @@ line 1.
 
 ---
 
+## ⓛ THE GUN PRESSED THE BUTTON AGAIN — 2026-09-04, found by Layla
+
+*Triage sheet `2026-09-04-everything-still-open.html`, 6 pass · 5 issue · 3 fail. A1, which she
+wrote up as **"this is more my fault"**. It was not her fault. It is the worst bug found today.*
+
+**What she did:** searched, found a grinder, pressed **Add**, then went back to scanning papers.
+**What happened:** the GRINDER climbed to quantity 8 — CHF 120.00 — and not one packet of papers
+reached the cart.
+
+**Why.** The search-result Add button called `addToCart(product)` and nothing else, so **focus
+stayed on that button**. A scanner gun is a keyboard: it types the digits — which land nowhere,
+because a button holds no value — and then sends **ENTER**. Enter on a focused button presses it
+again. One scan, one more grinder. Silently, with no error and the right product never entering
+the cart.
+
+**This is a money bug**, and the failure mode is the dangerous direction: the customer is charged
+for eight of something they did not buy while the thing they DID buy is missing from the receipt.
+
+**Fixed two ways, because one was not enough:**
+1. The Add button blurs itself and returns the cursor to the search box. Enter can no longer
+   re-press it.
+2. `scanIntoSearch()` — a digits-only burst ending in Enter, typed into the search box, is treated
+   as what it plainly is and routed down the barcode path. **A gun should work wherever the
+   cashier happens to be standing.** Anything that is not 6–14 digits is left alone: typing `cbd`
+   and pressing Enter still means search.
+
+Measured, reproducing her exact sequence with a simulated gun: after Add, focus is the search
+input (was: the button); after three scans the grinder stays at **×1** where it would have been
+×4.
+
+### ⓛ1 The same defect on Order Book — also hers
+
+*"after you press Add to order book IMHO the re-focus should be the ITEM scan input box — the
+focus is lost after Add to Order Book."* Identical shape: the button keeps focus, and someone
+walking the floor with a gun adds a row they did not mean to. `add()` now ends by putting the
+cursor back in the item box.
+
+### Still open from that run — and one of her PASSes does not count
+
+- ⓛ2 **A3's PASS is not valid evidence.** She ran the whole sheet **with the folio keyboard
+  attached**, so Banco's on-screen pad never appeared — and A3 is the step about the pad burying
+  the search results. It needs re-running with the folio OFF. Her PASS says nothing about the bug.
+- ⓛ3 **A5, her suggestion:** the whole *Find Product* block — Barcode / Search / New item, the
+  input and the category picker — scrolls away when the results list is long. She asks for the
+  same sticky treatment the cart total got. Coherent, and the same reasoning: the controls you
+  reach for constantly should not move.
+- ⓛ4 **B5:** the invalid-time warning is on screen but sits low enough that she wants it *"pulled
+  up a little higher so the warning is fully readable"*. LESSON #12 again, one notch finer.
+- ⓛ5 **B3:** Cleanup no longer truncates mid-word (that one is GONE) — but the dates on that
+  screen are in the wrong format too. Another instance of ⓚ/1.2, on a screen not yet counted.
+- **Confirmed still open, exactly as listed:** A2 (mm/dd date filters), B1 (Keycloak role names),
+  B2 (login toast on the user chip), B6 (KB reachable only by typing a URL — she proved it from a
+  laptop).
+- **C1–C5 all PASS.** The nine fixes of the day work together in one continuous sale, including
+  four of them stacked in the single 18+ birthdate box. Her words: *"generally pretty good — some
+  minor issues but no show stoppers."*
+
+---
+
 ## 🔎 FOUND WHILE FIXING SOMETHING ELSE — 2026-09-02 late
 
 *Not blocking. Logged here rather than carried to Angel mid-run (standing rule: report less).*

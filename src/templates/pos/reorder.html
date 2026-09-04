@@ -52,7 +52,7 @@
                          onItemEnter() spots an all-digit barcode and looks it up; otherwise Enter/typing
                          just searches by name. So scan OR type both add an item. -->
                     <div class="flex gap-2">
-                        <input type="text" data-keypad="text" x-model="form.title" list="reorder-products" @input="onTitleInput()"
+                        <input type="text" data-keypad="text" x-model="form.title" x-ref="itemBox" list="reorder-products" @input="onTitleInput()"
                                @keyup.enter="onItemEnter()"
                                placeholder="Scan a barcode, or type a product name"
                                data-i18n-placeholder="reorder.item_ph" class="input-field flex-1"
@@ -396,6 +396,16 @@
                     this.productMatches = [];
                     showToast(t('reorder.toast_added') || 'Added to Order Book', 'success');
                     await this.load();
+                    // EVERY CAPTURE ENDS READY FOR THE NEXT ONE. Layla, 2026-09-04: "after you
+                    // press Add to order book IMHO the re-focus should be the ITEM scan input box
+                    // — the focus is lost after Add to Order Book."
+                    //
+                    // Same family as the bug she found an hour earlier on the scan screen, where
+                    // focus stayed on a result's Add button and the gun's ENTER pressed it again.
+                    // Here the button keeps focus too; walking the floor with a gun, that is a
+                    // row you did not mean to add. Put the cursor back in the item box, which is
+                    // where the next thing a person does begins.
+                    this.$nextTick(() => this.$refs.itemBox && this.$refs.itemBox.focus());
                 } catch (e) {
                     showToast((t('reorder.toast_add_failed') || 'Could not add') + ': ' + e.message, 'error');
                 } finally {
