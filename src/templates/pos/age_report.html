@@ -43,8 +43,8 @@
       </h2>
       <p class="text-gray-600">
         <span data-i18n="agerep.period">Period</span>:
-        <span class="font-semibold" x-text="data.from"></span> —
-        <span class="font-semibold" x-text="data.to"></span>
+        <span class="font-semibold" x-text="formatDate(data.from)"></span> —
+        <span class="font-semibold" x-text="formatDate(data.to)"></span>
       </p>
     </div>
 
@@ -229,11 +229,16 @@
       reasonLabel(r) {
         return r.reason ? t('agerep.reason_' + r.reason) : (r.note || '—');
       },
+      // `toLocaleString(undefined, …)` IS the browser's locale — the same bug as calling it with
+      // no argument at all, wearing an explicit first argument so it reads as deliberate. Layla
+      // photographed the result at 21:36 on the tablet: this table, which has a Print button and
+      // is the shop's 18+ COMPLIANCE RECORD, printing `09/04/2026, 11:53 AM`. American order and
+      // a 12-hour clock, on a Swiss document that cannot be edited or deleted by anyone.
+      // formatDateTime() is the seam; the options carry over unchanged.
       when(iso) {
         try {
-          const d = new Date(iso);
-          return d.toLocaleString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric',
-                                               hour: '2-digit', minute: '2-digit' });
+          return formatDateTime(iso, { day: '2-digit', month: '2-digit', year: 'numeric',
+                                       hour: '2-digit', minute: '2-digit' });
         } catch (e) { return iso; }
       },
     };

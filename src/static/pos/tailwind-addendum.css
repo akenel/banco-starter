@@ -3,7 +3,7 @@
    Loaded immediately AFTER tailwind.css so these sit with the other utilities:
    above Banco's base classes, below nothing. Regenerate after adding new classes,
    and scripts/prove-classes-exist.js fails the build if you forget.
-   151 rules. */
+   156 rules. */
 
 .\!p-0 { padding: 0px !important; }
 .-translate-x-1\/2 { --tw-translate-x: -50%; transform: translate(var(--tw-translate-x), var(--tw-translate-y, 0)); }
@@ -15,6 +15,7 @@
 .bg-black\/20 { background-color: rgb(0 0 0 / 0.2); }
 .bg-black\/25 { background-color: rgb(0 0 0 / 0.25); }
 .bg-black\/55 { background-color: rgb(0 0 0 / 0.55); }
+.bg-blue-300 { background-color: rgb(147 197 253); }
 .bg-cyan-900 { background-color: rgb(22 78 99); }
 .bg-emerald-500\/20 { background-color: rgb(16 185 129 / 0.2); }
 .bg-emerald-500\/25 { background-color: rgb(16 185 129 / 0.25); }
@@ -128,10 +129,14 @@
 .px-8 { padding-left: 2rem; padding-right: 2rem; }
 .ring-amber-300 { --tw-ring-color: rgb(252 211 77); }
 .ring-amber-400 { --tw-ring-color: rgb(251 191 36); }
+.ring-blue-700 { --tw-ring-color: rgb(29 78 216); }
 .ring-emerald-300 { --tw-ring-color: rgb(110 231 183); }
+.ring-gray-500 { --tw-ring-color: rgb(107 114 128); }
 .ring-green-400 { --tw-ring-color: rgb(74 222 128); }
+.ring-green-700 { --tw-ring-color: rgb(21 128 61); }
 .ring-indigo-400 { --tw-ring-color: rgb(129 140 248); }
 .ring-red-400 { --tw-ring-color: rgb(248 113 113); }
+.ring-yellow-700 { --tw-ring-color: rgb(161 98 7); }
 .rounded-3xl { border-radius: 1.5rem; }
 /* .sheet — a marker class, no declarations by design */
 @media (min-width: 640px) { .sm\:gap-8 { gap: 2rem; } }

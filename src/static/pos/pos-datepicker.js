@@ -114,19 +114,11 @@
     return isoOf(n.getFullYear(), n.getMonth(), n.getDate());
   }
 
+  /* `.pos-datefield` and `.pos-cal-btn` are NOT here — they are in base.html's <style>.
+     They are the only two classes a TEMPLATE writes, and prove-classes-exist.js censuses
+     the markup against the stylesheets: a class injected from JavaScript is invisible to
+     it and gets reported as dead. Everything below is named only by this file. */
   var CSS = ''
-    /* The field + its button. `position:relative` on a wrapper that contains
-       ONLY the input, so nothing else on the page inherits a positioning
-       context it did not ask for. */
-    + '.pos-datefield{position:relative;display:block}'
-    + '.pos-datefield>input{padding-right:2.9rem}'
-    + '.pos-cal-btn{position:absolute;right:3px;top:3px;bottom:3px;width:2.4rem;'
-    + 'display:flex;align-items:center;justify-content:center;'
-    + 'border:0;border-radius:.4rem;background:transparent;cursor:pointer;'
-    + 'font-size:1.15rem;line-height:1;padding:0;color:#334155;'
-    + '-webkit-tap-highlight-color:transparent;touch-action:manipulation}'
-    + '.pos-cal-btn:hover{background:#eef2ff}'
-    + '.pos-cal-btn:active{background:#c7d2fe}'
     /* The popover. z-index 95: above the keypad (60) and the feedback bubble
        (70), below the leave guard (9999) — losing half a counted drawer to a
        calendar would be a poor trade. */

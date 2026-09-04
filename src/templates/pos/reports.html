@@ -19,7 +19,7 @@
                 <button @click="window.location.href='/pos/age-report'" class="btn-secondary" data-i18n="reports.age_report">🔞 18+ Record</button>
             </div>
         </div>
-        <p class="text-gray-600 mb-6"><span data-i18n="reports.today_dash">Today &mdash;</span> <span class="font-semibold" x-text="summary.date"></span></p>
+        <p class="text-gray-600 mb-6"><span data-i18n="reports.today_dash">Today &mdash;</span> <span class="font-semibold" x-text="formatDate(summary.date)"></span></p>
 
         <!-- Top KPI cards -->
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">

@@ -170,14 +170,41 @@
                  minus the member's earned rate) are disabled so the combined total can't exceed the cap. -->
             <div class="mb-6">
                 <h2 class="text-xl font-semibold text-gray-900 mb-4">🏷️ <span data-i18n="checkout.discount">Discount</span></h2>
+                <!-- THE ROW HAS TO SAY WHAT IS ACTUALLY BEING CHARGED. Layla, 2026-09-04:
+                     "Target Total sets 15.25% and None / 5% / 10% / 15% / Custom shows nothing
+                     selected. A cashier cannot tell what the customer is being charged."
+
+                     She is right and it was two faults stacked. First, a discount that arrives
+                     from the cart screen's **Target Total** is almost never a round number —
+                     15.25% is what "make it CHF 40.00" works out to — so it matches no preset
+                     and, with only equality tests here, the row went blank. A control that shows
+                     nothing selected reads as "no discount", which is the opposite of the truth
+                     and the one thing a customer is standing there waiting to hear.
+
+                     Second, the tests were `discount === 5` — STRICT, against a value that has
+                     been through parseFloat, sessionStorage and a text input on its way here. A
+                     plain "5" out of storage would have failed to light the 5% chip too. pct()
+                     coerces once, in one place.
+
+                     So the Custom chip now carries the live figure and lights up whenever the
+                     applied discount is not one of the presets. The number on the button is the
+                     number on the receipt. -->
                 <div class="grid grid-cols-3 md:grid-cols-5 gap-3">
-                    <button @click="applyDiscount(0)" :class="discount === 0 ? 'bg-gray-300' : 'bg-gray-100'" class="btn-secondary py-3" data-i18n="checkout.none">None</button>
-                    <button @click="applyDiscount(5)" :disabled="5 > manualCap()" :class="discount === 5 ? 'bg-green-300' : (5 > manualCap() ? 'bg-gray-100 opacity-40 cursor-not-allowed' : 'bg-green-100')" class="btn-secondary py-3">5%</button>
-                    <button @click="applyDiscount(10)" :disabled="10 > manualCap()" :class="discount === 10 ? 'bg-green-300' : (10 > manualCap() ? 'bg-gray-100 opacity-40 cursor-not-allowed' : 'bg-green-100')" class="btn-secondary py-3">10%</button>
-                    <button @click="applyDiscount(15)" :disabled="15 > manualCap()" :class="discount === 15 ? 'bg-yellow-300' : (15 > manualCap() ? 'bg-gray-100 opacity-40 cursor-not-allowed' : 'bg-yellow-100')" class="btn-secondary py-3">15%</button>
-                    <button @click="customDiscount()" class="btn-secondary py-3 bg-blue-100" data-i18n="checkout.custom">Custom</button>
+                    <button @click="applyDiscount(0)" :class="pct() === 0 ? 'bg-gray-300 ring-2 ring-gray-500' : 'bg-gray-100'" class="btn-secondary py-3" data-i18n="checkout.none">None</button>
+                    <button @click="applyDiscount(5)" :disabled="5 > manualCap()" :class="pct() === 5 ? 'bg-green-300 ring-2 ring-green-700' : (5 > manualCap() ? 'bg-gray-100 opacity-40 cursor-not-allowed' : 'bg-green-100')" class="btn-secondary py-3">5%</button>
+                    <button @click="applyDiscount(10)" :disabled="10 > manualCap()" :class="pct() === 10 ? 'bg-green-300 ring-2 ring-green-700' : (10 > manualCap() ? 'bg-gray-100 opacity-40 cursor-not-allowed' : 'bg-green-100')" class="btn-secondary py-3">10%</button>
+                    <button @click="applyDiscount(15)" :disabled="15 > manualCap()" :class="pct() === 15 ? 'bg-yellow-300 ring-2 ring-yellow-700' : (15 > manualCap() ? 'bg-gray-100 opacity-40 cursor-not-allowed' : 'bg-yellow-100')" class="btn-secondary py-3">15%</button>
+                    <button @click="customDiscount()" :class="isCustomPct() ? 'bg-blue-300 ring-2 ring-blue-700 font-bold' : 'bg-blue-100'" class="btn-secondary py-3">
+                        <span x-show="!isCustomPct()" data-i18n="checkout.custom">Custom</span>
+                        <span x-show="isCustomPct()" x-text="pctLabel()" style="display:none"></span>
+                    </button>
                 </div>
-                <p class="text-sm text-gray-500 mt-2">💡 <span x-text="t('checkout.your_max_note', {n: manualCap()})"></span></p>
+                <!-- AND THE CEILING IS ONLY WORTH SAYING WHEN THERE IS ONE. Same report: "Your max
+                     discount: 100%" is developer copy on a cashier's screen — an owner has no cap,
+                     so the line was announcing the absence of a limit. It now speaks like a person
+                     and only appears to someone who actually has a ceiling, which is the rule
+                     scan.html has used for its own version of this line all along. -->
+                <p x-show="manualCap() < 100" class="text-sm text-gray-500 mt-2" style="display:none">💡 <span x-text="t('checkout.your_max_note', {n: manualCap()})"></span></p>
             </div>
 
             <!-- Price Breakdown -->
@@ -874,6 +901,30 @@
             // on top automatically (uncapped by role). Cashier 15 / manager 70 / owner 100.
             manualCap() {
                 return this.maxDiscount;
+            },
+
+            // ONE COERCION, IN ONE PLACE. `discount` reaches this screen from three directions —
+            // applyDiscount() (a number), the custom modal via parseFloat, and sessionStorage
+            // (where JSON round-trips it, and where a "5" typed into the till's own percent box
+            // survives as a string). Every chip used to test it with ===, so any of those could
+            // silently light nothing.
+            pct() {
+                const n = Number(this.discount);
+                return Number.isFinite(n) ? n : 0;
+            },
+            // A discount that no preset button represents — which is what Target Total produces
+            // nearly every time, because "make it CHF 40.00" is not a round percentage.
+            isCustomPct() {
+                const n = this.pct();
+                return n > 0 && n !== 5 && n !== 10 && n !== 15;
+            },
+            // ONE NUMBER, ONE RENDERING. The first version used toFixed(2) and the chip read
+            // "16.50%" three centimetres above a breakdown line reading "16.5%" — two
+            // renderings of one fact, which is how a screen ends up arguing with itself. The
+            // breakdown prints Number(discount), so this does too; 15.25% keeps both decimals
+            // because the number has them, and 20% does not grow any it does not.
+            pctLabel() {
+                return this.pct() + '%';
             },
 
             applyDiscount(percent) {

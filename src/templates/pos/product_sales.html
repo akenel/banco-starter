@@ -317,9 +317,15 @@
                 }
             },
 
+            // Layla found this one on the tablet, step D1, 2026-09-04 21:29: "i did see a date
+            // format issue on sales report". The FILTERS on this screen were fixed an hour
+            // earlier and this line was not — it printed the raw ISO `2026-09-04` on screen, on
+            // the printed report and into BOTH csv exports, while its identical twin on
+            // transactions.html has gone through formatDate() all along. Standing rule 9 for the
+            // third time in one night: the sibling was one file away.
             rangeLabel() {
-                if (this.dateFrom === this.dateTo) return this.dateFrom;
-                return `${this.dateFrom}${t('product_sales.date_range_to')}${this.dateTo}`;
+                if (this.dateFrom === this.dateTo) return formatDate(this.dateFrom);
+                return `${formatDate(this.dateFrom)}${t('product_sales.date_range_to')}${formatDate(this.dateTo)}`;
             },
             fmtTime(t) { return t ? formatDateTime(t, { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : ''; },
 

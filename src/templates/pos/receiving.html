@@ -150,7 +150,7 @@
                     <div x-show="slip.delivery_note_no || slip.supplier" style="display:none;"
                          class="bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 text-sm text-emerald-800">
                         📄 <span data-i18n="receiving.from_slip">From delivery slip</span>:
-                        <b x-show="slip.supplier" x-text="slip.supplier"></b><template x-if="slip.delivery_note_no"><span> · <span x-text="slip.delivery_note_no"></span></span></template><template x-if="slip.date"><span> · <span x-text="slip.date"></span></span></template>
+                        <b x-show="slip.supplier" x-text="slip.supplier"></b><template x-if="slip.delivery_note_no"><span> · <span x-text="slip.delivery_note_no"></span></span></template><template x-if="slip.date"><span> · <span x-text="formatDate(slip.date)"></span></span></template>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1"><span data-i18n="receiving.delivery_note">Delivery note</span> <span class="text-gray-400 font-normal" data-i18n="receiving.optional">(optional)</span></label>
@@ -360,7 +360,7 @@
                     <p class="text-sm text-gray-500 mt-1">
                         <span x-show="slip.supplier" x-text="slip.supplier"></span>
                         <span x-show="slip.delivery_note_no"> · <span x-text="slip.delivery_note_no"></span></span>
-                        <span x-show="slip.date"> · <span x-text="slip.date"></span></span>
+                        <span x-show="slip.date"> · <span x-text="formatDate(slip.date)"></span></span>
                     </p>
                     <p class="text-xs mt-1 font-semibold" :class="slipMatchedCount === (slip.lines||[]).length ? 'text-emerald-600' : 'text-amber-600'"
                        x-text="t('receiving.slip_matched_of', {n: slipMatchedCount, total: (slip.lines||[]).length})"></p>

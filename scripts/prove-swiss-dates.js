@@ -598,25 +598,109 @@ const PAGES = [
   // since the i18n work (formatDate/formatTime/formatDateTime, keyed off _cfg('locale')).
   // A grep, not a render: the call is wrong before anything draws it.
   console.log('\n── N · every date on screen goes through the shop\'s locale seam ──');
+  // THE FIRST VERSION OF THIS CHECK LOOKED FOR EMPTY PARENTHESES, and that is not the bug —
+  // it is one spelling of the bug. `toLocaleString(undefined, {...})` is the browser's locale
+  // with an explicit-looking argument sitting in front of it, and it was on the 18+ COMPLIANCE
+  // RECORD, which has a Print button. Layla photographed it printing `09/04/2026, 11:53 AM`
+  // twenty minutes after this file went green. So the rule is now about the CALL, not its
+  // punctuation: a POS template may not reach for toLocale*String at all. The three seam
+  // functions in base.html are the only legitimate callers in the app.
   const bare = [];
   for (const f of fs.readdirSync(dir).filter(f => f.endsWith('.html'))) {
     const body = fs.readFileSync(path.join(dir, f), 'utf8');
-    // Bare = no argument at all. `toLocaleDateString(_cfg('locale'))` is the seam itself.
-    const hits = (body.match(/toLocale(Date|Time)?String\(\s*\)/g) || []);
-    // .toLocaleString() on a NUMBER is thousands separators, not a date — Cleanup counts
-    // gaps with it. Only flag the ones that follow a Date.
-    const dateHits = (body.match(/(new Date\([^)]*\)|Date\.\w+\([^)]*\))\s*\.toLocale(Date|Time)?String\(\s*\)/g) || []);
-    if (dateHits.length) bare.push(f + ': ' + dateHits.join(' · '));
-    void hits;
+    for (const m of body.matchAll(/[\w.$)\]]+\s*\.toLocale(Date|Time)?String\s*\(([^)]*)/g)) {
+      const recv = body.slice(Math.max(0, m.index - 40), m.index);
+      // A number formatted for thousands separators is not a date — Cleanup counts gaps that
+      // way. Only the calls that sit on something date-shaped are this file's business.
+      if (!/Date|iso|_at|\bwhen\b|d\s*$|\.date/i.test(recv + m[0])) continue;
+      // The capture stops at the first ')', so `_cfg('locale')` arrives here WITHOUT its
+      // closing paren — matching on the whole call is how this check accused its own seam
+      // on the first run.
+      if (f === 'base.html' && /_cfg\('locale'/.test(m[2])) continue;   // the seam itself
+      bare.push(f + ':' + (body.slice(0, m.index).split('\n').length) + '  ' + m[0].trim().slice(0, 70));
+    }
   }
   check(bare.length === 0, 'no POS template formats a date without saying whose locale it is',
         bare.join('\n       ') + ' — use formatDate(), the seam base.html already has');
+
+  // AND THE OTHER HALF OF THE SAME CLASS: a date that goes to the screen with NO formatter at
+  // all. Layla photographed this one at 21:33 on the tablet, twelve minutes after passing the
+  // filters on the very same report: Sales Reports printing `Today — 2026-09-04`. The check
+  // above could never have caught it, because there is no toLocale call to find — the server
+  // hands over an ISO string and the template renders it as text. Four more sat with it: the
+  // day-end summary on screen AND on the printed document, and the delivery slip's date twice
+  // in one file.
+  //
+  // The rule: an x-text that names a date-ish field has to go through a formatter. String
+  // literals are stripped first, or an i18n KEY called `mytickets.updated_at` reads as a date
+  // field and the check accuses a line that is already correct — which it did on its first run.
+  const ALLOW = /format(Date|Time|DateTime)|fmt\(|fmtTime|timeAgo|prettyDate|histDate|shortDate|rangeLabel|posISOToDate|Label\(/;
+  const FIELD = /(?<![A-Za-z])(date|since|until)\b|_at\b/;
+  const raw = [];
+  for (const f of fs.readdirSync(dir).filter(f => f.endsWith('.html'))) {
+    const body = fs.readFileSync(path.join(dir, f), 'utf8');
+    for (const m of body.matchAll(/x-text="([^"]+)"/g)) {
+      const expr = m[1].replace(/'[^']*'/g, "''").replace(/`[^`]*`/g, '``');
+      if (FIELD.test(expr) && !ALLOW.test(expr)) {
+        raw.push(f + ':' + (body.slice(0, m.index).split('\n').length) + '  ' + m[1].slice(0, 80));
+      }
+    }
+  }
+  check(raw.length === 0, 'no POS template renders a raw date straight to the screen',
+        raw.join('\n       ') + ' — an ISO string on a Swiss till is the same bug as mm/dd/yyyy,'
+        + ' and it reaches the PRINTED documents too');
 
   // ── O · THE GRID OPENS ON THE SCREEN, AND POINTING AT A DAY MOVES THE FILTER ─────────
   // The half a mask cannot do. And "it opened" is not the claim — LESSON #12: the claim is
   // that it is INSIDE THE RECTANGLE the person is looking at, which is
   // getBoundingClientRect() against innerHeight. This repo has shipped a refusal at y=1372
   // in a 1050px viewport with isVisible() true throughout.
+  // ── N2 · AND THEN READ THE RENDERED PAGE, THE WAY LAYLA DID ─────────────────────────
+  // Every check above this line is a grep. Greps found six of tonight's dates and missed five,
+  // because a grep can only look for a shape somebody thought of: `data.from` rendered raw is
+  // not a name any heuristic flags, and `toLocaleString(undefined, …)` did not match the
+  // pattern written an hour earlier. Layla found both in a minute by LOOKING AT THE SCREEN.
+  //
+  // So this one looks at the screen. On every report a person reads or prints, no American
+  // date and no 12-hour clock may appear in the rendered text — whatever produced it. It is
+  // the only check here that does not care HOW the string was made, which is exactly why it
+  // catches the ones the others cannot.
+  console.log('\n── N2 · no American date, and no AM/PM, on a rendered report ──');
+  const READS = [
+    ['/pos/reports',            'Sales Reports'],
+    ['/pos/reports/products',   'Product Sales'],
+    ['/pos/transactions',       'Transaction History'],
+    ['/pos/age-report',         'the 18+ record (it has a Print button)'],
+    ['/pos/closeout',           'the day-end summary'],
+    ['/pos/audit',              'Audit'],
+    ['/pos/cleanup',            'Cleanup'],
+  ];
+  // A SWISS DATE HAS DOTS. That is the tell this harness can actually see, and it is a
+  // stronger one than "is it mm/dd" — measured while breaking this on purpose: with the bug
+  // put back, headless Chromium rendered the compliance record as `03/09/2026, 19:29`. Day
+  // first, 24-hour, and still wrong, because the locale it fell back to is not the shop's.
+  // Hunting for mm/dd specifically would have called that a pass.
+  const SLASHED = /\b\d{1,2}\/\d{1,2}\/\d{4}\b/;
+  // AND THE AM/PM HALF CANNOT GO RED IN HERE (LESSON #6, already written into this file for
+  // the clock). Headless Chromium renders 24-hour whatever locale it falls back to, so this
+  // harness is structurally incapable of producing the symptom Layla photographed. It stays
+  // as a backstop against a 12-hour string arriving in the DATA or the i18n catalogue — but
+  // it is not evidence, and a green here must never be quoted as one.
+  const AMPM    = /\b\d{1,2}:\d{2}(:\d{2})?\s?(AM|PM)\b/;
+  for (const [url, label] of READS) {
+    await p.goto('http://localhost:3000' + url, { waitUntil: 'load' });
+    await p.waitForTimeout(2200);
+    const seen = await p.evaluate(() => document.body.innerText);
+    // A page that rendered nothing passes every content check ever written (section B's lesson).
+    check(seen.length > 200, `${label} (${url}) rendered something to read`,
+          'the page produced ' + seen.length + ' characters');
+    const us = seen.match(SLASHED), ap = seen.match(AMPM);
+    check(!us, `${label} shows no slashed date — a Swiss date has dots`,
+          us ? `found "${us[0]}" on the screen — and this page can be PRINTED` : '');
+    check(!ap, `${label} shows no 12-hour clock  (backstop only — see the note above)`,
+          ap ? `found "${ap[0]}" — a Swiss record does not say AM` : '');
+  }
+
   console.log('\n── O · the month grid, on Transaction History ──');
   await p.goto('http://localhost:3000/pos/transactions', { waitUntil: 'load' });
   await p.waitForTimeout(2000);

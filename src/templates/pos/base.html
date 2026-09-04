@@ -257,6 +257,26 @@
            does literally what she asked for. */
         .pos-bad-hint { color: #b91c1c; font-size: .8125rem; margin-bottom: .25rem; }
 
+        /* The date field's 📅 handle. THESE TWO LIVE HERE, not in pos-datepicker.js with the
+           rest of the calendar's CSS, and the difference is not taste: these are the only two
+           the TEMPLATES write, and scripts/prove-classes-exist.js censuses the markup against
+           the stylesheets. A class injected from JavaScript is invisible to it, so it reported
+           both as "written in the markup and has NO RULE ANYWHERE" — which is the exact fault
+           that class census exists to catch (131 dead classes on 2026-09-04, including the
+           login gradient that put Felix's shop name in white on near-white for two days). The
+           popover's own classes stay in the JS: nothing in a template ever names them. */
+        .pos-datefield { position: relative; display: block; }
+        .pos-datefield > input { padding-right: 2.9rem; }
+        .pos-cal-btn {
+            position: absolute; right: 3px; top: 3px; bottom: 3px; width: 2.4rem;
+            display: flex; align-items: center; justify-content: center;
+            border: 0; border-radius: .4rem; background: transparent; cursor: pointer;
+            font-size: 1.15rem; line-height: 1; padding: 0; color: #334155;
+            -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+        }
+        .pos-cal-btn:hover  { background: #eef2ff; }
+        .pos-cal-btn:active { background: #c7d2fe; }
+
         /* Card styling — real CSS (@apply is dead in this plain <style>) */
         .card {
             background-color: #fff;
