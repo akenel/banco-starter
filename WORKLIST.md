@@ -60,14 +60,23 @@ moved to [`worklist-archive/2026-09-05-archive-pass.md`](worklist-archive/2026-0
    on 2 September and was backed out the same evening.** That is the third independent record that
    kiosk was tried and rejected, and it belongs with item 4 below.
 
-4. **The counter visit** — ⓞ below. Everything this week was proved in a flat.
-   **And the window-drag bug is still open**, with the obvious answer now ruled out in writing:
-   `--kiosk` HIDES GNOME's bar, which takes the battery indicator with it, which is why people reach
-   for the top-right corner and drag. Kiosk is the cause of Layla's symptom, not the cure — it is
-   written in `banco-till.service` on the tablet and I overrode it at 00:12 and put the machine in a
-   **48-restart loop**. See `onboarding/21-supported-hardware.md`, which now carries the reasoning.
-   Next thing to try, **on the machine before it goes in any script**: a GNOME window rule that keeps
-   it maximised, or an undecorated window from the compositor rather than from Chromium.
+4. **The counter visit — PREPPED, two sheets ready, needs the trip.** 2026-09-05.
+   [`2026-09-05-standing-where-layla-stands.html`](onboarding/testsheets/2026-09-05-standing-where-layla-stands.html)
+   — 21 steps: light, reach, their wifi at the counter, the gun on their surface, noise. No sale.
+   [`2026-09-05-four-real-sales.html`](onboarding/testsheets/2026-09-05-four-real-sales.html)
+   — 18 steps, and **the one sheet where the payment button IS pressed.** Same trip, second.
+   Everything that could be settled from here has been: real barcodes verified through the shop's
+   own endpoint, VAT confirmed **inclusive** (`tax = total × 8.10 ÷ 108.10`, exact on five past
+   sales), and the pack-deal figures taken from the shop's own pricing function rather than read
+   off the JSON — **3 → CHF 5.00, 4 → CHF 7.00 (not 6.67)**, which is Ralph's whole-packs rule and
+   has never been checked on a stored record.
+   **Nothing has completed a sale on this build.** Last transaction on the box: 2026-08-21, 50 ago.
+   **And the window-drag bug rides along**, with kiosk now ruled out THREE ways: the note in
+   `banco-till.service`, my 48-restart loop at 00:12, and Angel's own
+   `~/.config/autostart/banco.desktop.pre-kioskfix` (2 Sep 17:36, `chromium --kiosk`), backed out
+   63 minutes later. Next thing to try, on the machine: a GNOME rule that keeps it maximised, or an
+   undecorated window from the compositor rather than from Chromium.
+
 5. **⚠️ ESTABLISH ONE FACT BEFORE THE FELIX MEETING: does the shop have a Worldline terminal at the
    counter TODAY, or does it arrive with go-live?** It decides the payment-button question below —
    if the terminal is already there its settlement IS the card breakdown; if not, the paper
