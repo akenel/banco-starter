@@ -163,10 +163,18 @@ def baseline_check(counted, baseline, expected=None, fraction=BASELINE_GUARD_FRA
         return {"off_baseline": False, "reference": None, "reference_is": None, "counted": cnt}
     ref = money(ref)
     allowed = money(ref * money(fraction))
+    # reference_is stays an English phrase for anything already reading it; reference_is_key
+    # is the machine-readable twin, added 2026-09-05 so the CLIENT can build this sentence in
+    # the reader's language and through the money seam. The server-built message was English
+    # under a translated title ("È corretto?" then "The box should hold around…"), and its
+    # amounts were raw Decimals — CHF 1216.90 where every other figure on that screen reads
+    # CHF 1'216.90. Angel caught both in a screenshot of the morning open.
     return {"off_baseline": abs(cnt - ref) > allowed,
             "reference": ref,
             "reference_is": ("last night's reconcile" if expected is not None
                              else "the configured baseline"),
+            "reference_is_key": ("last_reconcile" if expected is not None
+                                 else "configured_baseline"),
             "counted": cnt, "allowed_gap": allowed}
 
 

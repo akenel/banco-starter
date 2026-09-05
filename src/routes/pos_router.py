@@ -11088,6 +11088,9 @@ async def open_cash_shift(
                         f"({guard['reference_is']}). You counted {currency} "
                         f"{guard['counted']}. Is that right?"),
             "reference": str(guard["reference"]), "reference_is": guard["reference_is"],
+            # the client rebuilds this sentence from these three, translated + money-formatted;
+            # `message` above stays as the fallback for anything that cannot.
+            "reference_is_key": guard.get("reference_is_key"),
             "counted": str(guard["counted"]),
         })
 

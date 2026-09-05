@@ -75,7 +75,15 @@
             <div x-show="openGuard" style="display:none"
                  class="mb-4 rounded-lg border-2 border-amber-400 bg-amber-50 p-4">
                 <p class="font-semibold text-amber-900 mb-1">⚠️ <span data-i18n="shift.guard_title">Is that right?</span></p>
-                <p class="text-sm text-amber-800" x-text="openGuard && openGuard.message"></p>
+                <!-- BUILT HERE, NOT ON THE SERVER. `openGuard.message` is an English sentence
+                     with raw Decimals in it, so an Italian till showed "È corretto?" — the title
+                     IS translated — over "The box should hold around CHF 1216.90…", in English,
+                     with no thousands apostrophe while every other figure on the screen reads
+                     CHF 1'216.90. Angel caught both in one screenshot of the morning open,
+                     2026-09-05. The server already sent the three parts separately; now they go
+                     through t() and formatPrice(). `.message` stays as the fallback for an older
+                     server that does not send reference_is_key. -->
+                <p class="text-sm text-amber-800" x-text="guardMessage()"></p>
                 <div class="flex gap-2 mt-3">
                     <button @click="openDrawer(true)" :disabled="processing"
                             class="btn-primary flex-1" data-i18n="shift.guard_yes">Yes, that's what's in it</button>
@@ -496,6 +504,18 @@ function shiftData() {
         DENOMS: [],
         openCounts: {},
         openGuard: null,       // §6: the "is that right?" prompt (a guard, never a lock)
+        // See the comment on the guard box above.
+        guardMessage() {
+            const g = this.openGuard;
+            if (!g) return '';
+            if (!g.reference_is_key || typeof t !== 'function') return g.message || '';
+            const src = t('shift.guard_src_' + g.reference_is_key);
+            return t('shift.guard_body', {
+                ref: formatPrice(this.num(g.reference)),
+                source: src,
+                counted: formatPrice(this.num(g.counted)),
+            });
+        },
         openReveal: null,      // the morning reveal — shown ONLY after a count is submitted
         openNote: '',          // explanation of the morning difference, filed vs yesterday
         openedWith: null,      // the open response, so the reveal stays visible all day
