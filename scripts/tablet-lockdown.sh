@@ -86,6 +86,18 @@
 set -euo pipefail
 
 INSTALLED=/usr/local/sbin/banco-counter-lockdown
+# Where the copy lands in the far end's $HOME before sudo moves it to $INSTALLED.
+# A bare filename on purpose: scp resolves a relative target against the remote home,
+# and the ssh line below says "$HOME/$STAGE" for the same file.
+#
+# 2026-09-05: this was USED TWICE AND DEFINED NOWHERE, so with `set -u` every --push
+# died at the first line that mentions it:
+#     ./scripts/tablet-lockdown.sh: line 132: STAGE: unbound variable
+# The two-step scp/ssh rewrite the night before fixed the no-terminal FAILURE path and
+# broke the SUCCESS path, and nothing ran the success path — it needs a real terminal, a
+# reachable tablet and a sudo password, so it sat unexercised until Angel typed it.
+# Hence --dry-run below: the wiring can now be checked without any of those three.
+STAGE=.banco-lockdown-push.sh
 UNIT=/etc/systemd/system/banco-lockdown.service
 QUIET=0
 # ── --push: run from the LAPTOP, no root here ──────────────────────────────
@@ -95,6 +107,10 @@ QUIET=0
 if [ "${1:-}" = "--push" ]; then
   HOST="${2:-tablet}"
   SELF="${BASH_SOURCE[0]:-$0}"
+  # --dry-run prints the two commands and touches nothing. It exists because the real
+  # thing cannot be rehearsed: it wants a terminal, a reachable machine and a password.
+  DRY=0
+  for a in "$@"; do [ "$a" = "--dry-run" ] && DRY=1; done
 
   [ -r "$SELF" ] || { echo "--push needs the script as a file, not a pipe" >&2; exit 2; }
 
@@ -113,6 +129,13 @@ if [ "${1:-}" = "--push" ]; then
   # broken by it and the staged copy is cleaned up either way — but a command
   # that fails after doing half its work teaches you not to trust it, so it now
   # refuses at the door and names the fix.
+  if [ "$DRY" -eq 1 ]; then
+    echo "→ scp -q \"$SELF\" \"$HOST:$STAGE\""
+    echo "→ ssh -t \"$HOST\" \"sudo sh -c 'install -m 755 \\\"\$1\\\" $INSTALLED && exec $INSTALLED' _ \\\"\$HOME/$STAGE\\\"; rc=\$?; rm -f \\\"\$HOME/$STAGE\\\"; exit \$rc\""
+    echo "(dry run — nothing copied, nothing run)"
+    exit 0
+  fi
+
   if [ ! -t 0 ]; then
     echo "--push needs a real terminal — sudo on '$HOST' has to ask you for its password." >&2
     echo "  Run it in an ordinary terminal window (not through an editor or agent shell):" >&2
