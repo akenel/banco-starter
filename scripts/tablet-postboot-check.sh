@@ -132,6 +132,8 @@ R=$(ssh -o BatchMode=yes -o ConnectTimeout=10 "$HOST" '
   # empty on it. The first version of this line reported "the till has no network"
   # about a machine that was online, because the tool was missing, not the network.
   # python3 ships with the desktop and is already what everything else here needs.
+  say power_profile "$(powerprofilesctl get 2>/dev/null)"
+  say crit_action   "$(grep -m1 "^CriticalPowerAction" /etc/UPower/UPower.conf 2>/dev/null | cut -d= -f2)"
   say shop_http "$(python3 -c "
 import urllib.request
 try:
@@ -263,6 +265,13 @@ chk "org.gnome.desktop.session/idle-delay"                           "uint32 0" 
 chk "org.gnome.settings-daemon.plugins.power/sleep-inactive-ac-type" "'nothing'"  "it does not suspend on mains"
 chk "org.gnome.settings-daemon.plugins.power/ambient-enabled"        false        "the light sensor does not drive the brightness"
 chk "org.gnome.settings-daemon.plugins.power/power-button-action"    "'interactive'" "a stray power-button press asks instead of suspending"
+
+pp=$(get power_profile)
+if [ -z "$pp" ]; then warn "no power-profiles-daemon" "nothing is throttling it, and nothing is guaranteeing it is not"
+elif [ "$pp" = balanced ] || [ "$pp" = performance ]; then ok "the power profile is $pp — the CPU is not throttled"
+else bad "the power profile is \"$pp\"" "a throttled till answers slowly with a customer waiting; it drifts here after any stint on battery"; fi
+ca=$(get crit_action)
+[ -n "$ca" ] && ok "at 2% battery it does $ca — it saves state rather than dying mid-write"
 
 echo
 echo "── and it can reach the shop from where it sits ──"

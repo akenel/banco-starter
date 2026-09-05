@@ -130,11 +130,12 @@ you were trying to rescue. All fixed, locked, and measured over a 22-minute idle
 
 ### The two decisions left
 
-1. **Leave the dim on, or pin it at 80%?** It dims after ~60s of no input — so the till sits dimmed
-   most of the time and will dim **mid-sale**, while a customer reads their total. The LEVEL is
-   fine (Angel: *"a little dim ... not 30% IMHO"* — 30% is the raw backlight register, not
-   perceived brightness, and he is right). The open question is whether the CHANGE is distracting.
-   **Answer it at the counter, step A4 — not from a flat in the afternoon.**
+1. ~~**Leave the dim on, or pin it at 80%?**~~ — **DECIDED, Angel, 2026-09-05: keep the dim.**
+   *"30% dimmer is ok seems fine IMHO. I don't think it will be any problem if it dims mid sale —
+   IMHO it's exactly what we want. It's not going black, so that is what really matters, so Layla
+   is not touching the power button for any reason."* My 30% was a raw backlight register, not
+   perceived brightness, and he was right to push back on it. **Still worth a look under shop
+   lights at step A4** — but the decision is made and it is his, not a pending question.
 2. **Split `art` and the administrator.** `art` is in group `sudo` and is the only human account,
    so the password Layla would need is **root on the shop's till**. Plan agreed with Angel: create
    `admin` (verified free as user and group), give it sudo, **prove it works**, add the ssh key,
@@ -148,6 +149,12 @@ you were trying to rescue. All fixed, locked, and measured over a 22-minute idle
 - **Chromium has a pending SECURITY update** (151 → 152) and nothing patches itself
   (`unattended-upgrades` absent). Policy call: security-only, never auto-reboot, applied on a visit.
 - **Wifi powersave is `default`** (likely on) — worth disabling for a till.
+- ~~**The power profile had DRIFTED to `power-saver`**~~ — on mains, at 100% battery, throttling
+  the till. Found only because Angel asked whether the idle test should be repeated on battery.
+  `banco-lockdown.service` now sets `balanced` at every boot — it is not a setting anyone chose,
+  it is one that drifted, and nothing was watching. Also confirmed and left alone: UPower does
+  **HybridSleep at 2%**, which is right — a Kassenbuch write interrupted by a flat battery is
+  worse than a controlled shutdown.
 - **`shop-lte` is ACTIVE alongside wifi** — the failover exists and is live. Decide whether it is
   meant to be always-on, and test it at the shop, not in a flat.
 - **These two scripts belong in the onboarding kit**, not just on Angel's tablet: anyone who clones

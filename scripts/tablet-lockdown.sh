@@ -504,6 +504,35 @@ if [ "$AUTOLOGIN" -eq 1 ]; then
   fi
 fi
 
+# ── POWER PROFILE: BALANCED, NOT POWER-SAVER ──────────────────────────────
+# Found 2026-09-05 because Angel asked whether the idle test should be repeated
+# on battery. It should not — sleep-inactive-battery-type is already locked to
+# 'nothing' — but the question turned this up:
+#
+#     power-profiles-daemon: active
+#     current profile:       power-saver     <- on MAINS, battery at 100%
+#
+# A throttled CPU on a machine that is plugged into a wall and whose whole job is
+# to answer instantly when somebody is standing at the counter. It almost
+# certainly flipped there during some past stint on battery
+# (power-saver-profile-on-low-battery=true) and never flipped back — which is the
+# point: it is not a setting anyone chose, it is a setting that DRIFTED, and
+# nothing was watching.
+#
+# Set at every boot rather than once, because that is exactly the drift this unit
+# exists to undo. Not 'performance': balanced is what a till needs, and
+# performance costs fan noise and heat at a counter for nothing.
+if command -v powerprofilesctl >/dev/null 2>&1; then
+  cur=$(powerprofilesctl get 2>/dev/null)
+  if [ "$cur" = "balanced" ]; then
+    say "  power profile: already balanced"
+  elif powerprofilesctl set balanced 2>/dev/null; then
+    say "  power profile: ${cur:-unknown} → balanced"
+  else
+    say "  ⚠️  could not set the power profile (daemon not up yet?) — currently ${cur:-unknown}"
+  fi
+fi
+
 # ── BASE BRIGHTNESS ───────────────────────────────────────────────────────
 # Turning the ambient sensor off freezes the brightness wherever it happened to
 # be — and on this tablet that was 19% of maximum, in a flat, in daylight. Under
