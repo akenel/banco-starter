@@ -93,6 +93,13 @@ const VIEW = { width: 1440, height: 895 };   // the shop tablet's real viewport
       // The bug, stated as a number: a row that is neither fully shown nor fully hidden.
       sliced: seen.filter(s => s.shown > 0.5 && s.shown < s.h - 0.5).length,
       firstRowText: rows.length ? rows[0].innerText.replace(/\s+/g, ' ').trim().slice(0, 60) : null,
+      firstRowH: rows.length ? Math.round(rows[0].getBoundingClientRect().height) : null,
+      field: (() => {
+        const f = document.querySelector('input[x-ref="searchInputBox"]');
+        if (!f) return null;
+        const b = f.getBoundingClientRect();
+        return { top: Math.round(b.top), bottom: Math.round(b.bottom), onScreen: b.top >= 0 && b.bottom <= lid };
+      })(),
       priceVisible: (() => {
         if (!rows.length) return null;
         const price = [...rows[0].querySelectorAll('*')].find(e => /CHF\s*[\d.]/.test(e.textContent) && e.children.length === 0);
@@ -185,6 +192,43 @@ const VIEW = { width: 1440, height: 895 };   // the shop tablet's real viewport
   check(after.sliced === 0, 'and it still ends on a whole row — the 2026-09-04 fix is intact',
         `${after.sliced} row(s) sliced by the card's own bottom edge`);
   check(after.whole >= 2, `more than one row shows with the keyboard away (${after.whole})`);
+
+  // ── D · THE NAME THAT WRAPS TO TWO LINES ─────────────────────────────────────────────────
+  // Angel's tablet, 2026-09-05 10:23, signed in as pam. The first real match for `cbd` is
+  // "CBD Joint Natural Rebel \"Lemon Skunk\" Pure 1stk" — long enough to wrap, which pushes
+  // the price down a line, and on b629 the price was not merely halved, it was OFF THE
+  // SCREEN. The synthetic rows above all had short names and understated the bug.
+  //
+  // It also opens the way to make it worse: a tall row plus "scroll until the whole row is
+  // clear" is how the search box itself gets scrolled off the top. Both are checked here,
+  // because a fix that trades the answer for the question is not a fix.
+  console.log('\n── D · a product name long enough to wrap — the tablet\'s real first match ──');
+  await p.goto('http://localhost:3000/pos/scan', { waitUntil: 'load' });
+  await alpineReady();
+  await p.waitForTimeout(800);
+  await openPadOnSearch();
+  await p.evaluate(() => {
+    const d = Alpine.$data(document.querySelector('[x-data]'));
+    d.searchInput = 'cbd'; d.searchTotal = 366;
+    d.searchResults = Array.from({ length: 20 }, (_, i) => ({
+      id: 'lng' + i, name: 'CBD Joint Natural Rebel "Lemon Skunk" Pure 1stk Nr.' + (i + 1),
+      price: 12.5 + i, sku: 'CBD-' + i, barcode: '760000000' + i, category: 'CBD',
+      stock_quantity: 1, is_active: true,
+    }));
+  });
+  await p.waitForTimeout(1800);
+  g = await geometry();
+  check(g.firstRowH > 130, `the row really is a tall one (${g.firstRowH}px — the name wraps)`,
+        `only ${g.firstRowH}px tall; the fixture is not reproducing the two-line name`);
+  check(g.sliced === 0, 'a two-line name is still not cut in half by the keyboard', `${g.sliced} sliced`);
+  check(g.whole >= 1, 'the whole tall row is readable', 'the tall row does not fit — the answer is still under the pad');
+  check(g.priceVisible === true, 'and the price is on the screen, not one line under the keys',
+        'this is the b629 screen exactly: name and SKU visible, price gone');
+  check(g.field && g.field.onScreen && g.field.top >= 0,
+        `and the box being typed into is still on the screen (top ${g.field && g.field.top})`,
+        'scrolling the answer into view took the search box off the top — the question was traded for the answer');
+  await p.screenshot({ path: '/tmp/pad-long-name.png' });
+  console.log('     (screenshot: /tmp/pad-long-name.png)');
 
   console.log('\n==========================================');
   console.log(`  ${pass} passed · ${fail} failed`);

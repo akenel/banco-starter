@@ -629,6 +629,25 @@
     var padTop = readableBottom(el, window.innerHeight - pad.offsetHeight);
     var need = Math.round(revealBottom(el) - (padTop - 12));
     if (need <= 0) return;
+    /* AND NEVER SO FAR THAT THE BOX BEING TYPED INTO LEAVES THE TOP OF THE SCREEN.
+       Angel's tablet, 2026-09-05 10:23, as pam: the first match for `cbd` is
+       "CBD Joint Natural Rebel \"Lemon Skunk\" Pure 1stk" — a name that WRAPS TO TWO
+       LINES, which makes that row tall enough that scrolling all of it clear of the
+       keyboard would have taken the search box with it. Asking for the answer must not
+       cost the question: a cashier typing into a field that has scrolled off the top is
+       a worse screen than one whose bottom row is short. Where the row cannot fit, we
+       take what headroom there is and the list's own scrollbar carries the rest.
+
+       ⚠️ UNEXERCISED, and said so rather than implied. I could not build a case that makes
+       this clamp bind: four-line names at 1440x895 and again at 1440x620 both leave the
+       field on screen, because the Find Product card above it runs out of scroll first. So
+       it is a rail, not a proven fix — LESSON #4 says a guard you have not watched go red
+       is a guess. It stays because it is three lines and obviously correct in the direction
+       it acts; if it ever fires on the tablet, that screen is the missing test case. */
+    var headroom = Math.round(el.getBoundingClientRect().top - 8);
+    if (headroom < 0) headroom = 0;
+    if (need > headroom) need = headroom;
+    if (need <= 0) return;
     // Walk out from the field and spend the overlap on whatever can absorb it —
     // the panel first, then its parents, then the window.
     var n = el.parentElement;
