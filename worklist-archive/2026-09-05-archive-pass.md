@@ -787,3 +787,53 @@ self-install, and the login-page caching — and every one of them died on a mea
 under a minute. What worked each time was the same move: **stop theorising and ask the machine**
 (`stat` the file it writes, `curl` the URL, `systemctl show` the timestamps). What did not work was
 reading code and reasoning about what it must be doing.
+
+---
+
+## ⓪d part 2 — deployed, cold-booted, and the offline story proved itself sideways
+
+**Deployed** `10be05f` → **build b684**, `./scripts/deploy-prod.sh` on `ssh banco`. Backup first
+(helix_db 6.7M + keycloak 116K, encrypted, in B2), twelve smoke checks green, HTTPS live. New
+worker confirmed live: `CACHE_NAME = banco-pos-10be05f-8eebf01a8a`, `offlinePage` present.
+
+**Cold boot after the deploy — the sharpest possible test**, because a new `CACHE_NAME` evicts
+every cache, which is exactly the empty-cache half of the white screen. **It landed perfectly:
+full screen, Layla logged in.**
+
+### Breaking it on purpose (LESSON #4) found something better than the test
+
+Wifi off → **everything still worked.** The tablet has **wifi AND a SIM**, and the till rode out a
+wifi outage on mobile data with nobody noticing. That failover had never been proven; it proved
+itself by accident, in real conditions. (It also explains why `art.local` went unreachable
+afterwards: airplane-mode-off restored the SIM only, because wifi had been left off.)
+
+**Airplane mode** — everything down — and the till is *good*:
+
+- a brown banner across the top: **"Sales are paused. Your cart is safe. Switch to mobile data or
+  a hotspot."**
+- **My Day and Catalog still open**, served from the service-worker cache
+- airplane mode off → **the banner cleared on its own in 2 seconds**, unattended
+
+**`offlinePage()` never fired, and that is correct.** It is the FLOOR: it only runs when the fetch
+fails *and* nothing is cached — not the page, not `/pos/scan`. Angel had visited those pages since
+the deploy, so the layer above caught it. Reaching the floor deliberately would mean wiping the
+browser's storage on a working till, which is not worth doing. **So the fix is
+correct-by-construction (never `respondWith(undefined)`) and not proven live.** Said plainly rather
+than counted as green.
+
+### And the airplane-mode test condemned something I had just added
+
+With the network genuinely down at boot, `ExecStartPre` held the window shut for **90 seconds** —
+while the cache sat there, able to serve those exact pages instantly with the "Sales are paused"
+banner. A blank screen in front of a working offline mode. **Cut to `timeout 20`**: the race it
+exists to win was THREE seconds, so 20 wins it many times over without stranding anybody.
+
+### Open, from this run
+
+- **`banco-till.service` lives only on the tablet.** It is hand-maintained at
+  `~art/.config/systemd/user/`, deliberately outside `tablet-lockdown.sh` ("THIS SCRIPT DOES NOT
+  START THE TILL and must not learn to"). It now carries three fixes and long comments that exist
+  on exactly one machine, with no copy in this repo. A second tablet gets none of it.
+- **My Day showed a red `could not load your profile: failed to fetch`** under "Good evening,
+  Layla" while offline. The banner above it already said there is no internet; this is a second,
+  scarier way of saying the same thing, in red, next to her name.

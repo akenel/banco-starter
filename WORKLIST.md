@@ -35,28 +35,29 @@ somebody thought of — moved to [`2026-09-05-archive-pass.md`](worklist-archive
 ### Pick up here, in this order
 
 0. ~~**The worklist alarm**~~ — **DONE**, `fb00d2c`, step 4 of SESSION START. → archive
-0. ~~**Walk the card, on the tablet, out loud**~~ — **DONE 2026-09-05: the till did NOT come up on
-   a cold boot.** Grey screen, `art`'s password, then a white window a tap could not fix.
-   Autologin leaves the login keyring locked; Chromium blocks on it and never navigates. **Fixed
-   with `--password-store=basic`.** Invisible until now because every earlier boot test was
-   `reboot` over SSH **with nobody watching the screen**. Card rewritten against nine boots.
+0. ~~**THE STARTUP THREAD — walked, measured and fixed, 2026-09-05, eleven cold boots.**~~
+   The till **did not come up at all** on a cold boot (autologin leaves the keyring locked,
+   Chromium blocks and never navigates) — fixed. It boots **straight to the till**, not GNOME's
+   overview — fixed, and the dconf default needed a LOCK. And the boot went **1m46s → 58s**, of
+   which **50s was `powerprofilesctl` waiting on a daemon that could not start until we finished**.
+   All of it was invisible because every earlier boot proof was `reboot` over SSH **with nobody
+   watching the screen**. Card rewritten against what happened.
    → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
 
-0a. ~~**It boots into the GNOME overview, not the till**~~ — **FIXED 2026-09-05**, cold-boot proven:
-   straight to the till, full screen, no press. Extension `banco-no-overview@banco`; the dconf
-   default alone did NOT take, the key needed a LOCK. → archive
-0d. **The third white screen — FIXED IN CODE, NOT YET DEPLOYED OR PROVEN.** `sw.js` ended its
-   fallback chain in `caches.match('/pos/scan')`, and **`caches.match` returns `undefined` on a
-   miss** — so `respondWith(undefined)` gave the browser nothing: a blank white screen carrying
-   the previous page's title. Now ends in `offlinePage()` — *"Reconnecting to the till, nothing
-   has been lost"* — that reloads itself every 4s, so it heals unattended. **Needs: deploy to
-   `banco.wolfhold.app`, then a cold boot AND a wifi-off test.** (My first two diagnoses of this
-   were wrong and are corrected in the archive.)
+0d. **The third white screen — FIXED AND DEPLOYED (b684), cold-boot clean.** `sw.js` ended its
+   fallback in `caches.match('/pos/scan')`, and **`caches.match` returns `undefined` on a miss**,
+   so `respondWith(undefined)` gave the browser nothing. Now ends in `offlinePage()`. It never
+   fired in testing and that is correct — it is the floor, reached only when even `/pos/scan` is
+   uncached: **correct by construction, not proven live.** Airplane mode proved the layer above:
+   cached pages open, *"Sales are paused. Your cart is safe."*, banner clears unattended in 2s,
+   and the till **rode out a wifi outage on the SIM**. `ExecStartPre` cut 90s → 20s — with the
+   network down it was holding a blank screen in front of a working offline mode.
+0e. **`banco-till.service` exists on ONE machine.** Hand-maintained in `~art/.config/systemd/user/`,
+   outside `tablet-lockdown.sh` by design. It now carries three fixes found tonight and none of
+   them are in this repo. A second tablet gets nothing. Needs a home.
+0f. **My Day says `could not load your profile: failed to fetch` in red next to Layla's name**
+   while offline — under a banner that already said there is no internet. LESSON #12.
    → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
-0b. ~~**Boot is 1m46s and 51.7s of it is `banco-lockdown.service`**~~ — **FIXED 2026-09-05, nine
-   cold boots. 1m46s → 58s · lockdown 51.7s → 3.6s · kernel→till 68s → 19s.** `powerprofilesctl`
-   waited on D-Bus for a daemon that could not start until lockdown finished. Two wrong diagnoses
-   first, both recorded. → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
 0c. **Do they log out at night?** Layla closes, Rafi opens, till stays signed in as whoever was
    last on it. Angel raised it; not discussed, not decided.
 1. ~~**② The keyboard buries the search results**~~ — **FIXED**, confirmed on the tablet, `b644`.
