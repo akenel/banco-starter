@@ -284,3 +284,34 @@ code's first sale.
    off the JSON — **3 → CHF 5.00, 4 → CHF 7.00 (not 6.67)**, which is Ralph's whole-packs rule and
    has never been checked on a stored record.
    **Nothing has completed a sale on this build.** Last transaction on the box: 2026-08-21, 50 ago.
+
+
+---
+
+## The tablet section, as it stood at the end of 2026-09-05
+
+## 🖥️ THE TABLET — fixed, locked and self-patching · 2026-09-05
+
+*Saturday's question — "is everything in place when it boots?" — turned into nine faults, **none of
+them Banco's code**: every one was the machine around it, shipping laptop defaults that are wrong
+for a till. It booted to a login prompt, suspended after 15 minutes, resumed to a lock screen, went
+black to a digitiser that goes deaf when it does, and had a power button that suspended the machine
+you were trying to rescue. All fixed, locked, and measured over a 22-minute idle sample.
+**Now: boots to the till in 17s unattended · never sleeps · never black · one touch restores it ·
+80% fixed.** `scripts/tablet-postboot-check.sh` — **36 checks**.
+→ the whole write-up, with the numbers:
+[`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)*
+
+### Both decisions answered, 2026-09-05
+
+- **Keep the 30% dim.** Angel: *"it's not going black, so that is what really matters, so Layla is
+  not touching the power button for any reason."* My "30%" was a raw backlight register, not
+  perceived brightness — he was right to push back. Still worth a look at step A4 under shop lights.
+- **`art` and `admin` are split.** `sudo:x:27:admin`; `art` keeps audio/video/plugdev/netdev/lpadmin
+  and can change nothing. Proven: *"Sorry, user art may not run sudo on art."*
+  **So `art`'s password is now safe to give Layla** — the question that started it.
+  Two ssh doors: **`tablet` → art** for read-only checks (gsettings are per-SESSION), **`tablet-admin`
+  → admin** for `--push`. Prompts match: art RED ` TABLET `, admin GREEN ` TABLET ADMIN `.
+  → the order, the gates and why step 3½ mattered:
+  [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
+

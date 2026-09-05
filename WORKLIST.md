@@ -124,28 +124,17 @@ moved to [`worklist-archive/2026-09-05-archive-pass.md`](worklist-archive/2026-0
 - **ⓛ The gun pressed the button again** — fixed. → [`worklist-archive/2026-09-04-archive-pass.md`](worklist-archive/2026-09-04-archive-pass.md)
 ## 🖥️ THE TABLET — fixed, locked and self-patching · 2026-09-05
 
-*Saturday's question — "is everything in place when it boots?" — turned into nine faults, **none of
-them Banco's code**: every one was the machine around it, shipping laptop defaults that are wrong
-for a till. It booted to a login prompt, suspended after 15 minutes, resumed to a lock screen, went
-black to a digitiser that goes deaf when it does, and had a power button that suspended the machine
-you were trying to rescue. All fixed, locked, and measured over a 22-minute idle sample.
-**Now: boots to the till in 17s unattended · never sleeps · never black · one touch restores it ·
-80% fixed.** `scripts/tablet-postboot-check.sh` — **36 checks**.
-→ the whole write-up, with the numbers:
+*Saturday's question — "is everything in place when it boots?" — turned into **eleven faults, none
+of them Banco's code**: every one was the machine around it, shipping laptop defaults that are
+wrong for a till. **Now:** boots to the till in **17s unattended** · never sleeps · never goes
+black · one touch restores it · 80% fixed · CPU un-throttled · patches itself at 03:15 · `art`'s
+password is safe to give Layla. All of it **locked** and re-applied at every boot.
+`scripts/tablet-postboot-check.sh` — **46 checks**, and it found every one of these on a tablet
+that looked perfect. Both decisions answered: keep the 30% dim; `art`/`admin` split
+(`sudo:x:27:admin`, proven by *"Sorry, user art may not run sudo on art."*). Two ssh doors —
+**`tablet` → art** for checks (gsettings are per-SESSION), **`tablet-admin` → admin** for `--push`.
+→ all of it, with the numbers and the order that mattered:
 [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)*
-
-### Both decisions answered, 2026-09-05
-
-- **Keep the 30% dim.** Angel: *"it's not going black, so that is what really matters, so Layla is
-  not touching the power button for any reason."* My "30%" was a raw backlight register, not
-  perceived brightness — he was right to push back. Still worth a look at step A4 under shop lights.
-- **`art` and `admin` are split.** `sudo:x:27:admin`; `art` keeps audio/video/plugdev/netdev/lpadmin
-  and can change nothing. Proven: *"Sorry, user art may not run sudo on art."*
-  **So `art`'s password is now safe to give Layla** — the question that started it.
-  Two ssh doors: **`tablet` → art** for read-only checks (gsettings are per-SESSION), **`tablet-admin`
-  → admin** for `--push`. Prompts match: art RED ` TABLET `, admin GREEN ` TABLET ADMIN `.
-  → the order, the gates and why step 3½ mattered:
-  [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
 
 ### Still open on the tablet
 
