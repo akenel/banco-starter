@@ -438,6 +438,19 @@
             min-width: 34px; min-height: 26px;   /* a fingertip, not a mouse pointer */
         }
         .fs-toggle:active { background: #475569; }
+        /* THE NUDGE. Amber, not red: nothing is broken, the window is just not filling
+           the screen. It sits immediately left of ⛶ so the eye lands on the remedy, and
+           it IS the remedy — tapping the sentence does the same thing as tapping the
+           icon, because a cashier reading "tap ⛶" while holding a customer's change
+           should not have to find a second target. */
+        .fs-nudge {
+            background: #78350f; color: #fde68a; border: 1px solid #b45309;
+            border-radius: 5px; font-size: 12px; line-height: 1;
+            padding: 3px 8px; cursor: pointer; font-family: inherit;
+            min-height: 26px; white-space: nowrap; animation: fsNudgePulse 2s ease-in-out infinite;
+        }
+        .fs-nudge:active { background: #92400e; }
+        @keyframes fsNudgePulse { 0%,100% { opacity: 1; } 50% { opacity: .55; } }
         .fs-toggle:focus-visible { outline: 2px solid #38bdf8; outline-offset: 1px; }
         .helix-status-bar .sb-build { color: #64748b; font-size: 11px; white-space: nowrap; }
         .helix-status-bar .pulse {
@@ -907,6 +920,53 @@
           document.addEventListener('fullscreenchange', paint);
           document.addEventListener('webkitfullscreenchange', paint);
           paint();
+
+          /* THE NUDGE — because the escape hatch only helps somebody who knows it is there.
+             Layla, 2026-09-04 21:29, looking at a strip of till and a field of wallpaper:
+             "i will reboot to resolve this issue — only thing a cashier could do." The ⛶
+             button was on her screen the whole time. Angel hit the same thing on
+             2026-09-05, used the toggle, and put it exactly right: "maybe the user gets
+             stuck in that mode and doesn't realize what they're doing."
+
+             So the window says so itself. A title bar is a drag handle on a touchscreen and
+             that cannot be taken away without also taking away the system bar (battery,
+             wifi) — see banco-till.service. What CAN be fixed is the silence afterwards.
+
+             Chosen over a GNOME Shell extension that snapped the window back, which was
+             built and then removed: it was custom code inside the compositor on a machine
+             that takes money, it silently undid anything deliberate, and it FIXED the
+             symptom without teaching anybody anything. This lives in our own code, a proof
+             can assert it, and the cashier learns the button. Self-healing by way of
+             self-training, in Angel's words.
+
+             TWO SIGNALS, because a window can be wrong in two ways: dragging a maximised
+             window un-maximises it (narrower than the screen), and a window can also be
+             full width but shoved past the edge. Neither fires a resize event on a move,
+             so a 2s poll of two numbers covers it — cheaper than it sounds and the only
+             thing that catches a drag that changed no size. */
+          var nudge = document.getElementById('fs-nudge');
+          if (nudge) {
+            nudge.addEventListener('click', function () { btn.click(); });
+            var checkFit = function () {
+              try {
+                if (on()) { nudge.hidden = true; return; }
+                var avail  = window.screen && screen.availWidth ? screen.availWidth : window.innerWidth;
+                var narrow = window.innerWidth < avail * 0.9;
+                var x      = (typeof window.screenX === 'number') ? window.screenX : 0;
+                var offEdge = x < -20 || (x + window.innerWidth) > avail + 20;
+                var bad = narrow || offEdge;
+                if (nudge.hidden === bad) {
+                  nudge.hidden = !bad;
+                  if (bad) console.log('[fs] window is not filling the screen — innerWidth '
+                    + window.innerWidth + ' of ' + avail + ', x=' + x);
+                }
+              } catch (e) { nudge.hidden = true; }
+            };
+            window.addEventListener('resize', checkFit);
+            document.addEventListener('fullscreenchange', checkFit);
+            setInterval(checkFit, 2000);
+            checkFit();
+          }
           console.log('[fs] toggle ready');
         });
       })();
@@ -2415,6 +2475,8 @@
             {% elif 'local' in _e or 'dev' in _e %}{% set _ec = 'LCL' %}{% set _ecc = 'env-lcl' %}
             {% else %}{% set _ec = '' %}{% set _ecc = '' %}{% endif %}
             {% if _ec %}<span class="env-pill {{ _ecc }}" title="environment: {{ app_env }}">{{ _ec }}</span>{% endif %}
+            <button type="button" id="fs-nudge" class="fs-nudge" hidden
+                    data-i18n="common.fill_screen">⛶ Tap to fill the screen</button>
             <button type="button" id="fs-toggle" class="fs-toggle" hidden
                     title="Full screen" aria-label="Full screen">⛶</button>
             <span id="status-time" title="local time">--:--</span>

@@ -56,6 +56,7 @@ window.POS_STRINGS = {
     "common": {
       "cancel": "Cancel",
       "date_placeholder": "dd.mm.yyyy",
+      "fill_screen": "⛶ Tap to fill the screen",
       "cal_today": "Today",
       "cal_clear": "Clear",
       "cal_close": "Close",
@@ -2180,6 +2181,7 @@ window.POS_STRINGS = {
     "common": {
       "cancel": "Annuler",
       "date_placeholder": "jj.mm.aaaa",
+      "fill_screen": "⛶ Toucher pour remplir l’écran",
       "cal_today": "Aujourd'hui",
       "cal_clear": "Effacer",
       "cal_close": "Fermer",
@@ -4314,6 +4316,7 @@ window.POS_STRINGS = {
     "common": {
       "cancel": "Annulla",
       "date_placeholder": "gg.mm.aaaa",
+      "fill_screen": "⛶ Tocca per riempire lo schermo",
       "cal_today": "Oggi",
       "cal_clear": "Cancella",
       "cal_close": "Chiudi",
@@ -6438,6 +6441,7 @@ window.POS_STRINGS = {
     "common": {
       "cancel": "Abbrechen",
       "date_placeholder": "TT.MM.JJJJ",
+      "fill_screen": "⛶ Tippen für Vollbild",
       "cal_today": "Heute",
       "cal_clear": "Löschen",
       "cal_close": "Schliessen",
