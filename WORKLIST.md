@@ -35,29 +35,27 @@ somebody thought of — moved to [`2026-09-05-archive-pass.md`](worklist-archive
 ### Pick up here, in this order
 
 0. ~~**The worklist alarm**~~ — **DONE**, `fb00d2c`, step 4 of SESSION START. → archive
-0. ~~**THE STARTUP THREAD — walked, measured and fixed, 2026-09-05, eleven cold boots.**~~
-   The till **did not come up at all** on a cold boot (autologin leaves the keyring locked,
-   Chromium blocks and never navigates) — fixed. It boots **straight to the till**, not GNOME's
-   overview — fixed, and the dconf default needed a LOCK. And the boot went **1m46s → 58s**, of
-   which **50s was `powerprofilesctl` waiting on a daemon that could not start until we finished**.
-   All of it was invisible because every earlier boot proof was `reboot` over SSH **with nobody
-   watching the screen**. Card rewritten against what happened.
+0. ~~**THE STARTUP THREAD — walked, measured, fixed. Fourteen cold boots, 2026-09-05.**~~ The till
+   **did not come up at all** on a cold boot (autologin leaves the keyring locked, Chromium blocks
+   and never navigates); it landed in GNOME's **overview**, not the till; and the boot was
+   **1m46s**, of which **50s was `powerprofilesctl` waiting on a daemon that could not start until
+   we finished**. All three fixed → **~58s, unattended, no password, no press.** Invisible until
+   now because every earlier proof was `reboot` over SSH **with nobody watching the screen**.
    → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
 
-0d. **The third white screen — FIXED AND DEPLOYED (b684).** `caches.match` returns `undefined`
-   on a miss, so the SW's `respondWith(undefined)` gave the browser nothing. Now ends in
-   `offlinePage()` — which never fired in testing, correctly, being the floor: **correct by
+0d. **The third white screen — FIXED AND DEPLOYED (b684).** `caches.match` returns `undefined` on
+   a miss, so the SW's `respondWith(undefined)` gave the browser nothing; now ends in
+   `offlinePage()`, which never fired in testing — correctly, being the floor: **correct by
    construction, NOT proven live.** Airplane mode proved the layer above (cached pages open,
    *"Sales are paused. Your cart is safe."*, clears unattended in 2s) and the till **rode out a
    wifi outage on the SIM**. `ExecStartPre` 90s → 20s.
-0e. ~~**`banco-till.service` existed on ONE machine**~~ — **IN THE REPO 2026-09-05**:
+0e. ~~**`banco-till.service` existed on ONE machine**~~ — **IN THE REPO**:
    `scripts/systemd/banco-till.service` + `scripts/install-till-unit.sh --check | --push` (the
-   `tablet` door — USER unit, no root). `--check` diffs machine against repo; `--push` backs up
-   first and does NOT restart the browser. Both proven. Lockdown's boundary unchanged, now names it.
-0f. **My Day says `could not load your profile: failed to fetch` in red by Layla's name** while
-   offline, under a banner that already said there is no internet. LESSON #12. → archive
-0c. **Do they log out at night?** Layla closes, Rafi opens, till stays signed in as whoever was
-   last on it. Angel raised it; not discussed, not decided.
+   `tablet` door — USER unit, no root). `--check` diffs machine vs repo, `--push` backs up first and
+   does NOT restart the browser. Both proven. Lockdown's boundary unchanged, now names it.
+0c. **Do they log out at night?** Layla closes, Rafi opens, till stays signed in as whoever was on
+   it. Raised, not decided. · 0f. **My Day: `could not load your profile: failed to fetch` in red
+   by Layla's name** while offline, under a banner that already said so. LESSON #12. → archive
 0g. ✅ **Rock-solid check passed 2026-09-05: three consecutive clean cold boots** (57.8 / 58.3 /
    58.2s, `kernel->till` 19s every time, 0.49s spread), criteria agreed before the first one.
    45 passed · 0 failed. **The cashier now does nothing at all in the morning.**
@@ -132,13 +130,15 @@ on purpose and held. A real close filed, balanced, +CHF 0.00, warning **"open fo
 figures cover the whole period, not one day"**. **Do not lock rotation.** Three bugs → ⓪h–⓪j.
 → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
 
-⓪h. **A note typed for a variance survives onto a BALANCED report.** Typed at −CHF 1'216.85,
-   count corrected to zero variance, note still filed. Real version: *"gave wrong change once"* on
-   a perfectly balanced Z-report the Treuhänder reads. Fix: *Filing with note: "…"* ✕ beside the
-   button when in tolerance — Angel also proposed a full confirm step; his call which.
-⓪i. **`Samstag, 5. September` with EN selected**, under an English "Good evening / Hi Layla" —
-   one page, two locales. And ⓪j: **`CHF-1'216.85`**, no space after CHF unlike every other amount
-   on the page, and it is the figure a cashier reads out loud.
+⓪h–k. ~~**The four portrait findings**~~ — **three FIXED, one WITHDRAWN, IN CODE, NOT DEPLOYED.**
+   (h) a note for a variance survived onto a BALANCED report (`x-show="!withinTol()"` hid the box
+   while `note` still held the text and was still sent) — now shown above the button,
+   *Filing with note: "…" · Remove*. (i) `Samstag` under EN, and under FR and IT too, because
+   `formatDate` keyed everything off the STORE locale — split, numeric stays the shop's
+   byte-identical, NAMES follow the reader, receipts pinned via `audience:'shop'`. (j) **withdrawn:
+   `CHF-1'216.85` is Intl's own de-CH output.** (k) the 💬 button stored absolute pixels so a
+   rotation moved it mid-page; now anchored to its corner. *"Stick it on the status bar"* stays open.
+   → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
 
 ### Still open on the tablet
 

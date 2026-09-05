@@ -586,7 +586,10 @@
             // Delegate to the global date/time seam (base.html), keyed off POSConfig.locale.
             // window.-qualified so the call doesn't recurse into this same-named method.
             formatDate(dateString) {
-                return window.formatDate(dateString, { year: 'numeric', month: 'long', day: 'numeric' });
+                // audience:'shop' — this is the CUSTOMER's receipt, not a staff screen.
+                // The month name follows the store's locale, never whichever language the
+                // cashier happens to have the till switched to. See _dateLocale() in base.html.
+                return window.formatDate(dateString, { year: 'numeric', month: 'long', day: 'numeric', audience: 'shop' });
             },
 
             formatTime(dateString) {

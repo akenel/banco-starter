@@ -286,6 +286,24 @@
                         data-i18n-placeholder="shift.ph_what_happened" placeholder="What happened? (e.g. gave wrong change once)"></textarea>
                 </div>
 
+                <!-- A NOTE THAT IS NO LONGER ON SCREEN IS STILL IN THE REPORT. The textarea above
+                     is x-show="!withinTol()", so the moment a recount brings the drawer back into
+                     tolerance the box VANISHES — while `note` still holds the text and
+                     closeDrawer() still sends it. Angel hit this on 2026-09-05: he typed a note at
+                     a variance of −CHF 1'216.85, corrected the count to zero, closed, and the filed
+                     Shift Report carried the note anyway. In the shop that is "gave wrong change
+                     once" printed on a perfectly balanced Z-report, in front of the Treuhänder.
+                     LESSON #13 — the stored copy and the screen disagreed, and the invisible one won.
+                     So it is not hidden and it is not silently cleared either (a recount that swings
+                     back out of tolerance must not have eaten what she typed). It is SHOWN, right
+                     above the button her thumb is already on, with one tap to drop it. -->
+                <div x-show="withinTol() && note.trim()" class="mb-4 flex items-start gap-3 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm">
+                    <span class="shrink-0" data-i18n="shift.note_will_file">Filing with note:</span>
+                    <span class="flex-1 font-medium break-words" x-text="note.trim()"></span>
+                    <button type="button" @click="note = ''" class="shrink-0 underline text-amber-800"
+                            data-i18n="shift.note_drop">Remove</button>
+                </div>
+
                 <button @click="closeDrawer()" :disabled="processing || closeTotal() <= 0 || (!withinTol() && !note.trim())"
                         class="btn-success w-full">
                     <span x-show="!processing" data-i18n="shift.close_file">🔒 Close Drawer & File Report</span>

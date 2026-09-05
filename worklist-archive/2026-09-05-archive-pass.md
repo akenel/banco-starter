@@ -945,3 +945,94 @@ until it happens without a hand on it.
 
 **The standing instruction stands: do NOT lock rotation.** ⓞ's "lock it to landscape" is reversed
 on evidence.
+
+---
+
+## ⓪h–k Tidying up the four portrait findings
+
+Angel: *"fix the note surviving onto a balanced report… Also, Samstag for Italian and for French. I
+checked out the English, French, and Italians, and they're all Samstag… let's get it tidied up a
+bit."* And, on touching a shared date helper: *"I'm afraid that if we change it here and we screw it
+up, that maybe there's a whole bunch of other places where we have the same exact problem. Be worth
+a look."* He was right to say it, and the look changed the fix.
+
+### h · A note typed for a variance survives onto a BALANCED report — FIXED
+
+```html
+<div x-show="!withinTol()">          <!-- the box VANISHES on a good recount -->
+    <textarea x-model="note" …>      <!-- but `note` still holds the text -->
+```
+
+…and `closeDrawer()` sends `note: this.note.trim()` regardless. Hidden, still filed. **LESSON #13
+in four lines: the screen and the stored value disagreed, and the invisible one won.**
+
+Not fixed by clearing the note — a recount that swings back OUT of tolerance must not have eaten
+what she typed. Fixed by **showing it where the button is**: *Filing with note: "…" · Remove*, in an
+amber strip directly above the close button, with one tap to drop it. Angel proposed a full confirm
+step; a confirm on every close at eleven at night is a tap people learn to swat (LESSON #12 —
+put the outcome where the button is). Keys added to all four languages; `pos-i18n.js` asserts
+parity at runtime.
+
+### i · `Samstag` in English, French AND Italian — FIXED, and the obvious fix was wrong
+
+`formatDate()` keyed off `_cfg('locale')` — the STORE's locale — for everything, so the date never
+asked who was reading it. **A date carries two locales and they are not the same one:** the numeric
+format (`05.09.2026`) belongs to the shop's country; the NAMES belong to the person reading.
+
+The naive fix — `<lang>-CH` throughout — was measured before shipping and is wrong:
+
+```
+de-CH  5.9.2026     Samstag, 5. September
+en-CH  05.09.2026   Saturday, 5 September
+fr-CH  05.09.2026   samedi 5 septembre
+it-CH  05/09/2026   sabato 5 settembre      <- SLASHES
+```
+
+`it-CH` would have turned Swiss dates into `05/09/2026` and walked straight into
+`prove-swiss-dates.js`. So `_dateLocale()` uses the reader's language **only when the caller asked
+for words**; a plain numeric date is byte-identical to before, in every language.
+
+**And Angel's "check for the pattern" found the third distinction.** Six call sites ask for words,
+and one of them is not a staff screen: `receipt.html` — the CUSTOMER's receipt. As first written,
+Layla switching the till to English would have printed an English date on a Swiss customer's
+receipt. Added `audience:'shop'`, which pins it to the store. Intl ignores option keys it does not
+know, so it rides through for free. Proven:
+
+```
+lang | plain date | staff screen           | customer receipt
+en   | 5.9.2026   | Saturday, 5 September  | 5. September 2026
+fr   | 5.9.2026   | samedi 5 septembre     | 5. September 2026
+it   | 5.9.2026   | sabato 5 settembre     | 5. September 2026
+de   | 5.9.2026   | Samstag, 5. September  | 5. September 2026
+```
+
+The sweep also confirmed **nothing else bypasses the seam** — every other `toLocaleString` in the
+POS templates formats a NUMBER, and the two date sites that once did (`cleanup.shortDate`,
+`age_report.when`) already route through it and ask for no words, so both are untouched.
+
+### j · `CHF-1'216.85` — WITHDRAWN, not a bug
+
+I called the missing space a formatting defect. It is **Intl's own de-CH output** (`en-CH` too;
+`fr-CH` gives `-1 216.85 CHF`). Overriding it would mean deviating from the locale on a Swiss till
+to satisfy my eye.
+
+### k · The 💬 button lands mid-page after a rotation — FIXED
+
+It already re-clamped on resize, so it could never go off-screen — but it stored **absolute
+pixels**, and "parked bottom-right, out of the way by the nav" is an intent about an EDGE that no
+pixel can carry from a 2160-wide viewport to a 1440-wide one. Now it records which corner it was
+nearer and its distance from those edges, and re-derives on resize:
+
+```
+bottom-right, by the nav
+   landscape 2060,1330   anchor right/bottom  dx=44 dy=54
+   portrait  OLD 1380,1330  (mid-page)   NEW 1340,2050  (by the nav, as parked)
+```
+
+Dragging is untouched. Angel's other idea — *"maybe it is better that we stick it down on the
+status bar permanently"* — is still open and is his call; it removes a thing he uses, so it was not
+done unilaterally.
+
+**A note on the method, again.** The `anchorOf` proof failed the first time because my test harness
+passed a rect with no width/height, so `cx` was `NaN` and every case fell to "left". The harness was
+lying, not the code (LESSON #5). Caught by the numbers looking wrong, not by the test going red.

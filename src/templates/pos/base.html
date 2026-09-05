@@ -2065,11 +2065,48 @@
         // toLocaleTimeString/toLocaleString routes through here so an IT till shows
         // Italian dates and a CH till stays byte-identical. Accepts a Date, an ISO
         // string, or an epoch; falsy → ''. Extra Intl options can be passed through.
+        // A DATE HAS TWO LOCALES IN IT AND THEY ARE NOT THE SAME ONE.
+        //   - the NUMERIC format (05.09.2026 vs 09/05/2026) belongs to the SHOP's
+        //     country. A Swiss till writes dd.mm.yyyy whoever is reading it, and
+        //     scripts/prove-swiss-dates.js exists to keep it that way.
+        //   - the NAMES (Saturday / samedi / sabato) belong to the PERSON reading.
+        // Until 2026-09-05 both came from _cfg('locale'), so My Day greeted Layla
+        // with "Good evening, Hi Layla" in English over "Samstag, 5. September" —
+        // and Angel checked: English, French AND Italian all said Samstag, because
+        // the store locale is de-CH and the date never asked who was looking.
+        // The naive fix, <lang>-CH throughout, is WRONG and measured so:
+        //     de-CH  5.9.2026     Samstag, 5. September
+        //     en-CH  05.09.2026   Saturday, 5 September
+        //     fr-CH  05.09.2026   samedi 5 septembre
+        //     it-CH  05/09/2026   sabato 5 settembre     <- SLASHES
+        // it-CH would have turned Swiss dates into 05/09/2026 and walked straight
+        // into the proof. So the reader's language is used ONLY when the caller
+        // asked for words, and a plain numeric date is left exactly as it was.
+        // THIRD DISTINCTION, and it is not academic: WHO IS THE DOCUMENT FOR. A staff
+        // screen is read by whoever is signed in, so the words follow them. A RECEIPT is
+        // read by the customer standing at the counter, and the cashier's interface
+        // language has no business on it — Layla switching the till to English must not
+        // print an English date on a Swiss customer's receipt. Pass audience:'shop' to
+        // pin it to the store. Intl ignores option keys it does not know, so it costs
+        // nothing to carry it through.
+        function _dateLocale(options) {
+            const store = _cfg('locale') || 'de-CH';
+            if (options && options.audience === 'shop') return store;
+            const wantsWords = options && (
+                options.weekday || options.era || options.dayPeriod ||
+                options.month === 'long' || options.month === 'short' || options.month === 'narrow'
+            );
+            if (!wantsWords) return store;                 // numeric: the shop's, untouched
+            const lang = (window._posLang || 'en').slice(0, 2);
+            const region = (String(store).split('-')[1] || 'CH').toUpperCase();
+            return lang + '-' + region;                    // words: the reader's language
+        }
+
         function formatDate(value, options) {
             if (value === null || value === undefined || value === '') return '';
             const d = (value instanceof Date) ? value : new Date(value);
             if (isNaN(d.getTime())) return '';
-            return d.toLocaleDateString(_cfg('locale'), options);
+            return d.toLocaleDateString(_dateLocale(options), options);
         }
 
         function formatTime(value, options) {
@@ -2079,11 +2116,15 @@
             return d.toLocaleTimeString(_cfg('locale'), options);
         }
 
+        // Same seam, same rule — see _dateLocale() above: a datetime carries a date,
+        // so if the caller asked for a weekday or a month name it follows the reader.
+        // formatTime() above deliberately does NOT: a 24-hour clock is a shop
+        // convention, not a language, and nothing in a Swiss till should render 8 PM.
         function formatDateTime(value, options) {
             if (value === null || value === undefined || value === '') return '';
             const d = (value instanceof Date) ? value : new Date(value);
             if (isNaN(d.getTime())) return '';
-            return d.toLocaleString(_cfg('locale'), options);
+            return d.toLocaleString(_dateLocale(options), options);
         }
 
         // Cash-drawer denomination grid, sourced from /config `denominations` (the tenant
@@ -2950,7 +2991,7 @@
           open.style.left=left+'px';open.style.top=top+'px';
           open.style.right='auto';open.style.bottom='auto';
         }
-        if(saved&&typeof saved.left==='number'){place(saved.left,saved.top);}
+        if(!(saved&&applyAnchor(saved))&&saved&&typeof saved.left==='number'){place(saved.left,saved.top);}
         var dragging=false,moved=false,sx=0,sy=0,ox=0,oy=0;
         open.addEventListener('pointerdown',function(e){
           dragging=true;moved=false;
@@ -2963,17 +3004,51 @@
           if(!moved&&Math.abs(dx)+Math.abs(dy)>DRAG_PX){moved=true;open.classList.add('dragging');}
           if(moved){place(ox+dx,oy+dy);}
         });
+        // REMEMBER THE CORNER IT WAS PARKED IN, NOT THE PIXELS. Storing left/top alone
+        // survives a rotation only as coordinates: Angel keeps this button down by the
+        // bottom bar in landscape ("it's sort of out of the way in between Customers and
+        // My Day"), and on 2026-09-05 turning the tablet to portrait left it sitting in
+        // the middle of the dashboard on top of a menu row. The clamp below had done its
+        // job — it was on-screen — but "down there, out of the way" is an INTENT about an
+        // edge, and an absolute pixel cannot carry it from a 2160-wide viewport to a
+        // 1440-wide one. So record which half of each axis it was nearer, and re-apply it
+        // as a distance from THAT edge when the viewport changes. Dragging is untouched;
+        // parked bottom-right stays bottom-right after a flip.
+        function anchorOf(r){
+          var W=window.innerWidth,H=window.innerHeight;
+          var cx=r.left+r.width/2, cy=r.top+r.height/2;
+          return {
+            ax: cx > W/2 ? 'right' : 'left',
+            ay: cy > H/2 ? 'bottom' : 'top',
+            dx: cx > W/2 ? Math.max(0, W-r.right) : Math.max(0, r.left),
+            dy: cy > H/2 ? Math.max(0, H-r.bottom) : Math.max(0, r.top)
+          };
+        }
+        function applyAnchor(a){
+          if(!a||!a.ax)return false;
+          var w=open.offsetWidth||120,h=open.offsetHeight||44;
+          var left = a.ax==='right' ? window.innerWidth  - w - a.dx : a.dx;
+          var top  = a.ay==='bottom'? window.innerHeight - h - a.dy : a.dy;
+          place(left,top);
+          return true;
+        }
         function endDrag(){
           if(!dragging)return;dragging=false;open.classList.remove('dragging');
           if(moved){
             var r=open.getBoundingClientRect();
-            try{localStorage.setItem(POS_KEY,JSON.stringify({left:r.left,top:r.top}));}catch(e){}
+            // left/top stay in the record for older builds that only know how to read those.
+            var rec=anchorOf(r); rec.left=r.left; rec.top=r.top;
+            try{localStorage.setItem(POS_KEY,JSON.stringify(rec));}catch(e){}
           }
         }
         open.addEventListener('pointerup',function(e){var was=moved;endDrag();if(!was)openFeedback();});
         open.addEventListener('pointercancel',endDrag);
-        // Keep it on-screen if the viewport rotates/resizes (portrait<->landscape).
+        // Rotate/resize: re-derive from the remembered CORNER (see anchorOf above), so a
+        // flip keeps it in the corner it was parked in. Falls back to the old clamp-only
+        // behaviour for a position saved by a build that never stored an anchor.
         window.addEventListener('resize',function(){
+          var a=null; try{a=JSON.parse(localStorage.getItem(POS_KEY)||'null');}catch(e){}
+          if(a&&applyAnchor(a))return;
           if(open.style.left){place(parseFloat(open.style.left)||0,parseFloat(open.style.top)||0);}
         });
       })();
