@@ -116,7 +116,9 @@ R=$(ssh -o BatchMode=yes -o ConnectTimeout=10 "$HOST" '
   # and the three settings that decide whether it is still awake in fifteen minutes
   for k in "org.gnome.desktop.screensaver lock-enabled" \
            "org.gnome.desktop.session idle-delay" \
-           "org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type"; do
+           "org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type" \
+           "org.gnome.settings-daemon.plugins.power ambient-enabled" \
+           "org.gnome.settings-daemon.plugins.power power-button-action"; do
     set -- $k
     say "gset:$1/$2" "$(gsettings get "$1" "$2" 2>/dev/null || echo ERR)"
     say "lock:$1/$2" "$(gsettings writable "$1" "$2" 2>/dev/null || echo ERR)"
@@ -257,8 +259,10 @@ echo "── and is it still awake in fifteen minutes? ──"
 # The screen MAY blank — that is a screensaver and a touch wakes it. What must never
 # happen is a lock (a password prompt at a counter) or a suspend (the power button).
 chk "org.gnome.desktop.screensaver/lock-enabled"                     false        "it never locks itself — no password prompt at the counter"
-chk "org.gnome.desktop.session/idle-delay"                           "uint32 900" "the screen may blank after 15 min — a touch wakes it"
+chk "org.gnome.desktop.session/idle-delay"                           "uint32 0"   "the screen never goes black — black would mean OFF, and nobody can tell the difference"
 chk "org.gnome.settings-daemon.plugins.power/sleep-inactive-ac-type" "'nothing'"  "it does not suspend on mains"
+chk "org.gnome.settings-daemon.plugins.power/ambient-enabled"        false        "the light sensor does not drive the brightness"
+chk "org.gnome.settings-daemon.plugins.power/power-button-action"    "'interactive'" "a stray power-button press asks instead of suspending"
 
 echo
 echo "── and it can reach the shop from where it sits ──"

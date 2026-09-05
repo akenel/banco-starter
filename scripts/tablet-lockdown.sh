@@ -303,11 +303,46 @@ enable-hot-corners=false
 # waking it is a tap. What goes is the lock and the suspend. The first draft of
 # this block set idle-delay=0 ("never blank"), which was heavier than the problem:
 # blanking was never the fault.
+# AND A BLACK SCREEN MUST MEAN "OFF", NOT "GUESS".
+#
+# Angel, 2026-09-05, looking at the tablet from across the room while the very
+# fix below was being tested: "the screen is black ... it's impossible for me or
+# an end user to know if the power is off or if it's just sleeping. In the past I
+# would go for the power button."
+#
+# That is the whole fault, and it is worse than it sounds, because:
+#
+#     power-button-action = 'suspend'
+#
+# — so the reflex he describes SUSPENDS a tablet that was working perfectly. We
+# made the machine behave correctly and left a human no way to tell, and the
+# habit that fills the gap is the one thing that breaks it.
+#
+# So the screen never goes fully black on idle. It DIMS to 30% and stays lit:
+# obviously alive from three metres, nearly the same power saved, and no reason
+# to reach for anything. Black then means off, and the power button is right.
 [org/gnome/desktop/screensaver]
 lock-enabled=false
 
 [org/gnome/desktop/session]
-idle-delay=uint32 900
+idle-delay=uint32 0
+
+# The dim replaces the blank. idle-brightness is a percentage, not a raw value.
+[org/gnome/settings-daemon/plugins/power]
+idle-dim=true
+idle-brightness=30
+
+# AND THE AMBIENT LIGHT SENSOR STOPS DRIVING IT. Measured on the tablet at 19%
+# of maximum in a flat, in daylight. A counter's light changes all day — the
+# street door, the ceiling lights, the season — and a till whose brightness
+# follows it is a till that is unreadable at the wrong moment. Step A4 of the
+# counter sheet was written to catch this; it is not hypothetical.
+ambient-enabled=false
+
+# A SHORT PRESS OF THE POWER BUTTON NO LONGER SUSPENDS. It asks. A long press
+# still forces the machine off at the firmware, below anything software can
+# change, so there is always a way out — it just is not an accident any more.
+power-button-action='interactive'
 
 # 'nothing' on BOTH, not just on mains. On battery the tempting answer is to let
 # it sleep and save the charge — but an unplugged tablet that sleeps is a till
@@ -347,6 +382,10 @@ cat > "$LOCKS" <<'LOCKS_LIST'
 /org/gnome/desktop/interface/enable-hot-corners
 /org/gnome/desktop/screensaver/lock-enabled
 /org/gnome/desktop/session/idle-delay
+/org/gnome/settings-daemon/plugins/power/idle-dim
+/org/gnome/settings-daemon/plugins/power/idle-brightness
+/org/gnome/settings-daemon/plugins/power/ambient-enabled
+/org/gnome/settings-daemon/plugins/power/power-button-action
 /org/gnome/settings-daemon/plugins/power/sleep-inactive-ac-type
 /org/gnome/settings-daemon/plugins/power/sleep-inactive-battery-type
 LOCKS_LIST
@@ -464,6 +503,31 @@ if [ "$AUTOLOGIN" -eq 1 ]; then
     say "  ⚠️  could not set autologin in $GDM_CONF — no [daemon] section? check it by hand"
   fi
 fi
+
+# ── BASE BRIGHTNESS ───────────────────────────────────────────────────────
+# Turning the ambient sensor off freezes the brightness wherever it happened to
+# be — and on this tablet that was 19% of maximum, in a flat, in daylight. Under
+# shop lights at arm's length that is the "readable without leaning in" test
+# failing before anyone has walked in.
+#
+# So set a floor. 80% rather than 100%: full brightness on an LCD buys little
+# visible contrast over 80 and costs backlight hours, and the counter sheet will
+# find the real number by looking at it under their lights. systemd-backlight
+# saves this at shutdown and restores it at boot, so it is set once, not nagged.
+BRIGHTNESS_PCT="${BRIGHTNESS_PCT:-80}"
+for bl in /sys/class/backlight/*/; do
+  [ -w "$bl/brightness" ] || continue
+  max=$(cat "$bl/max_brightness" 2>/dev/null) || continue
+  [ -n "$max" ] && [ "$max" -gt 0 ] 2>/dev/null || continue
+  was=$(cat "$bl/brightness" 2>/dev/null)
+  want=$(( max * BRIGHTNESS_PCT / 100 ))
+  if [ "$was" -lt "$want" ] 2>/dev/null; then
+    echo "$want" > "$bl/brightness" 2>/dev/null \
+      && say "  brightness $(basename "$bl"): $((was * 100 / max))% → ${BRIGHTNESS_PCT}%"
+  else
+    say "  brightness $(basename "$bl"): already $((was * 100 / max))% — left alone"
+  fi
+done
 
 # NO KIOSK MODE HERE — AND THIS BLOCK EXISTS TO REMOVE IT AGAIN.
 #
