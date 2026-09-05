@@ -112,6 +112,26 @@ if [ "${1:-}" = "--push" ]; then
   DRY=0
   for a in "$@"; do [ "$a" = "--dry-run" ] && DRY=1; done
 
+  # EVERY OTHER FLAG HAS TO SURVIVE THE TRIP. `exec $INSTALLED` ran the script on the far
+  # end with NO ARGUMENTS, so `--push tablet --autologin` parsed the flag here, exited
+  # here, and the tablet did the lockdown and silently skipped the thing that was asked
+  # for. Second time this shape has bitten in one day (see $STAGE): the push path cannot
+  # be rehearsed, so anything added to it ships unexercised — and --dry-run, added THIS
+  # MORNING for exactly that reason, would have printed the missing flag if I had run it
+  # once with the new option.
+  FWD=""
+  i=0
+  for a in "$@"; do
+    i=$((i + 1))
+    [ "$i" -le 1 ] && continue                                  # --push itself
+    [ "$i" -eq 2 ] && case "$a" in -*) ;; *) continue ;; esac    # the host, when given
+    case "$a" in
+      --dry-run) continue ;;
+      *[!A-Za-z0-9=_-]*) echo "refusing to forward $a — flags only" >&2; exit 2 ;;
+    esac
+    FWD="$FWD $a"
+  done
+
   [ -r "$SELF" ] || { echo "--push needs the script as a file, not a pipe" >&2; exit 2; }
 
   # AND IT NEEDS A REAL TERMINAL, checked BEFORE anything is copied.
@@ -131,7 +151,8 @@ if [ "${1:-}" = "--push" ]; then
   # refuses at the door and names the fix.
   if [ "$DRY" -eq 1 ]; then
     echo "→ scp -q \"$SELF\" \"$HOST:$STAGE\""
-    echo "→ ssh -t \"$HOST\" \"sudo sh -c 'install -m 755 \\\"\$1\\\" $INSTALLED && exec $INSTALLED' _ \\\"\$HOME/$STAGE\\\"; rc=\$?; rm -f \\\"\$HOME/$STAGE\\\"; exit \$rc\""
+    echo "→ ssh -t \"$HOST\" \"sudo sh -c 'install -m 755 \\\"\$1\\\" $INSTALLED && exec $INSTALLED$FWD' _ \\\"\$HOME/$STAGE\\\"; rc=\$?; rm -f \\\"\$HOME/$STAGE\\\"; exit \$rc\""
+    [ -n "$FWD" ] && echo "   (forwarding:$FWD)" || echo "   (no flags to forward)"
     echo "(dry run — nothing copied, nothing run)"
     exit 0
   fi
@@ -158,13 +179,55 @@ if [ "${1:-}" = "--push" ]; then
   # removed — the permanent copy is $INSTALLED and nothing is left lying around.
   # shellcheck disable=SC2029  # $INSTALLED/$STAGE must expand HERE; $HOME/$1 must not
   ssh -t "$HOST" \
-    "sudo sh -c 'install -m 755 \"\$1\" $INSTALLED && exec $INSTALLED' _ \"\$HOME/$STAGE\"; \
+    "sudo sh -c 'install -m 755 \"\$1\" $INSTALLED && exec $INSTALLED$FWD' _ \"\$HOME/$STAGE\"; \
      rc=\$?; rm -f \"\$HOME/$STAGE\"; exit \$rc"
   exit $?
 fi
 
 if [ "${1:-}" = "--quiet" ]; then QUIET=1; fi          # how the boot unit calls us
 say() { [ "$QUIET" -eq 1 ] || echo "$@"; }
+
+# A FUNCTION, AND REHEARSABLE WITHOUT ROOT OR A TABLET. Twice today something on the
+# --push path shipped broken because that path cannot be run from here: $STAGE was
+# undefined, and then --autologin was parsed on the laptop and never forwarded. Both were
+# one command away from being caught if the command had existed. So:
+#
+#     ./scripts/tablet-lockdown.sh --autologin-selftest
+#
+# runs this against a throwaway copy of a real daemon.conf and prints the result.
+set_autologin() {
+  conf="$1"; user="$2"
+  [ -e "$conf" ] || return 2          # no GDM here; the caller says so
+  [ -e "$conf.pre-autologin" ] || cp -a "$conf" "$conf.pre-autologin"
+  # Strip any existing AutomaticLogin lines (commented or not), then insert ours directly
+  # after the [daemon] header. Idempotent: running it twice leaves one copy.
+  awk -v u="$user" '
+    /^[[:space:]]*#?[[:space:]]*AutomaticLogin(Enable)?[[:space:]]*=/ { next }
+    { print }
+    /^\[daemon\][[:space:]]*$/ && !done { print "AutomaticLoginEnable=true"; print "AutomaticLogin=" u; done=1 }
+  ' "$conf" > "$conf.new" && mv "$conf.new" "$conf"
+  grep -q "^AutomaticLogin=$user\$" "$conf" && grep -q "^AutomaticLoginEnable=true\$" "$conf"
+}
+
+if [ "${1:-}" = "--autologin-selftest" ]; then
+  t=$(mktemp -d); printf '%s\n' \
+    "# GDM configuration storage" "[daemon]" "# Uncomment the line below to force Xorg" \
+    "#WaylandEnable=false" "#  AutomaticLoginEnable = true" "#  AutomaticLogin = user1" \
+    "[security]" > "$t/daemon.conf"
+  echo "── before ──"; grep -vE '^[[:space:]]*$' "$t/daemon.conf" | sed 's/^/   /'
+  set_autologin "$t/daemon.conf" testuser && echo "  ✅ set, and verified by reading it back" \
+                                          || { echo "  ❌ did not take"; exit 1; }
+  echo "── after ──";  grep -vE '^[[:space:]]*$' "$t/daemon.conf" | sed 's/^/   /'
+  set_autologin "$t/daemon.conf" testuser >/dev/null
+  n=$(grep -c '^AutomaticLogin=' "$t/daemon.conf")
+  [ "$n" -eq 1 ] && echo "  ✅ running it twice leaves ONE line, not two" \
+                 || { echo "  ❌ ran twice, $n lines"; exit 1; }
+  [ -e "$t/daemon.conf.pre-autologin" ] && echo "  ✅ the original was backed up once" \
+                 || { echo "  ❌ no backup"; exit 1; }
+  grep -q "AutomaticLogin = user1" "$t/daemon.conf.pre-autologin" \
+    && echo "  ✅ and the backup is the ORIGINAL, not the edited one" || { echo "  ❌ backup is wrong"; exit 1; }
+  rm -rf "$t"; exit 0
+fi
 
 if [ "$(id -u)" -ne 0 ]; then
   # $0 is "bash" when this arrives over a pipe, so name the ways out explicitly.
@@ -322,26 +385,17 @@ done
 # changed. Passing it twice is a no-op.
 AUTOLOGIN=0
 for a in "$@"; do [ "$a" = "--autologin" ] && AUTOLOGIN=1; done
-GDM_CONF=/etc/gdm3/daemon.conf
-if [ "$AUTOLOGIN" -eq 1 ] && [ -w "${GDM_CONF%/*}" ] 2>/dev/null || [ "$AUTOLOGIN" -eq 1 ] && [ -e "$GDM_CONF" ]; then
+GDM_CONF="${BANCO_GDM_CONF:-/etc/gdm3/daemon.conf}"
+
+if [ "$AUTOLOGIN" -eq 1 ]; then
   TILL_USER="${SUDO_USER:-${AUTOLOGIN_USER:-}}"
   if [ -z "$TILL_USER" ] || [ "$TILL_USER" = root ]; then
     say "  ⚠️  autologin asked for, but I cannot tell which user runs the till"
     say "      re-run as:  AUTOLOGIN_USER=<name> sudo -E $0 --autologin"
+  elif set_autologin "$GDM_CONF" "$TILL_USER"; then
+    say "  wrote $GDM_CONF  (autologin as $TILL_USER — the till returns after a power cut)"
   else
-    [ -e "$GDM_CONF.pre-autologin" ] || cp -a "$GDM_CONF" "$GDM_CONF.pre-autologin"
-    # Idempotent: strip any existing AutomaticLogin lines (commented or not),
-    # then insert ours immediately after the [daemon] header.
-    awk -v u="$TILL_USER" '
-      /^[[:space:]]*#?[[:space:]]*AutomaticLogin(Enable)?[[:space:]]*=/ { next }
-      { print }
-      /^\[daemon\][[:space:]]*$/ && !done { print "AutomaticLoginEnable=true"; print "AutomaticLogin=" u; done=1 }
-    ' "$GDM_CONF" > "$GDM_CONF.new" && mv "$GDM_CONF.new" "$GDM_CONF"
-    if grep -q "^AutomaticLogin=$TILL_USER$" "$GDM_CONF"; then
-      say "  wrote $GDM_CONF  (autologin as $TILL_USER — the till now returns after a power cut)"
-    else
-      say "  ⚠️  could not set autologin in $GDM_CONF — no [daemon] section? check it by hand"
-    fi
+    say "  ⚠️  could not set autologin in $GDM_CONF — no [daemon] section? check it by hand"
   fi
 fi
 
