@@ -330,3 +330,61 @@ you were trying to rescue. All fixed, locked, and measured over a 22-minute idle
 - **PWA `display: fullscreen`** — removes the title bar, and with it the only escape that cannot be blocked.
 - **`window-controls-overlay`** — Angel's own idea and the most elegant of them: OS bar always visible, no Chrome title bar, and drag regions are opt-in so we would declare none. Rejected for the same reason as fullscreen, plus uncertain support on Linux/Wayland and it needs the PWA properly installed rather than launched with `--app=`.
 - **A GNOME Shell extension that snapped the window back** — built, loaded, reported `State: ACTIVE`, did nothing at all (matched `wm_class` "chromium"; an `--app=` window is not called that). Removed on purpose even once fixable: compositor code on a machine that takes money, silently undoing anything deliberate, teaching nobody anything.
+
+
+---
+
+## The deck's closed items, as they read at the end of 2026-09-05
+
+1. ~~**② The keyboard buries the search results**~~ — **FIXED**, confirmed by Angel on the tablet
+   10:34, `b644`. → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
+2. ~~**Pam's picker + Angel's shelf pill**~~ — **DONE**, `b647`, needs eyes. It shipped wrong
+   first, on a bad number of mine that was in this file.
+   → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
+
+3. ~~**One `--push` of `scripts/tablet-lockdown.sh`**~~ — **DONE**, 2026-09-05 11:2x, run by Angel
+   from a real terminal. All four kiosk leftovers gone, verified from the laptop rather than taken
+   from the script's own output: `/usr/local/bin/banco-kiosk`,
+   `/usr/share/applications/banco-kiosk.desktop`, `/etc/xdg/autostart/banco-kiosk.desktop`,
+   `/etc/default/banco-kiosk`. `banco-till.service` **active, NRestarts=0**. Also removed my own
+   `~/.config/autostart/banco-kiosk.desktop` — the 00:12 `Hidden=true` override, which existed only
+   to neutralise a file that no longer exists and whose `Exec=` named a deleted binary.
+   ⚠️ **It took two goes:** the first died on `STAGE: unbound variable` (`0d6b910`). The two-step
+   rewrite the night before fixed the no-terminal path and broke the working one, and nothing ran
+   the working one — it needs a terminal, a live machine and a password. `--push --dry-run` now
+   prints both commands and touches nothing, so the happy path is checkable from here.
+
+   **Two of Angel's own files are still in `~/.config/autostart/`, inert and worth keeping:**
+   `banco.desktop.disabled` and `banco.desktop.pre-kioskfix` (2 Sep). Neither ends in `.desktop`
+   in a way GNOME reads, so nothing runs them — and `pre-kioskfix` is **evidence**: its `Exec=` is
+   `chromium --kiosk --app=https://banco.wolfhold.app/pos`. **The till DID autostart in kiosk mode
+   on 2 September and was backed out the same evening.** That is the third independent record that
+   kiosk was tried and rejected, and it belongs with item 4 below.
+
+
+
+---
+
+## The window-drag decision, in full
+
+   ~~**And the window-drag bug rides along**~~ — **CLOSED as a compromise Angel accepted,
+   2026-09-05.** Not fixed, and deliberately so. The window CAN still be dragged off; what changed
+   is that there are now **four independent ways back**, and Angel found the best one himself:
+   **drag the grey title bar back**, tap the amber **"⛶ Tap to fill the screen"**, tap **⛶**, or
+   press the app in Activities (`Restart=always`).
+   **The insight that settled it:** the title bar is both the cause AND the escape hatch. It lives
+   OUTSIDE the web page, so no modal, error or popup Banco ever draws can cover it or block it.
+   Angel's worst fear — *"a popup 90% covered blocks the possibility to restore"* — cannot happen.
+   **Fullscreen and window-controls-overlay would remove the accident and remove that escape with
+   it**, leaving us trusting our own code never to trap anyone. The OS is the better bet.
+   ⚠️ **The real gap is knowledge, not code.** Angel: *"i did not know i could re-drag the window
+   to a useable location"* — after a week of testing. Layla met this on 4 Sep and **rebooted the
+   till**. So it is now a DRILL, not a hope: steps **B4a/B4b/B4c** of
+   [`2026-09-05-standing-where-layla-stands.html`](onboarding/testsheets/2026-09-05-standing-where-layla-stands.html)
+   have her break it on purpose and recover it three ways, unaided, with nobody waiting.
+   *"If she cannot, that is a FAIL and it is the most useful failure on this sheet."*
+   Five alternatives were considered and rejected on the day — kiosk, a 90%-centred restore, PWA
+   fullscreen, window-controls-overlay, and a GNOME Shell extension. All of them remove the title
+   bar, and the title bar is the thing that always works.
+   → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
+

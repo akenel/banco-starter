@@ -36,31 +36,11 @@ moved to [`worklist-archive/2026-09-05-archive-pass.md`](worklist-archive/2026-0
 ### Pick up here, in this order
 
 0. ~~**The worklist alarm**~~ — **DONE**, `fb00d2c`, step 4 of SESSION START. → archive
-1. ~~**② The keyboard buries the search results**~~ — **FIXED**, confirmed by Angel on the tablet
-   10:34, `b644`. → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
-2. ~~**Pam's picker + Angel's shelf pill**~~ — **DONE**, `b647`, needs eyes. It shipped wrong
-   first, on a bad number of mine that was in this file.
-   → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
-
-3. ~~**One `--push` of `scripts/tablet-lockdown.sh`**~~ — **DONE**, 2026-09-05 11:2x, run by Angel
-   from a real terminal. All four kiosk leftovers gone, verified from the laptop rather than taken
-   from the script's own output: `/usr/local/bin/banco-kiosk`,
-   `/usr/share/applications/banco-kiosk.desktop`, `/etc/xdg/autostart/banco-kiosk.desktop`,
-   `/etc/default/banco-kiosk`. `banco-till.service` **active, NRestarts=0**. Also removed my own
-   `~/.config/autostart/banco-kiosk.desktop` — the 00:12 `Hidden=true` override, which existed only
-   to neutralise a file that no longer exists and whose `Exec=` named a deleted binary.
-   ⚠️ **It took two goes:** the first died on `STAGE: unbound variable` (`0d6b910`). The two-step
-   rewrite the night before fixed the no-terminal path and broke the working one, and nothing ran
-   the working one — it needs a terminal, a live machine and a password. `--push --dry-run` now
-   prints both commands and touches nothing, so the happy path is checkable from here.
-
-   **Two of Angel's own files are still in `~/.config/autostart/`, inert and worth keeping:**
-   `banco.desktop.disabled` and `banco.desktop.pre-kioskfix` (2 Sep). Neither ends in `.desktop`
-   in a way GNOME reads, so nothing runs them — and `pre-kioskfix` is **evidence**: its `Exec=` is
-   `chromium --kiosk --app=https://banco.wolfhold.app/pos`. **The till DID autostart in kiosk mode
-   on 2 September and was backed out the same evening.** That is the third independent record that
-   kiosk was tried and rejected, and it belongs with item 4 below.
-
+1. ~~**② The keyboard buries the search results**~~ — **FIXED**, confirmed on the tablet, `b644`.
+2. ~~**Pam's picker + Angel's shelf pill**~~ — **DONE**, `b647`, needs eyes. Shipped wrong first,
+   on a bad number of mine that was in this file.
+3. ~~**The kiosk leftovers**~~ — **DONE**, all four gone, verified from outside the machine.
+   → all three: [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
 4. ~~**The tablet**~~ — **DONE 2026-09-05**, eleven faults, all fixed, locked and measured;
    both decisions answered. What is left is four small things and they are listed under 🖥️ below.
 5. **The counter visit — PREPPED, two sheets ready, needs the trip.** 2026-09-05.
@@ -73,25 +53,12 @@ moved to [`worklist-archive/2026-09-05-archive-pass.md`](worklist-archive/2026-0
    **3 → CHF 5.00, 4 → CHF 7.00 (not 6.67)**, Ralph's whole-packs rule, never checked on a stored
    record. **Nothing has completed a sale on this build** (last: 2026-08-21).
    → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
-   ~~**And the window-drag bug rides along**~~ — **CLOSED as a compromise Angel accepted,
-   2026-09-05.** Not fixed, and deliberately so. The window CAN still be dragged off; what changed
-   is that there are now **four independent ways back**, and Angel found the best one himself:
-   **drag the grey title bar back**, tap the amber **"⛶ Tap to fill the screen"**, tap **⛶**, or
-   press the app in Activities (`Restart=always`).
-   **The insight that settled it:** the title bar is both the cause AND the escape hatch. It lives
-   OUTSIDE the web page, so no modal, error or popup Banco ever draws can cover it or block it.
-   Angel's worst fear — *"a popup 90% covered blocks the possibility to restore"* — cannot happen.
-   **Fullscreen and window-controls-overlay would remove the accident and remove that escape with
-   it**, leaving us trusting our own code never to trap anyone. The OS is the better bet.
-   ⚠️ **The real gap is knowledge, not code.** Angel: *"i did not know i could re-drag the window
-   to a useable location"* — after a week of testing. Layla met this on 4 Sep and **rebooted the
-   till**. So it is now a DRILL, not a hope: steps **B4a/B4b/B4c** of
-   [`2026-09-05-standing-where-layla-stands.html`](onboarding/testsheets/2026-09-05-standing-where-layla-stands.html)
-   have her break it on purpose and recover it three ways, unaided, with nobody waiting.
-   *"If she cannot, that is a FAIL and it is the most useful failure on this sheet."*
-   Five alternatives were considered and rejected on the day — kiosk, a 90%-centred restore, PWA
-   fullscreen, window-controls-overlay, and a GNOME Shell extension. All of them remove the title
-   bar, and the title bar is the thing that always works.
+   ~~**And the window-drag bug rides along**~~ — **CLOSED as a compromise Angel accepted.** Not
+   fixed on purpose: **the title bar is both the cause AND the escape hatch**, it lives outside the
+   web page, so no popup can ever block it. Four ways back, and it is now a DRILL — steps
+   **B4a/B4b/B4c** of the counter sheet have Layla break it and recover it unaided. Five
+   alternatives considered and rejected (kiosk, 90%-centred, PWA fullscreen,
+   window-controls-overlay, a Shell extension) — all remove the title bar.
    → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
 
 6. **⚠️ ESTABLISH ONE FACT BEFORE THE FELIX MEETING: does the shop have a Worldline terminal at the
@@ -142,6 +109,30 @@ that looked perfect. Both decisions answered: keep the 30% dim; `art`/`admin` sp
 → all of it, with the numbers and the order that mattered:
 [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)*
 
+### ⚠️ PORTRAIT — the close-out has never been seen in the orientation it will be used in
+
+**Angel, 2026-09-05, describing what actually happens at closing:** *"they are unplugging the tablet
+… walk to the back of the shop most likely now in **portrait view** as it sits in the hand and is on
+the lap … Pam or Layla start counting the cash and working the tablet numbers."* And: *"I say portrait
+because **they will do that**, not because we say hey run this in landscape view — they will just
+naturally go to portrait like they do with their phones."*
+
+**The tablet can and will rotate.** Measured: three accelerometers, `iio-sensor-proxy` **active**,
+and the lockdown says **nothing** about rotation — 0 matches.
+
+**Every proof in this repo runs at 1440 × 895, landscape.** The keypad, the search list, the row
+snap, the date grids, the discount chips — all of it measured on a stand. **The one flow that will
+happen in portrait, on a lap, is the close-out: counting cash, the Z-report, the shift close.
+The flow with all the money in it is the flow we have never looked at in the posture it will be
+used in.** Same shape as the folio keyboard and the LTE proved in a flat.
+
+**This reverses the plan.** ⓞ said *"choose a landscape stand and lock rotation in the OS."*
+Locking landscape would break their real end-of-day routine. **Do not lock it — test portrait.**
+
+Roughly 960 × 1440 logical. Two-column layouts collapse, the keypad takes proportionally more of
+the screen, sticky bars move. Start with `/pos/closeout` and `/pos/my-day`, then the drawer count.
+Not started.
+
 ### Still open on the tablet
 
 - ~~**The title bar's close button**~~ — **NOT A BUG, A PRICED TRADE. Do not reopen.** Angel,
@@ -176,6 +167,12 @@ that looked perfect. Both decisions answered: keep the 30% dim; `art`/`admin` sp
   worse than a controlled shutdown.
 - **`shop-lte` is ACTIVE alongside wifi** — the failover exists and is live. Decide whether it is
   meant to be always-on, and test it at the shop, not in a flat.
+- **[`the-till-morning-to-night.html`](onboarding/the-till-morning-to-night.html)** — the one-page
+  card to pin by the till, written 2026-09-05 from Angel's own description of the day. Opening,
+  what "dim" means, the three ways back if the window moves, closing, and the three don'ts
+  (the ×, the web in the till's window, unplugged overnight). **Needs Angel's corrections, then
+  Layla's eyes.** Ends by saying the stricter kiosk mode exists and what it would cost — *"your
+  call, once you have lived with it."*
 - **These two scripts belong in the onboarding kit**, not just on Angel's tablet: anyone who clones
   Banco onto a tablet meets the identical defaults. → archive. The account split and the two
   coloured prompts belong in that write-up too — they are currently hand-made on this one machine.
