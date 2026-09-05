@@ -90,11 +90,10 @@ moved to [`worklist-archive/2026-09-05-archive-pass.md`](worklist-archive/2026-0
    [`2026-09-05-standing-where-layla-stands.html`](onboarding/testsheets/2026-09-05-standing-where-layla-stands.html)
    have her break it on purpose and recover it three ways, unaided, with nobody waiting.
    *"If she cannot, that is a FAIL and it is the most useful failure on this sheet."*
-   Considered and rejected on the day: `--kiosk` (third rejection), a 90%-centred restore geometry,
-   PWA `display: fullscreen`, and `window-controls-overlay` — all remove the title bar, and the
-   title bar is the thing that always works.
-   ⚠️ **A GNOME Shell extension was built for this and REMOVED ON PURPOSE — do not rebuild it.**
-   It reported `State: ACTIVE` and did nothing at all. → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
+   Five alternatives were considered and rejected on the day — kiosk, a 90%-centred restore, PWA
+   fullscreen, window-controls-overlay, and a GNOME Shell extension. All of them remove the title
+   bar, and the title bar is the thing that always works.
+   → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
 
 6. **⚠️ ESTABLISH ONE FACT BEFORE THE FELIX MEETING: does the shop have a Worldline terminal at the
    counter TODAY, or does it arrive with go-live?** It decides the payment-button question below —

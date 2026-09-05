@@ -315,3 +315,18 @@ you were trying to rescue. All fixed, locked, and measured over a 22-minute idle
   → the order, the gates and why step 3½ mattered:
   [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
 
+
+
+---
+
+## Window-drag: what was considered and rejected, 2026-09-05
+
+   Considered and rejected on the day: `--kiosk` (third rejection), a 90%-centred restore geometry,
+   PWA `display: fullscreen`, and `window-controls-overlay` — all remove the title bar, and the
+   title bar is the thing that always works.
+
+- `--kiosk` — third rejection. Hides the GNOME bar, which is *why* people reach for the corner.
+- **A 90%-centred restore geometry** — Chromium `--window-size`. Would have made the accident tidier; the window still has a title bar, so it can still be dragged anywhere.
+- **PWA `display: fullscreen`** — removes the title bar, and with it the only escape that cannot be blocked.
+- **`window-controls-overlay`** — Angel's own idea and the most elegant of them: OS bar always visible, no Chrome title bar, and drag regions are opt-in so we would declare none. Rejected for the same reason as fullscreen, plus uncertain support on Linux/Wayland and it needs the PWA properly installed rather than launched with `--app=`.
+- **A GNOME Shell extension that snapped the window back** — built, loaded, reported `State: ACTIVE`, did nothing at all (matched `wm_class` "chromium"; an `--app=` window is not called that). Removed on purpose even once fixable: compositor code on a machine that takes money, silently undoing anything deliberate, teaching nobody anything.
