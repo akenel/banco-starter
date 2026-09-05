@@ -23,10 +23,12 @@ tablet, zero fails. Live on the shop: `b629 · 6cc1bb5`.*
 
 ---
 
-## 🌙 CLOSE OF 2026-09-04, ~23:30 — READ THIS FIRST
+## ▶️ THE DECK — READ THIS FIRST · last touched 2026-09-05 afternoon
 
-**Live on the shop: `b629 · 6cc1bb5`.** Reload the tablet TWICE after any deploy — the first load
+**Live on the shop: `b647 · 234a601`.** Reload the tablet TWICE after any deploy — the first load
 activates the new service worker, the second serves from it.
+*The method note from the night of 2026-09-04 — name the sample, and a grep only finds a shape
+somebody thought of — moved to [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md).*
 
 *What went in that night — four fixes, five suites, three sheets, 54 pass · 5 issue · 0 fail —
 moved to [`worklist-archive/2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md).*
@@ -60,7 +62,10 @@ moved to [`worklist-archive/2026-09-05-archive-pass.md`](worklist-archive/2026-0
    on 2 September and was backed out the same evening.** That is the third independent record that
    kiosk was tried and rejected, and it belongs with item 4 below.
 
-4. **The counter visit — PREPPED, two sheets ready, needs the trip.** 2026-09-05.
+4. **The tablet — two decisions left**, both for the counter, not for a flat: whether the screen
+   should dim at all, and splitting `art` from an `admin` account so a cashier's password is not
+   root. Everything else is fixed, locked and measured — see 🖥️ below.
+5. **The counter visit — PREPPED, two sheets ready, needs the trip.** 2026-09-05.
    [`2026-09-05-standing-where-layla-stands.html`](onboarding/testsheets/2026-09-05-standing-where-layla-stands.html)
    — 21 steps: light, reach, their wifi at the counter, the gun on their surface, noise. No sale.
    [`2026-09-05-four-real-sales.html`](onboarding/testsheets/2026-09-05-four-real-sales.html)
@@ -77,18 +82,18 @@ moved to [`worklist-archive/2026-09-05-archive-pass.md`](worklist-archive/2026-0
    63 minutes later. Next thing to try, on the machine: a GNOME rule that keeps it maximised, or an
    undecorated window from the compositor rather than from Chromium.
 
-5. **⚠️ ESTABLISH ONE FACT BEFORE THE FELIX MEETING: does the shop have a Worldline terminal at the
+6. **⚠️ ESTABLISH ONE FACT BEFORE THE FELIX MEETING: does the shop have a Worldline terminal at the
    counter TODAY, or does it arrive with go-live?** It decides the payment-button question below —
    if the terminal is already there its settlement IS the card breakdown; if not, the paper
    breakdown is the only one they have. Ask it before deciding anything.
-6. **The Felix conversation — four decisions that are HIS, written up, none agreed yet.**
+7. **The Felix conversation — four decisions that are HIS, written up, none agreed yet.**
    [`onboarding/the-felix-conversation.html`](onboarding/the-felix-conversation.html): the payment
    buttons (**Cash · Card · TWINT**, plus an ask-card-type setting so he can flip it himself),
    Worldline as **Phase 2** with the reasoning and the script, split tender parked, and the trial
    terms — **FAIL = free defect · ISSUE = quoted change**, agreed BEFORE the trial starts. Also the
    two asks worth more than they cost: one day's Banana CSV through his Treuhänder, and his real
    chart-of-accounts codes.
-7. **The receipt QR — spec written, not built.**
+8. **The receipt QR — spec written, not built.**
    [`onboarding/receipt-qr-spec.html`](onboarding/receipt-qr-spec.html). Every receipt fetches its QR
    from **`api.qrserver.com`** and points at `/join` → La Piazza. It should be drawn by Banco and
    point at the shop's own site from `store_settings.website`. The renderer already exists —
@@ -99,17 +104,6 @@ moved to [`worklist-archive/2026-09-05-archive-pass.md`](worklist-archive/2026-0
    invite — which means a THIRD-PARTY shop cloning the starter prints Angel's community on their
    customers' receipts by default. Probably wrong. No QR at all may be the right default, with La
    Piazza opt-in. **Angel's call before it is built.**
-
-### The method note worth keeping from tonight
-
-**Both testers asked for the same thing: name the sample.** Steps that said *"find a product with a
-long name"* and *"search for something with a lot of matches"* handed them my homework. Real terms
-from the shop's own 5,427 active products are in ⓒ5 — use them.
-
-**And a grep only finds a shape somebody thought of.** Six of tonight's dates were found by
-searching the code; five were found by Layla LOOKING AT THE SCREEN. `prove-swiss-dates.js` section
-N2 now reads the rendered text of seven reports and fails on any slashed date — the only check in
-that file that does not care how the string was produced.
 
 ---
 
@@ -122,6 +116,45 @@ that file that does not care how the string was produced.
 - **ⓙ The 131 no-op classes — closed, and the chat bubble** — closed. → [`worklist-archive/2026-09-04-archive-pass.md`](worklist-archive/2026-09-04-archive-pass.md)
 - **ⓚ The Search tab’s category picker** — fixed — and the ancestor of Pam’s B2 in ⓒ5. → [`worklist-archive/2026-09-04-archive-pass.md`](worklist-archive/2026-09-04-archive-pass.md)
 - **ⓛ The gun pressed the button again** — fixed. → [`worklist-archive/2026-09-04-archive-pass.md`](worklist-archive/2026-09-04-archive-pass.md)
+## 🖥️ THE TABLET — two decisions left · 2026-09-05
+
+*Saturday's question — "is everything in place when it boots?" — turned into nine faults, **none of
+them Banco's code**: every one was the machine around it, shipping laptop defaults that are wrong
+for a till. It booted to a login prompt, suspended after 15 minutes, resumed to a lock screen, went
+black to a digitiser that goes deaf when it does, and had a power button that suspended the machine
+you were trying to rescue. All fixed, locked, and measured over a 22-minute idle sample.
+**Now: boots to the till in 17s unattended · never sleeps · never black · one touch restores it ·
+80% fixed.** `scripts/tablet-postboot-check.sh` — **36 checks**.
+→ the whole write-up, with the numbers:
+[`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)*
+
+### The two decisions left
+
+1. **Leave the dim on, or pin it at 80%?** It dims after ~60s of no input — so the till sits dimmed
+   most of the time and will dim **mid-sale**, while a customer reads their total. The LEVEL is
+   fine (Angel: *"a little dim ... not 30% IMHO"* — 30% is the raw backlight register, not
+   perceived brightness, and he is right). The open question is whether the CHANGE is distracting.
+   **Answer it at the counter, step A4 — not from a flat in the afternoon.**
+2. **Split `art` and the administrator.** `art` is in group `sudo` and is the only human account,
+   so the password Layla would need is **root on the shop's till**. Plan agreed with Angel: create
+   `admin` (verified free as user and group), give it sudo, **prove it works**, add the ssh key,
+   and only then `deluser art sudo`. Order matters — reversed, the tablet has no administrator.
+   `--push` then runs as `admin`; the script already picks the till user from whoever owns
+   `banco-till.service`, not from `$SUDO_USER`.
+
+### Still open on the tablet
+
+- **The window has a title bar with a close button** — same family as Layla's window-drag bug.
+- **Chromium has a pending SECURITY update** (151 → 152) and nothing patches itself
+  (`unattended-upgrades` absent). Policy call: security-only, never auto-reboot, applied on a visit.
+- **Wifi powersave is `default`** (likely on) — worth disabling for a till.
+- **`shop-lte` is ACTIVE alongside wifi** — the failover exists and is live. Decide whether it is
+  meant to be always-on, and test it at the shop, not in a flat.
+- **These two scripts belong in the onboarding kit**, not just on Angel's tablet: anyone who clones
+  Banco onto a tablet meets the identical defaults. → archive.
+
+---
+
 ## ⓜ BIRTH YEAR INSTEAD OF A FULL BIRTHDATE — OPEN, DO NOT BUILD — 2026-09-04
 
 *Angel's idea, analysed and parked by his own call: **"i will ask felix tomorrow if he brings the
@@ -172,85 +205,30 @@ paper till records nothing at all.
 ---
 
 - **ⓝ Close of 2026-09-04 (daytime)** — superseded by tonight’s close. → [`worklist-archive/2026-09-04-archive-pass.md`](worklist-archive/2026-09-04-archive-pass.md)
-## ⓞ THE COUNTER VISIT — GO BEFORE THE SHIFT, NOT ON IT — 2026-09-04 evening
+## ⓞ THE COUNTER VISIT — GO BEFORE THE SHIFT, NOT ON IT
 
-*Found on a kitchen table, not at the shop. Angel stood the tablet up in landscape, looked down at
-it the way a cashier would, and it was unreadable — and **there is no chair behind that counter**,
-so Layla would have to pick the tablet up for every sale. `WHERE-WE-ARE.html` already carried the
-warning in prose (*"everything this week was proved in the flat"*); this is that warning turned into
-things you can actually check.*
+*Found on a kitchen table: Angel stood the tablet up in landscape, looked down at it the way a
+cashier would, and it was unreadable — and **there is no chair behind that counter**. The cheapest
+instance of LESSON #1 yet: a CHF 25 stand, caught three weeks early instead of on Layla's shift.*
 
-**This is LESSON #1 again and it is the cheapest instance of it yet** — a mount costs CHF 25, and
-it was caught three weeks early instead of on Layla's shift. Same shape as the folio keyboard that
-invalidated two runs, and as the LTE proved at home on an SSID Luzern does not have: *tested in the
-posture the tester happened to have, not the posture she will have.*
+**The checklist is now two sheets, not prose here** — steps a person can mark PASS/ISSUE/FAIL:
+[`2026-09-05-standing-where-layla-stands.html`](onboarding/testsheets/2026-09-05-standing-where-layla-stands.html)
+(21 steps, no sale) then
+[`2026-09-05-four-real-sales.html`](onboarding/testsheets/2026-09-05-four-real-sales.html)
+(18 steps, **the one sheet where the payment button is pressed** — nothing has completed a sale on
+this build; the last transaction on the box was 2026-08-21).
 
-### The one decision that touches the code — LANDSCAPE, LOCKED
+**Take with you:** a cheap adjustable stand (~CHF 25, *not* the real one yet), a matte anti-glare
+film (~CHF 20), the gun, the folio **to leave off**, and Layla. Photograph the geometry at the
+counter, then buy the weighted one (~CHF 80–300) — a light stand slides on every tap.
 
-Every geometry proof runs at **1440 × 895** (measured off the device pixel ratio, section ⓐ).
-Portrait is ~895 × 1440 and moves the fold, the pinned Save bar, the cart total and the keypad that
-owns the bottom of the screen. **Choose a landscape stand and lock rotation in the OS**, so a bump
-mid-sale cannot reflow the UI in front of a customer — and so this week's geometry work stays true.
-The testsheet rig already has an orientation selector; this is the decision that pins it.
+**The one decision that touches the code: LANDSCAPE, LOCKED.** Every geometry proof runs at
+1440 × 895. Portrait moves the fold, the cart total and the keypad. Lock rotation in the OS so a
+bump mid-sale cannot reflow the till in front of a customer.
 
-### Take with you
+→ the original prose, with the full reasoning:
+[`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
 
-- **A cheap adjustable tablet stand (~CHF 25).** Do NOT buy the real one first — the right angle and
-  height depend on Layla's height, the counter height and where their lights are, none of which can
-  be worked out from here. Find the geometry at the counter, photograph it, then buy the weighted
-  one (Bouncepad / Compulocks / Heckler / Durable / Kensington, ~CHF 80–300). **Weighted matters:**
-  a light stand slides on every tap. A counter-edge clamp or VESA arm is worth considering — counter
-  space is the scarcest thing at any till.
-- **A matte anti-glare screen protector (~CHF 20).** A glossy panel lying flat is aimed straight at
-  the ceiling lights. Tilting to 60–75° fixes most of it; the film fixes the rest.
-- **The gun, the folio (to leave OFF), and Layla.**
-
-### The checklist
-
-**Light** — shop lights ON and the street door open; daylight is a second source and it moves
-through the day.
-- Readable **without leaning in**, standing where she stands?
-- Re-look at this week's contrast work under those lights: the 139 disabled buttons, the 111 CSS
-  classes, the refusal text. Every one of those judgements was made under flat lighting.
-- Is the tablet's brightness capped by auto-brightness or a power-saving mode?
-
-**Reach and geometry**
-- Can she work the till **while facing a customer**, or does she have to turn away? Turning away
-  from a customer is the thing owners hate.
-- Where does the Worldline terminal sit relative to the tablet — can she work both without shuffling?
-- Is there a socket, and does the cable reach without crossing where she stands?
-
-**Network** — the LTE lesson wearing a different hat.
-- Their wifi **at the counter**, and the dead spot behind it.
-- Does the tablet roam or cling? Anything captive-portal?
-
-**The gun**
-- At the counter's angle, over their network, on their surface — not held at reading height in a chair.
-
-**Noise**
-- Is the scan beep audible over the shop's music and the door?
-
-### Do the controlled sales on the SAME trip
-
-Item 1 below and this are one visit. Four sales, not one — that button is the first execution of the
-Kassenbuch write, the transaction number sequence, the receipt render, the shift totals, the drawer,
-the credits award and the VAT split on a stored record:
-
-1. **Cash, plain** — the drawer path.
-2. **Card** — the one rehearsal the manual (unintegrated) path gets.
-3. **With a pack deal in the basket** — where the VAT bug lived; a stored record is not a screen.
-4. **With a member attached** — the credits award writes to a second place.
-
-Then refund them. **The refund path is also first-time, is manager-only, and hands back CASH even on
-a card sale** — so a refunded card sale takes money out of the drawer. Watch that land in the shift
-close. Tell Felix beforehand: it is a rehearsal so that his shop's first real sale is not this
-code's first sale.
-
----
-
-- **ⓒ2 mm/dd/yyyy on the six report filters** — fixed · 04446b1. → [`worklist-archive/2026-09-04-archive-pass.md`](worklist-archive/2026-09-04-archive-pass.md)
-- **ⓒ3 Layla’s run of the date sheet** — 19 pass · 1 issue. → [`worklist-archive/2026-09-04-archive-pass.md`](worklist-archive/2026-09-04-archive-pass.md)
-- **ⓒ4 The list, the controls, and two calls for Angel** — both answered — see ⓒ5. → [`worklist-archive/2026-09-04-archive-pass.md`](worklist-archive/2026-09-04-archive-pass.md)
 ## ⓒ5 PAM'S RUN — 14 pass · 3 issue · 0 fail — 2026-09-04 23:02–23:20 · **THE DECK IS CLEAR**
 
 *18 minutes on the tablet, folio OFF, landscape, `b629 · 6cc1bb5`. Her words: A1 **"buttery — IMHO
