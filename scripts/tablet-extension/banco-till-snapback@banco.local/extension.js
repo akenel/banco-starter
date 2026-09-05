@@ -23,14 +23,39 @@ import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
+// MATCH /chrom/, NOT "chromium". First version tested for the literal string
+// "chromium" and never fired once: Angel dragged the till half off the screen and had
+// to double-click the title bar to get it back, on a build where the extension
+// reported State: ACTIVE. Chromium launched with `--app=URL` does not call its window
+// "chromium" — it derives an app id from the URL, like
+// `chrome-banco.wolfhold.app__pos-Default`. "Loaded" is not "working", and the only
+// reason we know is that a person dragged a window and told me what happened.
+//
+// /chrom/ covers chromium, chromium-browser and chrome-*. On a till the only browser
+// window IS the till, and maximising a stray one is harmless.
 function isTill(w) {
     try {
         if (!w || typeof w.get_wm_class !== 'function') return false;
         if (w.get_window_type() !== Meta.WindowType.NORMAL) return false;
-        return (w.get_wm_class() || '').toLowerCase().includes('chromium');
+        return /chrom/.test((w.get_wm_class() || '').toLowerCase());
     } catch (e) {
         return false;
     }
+}
+
+// Say what we actually saw, once per window. Guessing at an app id is what produced a
+// filter that matched nothing; this puts the real value in `journalctl --user`, so the
+// next narrowing is a measurement instead of another guess.
+const seen = new Set();
+function describe(w) {
+    try {
+        if (!w || typeof w.get_wm_class !== 'function') return;
+        const id = `${w.get_wm_class()}|${w.get_title()}`;
+        if (seen.has(id)) return;
+        seen.add(id);
+        console.log(`banco-till-snapback: window wm_class=${JSON.stringify(w.get_wm_class())} `
+                  + `title=${JSON.stringify(w.get_title())} match=${isTill(w)}`);
+    } catch (e) {}
 }
 
 // The signal signature for grab-op-end changed in GNOME 45. Rather than pick one and be
@@ -70,6 +95,7 @@ export default class BancoTillSnapback extends Extension {
     // A short delay, because maximising inside the grab handler fights the drag that is
     // still finishing. 250ms is after the gesture and long before anyone reaches again.
     _snapSoon(win) {
+        describe(win);
         if (!isTill(win)) return;
         const id = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 250, () => {
             this._timeouts.delete(id);
