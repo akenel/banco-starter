@@ -3,7 +3,7 @@
    Loaded immediately AFTER tailwind.css so these sit with the other utilities:
    above Banco's base classes, below nothing. Regenerate after adding new classes,
    and scripts/prove-classes-exist.js fails the build if you forget.
-   156 rules. */
+   158 rules. */
 
 .\!p-0 { padding: 0px !important; }
 .-translate-x-1\/2 { --tw-translate-x: -50%; transform: translate(var(--tw-translate-x), var(--tw-translate-y, 0)); }
@@ -24,6 +24,7 @@
 .bg-red-500\/25 { background-color: rgb(239 68 68 / 0.25); }
 .bg-red-700 { background-color: rgb(185 28 28); }
 .bg-rose-50 { background-color: rgb(255 241 242); }
+.bg-slate-200 { background-color: rgb(226 232 240); }
 .bg-slate-50 { background-color: rgb(248 250 252); }
 .bg-teal-100 { background-color: rgb(204 251 241); }
 .bg-white\/10 { background-color: rgb(255 255 255 / 0.1); }
@@ -71,6 +72,7 @@
 .hover\:bg-emerald-500\/30:hover { background-color: rgb(16 185 129 / 0.3); }
 .hover\:bg-green-50:hover { background-color: rgb(240 253 244); }
 .hover\:bg-slate-100:hover { background-color: rgb(241 245 249); }
+.hover\:bg-slate-300:hover { background-color: rgb(203 213 225); }
 .hover\:bg-teal-50:hover { background-color: rgb(240 253 250); }
 .hover\:bg-white\/20:hover { background-color: rgb(255 255 255 / 0.2); }
 .hover\:border-blue-400:hover { border-color: rgb(96 165 250); }

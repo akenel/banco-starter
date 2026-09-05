@@ -126,8 +126,21 @@
                              under their section (Vape, Smoking Gear, Papers & Rolling …), A→Z
                              inside each. The option :value stays the canonical English category
                              name, so the filter behaves exactly as it did. -->
+                        <!-- PAM, 2026-09-04: "would be good to narrow the cats where only search
+                             term is applicable so cat list is shortened." 52 categories in the
+                             picker, always; `papers` touches 6. The shelves this search actually
+                             hit go FIRST, counted server-side over the WHOLE match (all 366, not
+                             the 20 on screen) — see match_categories in pos_router.
+                             The full 52 stay underneath, on purpose: `raw` touches 26 and `king`
+                             21, so this does not always shorten much, and a picker that HID the
+                             rest would trade a scroll for a dead end. -->
                         <select x-model="searchCategory" @change="searchProducts()" class="input-field">
                             <option value="" data-i18n="scan.all_categories">All categories</option>
+                            <optgroup x-show="matchCategories.length" :label="matchLabel()">
+                                <template x-for="c in matchCategories" :key="'m-' + c.name">
+                                    <option :value="c.name" x-text="catLabel(c.name) + ' (' + c.count + ')'"></option>
+                                </template>
+                            </optgroup>
                             <template x-for="g in groupedCategories(categories)" :key="g.group">
                                 <optgroup :label="catLabel(g.label)">
                                     <template x-for="c in g.cats" :key="c.name">
@@ -473,6 +486,24 @@
                                         <span x-show="is18(product.product_class)" class="text-xs font-bold px-2 py-0.5 rounded-full bg-red-600 text-white">🔞 18+</span>
                                         <span x-show="product.product_class !== 'age_restricted'" class="text-xs font-medium px-2 py-0.5 rounded-full" :class="classInfo(product.product_class).c"
                                               x-text="classInfo(product.product_class).e + ' ' + classInfo(product.product_class).l"></span>
+                                        <!-- WHERE DOES THIS COME FROM? Angel, 2026-09-05: "if the user
+                                             searches without a category selected it lists a bunch of
+                                             products but they don't learn where they come from."
+                                             The 18+ and type pills were already here; the shelf was the
+                                             missing third. It is a BUTTON, not a label: tapping it filters
+                                             the search to that shelf, which is Pam's dropdown request
+                                             answered from the other end — you pick the category off a
+                                             product you can already see instead of scrolling 52 names.
+                                             $el.blur() + refocus is not tidiness. LESSON ⓛ, 2026-09-04:
+                                             a scanner gun is a keyboard, and its ENTER on a focused
+                                             button presses that button again. Layla's grinder reached
+                                             quantity 8 that way. Every tappable thing in this list
+                                             hands focus straight back to the search box. -->
+                                        <button type="button" x-show="product.category"
+                                                @click.stop="searchCategory = product.category; $el.blur(); searchProducts(); $nextTick(() => $refs.searchInputBox && $refs.searchInputBox.focus())"
+                                                :title="t('scan.filter_to_shelf')"
+                                                class="text-xs font-medium px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 hover:bg-slate-300"
+                                                x-text="'🏷️ ' + catLabel(product.category)"></button>
                                     </div>
                                     <p class="text-sm text-gray-600">
                                         SKU: <span x-text="product.sku"></span>
@@ -1495,6 +1526,11 @@
             // Search mode (paginated)
             searchInput: '',
             searchCategory: '',
+            // The categories the CURRENT search term touches, counted over the whole match by
+            // the server. Empty when there is no term — then the picker is just the full list.
+            matchCategories: [],
+            // "In your results (6)" — the heading over the shelves this term touched.
+            matchLabel() { return t('scan.in_your_results', { n: this.matchCategories.length }); },
             searchResults: [],
             searchTotal: 0,
             searchSkip: 0,
@@ -2606,6 +2642,7 @@
                 // Need a term OR a category to search.
                 if (this.searchInput.length < 2 && !this.searchCategory) {
                     this.searchResults = []; this.searchTotal = 0; this.searchSkip = 0;
+                    this.matchCategories = [];
                     return;
                 }
                 this.searchLoading = true; this.searchSkip = 0;
@@ -2622,10 +2659,11 @@
                     if (seq !== this._searchSeq) return;      // a newer keystroke already answered
                     this.searchResults = data.items || [];
                     this.searchTotal = data.total || 0;
+                    this.matchCategories = data.match_categories || [];
                 } catch (error) {
                     console.error('Search error:', error);
                     if (seq !== this._searchSeq) return;
-                    this.searchResults = []; this.searchTotal = 0;
+                    this.searchResults = []; this.searchTotal = 0; this.matchCategories = [];
                 } finally {
                     if (seq === this._searchSeq) this.searchLoading = false;
                 }

@@ -4708,6 +4708,31 @@ async def search_products_fast(
             "     THEN 0 ELSE 1 END, "
         ) + order_clause
 
+    # THE RECALL PREDICATE, LIFTED OUT SO THERE IS EXACTLY ONE COPY OF IT. The category
+    # facet added below has to answer "which shelves does this search touch" over the same
+    # rows the list shows — and the moment that predicate exists twice, the dropdown starts
+    # disagreeing with the list underneath it. LESSON #2: a SECOND way to ask the same
+    # question must be tested against the FIRST, never against your own expectations. The
+    # cheapest way to pass that test is to make it impossible to fail — one string, two uses.
+    match_recall = f""":q = '' OR name ILIKE '%' || :q || '%' OR sku ILIKE '%' || :q || '%'
+            OR barcode ILIKE '%' || :q || '%' OR similarity(name, :q) > 0.1
+            -- ALIAS barcodes too. A product may be known by several codes — the packet's EAN,
+            -- the box-of-50 code, a store label — and product_barcodes holds them all. Until
+            -- 2026-07-31 this searched only products.barcode, so a code bound by shelf intake
+            -- became INVISIBLE here while still blocking a re-create on the UNIQUE index.
+            -- Angel hit exactly that: "I can't find it, I can't delete it, and I can't create it
+            -- again either." It was never lost — the search simply could not see it.
+            OR EXISTS (SELECT 1 FROM product_barcodes pb
+                        WHERE pb.product_id = products.id AND pb.barcode ILIKE '%' || :q || '%')
+            -- also match the SUPPLIER (find "Mama Cynthia" by her name) + the description text
+            OR supplier_name ILIKE '%' || :q || '%'
+            OR description ILIKE '%' || :q || '%'
+            -- BL-101: word-similarity against name+description catches English queries on
+            -- German-named items ("lighter"/"bic lighter" → "Feuerzeug BIC mini") and
+            -- tolerates word order + minor typos the whole-phrase ILIKE misses.
+            OR word_similarity(:q, coalesce(name,'') || ' ' || coalesce(description,'')) > 0.35
+            {syn_recall}"""
+
     # image fallback: a product's cover lives in products.image_url, but a cashier-
     # uploaded gallery photo only sets the cover when none exists yet — so a product can
     # have a perfectly good photo (visible in the edit gallery) while image_url is NULL,
@@ -4738,24 +4763,7 @@ async def search_products_fast(
         FROM products
         WHERE is_active = true
           AND (
-            :q = '' OR name ILIKE '%' || :q || '%' OR sku ILIKE '%' || :q || '%'
-            OR barcode ILIKE '%' || :q || '%' OR similarity(name, :q) > 0.1
-            -- ALIAS barcodes too. A product may be known by several codes — the packet's EAN,
-            -- the box-of-50 code, a store label — and product_barcodes holds them all. Until
-            -- 2026-07-31 this searched only products.barcode, so a code bound by shelf intake
-            -- became INVISIBLE here while still blocking a re-create on the UNIQUE index.
-            -- Angel hit exactly that: "I can't find it, I can't delete it, and I can't create it
-            -- again either." It was never lost — the search simply could not see it.
-            OR EXISTS (SELECT 1 FROM product_barcodes pb
-                        WHERE pb.product_id = products.id AND pb.barcode ILIKE '%' || :q || '%')
-            -- also match the SUPPLIER (find "Mama Cynthia" by her name) + the description text
-            OR supplier_name ILIKE '%' || :q || '%'
-            OR description ILIKE '%' || :q || '%'
-            -- BL-101: word-similarity against name+description catches English queries on
-            -- German-named items ("lighter"/"bic lighter" → "Feuerzeug BIC mini") and
-            -- tolerates word order + minor typos the whole-phrase ILIKE misses.
-            OR word_similarity(:q, coalesce(name,'') || ' ' || coalesce(description,'')) > 0.35
-            {syn_recall}
+            {match_recall}
           )
           AND (CAST(:category AS TEXT) IS NULL OR category ILIKE '%' || CAST(:category AS TEXT) || '%')
         ORDER BY {order_clause}
@@ -4801,11 +4809,56 @@ async def search_products_fast(
         }
         for row in rows
     ]
+    # ── WHICH SHELVES DOES THIS SEARCH ACTUALLY TOUCH? ───────────────────────────────────
+    # Pam, 2026-09-04, on the pinned Find Product panel: "would be good to narrow the cats
+    # where only search term is applicable so cat list is shortened." The shop has 52 active
+    # categories and the picker lists all 52, always. `papers` touches 6 and `elements` 5 —
+    # so she scrolls a 52-line list to choose between five answers, on a touchscreen, with a
+    # customer waiting.
+    #
+    # COUNTED OVER THE WHOLE MATCH, NEVER OVER THE PAGE. The obvious implementation is to
+    # group the twenty rows already in hand, and it is wrong in a way this exact file has
+    # been bitten by: the catalog header once put `ageCount()` — a filter over the 25 loaded
+    # rows — next to `total` (5,162), and told a shop selling tobacco and CBD that it had 3
+    # age-restricted products. A facet built from page 1 of 366 would name six shelves and
+    # silently hide the rest, which is the same bug wearing Pam's request as a coat.
+    #
+    # AND DELIBERATELY NOT NARROWED BY THE CATEGORY FILTER ITSELF. If picking "Papers" then
+    # rebuilt the list as only "Papers", the dropdown would be a one-way door: in, never
+    # across. This answers "what does this TERM touch", which does not change when you pick
+    # one of its answers.
+    #
+    # A SECOND SCAN, ON PURPOSE, AND ONLY ON THE FIRST PAGE. It cannot ride the window
+    # aggregates above (those are per-row; this is grouped), and paging must not recompute
+    # something that has not changed. Measured on the live 5,475-row catalogue before it
+    # shipped — see prove-category-facet-is-honest.py.
+    match_categories: list[dict] = []
+    if q and skip == 0:
+        fq = text(f"""
+            SELECT category, count(*) AS n
+            FROM products
+            WHERE is_active = true
+              AND category IS NOT NULL AND btrim(category) <> ''
+              AND (
+                {match_recall}
+              )
+            GROUP BY category
+            ORDER BY n DESC, category ASC
+        """)
+        # Only what the predicate binds. The SELECT-list and ORDER BY params (dtoks,
+        # size_rx, code_exact) are not in this statement and must not be passed to it.
+        fparams = {"q": q or ""}
+        if syn_like:
+            fparams["syn_like"] = syn_like
+        match_categories = [{"name": r.category, "count": int(r.n)}
+                            for r in (await db.execute(fq, fparams)).fetchall()]
+
     # `age_total` is catalogue-wide (or match-wide when a query/category narrows it), NOT the
     # page — see the window FILTER above. The header prints it beside `total`, so the two have
     # to be counted over the same set or the strip quietly lies about a compliance number.
     return {"items": items, "total": total,
             "age_total": int(rows[0].age_count) if rows else 0,
+            "match_categories": match_categories,
             "skip": skip, "limit": limit}
 
 
