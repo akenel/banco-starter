@@ -155,8 +155,20 @@ you were trying to rescue. All fixed, locked, and measured over a 22-minute idle
 ### Still open on the tablet
 
 - **The window has a title bar with a close button** — same family as Layla's window-drag bug.
-- **Chromium has a pending SECURITY update** (151 → 152) and nothing patches itself
-  (`unattended-upgrades` absent). Policy call: security-only, never auto-reboot, applied on a visit.
+- ~~**Chromium security update + no patching policy**~~ — **DONE 2026-09-05.** Chromium
+  151 → **152.0.7977.75** and firefox-esr applied; till restarted and verified running the new
+  binary (0 deleted inodes mapped). **And it now patches itself:** security origin ONLY, 03:15
+  nightly, reboot 03:30 *only when one is owed*. Measured frequency on this machine: batches on
+  08-22, 09-01, 09-05 — **one every ten days**, and it will not slow down.
+  Three things that would each have silently defeated it: `Automatic-Reboot-WithUsers` (autologin
+  means a user is ALWAYS logged in, so the default `false` would collect kernel updates forever
+  and never reboot); Debian's default timer at **06:58** for a shop that opens at 08:00; and
+  APT's `::` **appending** to Debian's existing origin list rather than replacing it, so
+  "security only" quietly meant *all stable updates* until `#clear` was added.
+  Also `banco-stale-browser-check`: a Chromium upgrade leaves the till running the **deleted**
+  binary — patched on disk, unpatched on the glass, indefinitely, because the service only
+  restarts when the browser exits. It measures `/proc/PID/exe`, marks a reboot owed, and lets the
+  standard machinery handle it. **`tablet-postboot-check.sh` is now 46 checks.**
 - **Wifi powersave is `default`** (likely on) — worth disabling for a till.
 - ~~**The power profile had DRIFTED to `power-saver`**~~ — on mains, at 100% battery, throttling
   the till. Found only because Angel asked whether the idle test should be repeated on battery.
