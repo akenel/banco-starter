@@ -104,6 +104,23 @@ R=$(ssh -o BatchMode=yes -o ConnectTimeout=10 "$HOST" '
   say autologin_on   "$(grep -m1 "^AutomaticLoginEnable" /etc/gdm3/daemon.conf 2>/dev/null | cut -d= -f2 | tr -d " ")"
   say autologin_user "$(grep -m1 "^AutomaticLogin=" /etc/gdm3/daemon.conf 2>/dev/null | cut -d= -f2 | tr -d " ")"
   say linger         "$(loginctl show-user "$USER" -p Linger --value 2>/dev/null)"
+  # DID IT ACTUALLY HAPPEN, though. Reading AutomaticLoginEnable out of a config file
+  # says what was ASKED for. On 2026-09-05 this script reported "GDM logs in as art by
+  # itself" from the config alone, on a boot where that happened to be true — and it
+  # would have printed the identical line if autologin had silently failed and a human
+  # had typed the password during the 45 seconds before the check ran. Which is exactly
+  # the fault this same file calls out two checks higher up. So: ask the SESSION which
+  # PAM service created it, and how long after boot.
+  say gsession_svc  "$(loginctl list-sessions --no-legend 2>/dev/null | awk "\$5==\"user\"||\$3==\"$USER\" {print \$1}" | while read -r i; do t=$(loginctl show-session "$i" -p Type --value); [ "$t" = wayland ] || [ "$t" = x11 ] && loginctl show-session "$i" -p Service --value; done | head -1)"
+  say gsession_at   "$(loginctl list-sessions --no-legend 2>/dev/null | awk "\$5==\"user\"||\$3==\"$USER\" {print \$1}" | while read -r i; do t=$(loginctl show-session "$i" -p Type --value); [ "$t" = wayland ] || [ "$t" = x11 ] && loginctl show-session "$i" -p TimestampMonotonic --value; done | head -1)"
+  # and the three settings that decide whether it is still awake in fifteen minutes
+  for k in "org.gnome.desktop.screensaver lock-enabled" \
+           "org.gnome.desktop.session idle-delay" \
+           "org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type"; do
+    set -- $k
+    say "gset:$1/$2" "$(gsettings get "$1" "$2" 2>/dev/null || echo ERR)"
+    say "lock:$1/$2" "$(gsettings writable "$1" "$2" 2>/dev/null || echo ERR)"
+  done
   say whoami         "$USER"
   say failed_units     "$(systemctl --failed --no-legend 2>/dev/null | wc -l)"
   say failed_user      "$(systemctl --user --failed --no-legend 2>/dev/null | wc -l)"
@@ -211,8 +228,22 @@ echo "── and would it come back on its own after a power cut? ──"
 # service needs somebody to log in. Every check above passed on a machine that
 # would have booted to a login prompt and stopped.
 al=$(get autologin_on); au=$(get autologin_user); me=$(get whoami)
+svc=$(get gsession_svc); at=$(get gsession_at)
+if [ -n "$at" ] && [ "$at" -gt 0 ] 2>/dev/null; then
+  secs=$(( at / 1000000 ))
+  if [ "$svc" = gdm-autologin ] && [ "$secs" -lt 120 ]; then
+    ok "the desktop session was created by gdm-autologin, ${secs}s after boot — nobody typed anything"
+  elif [ "$svc" = gdm-autologin ]; then
+    warn "gdm-autologin created the session, but ${secs}s after boot" "that is late enough that something waited for a human"
+  else
+    bad "the desktop session came from \"$svc\", not gdm-autologin (${secs}s after boot)" \
+        "somebody signed in; the till does NOT start unattended"
+  fi
+else
+  warn "could not read when the desktop session started" "cannot tell whether autologin actually fired"
+fi
 if [ "$al" = true ] && [ -n "$au" ]; then
-  if [ "$au" = "$me" ]; then ok "GDM logs in as $au by itself, so the graphical session — and the till with it — starts unattended"
+  if [ "$au" = "$me" ]; then ok "and it is configured to, as $au"
   else bad "GDM autologs in as \"$au\", but the till service belongs to \"$me\"" "the wrong user's session starts and banco-till.service never runs"; fi
 else
   bad "NO AUTOLOGIN — the tablet boots to a login prompt and waits" \
@@ -220,6 +251,12 @@ else
 fi
 [ "$(get linger)" = yes ] && warn "user lingering is on" "harmless here, but it is not what starts the till — a graphical session is" \
   || ok "user lingering is off (correct — the till needs a real desktop, not a headless unit)"
+
+echo
+echo "── and is it still awake in fifteen minutes? ──"
+chk "org.gnome.desktop.screensaver/lock-enabled"                     false      "the till does not lock itself"
+chk "org.gnome.desktop.session/idle-delay"                           "uint32 0" "the screen never blanks on idle"
+chk "org.gnome.settings-daemon.plugins.power/sleep-inactive-ac-type" "'nothing'" "it does not suspend on mains"
 
 echo
 echo "── and it can reach the shop from where it sits ──"

@@ -274,6 +274,36 @@ togglekeys-enable=false
 [org/gnome/desktop/interface]
 enable-hot-corners=false
 
+# A TILL DOES NOT LOCK ITSELF, AND IT DOES NOT GO TO SLEEP.
+#
+# Measured on the tablet, 2026-09-05, and nothing here had ever been looked at:
+#
+#     screensaver lock-enabled          true        <- locks itself
+#     session idle-delay                900         <- after fifteen minutes
+#     power sleep-inactive-ac-type      suspend     <- then suspends, on mains
+#     ...and every one of them writable=true
+#
+# A quiet Tuesday afternoon is fifteen minutes. Then the counter shows a lock
+# screen asking a cashier for an OS password she does not have, and shortly
+# after that the tablet is asleep. Nobody found it because nobody has left the
+# till alone for a quarter of an hour with a stopwatch — the same blind spot as
+# the token refresh that had never worked, which no probe of mine could see
+# because every probe finishes inside ninety seconds.
+#
+# The SCREEN may still dim (that is a battery decision and it wakes on a touch);
+# what must not happen is a lock, a logout or a suspend. idle-delay=0 means
+# "never blank", which is what turns the rest of it off at the source.
+[org/gnome/desktop/screensaver]
+lock-enabled=false
+idle-activation-enabled=false
+
+[org/gnome/desktop/session]
+idle-delay=uint32 0
+
+[org/gnome/settings-daemon/plugins/power]
+sleep-inactive-ac-type='nothing'
+sleep-inactive-battery-type='nothing'
+
 # PrtScr TAKES THE WHOLE SCREEN, straight to ~/Pictures/Screenshots.
 # GNOME 48 ships the other way round: Print opens the interactive picker with a
 # selection box, and the whole screen is Shift+Print. On a touchscreen the picker
@@ -302,6 +332,11 @@ cat > "$LOCKS" <<'LOCKS_LIST'
 /org/gnome/desktop/a11y/keyboard/mousekeys-enable
 /org/gnome/desktop/a11y/keyboard/togglekeys-enable
 /org/gnome/desktop/interface/enable-hot-corners
+/org/gnome/desktop/screensaver/lock-enabled
+/org/gnome/desktop/screensaver/idle-activation-enabled
+/org/gnome/desktop/session/idle-delay
+/org/gnome/settings-daemon/plugins/power/sleep-inactive-ac-type
+/org/gnome/settings-daemon/plugins/power/sleep-inactive-battery-type
 LOCKS_LIST
 
 dconf update
