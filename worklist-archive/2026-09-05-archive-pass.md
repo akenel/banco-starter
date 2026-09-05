@@ -879,3 +879,69 @@ serving build                          10be05f (b684)
 | time to a usable till | ~1m 46s, then a password, then a press | **~58s, unattended** |
 | `banco-lockdown` | 51.7s in front of the display manager | 3.6s |
 | what the cashier does | type a password, press the till | **nothing** |
+
+---
+
+## PORTRAIT — the close-out, walked in the hand, 2026-09-05 evening
+
+The deck said this flow *"has never been seen in the orientation it will be used in"*, and named it
+the one that happens in portrait, on a lap, at the back of the shop — the flow with all the money
+in it. Angel rotated the tablet and we walked it. **1440 × 2160.** It rotated on its own; rotation
+is not locked and the sensors are live.
+
+### It passed — and portrait is BETTER for the money screen
+
+**The whole denomination table fits with no scrolling** — CHF 1000 down to CHF 0.05, thirteen rows,
+all visible at once. Landscape is 1440 tall minus the chrome and cannot show it. The one flow we
+were worried about is the one that gains most.
+
+- **The number pad**: tapping the bottom row (CHF 0.05) pushed that row up so it sat directly above
+  the pad, still highlighted, with every other row visible. **The `b644` fix holds in an
+  orientation it was never written for.** Big digits, `C` and `OK` across the top under the thumb.
+- **The full QWERTZ keyboard** for the note did the same — note field AND the green button both
+  stayed visible above it.
+- **The guard was broken on purpose** (LESSON #4): "Close Drawer & File Report" with no note does
+  nothing. Add a note, it goes green.
+- **The variance panel** reads clearly: `Expected 1'216.90 / Counted 0.05 / Variance CHF-1'216.85`
+  in red, with **"⚠️ Outside tolerance — add a note to close."**
+- **My Day** in portrait: clean, the two time fields side by side without cramping.
+
+### A real close was filed
+
+Counted to match (1×1000, 1×200, 1×10, 1×5, 1×1, 1×0.50, 2×0.20 = **CHF 1'216.90**), variance zero,
+button green **without** a note — the branch we had not tested. Filed.
+
+```
+Shift Report — opened by pam · counted & closed by layla
+2.9.2026, 20:09:30 → 5.9.2026, 20:40:53  (72.52 h)
+⚠️ This drawer was open for 3.0 days — the figures below cover the whole period, not one day.
+✅ Balanced within tolerance   +CHF 0.00
+```
+
+**That warning caught the exact gap Angel had described from the shop ten minutes earlier**, before
+either of us knew the drawer had been open since the 2nd: whoever finishes counts and closes, and
+nobody had, so every shift since inherited an uncounted box. It does not just print a number, it
+says the number does not mean what you would assume. The box is now **closed** for the first time
+in three days, deliberately left that way so tomorrow morning is a genuine open-and-count.
+
+### Three bugs
+
+1. **A note typed for a variance survives onto a BALANCED report.** Typed at −CHF 1'216.85, count
+   then corrected to zero variance — the note was still filed (`Note: zztest`). Real version:
+   *"gave wrong change once"* printed on a perfectly balanced Z-report that Felix's Treuhänder
+   reads. Angel proposed a confirm step; the cheaper shape is *Filing with note: "…"* ✕ **beside
+   the button**, because a confirm on every close at eleven at night is a tap people learn to swat.
+2. **`Samstag, 5. September` with EN selected**, directly under an English "Good evening / Hi
+   Layla". One page, two locales.
+3. **`CHF-1'216.85`** — no space after CHF, unlike every other amount on the page, and it is the
+   figure a cashier reads out loud.
+
+### One withdrawn
+
+I called the floating 💬 button a portrait layout fault across three screens. **It is draggable and
+Angel had parked it there himself.** Withdrawn. The residual question — whether a dragged position
+stored in pixels lands somewhere unhelpful after a rotation nobody asked for — is not a finding
+until it happens without a hand on it.
+
+**The standing instruction stands: do NOT lock rotation.** ⓞ's "lock it to landscape" is reversed
+on evidence.

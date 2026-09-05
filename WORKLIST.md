@@ -113,32 +113,32 @@ somebody thought of — moved to [`2026-09-05-archive-pass.md`](worklist-archive
 - **ⓐ–ⓛ · the 2026-09-03/04 contact-sheet threads — all twelve closed and archived** (scale factor · VAT · pack badge · the frozen stylesheet · the masked-box pad · the invisible refusal · the dead date effect · the red box that did not stop the save · the 131 no-op classes · the Search category picker · the gun pressing the button). → [`2026-09-04-archive-pass.md`](worklist-archive/2026-09-04-archive-pass.md)
 ## 🖥️ THE TABLET — fixed, locked and self-patching · 2026-09-05
 
-*Saturday's question — "is everything in place when it boots?" — turned into **eleven faults, none
-of them Banco's code**: every one was the machine around it, shipping laptop defaults that are
-wrong for a till. **Now:** boots to the till in **17s unattended** · never sleeps · never goes
-black · one touch restores it · 80% fixed · CPU un-throttled · patches itself at 03:15 · `art`'s
-password is safe to give Layla. All of it **locked** and re-applied at every boot.
-`scripts/tablet-postboot-check.sh` — **46 checks**, and it found every one of these on a tablet
-that looked perfect. Both decisions answered: keep the 30% dim; `art`/`admin` split
-(`sudo:x:27:admin`, proven by *"Sorry, user art may not run sudo on art."*). Two ssh doors —
-**`tablet` → art** for checks (gsettings are per-SESSION), **`tablet-admin` → admin** for `--push`.
-→ all of it, with the numbers and the order that mattered:
-[`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)*
+*Eleven faults on Saturday, **none of them Banco's code** — all of it the machine around it,
+shipping laptop defaults that are wrong for a till. **Now, proven over fourteen cold boots on
+2026-09-05:** the till is on the glass in **~58s, unattended, no password and no press** · never
+sleeps · never goes black · patches itself at 03:15 · `art`'s password is safe to give Layla.
+**The "17s unattended" this section used to claim was measured with `reboot` over SSH and was
+never true of a cold boot** — see ⓪. Two ssh doors: **`tablet` → art** for checks (gsettings are
+per-SESSION), **`tablet-admin` → admin** for `--push`.
+→ [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)*
 
-### ⚠️ PORTRAIT — the close-out has never been seen in the orientation it will be used in
+### ~~⚠️ PORTRAIT — the close-out in the orientation it will be used in~~
 
-**They will rotate it, and nothing stops them.** Measured: three accelerometers,
-`iio-sensor-proxy` **active**, lockdown says nothing about rotation. Angel: *"they will just
-naturally go to portrait like they do with their phones."*
-
-**Every proof runs at 1440 × 895, landscape, on a stand.** The one flow that happens in portrait,
-on a lap, at the back of the shop, is **the close-out** — counting cash, the Z-report, the shift
-close. The flow with all the money in it. Same shape as the folio keyboard and the LTE proved in
-a flat.
-
-**This reverses ⓞ's "lock rotation to landscape" — do NOT lock it, test it.** ~960 × 1440; start
-with `/pos/closeout`, then `/pos/my-day`, then the drawer count. Not started.
+**DONE 2026-09-05, PASSED — portrait is BETTER for the money screen.** At 1440 × 2160 the **whole
+denomination table fits with no scrolling** (CHF 1000 → 0.05); landscape cannot show it. The pad
+pushes the tapped row up and keeps it visible — `b644` holds in an orientation it was never written
+for — the QWERTZ keyboard does the same for the note, and the "no note → no close" guard was broken
+on purpose and held. A real close filed, balanced, +CHF 0.00, warning **"open for 3.0 days — the
+figures cover the whole period, not one day"**. **Do not lock rotation.** Three bugs → ⓪h–⓪j.
 → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
+
+⓪h. **A note typed for a variance survives onto a BALANCED report.** Typed at −CHF 1'216.85,
+   count corrected to zero variance, note still filed. Real version: *"gave wrong change once"* on
+   a perfectly balanced Z-report the Treuhänder reads. Fix: *Filing with note: "…"* ✕ beside the
+   button when in tolerance — Angel also proposed a full confirm step; his call which.
+⓪i. **`Samstag, 5. September` with EN selected**, under an English "Good evening / Hi Layla" —
+   one page, two locales. And ⓪j: **`CHF-1'216.85`**, no space after CHF unlike every other amount
+   on the page, and it is the figure a cashier reads out loud.
 
 ### Still open on the tablet
 
