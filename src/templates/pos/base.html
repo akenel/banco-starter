@@ -698,6 +698,25 @@
           var pitch = top(rows[1]) - first;
           return { first: first, row: row, pitch: pitch, gap: pitch - row };
         }
+        /* THE ON-SCREEN PAD IS A CAP TOO. Layla, 2026-09-03, typing `cbd` into Find
+           Product: "Showing 20 of 366 matches" and one and a half rows. The list was
+           snapping to a whole row against its CSS max-height — and then Banco's own
+           keyboard came up over the bottom of it and sliced through the row anyway,
+           through the PRICE, which is the one thing on that row a cashier is reading.
+           Measured 2026-09-05 at the tablet's 1440x895: pad lid y=651, first row
+           522..680 — zero whole rows above the pad, on today's build.
+           A cap that only knows about the stylesheet does not know about the keyboard. */
+        function padLid() {
+          var lid = window.innerHeight;
+          var pads = document.querySelectorAll('.pk');
+          for (var i = 0; i < pads.length; i++) {
+            // position:fixed means offsetParent is ALWAYS null — height is the only
+            // honest test of whether this pad is the one on screen.
+            var r = pads[i].getBoundingClientRect();
+            if (r.height > 0 && r.top < lid) lid = r.top;
+          }
+          return lid;
+        }
         function snap(box) {
           var cs = getComputedStyle(box);
           if (box._snapCap == null) {
@@ -705,6 +724,10 @@
             box._snapCap = isFinite(css) ? css : 0;   // no cap in the CSS, nothing to snap
           }
           if (!box._snapCap) return;
+          // Whichever obstruction comes first — the stylesheet's cap or the pad's lid.
+          var cap = box._snapCap;
+          var room = padLid() - box.getBoundingClientRect().top - 8;
+          if (room > 0 && room < cap) cap = room;
           var wrap = box.querySelector('[data-row-snap-rows]') || box.lastElementChild;
           var rows = wrap ? Array.prototype.filter.call(wrap.children, function (n) {
             return n.nodeType === 1 && n.getBoundingClientRect().height > 0;
@@ -723,7 +746,7 @@
           // `bottom - paddingBottom`, so it was measuring the exact line the fix should have
           // landed on and reporting success either way. LESSON #12: rendered is not visible,
           // and only a picture settles it.
-          var n = Math.floor((box._snapCap - m.first + m.gap) / m.pitch);
+          var n = Math.floor((cap - m.first + m.gap) / m.pitch);
           if (n < 1) n = 1;
           // The whole list fits inside the cap — there is no bottom edge to be cut by.
           if (n >= rows.length) { box.style.maxHeight = ''; return; }
@@ -731,7 +754,14 @@
           if (box.style.maxHeight !== want) box.style.maxHeight = want;
         }
         var queued = false;
-        function sweep() { queued = false; document.querySelectorAll('[data-row-snap]').forEach(snap); }
+        function sweep() {
+          queued = false;
+          document.querySelectorAll('[data-row-snap]').forEach(snap);
+          // The rows that just arrived may be the answer to a field the keyboard is
+          // sitting on. Snapping the list keeps the pad from slicing a row; only the
+          // pad can scroll the first one clear of it.
+          if (window.posKeypad && window.posKeypad.recheck) window.posKeypad.recheck();
+        }
         function ask() { if (!queued) { queued = true; requestAnimationFrame(sweep); } }
         window.posRowSnap = ask;
         // The rows come from an x-for that renders after this script runs, change again on every

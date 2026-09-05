@@ -114,6 +114,7 @@
                     <div x-show="searchMode === 'search'" class="space-y-3">
                         <input
                             type="text" data-keypad="text"
+                            data-reveals="#search-results"
                             x-model="searchInput"
                             x-ref="searchInputBox"
                             @keyup.enter="scanIntoSearch()"
@@ -450,7 +451,7 @@
                      the middle of one. Layla, 2026-09-04: "every pack looks like it is missing
                      something." See the utility in base.html — it measures the rows rather than
                      assuming a height, because a product name that wraps makes a taller row. -->
-                <div x-show="searchMode === 'search' && searchResults.length > 0" class="card max-h-96 overflow-y-auto"
+                <div id="search-results" x-show="searchMode === 'search' && searchResults.length > 0" class="card max-h-96 overflow-y-auto"
                      data-row-snap>
                     <h3 class="text-lg font-bold text-gray-900 mb-3" data-i18n="scan.products">Products</h3>
                     <div class="space-y-2" data-row-snap-rows>

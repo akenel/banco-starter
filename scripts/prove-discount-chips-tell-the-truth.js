@@ -42,7 +42,18 @@ const { chromium } = require('playwright');
   // walk to Checkout. The percentage is never typed; it is derived, and that is the point.
   console.log('\n── A · a Target Total discount, carried to Checkout ──');
   await p.goto('http://localhost:3000/pos/scan', { waitUntil: 'load' });
-  await p.waitForTimeout(2200);
+  // A FIXED WAIT IS A GUESS ABOUT SOMEBODY ELSE'S MACHINE. 2,200ms is plenty on a quiet
+  // laptop and not enough when five of these run back to back — this file died at
+  // `Alpine.$data(...)` with "Cannot read properties of null" on 2026-09-05, reporting a
+  // crash on code that was green a minute later. LESSON #5: a harness will accuse working
+  // code as confidently as it reports the truth. Wait for the condition, not the clock.
+  await p.waitForFunction(() => {
+    try {
+      const el = document.querySelector('[x-data]');
+      return !!(window.Alpine && el && Alpine.$data(el));
+    } catch (e) { return false; }
+  }, null, { timeout: 30000 });
+  await p.waitForTimeout(600);
 
   // A basket with a price that divides badly on purpose. Whatever the shop's first product
   // costs, "knock it to a round total" lands on a fractional percentage nearly every time.

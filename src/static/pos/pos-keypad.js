@@ -563,9 +563,14 @@
     // ancestor, which in a nested panel is the panel, and moving the field to the
     // middle of a panel that is itself under the pad achieves nothing.
     // So measure, then correct. Being scrolled is not being visible (LESSON #12).
-    setTimeout(function () { ensureAbovePad(el, pad); }, 140);
-    setTimeout(function () { ensureAbovePad(el, pad); }, 480);   // after the smooth scroll settles
+    // The lid just moved, so every list that snaps to a whole row has to be measured
+    // again against it — and again after the scroll settles, because the scroll moves
+    // the box and therefore how much room is left above the pad.
+    setTimeout(function () { ensureAbovePad(el, pad); resnap(); }, 140);
+    setTimeout(function () { ensureAbovePad(el, pad); resnap(); }, 480);   // after the smooth scroll settles
   }
+
+  function resnap() { if (window.posRowSnap) window.posRowSnap(); }
 
   /* THE FIELD IS NOT THE ONLY THING THAT HAS TO BE VISIBLE. Layla, 2026-09-04, typing
      25:25 into Finish time: the box went red exactly as designed and the line under it —
@@ -584,6 +589,36 @@
     if (hint && !hint.hidden) {
       var hb = hint.getBoundingClientRect();
       if (hb.height > 0 && hb.bottom > bottom) bottom = hb.bottom;
+    }
+    /* AND A SEARCH BOX'S ANSWER IS PART OF WHAT IT HAS TO SAY. Layla, 2026-09-03:
+       typing `cbd` into Find Product showed "Showing 20 of 366 matches" and one and a
+       half rows — you had to put the keyboard away to see what you had searched for.
+       The sixth turn of LESSON #12, and each one has been the same correction one notch
+       finer: the field, then the field's warning, now the field's RESULT. A box whose
+       whole purpose is to produce a list below it is not "visible" while the list is
+       under the pad.
+       ONE row, deliberately, not the list. Twenty rows cannot fit above the keyboard and
+       asking for them would scroll the field itself off the top; one whole row is the
+       difference between "it found something" and "it found nothing", and the rest is
+       what the list's own scrollbar is for — data-row-snap caps it to whole rows against
+       the same lid. Opt in with data-reveals="<selector>" on the input. */
+    var sel = el.getAttribute('data-reveals');
+    if (sel) {
+      var box = document.querySelector(sel);
+      var wrap = box && box.querySelector('[data-row-snap-rows]');
+      // THE FIRST CHILD IS NOT THE FIRST ROW. Alpine's x-for leaves its own <template>
+      // in the DOM and inserts the rows after it, so `> *` hands back a zero-height
+      // element and this whole check quietly did nothing — measured: need computed as
+      // negative, ensureAbovePad returned before it even logged. data-row-snap has
+      // filtered on height since it was written; so does this now.
+      var row = null, kids = wrap ? wrap.children : [];
+      for (var i = 0; i < kids.length && !row; i++) {
+        if (kids[i].getBoundingClientRect().height > 0) row = kids[i];
+      }
+      if (row) {
+        var rb = row.getBoundingClientRect();
+        if (rb.bottom > bottom) bottom = rb.bottom;
+      }
     }
     return bottom;
   }
@@ -638,8 +673,9 @@
     // first tap lands on nothing. Give the click time to finish, then tidy up —
     // and only if a pad has not opened again in the meantime.
     var sc = leaving ? scrollerFor(leaving) : scroller();
+    resnap();                       // the lid is gone — the lists get their full cap back
     setTimeout(function () {
-      if (!padOpen()) { sc.style.paddingBottom = ''; dropFixedOverlay(); }
+      if (!padOpen()) { sc.style.paddingBottom = ''; dropFixedOverlay(); resnap(); }
     }, 350);
   }
 
@@ -872,6 +908,17 @@
     shut();
   }, true);
 
-  window.posKeypad = { close: shut };
+  /* THE ANSWER ARRIVES AFTER THE KEYBOARD DOES. open() checks the field is clear of the
+     pad at +140ms and +480ms; the search results come back from the server later than
+     that, and land under the pad with nothing left to notice. So the row-snap sweep —
+     which already runs on every DOM change — tells the pad to look again. Cheap: with
+     nothing covered, ensureAbovePad measures and returns. */
+  function recheck() {
+    if (!active) return;
+    var pad = (kind === 'decimal' || kind === 'numeric' || kind === 'date' || kind === 'time') ? num : abc;
+    if (pad) ensureAbovePad(active, pad);
+  }
+
+  window.posKeypad = { close: shut, recheck: recheck };
   console.log('[keypad] active — listening for focus on [data-keypad]');
 })();
