@@ -52,9 +52,10 @@ somebody thought of — moved to [`2026-09-05-archive-pass.md`](worklist-archive
    cached pages open, *"Sales are paused. Your cart is safe."*, banner clears unattended in 2s,
    and the till **rode out a wifi outage on the SIM**. `ExecStartPre` cut 90s → 20s — with the
    network down it was holding a blank screen in front of a working offline mode.
-0e. **`banco-till.service` exists on ONE machine.** Hand-maintained in `~art/.config/systemd/user/`,
-   outside `tablet-lockdown.sh` by design. It now carries three fixes found tonight and none of
-   them are in this repo. A second tablet gets nothing. Needs a home.
+0e. ~~**`banco-till.service` existed on ONE machine**~~ — **IN THE REPO 2026-09-05**:
+   `scripts/systemd/banco-till.service` + `scripts/install-till-unit.sh --check | --push` (the
+   `tablet` door — USER unit, no root). `--check` diffs machine against repo; `--push` backs up
+   first and does NOT restart the browser. Both proven. Lockdown's boundary unchanged, now names it.
 0f. **My Day says `could not load your profile: failed to fetch` in red next to Layla's name**
    while offline — under a banner that already said there is no internet. LESSON #12.
    → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)

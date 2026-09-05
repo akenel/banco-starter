@@ -1,0 +1,57 @@
+[Unit]
+Description=Banco POS till (Chromium, maximised, restarts if it is closed)
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+# --start-maximized, NOT --kiosk: kiosk hides GNOME own bar, which is why nobody
+# could see the battery, which is why the top-right corner got dragged, which is
+# how the window ended up two-thirds wide with no way back. See
+# onboarding/21-supported-hardware.md.
+# WAIT FOR THE APP TO ANSWER BEFORE OPENING A WINDOW AT IT. Added 2026-09-05.
+# NetworkManager-wait-online going active means an interface has an address. It
+# does NOT mean wifi has finished associating or that DNS answers. Until tonight
+# that gap was hidden by banco-lockdown.service burning 50s in front of the
+# display manager: the till launched 68s after the kernel, by which time the
+# network was long ready. With that fixed the till launches at 19s -- THREE
+# seconds after wait-online -- and lost the race, leaving a white window titled
+# "banco.wolfhold.app/pos", a page that failed to load. (The keyring failure
+# looked different: "banco.wolfhold.app_/pos" with an underscore, which is
+# Chromium with no page at all.) Proven by Angel on a cold boot: the x restored
+# it in 3 seconds, same network, same page, just later. We did not break the
+# till -- we removed the cushion that had been hiding this.
+# Ends in `exit 0` ON PURPOSE: if the shop internet is genuinely down the till
+# must still OPEN and show its own error. Nothing here may stop the window.
+# No shell variables in here on purpose: systemd expands $WORD and ${WORD} in
+# ExecStart* itself, so a loop counter would be blanked before /bin/sh ever saw
+# it. `timeout 90` does the counting instead, and the trailing `|| true` is what
+# makes a real outage fall through to the browser rather than block the unit.
+# 90s -> 20s, 2026-09-05. Angel put the tablet in AIRPLANE MODE and the till's
+# CACHED pages opened instantly with a clear brown banner -- "Sales are paused.
+# Your cart is safe. Switch to mobile data or a hotspot." So during a real
+# outage the browser already has something good to show, and a 90s wait was
+# holding a BLANK screen in front of it. The race this exists to win was THREE
+# seconds; 20 wins it many times over without stranding anybody.
+ExecStartPre=/bin/sh -c 'timeout 20 sh -c "until curl -s -o /dev/null --max-time 3 https://banco.wolfhold.app/; do sleep 1; done" || true'
+ExecStart=/usr/bin/chromium --ozone-platform=wayland --start-maximized \
+  --overscroll-history-navigation=0 --disable-pinch --force-device-scale-factor=1 \
+  --app=https://banco.wolfhold.app/pos --noerrdialogs --disable-session-crashed-bubble \
+  --password-store=basic
+# --password-store=basic added 2026-09-05. WITHOUT IT THE TILL DOES NOT COME UP ON A
+# COLD BOOT. Chromium asks gnome-keyring for its safe storage at startup; GDM
+# autologin (AutomaticLogin=art) never has art password, so the login keyring is
+# LOCKED, the request blocks, and chromium never navigates. What is on the glass is
+# a grey screen with "Authentication required - the login keyring did not get
+# unlocked", and behind it a WHITE window with no page title that a tap cannot fix,
+# because no page was ever loaded. Unlocking does not rescue it: chromium does not
+# retry. Proven by Angel on the tablet, 2026-09-05, two cold power-offs; 13 minutes
+# of white, then the x, then the till in 3 seconds. Never seen before because every
+# earlier boot test was `reboot` over SSH with nobody looking at the screen.
+# Dropping --kiosk left a title bar with a close button on it. A cashier who taps
+# that has no way back. Now it comes back in three seconds.
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=graphical-session.target

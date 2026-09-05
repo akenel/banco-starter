@@ -44,7 +44,11 @@
 #
 # THIS SCRIPT DOES NOT START THE TILL and must not learn to. That job belongs to
 # ~/.config/systemd/user/banco-till.service, which already existed and already
-# restarts the browser if it is closed. A --kiosk launcher was added here on
+# restarts the browser if it is closed. THAT UNIT NOW LIVES IN THIS REPO too —
+# `scripts/systemd/banco-till.service`, installed and drift-checked by
+# `scripts/install-till-unit.sh`. Until 2026-09-05 it existed on ONE MACHINE and
+# nowhere else: "not lockdown's job" had become nobody's job, and in one evening
+# it gained three fixes that a second tablet would never have received. A --kiosk launcher was added here on
 # 2026-09-05 and put the tablet into a 48-restart loop inside a minute — see the
 # block near the bottom of this file, which now removes it again.
 #
