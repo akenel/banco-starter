@@ -261,12 +261,19 @@ pattern below, bump the count here. A pattern at ×7 is telling you something a 
    box — reading one field while asserting about another's model. *A pass that survives the bug it
    guards is worse than no check. Count the subjects before anything below them is allowed to mean
    anything.*
-6. **×3 · A test that finishes inside five minutes cannot see a five-minute timeout.** Silent
+6. **×4 · A test that finishes inside five minutes cannot see a five-minute timeout.** Silent
    token refresh had NEVER worked in the sandbox — issuer mismatch, `localhost:8090` vs
    `keycloak:8080` — so every session hard-logged-out the moment the access token expired. Every
    probe I write runs in 90 seconds with a fresh token, so nothing I could build would have found
    it. **Angel found it in ten minutes of ordinary use, and lost a compliance record to it.**
    *Ask what your harness is structurally blind to: time, idleness, a second tab, a real day.*
+   2026-09-05: the shop tablet **suspended itself and resumed to a lock screen** after fifteen
+   minutes idle — `sleep-inactive-ac-type='suspend'`, `idle-delay=900`, never once looked at. It
+   demonstrated this ON US, mid-conversation, twenty minutes after I found the setting. And the
+   watcher I had armed reported "no reboot seen" for the whole thing, because it polled for a
+   changed `boot_id` and **a suspend does not change one** — a monitor that can only see one of
+   the two ways a machine can disappear. *Enumerate how a failure can PRESENT, not the one shape
+   you have in mind.*
    2026-08-22: `prove-cart-agrees-with-till` ran green all day over 320 quantities while the cart
    quoted a discount the drawer would not give — because it compares line totals and **never
    constructs a discounted basket**. Not a gap in coverage; a shape the harness cannot make.

@@ -1139,3 +1139,37 @@ in its description.
 answers a question shaped like it. When a note in the repo carries a number, the note is a
 hypothesis with a timestamp on it (LESSON #3), and the first thing to do with it is re-measure it
 THROUGH THE THING BEING BUILT.*
+
+## 2026-09-05 — the tablet demonstrated the bug on us, fifteen minutes after I found it
+
+Verifying a reboot, I noticed three settings nobody had ever looked at: `lock-enabled=true`,
+`idle-delay=900`, `sleep-inactive-ac-type='suspend'`, all writable. I wrote the fix, said it was
+worth doing, and carried on typing.
+
+Twenty minutes later the tablet vanished. `No route to host`. My watcher — armed to spot a
+**reboot** — reported nothing at all for twenty minutes, because a reboot is not what happened.
+
+```
+systemd-suspend.service   Active: inactive (dead) since 12:31:08
+                          ExecStart=/usr/lib/systemd/systemd-sleep suspend (status=0/SUCCESS)
+12:31:13  unlockDialog.js        <- resumed to a LOCK SCREEN
+12:31:13  keyboard.js            <- being typed on with a finger
+```
+
+Idle fifteen minutes → suspend → resume to a locked screen → somebody types a password on an
+on-screen keyboard to get the till back. On a Tuesday afternoon that is a shop with no till and a
+cashier who does not have that password.
+
+**Two lessons, and the second is the sharper one.**
+
+*Nothing I can build would have found this.* Every probe in this repo finishes inside ninety
+seconds; this needs fifteen minutes of a machine being left alone. It is LESSON #6 exactly — "a
+test that finishes inside five minutes cannot see a five-minute timeout" — and the only reason it
+surfaced is that a real machine was left alone for real, by accident, during a conversation.
+
+*And my watcher could only see one of the two things that could happen.* It polled for a changed
+`boot_id`. A suspend does not change `boot_id`, so twenty minutes of watching produced "no reboot
+seen" — technically true, completely uninformative, about a machine that had just done the thing I
+was worried about. **When you build something to watch for a failure, enumerate the ways the
+failure can present, not the one you have in mind.** The rewritten watcher distinguishes them in
+one line: boot_id changed → it rebooted; unchanged but it went away → it slept.
