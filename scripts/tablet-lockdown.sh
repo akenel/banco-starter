@@ -290,16 +290,29 @@ enable-hot-corners=false
 # the token refresh that had never worked, which no probe of mine could see
 # because every probe finishes inside ninety seconds.
 #
-# The SCREEN may still dim (that is a battery decision and it wakes on a touch);
-# what must not happen is a lock, a logout or a suspend. idle-delay=0 means
-# "never blank", which is what turns the rest of it off at the source.
+# A BLANK SCREEN AND A SUSPEND ARE NOT THE SAME THING, and the difference is the
+# whole fix. Angel, 2026-09-05, after the tablet did it to us mid-conversation:
+# "if it does go to sleep we get a screensaver instead ... it always goes to sleep
+# and it's a real pain to start with the start button."
+#
+#   BLANK    display off, machine awake, network up, till still running.
+#            A TOUCH wakes it. No power button, no password, nothing to know.
+#   SUSPEND  machine off. Power button. Comes back to a LOCK SCREEN.
+#
+# So the screensaver stays — it saves the panel and it costs nothing, because
+# waking it is a tap. What goes is the lock and the suspend. The first draft of
+# this block set idle-delay=0 ("never blank"), which was heavier than the problem:
+# blanking was never the fault.
 [org/gnome/desktop/screensaver]
 lock-enabled=false
-idle-activation-enabled=false
 
 [org/gnome/desktop/session]
-idle-delay=uint32 0
+idle-delay=uint32 900
 
+# 'nothing' on BOTH, not just on mains. On battery the tempting answer is to let
+# it sleep and save the charge — but an unplugged tablet that sleeps is a till
+# that is gone, and at a counter the cable is the answer to a flat battery, not
+# a suspend nobody can wake without the power button.
 [org/gnome/settings-daemon/plugins/power]
 sleep-inactive-ac-type='nothing'
 sleep-inactive-battery-type='nothing'
@@ -333,7 +346,6 @@ cat > "$LOCKS" <<'LOCKS_LIST'
 /org/gnome/desktop/a11y/keyboard/togglekeys-enable
 /org/gnome/desktop/interface/enable-hot-corners
 /org/gnome/desktop/screensaver/lock-enabled
-/org/gnome/desktop/screensaver/idle-activation-enabled
 /org/gnome/desktop/session/idle-delay
 /org/gnome/settings-daemon/plugins/power/sleep-inactive-ac-type
 /org/gnome/settings-daemon/plugins/power/sleep-inactive-battery-type

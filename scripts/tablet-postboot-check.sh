@@ -254,9 +254,11 @@ fi
 
 echo
 echo "── and is it still awake in fifteen minutes? ──"
-chk "org.gnome.desktop.screensaver/lock-enabled"                     false      "the till does not lock itself"
-chk "org.gnome.desktop.session/idle-delay"                           "uint32 0" "the screen never blanks on idle"
-chk "org.gnome.settings-daemon.plugins.power/sleep-inactive-ac-type" "'nothing'" "it does not suspend on mains"
+# The screen MAY blank — that is a screensaver and a touch wakes it. What must never
+# happen is a lock (a password prompt at a counter) or a suspend (the power button).
+chk "org.gnome.desktop.screensaver/lock-enabled"                     false        "it never locks itself — no password prompt at the counter"
+chk "org.gnome.desktop.session/idle-delay"                           "uint32 900" "the screen may blank after 15 min — a touch wakes it"
+chk "org.gnome.settings-daemon.plugins.power/sleep-inactive-ac-type" "'nothing'"  "it does not suspend on mains"
 
 echo
 echo "── and it can reach the shop from where it sits ──"
