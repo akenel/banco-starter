@@ -1036,3 +1036,38 @@ done unilaterally.
 **A note on the method, again.** The `anchorOf` proof failed the first time because my test harness
 passed a rect with no width/height, so `cx` was `NaN` and every case fell to "left". The harness was
 lying, not the code (LESSON #5). Caught by the numbers looking wrong, not by the test going red.
+
+---
+
+## Where the night stopped — 2026-09-05, 21:40
+
+Angel: *"lets stop here its been a long day… lets do the open and closing tests in the morning with
+fresh eyes."* Right call: the two things left are an open and a close on a real drawer, and those
+are the wrong things to do tired.
+
+**State left behind, deliberately:**
+
+- **A drawer is OPEN on the tablet at CHF 0.25.** It was closed properly earlier (balanced, +CHF
+  0.00, after three days open) and re-opened only to test the note strip. It should be closed
+  again in the morning.
+- **`4bed4a2` is committed and NOT deployed** — the morning guard's English body and its raw
+  Decimals.
+- **The note strip has never been seen on the glass.** The code is deployed (b690); the test is
+  not run.
+- **The 💬 anchor needs a migration.** An old saved position carries no corner, so the first
+  rotation after the deploy still misbehaves and only a drag fixes it. Angel hit exactly that and
+  described it precisely: *"at first it was wrong then i fixed the portrait to have it at the
+  bottom and it stayed there."* Felix and Layla would each hit it once, without knowing that a
+  drag is the cure. ~5 lines: derive the anchor from an old record on load.
+
+### ⚠️ The French and Italian are UNVERIFIED, and that is a review gap, not a translation gap
+
+Angel, stopping: *"i think french might be wrong too."* He is right to flag it and the honest
+statement is stronger than his: **nobody who speaks French has read any of it.** He has no French
+(and said so long before tonight); I wrote `guard_body`, `guard_src_last_reconcile`,
+`guard_src_configured_baseline`, `note_will_file`, `note_drop` and every other FR string that went
+in today, and the same applies to Italian. They are syntactically fine, they render, the key-parity
+assert passes — and none of that is a native speaker reading a sentence in a shop.
+
+*This is LESSON #1 wearing new clothes: green on every layer I can reach, and the layer the person
+stands on is a Romand cashier reading a sentence I cannot judge.*

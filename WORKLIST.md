@@ -35,24 +35,28 @@ somebody thought of — moved to [`2026-09-05-archive-pass.md`](worklist-archive
 ### Pick up here, in this order
 
 0. ~~**The worklist alarm**~~ — **DONE**, `fb00d2c`, step 4 of SESSION START. → archive
-0. ~~**THE STARTUP THREAD — walked, measured, fixed. Fourteen cold boots, 2026-09-05.**~~ The till
-   **did not come up at all** on a cold boot (autologin leaves the keyring locked, Chromium blocks
-   and never navigates); it landed in GNOME's **overview**, not the till; and the boot was
-   **1m46s**, of which **50s was `powerprofilesctl` waiting on a daemon that could not start until
-   we finished**. All three fixed → **~58s, unattended, no password, no press.** Invisible until
-   now because every earlier proof was `reboot` over SSH **with nobody watching the screen**.
-   → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
+0️⃣ **▶️ START HERE, 2026-09-06 — finish the cash box, fresh.** Stopped at 21:40 on purpose, tired,
+   with a drawer OPEN at CHF 0.25 on the tablet. (a) **Deploy `4bed4a2`** — the morning guard was
+   English under a translated title with raw Decimals (`CHF 1216.90`, no apostrophe); fixed, not
+   deployed. (b) **The note-strip test, still unrun:** count out of tolerance → type a note →
+   correct the count → an amber *Filing with note: "…" · Remove* must appear instead of the box
+   silently vanishing with the note still filed. (c) **Close the drawer balanced** so the box is
+   right for the morning. (d) **The 💬 anchor needs a migration** — an old saved position has no
+   corner in it, so the FIRST rotation after the deploy is still wrong and only a drag fixes it;
+   Felix and Layla would each hit that once. ~5 lines.
+0️⃣a ⚠️ **THE FRENCH IS UNVERIFIED — nobody who speaks French has read it.** Angel has no French and
+   said so; I wrote `guard_body`, `guard_src_*`, `note_will_file`, `note_drop` and every other FR
+   string in this build. Not a translation gap — a *review* gap. Same for Italian.
 
-0d. **The third white screen — FIXED AND DEPLOYED (b684).** `caches.match` returns `undefined` on
-   a miss, so the SW's `respondWith(undefined)` gave the browser nothing; now ends in
-   `offlinePage()`, which never fired in testing — correctly, being the floor: **correct by
-   construction, NOT proven live.** Airplane mode proved the layer above (cached pages open,
-   *"Sales are paused. Your cart is safe."*, clears unattended in 2s) and the till **rode out a
-   wifi outage on the SIM**. `ExecStartPre` 90s → 20s.
-0e. ~~**`banco-till.service` existed on ONE machine**~~ — **IN THE REPO**:
-   `scripts/systemd/banco-till.service` + `scripts/install-till-unit.sh --check | --push` (the
-   `tablet` door — USER unit, no root). `--check` diffs machine vs repo, `--push` backs up first and
-   does NOT restart the browser. Both proven. Lockdown's boundary unchanged, now names it.
+0. ~~**THE STARTUP THREAD — walked, measured, fixed. Fourteen cold boots, 2026-09-05.**~~ The
+   till **did not come up at all** on a cold boot · it landed in GNOME's **overview** · the boot
+   was **1m46s**, 50s of it `powerprofilesctl` waiting on a daemon that could not start until we
+   finished · the service worker could `respondWith(undefined)` and paint nothing · and
+   `banco-till.service` existed on one machine with no copy in the repo. **All fixed and
+   deployed (b684–b690) → ~58s, unattended, no password, no press**, three consecutive clean
+   boots. Invisible until now because every earlier proof was `reboot` over SSH **with nobody
+   watching the screen**. → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
+
 0c. **Do they log out at night?** Layla closes, Rafi opens, till stays signed in as whoever was on
    it. Raised, not decided. · 0f. **My Day: `could not load your profile: failed to fetch` in red
    by Layla's name** while offline, under a banner that already said so. LESSON #12. → archive
@@ -130,15 +134,11 @@ on purpose and held. A real close filed, balanced, +CHF 0.00, warning **"open fo
 figures cover the whole period, not one day"**. **Do not lock rotation.** Three bugs → ⓪h–⓪j.
 → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
 
-⓪h–k. ~~**The four portrait findings**~~ — **three FIXED, one WITHDRAWN, IN CODE, NOT DEPLOYED.**
-   (h) a note for a variance survived onto a BALANCED report (`x-show="!withinTol()"` hid the box
-   while `note` still held the text and was still sent) — now shown above the button,
-   *Filing with note: "…" · Remove*. (i) `Samstag` under EN, and under FR and IT too, because
-   `formatDate` keyed everything off the STORE locale — split, numeric stays the shop's
-   byte-identical, NAMES follow the reader, receipts pinned via `audience:'shop'`. (j) **withdrawn:
-   `CHF-1'216.85` is Intl's own de-CH output.** (k) the 💬 button stored absolute pixels so a
-   rotation moved it mid-page; now anchored to its corner. *"Stick it on the status bar"* stays open.
-   → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
+⓪h–k. ~~**The four portrait findings**~~ — **DEPLOYED b690.** (h) a note for a variance survived
+   onto a BALANCED report — fixed, **strip not yet seen on the glass, see ⓪ (b)**. (i) `Samstag`
+   under EN/FR/IT — fixed and **proven on the tablet in all three**; receipts pinned to the shop.
+   (j) withdrawn: `CHF-1'216.85` is Intl's own de-CH output. (k) the 💬 button anchored to its
+   corner. → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
 
 ### Still open on the tablet
 
