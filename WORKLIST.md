@@ -36,6 +36,20 @@ moved to [`worklist-archive/2026-09-05-archive-pass.md`](worklist-archive/2026-0
 ### Pick up here, in this order
 
 0. ~~**The worklist alarm**~~ — **DONE**, `fb00d2c`, step 4 of SESSION START. → archive
+0. **▶️ START HERE — walk the card, on the tablet, out loud.** Angel, 2026-09-05 at close:
+   *"when we meet on the other side we are going to also test the on off and walk through this
+   instruction sheet."*
+   [`the-till-morning-to-night.html`](onboarding/the-till-morning-to-night.html) is a **claim**
+   until somebody does it with a tablet in their hands. Do the whole day in order — power off, power
+   on, wait twenty seconds, touch a dim screen, drag the window off and get it back three ways,
+   unplug and carry it, close out, plug in, hold the button, Power Off — and correct every line that
+   is wrong. **The line most likely to be wrong is "don't press the power button to wake it"**: it
+   is the only instruction on the page that fights instinct, and Angel reached for that button
+   himself this morning. Then it goes in front of Layla.
+   ⚠️ **Do the full power-off / power-on at least twice.** Everything about boot was proved with
+   `reboot`; a real power-off from the GNOME dialog is a different path, and Monday morning after a
+   weekend off is the biggest update catch-up the tablet will ever do.
+
 1. ~~**② The keyboard buries the search results**~~ — **FIXED**, confirmed on the tablet, `b644`.
 2. ~~**Pam's picker + Angel's shelf pill**~~ — **DONE**, `b647`, needs eyes. Shipped wrong first,
    on a bad number of mine that was in this file.
