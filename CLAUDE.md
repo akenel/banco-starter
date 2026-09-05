@@ -163,7 +163,7 @@ open `LESSONS.md` when one of them is about to apply.*
 **When something bites: add the narrative to `LESSONS.md`, and if it is a new instance of a
 pattern below, bump the count here. A pattern at ×7 is telling you something a paragraph cannot.**
 
-1. **×13 · Green on the layer you can reach says nothing about the layer the user stands on.**
+1. **×14 · Green on the layer you can reach says nothing about the layer the user stands on.**
    `cash_box_float`, the force-close, `POST /catalog/merge`, honest confidence, `best_match_score`,
    the 18+ refusals, the evidence with no screen — each existed on every layer a test could reach
    and on **no screen**; the tablet's LTE was proved on Angel's home Wi-Fi, in a flat, with a route
@@ -185,7 +185,14 @@ pattern below, bump the count here. A pattern at ×7 is telling you something a 
    does NOT on a miss nobody can name, which is the ordinary one. The cashier is then standing in
    front of the on-the-fly create form, the one screen with no catalogue search on it, and that is
    where the duplicate rows were being born.
-   *Ask where the person is STANDING when they need it — which building, and which screen.*
+   The fourteenth, 2026-09-05: on a cold boot the till **never came up at all** — a white window
+   with no page, for thirteen minutes — while `banco-till.service` read `active (running)` and the
+   tablet's own `curl` got **200 in 86 ms**. Autologin leaves the login keyring locked, Chromium
+   blocks on it and never navigates. Four months of boot proofs missed it because every one was
+   `reboot` **over SSH, with nobody looking at the screen**.
+   *Ask where the person is STANDING when they need it — which building, and which screen. And if
+   your harness cannot see the glass, or cannot see the first ninety seconds, it is not testing
+   the morning.*
 2. **×9 · A downstream filter quietly discards the row the fix existed to find — and a field whose meaning shifts between rows is worse than a missing one.** The dedup guard's
    same-size rule, the alias filters judging `products.name`, the category "boost" that was a sort
    key above `score`; on 2026-08-22 `eligible_subtotal` dropped two full-price papers because

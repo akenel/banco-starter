@@ -1173,3 +1173,45 @@ seen" — technically true, completely uninformative, about a machine that had j
 was worried about. **When you build something to watch for a failure, enumerate the ways the
 failure can present, not the one you have in mind.** The rewritten watcher distinguishes them in
 one line: boot_id changed → it rebooted; unchanged but it went away → it slept.
+
+---
+
+## 2026-09-05, evening — the till never came up, and four months of boot proofs could not see it
+
+We set out to do a five-minute smoke test before walking the instruction card properly. Angel
+pressed the power button four times. The first two cold boots ended with **a white window that
+was not a till** — no page, no title, unfixable by tapping — and he sat in front of one of them
+for **thirteen minutes** waiting for it to become a till.
+
+The cause: GDM autologin (`AutomaticLogin=art`) means GDM never has art's password, so the login
+keyring stays locked. Chromium asks it for safe storage at startup, blocks, and **never
+navigates** — and does not retry once the keyring is unlocked. The card in Layla's hand said
+*"Wait about twenty seconds. The till comes up on its own — no password, nothing to tap."*
+
+**Everything a test could reach was green throughout.** `banco-till.service` was `active
+(running)`, 855 MB, zero restarts. `curl https://banco.wolfhold.app/` from the tablet itself
+answered **200 in 86 ms**. `tablet-postboot-check.sh` asks `is-active` and `is-enabled` and would
+have said yes to both. The service was running perfectly and showing nothing.
+
+**Why four months of boot testing never saw it:** every boot proof was `reboot`, *issued over SSH,
+with nobody looking at the screen*. `reboot` skips firmware and the loader, and SSH cannot see a
+window. The one time Angel did watch it boot, three minutes passed before he looked — long enough
+that he found a working till and concluded the boot was fine. It took a human standing in front
+of the glass at the moment it came up.
+
+Fix: `--password-store=basic` in our own unit file. Proven on two further cold boots, zero keyring
+prompts. Recovery, for the record, was always three seconds away — the × Angel was told to avoid.
+
+**Two smaller things from the same run, both mine.** I explained the first sighting of the GNOME
+overview away as an artefact of the screenshot tool and *withdrew the finding* — then a phone
+photo of the next boot showed the identical screen. And the `Other users are logged in` line in
+Angel's shutdown dialog was **my own SSH session**, my harness altering what he was reading while
+he read it out to me.
+
+Full run, numbers and the rewritten card:
+[`worklist-archive/2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md).
+
+**The lesson is #1 again, at ×14, in its purest form yet: a service can be `active (running)` and
+the screen can be empty, and only a person looking at the glass at the right moment knows which.
+If the harness cannot see the screen, and cannot see the first ninety seconds, it is not testing
+the morning.**

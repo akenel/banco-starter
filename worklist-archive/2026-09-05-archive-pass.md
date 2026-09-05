@@ -426,3 +426,153 @@ Not started.
   (the ×, the web in the till's window, unplugged overnight). **Needs Angel's corrections, then
   Layla's eyes.** Ends by saying the stricter kiosk mode exists and what it would cost — *"your
   call, once you have lived with it."*
+
+
+---
+
+## ⑥ Does the shop have a Worldline terminal today? — ANSWERED by Angel, 2026-09-05
+
+**Yes — TWO, at the counter, used for every card sale today.** Both do TWINT, and **TWINT in
+Switzerland is Worldline-only**, so there is no alternative vendor to consider. The second is a
+spare: if one breaks down or runs flat they pick up the other. Angel is not certain they are the
+identical model — *"I'm not sure if it's exactly the same one with the same buttons, but it does
+it all"* — and both do the same job.
+
+**Phase 1 integrates nothing.** Worldline told Felix, by email and by phone, that if he wants to
+hook up his own POS they will supply a **sandbox** to test against. That offer is real and it is
+**Phase 2** — after the shop likes the app, after Banco's own problems and features are worked
+out. Angel, plainly: *"we're not gonna integrate it. We're not gonna do the sandbox work. We're
+not gonna do anything. We're gonna move on and really do it exactly the same way as what they do
+today."*
+
+**What they do today, and what Banco replaces.** Rafi or Layla pulls out a **calculator**, adds
+the items up, turns it round and shows the customer: *this is what it is*. The customer nods.
+They pick up the Worldline terminal, **type that amount in by hand**, and take the card or the
+TWINT. The number on the calculator is the number typed into the terminal. A fat-finger is
+possible and is not a common problem there.
+
+So **Banco replaces the calculator, not the terminal** — and that settles the shape of ⑦'s
+payment buttons: they are a **record of tender** (which way the money came in), never a payment
+instruction. The card breakdown they reconcile against is the terminal's own settlement, which
+they already have and already trust.
+
+---
+
+## ⓪ Walking the card on the tablet — four cold boots, 2026-09-05 evening
+
+*Angel drove; every observation below is his, watching the glass with a kitchen clock. The plan
+was a five-minute sanity smoke test before running the instruction sheet properly. It found a bug
+that would have met Layla on Monday morning.*
+
+### What the card claimed, and what actually happened
+
+`onboarding/the-till-morning-to-night.html` said: *"Press the power button once. Wait about twenty
+seconds. The till comes up on its own — no password, nothing to tap."*
+
+Four power-offs later, every clause of that sentence was wrong except "press the power button
+once".
+
+**Round 1 · 17:36.** Boot ran long, text screens scrolled, then **`Authentication required — the
+login keyring did not get unlocked when you logged into your computer`**, with the on-screen
+QWERTZ keyboard under it (photo taken on Angel's phone; GNOME's own screenshot is blocked by
+lockdown). He typed `art`'s password. Three minutes later the till was there, so it looked fine.
+
+**Round 2 · 17:54.** Same password box, and this time he looked immediately after unlocking:
+**a white window. No page. No title.** He waited **thirteen minutes**, hands off. Tapping the
+middle did nothing but maximise the emptiness. The title bar read `banco.wolfhold.app_/pos` —
+Chromium's fallback when a window **has no page title at all**, which is what gave it away.
+
+### The cause
+
+`/etc/gdm3/daemon.conf` has `AutomaticLoginEnable=true` / `AutomaticLogin=art`. Autologin means
+**GDM never has art's password**, so the login keyring stays **locked**. Chromium asks
+gnome-keyring for its safe storage at startup, that request blocks, and **Chromium never
+navigates**. Unlocking the keyring does not rescue it — Chromium does not retry. The window sits
+empty until the process is restarted.
+
+Everything downstream was healthy the whole time, which is why nothing ever flagged it:
+
+```
+banco-till.service   active (running), 855 MB, 0 restarts
+curl https://banco.wolfhold.app/   → 200 in 0.086s   (from the tablet itself)
+```
+
+**Angel's × recovered it in 3 seconds**, exactly as the card promises — because the restart
+happens *after* the keyring is open.
+
+### Why nobody had ever seen it
+
+Every previous boot proof was `reboot`, **issued over SSH, with nobody looking at the screen** —
+and the one time Angel did watch, in round 1, three minutes passed before he looked, by which
+point the × was not needed because he had already unlocked and the window had been restarted
+by... nothing; it had simply had time. LESSON #1 and #6 in one: green on every layer reachable
+from a terminal, dead on the only layer a person stands on.
+
+### The fix
+
+One flag in our own unit, `~/.config/systemd/user/banco-till.service`:
+
+```
+--password-store=basic
+```
+
+Chromium then keeps its own local store and never asks gnome-keyring anything. Chosen over
+blanking the login keyring's password, which also works but weakens a real credential store to
+solve a problem that is not about credentials. Banco's own login is Keycloak inside the page, so
+Chromium stores nothing worth protecting. **The cookies survived the switch** — the till came back
+as Layla with no re-login, so the theoretical one-time Keycloak prompt did not happen.
+
+*(First write of the flag used a doubled backslash and would have been parsed as a stray argument;
+caught with `systemctl show -p ExecStart` before it reached a boot.)*
+
+**Rounds 3 and 4 · 18:24 and 18:31 — both clean.** No password box, no white window, page loaded,
+Layla signed in. `journalctl -b | grep -c "did not get unlocked"` → **0**.
+
+### The numbers, from the machine, identical across both good boots
+
+```
+firmware 7.86s + loader 14.99s + kernel 7.99s + userspace 1m15.17s  =  1m 46s
+kernel start → till launch                                          =  68s
+1min 11.257s  plymouth-quit-wait.service     ← waiting behind the next line
+     51.692s  banco-lockdown.service         ← OURS. the biggest single item in the boot
+      4.410s  NetworkManager-wait-online.service
+```
+
+### What else the walk turned up
+
+- **It lands in the GNOME Activities overview, not the till** — search bar on top, a dock with
+  Firefox, a terminal, a file manager and a calculator along the bottom, the till small in the
+  middle. It does not leave on its own; Angel sat in it for minutes. **I wrongly withdrew this
+  finding once**, explaining round 1's screenshot away as the screenshot tool's own UI — then his
+  phone photo of round 3 showed exactly the same screen. One tap on the till fills the screen.
+  Shell 48.7, no extensions installed, Debian ships no `no-overview` package. Angel: *"I don't
+  have a problem with this."*
+- **The power button is `power-button-action = 'interactive'`** — a gentle click, not a hold.
+  It does **not** wake a dim screen; it raises a confirmation box that says the tablet will power
+  off **in sixty seconds** if nobody answers. Angel pressed it deliberately and cancelled:
+  **everything intact — till, cart, session.** Residual risk accepted rather than fixed: a brushed
+  button nobody notices for a minute powers the till off mid-trading. Making the button do nothing
+  would remove the easy way to switch it off at night, so it is documented instead.
+- **Power off is one click → confirm → under 10 seconds.** The card said *hold*.
+- **The red Lenovo "press enter to interrupt normal startup" prompt**, then a blue GRUB 2.12
+  screen, then pages of scrolling text. Nobody had ever told Layla to ignore all three.
+- **`Other users are logged in` in the shutdown dialog was my own SSH session** — my harness
+  changing what Angel was reading. Confirmed by its absence once I stayed off the machine.
+
+### Settings that back up the daytime section (all correct as written)
+
+```
+idle-dim true · idle-brightness 30 · idle-delay 0 (never blanks) · sleep-inactive-ac 'nothing'
+```
+
+### The card, rewritten the same evening
+
+Opening now says: gentle click · ignore the red Lenovo writing · a blue screen and scrolling text
+are normal · **about two minutes**, switch it on before you take your coat off · it finishes on the
+overview, **tap the till once**. The power-button box is now a red `stop` note carrying the sixty
+seconds and *tap Cancel, nothing is lost*. Closing says press once, not hold, off in under ten
+seconds.
+
+**Still open:** the overview tap (⓪a), `banco-lockdown`'s 51.7s (⓪b), and whether the cashier
+should log out at night — Layla closes, Rafi opens, and the till stays signed in as whoever was
+last on it (⓪c).
