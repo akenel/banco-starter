@@ -41,11 +41,25 @@ moved to [`worklist-archive/2026-09-05-archive-pass.md`](worklist-archive/2026-0
    first, on a bad number of mine that was in this file.
    → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
 
-3. **One `--push` of `scripts/tablet-lockdown.sh` from a REAL terminal.** Not urgent, not risky:
-   it deletes the leftover `/usr/local/bin/banco-kiosk`, `banco-kiosk.desktop` ×2 and
-   `/etc/default/banco-kiosk` that the 00:12 experiment wrote. The tablet is already safe — a
-   user-level override neutralises the autostart and `banco-till.service` owns the screen again —
-   this is tidying, not a fix.
+3. ~~**One `--push` of `scripts/tablet-lockdown.sh`**~~ — **DONE**, 2026-09-05 11:2x, run by Angel
+   from a real terminal. All four kiosk leftovers gone, verified from the laptop rather than taken
+   from the script's own output: `/usr/local/bin/banco-kiosk`,
+   `/usr/share/applications/banco-kiosk.desktop`, `/etc/xdg/autostart/banco-kiosk.desktop`,
+   `/etc/default/banco-kiosk`. `banco-till.service` **active, NRestarts=0**. Also removed my own
+   `~/.config/autostart/banco-kiosk.desktop` — the 00:12 `Hidden=true` override, which existed only
+   to neutralise a file that no longer exists and whose `Exec=` named a deleted binary.
+   ⚠️ **It took two goes:** the first died on `STAGE: unbound variable` (`0d6b910`). The two-step
+   rewrite the night before fixed the no-terminal path and broke the working one, and nothing ran
+   the working one — it needs a terminal, a live machine and a password. `--push --dry-run` now
+   prints both commands and touches nothing, so the happy path is checkable from here.
+
+   **Two of Angel's own files are still in `~/.config/autostart/`, inert and worth keeping:**
+   `banco.desktop.disabled` and `banco.desktop.pre-kioskfix` (2 Sep). Neither ends in `.desktop`
+   in a way GNOME reads, so nothing runs them — and `pre-kioskfix` is **evidence**: its `Exec=` is
+   `chromium --kiosk --app=https://banco.wolfhold.app/pos`. **The till DID autostart in kiosk mode
+   on 2 September and was backed out the same evening.** That is the third independent record that
+   kiosk was tried and rejected, and it belongs with item 4 below.
+
 4. **The counter visit** — ⓞ below. Everything this week was proved in a flat.
    **And the window-drag bug is still open**, with the obvious answer now ruled out in writing:
    `--kiosk` HIDES GNOME's bar, which takes the battery indicator with it, which is why people reach
