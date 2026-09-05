@@ -28,21 +28,8 @@ tablet, zero fails. Live on the shop: `b629 · 6cc1bb5`.*
 **Live on the shop: `b629 · 6cc1bb5`.** Reload the tablet TWICE after any deploy — the first load
 activates the new service worker, the second serves from it.
 
-### What went in tonight
-
-| | found by | proof |
-|---|---|---|
-| **Swiss dates on all seven filters** + a month grid Banco draws itself | Layla, 17:21 | `prove-swiss-dates.js` **97** |
-| **Seven more dates** — Sales Reports, the 18+ record (a PRINTED compliance document), the closeout Z-report, the delivery slip | **Layla, after the sheet ended** | same file, sections M–Q |
-| **The discount chips say the number** + "Your max discount: 100%" gone | Layla | `prove-discount-chips-tell-the-truth.js` **15** |
-| **The product list ends on a whole row** + the Find Product controls pinned | Layla / Pam | `prove-nothing-is-cut-in-half.js` **12** |
-
-Also green and unchanged: `prove-keypad.js` **81**, `prove-classes-exist.js` **5**.
-
-**Three sheets, 54 pass · 5 issue · 0 fail.** Every issue was a request or a missing test fixture,
-not a defect. The sheets themselves:
-`2026-09-04-swiss-dates-everywhere.html` · `-chips-and-the-printed-dates.html` ·
-`-the-list-and-the-controls.html`.
+*What went in that night — four fixes, five suites, three sheets, 54 pass · 5 issue · 0 fail —
+moved to [`worklist-archive/2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md).*
 
 ### Pick up here, in this order
 
@@ -55,9 +42,27 @@ not a defect. The sheets themselves:
    depends on now sits in `CLAUDE.md`: *when you close a thread, mark its header in the same commit
    as the fix.* Last night nine threads closed and two headers said so.
 
-1. **② Re-run the keyboard-buries-search test with the folio OFF.** The only blocking item still
-   open, and it has been carried three days. The last result does not count — the pad never
-   appeared, and the pad is the subject of the test.
+1. ~~**② The keyboard buries the search results**~~ — **FIXED and confirmed on the tablet**,
+   2026-09-05 10:34, `a615f81` + `987624d`, live as **`b644`**. The re-run was never needed: it
+   reproduced in a browser at 1440×895 with touch on, which is what makes Banco's own pad appear.
+   Measured on `b629` before touching anything — pad lid y=651, the result row 522..680, **zero
+   whole rows above the keyboard**, and Angel's own 10:23 screenshot was worse than the report:
+   with a name long enough to wrap (`CBD Joint Natural Rebel "Lemon Skunk" Pure 1stk`) the **price
+   was not on the screen at all**. Two faults: `data-row-snap` knew the stylesheet's cap and not
+   the keyboard's lid, and the pad's "is the field visible" check had grown field → field+warning
+   and stopped there — a search box's reason to exist is the list under it (LESSON #12, sixth
+   turn). `prove-the-pad-does-not-bury-the-answer.js` **21 checks**, both halves watched going red.
+   Angel on the tablet at 10:34, as pam, folio off: name, SKU and **CHF 5.90** all above the keys.
+   **Sheet not run and probably not needed** —
+   [`2026-09-05-the-keyboard-and-the-answer.html`](onboarding/testsheets/2026-09-05-the-keyboard-and-the-answer.html)
+   exists if a second pair of eyes is wanted; the screen was confirmed before it was written.
+   ⚠️ **One guard in there is UNEXERCISED**: the clamp that stops the search box being scrolled off
+   the top while reaching for a tall row. No fixture makes it bind (four-line names at 1440×895 and
+   1440×620 both leave the field on screen). It is a rail, not a proven fix, and the code says so.
+   **Decided, 2026-09-05, Angel: ONE row above the keyboard for now.** Three is possible but costs
+   the Barcode / Search / New item buttons off the top of the screen while typing. Revisit only if
+   it feels too few at a real counter — a question for the visit (item 4), not for a guess here.
+
 2. **Pam's category-dropdown request** — ⓒ5 below. The shop has **52 active categories** and the
    picker lists all of them; a search for `papers` touches **6**. Continues ⓚ (archived), which
    grouped them into sections; this narrows them to the ones the search actually hit.
