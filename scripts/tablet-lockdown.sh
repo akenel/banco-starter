@@ -511,6 +511,91 @@ if [ "$AUTOLOGIN" -eq 1 ]; then
   fi
 fi
 
+# ── SECURITY UPDATES, UNATTENDED ──────────────────────────────────────────
+# Angel, 2026-09-05: "i have noticed over the past few days that the tablet is
+# looking for updates -- i had to run those updates and restart twice -- is this
+# going to happen all the time ... is there a way to auto update so the users
+# never really need to think about it."
+#
+# MEASURED ON THIS TABLET rather than guessed. Installed 2026-08-04; update
+# batches on 08-22, 09-01 and 09-05 — roughly one every ten days, and it will not
+# slow down. Debian stable ships only SECURITY fixes, so the driver is Chromium,
+# which upstream patches every few weeks. Doing that by hand is not a plan for a
+# shop, and a till running a browser three CVEs behind is not one either.
+#
+# SECURITY ORIGIN ONLY. Not "all updates" — the smallest possible change surface
+# on a machine that takes money.
+#
+# AND THE SETTING EVERYONE MISSES: Automatic-Reboot-WithUsers. Autologin means
+# somebody is ALWAYS logged in, so with the default (false) the tablet would
+# collect kernel updates forever and never reboot to use them, silently.
+UU=/etc/apt/apt.conf.d/52banco-unattended
+cat > "$UU" <<'EOF'
+// Written by banco-counter-lockdown. Security fixes only, applied at night.
+Unattended-Upgrade::Origins-Pattern {
+    "origin=Debian,codename=${distro_codename}-security,label=Debian-Security";
+};
+Unattended-Upgrade::Automatic-Reboot            "true";
+// Autologin means a user is ALWAYS logged in. Without this it never reboots.
+Unattended-Upgrade::Automatic-Reboot-WithUsers  "true";
+Unattended-Upgrade::Automatic-Reboot-Time       "03:30";
+Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
+Unattended-Upgrade::MinimalSteps                "true";
+// No mail: there is no MTA on a till, and a bounced report is not a report.
+APT::Periodic::Update-Package-Lists  "1";
+APT::Periodic::Unattended-Upgrade    "1";
+APT::Periodic::AutocleanInterval     "7";
+EOF
+say "  wrote $UU  (security updates only, reboot at 03:30 if one is needed)"
+
+# A REBOOT ONLY WHEN ONE IS ACTUALLY NEEDED — and Chromium counts.
+#
+# A kernel update sets /var/run/reboot-required and the machinery above handles
+# it. A CHROMIUM update does not, and the till goes on running the OLD binary
+# from a deleted inode — patched on disk, unpatched on the glass, indefinitely,
+# because banco-till.service only restarts when the browser exits.
+#
+# Rather than guess from package names, this MEASURES the condition: if the
+# running till's /proc/PID/exe says "(deleted)", the binary underneath it has
+# been replaced and a restart is owed. Then it reuses the standard mechanism
+# instead of inventing a second one.
+STALE=/usr/local/sbin/banco-stale-browser-check
+cat > "$STALE" <<'EOF'
+#!/bin/sh
+# Did an upgrade replace the binary the till is still running? Then a reboot is
+# owed. Measures the running process, never the package name.
+pid=$(pgrep -f 'chromium.*--app=' | head -1) || exit 0
+[ -n "$pid" ] || exit 0
+readlink "/proc/$pid/exe" 2>/dev/null | grep -q '(deleted)' || exit 0
+mkdir -p /var/run
+: > /var/run/reboot-required
+echo "chromium (the till is running a replaced binary)" >> /var/run/reboot-required.pkgs
+EOF
+chmod 755 "$STALE"
+say "  installed $STALE"
+
+HOOK=/etc/apt/apt.conf.d/53banco-stale-browser
+printf 'DPkg::Post-Invoke { "%s || true"; };\n' "$STALE" > "$HOOK"
+say "  wrote $HOOK"
+
+# 03:30, not the Debian default of ~06:00 with up to an hour of jitter — a shop
+# that opens at 08:00 does not want a reboot at 06:55.
+TD=/etc/systemd/system/apt-daily-upgrade.timer.d
+mkdir -p "$TD"
+cat > "$TD/banco.conf" <<'EOF'
+[Timer]
+OnCalendar=
+OnCalendar=*-*-* 03:15
+RandomizedDelaySec=10m
+Persistent=true
+EOF
+say "  wrote $TD/banco.conf  (updates at 03:15, reboot 03:30)"
+
+if ! command -v unattended-upgrade >/dev/null 2>&1; then
+  say "  ⚠️  unattended-upgrades is NOT INSTALLED — none of the above runs yet."
+  say "      ssh -t tablet-admin 'sudo apt-get install -y unattended-upgrades'"
+fi
+
 # ── POWER PROFILE: BALANCED, NOT POWER-SAVER ──────────────────────────────
 # Found 2026-09-05 because Angel asked whether the idle test should be repeated
 # on battery. It should not — sleep-inactive-battery-type is already locked to

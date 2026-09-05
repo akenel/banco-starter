@@ -133,6 +133,16 @@ R=$(ssh -o BatchMode=yes -o ConnectTimeout=10 "$HOST" '
   # about a machine that was online, because the tool was missing, not the network.
   # python3 ships with the desktop and is already what everything else here needs.
   say power_profile "$(powerprofilesctl get 2>/dev/null)"
+  # Updates: is anything applying them, is anything owed, and did it run.
+  say uu_installed  "$(command -v unattended-upgrade >/dev/null 2>&1 && echo yes || echo NO)"
+  say uu_conf       "$([ -e /etc/apt/apt.conf.d/52banco-unattended ] && echo yes || echo NO)"
+  say uu_timer      "$(systemctl is-enabled apt-daily-upgrade.timer 2>&1)"
+  say uu_next       "$(systemctl show apt-daily-upgrade.timer -p NextElapseUSecRealtime --value 2>/dev/null)"
+  say uu_last       "$(grep -h "^[0-9-]* [0-9:]*,.*INFO" /var/log/unattended-upgrades/unattended-upgrades.log 2>/dev/null | tail -1 | cut -d, -f1)"
+  say pending_sec   "$(apt-get -s -o Dir::Etc::SourceList=/etc/apt/sources.list -o Dir::Etc::SourceParts=/etc/apt/sources.list.d upgrade 2>/dev/null | grep -c "^Inst.*security")"
+  say reboot_req    "$([ -f /var/run/reboot-required ] && echo yes || echo no)"
+  say reboot_why    "$(tr "\n" "; " < /var/run/reboot-required.pkgs 2>/dev/null | cut -c1-90)"
+  say stale_till    "$(pid=$(pgrep -f "chromium.*--app=" | head -1); [ -n "$pid" ] && readlink /proc/$pid/exe 2>/dev/null | grep -q "(deleted)" && echo YES || echo no)"
   say crit_action   "$(grep -m1 "^CriticalPowerAction" /etc/UPower/UPower.conf 2>/dev/null | cut -d= -f2)"
   say shop_http "$(python3 -c "
 import urllib.request
@@ -272,6 +282,29 @@ elif [ "$pp" = balanced ] || [ "$pp" = performance ]; then ok "the power profile
 else bad "the power profile is \"$pp\"" "a throttled till answers slowly with a customer waiting; it drifts here after any stint on battery"; fi
 ca=$(get crit_action)
 [ -n "$ca" ] && ok "at 2% battery it does $ca — it saves state rather than dying mid-write"
+
+echo
+echo "── does it patch itself, and is anything owed? ──"
+[ "$(get uu_installed)" = yes ] && ok "unattended-upgrades is installed" \
+  || bad "unattended-upgrades is NOT installed" "nothing applies security fixes; this tablet averaged one update batch every 10 days since 2026-08-04. Fix: ssh -t tablet-admin 'sudo apt-get install -y unattended-upgrades'"
+[ "$(get uu_conf)" = yes ] && ok "and Banco's policy is in place (security origin only, reboot 03:30)" \
+  || bad "/etc/apt/apt.conf.d/52banco-unattended is missing" "run the lockdown push"
+case "$(get uu_timer)" in
+  enabled) ok "the nightly timer is enabled — next run $(get uu_next)" ;;
+  *)       bad "apt-daily-upgrade.timer is $(get uu_timer)" "nothing will trigger it" ;;
+esac
+[ -n "$(get uu_last)" ] && ok "it last ran $(get uu_last)" || warn "no unattended-upgrades log yet" "it has not run once — expected until the first night"
+n=$(get pending_sec)
+[ "${n:-0}" -eq 0 ] && ok "no security updates pending" || warn "$n security update(s) pending" "they will apply tonight at 03:15"
+
+# THE ONE THAT DOES NOT SHOW UP ANYWHERE ELSE. A Chromium upgrade replaces the binary
+# under a till that keeps running the deleted inode — patched on disk, unpatched on the
+# glass, indefinitely, because banco-till.service only restarts when the browser exits.
+[ "$(get stale_till)" = no ] && ok "the till is running the binary that is on disk, not a replaced one" \
+  || bad "THE TILL IS RUNNING A DELETED BINARY" "chromium was upgraded underneath it. Fix now: ssh tablet 'systemctl --user restart banco-till.service'"
+if [ "$(get reboot_req)" = yes ]; then
+  warn "a reboot is owed: $(get reboot_why)" "it will happen at 03:30, or force it with a restart"
+else ok "no reboot owed"; fi
 
 echo
 echo "── and it can reach the shop from where it sits ──"
