@@ -92,6 +92,13 @@
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
+# A BOOT JOB THAT FAILS SILENTLY IS THE WORST KIND. This runs as
+# banco-lockdown.service with --quiet, so `say` prints nothing — and on 2026-09-05 it
+# exited 1 partway through with an EMPTY journal, leaving the whole lockdown
+# un-reapplied and no clue where it stopped. The trap writes to stderr, which --quiet
+# does not touch, so the next failure names its own line in `journalctl -u`.
+trap 'rc=$?; echo "banco-counter-lockdown: FAILED at line $LINENO (exit $rc)" >&2; exit $rc' ERR
+
 INSTALLED=/usr/local/sbin/banco-counter-lockdown
 # Where the copy lands in the far end's $HOME before sudo moves it to $INSTALLED.
 # A bare filename on purpose: scp resolves a relative target against the remote home,
@@ -622,9 +629,19 @@ fi
 # Set at every boot rather than once, because that is exactly the drift this unit
 # exists to undo. Not 'performance': balanced is what a till needs, and
 # performance costs fan noise and heat at a counter for nothing.
+# `|| echo` IS LOad-BEARING, and this is exactly how it failed. Measured on the
+# tablet, 2026-09-05: banco-lockdown started at 14:38:25 and power-profiles-daemon
+# did not become active until 14:39:37 — 72 seconds later. So at boot this asked a
+# daemon that was not there, the substitution failed, and an assignment from a
+# failing command ABORTS A SCRIPT RUNNING UNDER set -e. Exit 1, with --quiet
+# swallowing every line, so the boot job that re-applies the whole lockdown died
+# silently and nothing after this point ran. The postboot check caught it; nobody
+# else would have.
 if command -v powerprofilesctl >/dev/null 2>&1; then
-  cur=$(powerprofilesctl get 2>/dev/null)
-  if [ "$cur" = "balanced" ]; then
+  cur=$(powerprofilesctl get 2>/dev/null || echo "")
+  if [ -z "$cur" ]; then
+    say "  power profile: daemon not up yet — left alone (it is re-set at the next boot)"
+  elif [ "$cur" = "balanced" ]; then
     say "  power profile: already balanced"
   elif powerprofilesctl set balanced 2>/dev/null; then
     say "  power profile: ${cur:-unknown} → balanced"
@@ -648,7 +665,8 @@ for bl in /sys/class/backlight/*/; do
   [ -w "$bl/brightness" ] || continue
   max=$(cat "$bl/max_brightness" 2>/dev/null) || continue
   [ -n "$max" ] && [ "$max" -gt 0 ] 2>/dev/null || continue
-  was=$(cat "$bl/brightness" 2>/dev/null)
+  was=$(cat "$bl/brightness" 2>/dev/null || echo "")
+  [ -n "$was" ] || continue
   want=$(( max * BRIGHTNESS_PCT / 100 ))
   if [ "$was" -lt "$want" ] 2>/dev/null; then
     echo "$want" > "$bl/brightness" 2>/dev/null \

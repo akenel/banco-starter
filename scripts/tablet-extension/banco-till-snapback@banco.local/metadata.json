@@ -1,0 +1,7 @@
+{
+  "uuid": "banco-till-snapback@banco.local",
+  "name": "Banco till snap-back",
+  "description": "Keeps the till window maximised. Layla, 2026-09-04 21:29: a strip of the till and a field of desktop wallpaper — a title bar is a drag handle on a touchscreen, and once the edge is off the glass a finger cannot get it back. Lets the drag happen, then springs the window back, so nothing feels dead.",
+  "shell-version": ["47", "48", "49"],
+  "session-modes": ["user"]
+}
