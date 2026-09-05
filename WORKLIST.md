@@ -7,15 +7,19 @@
 > single week of shipping. Every pass was verified line-for-line and **nothing was deleted**:
 > [`2026-08-27`](worklist-archive/2026-08-27-archive-pass.md) ·
 > [`2026-09-04`](worklist-archive/2026-09-04-archive-pass.md) (1,730 lines out, 0 lost).
-> **The rule is ~280 lines, not 150** — the 150 was set before item ⓪ existed, and a measurement
-> that changes what the shop does next earns its space. The trigger is what matters, not the number:
-> **when a thread closes, it moves the same day.** Growing back to four figures is what happens when
+> **The rule is 500 lines, and since 2026-09-05 it has an alarm** — `python3 scripts/worklist-check.py`,
+> run as step 4 of SESSION START. The 150 was set before item ⓪ existed and 280 was never met either;
+> a measurement that changes what the shop does next earns its space, and 500 is honestly what this
+> file needs to hold. The trigger is what matters, not the number:
+> **when a thread closes, it moves the same day — and its header gets marked in the same commit,
+> because the marked header is the only thing the alarm can see.** Growing back to four figures is what happens when
 > "I'll archive it later" is the plan. When an item is finished it goes to
 > [`worklist-archive/done.md`](worklist-archive/done.md) with its commit hashes; when a thread grows
 > a long write-up, the write-up goes to the archive and a one-line pointer stays here.
 
-*Last updated: 2026-09-04, ~23:30 — **the blocking deck is clear.** Five items in, three UAT sheets
-run on the real tablet, zero fails. Live on the shop: `b629 · 6cc1bb5`.*
+*Last updated: 2026-09-05 morning — the worklist alarm is in and runs at SESSION START.
+Before that: **the blocking deck is clear** — five items in, three UAT sheets run on the real
+tablet, zero fails. Live on the shop: `b629 · 6cc1bb5`.*
 
 ---
 
@@ -42,21 +46,14 @@ not a defect. The sheets themselves:
 
 ### Pick up here, in this order
 
-0. **BUILD `scripts/worklist-check.py` — Angel's call, 2026-09-04 23:40, do this first.**
-   *"a 500 line worklist should be a reasonable limit or time to archive."* **Yes — and the number is
-   not what failed.** The rule was 150, then 280. The file hit **1,734 → 1,201 → 2,307** and has never
-   once been met; tonight it grew a thousand lines in one session while the rule sat at the top of the
-   file. A rule broken three times is not fixed by being made easier, it is fixed by being TRIGGERED.
-   So: **the limit becomes 500** (honestly what the live file needs to hold), and it gets an alarm.
-
-   ~15 lines. Print the line count, and count the sections still in the LIVE file whose header carries
-   `FIXED`, `CLOSED` or `~~`. Over **500 lines** *or* more than **two closed threads** still sitting
-   here → print **"archive pass due"** and name them. Wire it into the SESSION START list in
-   `CLAUDE.md` so the first thing every session does is say it out loud.
-
-   *The real rule was already written in this file — "when a thread closes, it moves the same day" —
-   and it is the one that got ignored, not the line count. This is the difference between a limit and
-   an alarm.*
+0. ~~**Build `scripts/worklist-check.py`**~~ — **DONE**, 2026-09-05 morning. Runs as step 4 of
+   SESSION START and says the count out loud in the first reply of every session. Over **500 lines**
+   *or* more than **two** finished threads still sitting here → **ARCHIVE PASS DUE**, and it names
+   what to move and the three longest sections. Watched go red on three cases: the real 2,307-line
+   file from before last night's pass, a 13-line file with three finished threads in it, and the
+   boundary — 500 quiet, 501 loud. ⚠️ **It can only see what the HEADER says**, so the convention it
+   depends on now sits in `CLAUDE.md`: *when you close a thread, mark its header in the same commit
+   as the fix.* Last night nine threads closed and two headers said so.
 
 1. **② Re-run the keyboard-buries-search test with the folio OFF.** The only blocking item still
    open, and it has been carried three days. The last result does not count — the pad never
@@ -77,18 +74,18 @@ not a defect. The sheets themselves:
    **48-restart loop**. See `onboarding/21-supported-hardware.md`, which now carries the reasoning.
    Next thing to try, **on the machine before it goes in any script**: a GNOME window rule that keeps
    it maximised, or an undecorated window from the compositor rather than from Chromium.
-4. **⚠️ ESTABLISH ONE FACT BEFORE THE FELIX MEETING: does the shop have a Worldline terminal at the
+5. **⚠️ ESTABLISH ONE FACT BEFORE THE FELIX MEETING: does the shop have a Worldline terminal at the
    counter TODAY, or does it arrive with go-live?** It decides the payment-button question below —
    if the terminal is already there its settlement IS the card breakdown; if not, the paper
    breakdown is the only one they have. Ask it before deciding anything.
-5. **The Felix conversation — four decisions that are HIS, written up, none agreed yet.**
+6. **The Felix conversation — four decisions that are HIS, written up, none agreed yet.**
    [`onboarding/the-felix-conversation.html`](onboarding/the-felix-conversation.html): the payment
    buttons (**Cash · Card · TWINT**, plus an ask-card-type setting so he can flip it himself),
    Worldline as **Phase 2** with the reasoning and the script, split tender parked, and the trial
    terms — **FAIL = free defect · ISSUE = quoted change**, agreed BEFORE the trial starts. Also the
    two asks worth more than they cost: one day's Banana CSV through his Treuhänder, and his real
    chart-of-accounts codes.
-6. **The receipt QR — spec written, not built.**
+7. **The receipt QR — spec written, not built.**
    [`onboarding/receipt-qr-spec.html`](onboarding/receipt-qr-spec.html). Every receipt fetches its QR
    from **`api.qrserver.com`** and points at `/join` → La Piazza. It should be drawn by Banco and
    point at the shop's own site from `store_settings.website`. The renderer already exists —

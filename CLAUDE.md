@@ -12,8 +12,17 @@
 2. **`MEMORY.md`** — the memory index, one line per fact. Read the whole index; open a
    `memory/*.md` file only when its line says that fact is relevant to what we are doing **right now**.
 3. **`WORKLIST.md`** — what's next, in order.
+4. **`python3 scripts/worklist-check.py`** — and say the line it prints, out loud, in the session's
+   first reply. If it says **ARCHIVE PASS DUE**, that is the first thing on the deck, before
+   whatever else the list says. It takes a second and it is the only rule in this repo that has
+   been broken three times.
 
 Do not skip step 2. Memory that is written and never read is just a folder of notes.
+
+**And when you close a thread, mark its header** — ~~struck~~, **FIXED** or **CLOSED** — *in the
+same commit as the fix.* The alarm can only see what the header says: on 2026-09-04 nine threads
+were closed and two headers said so, which is why the file reached 2,307 lines with the rule
+sitting unread at the top of it.
 
 @MEMORY.md
 
