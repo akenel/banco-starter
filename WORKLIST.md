@@ -44,23 +44,23 @@ somebody thought of — moved to [`2026-09-05-archive-pass.md`](worklist-archive
    watching the screen**. Card rewritten against what happened.
    → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
 
-0d. **The third white screen — FIXED AND DEPLOYED (b684), cold-boot clean.** `sw.js` ended its
-   fallback in `caches.match('/pos/scan')`, and **`caches.match` returns `undefined` on a miss**,
-   so `respondWith(undefined)` gave the browser nothing. Now ends in `offlinePage()`. It never
-   fired in testing and that is correct — it is the floor, reached only when even `/pos/scan` is
-   uncached: **correct by construction, not proven live.** Airplane mode proved the layer above:
-   cached pages open, *"Sales are paused. Your cart is safe."*, banner clears unattended in 2s,
-   and the till **rode out a wifi outage on the SIM**. `ExecStartPre` cut 90s → 20s — with the
-   network down it was holding a blank screen in front of a working offline mode.
+0d. **The third white screen — FIXED AND DEPLOYED (b684).** `caches.match` returns `undefined`
+   on a miss, so the SW's `respondWith(undefined)` gave the browser nothing. Now ends in
+   `offlinePage()` — which never fired in testing, correctly, being the floor: **correct by
+   construction, NOT proven live.** Airplane mode proved the layer above (cached pages open,
+   *"Sales are paused. Your cart is safe."*, clears unattended in 2s) and the till **rode out a
+   wifi outage on the SIM**. `ExecStartPre` 90s → 20s.
 0e. ~~**`banco-till.service` existed on ONE machine**~~ — **IN THE REPO 2026-09-05**:
    `scripts/systemd/banco-till.service` + `scripts/install-till-unit.sh --check | --push` (the
    `tablet` door — USER unit, no root). `--check` diffs machine against repo; `--push` backs up
    first and does NOT restart the browser. Both proven. Lockdown's boundary unchanged, now names it.
-0f. **My Day says `could not load your profile: failed to fetch` in red next to Layla's name**
-   while offline — under a banner that already said there is no internet. LESSON #12.
-   → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
+0f. **My Day says `could not load your profile: failed to fetch` in red by Layla's name** while
+   offline, under a banner that already said there is no internet. LESSON #12. → archive
 0c. **Do they log out at night?** Layla closes, Rafi opens, till stays signed in as whoever was
    last on it. Angel raised it; not discussed, not decided.
+0g. ✅ **Rock-solid check passed 2026-09-05: three consecutive clean cold boots** (57.8 / 58.3 /
+   58.2s, `kernel->till` 19s every time, 0.49s spread), criteria agreed before the first one.
+   45 passed · 0 failed. **The cashier now does nothing at all in the morning.**
 1. ~~**② The keyboard buries the search results**~~ — **FIXED**, confirmed on the tablet, `b644`.
 2. ~~**Pam's picker + Angel's shelf pill**~~ — **DONE**, `b647`, needs eyes. Shipped wrong first,
    on a bad number of mine that was in this file.

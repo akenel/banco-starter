@@ -837,3 +837,45 @@ exists to win was THREE seconds, so 20 wins it many times over without stranding
 - **My Day showed a red `could not load your profile: failed to fetch`** under "Good evening,
   Layla" while offline. The banner above it already said there is no internet; this is a second,
   scarier way of saying the same thing, in red, next to her name.
+
+---
+
+## ⓪ Rock-solid check — three consecutive cold boots, criteria agreed first
+
+Angel: *"let's do some more smoke sanity checks and few more restarts so we know we have a rock
+solid start."* Pass criteria were written down **before** the first boot, so the bar could not move:
+till on screen full-screen with Layla and no press · 0 keyring prompts · lockdown ≤5s · total
+55–70s · postboot check 0 failed.
+
+```
+boot 12   total 57.810s   banco-lockdown 3.639s   kernel->till 19s
+boot 13   total 58.303s   banco-lockdown 3.782s   kernel->till 19s
+boot 14   total 58.188s   banco-lockdown 3.443s   kernel->till 19s
+```
+
+Every one: **0 keyring prompts · overview extension ACTIVE · banco-power-profile active · 0 till
+restarts · 0 failed units**, and Angel confirmed the glass each time — *"it's at the dashboard for
+Layla and looks clean and perfect."*
+
+**Spread across the three: 0.49 seconds end to end, and `kernel->till` was 19s every single time.**
+The numbers were kept per-boot rather than averaged, deliberately — LESSON #5 is that a mean hides
+a bimodal split, and a spread this tight is only meaningful because you can see all three.
+
+Closing state, after fourteen cold boots in one evening:
+
+```
+./scripts/tablet-postboot-check.sh     45 passed · 0 failed · 1 to look at
+                                       (the 1: "no unattended-upgrades log yet" — it has not
+                                        run its first night; expected)
+./scripts/install-till-unit.sh --check ✅ identical — the tablet is running what this repo says
+serving build                          10be05f (b684)
+```
+
+**Where the morning stands now, against where it started this evening:**
+
+| | before | after |
+|---|---|---|
+| the till on a cold boot | **never came up** — password, then white | full screen, Layla, no press |
+| time to a usable till | ~1m 46s, then a password, then a press | **~58s, unattended** |
+| `banco-lockdown` | 51.7s in front of the display manager | 3.6s |
+| what the cashier does | type a password, press the till | **nothing** |
