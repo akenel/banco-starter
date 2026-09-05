@@ -33,39 +33,14 @@ moved to [`worklist-archive/2026-09-05-archive-pass.md`](worklist-archive/2026-0
 
 ### Pick up here, in this order
 
-0. ~~**Build `scripts/worklist-check.py`**~~ — **DONE**, 2026-09-05 morning. Runs as step 4 of
-   SESSION START and says the count out loud in the first reply of every session. Over **500 lines**
-   *or* more than **two** finished threads still sitting here → **ARCHIVE PASS DUE**, and it names
-   what to move and the three longest sections. Watched go red on three cases: the real 2,307-line
-   file from before last night's pass, a 13-line file with three finished threads in it, and the
-   boundary — 500 quiet, 501 loud. ⚠️ **It can only see what the HEADER says**, so the convention it
-   depends on now sits in `CLAUDE.md`: *when you close a thread, mark its header in the same commit
-   as the fix.* Last night nine threads closed and two headers said so.
+0. ~~**The worklist alarm**~~ — **DONE**, `fb00d2c`. `scripts/worklist-check.py`, step 4 of
+   SESSION START. → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
+1. ~~**② The keyboard buries the search results**~~ — **FIXED**, confirmed by Angel on the tablet
+   10:34, `b644`. → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
+2. ~~**Pam's picker + Angel's shelf pill**~~ — **DONE**, `b647`, needs eyes. It shipped wrong
+   first, on a bad number of mine that was in this file.
+   → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
 
-1. ~~**② The keyboard buries the search results**~~ — **FIXED and confirmed on the tablet**,
-   2026-09-05 10:34, `a615f81` + `987624d`, live as **`b644`**. The re-run was never needed: it
-   reproduced in a browser at 1440×895 with touch on, which is what makes Banco's own pad appear.
-   Measured on `b629` before touching anything — pad lid y=651, the result row 522..680, **zero
-   whole rows above the keyboard**, and Angel's own 10:23 screenshot was worse than the report:
-   with a name long enough to wrap (`CBD Joint Natural Rebel "Lemon Skunk" Pure 1stk`) the **price
-   was not on the screen at all**. Two faults: `data-row-snap` knew the stylesheet's cap and not
-   the keyboard's lid, and the pad's "is the field visible" check had grown field → field+warning
-   and stopped there — a search box's reason to exist is the list under it (LESSON #12, sixth
-   turn). `prove-the-pad-does-not-bury-the-answer.js` **21 checks**, both halves watched going red.
-   Angel on the tablet at 10:34, as pam, folio off: name, SKU and **CHF 5.90** all above the keys.
-   **Sheet not run and probably not needed** —
-   [`2026-09-05-the-keyboard-and-the-answer.html`](onboarding/testsheets/2026-09-05-the-keyboard-and-the-answer.html)
-   exists if a second pair of eyes is wanted; the screen was confirmed before it was written.
-   ⚠️ **One guard in there is UNEXERCISED**: the clamp that stops the search box being scrolled off
-   the top while reaching for a tall row. No fixture makes it bind (four-line names at 1440×895 and
-   1440×620 both leave the field on screen). It is a rail, not a proven fix, and the code says so.
-   **Decided, 2026-09-05, Angel: ONE row above the keyboard for now.** Three is possible but costs
-   the Barcode / Search / New item buttons off the top of the screen while typing. Revisit only if
-   it feels too few at a real counter — a question for the visit (item 4), not for a guess here.
-
-2. **Pam's category-dropdown request** — ⓒ5 below. The shop has **52 active categories** and the
-   picker lists all of them; a search for `papers` touches **6**. Continues ⓚ (archived), which
-   grouped them into sections; this narrows them to the ones the search actually hit.
 3. **One `--push` of `scripts/tablet-lockdown.sh` from a REAL terminal.** Not urgent, not risky:
    it deletes the leftover `/usr/local/bin/banco-kiosk`, `banco-kiosk.desktop` ×2 and
    `/etc/default/banco-kiosk` that the 00:12 experiment wrote. The tablet is already safe — a
@@ -286,21 +261,20 @@ active name in the shop. Runners-up if that one is ever retired: the RAW Connois
 *The lesson is small and repeats: a step that says "find a product with a long name" hands the
 tester my homework. **Name the sample.** Both testers hit it in the same session.*
 
-### B2 · NEW — narrow the category dropdown to the categories the search actually hit
+### B2 · ~~narrow the category dropdown~~ — **DONE 2026-09-05**, `c42a207` + `234a601`
 
 Pam, on the pinned panel: *"this is exactly why you need it — look for a term and easy search with
 categories — would be good to narrow the cats where only search term is applicable so cat list is
 shortened."*
 
-Not a bug; a real improvement to the thing she just said she loves. **The numbers make the case:
-the shop has 52 active categories and the dropdown lists all of them, always.** Searching `papers`
-touches **6**. Searching `elements`, **5**. So she scrolls a 52-line picker to choose between five
-answers, on a touchscreen, with a customer waiting.
+Live: **`papers` → 6 shelves, `elements` → 5, `lighter` → 2**, each with the count you get when you
+pick it, full 52 underneath, capped at 8.
 
-Shape of it: `searchProducts()` already has the result set — group its categories and offer those
-first (or only), with a way back to all 52. Note `raw` touches **26** and `king` **21**, so this
-does not always shorten much; the fix should degrade to today's behaviour rather than hide
-anything. **Not started.**
+⚠️ **The numbers that used to be in this entry were measured with `name ILIKE`, and the first
+implementation was built on them.** The search's own recall reaches into `description`,
+`supplier_name` and fuzzy similarity, so by that predicate `papers` touches **39** shelves and
+`king` **50 of 52**. Shelves are chosen by relevance and counted by recall — see the header comment
+on `/search` in `pos_router.py`.
 
 ---
 

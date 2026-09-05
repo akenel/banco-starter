@@ -1107,3 +1107,35 @@ fastest way to stop something root started.
 The script now **removes** what it wrote, so one `--push` cleans a machine that got it. A change that
 cannot be undone by the same tool that made it is only half shipped.
 
+## 2026-09-05 — I read my own note as a measurement of the thing I was building
+
+Pam asked for the category picker to be narrowed to "the cats where only search term is
+applicable". `WORKLIST.md` said, in my own words from the night before: **"the shop has 52 active
+categories and the dropdown lists all of them, always. Searching `papers` touches 6."**
+
+I built the facet against the search's own recall predicate — deliberately, and with a comment
+explaining that one copy of one predicate cannot disagree with itself. That reasoning is sound and
+it produced this, on the live catalogue, after it was already deployed:
+
+```
+papers   831 matches → 39 shelves        cbd    366 →  35
+raw     1099 matches → 45 shelves        king  3762 →  50   (of 52)
+```
+
+Narrowing 52 to 50 is not narrowing.
+
+**The "6" was real, and it was measured with `name ILIKE '%papers%'`.** Search recall is
+deliberately far broader — `description`, `supplier_name`, `word_similarity > 0.35`, synonym
+expansion — so almost every shelf holds *some* row that mentions the word. Two different questions,
+one number, and the number was sitting in the file I read to decide the work was worth doing.
+
+**And the fixture could not have caught it.** Every row in the dev fixture had the term in its
+NAME, so "chosen by relevance" and "chosen by recall" were the same set. It passed 15 checks
+against a bug that was live. It now carries a decoy row whose only connection is a passing mention
+in its description.
+
+*The lesson is LESSON #5 one turn finer: a reference figure has to come from the system, and
+**"the system" means the exact predicate the feature will use** — not a hand-written SQL that
+answers a question shaped like it. When a note in the repo carries a number, the note is a
+hypothesis with a timestamp on it (LESSON #3), and the first thing to do with it is re-measure it
+THROUGH THE THING BEING BUILT.*

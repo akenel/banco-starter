@@ -232,7 +232,7 @@ pattern below, bump the count here. A pattern at ×7 is telling you something a 
    guard, and it is the more confident half.* A test that counted occurrences
    matched its own `def` line. Reverting each guard one at a time has caught something every time it
    has been done. *If you did not watch it go red, you do not know it works.*
-5. **×6 · A measurement harness will accuse working code as confidently as it reports the truth —
+5. **×7 · A measurement harness will accuse working code as confidently as it reports the truth —
    and will PASS on the very bug it was written to catch.**
    The rounding proof; the partial prod copy that manufactured a 24-product compliance scare; and on
    2026-08-28 a timer that started when a card **scrolled into view** rather than when a decision was
@@ -243,6 +243,13 @@ pattern below, bump the count here. A pattern at ×7 is telling you something a 
    average — a bimodal split is an instrument fault until proven otherwise. Name the population in
    the same sentence as the number, and never quote a test count from a harness you have not proved
    can SEE what it counts.*
+   The seventh, 2026-09-05: I narrowed a 52-category picker against a number in my own worklist —
+   *"`papers` touches 6"* — measured with `name ILIKE`, while the feature used the search's own far
+   broader recall. It shipped offering **39 shelves for `papers` and 50 of 52 for `king`**, and the
+   dev fixture passed 15 checks because every fixture row had the term in its NAME, so "chosen by
+   relevance" and "chosen by recall" were the same set. *A reference figure must come from the
+   EXACT predicate the feature will use, and a fixture that cannot fail the way production fails is
+   not a fixture.*
    Two more on 2026-08-28: I predicted 40 age-gate changes and prod made **44**, because I measured
    a **5,061-row snapshot** of a **5,408-row** shop and the four extras sat in the 347 I could not
    see; and I quoted *"49 test failures before and after"* as evidence when 30 test files were
