@@ -90,6 +90,13 @@ def psql(sql):
 print("── fixture: products spread across four shelves ──")
 psql(f"DELETE FROM products WHERE sku LIKE '{FIXTURE_SKU}%'")
 spread = {"Papers & Rolling": 5, "Bongs & Pipes": 3, "Vape Hardware": 2, "Grinders": 1}
+# THE SHELF THAT MUST NOT BE OFFERED. This row's NAME does not say Bruzzo — only its
+# description does, which is enough for the search to return it and is not enough to make
+# its shelf what the search is about. Without a row like this the facet passed every check
+# on the dev stack while offering 50 of 52 shelves on the real catalogue: every fixture row
+# had the term in its name, so "chosen by a strong signal" and "chosen by recall" could not
+# be told apart. A fixture that cannot fail the way production fails is not a fixture.
+DECOY_SHELF = "Cafe & Food"
 rows, n = [], 0
 for cat, count in spread.items():
     for _ in range(count):
@@ -104,6 +111,7 @@ for cat, count in spread.items():
 # columns silently becomes `standard`, not-age-restricted, and any check that reads them is
 # then measuring my fixture instead of the catalogue. Cloning inherits whatever the schema
 # grows next, for free.
+rows.append(f"('{FIXTURE_SKU}-decoy', 'ZZFACET Unrelated Kettle', '{DECOY_SHELF}')")
 ins = psql(
     # NULL::products, not `p` — a record from a subquery has no registered type
     # ("record type has not been registered"), so the template goes in as jsonb and the
@@ -111,14 +119,18 @@ ins = psql(
     "INSERT INTO products SELECT (jsonb_populate_record(NULL::products,"
     "  to_jsonb(p) || jsonb_build_object("
     "  'id', gen_random_uuid()::text, 'sku', v.sku, 'name', v.name,"
-    "  'category', v.cat, 'barcode', NULL, 'price', 9.90, 'is_active', true))).* "
+    "  'category', v.cat, 'barcode', NULL, 'price', 9.90, 'is_active', true,"
+    "  'description', CASE WHEN v.sku LIKE '%decoy' THEN 'a Bruzzo mentioned in passing'"
+    "                      ELSE 'plain' END))).* "
     # ONE template row, chosen in a subquery. Written as `FROM products p, (VALUES …)`
     # it is a cross join: eleven names times six products = 66 rows, and the first duplicate
     # sku stopped it. The LIMIT belongs to the template, not to the statement.
     "FROM (SELECT * FROM products WHERE is_active ORDER BY created_at LIMIT 1) p, "
     f"     (VALUES {','.join(rows)}) AS v(sku, name, cat)"
 )
-check(ins.returncode == 0, f"{n} rows in {len(spread)} shelves, all matching 'Bruzzo'",
+check(ins.returncode == 0,
+      f"{n} rows in {len(spread)} shelves named Bruzzo, plus one decoy on \"{DECOY_SHELF}\" "
+      f"that only MENTIONS it",
       (ins.stderr or "").strip()[:300])
 if ins.returncode != 0:
     sys.exit(1)
@@ -129,14 +141,18 @@ try:
     one = search(q="Bruzzo", limit=1)
     facet = {c["name"]: c["count"] for c in one.get("match_categories", [])}
     check(len(one["items"]) == 1, f"the page really is one row ({len(one['items'])})")
-    check(one["total"] == n, f"the match really is {n} rows ({one['total']})")
+    check(one["total"] == n + 1, f"the match really is {n + 1} rows, decoy included ({one['total']})")
     check(len(facet) == len(spread),
           f"the facet names all {len(spread)} shelves, not the one on the page ({len(facet)})",
           f"it named {sorted(facet)} — a page-scoped facet would name 1")
     check(facet == spread, "and every count is the whole-match count",
           f"got {facet}, expected {spread}")
-    check(sum(facet.values()) == one["total"],
-          f"the counts add up to `total` ({sum(facet.values())} = {one['total']})",
+    check(DECOY_SHELF not in facet,
+          f'"{DECOY_SHELF}" is NOT offered — the word is only in a description there',
+          "a shelf whose only connection is an incidental mention is being offered; on the "
+          "real catalogue that is how `king` came back with 50 of 52 shelves")
+    check(sum(facet.values()) == one["total"] - 1,
+          f"the counts add up to `total` minus the decoy ({sum(facet.values())} of {one['total']})",
           "the facet and the header are counting different sets, which is how a screen "
           "starts arguing with itself")
 

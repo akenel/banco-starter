@@ -4830,8 +4830,36 @@ async def search_products_fast(
     #
     # A SECOND SCAN, ON PURPOSE, AND ONLY ON THE FIRST PAGE. It cannot ride the window
     # aggregates above (those are per-row; this is grouped), and paging must not recompute
-    # something that has not changed. Measured on the live 5,475-row catalogue before it
-    # shipped — see prove-category-facet-is-honest.py.
+    # something that has not changed.
+    #
+    # ═══ WHY THE SHELVES ARE CHOSEN ONE WAY AND COUNTED ANOTHER ═══
+    # The first version used ONLY the recall predicate above, on the reasoning that one copy
+    # of one predicate cannot disagree with itself. It shipped, and the live catalogue said:
+    #
+    #     papers   831 matches → 39 shelves        cbd    366 → 35
+    #     raw     1099 matches → 45 shelves        king  3762 → 50   (of 52)
+    #
+    # Narrowing 52 to 50 is not narrowing. Recall here is deliberately generous — it reaches
+    # into `description`, `supplier_name` and word_similarity > 0.35 — so almost every shelf
+    # holds SOME row that mentions "king" somewhere in its text, and Pam's request ("narrow
+    # the cats where only search term is applicable") was answered with the whole list back.
+    #
+    # The number that made this look solved — "papers touches 6" — was in the worklist,
+    # written by me, measured with `name ILIKE`. A different predicate from the one the
+    # feature uses. LESSON #5: get the reference figure FROM the system.
+    #
+    # So the two halves are asked separately, on purpose:
+    #   CHOSEN   by a strong signal — the word is in the shelf's name, or in the product's
+    #            own name/sku/barcode. That is "which shelves is this search ABOUT", which is
+    #            what a person means by it. papers → 6, elements → 5, lighter → 2.
+    #   COUNTED  by the FULL recall predicate, because the count has to be the number you get
+    #            when you pick it. Counting the strong rows would print "Rolling Papers (198)"
+    #            over a filter that then shows 189 more — a picker arguing with its own list,
+    #            which is the exact fault this endpoint's neighbour shipped once already.
+    # Both come from ONE grouped scan, so they cannot drift apart.
+    #
+    # `raw` still offers 26 shelves and `king` 21 — this does not always shorten much, and
+    # the cap below is what stops a long tail becoming a second 52-line list.
     match_categories: list[dict] = []
     if q and skip == 0:
         fq = text(f"""
@@ -4843,7 +4871,14 @@ async def search_products_fast(
                 {match_recall}
               )
             GROUP BY category
+            HAVING count(*) FILTER (
+                     WHERE name ILIKE '%' || :q || '%'
+                        OR category ILIKE '%' || :q || '%'
+                        OR sku ILIKE '%' || :q || '%'
+                        OR barcode ILIKE '%' || :q || '%'
+                   ) > 0
             ORDER BY n DESC, category ASC
+            LIMIT 8
         """)
         # Only what the predicate binds. The SELECT-list and ORDER BY params (dtoks,
         # size_rx, code_exact) are not in this statement and must not be passed to it.
