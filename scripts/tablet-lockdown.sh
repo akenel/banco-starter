@@ -423,9 +423,28 @@ for a in "$@"; do [ "$a" = "--autologin" ] && AUTOLOGIN=1; done
 GDM_CONF="${BANCO_GDM_CONF:-/etc/gdm3/daemon.conf}"
 
 if [ "$AUTOLOGIN" -eq 1 ]; then
-  TILL_USER="${SUDO_USER:-${AUTOLOGIN_USER:-}}"
+  # WHO IS THE TILL USER? NOT "whoever ran sudo".
+  #
+  # This used to be $SUDO_USER, which is right exactly while one account is both
+  # the cashier's desktop and the administrator — which is the arrangement we are
+  # about to end. Once maintenance is pushed from a separate admin login, $SUDO_USER
+  # is the ADMIN, and this would have set the tablet to log itself in as the admin
+  # account: the opposite of the point, discovered a week later by someone standing
+  # at a counter looking at the wrong desktop.
+  #
+  # So ask the machine instead: the till user is whoever owns banco-till.service.
+  # That is a fact about this tablet, not about who happens to be typing.
+  TILL_USER="${AUTOLOGIN_USER:-}"
+  if [ -z "$TILL_USER" ]; then
+    for h in /home/*; do
+      [ -f "$h/.config/systemd/user/banco-till.service" ] || continue
+      TILL_USER=$(basename "$h"); break
+    done
+  fi
+  [ -n "$TILL_USER" ] || TILL_USER="${SUDO_USER:-}"      # last resort, and it says so
   if [ -z "$TILL_USER" ] || [ "$TILL_USER" = root ]; then
     say "  ⚠️  autologin asked for, but I cannot tell which user runs the till"
+    say "      no banco-till.service under any /home, and \$SUDO_USER is unusable."
     say "      re-run as:  AUTOLOGIN_USER=<name> sudo -E $0 --autologin"
   elif set_autologin "$GDM_CONF" "$TILL_USER"; then
     say "  wrote $GDM_CONF  (autologin as $TILL_USER — the till returns after a power cut)"
