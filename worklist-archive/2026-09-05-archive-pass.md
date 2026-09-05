@@ -261,3 +261,15 @@ code's first sale.
    **admin** and still wrote *"autologin as art"*. Under the old `$SUDO_USER` logic that would have
    set the tablet to log itself in as the maintenance account.
 
+
+
+---
+
+## The GNOME Shell extension that was built and removed, 2026-09-05
+
+   ⚠️ **A GNOME Shell extension was built for this and REMOVED ON PURPOSE — do not rebuild it.**
+   It snapped the window back, reported `State: ACTIVE`, and did nothing at all, because it matched
+   `wm_class` "chromium" and an `--app=` window is called something else entirely. **Angel found
+   that by dragging a window; no check could have.** Dropped even though it was fixable: custom
+   code inside the compositor on a machine that takes money, silently undoing anything deliberate,
+   and it taught nobody anything.

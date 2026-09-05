@@ -76,11 +76,18 @@ moved to [`worklist-archive/2026-09-05-archive-pass.md`](worklist-archive/2026-0
    off the JSON — **3 → CHF 5.00, 4 → CHF 7.00 (not 6.67)**, which is Ralph's whole-packs rule and
    has never been checked on a stored record.
    **Nothing has completed a sale on this build.** Last transaction on the box: 2026-08-21, 50 ago.
-   **And the window-drag bug rides along**, with kiosk now ruled out THREE ways: the note in
-   `banco-till.service`, my 48-restart loop at 00:12, and Angel's own
-   `~/.config/autostart/banco.desktop.pre-kioskfix` (2 Sep 17:36, `chromium --kiosk`), backed out
-   63 minutes later. Next thing to try, on the machine: a GNOME rule that keeps it maximised, or an
-   undecorated window from the compositor rather than from Chromium.
+   ~~**And the window-drag bug rides along**~~ — **ANSWERED 2026-09-05, `b669`, needs Angel's
+   eyes.** Not by stopping the drag: a title bar IS a drag handle on a touchscreen, and it cannot
+   go without taking the system bar — battery, wifi — with it. That trade is written into
+   `banco-till.service` and is deliberately kept (Angel, 2026-09-05: *"I think it's fine the way it
+   is"*). **What was fixed is the silence afterwards.** Banco now notices its own window is not
+   filling the screen — two signals, because a window can be narrower than the screen OR full width
+   and shoved past the edge, and the second fires no resize event at all — and shows an amber
+   **"⛶ Tap to fill the screen"** beside the toggle. Tapping the sentence does what the icon does.
+   *Layla had that button on her screen the whole time and rebooted the till instead.*
+   `prove-the-till-says-it-is-squeezed.js` **12**, both halves watched going red.
+   ⚠️ **A GNOME Shell extension was built for this and REMOVED ON PURPOSE — do not rebuild it.**
+   It reported `State: ACTIVE` and did nothing at all. → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
 
 6. **⚠️ ESTABLISH ONE FACT BEFORE THE FELIX MEETING: does the shop have a Worldline terminal at the
    counter TODAY, or does it arrive with go-live?** It decides the payment-button question below —
