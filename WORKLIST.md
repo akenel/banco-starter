@@ -116,7 +116,7 @@ moved to [`worklist-archive/2026-09-05-archive-pass.md`](worklist-archive/2026-0
 - **ⓙ The 131 no-op classes — closed, and the chat bubble** — closed. → [`worklist-archive/2026-09-04-archive-pass.md`](worklist-archive/2026-09-04-archive-pass.md)
 - **ⓚ The Search tab’s category picker** — fixed — and the ancestor of Pam’s B2 in ⓒ5. → [`worklist-archive/2026-09-04-archive-pass.md`](worklist-archive/2026-09-04-archive-pass.md)
 - **ⓛ The gun pressed the button again** — fixed. → [`worklist-archive/2026-09-04-archive-pass.md`](worklist-archive/2026-09-04-archive-pass.md)
-## 🖥️ THE TABLET — two decisions left · 2026-09-05
+## 🖥️ THE TABLET — fixed, locked and self-patching · 2026-09-05
 
 *Saturday's question — "is everything in place when it boots?" — turned into nine faults, **none of
 them Banco's code**: every one was the machine around it, shipping laptop defaults that are wrong
@@ -128,29 +128,18 @@ you were trying to rescue. All fixed, locked, and measured over a 22-minute idle
 → the whole write-up, with the numbers:
 [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)*
 
-### The two decisions left
+### Both decisions answered, 2026-09-05
 
-1. ~~**Leave the dim on, or pin it at 80%?**~~ — **DECIDED, Angel, 2026-09-05: keep the dim.**
-   *"30% dimmer is ok seems fine IMHO. I don't think it will be any problem if it dims mid sale —
-   IMHO it's exactly what we want. It's not going black, so that is what really matters, so Layla
-   is not touching the power button for any reason."* My 30% was a raw backlight register, not
-   perceived brightness, and he was right to push back on it. **Still worth a look under shop
-   lights at step A4** — but the decision is made and it is his, not a pending question.
-2. ~~**Split `art` and the administrator.**~~ — **DONE, 2026-09-05**, step by step with Angel,
-   verified at every gate. `admin` (uid 1001) holds sudo; `art` is out of the group and keeps
-   everything a desktop till needs (audio, video, plugdev, netdev, lpadmin…). `sudo:x:27:admin`.
-   **So `art`'s password is now safe to give Layla** — which was the question that started it.
-   Two ssh doors: **`tablet` → art** for read-only checks (they read gsettings, which are
-   per-SESSION — reading them as anyone else reports an empty session's defaults), and
-   **`tablet-admin` → admin** for `--push`. Prompts made to match: art is RED ` TABLET `,
-   admin is GREEN ` TABLET ADMIN `, so a shell can never be mistaken for the other.
-   ⚠️ **The order was the whole risk** and it held: create → *prove sudo works* → copy the key →
-   **prove the push works through the new door** → only then `deluser art sudo`. That fourth step
-   was not in my first plan and should have been: a push that fails after the demotion means a
-   tablet with no administrator at all.
-   ✅ And it was the first real test of the `banco-till.service`-owner detection: the push ran as
-   **admin** and still wrote *"autologin as art"*. Under the old `$SUDO_USER` logic that would have
-   set the tablet to log itself in as the maintenance account.
+- **Keep the 30% dim.** Angel: *"it's not going black, so that is what really matters, so Layla is
+  not touching the power button for any reason."* My "30%" was a raw backlight register, not
+  perceived brightness — he was right to push back. Still worth a look at step A4 under shop lights.
+- **`art` and `admin` are split.** `sudo:x:27:admin`; `art` keeps audio/video/plugdev/netdev/lpadmin
+  and can change nothing. Proven: *"Sorry, user art may not run sudo on art."*
+  **So `art`'s password is now safe to give Layla** — the question that started it.
+  Two ssh doors: **`tablet` → art** for read-only checks (gsettings are per-SESSION), **`tablet-admin`
+  → admin** for `--push`. Prompts match: art RED ` TABLET `, admin GREEN ` TABLET ADMIN `.
+  → the order, the gates and why step 3½ mattered:
+  [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
 
 ### Still open on the tablet
 
