@@ -273,3 +273,14 @@ code's first sale.
    that by dragging a window; no check could have.** Dropped even though it was fixable: custom
    code inside the compositor on a machine that takes money, silently undoing anything deliberate,
    and it taught nobody anything.
+
+---
+
+## Counter-visit prep — what was settled from the laptop
+
+   Everything that could be settled from here has been: real barcodes verified through the shop's
+   own endpoint, VAT confirmed **inclusive** (`tax = total × 8.10 ÷ 108.10`, exact on five past
+   sales), and the pack-deal figures taken from the shop's own pricing function rather than read
+   off the JSON — **3 → CHF 5.00, 4 → CHF 7.00 (not 6.67)**, which is Ralph's whole-packs rule and
+   has never been checked on a stored record.
+   **Nothing has completed a sale on this build.** Last transaction on the box: 2026-08-21, 50 ago.

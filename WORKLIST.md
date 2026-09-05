@@ -70,12 +70,11 @@ moved to [`worklist-archive/2026-09-05-archive-pass.md`](worklist-archive/2026-0
    — 21 steps: light, reach, their wifi at the counter, the gun on their surface, noise. No sale.
    [`2026-09-05-four-real-sales.html`](onboarding/testsheets/2026-09-05-four-real-sales.html)
    — 18 steps, and **the one sheet where the payment button IS pressed.** Same trip, second.
-   Everything that could be settled from here has been: real barcodes verified through the shop's
-   own endpoint, VAT confirmed **inclusive** (`tax = total × 8.10 ÷ 108.10`, exact on five past
-   sales), and the pack-deal figures taken from the shop's own pricing function rather than read
-   off the JSON — **3 → CHF 5.00, 4 → CHF 7.00 (not 6.67)**, which is Ralph's whole-packs rule and
-   has never been checked on a stored record.
-   **Nothing has completed a sale on this build.** Last transaction on the box: 2026-08-21, 50 ago.
+   Everything settleable from here was: real barcodes verified through the shop's OWN endpoint,
+   VAT confirmed **inclusive**, and the pack-deal figures taken by RUNNING the pricing function —
+   **3 → CHF 5.00, 4 → CHF 7.00 (not 6.67)**, Ralph's whole-packs rule, never checked on a stored
+   record. **Nothing has completed a sale on this build** (last: 2026-08-21).
+   → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
    ~~**And the window-drag bug rides along**~~ — **ANSWERED 2026-09-05, `b669`, needs Angel's
    eyes.** Not by stopping the drag: a title bar IS a drag handle on a touchscreen, and it cannot
    go without taking the system bar — battery, wifi — with it. That trade is written into
