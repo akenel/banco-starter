@@ -62,9 +62,8 @@ moved to [`worklist-archive/2026-09-05-archive-pass.md`](worklist-archive/2026-0
    on 2 September and was backed out the same evening.** That is the third independent record that
    kiosk was tried and rejected, and it belongs with item 4 below.
 
-4. **The tablet — two decisions left**, both for the counter, not for a flat: whether the screen
-   should dim at all, and splitting `art` from an `admin` account so a cashier's password is not
-   root. Everything else is fixed, locked and measured — see 🖥️ below.
+4. ~~**The tablet**~~ — **DONE 2026-09-05**, eleven faults, all fixed, locked and measured;
+   both decisions answered. What is left is four small things and they are listed under 🖥️ below.
 5. **The counter visit — PREPPED, two sheets ready, needs the trip.** 2026-09-05.
    [`2026-09-05-standing-where-layla-stands.html`](onboarding/testsheets/2026-09-05-standing-where-layla-stands.html)
    — 21 steps: light, reach, their wifi at the counter, the gun on their surface, noise. No sale.
