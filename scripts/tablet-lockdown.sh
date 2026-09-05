@@ -532,6 +532,14 @@ fi
 UU=/etc/apt/apt.conf.d/52banco-unattended
 cat > "$UU" <<'EOF'
 // Written by banco-counter-lockdown. Security fixes only, applied at night.
+//
+// #clear FIRST, and this is not decoration. APT's `::` syntax APPENDS to a list;
+// it does not replace one. Debian's own 50unattended-upgrades already ships three
+// patterns and the FIRST of them is `label=Debian` — every stable update, not just
+// security. Without the clear, this file added a fourth entry to that list and the
+// tablet did the opposite of what the comment above claimed. Caught 2026-09-05 by
+// reading `apt-config dump` after the push instead of trusting the file.
+#clear Unattended-Upgrade::Origins-Pattern;
 Unattended-Upgrade::Origins-Pattern {
     "origin=Debian,codename=${distro_codename}-security,label=Debian-Security";
 };

@@ -137,6 +137,13 @@ R=$(ssh -o BatchMode=yes -o ConnectTimeout=10 "$HOST" '
   say uu_installed  "$(command -v unattended-upgrade >/dev/null 2>&1 && echo yes || echo NO)"
   say uu_conf       "$([ -e /etc/apt/apt.conf.d/52banco-unattended ] && echo yes || echo NO)"
   say uu_timer      "$(systemctl is-enabled apt-daily-upgrade.timer 2>&1)"
+  # NOT just "is our file there" — what APT ACTUALLY MERGED. A `::` list appends, so a
+  # policy file can be present and correct and still be overridden by an earlier one.
+  say uu_patterns   "$(apt-config dump 2>/dev/null | grep -c "^Unattended-Upgrade::Origins-Pattern:: ")"
+  # -i: the labels are "Debian-Security" with a capital S, and a case-sensitive grep
+  # counted a perfectly good security pattern as a violation. The check was right about
+  # the bug and wrong about which lines proved it.
+  say uu_nonsec     "$(apt-config dump 2>/dev/null | grep "^Unattended-Upgrade::Origins-Pattern:: " | grep -vic "security")"
   say uu_next       "$(systemctl show apt-daily-upgrade.timer -p NextElapseUSecRealtime --value 2>/dev/null)"
   say uu_last       "$(grep -h "^[0-9-]* [0-9:]*,.*INFO" /var/log/unattended-upgrades/unattended-upgrades.log 2>/dev/null | tail -1 | cut -d, -f1)"
   say pending_sec   "$(apt-get -s -o Dir::Etc::SourceList=/etc/apt/sources.list -o Dir::Etc::SourceParts=/etc/apt/sources.list.d upgrade 2>/dev/null | grep -c "^Inst.*security")"
@@ -287,8 +294,13 @@ echo
 echo "── does it patch itself, and is anything owed? ──"
 [ "$(get uu_installed)" = yes ] && ok "unattended-upgrades is installed" \
   || bad "unattended-upgrades is NOT installed" "nothing applies security fixes; this tablet averaged one update batch every 10 days since 2026-08-04. Fix: ssh -t tablet-admin 'sudo apt-get install -y unattended-upgrades'"
-[ "$(get uu_conf)" = yes ] && ok "and Banco's policy is in place (security origin only, reboot 03:30)" \
+[ "$(get uu_conf)" = yes ] && ok "and Banco's policy file is in place" \
   || bad "/etc/apt/apt.conf.d/52banco-unattended is missing" "run the lockdown push"
+# The file being present is not the question. What did APT actually merge?
+ns=$(get uu_nonsec)
+[ "${ns:-1}" -eq 0 ] && ok "APT merged $(get uu_patterns) origin pattern(s), and every one is security-only" \
+  || bad "$ns of $(get uu_patterns) merged origin patterns are NOT security-only" \
+         "a \`::\` list APPENDS — Debian's 50unattended-upgrades ships label=Debian (every stable update) and our file must #clear the list before adding to it"
 case "$(get uu_timer)" in
   enabled) ok "the nightly timer is enabled — next run $(get uu_next)" ;;
   *)       bad "apt-daily-upgrade.timer is $(get uu_timer)" "nothing will trigger it" ;;
