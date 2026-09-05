@@ -35,8 +35,7 @@ moved to [`worklist-archive/2026-09-05-archive-pass.md`](worklist-archive/2026-0
 
 ### Pick up here, in this order
 
-0. ~~**The worklist alarm**~~ — **DONE**, `fb00d2c`. `scripts/worklist-check.py`, step 4 of
-   SESSION START. → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
+0. ~~**The worklist alarm**~~ — **DONE**, `fb00d2c`, step 4 of SESSION START. → archive
 1. ~~**② The keyboard buries the search results**~~ — **FIXED**, confirmed by Angel on the tablet
    10:34, `b644`. → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
 2. ~~**Pam's picker + Angel's shelf pill**~~ — **DONE**, `b647`, needs eyes. It shipped wrong
