@@ -666,3 +666,73 @@ when the network is up: `ExecStartPre` and `ExecMainStart` land in the same seco
 
 Every number above came from the machine, not from a stopwatch, and every fix was proven by
 powering the tablet off and on again with somebody watching the screen.
+
+---
+
+## ⓪a The overview tap — fixed, and the dconf default that wasn't enough
+
+**The problem.** GNOME Shell starts a session in the Activities overview when no window exists yet,
+and it does not leave on its own. The till appears ~19s in, so every morning ended on a search box,
+a dock holding **Firefox, a terminal and a file manager**, and the till shrunk to a card in the
+middle, waiting for somebody to press it. Angel sat in it for minutes, hands off, twice. It is also
+the reason the very first sighting was mis-explained: on 2026-09-05 I withdrew it as an artefact of
+the screenshot tool, and a phone photo of the next boot showed the identical screen.
+
+**The fix.** GNOME 48 has no gsettings key for this and Debian ships no `no-overview` package, so:
+`banco-no-overview@banco`, fifteen lines, written by `scripts/tablet-lockdown.sh` into
+`/usr/share/gnome-shell/extensions/` — **system-wide, so a wiped user profile still gets it**. It
+hooks `startup-complete` and calls `Main.overview.hide()`, and only when
+`Main.layoutManager._startingUp` is true, so re-enabling it by hand never yanks the overview away
+from somebody who opened it deliberately.
+
+**And the part that did not work first time.** Adding
+`[org/gnome/shell] enabled-extensions=['banco-no-overview@banco']` to the system dconf keyfile was
+**not enough** — after a cold boot `gnome-extensions info` still said `Enabled: No`, and
+`dconf read` returned `@as []`. The key needed a **LOCK**
+(`/org/gnome/shell/enabled-extensions` in the locks list). With the lock in place the value took
+**immediately, without a reboot**: `writable: false`, `State: ACTIVE`.
+
+**Proven on cold boot eleven: straight to the till, full screen, no press.**
+
+Failure modes, deliberately: a GNOME upgrade that rejects the extension degrades to **one press on
+the till**, never a blank screen. And because locking the key means GNOME cannot switch the
+extension off by itself, `disable-user-extensions` is left **unlocked** as the escape hatch.
+
+### What that boot then showed — a THIRD white screen, and a real defect behind it
+
+Boot eleven came up full screen on **our own Login page, rendering blank**, titled
+`Login - HelixPOS - Artemis Store`. Angel's × brought it back **as Layla** — so the session was
+never gone.
+
+Three distinguishable white screens now, all cured by the × in three seconds, and the **window
+title tells them apart**:
+
+| title | meaning | status |
+|---|---|---|
+| `banco.wolfhold.app_/pos` (underscore) | Chromium with **no page at all** | the keyring — FIXED |
+| `banco.wolfhold.app/pos` (slash) | **a page that failed to load** | the network race — guarded |
+| `Login - HelixPOS - Artemis Store` | **our login page, drawn blank** | OPEN |
+
+**The hard fact found while chasing it, true regardless of whether it is the cause:**
+
+```
+curl https://banco.wolfhold.app/pos   →   200,  <title>Login - HelixPOS - Artemis Store</title>
+```
+
+`GET /pos` returns **200 with the Login page** when unauthenticated — and `src/static/pos/sw.js`
+caches **any** `resp.ok` response under the `/pos` key:
+
+```js
+if (url.pathname === '/pos' || url.pathname.startsWith('/pos/')) {
+  event.respondWith(fetch(req).then((resp) => {
+    if (resp && resp.ok) { caches.open(CACHE_NAME).then((c) => c.put(req, clone)); }
+```
+
+So the service worker will store a login page under the till's own URL and hand it back to a
+**signed-in cashier** on any later fetch failure. That is LESSON #13 exactly: the server is right,
+the tests are green, and the stored copy the screen renders from is wrong — and the shadow always
+wins, because the shadow is what renders. Needs a marker on that response the SW refuses to cache,
+plus a `CACHE_NAME` bump to evict what is already stored.
+
+Not chased further on the night: three diagnoses had already been wrong, and guessing a fourth on
+Angel's boots was the wrong trade.

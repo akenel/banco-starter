@@ -42,10 +42,16 @@ somebody thought of — moved to [`2026-09-05-archive-pass.md`](worklist-archive
    `reboot` over SSH **with nobody watching the screen**. Card rewritten against nine boots.
    → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
 
-0a. **It boots into the GNOME overview, not the till — one tap needed**, and the dock it lands on
-   has Firefox, a terminal and a file manager on it. Never leaves on its own. Shell 48.7, no
-   `no-overview` in Debian; the fix is a ~15-line local extension that degrades to *one tap*, not
-   a broken till. **Angel: "I don't have a problem with this."** Card says tap it; decide later.
+0a. ~~**It boots into the GNOME overview, not the till**~~ — **FIXED 2026-09-05**, cold-boot proven:
+   straight to the till, full screen, no press. Extension `banco-no-overview@banco`; the dconf
+   default alone did NOT take, the key needed a LOCK. → archive
+0d. **⚠️ NEXT: the first paint after a cold boot is not reliable — three white screens now, all
+   fixed by the × in 3s.** (1) no page, title `..._/pos` — keyring, FIXED. (2) failed load, title
+   `.../pos` — network race, guarded. (3) **our Login page, blank, and the × brought it back AS
+   LAYLA — the session was never gone.** Hard fact: **`GET /pos` returns 200 with the Login page
+   when unauthenticated, and `sw.js` caches any `resp.ok` under `/pos`** — the service worker can
+   hand a signed-in cashier a login page. Needs a marker the SW refuses to cache + `CACHE_NAME`
+   bump. LESSON #13 shape. → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
 0b. ~~**Boot is 1m46s and 51.7s of it is `banco-lockdown.service`**~~ — **FIXED 2026-09-05, nine
    cold boots. 1m46s → 58s · lockdown 51.7s → 3.6s · kernel→till 68s → 19s.** `powerprofilesctl`
    waited on D-Bus for a daemon that could not start until lockdown finished. Two wrong diagnoses
@@ -101,15 +107,7 @@ somebody thought of — moved to [`2026-09-05-archive-pass.md`](worklist-archive
 
 ---
 
-- **Contact sheet batch 1 — the 11 tablet shots, 2026-09-03** — ⓐ–ⓓ · the scale factor, the VAT bug, the pack badge. → [`worklist-archive/2026-09-04-archive-pass.md`](worklist-archive/2026-09-04-archive-pass.md)
-- **ⓔ The frozen stylesheet was missing 131 classes** — closed by ⓙ. → [`worklist-archive/2026-09-04-archive-pass.md`](worklist-archive/2026-09-04-archive-pass.md)
-- **ⓕ The pad judged a masked box as if it were money** — fixed. → [`worklist-archive/2026-09-04-archive-pass.md`](worklist-archive/2026-09-04-archive-pass.md)
-- **ⓖ A refusal nobody can see — 139 buttons, and 33.33.3333** — fixed. → [`worklist-archive/2026-09-04-archive-pass.md`](worklist-archive/2026-09-04-archive-pass.md)
-- **ⓗ The dead effect — every date box blind since it shipped** — fixed. → [`worklist-archive/2026-09-04-archive-pass.md`](worklist-archive/2026-09-04-archive-pass.md)
-- **ⓘ The red box did not stop the save** — fixed. → [`worklist-archive/2026-09-04-archive-pass.md`](worklist-archive/2026-09-04-archive-pass.md)
-- **ⓙ The 131 no-op classes — closed, and the chat bubble** — closed. → [`worklist-archive/2026-09-04-archive-pass.md`](worklist-archive/2026-09-04-archive-pass.md)
-- **ⓚ The Search tab’s category picker** — fixed — and the ancestor of Pam’s B2 in ⓒ5. → [`worklist-archive/2026-09-04-archive-pass.md`](worklist-archive/2026-09-04-archive-pass.md)
-- **ⓛ The gun pressed the button again** — fixed. → [`worklist-archive/2026-09-04-archive-pass.md`](worklist-archive/2026-09-04-archive-pass.md)
+- **ⓐ–ⓛ · the 2026-09-03/04 contact-sheet threads — all twelve closed and archived** (scale factor · VAT · pack badge · the frozen stylesheet · the masked-box pad · the invisible refusal · the dead date effect · the red box that did not stop the save · the 131 no-op classes · the Search category picker · the gun pressing the button). → [`2026-09-04-archive-pass.md`](worklist-archive/2026-09-04-archive-pass.md)
 ## 🖥️ THE TABLET — fixed, locked and self-patching · 2026-09-05
 
 *Saturday's question — "is everything in place when it boots?" — turned into **eleven faults, none

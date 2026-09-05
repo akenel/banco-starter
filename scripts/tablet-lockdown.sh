@@ -381,6 +381,18 @@ sleep-inactive-battery-type='nothing'
 screenshot=['Print']
 show-screenshot-ui=['<Shift>Print']
 screenshot-window=['<Alt>Print']
+
+# THE TILL, NOT THE OVERVIEW. GNOME Shell starts a session in the Activities
+# overview when no window exists yet, and it does not leave on its own. The till
+# takes ~19s to appear, so every morning ended on a search box, a dock holding
+# Firefox and a terminal, and the till shrunk to a card in the middle — waiting
+# for somebody to press it. Measured on the tablet 2026-09-05 across nine cold
+# boots; Angel sat in it for minutes with his hands off. See the extension this
+# turns on, written a few lines below. Not locked: it is a default, and a
+# GNOME upgrade that rejects the extension degrades to one press, not a broken
+# till.
+[org/gnome/shell]
+enabled-extensions=['banco-no-overview@banco']
 KEYS
 
 cat > "$LOCKS" <<'LOCKS_LIST'
@@ -402,7 +414,56 @@ cat > "$LOCKS" <<'LOCKS_LIST'
 /org/gnome/settings-daemon/plugins/power/power-button-action
 /org/gnome/settings-daemon/plugins/power/sleep-inactive-ac-type
 /org/gnome/settings-daemon/plugins/power/sleep-inactive-battery-type
+/org/gnome/shell/enabled-extensions
 LOCKS_LIST
+
+# ---------------------------------------------------------------------------
+# THE EXTENSION THAT CLOSES THE OVERVIEW. Debian ships no `no-overview` package
+# and GNOME 48 has no gsettings key for this, so it is fifteen lines of our own,
+# installed system-wide so a wiped user profile still gets it. If a future GNOME
+# refuses it (shell-version), GNOME disables it and the tablet is back to one
+# press on the till — the failure mode is the behaviour we have today, never a
+# blank screen. That is why this is an extension and not a Shell patch.
+EXTDIR=/usr/share/gnome-shell/extensions/banco-no-overview@banco
+mkdir -p "$EXTDIR"
+cat > "$EXTDIR/metadata.json" <<'EXTMETA'
+{
+  "uuid": "banco-no-overview@banco",
+  "name": "Banco — open on the till, not the overview",
+  "description": "GNOME starts a session in the Activities overview when no window exists yet, and does not leave on its own. The till takes about 19 seconds to appear, so the cashier met a search box and a dock every morning. This closes the overview once startup finishes. Installed by scripts/tablet-lockdown.sh.",
+  "shell-version": ["46", "47", "48", "49"],
+  "session-modes": ["user"]
+}
+EXTMETA
+cat > "$EXTDIR/extension.js" <<'EXTJS'
+// Close the Activities overview once the session has finished starting.
+//
+// Main.layoutManager._startingUp is true only during session start, so this
+// does nothing at all if the extension is re-enabled later by hand — we must
+// never yank the overview out from under someone who opened it deliberately.
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
+
+export default class BancoNoOverview extends Extension {
+    enable() {
+        this._id = null;
+        if (Main.layoutManager._startingUp) {
+            this._id = Main.layoutManager.connect('startup-complete', () => {
+                Main.overview.hide();
+            });
+        }
+    }
+
+    disable() {
+        if (this._id) {
+            Main.layoutManager.disconnect(this._id);
+            this._id = null;
+        }
+    }
+}
+EXTJS
+chmod 644 "$EXTDIR/metadata.json" "$EXTDIR/extension.js"
+say "  installed $EXTDIR (opens on the till, not the overview)"
 
 dconf update
 say "  wrote $KEYFILE"
