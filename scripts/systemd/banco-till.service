@@ -9,6 +9,17 @@ Type=simple
 # could see the battery, which is why the top-right corner got dragged, which is
 # how the window ended up two-thirds wide with no way back. See
 # onboarding/21-supported-hardware.md.
+#
+# AND THERE IS A SECOND REASON, WORTH MORE THAN THE FIRST. That bar is the only
+# way to reach the SCREENSHOT button, and screenshots are how faults on this
+# machine actually get found. Angel, 2026-09-05, after an evening that turned up
+# a blank white till, a note filed onto a balanced Z-report and a German date
+# under an English UI: "if we didn't have these screenshots, we would miss a
+# whole bunch of stuff, because I don't see a lot of these things — normally I
+# just [think] oh, it's beautiful, and it's not." Every one of those was
+# invisible from a terminal and obvious in a picture. Whoever is next tempted by
+# --kiosk: you would be trading away the shop's only bug-reporting instrument.
+# GNOME's own screenshot API is blocked by the lockdown, so there is no fallback.
 # WAIT FOR THE APP TO ANSWER BEFORE OPENING A WINDOW AT IT. Added 2026-09-05.
 # NetworkManager-wait-online going active means an interface has an address. It
 # does NOT mean wifi has finished associating or that DNS answers. Until tonight
