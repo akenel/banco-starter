@@ -418,3 +418,11 @@ Roughly 960 × 1440 logical. Two-column layouts collapse, the keypad takes propo
 the screen, sticky bars move. Start with `/pos/closeout` and `/pos/my-day`, then the drawer count.
 Not started.
 
+
+
+- **[`the-till-morning-to-night.html`](onboarding/the-till-morning-to-night.html)** — the one-page
+  card to pin by the till, written 2026-09-05 from Angel's own description of the day. Opening,
+  what "dim" means, the three ways back if the window moves, closing, and the three don'ts
+  (the ×, the web in the till's window, unplugged overnight). **Needs Angel's corrections, then
+  Layla's eyes.** Ends by saying the stricter kiosk mode exists and what it would cost — *"your
+  call, once you have lived with it."*

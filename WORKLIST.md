@@ -172,12 +172,8 @@ with `/pos/closeout`, then `/pos/my-day`, then the drawer count. Not started.
   worse than a controlled shutdown.
 - **`shop-lte` is ACTIVE alongside wifi** — the failover exists and is live. Decide whether it is
   meant to be always-on, and test it at the shop, not in a flat.
-- **[`the-till-morning-to-night.html`](onboarding/the-till-morning-to-night.html)** — the one-page
-  card to pin by the till, written 2026-09-05 from Angel's own description of the day. Opening,
-  what "dim" means, the three ways back if the window moves, closing, and the three don'ts
-  (the ×, the web in the till's window, unplugged overnight). **Needs Angel's corrections, then
-  Layla's eyes.** Ends by saying the stricter kiosk mode exists and what it would cost — *"your
-  call, once you have lived with it."*
+- **[`the-till-morning-to-night.html`](onboarding/the-till-morning-to-night.html)** — the card to
+  pin by the till. **Needs Angel's corrections, then Layla's eyes** — see item 0.
 - **These two scripts belong in the onboarding kit**, not just on Angel's tablet: anyone who clones
   Banco onto a tablet meets the identical defaults. → archive. The account split and the two
   coloured prompts belong in that write-up too — they are currently hand-made on this one machine.
