@@ -74,16 +74,25 @@ moved to [`worklist-archive/2026-09-05-archive-pass.md`](worklist-archive/2026-0
    **3 → CHF 5.00, 4 → CHF 7.00 (not 6.67)**, Ralph's whole-packs rule, never checked on a stored
    record. **Nothing has completed a sale on this build** (last: 2026-08-21).
    → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
-   ~~**And the window-drag bug rides along**~~ — **ANSWERED 2026-09-05, `b669`, needs Angel's
-   eyes.** Not by stopping the drag: a title bar IS a drag handle on a touchscreen, and it cannot
-   go without taking the system bar — battery, wifi — with it. That trade is written into
-   `banco-till.service` and is deliberately kept (Angel, 2026-09-05: *"I think it's fine the way it
-   is"*). **What was fixed is the silence afterwards.** Banco now notices its own window is not
-   filling the screen — two signals, because a window can be narrower than the screen OR full width
-   and shoved past the edge, and the second fires no resize event at all — and shows an amber
-   **"⛶ Tap to fill the screen"** beside the toggle. Tapping the sentence does what the icon does.
-   *Layla had that button on her screen the whole time and rebooted the till instead.*
-   `prove-the-till-says-it-is-squeezed.js` **12**, both halves watched going red.
+   ~~**And the window-drag bug rides along**~~ — **CLOSED as a compromise Angel accepted,
+   2026-09-05.** Not fixed, and deliberately so. The window CAN still be dragged off; what changed
+   is that there are now **four independent ways back**, and Angel found the best one himself:
+   **drag the grey title bar back**, tap the amber **"⛶ Tap to fill the screen"**, tap **⛶**, or
+   press the app in Activities (`Restart=always`).
+   **The insight that settled it:** the title bar is both the cause AND the escape hatch. It lives
+   OUTSIDE the web page, so no modal, error or popup Banco ever draws can cover it or block it.
+   Angel's worst fear — *"a popup 90% covered blocks the possibility to restore"* — cannot happen.
+   **Fullscreen and window-controls-overlay would remove the accident and remove that escape with
+   it**, leaving us trusting our own code never to trap anyone. The OS is the better bet.
+   ⚠️ **The real gap is knowledge, not code.** Angel: *"i did not know i could re-drag the window
+   to a useable location"* — after a week of testing. Layla met this on 4 Sep and **rebooted the
+   till**. So it is now a DRILL, not a hope: steps **B4a/B4b/B4c** of
+   [`2026-09-05-standing-where-layla-stands.html`](onboarding/testsheets/2026-09-05-standing-where-layla-stands.html)
+   have her break it on purpose and recover it three ways, unaided, with nobody waiting.
+   *"If she cannot, that is a FAIL and it is the most useful failure on this sheet."*
+   Considered and rejected on the day: `--kiosk` (third rejection), a 90%-centred restore geometry,
+   PWA `display: fullscreen`, and `window-controls-overlay` — all remove the title bar, and the
+   title bar is the thing that always works.
    ⚠️ **A GNOME Shell extension was built for this and REMOVED ON PURPOSE — do not rebuild it.**
    It reported `State: ACTIVE` and did nothing at all. → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
 
