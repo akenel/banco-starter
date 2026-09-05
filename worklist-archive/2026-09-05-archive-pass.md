@@ -736,3 +736,54 @@ plus a `CACHE_NAME` bump to evict what is already stored.
 
 Not chased further on the night: three diagnoses had already been wrong, and guessing a fourth on
 Angel's boots was the wrong trade.
+
+
+---
+
+## ⓪d The third white screen — and the diagnosis above it that was WRONG
+
+**Correction, written the same night.** The section above says the service worker "can hand a
+signed-in cashier a login page" because `GET /pos` returns 200 with the Login page. **That is
+wrong and it is not a bug.** `/pos` IS the login route — `@html_router.get("/pos", name="pos_login")` —
+and the dashboard is `/pos/dashboard`. The service worker caching `/pos` is caching the login page
+under the login page's own URL, which is correct. `/pos/scan` and `/pos/dashboard` both return
+real 200 pages when signed out too (auth is a token in sessionStorage, checked client-side), so
+the cached shell is fine as well. Both of my theories died on one `curl`.
+
+### What the white screen actually was
+
+`login.html` runs on `DOMContentLoaded`, finds the token, and does
+`window.location.href = '/pos/dashboard'`. While that navigation is in flight the browser shows
+nothing and **keeps the old title** — which is exactly what Angel photographed: pure white, titled
+`Login - HelixPOS - Artemis Store`.
+
+And there was a way for that navigation to end in nothing at all:
+
+```js
+.catch(() => caches.match(req).then((cached) => cached || caches.match('/pos/scan')))
+```
+
+**`caches.match` resolves to `undefined` on a miss**, so `respondWith(undefined)` handed the
+browser nothing. Network fails (still settling, seconds after boot) + nothing in cache (first boot,
+or a deploy that just evicted every cache — `CACHE_NAME` carries the build stamp) = **a blank white
+screen**. The × worked because a restart happened later, when the network was warm.
+
+### The fix
+
+The fallback chain now ends in a real page instead of `undefined` — `offlinePage()`, served 503,
+saying *"Reconnecting to the till… nothing has been lost… it will come back on its own"*, with a
+**Try now** button and a `location.reload()` every 4 seconds. So the ordinary case — the network a
+few seconds behind the browser at boot — **heals with nobody touching the tablet**, and the worst
+case is a sentence a cashier can read instead of a white rectangle. LESSON #12: a white screen
+tells a person nothing and offers them nothing.
+
+**Not yet proven on the tablet** — it needs a deploy to `banco.wolfhold.app` and then a cold boot,
+plus a wifi-off test to see the page deliberately.
+
+### The method note
+
+Three wrong diagnoses in one evening — the profiler that said the script was fast, the
+self-install, and the login-page caching — and every one of them died on a measurement that cost
+under a minute. What worked each time was the same move: **stop theorising and ask the machine**
+(`stat` the file it writes, `curl` the URL, `systemctl show` the timestamps). What did not work was
+reading code and reasoning about what it must be doing.

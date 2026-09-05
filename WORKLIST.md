@@ -45,13 +45,14 @@ somebody thought of — moved to [`2026-09-05-archive-pass.md`](worklist-archive
 0a. ~~**It boots into the GNOME overview, not the till**~~ — **FIXED 2026-09-05**, cold-boot proven:
    straight to the till, full screen, no press. Extension `banco-no-overview@banco`; the dconf
    default alone did NOT take, the key needed a LOCK. → archive
-0d. **⚠️ NEXT: the first paint after a cold boot is not reliable — three white screens now, all
-   fixed by the × in 3s.** (1) no page, title `..._/pos` — keyring, FIXED. (2) failed load, title
-   `.../pos` — network race, guarded. (3) **our Login page, blank, and the × brought it back AS
-   LAYLA — the session was never gone.** Hard fact: **`GET /pos` returns 200 with the Login page
-   when unauthenticated, and `sw.js` caches any `resp.ok` under `/pos`** — the service worker can
-   hand a signed-in cashier a login page. Needs a marker the SW refuses to cache + `CACHE_NAME`
-   bump. LESSON #13 shape. → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
+0d. **The third white screen — FIXED IN CODE, NOT YET DEPLOYED OR PROVEN.** `sw.js` ended its
+   fallback chain in `caches.match('/pos/scan')`, and **`caches.match` returns `undefined` on a
+   miss** — so `respondWith(undefined)` gave the browser nothing: a blank white screen carrying
+   the previous page's title. Now ends in `offlinePage()` — *"Reconnecting to the till, nothing
+   has been lost"* — that reloads itself every 4s, so it heals unattended. **Needs: deploy to
+   `banco.wolfhold.app`, then a cold boot AND a wifi-off test.** (My first two diagnoses of this
+   were wrong and are corrected in the archive.)
+   → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
 0b. ~~**Boot is 1m46s and 51.7s of it is `banco-lockdown.service`**~~ — **FIXED 2026-09-05, nine
    cold boots. 1m46s → 58s · lockdown 51.7s → 3.6s · kernel→till 68s → 19s.** `powerprofilesctl`
    waited on D-Bus for a daemon that could not start until lockdown finished. Two wrong diagnoses
