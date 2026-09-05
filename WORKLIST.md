@@ -143,7 +143,15 @@ you were trying to rescue. All fixed, locked, and measured over a 22-minute idle
 
 ### Still open on the tablet
 
-- **The window has a title bar with a close button** — same family as Layla's window-drag bug.
+- ~~**The title bar's close button**~~ — **NOT A BUG, A PRICED TRADE. Do not reopen.** Angel,
+  2026-09-05: *"I think it's fine the way it is ... or else in full screen mode all the time they
+  don't see the battery level or the wifi."* He is right and it is written in
+  `banco-till.service`: *"Dropping --kiosk left a title bar with a close button on it. A cashier
+  who taps that has no way back. **Now it comes back in three seconds.**"* (`Restart=always`,
+  `RestartSec=3`.) The trade bought a permanently visible GNOME bar — battery, wifi, bluetooth —
+  plus Banco's own one-tap fullscreen toggle in the top bar, and a route to the OS for things like
+  a screenshot with the folio detached. **I put this on the list without reading the comment**, the
+  same shape as the kiosk loop. LESSON #3: a remembered decision is a hypothesis with a timestamp.
 - ~~**Chromium security update + no patching policy**~~ — **DONE 2026-09-05.** Chromium
   151 → **152.0.7977.75** and firefox-esr applied; till restarted and verified running the new
   binary (0 deleted inodes mapped). **And it now patches itself:** security origin ONLY, 03:15
