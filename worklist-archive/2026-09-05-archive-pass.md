@@ -388,3 +388,33 @@ you were trying to rescue. All fixed, locked, and measured over a 22-minute idle
    bar, and the title bar is the thing that always works.
    → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
 
+
+
+---
+
+## Portrait — the reasoning, 2026-09-05
+
+### ⚠️ PORTRAIT — the close-out has never been seen in the orientation it will be used in
+
+**Angel, 2026-09-05, describing what actually happens at closing:** *"they are unplugging the tablet
+… walk to the back of the shop most likely now in **portrait view** as it sits in the hand and is on
+the lap … Pam or Layla start counting the cash and working the tablet numbers."* And: *"I say portrait
+because **they will do that**, not because we say hey run this in landscape view — they will just
+naturally go to portrait like they do with their phones."*
+
+**The tablet can and will rotate.** Measured: three accelerometers, `iio-sensor-proxy` **active**,
+and the lockdown says **nothing** about rotation — 0 matches.
+
+**Every proof in this repo runs at 1440 × 895, landscape.** The keypad, the search list, the row
+snap, the date grids, the discount chips — all of it measured on a stand. **The one flow that will
+happen in portrait, on a lap, is the close-out: counting cash, the Z-report, the shift close.
+The flow with all the money in it is the flow we have never looked at in the posture it will be
+used in.** Same shape as the folio keyboard and the LTE proved in a flat.
+
+**This reverses the plan.** ⓞ said *"choose a landscape stand and lock rotation in the OS."*
+Locking landscape would break their real end-of-day routine. **Do not lock it — test portrait.**
+
+Roughly 960 × 1440 logical. Two-column layouts collapse, the keypad takes proportionally more of
+the screen, sticky bars move. Start with `/pos/closeout` and `/pos/my-day`, then the drawer count.
+Not started.
+
