@@ -576,3 +576,93 @@ seconds.
 **Still open:** the overview tap (⓪a), `banco-lockdown`'s 51.7s (⓪b), and whether the cashier
 should log out at night — Layla closes, Rafi opens, and the till stays signed in as whoever was
 last on it (⓪c).
+
+---
+
+## ⓪b The 51 seconds — two things waiting on each other, in front of the cashier
+
+**Before → after, from the machine, cold boots either side:**
+
+```
+total boot            1m 46.0s   →   58.1s
+userspace                75.1s   →   27.3s
+banco-lockdown.service   51.7s   →    3.6s
+plymouth-quit-wait     1m 11.3s  →   22.7s
+kernel start → till         68s  →     19s
+```
+
+### The two wrong answers first
+
+**Wrong answer #1: profile it.** `scripts/tablet-lockdown-profile.sh` ran the real script under a
+clock — **1.28 seconds**. Same script, same machine, forty times faster than at boot. The harness
+could not make the shape the bug lived in, so it reported the code was fine. (It also could not
+see the LAST command's duration at all — a gap is measured to the next timestamp, and there
+isn't one.)
+
+**Wrong answer #2: the self-install.** Tracing the real boot showed the script rewriting its own
+unit file and calling `systemctl daemon-reload` **from inside the unit that was starting**. That
+looked like the answer, and it is genuinely wrong — installing is something you do TO a machine,
+not something a machine does to itself on the way up — so it was guarded with `INVOCATION_ID`.
+**The boot after that fix: 51.0s. Unchanged.** Diagnosis wrong; the guard was right and stayed.
+(The trace also lost its timestamps, because systemd expands `${...}` in `ExecStart` itself, so
+the `PS4` in the drop-in came out empty.)
+
+### The real one
+
+File timestamps narrowed it: lockdown wrote its last file at 18:57:38 and did not exit until
+18:58:28. Fifty seconds after it had stopped doing anything.
+
+```
+banco-lockdown          18:57:37 → 18:58:28    (last file written 18:57:38)
+power-profiles-daemon   active at 18:58:49     — 21s AFTER lockdown gave up
+```
+
+`powerprofilesctl get` is a **D-Bus call**. D-Bus tries to activate `power-profiles-daemon`, which
+comes up with `multi-user.target` — and `banco-lockdown.service` is `Before=display-manager.service`,
+so the daemon **cannot start until lockdown finishes**. Lockdown waits for the daemon, the daemon
+waits for lockdown, D-Bus times out — twice, 25s each. **Fifty of the fifty-one seconds.**
+
+The comment three lines above that call already recorded the daemon coming up 72 seconds late in a
+*different* failure (the `|| echo` that stopped `set -e` aborting the script). It stopped the
+script dying and did nothing about it blocking.
+
+**And the step had never once worked at boot.** It always printed *"daemon not up yet — left
+alone"*. It has only ever cost time.
+
+**Fix, both halves:** `timeout 3` on the call so it can never do this again, and the profile is now
+set by **`banco-power-profile.service`** — ordered after the daemon and after the display manager,
+so if it ever waits, it waits *behind* the till instead of in front of it.
+
+### Which then had a cycle of its own
+
+First version was `WantedBy=multi-user.target` + `After=power-profiles-daemon.service` — and
+`power-profiles-daemon` is itself `After=multi-user.target`. systemd resolves a cycle by **silently
+dropping a job**: the unit was enabled, had its symlink, and never ran, with nothing in the log.
+Caught only because the boot check said `inactive`. Moved to `WantedBy=graphical.target`, and
+installed with `systemctl reenable` — `enable` adds the new symlink without removing the old one,
+which would have left the cycle in place on any machine that had seen the first version.
+Now: **runs at kernel+35s, after the till is on screen, `active`, profile `balanced`.**
+
+### And then the fast boot exposed a race that had always been there
+
+With lockdown fixed, the till launches at **19s** instead of 68s — **three seconds** after
+`NetworkManager-wait-online` instead of sixty-eight. It lost the race and came up as a **white
+window titled `banco.wolfhold.app/pos`**. Angel's × brought it back in three seconds, same
+network, same page, just later.
+
+`wait-online` going active means an interface has an address. It does **not** mean wifi has
+associated or that DNS answers. **We did not break the till — we removed the 50-second cushion
+that had been hiding this since the day it was built.** Note the two white screens are
+distinguishable by their window title: `..._/pos` with an underscore is Chromium with **no page
+at all** (the keyring stall); `.../pos` with a slash is **a page that failed to load**.
+
+Fix: `ExecStartPre` on `banco-till.service` waits for `https://banco.wolfhold.app/` to answer
+before Chromium opens. `timeout 90` does the counting — **no shell variables**, because systemd
+expands `$WORD` in `ExecStart*` itself and would have blanked a loop counter — and it ends in
+`|| true` so a genuine outage still opens the browser and shows its own error. It costs nothing
+when the network is up: `ExecStartPre` and `ExecMainStart` land in the same second.
+
+### Nine cold boots
+
+Every number above came from the machine, not from a stopwatch, and every fix was proven by
+powering the tablet off and on again with somebody watching the screen.

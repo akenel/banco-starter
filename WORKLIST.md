@@ -35,22 +35,21 @@ somebody thought of — moved to [`2026-09-05-archive-pass.md`](worklist-archive
 ### Pick up here, in this order
 
 0. ~~**The worklist alarm**~~ — **DONE**, `fb00d2c`, step 4 of SESSION START. → archive
-0. ~~**Walk the card, on the tablet, out loud**~~ — **DONE 2026-09-05, and it caught a bug that
-   would have met Layla on Monday morning: the till did NOT come up on a cold boot.** Grey screen,
-   `art`'s password, then a white window a tap could not fix. Autologin leaves the login keyring
-   locked; Chromium blocks on it and never navigates, and unlocking does not rescue it. **Fixed —
-   `--password-store=basic` — and proven on two further cold boots.** Invisible until now because
-   every earlier boot test was `reboot` over SSH **with nobody watching the screen**. Card
-   rewritten: ~2 min not 20 s · ignore the red Lenovo prompt · tap the till once · a gentle click,
-   not a hold · the power button does not wake it, **it powers off by itself in 60 s** (Cancel is
-   safe). → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
+0. ~~**Walk the card, on the tablet, out loud**~~ — **DONE 2026-09-05: the till did NOT come up on
+   a cold boot.** Grey screen, `art`'s password, then a white window a tap could not fix.
+   Autologin leaves the login keyring locked; Chromium blocks on it and never navigates. **Fixed
+   with `--password-store=basic`.** Invisible until now because every earlier boot test was
+   `reboot` over SSH **with nobody watching the screen**. Card rewritten against nine boots.
+   → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
 
 0a. **It boots into the GNOME overview, not the till — one tap needed**, and the dock it lands on
    has Firefox, a terminal and a file manager on it. Never leaves on its own. Shell 48.7, no
    `no-overview` in Debian; the fix is a ~15-line local extension that degrades to *one tap*, not
    a broken till. **Angel: "I don't have a problem with this."** Card says tap it; decide later.
-0b. **Boot is 1m46s and 51.7s of it is `banco-lockdown.service` — ours**, with `plymouth-quit-wait`
-   stuck 1m11s behind it. Halving lockdown roughly halves Layla's morning wait. Not started.
+0b. ~~**Boot is 1m46s and 51.7s of it is `banco-lockdown.service`**~~ — **FIXED 2026-09-05, nine
+   cold boots. 1m46s → 58s · lockdown 51.7s → 3.6s · kernel→till 68s → 19s.** `powerprofilesctl`
+   waited on D-Bus for a daemon that could not start until lockdown finished. Two wrong diagnoses
+   first, both recorded. → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
 0c. **Do they log out at night?** Layla closes, Rafi opens, till stays signed in as whoever was
    last on it. Angel raised it; not discussed, not decided.
 1. ~~**② The keyboard buries the search results**~~ — **FIXED**, confirmed on the tablet, `b644`.

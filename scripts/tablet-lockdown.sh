@@ -637,8 +637,25 @@ fi
 # swallowing every line, so the boot job that re-applies the whole lockdown died
 # silently and nothing after this point ran. The postboot check caught it; nobody
 # else would have.
+#
+# ── AND THEN IT COST 50 SECONDS OF EVERY MORNING. 2026-09-05 ──────────────
+# `|| echo` stopped the script ABORTING, but did nothing about the call BLOCKING.
+# powerprofilesctl talks D-Bus; D-Bus tries to ACTIVATE power-profiles-daemon;
+# that daemon comes up with multi-user.target, and this unit is
+# Before=display-manager.service, so the daemon cannot start until we finish.
+# We wait for it, it waits for us, D-Bus times out — twice, 25s each. Measured:
+#
+#     banco-lockdown          18:57:37 -> 18:58:28   (last file written 18:57:38)
+#     power-profiles-daemon   active at 18:58:49     (21s AFTER we gave up)
+#
+# 50 of the 51 seconds, in front of the cashier, every morning — to run a step
+# that has NEVER ONCE SUCCEEDED at boot. It has always printed "daemon not up
+# yet — left alone". So: cap it at 3s so it can never do this again, and set the
+# profile from banco-power-profile.service instead, which is ordered AFTER the
+# daemon and is not in front of the display manager. The drift fix survives; the
+# 50 seconds does not.
 if command -v powerprofilesctl >/dev/null 2>&1; then
-  cur=$(powerprofilesctl get 2>/dev/null || echo "")
+  cur=$(timeout 3 powerprofilesctl get 2>/dev/null || echo "")
   if [ -z "$cur" ]; then
     say "  power profile: daemon not up yet — left alone (it is re-set at the next boot)"
   elif [ "$cur" = "balanced" ]; then
@@ -741,7 +758,20 @@ if [ -r "$SELF" ] && [ "$SELF" != "$INSTALLED" ]; then
   say "  installed $INSTALLED"
 fi
 
-if [ -x "$INSTALLED" ]; then
+# DO NOT REINSTALL OURSELVES WHEN WE *ARE* THE BOOT JOB. systemd sets
+# INVOCATION_ID for anything it runs as a unit, so this is how the script knows
+# it is banco-lockdown.service rather than a person at a keyboard. Without this
+# guard the service rewrote its own unit file and called `systemctl daemon-reload`
+# at every boot, from inside the unit that was still starting — and a manager
+# reload while the boot job queue is live is not the ~1s it costs at rest.
+# MEASURED ON THE TABLET, 2026-09-05: banco-lockdown.service took 51.7s at boot
+# and 1.28s run by hand. It is Before=display-manager.service, so all 51.7s sat
+# in front of the cashier, every morning, with plymouth-quit-wait stuck 1m11s
+# behind it. Installing is a thing you do TO a machine, not something a machine
+# does to itself on the way up.
+if [ -n "${INVOCATION_ID:-}" ]; then
+  say "  running as banco-lockdown.service — skipping self-install (see comment above)"
+elif [ -x "$INSTALLED" ]; then
   cat > "$UNIT" <<UNITFILE
 [Unit]
 Description=Banco counter lockdown — re-apply the till's settings at boot
@@ -757,9 +787,40 @@ ExecStart=$INSTALLED --quiet
 [Install]
 WantedBy=multi-user.target
 UNITFILE
+  # The power profile, moved OUT of the boot-blocking unit. Ordered after the
+  # daemon it needs, and deliberately NOT Before=display-manager.service — so if
+  # it ever waits, it waits behind the till instead of in front of it.
+  cat > /etc/systemd/system/banco-power-profile.service <<PPUNIT
+[Unit]
+Description=Banco counter — put the power profile back to balanced
+Documentation=https://github.com/akenel/banco-starter
+# WantedBy=graphical.target, NOT multi-user.target. power-profiles-daemon is
+# itself ordered After=multi-user.target, so a unit pulled in BY multi-user
+# that waits FOR the daemon is a cycle — and systemd resolves a cycle by
+# silently dropping a job. First attempt did exactly that on 2026-09-05: the
+# unit was enabled, had its symlink, and never ran, with nothing in the log.
+# graphical.target comes after multi-user.target, so there is no cycle; and
+# After=display-manager.service means any waiting this ever does happens
+# BEHIND the till on screen instead of in front of it.
+After=power-profiles-daemon.service display-manager.service
+Wants=power-profiles-daemon.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh -c 'timeout 10 powerprofilesctl set balanced || true'
+
+[Install]
+WantedBy=graphical.target
+PPUNIT
   systemctl daemon-reload
   systemctl enable banco-lockdown.service >/dev/null 2>&1 || true
+  # reenable, not enable: this unit's WantedBy CHANGED from multi-user.target to
+  # graphical.target, and `enable` adds the new symlink without removing the old
+  # one — leaving the cycle in place on any machine that saw the first version.
+  systemctl reenable banco-power-profile.service >/dev/null 2>&1 || true
   say "  installed $UNIT (runs at every boot)"
+  say "  installed /etc/systemd/system/banco-power-profile.service (after the daemon, not before the till)"
 else
   # Say it out loud. A boot job that silently did not get installed is worse
   # than one that was never promised.
