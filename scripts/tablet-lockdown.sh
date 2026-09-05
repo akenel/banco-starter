@@ -292,6 +292,59 @@ done
 [ "$wrote_policy" -eq 1 ] || say "  ⚠️  no Chromium policy directory found — search engine NOT set"
 
 # ---------------------------------------------------------------------------
+# ── AUTOLOGIN — OFF BY DEFAULT, AND THE REASON IS A DECISION, NOT A DEFAULT ──
+#
+# MEASURED ON THE TILL, 2026-09-05. Angel asked whether everything is in place
+# when the tablet boots. It is — every file, every locked setting, the boot job,
+# the till service. And the till still does not appear, because:
+#
+#     /etc/gdm3/daemon.conf   [daemon] is EMPTY — every AutomaticLogin line is
+#                             commented out, so GDM stops at a login screen
+#     loginctl Linger         no — user units do not start without a session
+#     banco-till.service      WantedBy=graphical-session.target — it needs a
+#                             logged-in desktop, because Chromium needs a display
+#
+# So after a power cut the tablet boots to a Debian login prompt and waits. The
+# till starts only when somebody types the OS password. Nobody noticed because
+# Angel has logged in every single time — LESSON #1 exactly: proved in the
+# posture the tester had (a person present), not the posture the shop has
+# (a cashier who does not have that password, at 08:00, with the door open).
+#
+# WHY IT IS NOT ON BY DEFAULT. Autologin means anyone who powers the tablet on
+# reaches the desktop. On a counter machine that is the normal trade and the
+# lockdown above is what constrains it — but it is a change to who can touch
+# what, on somebody's shop tablet, and that belongs to Felix and Angel, not to
+# a script that was run for a different reason.
+#
+#     ./scripts/tablet-lockdown.sh --push tablet --autologin
+#
+# The original file is backed up once, next to itself, before anything is
+# changed. Passing it twice is a no-op.
+AUTOLOGIN=0
+for a in "$@"; do [ "$a" = "--autologin" ] && AUTOLOGIN=1; done
+GDM_CONF=/etc/gdm3/daemon.conf
+if [ "$AUTOLOGIN" -eq 1 ] && [ -w "${GDM_CONF%/*}" ] 2>/dev/null || [ "$AUTOLOGIN" -eq 1 ] && [ -e "$GDM_CONF" ]; then
+  TILL_USER="${SUDO_USER:-${AUTOLOGIN_USER:-}}"
+  if [ -z "$TILL_USER" ] || [ "$TILL_USER" = root ]; then
+    say "  ⚠️  autologin asked for, but I cannot tell which user runs the till"
+    say "      re-run as:  AUTOLOGIN_USER=<name> sudo -E $0 --autologin"
+  else
+    [ -e "$GDM_CONF.pre-autologin" ] || cp -a "$GDM_CONF" "$GDM_CONF.pre-autologin"
+    # Idempotent: strip any existing AutomaticLogin lines (commented or not),
+    # then insert ours immediately after the [daemon] header.
+    awk -v u="$TILL_USER" '
+      /^[[:space:]]*#?[[:space:]]*AutomaticLogin(Enable)?[[:space:]]*=/ { next }
+      { print }
+      /^\[daemon\][[:space:]]*$/ && !done { print "AutomaticLoginEnable=true"; print "AutomaticLogin=" u; done=1 }
+    ' "$GDM_CONF" > "$GDM_CONF.new" && mv "$GDM_CONF.new" "$GDM_CONF"
+    if grep -q "^AutomaticLogin=$TILL_USER$" "$GDM_CONF"; then
+      say "  wrote $GDM_CONF  (autologin as $TILL_USER — the till now returns after a power cut)"
+    else
+      say "  ⚠️  could not set autologin in $GDM_CONF — no [daemon] section? check it by hand"
+    fi
+  fi
+fi
+
 # NO KIOSK MODE HERE — AND THIS BLOCK EXISTS TO REMOVE IT AGAIN.
 #
 # 2026-09-05, 00:12. I added a --kiosk launcher and a system autostart to this
