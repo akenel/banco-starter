@@ -136,12 +136,21 @@ you were trying to rescue. All fixed, locked, and measured over a 22-minute idle
    is not touching the power button for any reason."* My 30% was a raw backlight register, not
    perceived brightness, and he was right to push back on it. **Still worth a look under shop
    lights at step A4** — but the decision is made and it is his, not a pending question.
-2. **Split `art` and the administrator.** `art` is in group `sudo` and is the only human account,
-   so the password Layla would need is **root on the shop's till**. Plan agreed with Angel: create
-   `admin` (verified free as user and group), give it sudo, **prove it works**, add the ssh key,
-   and only then `deluser art sudo`. Order matters — reversed, the tablet has no administrator.
-   `--push` then runs as `admin`; the script already picks the till user from whoever owns
-   `banco-till.service`, not from `$SUDO_USER`.
+2. ~~**Split `art` and the administrator.**~~ — **DONE, 2026-09-05**, step by step with Angel,
+   verified at every gate. `admin` (uid 1001) holds sudo; `art` is out of the group and keeps
+   everything a desktop till needs (audio, video, plugdev, netdev, lpadmin…). `sudo:x:27:admin`.
+   **So `art`'s password is now safe to give Layla** — which was the question that started it.
+   Two ssh doors: **`tablet` → art** for read-only checks (they read gsettings, which are
+   per-SESSION — reading them as anyone else reports an empty session's defaults), and
+   **`tablet-admin` → admin** for `--push`. Prompts made to match: art is RED ` TABLET `,
+   admin is GREEN ` TABLET ADMIN `, so a shell can never be mistaken for the other.
+   ⚠️ **The order was the whole risk** and it held: create → *prove sudo works* → copy the key →
+   **prove the push works through the new door** → only then `deluser art sudo`. That fourth step
+   was not in my first plan and should have been: a push that fails after the demotion means a
+   tablet with no administrator at all.
+   ✅ And it was the first real test of the `banco-till.service`-owner detection: the push ran as
+   **admin** and still wrote *"autologin as art"*. Under the old `$SUDO_USER` logic that would have
+   set the tablet to log itself in as the maintenance account.
 
 ### Still open on the tablet
 
@@ -158,7 +167,8 @@ you were trying to rescue. All fixed, locked, and measured over a 22-minute idle
 - **`shop-lte` is ACTIVE alongside wifi** — the failover exists and is live. Decide whether it is
   meant to be always-on, and test it at the shop, not in a flat.
 - **These two scripts belong in the onboarding kit**, not just on Angel's tablet: anyone who clones
-  Banco onto a tablet meets the identical defaults. → archive.
+  Banco onto a tablet meets the identical defaults. → archive. The account split and the two
+  coloured prompts belong in that write-up too — they are currently hand-made on this one machine.
 
 ---
 

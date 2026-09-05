@@ -32,8 +32,15 @@
 # time. Pushes THIS version to the machine, installs it, applies it, and arms it
 # to re-apply at every boot:
 #
-#     ./scripts/tablet-lockdown.sh --push            (defaults to host `tablet`)
+#     ./scripts/tablet-lockdown.sh --push tablet-admin --autologin
 #     ./scripts/tablet-lockdown.sh --push counter2
+#
+#   SINCE 2026-09-05 THE PUSH GOES TO `tablet-admin`, NOT `tablet`. The tablet has
+#   two doors on purpose: `art` runs the till and is no longer in the sudo group,
+#   so its password is safe to hand to a cashier; `admin` is the maintenance door.
+#   Read-only checks (tablet-postboot-check.sh) must still go to `tablet`, because
+#   they read gsettings and those are per-SESSION values — read as anyone else you
+#   get an empty session's defaults on a screen nobody is looking at.
 #
 # THIS SCRIPT DOES NOT START THE TILL and must not learn to. That job belongs to
 # ~/.config/systemd/user/banco-till.service, which already existed and already
