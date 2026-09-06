@@ -406,8 +406,7 @@ logout is *desirable*; a quiet Tuesday afternoon one is not.
 
 ## 📌 Standing facts worth not re-learning
 
-- **THE THREE NAMES ARE ROLES, AND THE ROLE IS THE POINT.** Angel runs every sheet himself on the
-  real tablet, signed in as whichever role the sheet is about:
+- **THE THREE NAMES ARE ROLES, AND THE ROLE IS THE POINT.** Angel runs every sheet signed in as whichever role it is about:
 
   | signed in as | the part being tested |
   |---|---|
