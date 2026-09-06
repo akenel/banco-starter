@@ -30,6 +30,14 @@ activates the new service worker, the second serves from it.
 *The 2026-09-04 method note, and what went in that night (four fixes, five suites, three sheets,
 54 pass · 5 issue · 0 fail), are in [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md).*
 
+### What is actually a CODING task — asked and answered 2026-09-06 night
+
+**Very little, and almost none of it on the selling path.** ① wire triage → the KB (medium, and
+the only genuinely valuable software left) · ② the receipt QR (small, **blocked on Angel's call**
+about the blank-`website` fallback) · ③ a re-triage button (small) · ④ ~19 server strings in
+`pos_router.py` · ⑤ the bench, 275 strings, a slog nobody sells with · ⑥ My Day's red
+`failed to fetch`. **Everything else below is a DECISION, a TRIP, or a LOOK.**
+
 ### Pick up here, in this order
 
 0️⃣ ~~**The cash box, finished.**~~ — **all four shipped `b693`.** Note strip passed on the glass,
@@ -39,27 +47,17 @@ activates the new service worker, the second serves from it.
 
 0️⃣b **▶️ START HERE 2026-09-07 — the bench is all that is left of the language work.**
    `shelf_intake` 173 · `hardware` 59 · `catalog` 22 · `catalog_health` 21 = **275 strings, and
-   nobody sells with any of it.** Everything a cashier or Felix touches is CLEAN: the till (6
-   screens) · audit · settings · catalog_misses · age-report · my-tickets.
-   **Four things are live and NOBODY HAS LOOKED AT THEM** — `felix | Titolare` in the header, the
-   `Ricevuta` stage on My Reports, six nav items in Italian **on a phone**, and whether the 💬 in
-   the top bar still opens with a thumbnail. Sheet is cut and stamped `b726`:
-   [`it-recheck`](onboarding/testsheets/2026-09-06-language-walk-it-recheck.html).
-   **Nine classes, and the harness could originally see ONE** —
-   `python3 scripts/prove-one-box-one-language.py`, 9 checks, **wrong eight times in one day**,
-   every correction in the file. Never pipe it through `grep`: that eats the traceback AND the exit
-   code, and it spent several commits crashing while printing partial results.
+   nobody sells with any of it.** Everything a cashier or Felix touches is CLEAN.
+   Harness: `python3 scripts/prove-one-box-one-language.py` — 9 checks, **wrong eight times in one
+   day**, every correction in the file. **Never pipe it through `grep`:** that eats the traceback
+   AND the exit code, and it spent several commits crashing while printing partial results.
    Guards: never translate the gun's German firmware words, category names, the de-CH numeric
    dates, a language picker, or anything marked `data-i18n-exempt`.
-   → [`2026-09-06-archive-pass.md`](worklist-archive/2026-09-06-archive-pass.md) ·
-   [`LESSONS.md`](LESSONS.md)
-0️⃣c ~~**THE 💬 → TRIAGE LOOP**~~ — **PROVEN END TO END, 2026-09-06.** Real brain
-   (`gpt-oss:120b`, Turbo). It named three strings Angel never typed (BL-018, `conf 96%`), found a
-   live regression of mine from a console breadcrumb on an unrelated ticket (BL-016), and — after
-   the prompt was taught that a reporter can be WRONG — turned its own confident phantom from
-   `bug 92%` into `Question 22%` on the same screenshot. Sheets:
-   `python3 scripts/make-language-walk.py it --only A --phase0`.
-   → [`2026-09-06-archive-pass.md`](worklist-archive/2026-09-06-archive-pass.md)
+   → [`2026-09-06-archive-pass.md`](worklist-archive/2026-09-06-archive-pass.md) · [`LESSONS.md`](LESSONS.md)
+0️⃣c ~~**THE 💬 → TRIAGE LOOP**~~ — **PROVEN, 2026-09-06.** Real brain (`gpt-oss:120b`). It found a
+   live regression of mine from a breadcrumb on an unrelated ticket, and — once taught a reporter
+   can be WRONG — turned its own phantom from `bug 92%` to `Question 22%` on the same screenshot.
+   Sheets: `scripts/make-language-walk.py`. → [`09-06`](worklist-archive/2026-09-06-archive-pass.md)
 0️⃣d **Gaps found by USING triage.** (1) **No re-triage button** — it is idempotent, so re-reading
    a ticket after a prompt change means impersonating the reporter with a `reporter-note`. The
    prompt changed four times in one afternoon. (2) **Triage does not feed the KB** —
@@ -72,25 +70,27 @@ activates the new service worker, the second serves from it.
    "missing its decimal separator") came from a capture at **Pixel ratio 0.667** — the model read
    compression, not the screen. Triage now distrusts fine detail below ratio 1; the cheap fix is
    not to zoom out.
-0️⃣a ⚠️ **THE FRENCH AND ITALIAN ARE UNVERIFIED — nobody who speaks either has read a word.** Angel
-   has no French. ~720 FR/IT strings were written by the copilot on 2026-09-06 alone. Not a
-   translation gap — a **review** gap, and `Sistemazione` is the proof it is real.
+0️⃣a **FR/IT — three passes done, call it 90%.** Written by the copilot, read by a vision model on
+   ~25 real screens, walked by Angel in Italian (high-school French, 195-day Duolingo streak — he
+   tells German from French from Italian on sight, and caught `Samstag` himself). **Retired the
+   "nobody has read a word" framing on 2026-09-06 — it was overstated.** What is genuinely left is
+   REGISTER, not language: is a shop owner `Titolare` or `Proprietario`, is `Giornata` right for a
+   nav slot, is `Sistemazione` the word for a cleanup queue. Perhaps 20–30 judgement calls out of
+   ~1,100, each settleable by Angel or Felix in a minute. A footnote, not a blocker.
 
 0. ~~**THE STARTUP THREAD**~~ — the till **did not come up at all** on a cold boot; five faults.
    **Fixed → ~58s, unattended.** Invisible for four months because every proof was `reboot` over
    SSH **with nobody watching the screen**. → [`09-05`](worklist-archive/2026-09-05-archive-pass.md)
 
 0c. **Do they log out at night?** Raised, not decided. · 0f. **My Day: red `failed to fetch`
-   while offline**, under a banner that already said so. LESSON #12.
-0g. ✅ **Three consecutive clean cold boots, 2026-09-05** — 57.8 / 58.3 / 58.2s, 0.49s spread,
-   criteria agreed first. **The cashier now does nothing at all in the morning.**
-1. ~~**② The keyboard buries the search results**~~ — **FIXED**, confirmed on the tablet, `b644`.
-2. ~~**Pam's picker + Angel's shelf pill**~~ — **DONE**, `b647`, needs eyes. Shipped wrong first,
-   on a bad number of mine that was in this file.
-3. ~~**The kiosk leftovers**~~ — **DONE**, all four gone, verified from outside the machine.
-   → all three: [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
+   offline**, under a banner that said so. LESSON #12. · 0g. ✅ **Three clean cold boots** —
+   57.8/58.3/58.2s. **The cashier does nothing at all in the morning.**
+1–3. ~~**The keyboard · Pam's picker · the kiosk leftovers**~~ — **all DONE**, `b644`/`b647`.
+   → [`09-05`](worklist-archive/2026-09-05-archive-pass.md)
 4. ~~**The tablet**~~ — **DONE 2026-09-05**, eleven faults fixed; what is left is under 🖥️ below.
-5. **The counter visit — PREPPED, two sheets ready, needs the trip.** 2026-09-05.
+5. 🔴 **THE COUNTER VISIT — THE BIGGEST OPEN RISK IN THIS FILE, and it is not code.**
+   **Nothing has completed a sale on this build. The last one was 2026-08-21 — sixteen days.**
+   Two sheets, prepped since 2026-09-05, needing only the drive.
    [`2026-09-05-standing-where-layla-stands.html`](onboarding/testsheets/2026-09-05-standing-where-layla-stands.html)
    — 21 steps: light, reach, their wifi at the counter, the gun on their surface, noise. No sale.
    [`2026-09-05-four-real-sales.html`](onboarding/testsheets/2026-09-05-four-real-sales.html)
