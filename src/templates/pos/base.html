@@ -1159,18 +1159,24 @@
             // transactions.html each had their own `posRoles.join(', ')`, which printed
             // "pos-cashier, pos-manager" — a list of slugs, of which only the highest one
             // means anything to the person reading it. One implementation, one word.
+            // WHO YOU ARE, IN YOUR OWN LANGUAGE. This read "felix | Owner" in the
+            // header of every screen in every language, and it sat in every
+            // screenshot Angel took all day — including the very first one — before
+            // the AI triage brain named it on 2026-09-06. A rank table keyed by role
+            // is not label-shaped, so the <script> sweep never saw it either; the
+            // same shape as audit.html's entityLabel. Keys, not words.
             roleDisplay() {
                 const RANK = [
-                    ['pos-admin',     'Owner'],
-                    ['pos-manager',   'Manager'],
-                    ['pos-auditor',   'Auditor'],
-                    ['pos-developer', 'Developer'],
-                    ['pos-cashier',   'Cashier'],
+                    ['pos-admin',     'nav.role_owner'],
+                    ['pos-manager',   'nav.role_manager'],
+                    ['pos-auditor',   'nav.role_auditor'],
+                    ['pos-developer', 'nav.role_developer'],
+                    ['pos-cashier',   'nav.role_cashier'],
                 ];
-                for (const [role, label] of RANK) {
-                    if (this.hasRole(role)) return label;
+                for (const [role, key] of RANK) {
+                    if (this.hasRole(role)) return t(key);
                 }
-                return 'User';
+                return t('nav.role_user');
             },
 
             hasRole(role) {
@@ -1860,7 +1866,7 @@
         // and groupedCategories — not a method on AuthHelper, which is where the first cut
         // put it and produced "roleDisplay is not defined" on two screens.
         function roleDisplay() {
-            try { return AuthHelper.roleDisplay(); } catch (e) { return 'User'; }
+            try { return AuthHelper.roleDisplay(); } catch (e) { return t('nav.role_user'); }
         }
 
         function cartSavedTotal(cart) {

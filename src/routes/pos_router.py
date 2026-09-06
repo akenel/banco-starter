@@ -10310,24 +10310,36 @@ async def mark_notifications_read(
 
 # ===== "My tickets" — the friendly, no-jargon view of a user's OWN feedback (PoC-3) =========
 def _friendly_stage(status: str, has_triage: bool) -> dict:
-    """Map the internal status → a plain-language journey step (1..4) for a non-techie."""
+    """Map the internal status → a plain-language journey step (1..4) for a non-techie.
+
+    SENDS A KEY AS WELL AS A SENTENCE. The English stays for an older client and as
+    the last-resort fallback; `key` is what a current one translates. Until
+    2026-09-06 only the sentence existed, so a cashier on an Italian till read
+    "Received — Thanks! We've got your message." under a page that was Italian
+    everywhere else. Found by the AI triage brain reading a screenshot of
+    /pos/my-tickets (BL-035) — no check in this repo had ever looked at Python, and
+    no client-side sweep could ever have reached a string built here.
+
+    This is the screen where Layla finds out what happened to the thing SHE
+    reported. It is the last place that should be speaking a language she does not.
+    """
     s = (status or "pending").lower()
     if s == "archived":
-        return {"step": 4, "label": "Closed", "emoji": "✅",
+        return {"step": 4, "label": "Closed", "emoji": "✅", "key": "mytickets.st_closed",
                 "blurb": "All sorted — thank you for helping make this better!"}
     if s == "done":
-        return {"step": 4, "label": "Fixed!", "emoji": "🎉",
+        return {"step": 4, "label": "Fixed!", "emoji": "🎉", "key": "mytickets.st_fixed",
                 "blurb": "We fixed it — please take a look and let us know it's good."}
     if s == "in_progress":
-        return {"step": 3, "label": "Being fixed", "emoji": "🔧",
+        return {"step": 3, "label": "Being fixed", "emoji": "🔧", "key": "mytickets.st_doing",
                 "blurb": "Someone's working on this right now."}
     if s == "blocked":
-        return {"step": 3, "label": "On hold", "emoji": "⏳",
+        return {"step": 3, "label": "On hold", "emoji": "⏳", "key": "mytickets.st_hold",
                 "blurb": "Paused for a moment — we haven't forgotten it."}
     if has_triage:
-        return {"step": 2, "label": "We understand it", "emoji": "👀",
+        return {"step": 2, "label": "We understand it", "emoji": "👀", "key": "mytickets.st_read",
                 "blurb": "We've read it and we're looking into it."}
-    return {"step": 1, "label": "Received", "emoji": "📨",
+    return {"step": 1, "label": "Received", "emoji": "📨", "key": "mytickets.st_received",
             "blurb": "Thanks! We've got your message."}
 
 

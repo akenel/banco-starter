@@ -95,7 +95,12 @@
           <div class="mt-3 rounded-lg px-3 py-2 text-sm flex items-start gap-2"
                :class="t.stage.step===4 ? 'bg-green-50 text-green-800' : 'bg-indigo-50 text-indigo-800'">
             <span x-text="t.stage.emoji" class="text-base leading-none mt-0.5"></span>
-            <span><b x-text="t.stage.label"></b> — <span x-text="t.stage.blurb"></span></span>
+            <!-- stageLabel/stageBlurb, not t(...) inline. Inside x-for="t in shown()"
+                 the name `t` is the TICKET, so it shadows the global translator across
+                 all 103 expressions in this template — calling t('mytickets.…') here
+                 would ask a ticket to translate. The lookup lives in the component's
+                 methods below, where `t` is the translator again. -->
+            <span><b x-text="stageLabel(t)"></b> — <span x-text="stageBlurb(t)"></span></span>
           </div>
 
           <!-- resolution — the whole story in 3-4 plain sentences (resolved tickets only) -->
@@ -422,6 +427,22 @@ function myTickets() {
         showToast(window.t('mytickets.toast_withdrawn'), 'success');
       } catch (e) { showToast(window.t('mytickets.err_withdraw'), 'error'); }
       finally { t.busy = false; }
+    },
+    // THE STAGE, IN THE READER'S LANGUAGE. The server sends both a `key` and the
+    // English sentence: the key is what a current client translates, the English is
+    // the fallback for an older one and for a status nobody has a key for yet — so
+    // this can never render blank, and it can never render a raw key either.
+    // NB the parameter is `it`, not `t`: `t` is the global translator, and this whole
+    // template lives inside x-for="t in shown()" where `t` is a ticket.
+    stageLabel(it) {
+      const k = it && it.stage && it.stage.key;
+      const v = k ? t(k) : null;
+      return (v && v !== k) ? v : ((it && it.stage && it.stage.label) || '');
+    },
+    stageBlurb(it) {
+      const k = it && it.stage && it.stage.key;
+      const v = k ? t(k + '_b') : null;
+      return (v && v !== k + '_b') ? v : ((it && it.stage && it.stage.blurb) || '');
     },
     needsReply(t) { return t.needs_confirm || t.needs_confirm_fix || t.rejected_pending; },
     needsCount() { return this.items.filter(t => this.needsReply(t)).length; },
