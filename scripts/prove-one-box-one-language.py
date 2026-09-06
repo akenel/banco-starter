@@ -286,6 +286,51 @@ def main():
 
     # (6) collected by BareText above, which knows about ancestors.
 
+    # (7) A t('some.key') CALL whose key does not exist. t() returns the RAW KEY on
+    # a miss, so the cashier reads "held.toast_load" as a toast. Ten of these
+    # existed on 2026-09-06, nine written as t('k') || 'English fallback' — dead
+    # code, because the raw key is a non-empty string and therefore truthy.
+    bad_calls = []
+    for f in files:
+        src = strip_comments(f.read_text(encoding="utf-8"))
+        for m in re.finditer(r"t\(\s*'([A-Za-z_]+\.[A-Za-z0-9_]+)'\s*\)", src):
+            key = m.group(1)
+            missing = [c for c in codes if key not in tables[c]]
+            if missing:
+                bad_calls.append((f.name, src.count("\n", 0, m.start()) + 1, key, missing))
+
+    # (8) A LOCAL VARIABLE NAMED `t`, which shadows the global translator. A `var t`
+    # is function-scoped and takes the catch handler with it; a `let`/`const t` only
+    # matters if a t() call follows inside the same block. Shipped in b704 (Shop
+    # Pulse) and again the same evening in audit.html's sensitiveTip, where a local
+    # `t = []` collected the tips — the second one written by the very person who
+    # added this check, which is the argument for having it.
+    shadowed = []
+    for f in files:
+        src = strip_js_comments(strip_comments(f.read_text(encoding="utf-8")))
+        # Scan the WHOLE declarator list, not just its first name. The first version
+        # only matched `var t =` and `const t =`, so it missed
+        # `const c = it.changes || {}, t = [];` — which is exactly the shape written
+        # into audit.html hours after this check was added, by the person who added
+        # it. A check that only catches the tidy case is a check that reports clean
+        # on the messy one.
+        for m in re.finditer(r"\b(var|let|const)\s+((?:[^;{}]|\{[^{}]*\})*)", src):
+            kind, decl = m.group(1), m.group(2)
+            if not re.search(r"(?<![.\w$])t\s*=", decl):
+                continue
+            depth, i, end = 0, m.end(), len(src)
+            while i < len(src):
+                if src[i] == "{": depth += 1
+                elif src[i] == "}":
+                    if depth == 0: end = i; break
+                    depth -= 1
+                i += 1
+            block = src[m.end():end]
+            if kind == "var" or re.search(r"(?<![\w.$])t\s*\(", block):
+                shadowed.append((f.name, src.count("\n", 0, m.start()) + 1,
+                                 " ".join(src[m.start():m.start() + 46].split("\n")[0].split()), kind))
+
+
     if bad_keys:
         print(f"❌ {len(bad_keys)} key(s) that do not resolve in every language")
         for fn, ln, key, miss in bad_keys:

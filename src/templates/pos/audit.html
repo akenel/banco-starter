@@ -365,9 +365,15 @@ function auditData() {
     reset() { this.f = { entity_types: [], actors: [], actions: [], entity_id: '', q: '', since: '', until: '' }; this.load(); },
     preview: '',        // full-size pack shot, opened from a row thumbnail
     entityEmoji(t) { return ({products:'📦',transactions:'💰',cash_shifts:'🧾',suppliers:'🏭',store_settings:'⚙️'})[t] || '🗂️'; },
-    entityLabel(t) { return ({products:'Product',transactions:'Sale',cash_shifts:'Closeout',suppliers:'Supplier',store_settings:'Settings'})[t] || t; },
+    // A MAP KEYED BY A DATABASE VALUE IS STILL UI. These read straight onto the
+    // screen — "Closeout", "edited", "8h ago" — and stayed English under a fully
+    // Italian page until Angel photographed it on 2026-09-06. The <script> sweep in
+    // prove-one-box-one-language.py looks for label-shaped keys, and a map keyed by
+    // `products` / `INSERT` is not label-shaped, so it walked past every one.
+    // NB the parameter is `et`, not `t`: `t` is the global translator (see check 8).
+    entityLabel(et) { const k = 'audit.e_' + et, v = t(k); return v === k ? et : v; },
     actionEmoji(a) { return ({INSERT:'➕',UPDATE:'✏️',DELETE:'🗑️'})[a] || '•'; },
-    actionWord(a) { return ({INSERT:'created',UPDATE:'edited',DELETE:'deleted'})[a] || (a||'').toLowerCase(); },
+    actionWord(a) { return ({INSERT:t('audit.a_created'),UPDATE:t('audit.a_edited'),DELETE:t('audit.a_deleted')})[a] || (a||'').toLowerCase(); },
     stripe(a) { return ({INSERT:'border-green-400',UPDATE:'border-amber-400',DELETE:'border-red-400'})[a] || 'border-gray-300'; },
     badge(a) { return ({INSERT:'bg-green-100 text-green-700 border-green-200',UPDATE:'bg-amber-100 text-amber-700 border-amber-200',DELETE:'bg-red-100 text-red-700 border-red-200'})[a] || 'bg-gray-100 text-gray-600'; },
     summary(it) { const k = Object.keys(it.changes || {}); return k.length ? k.slice(0,4).join(', ') + (k.length>4 ? ' +'+(k.length-4) : '') : ''; },
@@ -379,22 +385,25 @@ function auditData() {
       return Object.keys(it.changes || {}).some(f => S.includes(f));
     },
     sensitiveTip(it) {
-      if (it.action === 'DELETE') return 'deleted';
-      const c = it.changes || {}, t = [];
-      if (c.is_age_restricted) t.push(c.is_age_restricted.new === false ? '🔞 18+ REMOVED' : '18+ set');
-      if (c.product_class)     t.push('class');
-      if (c.price)  { const o = +c.price.old, n = +c.price.new; t.push(isNaN(o)||isNaN(n) ? 'price' : (n < o ? 'price ↓' : 'price ↑')); }
-      if (c.cost)   t.push('cost');
-      if (c.name)   t.push('renamed');
-      if (c.barcode) t.push('barcode');
-      return t.join(' · ') || 'sensitive';
+      if (it.action === 'DELETE') return t('audit.a_deleted');
+      // `tips`, not `t`. `t` is the global translator, and this function now calls
+      // it — the same shadowing that broke Shop Pulse in b704, written again in the
+      // same afternoon by the person who added the check for it. Check (8) caught it.
+      const c = it.changes || {}, tips = [];
+      if (c.is_age_restricted) tips.push(c.is_age_restricted.new === false ? t('audit.s_18_removed') : t('audit.s_18_set'));
+      if (c.product_class)     tips.push(t('audit.s_class'));
+      if (c.price)  { const o = +c.price.old, n = +c.price.new; tips.push(isNaN(o)||isNaN(n) ? t('audit.s_price') : (n < o ? t('audit.s_price_down') : t('audit.s_price_up'))); }
+      if (c.cost)   tips.push(t('audit.s_cost'));
+      if (c.name)   tips.push(t('audit.s_renamed'));
+      if (c.barcode) tips.push(t('audit.s_barcode'));
+      return tips.join(' · ') || t('audit.s_sensitive');
     },
     nonEmpty(o) { const r = {}; Object.entries(o||{}).forEach(([k,v]) => { if (v!==null && v!=='' && !(typeof v==='object' && !Array.isArray(v) && Object.keys(v).length===0)) r[k]=v; }); return r; },
     fmt(v) { if (v===null||v===undefined) return '∅'; if (typeof v==='object') return JSON.stringify(v); const s=String(v); return s.length>60 ? s.slice(0,60)+'…' : s; },
     fmtTime(s) { return s ? formatDateTime(s,{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'}) : ''; },
     ago(s) { if (!s) return ''; const d=(Date.now()-new Date(s).getTime())/1000;
-      if (d<60) return 'just now'; if (d<3600) return Math.floor(d/60)+'m ago'; if (d<86400) return Math.floor(d/3600)+'h ago';
-      return Math.floor(d/86400)+'d ago'; },
+      if (d<60) return t('audit.just_now'); if (d<3600) return Math.floor(d/60)+t('audit.ago_m'); if (d<86400) return Math.floor(d/3600)+t('audit.ago_h');
+      return Math.floor(d/86400)+t('audit.ago_d'); },
   };
 }
 </script>
