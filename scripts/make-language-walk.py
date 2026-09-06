@@ -309,7 +309,7 @@ def build(lang, only=None, phase0=False, screens=None):
     sheet = {
         "key": f"banco-language-walk-{lang}{scope}{'-p0' if phase0 else ''}-v2",
         "eyebrow": f"Banco POS · language walk · {lang.upper()}",
-        "title": (f"{name}: {which}" if only else f"Every screen in {name}"),
+        "title": (f"{name}: {which}" if (only or screens) else f"Every screen in {name}"),
         "standfirst": (
             f"One tap per screen, each link already carrying <code>?lang={lang}</code> so you never "
             f"touch the language dropdown. Open it, screenshot it, mark it, next. "
