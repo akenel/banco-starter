@@ -2932,7 +2932,15 @@
           m.path=location.pathname+location.search; m.url=location.href;
           m.referrer=document.referrer||'';
           m.userAgent=navigator.userAgent;
+          // TWO LANGUAGES, AND ONLY ONE OF THEM IS THE ANSWER. navigator.language is
+          // the BROWSER's (de-CH on this machine whatever the till is showing); the
+          // one a report is about is the POS UI language. Until 2026-09-06 only the
+          // browser's was recorded, which made a language ticket unfalsifiable —
+          // "there is English on this screen" means nothing if nothing says the
+          // screen was set to Italian. Both now, named so they cannot be confused.
           m.language=navigator.language||'';
+          m.pos_lang=window._posLang||'';
+          m.orientation=(window.innerWidth>=window.innerHeight)?'landscape':'portrait';
           m.platform=(navigator.userAgentData&&navigator.userAgentData.platform)||navigator.platform||'';
           m.viewport=window.innerWidth+'×'+window.innerHeight;
           m.screen=(window.screen?screen.width+'×'+screen.height:'');
@@ -2952,7 +2960,13 @@
         var m=collectMeta(), d=collectDiag(), errs=0;
         d.forEach(function(x){ if(x.t!=='warn') errs++; });
         var diagNote = d.length ? (' · <span style="color:'+(errs?'#f87171':'#94a3b8')+'">🔎 '+d.length+' log'+(d.length>1?'s':'')+(errs?' ('+errs+' error'+(errs>1?'s':'')+')':'')+'</span>') : '';
-        metaEl.innerHTML='<b>Auto-attached:</b> '+m.path+' · '+(m.platform||'?')+' · '+m.viewport+
+        // The line shows five of ~14 fields; the rest still travel into the ticket.
+        // Language leads, because on a language walk it is the whole subject — and
+        // it is the one thing a screenshot cannot show you.
+        metaEl.innerHTML='<b>Auto-attached:</b> '+m.path+
+          ' · <b style="color:#cbd5e1">'+(m.pos_lang||'?').toUpperCase()+'</b>'+
+          ' · '+(m.platform||'?')+' · '+m.viewport+' '+m.orientation+
+          (m.dpr&&m.dpr!==1?' @'+m.dpr+'×':'')+
           (m.online?'':' · <span style="color:#f87171">offline</span>')+diagNote;
       }
       function show(){ov.style.display='flex';renderMeta();setTimeout(function(){title.focus();},50);}

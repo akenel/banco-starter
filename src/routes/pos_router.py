@@ -9506,11 +9506,21 @@ _SEVERITY_PRIORITY = {
 }
 _MAX_DIAG = 25  # cap how many breadcrumbs we fold in (the buffer is small anyway)
 # Only these context keys are folded into the description (whitelist -- no surprises).
+# A WHITELIST, so a field the client starts sending is dropped here in silence
+# until it is named. `pos_lang` and `orientation` were added to collectMeta() on
+# 2026-09-06 and would have gone straight in the bin — the browser would have been
+# sending the one fact a language ticket is ABOUT, and the ticket would never have
+# shown it. Add here whenever you add there.
 _META_LABELS = [
     ("path", "Screen"), ("referrer", "Came from"), ("app", "POS build"),
-    ("user", "User"), ("userAgent", "Browser"), ("platform", "Platform"),
-    ("viewport", "Viewport"), ("screen", "Screen size"), ("dpr", "Pixel ratio"),
-    ("language", "Locale"), ("tz", "Timezone"), ("online", "Online"),
+    ("user", "User"),
+    # The till's OWN language, first, and never confused with the browser's. A
+    # report saying "there is English on this screen" is unfalsifiable without it.
+    ("pos_lang", "POS language"),
+    ("userAgent", "Browser"), ("platform", "Platform"),
+    ("viewport", "Viewport"), ("orientation", "Orientation"),
+    ("screen", "Screen size"), ("dpr", "Pixel ratio"),
+    ("language", "Browser locale"), ("tz", "Timezone"), ("online", "Online"),
     ("when", "Client time"),
 ]
 
