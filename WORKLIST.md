@@ -23,43 +23,49 @@ tablet, zero fails. Live on the shop: `b629 · 6cc1bb5`.*
 
 ---
 
-## ▶️ THE DECK — READ THIS FIRST · last touched 2026-09-05 afternoon
+## ▶️ THE DECK — READ THIS FIRST · last touched 2026-09-06 morning
 
-**Live on the shop: `b647 · 234a601`.** Reload the tablet TWICE after any deploy — the first load
+**Live on the shop: `b693 · 972578a`.** Reload the tablet TWICE after any deploy — the first load
 activates the new service worker, the second serves from it.
-*The method note from the night of 2026-09-04 — name the sample, and a grep only finds a shape
-somebody thought of — moved to [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md).*
-
-*What went in that night — four fixes, five suites, three sheets, 54 pass · 5 issue · 0 fail — is in [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md).*
+*The 2026-09-04 method note, and what went in that night (four fixes, five suites, three sheets,
+54 pass · 5 issue · 0 fail), are in [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md).*
 
 ### Pick up here, in this order
 
-0. ~~**The worklist alarm**~~ — **DONE**, `fb00d2c`, step 4 of SESSION START. → archive
-0️⃣ **▶️ START HERE, 2026-09-06 — finish the cash box, fresh.** Stopped at 21:40 on purpose, tired,
-   with a drawer OPEN at CHF 0.25 on the tablet. (a) **Deploy `4bed4a2`** — the morning guard was
-   English under a translated title with raw Decimals (`CHF 1216.90`, no apostrophe); fixed, not
-   deployed. (b) **The note-strip test, still unrun:** count out of tolerance → type a note →
-   correct the count → an amber *Filing with note: "…" · Remove* must appear instead of the box
-   silently vanishing with the note still filed. (c) **Close the drawer balanced** so the box is
-   right for the morning. (d) **The 💬 anchor needs a migration** — an old saved position has no
-   corner in it, so the FIRST rotation after the deploy is still wrong and only a drag fixes it;
-   Felix and Layla would each hit that once. ~5 lines.
+0️⃣ ~~**The cash box, finished.**~~ — **(a)–(d) all shipped, `b693`, 2026-09-06.** The note strip
+   **passed on the glass** (*Filing with note: zztest3 · Remove* → Remove → **no note on the filed
+   report**), the drawer closed **balanced at CHF 1'216.00**, and the 💬 held the bottom bar through
+   landscape → portrait → landscape. ⚠️ **But two are deployed, not SEEN** — the guard's translated
+   body never fired (the box opened clean) and the 💬 *migration* could not run here (Angel's saved
+   position already has a corner); both run first on Felix's and Layla's devices.
+   → [`2026-09-06-archive-pass.md`](worklist-archive/2026-09-06-archive-pass.md)
+
+0️⃣b **▶️ NEXT — 359 bare English strings, and two boxes pinned to the WRONG language.**
+   Found 2026-09-06 by [`scripts/prove-one-box-one-language.py`](scripts/prove-one-box-one-language.py),
+   written after the byline bug (`972578a`) made it three-in-two-days. **`shift.html` is the only
+   clean template of 38.** The two that are not merely untranslated but pinned:
+   `checkout.html:67` is hard-coded **German** (*Warenkorb behalten — erneut oder Bar*) and
+   `receipt.html:91` hard-coded **Italian** (*Documento non fiscale*) — a French cashier gets German
+   at the till and Italian on the paper. Also **14 keys that resolve in NO language** (`catalog.*`,
+   `cleanup.*`, `reorder.by`, `reports.age_report`, `settings.join_*`).
+   Where they sit, and this ordering IS the plan — the cashier's screens first, Felix's bench last:
+   **base 14 · scan 17 · checkout 11 · receipt 2** (the till, ~44) · settings 11 · catalog 11 ·
+   audit 12 · join_card 14 · then **shelf_intake 131 · hardware 49 · catalog_misses 40 ·
+   catalog_health 18** (bench). ⚠️ **359 is this harness's count, not a hand audit** — its first
+   two versions said 409 and died on a `//`, both recorded in the file. Expect the bench figures to
+   fall once someone reads them.
 0️⃣a ⚠️ **THE FRENCH IS UNVERIFIED — nobody who speaks French has read it.** Angel has no French and
    said so; I wrote `guard_body`, `guard_src_*`, `note_will_file`, `note_drop` and every other FR
    string in this build. Not a translation gap — a *review* gap. Same for Italian.
 
-0. ~~**THE STARTUP THREAD — walked, measured, fixed. Fourteen cold boots, 2026-09-05.**~~ The
-   till **did not come up at all** on a cold boot · it landed in GNOME's **overview** · the boot
-   was **1m46s**, 50s of it `powerprofilesctl` waiting on a daemon that could not start until we
-   finished · the service worker could `respondWith(undefined)` and paint nothing · and
-   `banco-till.service` existed on one machine with no copy in the repo. **All fixed and
-   deployed (b684–b690) → ~58s, unattended, no password, no press**, three consecutive clean
-   boots. Invisible until now because every earlier proof was `reboot` over SSH **with nobody
-   watching the screen**. → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
+0. ~~**THE STARTUP THREAD — walked, measured, fixed. Fourteen cold boots, 2026-09-05.**~~ The till
+   **did not come up at all** on a cold boot; five faults behind it. **Fixed and deployed
+   (b684–b690) → ~58s, unattended, no password, no press.** Invisible for four months because
+   every earlier proof was `reboot` over SSH **with nobody watching the screen** — LESSON #1 ×14.
+   → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
 
-0c. **Do they log out at night?** Layla closes, Rafi opens, till stays signed in as whoever was on
-   it. Raised, not decided. · 0f. **My Day: `could not load your profile: failed to fetch` in red
-   by Layla's name** while offline, under a banner that already said so. LESSON #12. → archive
+0c. **Do they log out at night?** Raised, not decided. · 0f. **My Day: `could not load your
+   profile: failed to fetch` in red** while offline, under a banner that said so. LESSON #12.
 0g. ✅ **Rock-solid check passed 2026-09-05: three consecutive clean cold boots** (57.8 / 58.3 /
    58.2s, `kernel->till` 19s every time, 0.49s spread), criteria agreed before the first one.
    45 passed · 0 failed. **The cashier now does nothing at all in the morning.**
@@ -68,8 +74,7 @@ somebody thought of — moved to [`2026-09-05-archive-pass.md`](worklist-archive
    on a bad number of mine that was in this file.
 3. ~~**The kiosk leftovers**~~ — **DONE**, all four gone, verified from outside the machine.
    → all three: [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
-4. ~~**The tablet**~~ — **DONE 2026-09-05**, eleven faults, all fixed, locked and measured;
-   both decisions answered. What is left is four small things and they are listed under 🖥️ below.
+4. ~~**The tablet**~~ — **DONE 2026-09-05**, eleven faults fixed; what is left is under 🖥️ below.
 5. **The counter visit — PREPPED, two sheets ready, needs the trip.** 2026-09-05.
    [`2026-09-05-standing-where-layla-stands.html`](onboarding/testsheets/2026-09-05-standing-where-layla-stands.html)
    — 21 steps: light, reach, their wifi at the counter, the gun on their surface, noise. No sale.
@@ -81,11 +86,9 @@ somebody thought of — moved to [`2026-09-05-archive-pass.md`](worklist-archive
    record. **Nothing has completed a sale on this build** (last: 2026-08-21).
    → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
    ~~**And the window-drag bug rides along**~~ — **CLOSED as a compromise Angel accepted.** Not
-   fixed on purpose: **the title bar is both the cause AND the escape hatch**, it lives outside the
-   web page, so no popup can ever block it. Four ways back, and it is now a DRILL — steps
-   **B4a/B4b/B4c** of the counter sheet have Layla break it and recover it unaided. Five
-   alternatives considered and rejected (kiosk, 90%-centred, PWA fullscreen,
-   window-controls-overlay, a Shell extension) — all remove the title bar.
+   fixed on purpose: **the title bar is both the cause AND the escape hatch.** Four ways back, and
+   it is now a DRILL — steps **B4a/B4b/B4c** have Layla break it and recover it unaided. Five
+   alternatives considered and rejected; all remove the title bar.
    → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
 
 6. ~~**Does the shop have a Worldline terminal today?**~~ — **ANSWERED 2026-09-05: two of them,
@@ -127,15 +130,12 @@ per-SESSION), **`tablet-admin` → admin** for `--push`.
 ### ~~⚠️ PORTRAIT — the close-out in the orientation it will be used in~~
 
 **DONE 2026-09-05, PASSED — portrait is BETTER for the money screen.** At 1440 × 2160 the **whole
-denomination table fits with no scrolling** (CHF 1000 → 0.05); landscape cannot show it. The pad
-pushes the tapped row up and keeps it visible — `b644` holds in an orientation it was never written
-for — the QWERTZ keyboard does the same for the note, and the "no note → no close" guard was broken
-on purpose and held. A real close filed, balanced, +CHF 0.00, warning **"open for 3.0 days — the
-figures cover the whole period, not one day"**. **Do not lock rotation.** Three bugs → ⓪h–⓪j.
+denomination table fits with no scrolling** (CHF 1000 → 0.05); landscape cannot show it. A real
+close filed, balanced. **Do not lock rotation.** Three bugs → ⓪h–⓪j.
 → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
 
 ⓪h–k. ~~**The four portrait findings**~~ — **DEPLOYED b690.** (h) a note for a variance survived
-   onto a BALANCED report — fixed, **strip not yet seen on the glass, see ⓪ (b)**. (i) `Samstag`
+   onto a BALANCED report — fixed, and the strip **passed on the glass 2026-09-06**. (i) `Samstag`
    under EN/FR/IT — fixed and **proven on the tablet in all three**; receipts pinned to the shop.
    (j) withdrawn: `CHF-1'216.85` is Intl's own de-CH output. (k) the 💬 button anchored to its
    corner. → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
