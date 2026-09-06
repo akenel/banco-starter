@@ -257,7 +257,7 @@
                           </p>
 
                           <label class="block text-sm font-medium text-slate-700 mb-1">
-                            <span data-i18n="scan.dept_price_label">Price</span> (CHF) <span class="text-red-500">*</span>
+                            <span data-i18n="scan.dept_price_label">Price</span> <span data-i18n="scan.chf_paren">(CHF)</span> <span class="text-red-500">*</span>
                           </label>
                           <input type="text" inputmode="decimal" data-keypad="decimal"
                                  x-model="deptPrice" x-ref="deptPrice"
@@ -587,6 +587,7 @@
                                 <span class="font-semibold" x-text="formatPrice(totals.subtotal)"></span>
                             </span>
                             <span x-show="cartSavedTotal(cart) > 0" class="font-semibold text-emerald-700"
+                                  data-i18n-exempt="the '{amount}' token is a substitution slot inside an already-translated string, not English text"
                                   x-text="t('scan.deals_saved').replace('{amount}', formatPrice(cartSavedTotal(cart)))"></span>
                         </div>
                         <div class="grid grid-cols-2 gap-3">
@@ -780,7 +781,7 @@
                             <label class="block text-sm font-medium text-gray-700 mb-2">
                                 <span data-i18n="scan.agreed_total">Agreed Final Total (CHF)</span>
                                 <span class="text-gray-500 font-normal">
-                                    (Full: <span x-text="formatPrice(totals.subtotal)"></span>)
+                                    <span data-i18n="scan.full_pre">(Full:</span> <span x-text="formatPrice(totals.subtotal)"></span>)
                                 </span>
                             </label>
                             <p x-show="discountError" class="text-sm text-red-600 mb-1" x-text="discountError"></p>
@@ -791,7 +792,7 @@
                                 x-model="targetTotal"
                                 @input="targetTotal = window.posMoneyOnly($event.target.value); $event.target.value = targetTotal; calculateDiscountFromTarget()"
                                 class="input-field text-xl font-bold"
-                                :placeholder="'Max ' + formatPrice(totals.subtotal)">
+                                :placeholder="t('scan.max_pre') + formatPrice(totals.subtotal)">
                             <p x-show="targetTotal && discount > 0" class="text-sm text-green-600 mt-1">
                                 = <span x-text="discount.toFixed(2)"></span><span data-i18n="scan.pct_disc_applied">% discount applied</span>
                             </p>
@@ -1037,7 +1038,7 @@
                x-text="scanError" style="display:none;"></p>
         </div>
         <div class="px-4 py-4 bg-black/80 text-center">
-            <p x-show="scanLive" class="text-green-300 font-mono text-lg mb-2" x-text="'Reading: ' + scanLive" style="display:none;"></p>
+            <p x-show="scanLive" class="text-green-300 font-mono text-lg mb-2" x-text="t('scan.reading_pre') + scanLive" style="display:none;"></p>
             <p class="text-white/60 text-xs mb-2" data-i18n="scan.hold_steady">Hold steady — confirms after reading the same code twice</p>
             <button @click="stopScan()" class="btn-secondary" data-i18n="scan.cancel_keyboard">Cancel — use keyboard</button>
         </div>
@@ -1094,7 +1095,7 @@
                         <input type="file" accept="image/*" :capture="posCaptureAttr()" class="hidden" @change="aiSnapFill($event)" :disabled="aiBusy">
                     </label>
                     <button type="button" data-needs-camera x-show="posShowWebcam()" @click="webcamSnapFill()" :disabled="aiBusy"
-                            class="btn-secondary inline-flex items-center gap-1 text-lg px-5 py-3 ml-2">📷 Webcam</button>
+                            class="btn-secondary inline-flex items-center gap-1 text-lg px-5 py-3 ml-2" data-i18n="scan.webcam">📷 Webcam</button>
                     <p x-show="aiNote" x-text="aiNote" class="text-xs text-indigo-700 font-medium mt-2" style="display:none;"></p>
                     <button type="button" @click="lazyPhotoFirst=false; $nextTick(()=>{ if($refs.lazyLinkInput) $refs.lazyLinkInput.focus() })"
                             class="mt-3 text-xs text-gray-500 underline" data-i18n="scan.or_search_name">or search by name instead</button>
@@ -1116,7 +1117,7 @@
                             <input type="file" accept="image/*" :capture="posCaptureAttr()" class="hidden" @change="aiSnapFill($event)" :disabled="aiBusy">
                         </label>
                         <button type="button" data-needs-camera x-show="posShowWebcam()" @click="webcamSnapFill()" :disabled="aiBusy"
-                                class="btn-secondary flex-none inline-flex items-center gap-1">📷 Webcam</button>
+                                class="btn-secondary flex-none inline-flex items-center gap-1" data-i18n="scan.webcam">📷 Webcam</button>
                         <span class="text-xs text-gray-500" data-i18n="scan.snap_help">No barcode? Photograph it — AI names it &amp; searches the catalog.</span>
                     </div>
                     <p x-show="aiNote" x-text="aiNote" class="text-xs text-indigo-700 font-medium mt-1" style="display:none;"></p>
@@ -1401,8 +1402,8 @@
                    x-cloak style="display:none"
                    class="text-xs font-semibold text-rose-800 bg-rose-50 border border-rose-300 rounded px-2 py-1.5 mt-2 leading-snug">
                     🔴 <span data-i18n="scan.code_mismatch">Different barcode.</span><br>
-                    <span class="font-mono" x-text="'this row:  ' + (previewItem && previewItem.code)"></span><br>
-                    <span class="font-mono" x-text="'you scanned: ' + lazyBarcode"></span><br>
+                    <span class="font-mono" x-text="t('scan.row_code') + (previewItem && previewItem.code)"></span><br>
+                    <span class="font-mono" x-text="t('scan.you_scanned') + lazyBarcode"></span><br>
                     <span class="font-normal" data-i18n="scan.code_mismatch_help">Usually that means a different colour, size or flavour — not the same thing. Only pick it if the packet in your hand really is this one.</span>
                 </p>
             </div>

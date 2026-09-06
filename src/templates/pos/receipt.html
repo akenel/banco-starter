@@ -87,7 +87,8 @@
                non-fiscal banner so a clean 22/10-looking receipt is never mistaken for a legal
                documento commerciale. Italian by design — it is the legal disclaimer for IT.
                Reuses the conditional-banner pattern above; driven by POSConfig.regime. #}
-            <div x-show="isNonFiscal()" style="display:none" class="text-center mb-4">
+            <div x-show="isNonFiscal()" style="display:none" class="text-center mb-4"
+                 data-i18n-exempt="ITALIAN BY DESIGN — this is the IT legal disclaimer, shown only to an Italian-regime tenant with no wired RT certificate. Translating it would destroy the thing it exists to do.">
               <div style="background:#fee2e2;border:1px solid #ef4444;border-radius:6px;padding:5px 8px;font-weight:700;color:#991b1b;font-size:12px;line-height:1.35;">
                 Documento non fiscale — Ricevuta non valida ai fini fiscali
               </div>
@@ -97,11 +98,11 @@
                 <div x-show="storeSettings.receipt_logo_url" class="mb-4">
                     <img :src="storeSettings.receipt_logo_url" alt="Store Logo" class="mx-auto h-20">
                 </div>
-                <h1 class="text-3xl font-bold text-gray-900" x-text="storeSettings.store_name || 'Artemis Store'"></h1>
-                <p class="text-lg text-gray-700 mt-2" x-text="storeSettings.legal_name || 'Artemis Growing Supplies GmbH'"></p>
+                <h1 class="text-3xl font-bold text-gray-900" data-i18n-exempt="tenant data — the shop's own name, never translated" x-text="storeSettings.store_name || 'Artemis Store'"></h1>
+                <p class="text-lg text-gray-700 mt-2" data-i18n-exempt="tenant data — the shop's own legal name" x-text="storeSettings.legal_name || 'Artemis Growing Supplies GmbH'"></p>
                 <p class="text-sm text-gray-600 mt-2" x-text="formatAddress()"></p>
-                <p class="text-sm text-gray-600" x-show="storeSettings.phone">Phone: <span x-text="storeSettings.phone"></span></p>
-                <p class="text-sm text-gray-600" x-show="storeSettings.email">Email: <span x-text="storeSettings.email"></span></p>
+                <p class="text-sm text-gray-600" x-show="storeSettings.phone"><span data-i18n="receipt.phone_label">Phone:</span> <span x-text="storeSettings.phone"></span></p>
+                <p class="text-sm text-gray-600" x-show="storeSettings.email"><span data-i18n="receipt.email_label">Email:</span> <span x-text="storeSettings.email"></span></p>
                 <p class="text-sm text-gray-600" x-show="storeSettings.website" x-text="storeSettings.website"></p>
                 <p class="text-sm font-semibold text-gray-700 mt-2" x-show="storeSettings.vat_number"><span x-text="vatLabel()">VAT</span>: <span x-text="storeSettings.vat_number"></span></p>
             </div>
@@ -164,7 +165,7 @@
                  P3 N-rate: LOOP over the tenant's rate table. CH (2 rates) renders exactly
                  "VAT: A = 8.1% · B = 2.6% (takeaway food & drink)"; an N-rate regime shows A…N. -->
             <div class="text-xs text-gray-500 mb-3">
-                VAT:
+                <span data-i18n="receipt.vat_legend">VAT:</span>
                 <template x-for="(rt, ri) in vatRates()" :key="rt.code">
                     <span x-show="ri === 0 || hasReduced()"><span x-show="ri > 0"> · </span><b :class="ri > 0 ? 'text-teal-700' : ''" x-text="rt.code"></b> = <span x-text="parseFloat(rt.rate)"></span>%<span x-show="rt.code === 'B'"> (<span data-i18n="vat.takeaway_food_drink">takeaway food &amp; drink</span>)</span></span>
                 </template>
@@ -227,10 +228,10 @@
                 </div>
                 <div class="flex justify-between">
                     <span class="text-gray-500" data-i18n="receipt.points_balance">Points balance</span>
-                    <span class="font-semibold" x-text="(member ? member.credits_balance : 0) + ' pts'"></span>
+                    <span class="font-semibold" x-text="(member ? member.credits_balance : 0) + t('receipt.pts')"></span>
                 </div>
                 <div x-show="member && member.next_tier_name && member.spend_to_next_tier > 0" class="flex justify-between text-gray-500">
-                    <span>CHF to <span x-text="member ? member.next_tier_name : ''"></span></span>
+                    <span><span data-i18n="receipt.chf_to_tier">CHF to</span> <span x-text="member ? member.next_tier_name : ''"></span></span>
                     <span x-text="formatPrice(member ? Math.round(member.spend_to_next_tier) : 0)"></span>
                 </div>
             </div>

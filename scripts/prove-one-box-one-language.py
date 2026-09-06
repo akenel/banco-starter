@@ -46,6 +46,11 @@ ALLOW = {
     "Card / TWINT", "Card / Twint",
     "worldline", "Visa", "Twint", "Instagram", "Telegram", "Facebook",  # brand names
     "BL-000",                                 # a placeholder ticket ref, replaced at runtime
+    "AXIUM DX8000",                           # a card terminal's model name
+    # Example SEARCH TERMS for the supplier catalogue. The feed is German, so these
+    # are the words that actually find things — identical in all four languages on
+    # purpose, exactly as the hint above the box says ("try the trade word").
+    "rasta · kawumm · black leaf · grinder…",
 }
 ALLOW_RE = [
     re.compile(r"^[\W\d\s]+$"),               # punctuation / digits / emoji only
@@ -104,16 +109,41 @@ class BareText(HTMLParser):
     """
     def __init__(self):
         super().__init__(convert_charrefs=True)
-        self.stack = []        # (tag, covered_by_i18n)
+        self.stack = []        # (tag, covered_by_i18n, exempt)
         self.hits = []
+        self.xtext = []
         self.skip = 0          # inside <script>/<style>
 
     def handle_starttag(self, tag, attrs):
         if tag in ("script", "style"): self.skip += 1
+        a0 = dict(attrs)
+        # English written INSIDE an x-text expression. Collected HERE rather than
+        # by a separate regex pass, because the exemption that covers it is on an
+        # ANCESTOR — the sandbox overlay wraps the whole terminal, and a scan that
+        # only reads the element's own tag cannot see that. Same mistake as the
+        # 409, one check along.
+        expr = a0.get("x-text") or a0.get("x-html")
+        if expr and not (self.covered_exempt or "data-i18n-exempt" in a0):
+            for lit in re.finditer(r"'([^']{3,})'", expr):
+                v = lit.group(1)
+                if re.search(r"[)+]\s*$|^\s*[+(]", v) or any(c in v for c in "+()"): continue
+                if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_.\-]*", v): continue
+                if v.startswith(("http", "/", "#", ".")) or v in ALLOW: continue
+                if not re.search(r"[A-Za-z]{2,}", v): continue
+                self.xtext.append((self.getpos()[0], v[:60]))
         if tag in VOID: return
-        a = dict(attrs)
-        covered = any(k.startswith("data-i18n") for k in a) or "x-text" in a
-        self.stack.append((tag, covered or self.covered))
+        a = a0
+        # data-i18n-exempt="why" marks a subtree that must NOT be translated, and
+        # says why in the attribute itself. Three real cases on 2026-09-06: the
+        # worldline_sim SANDBOX (never renders in a shop), the Italian legal
+        # disclaimer on the receipt (translating it would break it), and the
+        # tenant's own store name. A skip-list hidden in this file would have
+        # hidden the reason too, and the reason is the whole point — see LESSON
+        # #10, which is how both of those were misdiagnosed in the first place.
+        covered = (any(k.startswith("data-i18n") for k in a) or "x-text" in a
+                   or "data-i18n-exempt" in a)
+        self.stack.append((tag, covered or self.covered,
+                           ("data-i18n-exempt" in a) or self.covered_exempt))
 
     def handle_startendtag(self, tag, attrs): pass
 
@@ -127,6 +157,10 @@ class BareText(HTMLParser):
     @property
     def covered(self):
         return self.stack[-1][1] if self.stack else False
+
+    @property
+    def covered_exempt(self):
+        return self.stack[-1][2] if self.stack else False
 
     def handle_data(self, data):
         if self.skip or self.covered: return
@@ -159,7 +193,7 @@ def main():
     print(f"keys:      " + " · ".join(f"{c} {len(tables[c])}" for c in codes))
     print()
 
-    bad_keys, bare = [], []
+    bad_keys, bare, in_xtext = [], [], []
     files = sorted(TPL.glob("*.html"))
 
     for f in files:
@@ -179,6 +213,8 @@ def main():
         bt.feed(strip_comments(raw))
         for ln, snippet in bt.hits:
             bare.append((f.name, ln, snippet))
+        for ln, v in bt.xtext:
+            in_xtext.append((f.name, ln, v))
 
     # (3) a key can be PRESENT in every language and still be English. On
     # 2026-09-06 Angel photographed the whole 18+ Age Gate screen in English on
@@ -191,6 +227,7 @@ def main():
         if c == "en": continue
         same = [k for k, v in tables[c].items()
                 if k in en and str(v).strip() == str(en[k]).strip()
+                and str(en[k]).strip() not in ALLOW
                 and re.search(r"[A-Za-z]{2,}\s+[A-Za-z]{2,}", str(en[k]))]
         if same: english[c] = same
 
@@ -211,27 +248,10 @@ def main():
                 v = m.group(3)
                 if not re.search(r"[A-Za-z]{2,}\s+[A-Za-z]{2,}", v): continue
                 if v.startswith(("http", "/", "#", ".")) or "${" in v: continue
+                if v in ALLOW: continue
                 in_script.append((f.name, base + body.count("\n", 0, m.start()) + 1, v[:70]))
 
-    # (5) English written INSIDE an x-text expression. Check (2) treats any
-    # element carrying x-text as covered — which is right about the element and
-    # wrong about the expression. Angel photographed `yours:` / `theirs:` on the
-    # product modal in German, Italian AND French on 2026-09-06; they are
-    # x-text="'yours: ' + form.barcode". The scan screen's own button is the same
-    # shape: x-text with '⚠️ Confirm' / '➕ Add to cart' spelled out in it.
-    # A FLOOR: a literal carrying + ( ) is usually the gap between two real
-    # literals in a concatenation, not a string, so those are dropped.
-    in_xtext = []
-    for f in files:
-        src = strip_comments(f.read_text(encoding="utf-8"))
-        for m in re.finditer(r'(?:x-text|x-html)="([^"]*)"', src):
-            for lit in re.finditer(r"'([^']{3,})'", m.group(1)):
-                v = lit.group(1)
-                if re.search(r"[)+]\s*$|^\s*[+(]", v) or any(c in v for c in "+()"): continue
-                if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_.\-]*", v): continue
-                if v.startswith(("http", "/", "#", ".")): continue
-                if not re.search(r"[A-Za-z]{2,}", v): continue
-                in_xtext.append((f.name, src.count("\n", 0, m.start()) + 1, v[:60]))
+    # (5) collected by BareText above, which knows about ancestors.
 
     # (6) A placeholder is text the cashier reads, and it lives in an ATTRIBUTE —
     # so checks (1) and (2) both miss it: (1) only validates placeholders that
@@ -246,12 +266,31 @@ def main():
             for attr, i18n in (("placeholder", "data-i18n-placeholder"),
                                ("title", "data-i18n-title"),
                                ("aria-label", "data-i18n-aria")):
-                am = re.search(r'(?<![-\w])%s="([^"]{3,})"' % attr, tag)
+                # `:placeholder` / `x-bind:placeholder` hold an EXPRESSION, not a
+                # literal — they are check (5)'s business, not this one's.
+                am = re.search(r'(?<![-\w:])%s="([^"]{3,})"' % attr, tag)
                 if not am or i18n in tag: continue
                 v = am.group(1)
                 if v in ALLOW or ":" in v[:6] or "{{" in v: continue
+                if "data-i18n-exempt" in tag: continue
                 if not re.search(r"[A-Za-z]{2,}", v): continue
                 bare_attr.append((f.name, src.count("\n", 0, m.start()) + 1, attr, v[:56]))
+
+    # (7) A t('some.key') CALL whose key does not exist. This is the worst of the
+    # lot and it was invisible until 2026-09-06: t() returns the RAW KEY on a miss,
+    # so the cashier reads "held.toast_load" as a toast. Ten of these existed, and
+    # nine were written as t('k') || 'English fallback' — which is DEAD CODE,
+    # because the raw key t() hands back is a non-empty string and therefore
+    # truthy, so `||` never fires. A fallback that cannot run is worse than none:
+    # it is a guard that looks like it works (LESSON #12).
+    bad_calls = []
+    for f in files:
+        src = strip_comments(f.read_text(encoding="utf-8"))
+        for m in re.finditer(r"t\(\s*'([A-Za-z_]+\.[A-Za-z0-9_]+)'\s*\)", src):
+            key = m.group(1)
+            missing = [c for c in codes if key not in tables[c]]
+            if missing:
+                bad_calls.append((f.name, src.count("\n", 0, m.start()) + 1, key, missing))
 
     if bad_keys:
         print(f"❌ {len(bad_keys)} key(s) that do not resolve in every language")
@@ -308,11 +347,18 @@ def main():
         print(f"⚠️  {len(other)} title/aria-label attribute(s) in English — NOT a failure: a")
         print("    title is a hover tooltip and the till is a touchscreen with no pointer.")
 
+    if bad_calls:
+        print(f"❌ {len(bad_calls)} t() call(s) whose key does not exist — these print the RAW KEY")
+        for fn, ln, k, miss in bad_calls:
+            print(f"   {fn}:{ln}  t('{k}')  missing in {','.join(miss)}")
+    else:
+        print("✅ every t() call in the templates resolves in all four languages")
+
     print()
     print(f"{len(files)} templates read.")
     print("NOT CHECKED HERE: whether a translation that IS different from English is")
     print("any GOOD. Nobody who speaks French or Italian has read these strings.")
-    return 1 if (bad_keys or bare or english or in_script or in_xtext or ph) else 0
+    return 1 if (bad_keys or bare or english or in_script or in_xtext or ph or bad_calls) else 0
 
 if __name__ == "__main__":
     sys.exit(main())

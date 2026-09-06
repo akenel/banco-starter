@@ -46,7 +46,11 @@
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <!-- Print stamp (only on paper/PDF) -->
         <div class="print-only mb-4">
-            <h1 style="font-size:18px;font-weight:bold;">Artemis Store — <span data-i18n="transactions.print_title">Transaction History</span></h1>
+            <!-- The shop's OWN name, not ours. This read "Artemis Store — " hard-coded until
+                 2026-09-06, so every third party who cloned this starter printed Angel's shop
+                 at the top of their transaction history. Found while sweeping for English;
+                 it is not a translation bug at all. -->
+            <h1 style="font-size:18px;font-weight:bold;"><span x-text="_cfg('store_name')"></span> — <span data-i18n="transactions.print_title">Transaction History</span></h1>
             <p style="font-size:12px;color:#444;" x-text="rangeLabel()"></p>
             <p style="font-size:12px;color:#444;" x-text="summary.count + t('transactions.print_transactions') + formatPrice(summary.total) + t('transactions.print_total')"></p>
             <p style="font-size:10px;color:#888;" x-text="t('transactions.print_generated') + generatedAt"></p>
@@ -344,13 +348,13 @@
             // BL-84: the real PaymentMethod enum, in display order, with label + pill colour.
             methodOrder: ['cash', 'debit', 'twint', 'visa', 'bank_transfer', 'crypto', 'other'],
             paymentMeta: {
-                cash:          { label: 'Cash',          cls: 'bg-green-100 text-green-800' },
-                debit:         { label: 'Debit card',    cls: 'bg-blue-100 text-blue-800' },
-                twint:         { label: 'TWINT',         cls: 'bg-purple-100 text-purple-800' },
-                visa:          { label: 'Visa',          cls: 'bg-indigo-100 text-indigo-800' },
-                bank_transfer: { label: 'Bank transfer', cls: 'bg-amber-100 text-amber-800' },
-                crypto:        { label: 'Crypto',        cls: 'bg-orange-100 text-orange-800' },
-                other:         { label: 'Other',         cls: 'bg-gray-100 text-gray-800' }
+                cash:          { label: t('transactions.pm_cash'),   cls: 'bg-green-100 text-green-800' },
+                debit:         { label: t('transactions.pm_debit'),  cls: 'bg-blue-100 text-blue-800' },
+                twint:         { label: 'TWINT',                     cls: 'bg-purple-100 text-purple-800' },
+                visa:          { label: t('transactions.pm_visa'),   cls: 'bg-indigo-100 text-indigo-800' },
+                bank_transfer: { label: t('transactions.pm_bank'),   cls: 'bg-amber-100 text-amber-800' },
+                crypto:        { label: t('transactions.pm_crypto'), cls: 'bg-orange-100 text-orange-800' },
+                other:         { label: t('transactions.pm_other'),  cls: 'bg-gray-100 text-gray-800' }
             },
             loading: false,
             // LOCAL date, not toISOString() (which is UTC and returns
@@ -374,10 +378,10 @@
             generatedAt: '',          // de-CH timestamp stamped on the printout
             activePreset: 'today',
             datePresets: [
-                { key: 'today', label: 'Today' },
-                { key: '7d',    label: 'Last 7 days' },
-                { key: '2wk',   label: 'Last 2 weeks' },
-                { key: 'month', label: 'This month' },
+                { key: 'today', label: t('transactions.range_today') },
+                { key: '7d',    label: t('transactions.range_7d') },
+                { key: '2wk',   label: t('transactions.range_2wk') },
+                { key: 'month', label: t('transactions.range_month') },
             ],
 
             async init() {

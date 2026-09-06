@@ -122,6 +122,7 @@ window.POS_STRINGS = {
       "offline_banner": "⚠ <b>No internet — sales are paused.</b> Your cart is safe. Switch to mobile data or a hotspot, then carry on."
     },
     "settings": {
+      "role_next_login": "Saved — active on their next login",
       "join_offer": "New-member join offer",
       "join_offer_hint": "A <b>one-time</b> discount on a new member's first order. Set both to <b>0</b> to switch the offer off — the kiosk then offers points instead. Signing up is anonymous and unlimited, so anything given away here can be claimed again with a fresh code.",
       "join_kiosk": "At the kiosk",
@@ -427,6 +428,7 @@ window.POS_STRINGS = {
       "err_close": "Could not close the drawer."
     },
     "login": {
+      "keycloak_note": "🔐 Secure authentication via Keycloak",
       "staff_login": "Staff Login",
       "login": "Login",
       "sign_up": "Sign Up",
@@ -444,6 +446,11 @@ window.POS_STRINGS = {
       "vat_total": "VAT total"
     },
     "receipt": {
+      "pts": " pts",
+      "phone_label": "Phone:",
+      "email_label": "Email:",
+      "vat_legend": "VAT:",
+      "chf_to_tier": "CHF to",
       "paid_foreign": "Paid in cash:",
       "rounding": "Rounding (5 Rp.):",
       "back_to_report": "← Back to report",
@@ -602,6 +609,18 @@ window.POS_STRINGS = {
       "note_body": "Every sale containing an age-restricted item is blocked by the till until the buyer’s age is cleared, and the way it was cleared is recorded on that sale. No personal data about any customer is stored in this record."
     },
     "checkout": {
+      "pct_member_discount": "% member discount",
+      "is_member": "· member",
+      "member_disc_pre": "Member discount (",
+      "pay_in_cash": "💱 pay in cash:",
+      "collect_approx": "💱 Collect ≈",
+      "change_in": "· change in",
+      "cash_short_pre": "⚠️ Cash received is",
+      "cash_short_word": "short",
+      "cash_short_post": "of the total. Collect more cash, pick a higher amount, or hit",
+      "round_to": "Round to",
+      "give_back": "Give back",
+      "clean_notes": "(clean notes)",
       "title": "Checkout",
       "welcome_discount": "First-order discount",
       "vat_net": "Net goods (ex-VAT)",
@@ -749,6 +768,10 @@ window.POS_STRINGS = {
       "submit_success": "Cash count submitted successfully!"
     },
     "catalog": {
+      "dismiss": "Dismiss",
+      "ref_search_ph": "rasta · kawumm · black leaf · grinder…",
+      "ref_search_need_word": "Type at least two letters.",
+      "ref_search_applied": "Filled from the supplier catalogue — check it, then save.",
       "code_use_anyway": "That IS the code on the packet — save it",
       "code_let_me_fix": "Let me fix it",
       "ref_search_title": "Supplier catalogue",
@@ -995,6 +1018,13 @@ window.POS_STRINGS = {
       "no_barcode_in_photo": "Couldn't read a barcode in that photo. Try another, or type it in."
     },
     "scan": {
+      "chf_paren": "(CHF)",
+      "webcam": "📷 Webcam",
+      "full_pre": "(Full:",
+      "reading_pre": "Reading: ",
+      "row_code": "this row:  ",
+      "you_scanned": "you scanned: ",
+      "max_pre": "Max ",
       "showing_pre": "Showing",
       "showing_of": "of",
       "showing_match": "matches",
@@ -1376,6 +1406,16 @@ window.POS_STRINGS = {
       "g_description_desc": "Empty description"
     },
     "transactions": {
+      "pm_cash": "Cash",
+      "pm_debit": "Debit card",
+      "pm_visa": "Visa",
+      "pm_bank": "Bank transfer",
+      "pm_crypto": "Crypto",
+      "pm_other": "Other",
+      "range_today": "Today",
+      "range_7d": "Last 7 days",
+      "range_2wk": "Last 2 weeks",
+      "range_month": "This month",
       "cashier_today_only": "cashiers see today only; ask a manager for other days",
       "showing": "Showing",
       "widen_hint": "change the dates above to see more",
@@ -1493,6 +1533,10 @@ window.POS_STRINGS = {
       "confirm_remove": "Remove this line?"
     },
       "held": {
+      "toast_load": "Could not load the order",
+      "toast_empty": "This order is empty",
+      "toast_done": "Order cleared",
+      "toast_fail": "Could not update the order",
         "title": "🧾 Held Orders",
         "intro": "Baskets guests built at the kiosk, waiting to be rung out.",
         "refresh": "Refresh",
@@ -2339,6 +2383,7 @@ window.POS_STRINGS = {
       "offline_banner": "⚠ <b>Pas d'internet — les ventes sont suspendues.</b> Votre panier est en sécurité. Passez aux données mobiles ou à un hotspot, puis continuez."
     },
     "settings": {
+      "role_next_login": "Enregistré — actif à sa prochaine connexion",
       "join_offer": "Offre de bienvenue nouveaux membres",
       "join_offer_hint": "Une remise <b>unique</b> sur la première commande d'un nouveau membre. Mettez les deux à <b>0</b> pour désactiver l'offre — la borne propose alors des points. L'inscription est anonyme et illimitée : tout ce qui est offert ici peut être réclamé de nouveau avec un nouveau code.",
       "join_kiosk": "À la borne",
@@ -2647,6 +2692,7 @@ window.POS_STRINGS = {
       "err_close": "Impossible de fermer le tiroir."
     },
     "login": {
+      "keycloak_note": "🔐 Authentification sécurisée via Keycloak",
       "staff_login": "Connexion du personnel",
       "login": "Connexion",
       "sign_up": "Créer un compte",
@@ -2664,6 +2710,11 @@ window.POS_STRINGS = {
       "vat_total": "Total TVA"
     },
     "receipt": {
+      "pts": " pts",
+      "phone_label": "Téléphone :",
+      "email_label": "E-mail :",
+      "vat_legend": "TVA :",
+      "chf_to_tier": "CHF jusqu'à",
       "paid_foreign": "Payé en espèces :",
       "rounding": "Arrondi (5 ct.) :",
       "back_to_report": "← Retour au rapport",
@@ -2822,6 +2873,18 @@ window.POS_STRINGS = {
       "note_body": "Toute vente contenant un article soumis à limite d'âge est bloquée par la caisse jusqu'à ce que l'âge de l'acheteur soit vérifié, et la manière dont il l'a été est enregistrée sur cette vente. Aucune donnée personnelle concernant un client n'est conservée dans ce registre."
     },
     "checkout": {
+      "pct_member_discount": "% de remise membre",
+      "is_member": "· membre",
+      "member_disc_pre": "Remise membre (",
+      "pay_in_cash": "💱 payer en espèces :",
+      "collect_approx": "💱 Encaisser ≈",
+      "change_in": "· rendu en",
+      "cash_short_pre": "⚠️ L'argent reçu est",
+      "cash_short_word": "insuffisant",
+      "cash_short_post": "par rapport au total. Encaissez plus d'espèces, choisissez un montant plus élevé, ou appuyez sur",
+      "round_to": "Arrondir à",
+      "give_back": "Rendre",
+      "clean_notes": "(billets ronds)",
       "title": "Paiement",
       "welcome_discount": "Remise 1re commande",
       "vat_net": "Marchandises HT",
@@ -2971,6 +3034,10 @@ window.POS_STRINGS = {
       "submit_success": "Comptage d'espèces soumis avec succès !"
     },
     "catalog": {
+      "dismiss": "Fermer",
+      "ref_search_ph": "rasta · kawumm · black leaf · grinder…",
+      "ref_search_need_word": "Tapez au moins deux lettres.",
+      "ref_search_applied": "Rempli depuis le catalogue fournisseur — vérifiez, puis enregistrez.",
       "code_use_anyway": "C'EST bien le code sur le paquet — enregistrer",
       "code_let_me_fix": "Je le corrige",
       "ref_search_title": "Catalogue fournisseur",
@@ -3217,6 +3284,13 @@ window.POS_STRINGS = {
       "no_barcode_in_photo": "Impossible de lire le code‑barres sur la photo. Essayez une autre ou saisissez‑le."
     },
     "scan": {
+      "chf_paren": "(CHF)",
+      "webcam": "📷 Webcam",
+      "full_pre": "(Total :",
+      "reading_pre": "Lecture : ",
+      "row_code": "cette ligne :  ",
+      "you_scanned": "vous avez scanné : ",
+      "max_pre": "Max ",
       "showing_pre": "Affichage de",
       "showing_of": "sur",
       "showing_match": "résultats",
@@ -3603,6 +3677,16 @@ window.POS_STRINGS = {
       "g_description_desc": "Description vide"
     },
     "transactions": {
+      "pm_cash": "Espèces",
+      "pm_debit": "Carte de débit",
+      "pm_visa": "Visa",
+      "pm_bank": "Virement bancaire",
+      "pm_crypto": "Crypto",
+      "pm_other": "Autre",
+      "range_today": "Aujourd'hui",
+      "range_7d": "7 derniers jours",
+      "range_2wk": "2 dernières semaines",
+      "range_month": "Ce mois-ci",
       "cashier_today_only": "les caissiers ne voient qu'aujourd'hui ; demandez à un responsable pour d'autres jours",
       "showing": "Affiché :",
       "widen_hint": "modifiez les dates ci-dessus pour en voir plus",
@@ -3720,6 +3804,10 @@ window.POS_STRINGS = {
       "confirm_remove": "Supprimer cette ligne ?"
     },
       "held": {
+      "toast_load": "Impossible de charger la commande",
+      "toast_empty": "Cette commande est vide",
+      "toast_done": "Commande soldée",
+      "toast_fail": "Impossible de mettre à jour la commande",
         "title": "🧾 Commandes en attente",
         "intro": "Paniers créés par les clients à la borne, en attente d'encaissement.",
         "refresh": "Actualiser",
@@ -4566,6 +4654,7 @@ window.POS_STRINGS = {
       "offline_banner": "⚠ <b>Nessuna connessione — le vendite sono in pausa.</b> Il carrello è al sicuro. Passa ai dati mobili o a un hotspot, poi continua."
     },
     "settings": {
+      "role_next_login": "Salvato — attivo al prossimo accesso",
       "join_offer": "Offerta di benvenuto nuovi soci",
       "join_offer_hint": "Uno sconto <b>una tantum</b> sul primo ordine di un nuovo socio. Imposta entrambi a <b>0</b> per disattivare l'offerta — il chiosco offrirà invece punti. L'iscrizione è anonima e illimitata: tutto ciò che viene regalato qui può essere richiesto di nuovo con un codice nuovo.",
       "join_kiosk": "Al chiosco",
@@ -4871,6 +4960,7 @@ window.POS_STRINGS = {
       "err_close": "Impossibile chiudere il cassetto."
     },
     "login": {
+      "keycloak_note": "🔐 Autenticazione sicura tramite Keycloak",
       "staff_login": "Accesso staff",
       "login": "Accedi",
       "sign_up": "Registrati",
@@ -4888,6 +4978,11 @@ window.POS_STRINGS = {
       "vat_total": "IVA totale"
     },
     "receipt": {
+      "pts": " pti",
+      "phone_label": "Telefono:",
+      "email_label": "E-mail:",
+      "vat_legend": "IVA:",
+      "chf_to_tier": "CHF a",
       "paid_foreign": "Pagato in contanti:",
       "rounding": "Arrotondamento (5 ct.):",
       "back_to_report": "← Torna al report",
@@ -5046,6 +5141,18 @@ window.POS_STRINGS = {
       "note_body": "Ogni vendita che contiene un articolo soggetto a limite di età viene bloccata dalla cassa finché l'età dell'acquirente non è verificata, e il modo in cui è stata verificata viene registrato su quella vendita. In questo registro non viene conservato alcun dato personale dei clienti."
     },
     "checkout": {
+      "pct_member_discount": "% di sconto socio",
+      "is_member": "· socio",
+      "member_disc_pre": "Sconto socio (",
+      "pay_in_cash": "💱 paga in contanti:",
+      "collect_approx": "💱 Incassa ≈",
+      "change_in": "· resto in",
+      "cash_short_pre": "⚠️ Il contante ricevuto è",
+      "cash_short_word": "insufficiente",
+      "cash_short_post": "rispetto al totale. Incassa più contante, scegli un importo più alto, oppure premi",
+      "round_to": "Arrotonda a",
+      "give_back": "Restituisci",
+      "clean_notes": "(banconote intere)",
       "title": "Cassa",
       "welcome_discount": "Sconto primo ordine",
       "vat_net": "Merce netta (IVA escl.)",
@@ -5193,6 +5300,10 @@ window.POS_STRINGS = {
       "submit_success": "Conteggio contanti inviato con successo!"
     },
     "catalog": {
+      "dismiss": "Chiudi",
+      "ref_search_ph": "rasta · kawumm · black leaf · grinder…",
+      "ref_search_need_word": "Digita almeno due lettere.",
+      "ref_search_applied": "Compilato dal catalogo fornitore — controlla, poi salva.",
       "code_use_anyway": "È PROPRIO il codice sulla confezione — salva",
       "code_let_me_fix": "Lo correggo",
       "ref_search_title": "Catalogo fornitore",
@@ -5439,6 +5550,13 @@ window.POS_STRINGS = {
       "no_barcode_in_photo": "Non sono riuscito a leggere un codice a barre in quella foto. Provane un'altra, o digitalo."
     },
     "scan": {
+      "chf_paren": "(CHF)",
+      "webcam": "📷 Webcam",
+      "full_pre": "(Intero:",
+      "reading_pre": "Lettura: ",
+      "row_code": "questa riga:  ",
+      "you_scanned": "hai scansionato: ",
+      "max_pre": "Max ",
       "showing_pre": "Mostrati",
       "showing_of": "di",
       "showing_match": "risultati",
@@ -5820,6 +5938,16 @@ window.POS_STRINGS = {
       "g_description_desc": "Descrizione vuota"
     },
     "transactions": {
+      "pm_cash": "Contanti",
+      "pm_debit": "Carta di debito",
+      "pm_visa": "Visa",
+      "pm_bank": "Bonifico bancario",
+      "pm_crypto": "Cripto",
+      "pm_other": "Altro",
+      "range_today": "Oggi",
+      "range_7d": "Ultimi 7 giorni",
+      "range_2wk": "Ultime 2 settimane",
+      "range_month": "Questo mese",
       "cashier_today_only": "i cassieri vedono solo oggi; per altri giorni chiedi a un responsabile",
       "showing": "Mostrato:",
       "widen_hint": "cambia le date sopra per vederne altre",
@@ -5937,6 +6065,10 @@ window.POS_STRINGS = {
       "confirm_remove": "Rimuovere questa riga?"
     },
       "held": {
+      "toast_load": "Impossibile caricare l'ordine",
+      "toast_empty": "Questo ordine è vuoto",
+      "toast_done": "Ordine completato",
+      "toast_fail": "Impossibile aggiornare l'ordine",
         "title": "🧾 Ordini in attesa",
         "intro": "Carrelli creati dai clienti al totem, in attesa di essere incassati.",
         "refresh": "Aggiorna",
@@ -6783,6 +6915,7 @@ window.POS_STRINGS = {
       "offline_banner": "⚠ <b>Kein Internet — Verkäufe pausiert.</b> Dein Warenkorb ist sicher. Wechsle zu mobilen Daten oder einem Hotspot, dann mach weiter."
     },
     "settings": {
+      "role_next_login": "Gespeichert — aktiv bei der nächsten Anmeldung",
       "join_offer": "Willkommensangebot für neue Mitglieder",
       "join_offer_hint": "Ein <b>einmaliger</b> Rabatt auf die erste Bestellung eines neuen Mitglieds. Beide auf <b>0</b> setzen, um das Angebot abzuschalten — der Kiosk bietet dann stattdessen Punkte an. Die Anmeldung ist anonym und unbegrenzt: Was hier verschenkt wird, kann mit einem neuen Code erneut beansprucht werden.",
       "join_kiosk": "Am Kiosk",
@@ -7088,6 +7221,7 @@ window.POS_STRINGS = {
       "err_close": "Kasse konnte nicht geschlossen werden."
     },
     "login": {
+      "keycloak_note": "🔐 Sichere Anmeldung über Keycloak",
       "staff_login": "Mitarbeiter-Anmeldung",
       "login": "Anmelden",
       "sign_up": "Registrieren",
@@ -7105,6 +7239,11 @@ window.POS_STRINGS = {
       "vat_total": "MWST gesamt"
     },
     "receipt": {
+      "pts": " Pkt",
+      "phone_label": "Telefon:",
+      "email_label": "E-Mail:",
+      "vat_legend": "MWST:",
+      "chf_to_tier": "CHF bis",
       "paid_foreign": "Bar bezahlt:",
       "rounding": "Rundung (5 Rp.):",
       "back_to_report": "← Zurück zum Bericht",
@@ -7263,6 +7402,18 @@ window.POS_STRINGS = {
       "note_body": "Jeder Verkauf mit einem 18+ Artikel wird von der Kasse blockiert, bis das Alter geklärt ist, und wie es geklärt wurde, steht auf dem Verkauf. In diesem Nachweis werden keine personenbezogenen Daten von Kundinnen und Kunden gespeichert."
     },
     "checkout": {
+      "pct_member_discount": "% Mitgliederrabatt",
+      "is_member": "· Mitglied",
+      "member_disc_pre": "Mitgliederrabatt (",
+      "pay_in_cash": "💱 bar bezahlen:",
+      "collect_approx": "💱 Einziehen ≈",
+      "change_in": "· Rückgeld in",
+      "cash_short_pre": "⚠️ Erhaltenes Bargeld ist",
+      "cash_short_word": "zu wenig",
+      "cash_short_post": "gegenüber dem Gesamtbetrag. Mehr Bargeld einziehen, höheren Betrag wählen oder drücke",
+      "round_to": "Aufrunden auf",
+      "give_back": "Zurückgeben",
+      "clean_notes": "(glatte Scheine)",
       "title": "Kasse",
       "welcome_discount": "Erstbestellungsrabatt",
       "vat_net": "Nettoware (exkl. MwSt.)",
@@ -7410,6 +7561,10 @@ window.POS_STRINGS = {
       "submit_success": "Kassenzählung erfolgreich gesendet!"
     },
     "catalog": {
+      "dismiss": "Schliessen",
+      "ref_search_ph": "rasta · kawumm · black leaf · grinder…",
+      "ref_search_need_word": "Mindestens zwei Buchstaben eingeben.",
+      "ref_search_applied": "Aus dem Lieferantenkatalog übernommen — prüfen, dann speichern.",
       "code_use_anyway": "Das IST der Code auf der Packung — speichern",
       "code_let_me_fix": "Ich korrigiere ihn",
       "ref_search_title": "Lieferantenkatalog",
@@ -7656,6 +7811,13 @@ window.POS_STRINGS = {
       "no_barcode_in_photo": "Konnte in diesem Foto keinen Barcode lesen. Versuch ein anderes, oder tippe ihn ein."
     },
     "scan": {
+      "chf_paren": "(CHF)",
+      "webcam": "📷 Webcam",
+      "full_pre": "(Voll:",
+      "reading_pre": "Gelesen: ",
+      "row_code": "diese Zeile:  ",
+      "you_scanned": "gescannt: ",
+      "max_pre": "Max ",
       "showing_pre": "Angezeigt",
       "showing_of": "von",
       "showing_match": "Treffern",
@@ -8037,6 +8199,16 @@ window.POS_STRINGS = {
       "g_description_desc": "Leere Beschreibung"
     },
     "transactions": {
+      "pm_cash": "Bar",
+      "pm_debit": "Debitkarte",
+      "pm_visa": "Visa",
+      "pm_bank": "Banküberweisung",
+      "pm_crypto": "Krypto",
+      "pm_other": "Sonstige",
+      "range_today": "Heute",
+      "range_7d": "Letzte 7 Tage",
+      "range_2wk": "Letzte 2 Wochen",
+      "range_month": "Dieser Monat",
       "cashier_today_only": "Kassiererinnen sehen nur heute; für andere Tage einen Vorgesetzten fragen",
       "showing": "Angezeigt:",
       "widen_hint": "Daten oben ändern, um mehr zu sehen",
@@ -8154,6 +8326,10 @@ window.POS_STRINGS = {
       "confirm_remove": "Diese Zeile entfernen?"
     },
       "held": {
+      "toast_load": "Bestellung konnte nicht geladen werden",
+      "toast_empty": "Diese Bestellung ist leer",
+      "toast_done": "Bestellung erledigt",
+      "toast_fail": "Bestellung konnte nicht aktualisiert werden",
         "title": "🧾 Wartende Bestellungen",
         "intro": "Warenkörbe, die Gäste am Kiosk erstellt haben — warten aufs Kassieren.",
         "refresh": "Aktualisieren",
