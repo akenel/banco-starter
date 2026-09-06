@@ -165,6 +165,39 @@ def main():
         for ln, snippet in bt.hits:
             bare.append((f.name, ln, snippet))
 
+    # (3) a key can be PRESENT in every language and still be English. On
+    # 2026-09-06 Angel photographed the whole 18+ Age Gate screen in English on
+    # an Italian till: 27 `agerep.*` keys whose Italian and French values are the
+    # English string, byte for byte. Key-parity said 100% and every check this
+    # repo had was green. This is the one his EYES found and no instrument did.
+    english = {}
+    en = tables["en"]
+    for c in codes:
+        if c == "en": continue
+        same = [k for k, v in tables[c].items()
+                if k in en and str(v).strip() == str(en[k]).strip()
+                and re.search(r"[A-Za-z]{2,}\s+[A-Za-z]{2,}", str(en[k]))]
+        if same: english[c] = same
+
+    # (4) strings hard-coded in <script> blocks never reach t() at all. The date
+    # range buttons on Transaction History ("Today · Last 7 days · Last 2 weeks ·
+    # This month") are JS literals, which is why check (2) — which skips <script>
+    # by design — reported ONE bare string for a screen with five English labels.
+    # Conservative on purpose: a label-shaped key with a multi-word value. A floor.
+    UIKEY = (r"(label|title|text|message|msg|name|placeholder|hint|caption"
+             r"|tooltip|desc|description|reason|status|heading)")
+    in_script = []
+    for f in files:
+        src = strip_comments(f.read_text(encoding="utf-8"))
+        for blk in re.finditer(r"<script\b[^>]*>(.*?)</script>", src, re.S | re.I):
+            base = src.count("\n", 0, blk.start(1))
+            body = blk.group(1)
+            for m in re.finditer(UIKEY + r"\s*:\s*(['\"])(.*?)\2", body):
+                v = m.group(3)
+                if not re.search(r"[A-Za-z]{2,}\s+[A-Za-z]{2,}", v): continue
+                if v.startswith(("http", "/", "#", ".")) or "${" in v: continue
+                in_script.append((f.name, base + body.count("\n", 0, m.start()) + 1, v[:70]))
+
     if bad_keys:
         print(f"❌ {len(bad_keys)} key(s) that do not resolve in every language")
         for fn, ln, key, miss in bad_keys:
@@ -180,9 +213,28 @@ def main():
     else:
         print("✅ no bare multi-word English left in the POS templates")
 
+    if english:
+        n = len(set(k for v in english.values() for k in v))
+        print(f"❌ {n} key(s) present in every language whose value IS the English string")
+        for c in sorted(english):
+            ns = {}
+            for k in english[c]: ns[k.split(".")[0]] = ns.get(k.split(".")[0], 0) + 1
+            top = " · ".join(f"{a} {b}" for a, b in sorted(ns.items(), key=lambda x: -x[1]))
+            print(f"   {c}: {len(english[c])}  ({top})")
+    else:
+        print("✅ no key is quietly still English in another language")
+
+    if in_script:
+        print(f"❌ {len(in_script)} English UI string(s) hard-coded in <script> — never reach t()")
+        for fn, ln, v in in_script: print(f"   {fn}:{ln}  {v}")
+    else:
+        print("✅ no English UI strings hard-coded in <script> blocks")
+
     print()
     print(f"{len(files)} templates read.")
-    return 1 if (bad_keys or bare) else 0
+    print("NOT CHECKED HERE: whether a translation that IS different from English is")
+    print("any GOOD. Nobody who speaks French or Italian has read these strings.")
+    return 1 if (bad_keys or bare or english or in_script) else 0
 
 if __name__ == "__main__":
     sys.exit(main())
