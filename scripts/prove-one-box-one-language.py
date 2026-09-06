@@ -345,12 +345,24 @@ def main():
     router = ROOT / "src/routes/pos_router.py"
     if router.exists():
         rsrc = router.read_text(encoding="utf-8")
+        # A DEFAULT IS A LABEL TOO. Angel pasted the Italian product-sales report on
+        # 2026-09-06 and every category read English. Most are shop DATA and rightly
+        # untouched — but "Uncategorized" is not stored anywhere: it is what
+        # coalesce(ProductModel.category, "Uncategorized") invents for a NULL, in
+        # SQL, in English, for every language. The first version of this check
+        # looked for "label"-shaped keys and walked straight past it.
         for pat in (r'"label":\s*"([^"]{3,})"', r'"blurb":\s*"([^"]{3,})"',
-                    r'"message":\s*"([^"]{6,})"', r'"detail":\s*"([^"]{6,})"'):
+                    r'"message":\s*"([^"]{6,})"', r'"detail":\s*"([^"]{6,})"',
+                    r'coalesce\([^,)]+,\s*"([A-Z][^"]{3,})"\)',
+                    r'\bor\s+"([A-Z][a-z]+(?:\s+[a-z]+){1,6})"'):
             for m in re.finditer(pat, rsrc):
                 v = m.group(1)
-                if not re.search(r"[A-Za-z]{2,}\s+[A-Za-z]{2,}", v): continue
+                if not re.search(r"[A-Za-z]{4,}", v): continue
                 if v.startswith(("http", "/", "{")): continue
+                if v in ALLOW: continue
+                # snake_case is an error CODE, not a sentence a person reads:
+                # refresh_failed, missing refresh_token, refresh_error.
+                if "_" in v: continue
                 server_en.append((rsrc.count("\n", 0, m.start()) + 1, v[:70]))
 
     if bad_keys:
