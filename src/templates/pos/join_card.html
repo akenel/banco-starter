@@ -47,7 +47,12 @@
 </style>
 </head>
 <body>
-  <div class="card">
+  <!-- BILINGUAL ON PURPOSE, and not a translation gap. This is a PRINTED card that
+       sits on the counter in Luzern: German first, English underneath in a lighter
+       weight, so a walk-in reads whichever they have. Running it through the UI
+       language would be wrong — the card does not know who will pick it up, and it
+       is printed once for everybody. -->
+  <div class="card" data-i18n-exempt="a printed counter card, deliberately German + English together — it is read by walk-ins, not by a signed-in user with a language setting">
     <p class="shop">{{ store_name }}</p>
     <h1>Mitglied werden<br><span style="font-weight:600;font-size:20px;">Become a member</span></h1>
     <h2>30 Sekunden · kein Name nötig<br>30 seconds · no name needed</h2>

@@ -27,7 +27,11 @@
 
         <!-- Print stamp (only on paper/PDF) -->
         <div class="print-only mb-4">
-            <h1 style="font-size:18px;font-weight:bold;">Artemis Store — <span data-i18n="product_sales.print_title">Product Sales</span></h1>
+            <!-- The shop's OWN name. This was hard-coded "Artemis Store — " exactly like
+                 transactions.html was until this morning — so a third party cloning the
+                 starter printed Angel's shop at the top of their product-sales report too.
+                 Rule 9: when you find one, check the siblings. This was the sibling. -->
+            <h1 style="font-size:18px;font-weight:bold;"><span x-text="_cfg('store_name')"></span> — <span data-i18n="product_sales.print_title">Product Sales</span></h1>
             <p style="font-size:12px;color:#444;" x-text="rangeLabel()"></p>
             <p style="font-size:10px;color:#888;" x-text="t('product_sales.generated') + ' ' + generatedAt"></p>
         </div>
