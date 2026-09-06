@@ -120,7 +120,16 @@
             <div class="bg-gray-50 rounded-lg p-3">
               <p class="text-[11px] font-bold text-gray-400 uppercase mb-1" data-i18n="hypercare.raw_heading">Raw — as filed</p>
               <p class="font-semibold text-gray-800 text-sm" x-text="t.raw_title"></p>
-              <p class="text-xs text-gray-500 mt-1 whitespace-pre-line" x-text="(t.raw_description||'').slice(0,300)"></p>
+              <!-- SCROLL, DO NOT TRUNCATE. This was .slice(0,300), which cut every
+                   ticket off mid-word inside the auto-collected context block —
+                   Angel's BL-016 ended at "P", the first letter of "Platform".
+                   Storage is unbounded Text and triage reads from the database, so
+                   the AI always had the whole thing; it was the HUMAN who could not
+                   see the screen size, orientation, POS language or the console
+                   breadcrumbs that were collected for them. Collecting context and
+                   then hiding it is worse than not collecting it. -->
+              <p class="text-xs text-gray-500 mt-1 whitespace-pre-line overflow-y-auto"
+                 style="max-height:16rem" x-text="t.raw_description || ''"></p>
             </div>
             <!-- CLEANED -->
             <div class="rounded-lg p-3" :class="t.triaged ? 'bg-indigo-50' : 'bg-gray-50'">
