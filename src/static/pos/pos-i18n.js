@@ -71,6 +71,11 @@ window.POS_STRINGS = {
       "error": "Error"
     },
     "nav": {
+      "fb_capturing": "Capturing…",
+      "fb_recapture_s": "📸 Recapture",
+      "fb_capture_s": "📸 Capture screen",
+      "fb_no_tool": "Screenshot tool not loaded.",
+      "fb_cap_fail": "Could not capture the screen — you can still send without it.",
       "pulse_diag_t": "Full system diagnostics",
       "notifications": "🔔 Notifications",
       "mark_all_read": "Mark all read",
@@ -2332,6 +2337,11 @@ window.POS_STRINGS = {
       "error": "Erreur"
     },
     "nav": {
+      "fb_capturing": "Capture en cours…",
+      "fb_recapture_s": "📸 Recapturer",
+      "fb_capture_s": "📸 Capturer l'écran",
+      "fb_no_tool": "Outil de capture non chargé.",
+      "fb_cap_fail": "Impossible de capturer l'écran — vous pouvez quand même envoyer.",
       "pulse_diag_t": "Diagnostic complet du système",
       "notifications": "🔔 Notifications",
       "mark_all_read": "Tout marquer comme lu",
@@ -4603,6 +4613,11 @@ window.POS_STRINGS = {
       "error": "Errore"
     },
     "nav": {
+      "fb_capturing": "Acquisizione…",
+      "fb_recapture_s": "📸 Ricattura",
+      "fb_capture_s": "📸 Cattura schermo",
+      "fb_no_tool": "Strumento di cattura non caricato.",
+      "fb_cap_fail": "Impossibile catturare lo schermo — puoi inviare comunque.",
       "pulse_diag_t": "Diagnostica completa del sistema",
       "notifications": "🔔 Notifiche",
       "mark_all_read": "Segna tutto come letto",
@@ -6864,6 +6879,11 @@ window.POS_STRINGS = {
       "error": "Fehler"
     },
     "nav": {
+      "fb_capturing": "Wird aufgenommen…",
+      "fb_recapture_s": "📸 Neu aufnehmen",
+      "fb_capture_s": "📸 Bildschirm aufnehmen",
+      "fb_no_tool": "Screenshot-Werkzeug nicht geladen.",
+      "fb_cap_fail": "Bildschirm konnte nicht aufgenommen werden — du kannst trotzdem senden.",
       "pulse_diag_t": "Vollständige Systemdiagnose",
       "notifications": "🔔 Benachrichtigungen",
       "mark_all_read": "Alle als gelesen markieren",

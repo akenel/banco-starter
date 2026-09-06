@@ -40,25 +40,37 @@ activates the new service worker, the second serves from it.
    position already has a corner); both run first on Felix's and Layla's devices.
    → [`2026-09-06-archive-pass.md`](worklist-archive/2026-09-06-archive-pass.md)
 
-0️⃣b **▶️ THE LANGUAGE AUDIT — batch 1 DONE, needs eyes on the tablet.** 41 screenshots from
-   Angel, 2026-09-06. Page carries the plan: [`onboarding/the-language-audit.html`](onboarding/the-language-audit.html).
-   ~~**B** 45/45 `agerep` English in FR+IT~~ · ~~**D** 14 dead keys~~ · ~~**batch 1**: scan · base ·
-   checkout · receipt · transactions · login~~ — **all CLEAN, `96ca533`. NOT DEPLOYED, NOT SEEN.**
-   Two real bugs fell out that are not translation: `transactions.html` printed **"Artemis Store"
-   hard-coded** on every self-hoster's paper, and **10 `t()` calls with no key** printed the raw
-   key (`held.toast_load`) to the cashier — their `|| 'fallback'` was dead code, `t()` returns a
-   truthy key. Both fixed.
-   **▶️ NEXT — batch 2, Felix's office:** settings 11 · catalog 11 · audit 12 · join_card 14.
-   **Then batch 3, the bench:** shelf_intake 131 · hardware 49 · catalog_misses 40 · catalog_health 18.
-   Left: **428 bare · 41 placeholders · 47 in `x-text` · 3 in `<script>`**; 119 title/aria reported
-   but NOT failed (a tooltip needs a pointer; the till is a touchscreen).
-   Guard: never translate the gun's German firmware words, the category names, the de-CH numeric
-   dates, or anything marked `data-i18n-exempt` (the `worldline_sim` sandbox, the receipt's Italian
-   legal line, the tenant's own name). Harness: `scripts/prove-one-box-one-language.py`, 7 checks —
-   **wrong six times before it was right, all six recorded in the file.**
-0️⃣a ⚠️ **THE FRENCH IS UNVERIFIED — nobody who speaks French has read it.** Angel has no French and
-   said so; I wrote `guard_body`, `guard_src_*`, `note_will_file`, `note_drop` and every other FR
-   string in this build. Not a translation gap — a *review* gap. Same for Italian.
+0️⃣b **▶️ THE LANGUAGE AUDIT — batch 1 DONE, needs eyes.** 41 screenshots, 2026-09-06. **Seven**
+   bug classes, not one. ~~**B** 45/45 `agerep` English in FR+IT~~ · ~~**D** 14 dead keys~~ ·
+   ~~**G** 10 `t()` calls printing their own key~~ · ~~**batch 1**: scan · base · checkout ·
+   receipt · transactions · login~~ — **CLEAN, `96ca533`. NOT DEPLOYED, NOT SEEN.**
+   Left: **428 bare · 41 placeholders · 47 `x-text` · 3 `<script>`**; 119 title/aria reported but
+   not failed (a tooltip needs a pointer). **Next: batch 2** = settings · catalog · audit ·
+   join_card. **Then batch 3** = the bench, 238, nobody sells with it.
+   Plan + counts: [`the-language-audit.html`](onboarding/the-language-audit.html) · full narrative,
+   the six harness corrections and the two withdrawn findings:
+   [`2026-09-06-archive-pass.md`](worklist-archive/2026-09-06-archive-pass.md)
+0️⃣c **▶️ THE LANGUAGE WALK — via the 💬 BUTTON, not a screenshot folder.** Angel's idea, 09-06,
+   and most of it was already built: 💬 auto-captures the screen, files a numbered ticket, and
+   `POST /feedback/triage` runs an **Ollama** brain (Turbo if `BH_OLLAMA_KEY`, else local) with a
+   **vision pass over the screenshot** — clean rewrite stored as a separate activity, original
+   untouched, idempotent, `decipherable=false` + questions when it cannot tell.
+   **Loop:** link (`?lang=it`) → 💬 → paste the tap-to-copy title → Send. ~15s a screen.
+   **Unit of work = one SECTION × all four languages, then fix all four at once.**
+   **File a ticket even when the page is FINE** — the only way to learn whether triage invents a
+   problem when there is none.
+   ▶️ [`the phase-0 + section A sheet, Italian`](onboarding/testsheets/2026-09-06-language-walk-it-a.html)
+   — 6 checks on ONE page, then 10 screens. Regenerate:
+   `python3 scripts/make-language-walk.py it --only A --phase0` (screens come from the ROUTER,
+   counts from the harness, so neither can drift).
+   ⚠️ **Two gaps found while planning:** `POST /feedback/{n}/done` DOES take `{"commit":"<sha>"}`
+   (80 chars) so Angel's SHA loop works today — **but triage does NOT feed the KB.** A
+   `kb_contribution_model` and `/pos/kb-approvals` exist and `feedback_triage.py` touches neither.
+   Intent, not wiring. · Phase 0's real question is P5: **is a brain configured on prod at all,**
+   or does triage degrade gracefully and return boilerplate that looks like it worked?
+0️⃣a ⚠️ **THE FRENCH AND ITALIAN ARE UNVERIFIED — nobody who speaks either has read a word.** Angel
+   has no French. ~720 FR/IT strings were written by the copilot on 2026-09-06 alone. Not a
+   translation gap — a **review** gap, and `Sistemazione` is the proof it is real.
 
 0. ~~**THE STARTUP THREAD — walked, measured, fixed. Fourteen cold boots, 2026-09-05.**~~ The till
    **did not come up at all** on a cold boot; five faults behind it. **Fixed and deployed
@@ -66,8 +78,8 @@ activates the new service worker, the second serves from it.
    every earlier proof was `reboot` over SSH **with nobody watching the screen** — LESSON #1 ×14.
    → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
 
-0c. **Do they log out at night?** Raised, not decided. · 0f. **My Day: `could not load your
-   profile: failed to fetch` in red** while offline, under a banner that said so. LESSON #12.
+0c. **Do they log out at night?** Raised, not decided. · 0f. **My Day: red `failed to fetch`
+   while offline**, under a banner that already said so. LESSON #12.
 0g. ✅ **Three consecutive clean cold boots, 2026-09-05** — 57.8 / 58.3 / 58.2s, 0.49s spread,
    criteria agreed first. **The cashier now does nothing at all in the morning.**
 1. ~~**② The keyboard buries the search results**~~ — **FIXED**, confirmed on the tablet, `b644`.
@@ -81,38 +93,28 @@ activates the new service worker, the second serves from it.
    — 21 steps: light, reach, their wifi at the counter, the gun on their surface, noise. No sale.
    [`2026-09-05-four-real-sales.html`](onboarding/testsheets/2026-09-05-four-real-sales.html)
    — 18 steps, and **the one sheet where the payment button IS pressed.** Same trip, second.
-   Everything settleable from here was: real barcodes verified through the shop's OWN endpoint,
-   VAT confirmed **inclusive**, and the pack-deal figures taken by RUNNING the pricing function —
-   **3 → CHF 5.00, 4 → CHF 7.00 (not 6.67)**, Ralph's whole-packs rule, never checked on a stored
-   record. **Nothing has completed a sale on this build** (last: 2026-08-21).
-   → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
-   ~~**And the window-drag bug rides along**~~ — **CLOSED as a compromise Angel accepted.** Not
-   fixed on purpose: **the title bar is both the cause AND the escape hatch.** Four ways back, and
-   it is now a DRILL — steps **B4a/B4b/B4c** have Layla break it and recover it unaided. Five
-   alternatives considered and rejected; all remove the title bar.
-   → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
+   Everything settleable from here was settled — barcodes, VAT **inclusive**, pack deals run
+   through the real pricing function. **Nothing has completed a sale on this build** (last:
+   2026-08-21). → [`09-05`](worklist-archive/2026-09-05-archive-pass.md)
+   ~~**The window-drag bug**~~ — **CLOSED, a compromise Angel accepted:** the title bar is both
+   the cause AND the escape hatch, so it is now a DRILL (steps B4a–c).
+   → [`09-05`](worklist-archive/2026-09-05-archive-pass.md)
 
-6. ~~**Does the shop have a Worldline terminal today?**~~ — **ANSWERED 2026-09-05: two of them,
-   in use today, both do TWINT. Phase 1 integrates NOTHING — Banco replaces the CALCULATOR, not
-   the terminal.** → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
+6. ~~**Worldline today?**~~ — **ANSWERED: two terminals, both do TWINT. Phase 1 integrates
+   NOTHING — Banco replaces the CALCULATOR.** → [`09-05`](worklist-archive/2026-09-05-archive-pass.md)
 7. **The Felix conversation — four decisions that are HIS, written up, none agreed yet.**
-   [`onboarding/the-felix-conversation.html`](onboarding/the-felix-conversation.html): the payment
-   buttons (**Cash · Card · TWINT**, plus an ask-card-type setting so he can flip it himself),
-   Worldline as **Phase 2** with the reasoning and the script, split tender parked, and the trial
-   terms — **FAIL = free defect · ISSUE = quoted change**, agreed BEFORE the trial starts. Also the
-   two asks worth more than they cost: one day's Banana CSV through his Treuhänder, and his real
-   chart-of-accounts codes.
+   [`the-felix-conversation.html`](onboarding/the-felix-conversation.html): the payment buttons,
+   Worldline as **Phase 2**, split tender parked, and the trial terms — **FAIL = free defect ·
+   ISSUE = quoted change**, agreed BEFORE the trial starts. Plus the two cheap asks: a day of
+   Banana CSV via his Treuhänder, and his real chart-of-accounts codes.
 8. **The receipt QR — spec written, not built.**
    [`onboarding/receipt-qr-spec.html`](onboarding/receipt-qr-spec.html). Every receipt fetches its QR
-   from **`api.qrserver.com`** and points at `/join` → La Piazza. It should be drawn by Banco and
-   point at the shop's own site from `store_settings.website`. The renderer already exists —
-   `_qr_data_uri()`, server-side, measured to 10mm against both guns — so this wires three built
-   things together and adds no component. **Not blocking**, but it prints on every receipt from day
-   one, and the failure mode is a broken image box exactly when the wifi is already down.
-   ⚠️ **One decision still open:** when `website` is blank, the spec falls back to the La Piazza
-   invite — which means a THIRD-PARTY shop cloning the starter prints Angel's community on their
-   customers' receipts by default. Probably wrong. No QR at all may be the right default, with La
-   Piazza opt-in. **Angel's call before it is built.**
+   from **`api.qrserver.com`** — a third-party call on every receipt, and the failure mode is a
+   broken image box exactly when the wifi is already down. `_qr_data_uri()` already exists to draw
+   it locally. **Not blocking.**
+   ⚠️ **Open decision:** with `website` blank the spec falls back to the La Piazza invite — so a
+   third-party shop prints Angel's community on its customers' receipts by default. Probably wrong;
+   no QR may be the right default. **Angel's call before it is built.**
 
 ---
 

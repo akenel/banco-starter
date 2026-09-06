@@ -104,3 +104,85 @@ reports `shift.html:342`; with it in place `shift.html` is clean, including the 
 Nine, from `art@art:~/Pictures/Screenshots`, 10:53–11:01. This is the second morning in a row that
 the finding came from a photograph rather than from anything a terminal could reach — the byline
 is grey 14px text under a heading, and nobody reading the template noticed it in four months.
+
+---
+
+## The language thread — the full narrative · 2026-09-06
+
+Moved out of `WORKLIST.md` when the alarm hit 517. The deck keeps a pointer; this keeps the story.
+
+### How it started
+
+Angel walked the cashier screens in Italian, then the same Felix screens in German, Italian, French
+and English, and sent **41 screenshots**. Read side by side they turned what looked like one bug
+into five, then seven.
+
+| | what it is | fixed |
+|---|---|---|
+| **A** | no key at all — 428 left | batch 1 ✅ |
+| **B** | key exists, value IS the English — was 45/45 of `agerep` in FR *and* IT | ✅ all |
+| **C** | written in `<script>`, never reaches `t()` | 3 left |
+| **D** | key resolves in NO language, falls back to English | ✅ all 14 |
+| **E** | English inside an `x-text` expression | 47 left |
+| **F** | English in a `placeholder` attribute | 41 left |
+| **G** | a `t()` call whose key does not exist — prints the RAW KEY | ✅ all 10 |
+
+**A string with no key is English in EVERY language**, so German and French were hit exactly as hard
+as Italian — which answered Angel's question better than a guess could. Only class B was
+language-specific (fr 45 · it 45 · de 1).
+
+### The instrument was wrong six times
+
+`scripts/prove-one-box-one-language.py` was written to stop this class recurring, and it needed
+correcting more often than the code it audits. All six are recorded in the file itself:
+
+1. parsed the JS with a regex and died on a `//` **inside a string** — now asks node
+2. asked about **adjacency instead of ancestry**, and reported **409** bare strings, three of which
+   were fragments of one fully translated sentence containing a `<b>`. It was loudest exactly where
+   the code was healthiest.
+3. blind to keys whose **value is the English** — the class Angel's eyes found
+4. blind to strings in `<script>`
+5. blind to English **inside `x-text`**, having marked every `x-text` element "covered"
+6. required **two Latin words**, so `Cancel`, `Saving…`, `buy`, `Barcode` were invisible — and a
+   leading emoji made it worse, because `🔔 Notifications` does not start with a letter
+7. never looked at `placeholder` attributes at all, and never checked that a `t()` call's key exists
+
+**359 → 458.** The count went UP under scrutiny, the opposite of what the audit page predicted that
+morning. The page was corrected to say so.
+
+### Two bugs that were not translation at all
+
+- **`transactions.html` printed "Artemis Store" hard-coded** at the top of the paper. Every third
+  party who clones this starter has been printing Angel's shop on their own transaction history.
+  Now `_cfg('store_name')`.
+- **Ten `t()` calls whose key does not exist.** `t()` returns the RAW KEY on a miss, so a cashier
+  reads `held.toast_load` as a toast. Nine were written `t('k') || 'English fallback'` — **dead
+  code**, because the raw key is a non-empty string and therefore truthy, so `||` can never fire.
+  A guard that looks like it works. LESSON #12.
+
+### Two findings WITHDRAWN, both mine
+
+I told Angel, in a page written for him to steer by, that `checkout.html` was hard-coded German and
+`receipt.html` hard-coded Italian, and that a French cashier would get German at the terminal and
+Italian on the paper. **Both wrong.** `checkout` is a `worldline_sim` SANDBOX gated on a store
+setting Artemis does not have; `receipt.html:91` is the **Italian legal disclaimer**, printed only
+for an Italian-regime tenant, and translating it would destroy what it exists to do.
+
+**Both had a comment saying so three lines above the string.** That is LESSON #10 word for word.
+Caught before any code changed on the strength of it, because the fix began by reading the block.
+
+They are now marked in the code with `data-i18n-exempt="<why>"` rather than a skip-list hidden in
+the harness — because with these two the REASON was the whole point, and a hidden list would have
+hidden it again.
+
+### Do not "fix" these
+
+The scanner's **German firmware words** in Shelf Intake (`Daten hochladen`, `Normalmodus`) — they
+are printed on the device in the reader's hand and must stay German in every language. **Category
+names** (`Filters & Tips`) are catalogue data. The **de-CH numeric dates** were settled 2026-09-05.
+
+### The standing gap
+
+**Nobody who speaks French or Italian has read any of the ~720 strings written on 2026-09-06.**
+Angel has no French. The English is off the glass; that is not the same as the Italian being good,
+and `Sistemazione` — a real Italian word, and the wrong one — is the proof.

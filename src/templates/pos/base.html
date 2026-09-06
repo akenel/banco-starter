@@ -3080,25 +3080,40 @@
       // downscale to keep the base64 small, then restore the modal. `silent` is for
       // the auto-capture on open (don't shout if it can't grab -- they can recapture).
       function doCapture(silent){
-        if(typeof html2canvas!=='function'){ if(!silent){msg.textContent='Screenshot tool not loaded.';msg.className='lpfb-msg err';} return; }
+        if(typeof html2canvas!=='function'){ if(!silent){msg.textContent=t('nav.fb_no_tool');msg.className='lpfb-msg err';} return; }
         if(!silent){msg.textContent='';msg.className='lpfb-msg';}
-        capture.disabled=true;capture.textContent='Capturing…';
+        capture.disabled=true;capture.textContent=t('nav.fb_capturing');
         ov.style.visibility='hidden';
         setTimeout(function(){
           html2canvas(document.body,{logging:false,useCORS:true,scale:1,
             windowWidth:document.documentElement.scrollWidth,windowHeight:document.documentElement.scrollHeight})
           .then(function(canvas){
             ov.style.visibility='';
-            var maxW=1100,sc=Math.min(1,maxW/canvas.width);
+            // 1600 / 0.85, raised from 1100 / 0.7 on 2026-09-06.
+            //
+            // This image is not a memento — it is the INPUT to the triage vision
+            // model, and from 2026-09-06 it is how a language walk gets recorded.
+            // The job is reading 12px grey Italian on a shift report, and at
+            // 1100px a 2160-wide tablet screen is halved before it is JPEG'd at
+            // 0.7. Angel's hand-taken 2160 PNGs found `Sistemazione` and a byline
+            // in the wrong language; a mushy 1100px JPEG of the same screen might
+            // not have. Bigger tickets are the price, and the cap below is 3 MB of
+            // base64 — a 1600px q0.85 screen lands far under it.
+            //
+            // High-quality smoothing on the downscale, because the whole point is
+            // small text surviving it.
+            var maxW=1600,sc=Math.min(1,maxW/canvas.width);
             var c2=document.createElement('canvas');
             c2.width=Math.max(1,Math.round(canvas.width*sc));c2.height=Math.max(1,Math.round(canvas.height*sc));
-            c2.getContext('2d').drawImage(canvas,0,0,c2.width,c2.height);
-            shot=c2.toDataURL('image/jpeg',0.7);
+            var cx=c2.getContext('2d');
+            cx.imageSmoothingEnabled=true; cx.imageSmoothingQuality='high';
+            cx.drawImage(canvas,0,0,c2.width,c2.height);
+            shot=c2.toDataURL('image/jpeg',0.85);
             thumbImg.src=shot;thumb.style.display='block';
-            capture.disabled=false;capture.textContent='📸 Recapture';
+            capture.disabled=false;capture.textContent=t('nav.fb_recapture_s');
           }).catch(function(){
-            ov.style.visibility='';capture.disabled=false;capture.textContent='📸 Capture screen';
-            if(!silent){msg.textContent='Could not capture the screen — you can still send without it.';msg.className='lpfb-msg err';}
+            ov.style.visibility='';capture.disabled=false;capture.textContent=t('nav.fb_capture_s');
+            if(!silent){msg.textContent=t('nav.fb_cap_fail');msg.className='lpfb-msg err';}
           });
         },60);
       }

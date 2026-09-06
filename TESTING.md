@@ -35,6 +35,7 @@ install chromium` once, from wherever you did install it).
 | `scripts/prove-*.js` driving a **real browser** | **21** | Playwright + headless Chromium. The only things in this repo that can see an `x-show`. |
 | `scripts/prove-*.js` with **no browser** | **1** | `prove-webcam-button-shows.js` — a pure-node harness, needs no stack and no Playwright. |
 | `scripts/prove-*.py` **HTTP/DB probes** | **7** | `prove-age-evidence` · `prove-cash-box` · `prove-cash-rounding` · `prove-catalog-export` · `prove-category-facet-is-honest` · `prove-ean-box-price` · `prove-name-alias`. Server-side truth only. *(This row said **5** until 2026-09-06 — two were added and the count was not, which is the same shape as the test-count lesson below.)* |
+| **generated sheets** | **3** | `scripts/make-language-walk.py` writes `onboarding/testsheets/2026-09-06-language-walk-{it,fr,de}.html` FROM `TEMPLATE.html` — one step per screen, the screen list taken from the router so it cannot drift, every link carrying `?lang=xx`, and each step naming what the harness still says is English there. Re-run it after any i18n work and the counts update. |
 | `scripts/prove-*.py` reading the **source**, not the stack | **1** | `prove-one-box-one-language` — needs no server and no browser. Asks whether any box on the till speaks two languages at once: every `data-i18n` key resolving in all four, and no bare English sentence left uncovered. Written after the third such bug in two days. |
 
 **A Python probe cannot see a screen.** `prove-age-evidence.py` was 25/25 green on an 18+ feature no

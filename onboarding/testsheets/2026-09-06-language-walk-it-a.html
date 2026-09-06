@@ -12,58 +12,230 @@
                  load-bearing ones) · codes[] (tap to copy) · link {href,text}
    ═══════════════════════════════════════════════════════════════════════════════════════ */
 const SHEET = {
-  key:      'banco-uat-CHANGE-ME-v1',            // bump the version when the steps change,
-                                                 // or a tester's old marks reappear on new steps
-  eyebrow:  'Banco POS · UAT',
-  title:    'What is being tested',              // short. It is the browser tab and the report header
-  standfirst: 'One paragraph: what broke, why this sheet exists, and what a GO would mean.',
-  meta: [['Shop','banco.wolfhold.app','https://banco.wolfhold.app/pos'], ['Log in as','cashier or manager'],
-         ['Build','abc1234'], ['Deployed','1 Jan 2026'], ['Budget','~10 min']],
-  safety: { title: 'Never press Checkout.',
-            body: 'Every basket ends with 🗑️ Clear. A completed transaction is a line in the Kassenbuch and cannot be taken back out.' },
-
-  // ── SECTION 0 IS ADDED FOR YOU. You do not write it; the shell prepends it. ───────────
-  //  Why: on 2026-09-04 two runs were invalidated AFTER the fact because the tester had the
-  //  folio keyboard attached — so Banco's own on-screen pad never appeared, and the pad was
-  //  the entire subject of the test. One PASS had to be thrown out, and the date fields had
-  //  passed for a full day while being unusable on the tablet alone.
-  //  `needs` is the list of conditions THIS sheet depends on. Say them out loud and the
-  //  tester confirms them as step 0.2, in the record, before anything else is marked.
-  setup: { needs: ['the folio keyboard DETACHED', 'the scanner gun in your hand', 'landscape'] },
-
-  // ── the steps ──────────────────────────────────────────────────────────────────────────
-  //  do       what to DO. Click for click — assume the reader has never seen the screen.
-  //  expect   what should happen. One observable thing. If you cannot write it as something
-  //           a person SEES, it is not a UAT step.
-  //  why      the story behind it. This is what makes the sheet a training tool rather than
-  //           a checklist — Ralph should finish knowing why the shop cares.
-  //  callout  boxed and loud. Use it ONLY on load-bearing steps, or it stops meaning anything.
-  //  codes    barcodes, tap to copy. Several can be pasted into shelf intake at once.
-  //
-  //  Write at least one step whose expected result is that NOTHING happens. A feature that
-  //  only ever gets tested for firing will fire on everything.
-  sections: [
-    { id: 'A', title: 'First thing to check', time: '3 min', steps: [
-      { id: 'A1',
-        do: 'Scan <b>two</b> of the same paper.',
-        codes: ['84157065'],
-        expect: 'The line reads <b>not reached yet</b> and the total is <b>CHF 4.00</b>',
-        why: 'Two is below the three-pack rung, so the deal must not claim to apply.' },
-      { id: 'A2',
-        do: 'Scan something with no deal at all.',
-        expect: '<b>Nothing</b> — no badge, no message on that line',
-        callout: 'The quiet check. A till that comments on every line is a till nobody reads.' },
-    ]},
-    { id: 'B', title: 'Put the shop back', time: '1 min', steps: [
-      { id: 'B1', do: '🗑️ <b>Clear</b> the cart. Delete any ZZTEST rows you made.',
-        expect: 'Empty cart, clean catalogue',
-        why: 'A test row left active is a row someone can sell.' },
-    ]},
+  "key": "banco-language-walk-it-a-p0-v1",
+  "eyebrow": "Banco POS · language walk · IT",
+  "title": "Italian: section A",
+  "standfirst": "One tap per screen, each link already carrying <code>?lang=it</code> so you never touch the language dropdown. Open it, screenshot it, mark it, next. <b>The timer starts on your first mark and freezes on your last</b>, and every step stamps the time to the second — so the screenshots in your Pictures folder line up with the steps that produced them without renaming a thing. <b>Phase 0 first — six checks on ONE page</b>, before 34 tickets are fired at a system that has never seen more than a handful. Then 10 screens, one ticket each.</b>",
+  "meta": [
+    [
+      "Shop",
+      "banco.wolfhold.app",
+      "https://banco.wolfhold.app/pos?lang=it"
+    ],
+    [
+      "Language",
+      "Italian (Italiano)"
+    ],
+    [
+      "Log in as",
+      "felix for B and C · pam or layla for A"
+    ],
+    [
+      "Counts from",
+      "scripts/prove-one-box-one-language.py"
+    ],
+    [
+      "Budget",
+      "~12 min"
+    ]
   ],
-  closing: [
-    'Every check here is on the <b>screens</b>. Nothing on this sheet rings a sale.',
-    'If a step is <b>ISSUE</b> rather than FAIL, it worked but something was off — wording, layout, speed, or it simply confused you. Those are worth as much as the failures.',
-  ],
+  "safety": {
+    "title": "Look. Do not sell.",
+    "body": "This walk touches Checkout, Cash Box and Close-out. <b>Press no payment button and file no close-out.</b> A completed transaction is a line in the Kassenbuch and cannot be taken back out. Everything here is a screenshot, nothing here is a sale."
+  },
+  "setup": {
+    "needs": [
+      "the language showing <b>IT</b> in the top bar after the first link",
+      "screenshots saving somewhere you can find them",
+      "the same build on screen as the one you are testing"
+    ]
+  },
+  "sections": [
+    {
+      "id": "P",
+      "title": "Phase 0 — prove the loop on ONE page first",
+      "time": "~5 min",
+      "steps": [
+        {
+          "id": "P1",
+          "do": "Open the FIRST link in section A. When the page has settled, tap the <b>💬 button</b> — bottom bar. Do not type anything yet.",
+          "expect": "The panel opens and a <b>thumbnail of this screen</b> is already sitting in it. You did not press capture — it captures on open.",
+          "why": "If there is no thumbnail, everything downstream is theatre: triage reads the screenshot, so a ticket without one is a ticket the brain cannot see.",
+          "link": {
+            "text": "https://banco.wolfhold.app/pos?lang=it  ↗",
+            "href": "https://banco.wolfhold.app/pos?lang=it"
+          }
+        },
+        {
+          "id": "P2",
+          "do": "Tap the thumbnail to enlarge it, or just look hard at it. Find the smallest grey text on the screen.",
+          "expect": "You can <b>read the small text</b> in the shot.",
+          "why": "The capture was raised to 1600px / q0.85 on 2026-09-06 for exactly this. At the old 1100 / 0.7 a tablet screen was halved before being JPEG'd, and the job here is reading 12px Italian. If it is mush, say so and we raise it again."
+        },
+        {
+          "id": "P3",
+          "do": "Type the title the step below gives you, add a line if anything looks wrong, and <b>Send</b>.",
+          "expect": "A <b>ticket number</b> comes back — <code>BL-###</code>.",
+          "why": "That number is the unit of work from here on."
+        },
+        {
+          "id": "P4",
+          "do": "Go to <b>My tickets</b> and open the one you just filed.",
+          "expect": "It is there, with your title and <b>the screenshot attached</b>.",
+          "why": "Round trip proven: filed, stored, readable. This is also the first real test of the reporter-side screens."
+        },
+        {
+          "id": "P5",
+          "do": "Tell Angel's copilot the ticket number. Triage gets run over that ONE ticket.",
+          "expect": "Either a clean rewritten ticket with a type, a severity and a confidence — or a clearly-marked <b>fallback</b> saying no brain was reachable.",
+          "why": "This is the check that decides the whole plan. If <code>BH_OLLAMA_KEY</code> is not set on prod, triage degrades gracefully and returns boilerplate — which looks like it worked. Better to find that on ticket one than ticket ninety."
+        },
+        {
+          "id": "P6",
+          "do": "Read what triage said about the screenshot.",
+          "expect": "It describes <b>the screen you were actually on</b>.",
+          "why": "Vision either read the screen or invented one. A brain that hallucinates a screen will hallucinate a fix, and we would be merging its guesses."
+        }
+      ]
+    },
+    {
+      "id": "A",
+      "title": "The till — where the cashier stands",
+      "time": "~8 min",
+      "steps": [
+        {
+          "id": "A1",
+          "do": "Open <b>sign-in</b> with the link, wait for it to settle, then <b>screenshot the whole screen</b>.",
+          "expect": "<b>Every word on this screen is Italian (Italiano).</b> Mark <b>ISSUE</b> the moment you see one English word — the check says there are none, so anything you find is a hole in it.",
+          "why": "<code>login.html</code> reports CLEAN. That is a claim by a script that has been wrong six times; your eyes are the only thing that has ever caught a translation that EXISTS and is wrong.",
+          "link": {
+            "href": "https://banco.wolfhold.app/pos?lang=it",
+            "text": "/pos  ?lang=it  ↗"
+          },
+          "codes": [
+            "IT A1 · sign-in"
+          ]
+        },
+        {
+          "id": "A2",
+          "do": "Open <b>checkout</b> with the link, wait for it to settle, then <b>screenshot the whole screen</b>. <b>Do NOT press a payment button. Look, screenshot, come back.</b>",
+          "expect": "<b>Every word on this screen is Italian (Italiano).</b> Mark <b>ISSUE</b> the moment you see one English word — the check says there are none, so anything you find is a hole in it.",
+          "why": "<code>checkout.html</code> reports CLEAN. That is a claim by a script that has been wrong six times; your eyes are the only thing that has ever caught a translation that EXISTS and is wrong.",
+          "link": {
+            "href": "https://banco.wolfhold.app/pos/checkout?lang=it",
+            "text": "/pos/checkout  ?lang=it  ↗"
+          },
+          "codes": [
+            "IT A2 · checkout"
+          ]
+        },
+        {
+          "id": "A3",
+          "do": "Open <b>closeout</b> with the link, wait for it to settle, then <b>screenshot the whole screen</b>. <b>Look only. Do not file a close-out.</b>",
+          "expect": "<b>Expect English here — about 2 strings</b> (2 built in code). Screenshot it and mark <b>ISSUE</b>. Mark <b>FAIL</b> only if the screen is broken, not merely English.",
+          "why": "<code>closeout.html</code> is not fixed yet. The shot is the before-picture, and it tells us whether 2 is anywhere near the truth.",
+          "link": {
+            "href": "https://banco.wolfhold.app/pos/closeout?lang=it",
+            "text": "/pos/closeout  ?lang=it  ↗"
+          },
+          "codes": [
+            "IT A3 · closeout"
+          ]
+        },
+        {
+          "id": "A4",
+          "do": "Open <b>customer-lookup</b> with the link, wait for it to settle, then <b>screenshot the whole screen</b>.",
+          "expect": "<b>Expect English here — about 10 strings</b> (4 untranslated · 5 in a placeholder box · 1 built in code). Screenshot it and mark <b>ISSUE</b>. Mark <b>FAIL</b> only if the screen is broken, not merely English.",
+          "why": "<code>customer_lookup.html</code> is not fixed yet. The shot is the before-picture, and it tells us whether 10 is anywhere near the truth.",
+          "link": {
+            "href": "https://banco.wolfhold.app/pos/customer-lookup?lang=it",
+            "text": "/pos/customer-lookup  ?lang=it  ↗"
+          },
+          "codes": [
+            "IT A4 · customer-lookup"
+          ]
+        },
+        {
+          "id": "A5",
+          "do": "Open <b>dashboard</b> with the link, wait for it to settle, then <b>screenshot the whole screen</b>.",
+          "expect": "<b>Expect English here — about 3 strings</b> (3 built in code). Screenshot it and mark <b>ISSUE</b>. Mark <b>FAIL</b> only if the screen is broken, not merely English.",
+          "why": "<code>dashboard.html</code> is not fixed yet. The shot is the before-picture, and it tells us whether 3 is anywhere near the truth.",
+          "link": {
+            "href": "https://banco.wolfhold.app/pos/dashboard?lang=it",
+            "text": "/pos/dashboard  ?lang=it  ↗"
+          },
+          "codes": [
+            "IT A5 · dashboard"
+          ]
+        },
+        {
+          "id": "A6",
+          "do": "Open <b>held-orders</b> with the link, wait for it to settle, then <b>screenshot the whole screen</b>.",
+          "expect": "<b>Every word on this screen is Italian (Italiano).</b> Mark <b>ISSUE</b> the moment you see one English word — the check says there are none, so anything you find is a hole in it.",
+          "why": "<code>held_orders.html</code> reports CLEAN. That is a claim by a script that has been wrong six times; your eyes are the only thing that has ever caught a translation that EXISTS and is wrong.",
+          "link": {
+            "href": "https://banco.wolfhold.app/pos/held-orders?lang=it",
+            "text": "/pos/held-orders  ?lang=it  ↗"
+          },
+          "codes": [
+            "IT A6 · held-orders"
+          ]
+        },
+        {
+          "id": "A7",
+          "do": "Open <b>my-day</b> with the link, wait for it to settle, then <b>screenshot the whole screen</b>.",
+          "expect": "<b>Every word on this screen is Italian (Italiano).</b> Mark <b>ISSUE</b> the moment you see one English word — the check says there are none, so anything you find is a hole in it.",
+          "why": "<code>my_day.html</code> reports CLEAN. That is a claim by a script that has been wrong six times; your eyes are the only thing that has ever caught a translation that EXISTS and is wrong.",
+          "link": {
+            "href": "https://banco.wolfhold.app/pos/my-day?lang=it",
+            "text": "/pos/my-day  ?lang=it  ↗"
+          },
+          "codes": [
+            "IT A7 · my-day"
+          ]
+        },
+        {
+          "id": "A8",
+          "do": "Open <b>scan</b> with the link, wait for it to settle, then <b>screenshot the whole screen</b>.",
+          "expect": "<b>Every word on this screen is Italian (Italiano).</b> Mark <b>ISSUE</b> the moment you see one English word — the check says there are none, so anything you find is a hole in it.",
+          "why": "<code>scan.html</code> reports CLEAN. That is a claim by a script that has been wrong six times; your eyes are the only thing that has ever caught a translation that EXISTS and is wrong.",
+          "link": {
+            "href": "https://banco.wolfhold.app/pos/scan?lang=it",
+            "text": "/pos/scan  ?lang=it  ↗"
+          },
+          "codes": [
+            "IT A8 · scan"
+          ]
+        },
+        {
+          "id": "A9",
+          "do": "Open <b>shift</b> with the link, wait for it to settle, then <b>screenshot the whole screen</b>. <b>Look only. Do not open or close the drawer.</b>",
+          "expect": "<b>Every word on this screen is Italian (Italiano).</b> Mark <b>ISSUE</b> the moment you see one English word — the check says there are none, so anything you find is a hole in it.",
+          "why": "<code>shift.html</code> reports CLEAN. That is a claim by a script that has been wrong six times; your eyes are the only thing that has ever caught a translation that EXISTS and is wrong.",
+          "link": {
+            "href": "https://banco.wolfhold.app/pos/shift?lang=it",
+            "text": "/pos/shift  ?lang=it  ↗"
+          },
+          "codes": [
+            "IT A9 · shift"
+          ]
+        },
+        {
+          "id": "A10",
+          "do": "Open <b>transactions</b> with the link, wait for it to settle, then <b>screenshot the whole screen</b>.",
+          "expect": "<b>Every word on this screen is Italian (Italiano).</b> Mark <b>ISSUE</b> the moment you see one English word — the check says there are none, so anything you find is a hole in it.",
+          "why": "<code>transactions.html</code> reports CLEAN. That is a claim by a script that has been wrong six times; your eyes are the only thing that has ever caught a translation that EXISTS and is wrong.",
+          "link": {
+            "href": "https://banco.wolfhold.app/pos/transactions?lang=it",
+            "text": "/pos/transactions  ?lang=it  ↗"
+          },
+          "codes": [
+            "IT A10 · transactions"
+          ]
+        }
+      ]
+    }
+  ]
 };</script>
 
 <style>
