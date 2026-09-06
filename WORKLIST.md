@@ -40,20 +40,20 @@ activates the new service worker, the second serves from it.
    position already has a corner); both run first on Felix's and Layla's devices.
    → [`2026-09-06-archive-pass.md`](worklist-archive/2026-09-06-archive-pass.md)
 
-0️⃣b **▶️ NEXT — 359 bare English strings, and two boxes pinned to the WRONG language.**
-   Found 2026-09-06 by [`scripts/prove-one-box-one-language.py`](scripts/prove-one-box-one-language.py),
-   written after the byline bug (`972578a`) made it three-in-two-days. **`shift.html` is the only
-   clean template of 38.** The two that are not merely untranslated but pinned:
-   `checkout.html:67` is hard-coded **German** (*Warenkorb behalten — erneut oder Bar*) and
-   `receipt.html:91` hard-coded **Italian** (*Documento non fiscale*) — a French cashier gets German
-   at the till and Italian on the paper. Also **14 keys that resolve in NO language** (`catalog.*`,
-   `cleanup.*`, `reorder.by`, `reports.age_report`, `settings.join_*`).
-   Where they sit, and this ordering IS the plan — the cashier's screens first, Felix's bench last:
-   **base 14 · scan 17 · checkout 11 · receipt 2** (the till, ~44) · settings 11 · catalog 11 ·
-   audit 12 · join_card 14 · then **shelf_intake 131 · hardware 49 · catalog_misses 40 ·
-   catalog_health 18** (bench). ⚠️ **359 is this harness's count, not a hand audit** — its first
-   two versions said 409 and died on a `//`, both recorded in the file. Expect the bench figures to
-   fall once someone reads them.
+0️⃣b **▶️ NEXT — the language audit: FIVE bugs, not one.** Angel walked the cashier screens in
+   Italian and the Felix screens in DE/IT/FR/EN, 41 screenshots, 2026-09-06. **Read the page, it
+   carries the plan and the counts:** [`onboarding/the-language-audit.html`](onboarding/the-language-audit.html).
+   **A** 359 bare strings · **B** 29 keys whose value IS the English (27 `agerep.*` = the whole 18+
+   screen, fr 28 · it 27 · de 1) · **C** 10+ in `<script>` · **D** 14 keys dead in every language ·
+   **E** 61+ inside `x-text` — including the cashier's own `'➕ Add to cart'`.
+   **A bare string is English in EVERY language**, so DE and FR are hit as hard as IT.
+   Two boxes are pinned to the WRONG language: `checkout.html:41` hard-coded **German**,
+   `receipt.html:91` hard-coded **Italian**.
+   ⚠️ A/B/D are exact; **C and E are floors**; A said 409 before the harness was fixed twice.
+   **Batch 1 = the till, ~47 strings** (scan · base · checkout · receipt · transactions · login).
+   Batch 2 = Felix's office. Batch 3 = the bench (264, nobody sells with it).
+   Guard: do NOT translate the gun's German firmware words in Shelf Intake, the category names,
+   or the de-CH numeric dates. Harness: `scripts/prove-one-box-one-language.py` (5 checks).
 0️⃣a ⚠️ **THE FRENCH IS UNVERIFIED — nobody who speaks French has read it.** Angel has no French and
    said so; I wrote `guard_body`, `guard_src_*`, `note_will_file`, `note_drop` and every other FR
    string in this build. Not a translation gap — a *review* gap. Same for Italian.

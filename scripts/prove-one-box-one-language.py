@@ -198,6 +198,26 @@ def main():
                 if v.startswith(("http", "/", "#", ".")) or "${" in v: continue
                 in_script.append((f.name, base + body.count("\n", 0, m.start()) + 1, v[:70]))
 
+    # (5) English written INSIDE an x-text expression. Check (2) treats any
+    # element carrying x-text as covered — which is right about the element and
+    # wrong about the expression. Angel photographed `yours:` / `theirs:` on the
+    # product modal in German, Italian AND French on 2026-09-06; they are
+    # x-text="'yours: ' + form.barcode". The scan screen's own button is the same
+    # shape: x-text with '⚠️ Confirm' / '➕ Add to cart' spelled out in it.
+    # A FLOOR: a literal carrying + ( ) is usually the gap between two real
+    # literals in a concatenation, not a string, so those are dropped.
+    in_xtext = []
+    for f in files:
+        src = strip_comments(f.read_text(encoding="utf-8"))
+        for m in re.finditer(r'(?:x-text|x-html)="([^"]*)"', src):
+            for lit in re.finditer(r"'([^']{3,})'", m.group(1)):
+                v = lit.group(1)
+                if re.search(r"[)+]\s*$|^\s*[+(]", v) or any(c in v for c in "+()"): continue
+                if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_.\-]*", v): continue
+                if v.startswith(("http", "/", "#", ".")): continue
+                if not re.search(r"[A-Za-z]{2,}", v): continue
+                in_xtext.append((f.name, src.count("\n", 0, m.start()) + 1, v[:60]))
+
     if bad_keys:
         print(f"❌ {len(bad_keys)} key(s) that do not resolve in every language")
         for fn, ln, key, miss in bad_keys:
@@ -230,11 +250,18 @@ def main():
     else:
         print("✅ no English UI strings hard-coded in <script> blocks")
 
+    if in_xtext:
+        print(f"❌ {len(in_xtext)} English literal(s) inside x-text expressions (a FLOOR)")
+        for fn, ln, v in in_xtext[:40]: print(f"   {fn}:{ln}  {v!r}")
+        if len(in_xtext) > 40: print(f"   … and {len(in_xtext)-40} more")
+    else:
+        print("✅ no English written inside an x-text expression")
+
     print()
     print(f"{len(files)} templates read.")
     print("NOT CHECKED HERE: whether a translation that IS different from English is")
     print("any GOOD. Nobody who speaks French or Italian has read these strings.")
-    return 1 if (bad_keys or bare or english or in_script) else 0
+    return 1 if (bad_keys or bare or english or in_script or in_xtext) else 0
 
 if __name__ == "__main__":
     sys.exit(main())

@@ -1,0 +1,207 @@
+<!-- Written 2026-09-06 after Angel walked the cashier screens in Italian and the
+     Felix screens in DE/IT/FR/EN and sent 41 screenshots. Every count on this page
+     comes from scripts/prove-one-box-one-language.py, and every count is labelled
+     with how much to trust it. The point of the page is to decide what to fix
+     first — it is a plan, not an inventory. -->
+<title>The language audit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+  :root{
+    --paper:#f1f4f2; --card:#fff; --ink:#141d1b; --ink-2:#41514e; --ink-3:#71847f;
+    --rule:#dfe6e2; --accent:#136259; --accent-soft:#e2efec;
+    --warn:#8a4b06; --warn-soft:#fcf0dd; --bad:#a51b1b; --bad-soft:#fbe9e9;
+    --good:#1c6b3a; --good-soft:#e4f2e8;
+  }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+    --paper:#0e1413; --card:#161e1c; --ink:#e8efec; --ink-2:#a3b3ae; --ink-3:#7b8c87;
+    --rule:#27332f; --accent:#5cc4b4; --accent-soft:#12312d;
+    --warn:#e5aa5c; --warn-soft:#382512; --bad:#f08b8b; --bad-soft:#3a1a1a;
+    --good:#7bce9c; --good-soft:#14301f;
+  }}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);
+       font:16px/1.55 "IBM Plex Sans",system-ui,sans-serif;padding:2rem 1rem 4rem}
+  .wrap{max-width:58rem;margin:0 auto}
+  header{margin-bottom:1.5rem}
+  .eyebrow{font:600 .72rem/1 "IBM Plex Mono",monospace;letter-spacing:.14em;
+           text-transform:uppercase;color:var(--accent);margin-bottom:.5rem}
+  h1{font-size:2rem;line-height:1.15;margin:0 0 .4rem}
+  .stand{color:var(--ink-2);margin:0;max-width:44rem}
+  section{background:var(--card);border:1px solid var(--rule);border-radius:.85rem;
+          padding:1.25rem 1.4rem;margin:1rem 0;box-shadow:0 1px 2px rgba(20,29,27,.05)}
+  h2{font-size:1.15rem;margin:0 0 .3rem;display:flex;align-items:baseline;gap:.6rem;flex-wrap:wrap}
+  h2 .when{font:600 .72rem/1 "IBM Plex Mono",monospace;color:var(--ink-3);
+           letter-spacing:.08em;text-transform:uppercase}
+  h3{font-size:.95rem;margin:1.1rem 0 .3rem}
+  p{margin:.55rem 0}
+  ul,ol{margin:.6rem 0 0;padding-left:1.25rem} li{margin:.35rem 0}
+  .mono,code{font-family:"IBM Plex Mono",monospace;font-size:.9em}
+  code{background:var(--accent-soft);padding:.1rem .32rem;border-radius:.25rem}
+  .note{margin-top:.9rem;padding:.7rem .9rem;border-radius:.55rem;
+        background:var(--accent-soft);color:var(--ink-2);font-size:.93rem}
+  .warn{background:var(--warn-soft);color:var(--warn);border-left:3px solid var(--warn)}
+  .good{background:var(--good-soft);color:var(--good);border-left:3px solid var(--good)}
+  .stop{background:var(--bad-soft);color:var(--bad);border-left:3px solid var(--bad)}
+  .scroll{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;margin-top:.7rem;font-size:.93rem}
+  th,td{text-align:left;padding:.45rem .6rem;border-bottom:1px solid var(--rule);vertical-align:top}
+  th{font:600 .7rem/1 "IBM Plex Mono",monospace;letter-spacing:.06em;
+     text-transform:uppercase;color:var(--ink-3);white-space:nowrap}
+  td.n{text-align:right;font-family:"IBM Plex Mono",monospace;font-weight:600;white-space:nowrap}
+  .cls{display:inline-block;min-width:1.4rem;text-align:center;font:700 .78rem/1.5 "IBM Plex Mono",monospace;
+       background:var(--ink);color:var(--paper);border-radius:.3rem;padding:.1rem .35rem}
+  .big{font:700 2rem/1 "IBM Plex Sans",sans-serif;color:var(--bad)}
+  .grid{display:grid;gap:.8rem;grid-template-columns:repeat(auto-fit,minmax(11rem,1fr));margin-top:.9rem}
+  .stat{background:var(--paper);border:1px solid var(--rule);border-radius:.6rem;padding:.7rem .85rem}
+  .stat .k{font:600 .68rem/1 "IBM Plex Mono",monospace;letter-spacing:.06em;
+           text-transform:uppercase;color:var(--ink-3)}
+  .stat .v{font:700 1.5rem/1.2 "IBM Plex Sans",sans-serif;margin-top:.25rem}
+  footer{margin-top:2rem;color:var(--ink-3);font-size:.85rem;border-top:1px solid var(--rule);padding-top:1rem}
+  @media print{body{background:#fff;padding:0}section{break-inside:avoid;box-shadow:none}}
+</style>
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">Banco POS · 2026-09-06 · build b693</div>
+  <h1>The language audit</h1>
+  <p class="stand">Angel walked the cashier screens in Italian, then the Felix screens in
+  German, Italian, French and English, and sent 41 screenshots. This is what they found, what
+  the code says, and — the only part that matters — <b>what to fix first.</b></p>
+</header>
+
+<section>
+  <h2>The one-line version</h2>
+  <p>It is not one bug. It is <b>five</b>, they have different causes, and only one of them was
+  ever visible to an automated check. <b>A string with no key is English in every language</b> —
+  so German and French are hit exactly as hard as Italian, not less.</p>
+  <div class="grid">
+    <div class="stat"><div class="k">A · bare strings</div><div class="v">359</div></div>
+    <div class="stat"><div class="k">B · "translated" to English</div><div class="v">29</div></div>
+    <div class="stat"><div class="k">C · in &lt;script&gt;</div><div class="v">10+</div></div>
+    <div class="stat"><div class="k">D · dead keys</div><div class="v">14</div></div>
+    <div class="stat"><div class="k">E · inside x-text</div><div class="v">61+</div></div>
+  </div>
+  <div class="note warn"><b>Read the counts as instruments, not facts.</b> A, D and B are exact.
+  C and E are <b>floors</b> — deliberately conservative patterns, so the true number is higher.
+  And A's first two versions said <b>409</b> before the harness was corrected twice. Nothing here
+  is a hand audit.</div>
+</section>
+
+<section>
+  <h2>The five classes <span class="when">what actually goes wrong</span></h2>
+
+  <h3><span class="cls">A</span> &nbsp;No key at all — 359 strings</h3>
+  <p>Plain English text in the template with nothing marking it translatable. <b>Shelf Intake is
+  the proof:</b> in French, Italian and German it is byte-identical English — only the bottom nav
+  bar changes. Same for the Audit Cockpit and What the till couldn't find.</p>
+
+  <h3><span class="cls">B</span> &nbsp;The key exists and its value <em>is</em> English — 29</h3>
+  <p><b>27 <code>agerep.*</code> keys</b> have Italian and French values that are the English string,
+  byte for byte. That is the whole 18+ Age Gate screen. It passes key-parity at 100%, so every
+  automated check in this repo has been green on it since it was written.
+  <b>fr 28 · it 27 · de 1.</b> This is the class Angel's eyes found and no instrument did.</p>
+
+  <h3><span class="cls">C</span> &nbsp;Written in JavaScript, never reaches <code>t()</code> — 10+</h3>
+  <p>Transaction History's date range — <code>Today · Last 7 days · Last 2 weeks · This month</code> —
+  is a list of JS literals at <code>transactions.html:378</code>. Also <code>roleDisplay()</code>,
+  which is why the header reads <b>felix | Owner</b> and <b>pam | Cashier</b> in every language.</p>
+
+  <h3><span class="cls">D</span> &nbsp;A key that resolves in <em>no</em> language — 14</h3>
+  <p>It falls back to the English in the tag, in all four. Two were photographed:
+  <code>reorder.by</code> gives <b>Riassortimento · <em>by</em> layla</b> in Italian and
+  <b>Réapprovisionnement · <em>by</em> layla</b> in French; the four <code>settings.join_*</code>
+  keys give the English <em>New-member join offer</em> block under an Italian heading.
+  The rest: <code>catalog.code_use_anyway</code> · <code>catalog.code_let_me_fix</code> ·
+  <code>catalog.ref_search_*</code> (4) · <code>cleanup.no_price</code> ·
+  <code>cleanup.no_tier</code> · <code>reports.age_report</code>.</p>
+
+  <h3><span class="cls">E</span> &nbsp;English inside an <code>x-text</code> expression — 61+</h3>
+  <p>The hole the harness was actively hiding: it treated any element with <code>x-text</code> as
+  covered, which is right about the element and wrong about the expression.
+  <code>x-text="'yours: ' + form.barcode"</code> is English in German, Italian <em>and</em> French,
+  on the product modal. So is <code>'% ready'</code> on every cleanup row. <b>And so is the
+  cashier's own button</b> — <code>scan.html:284</code> spells out <code>'⚠️ Confirm'</code> and
+  <code>'➕ Add to cart'</code> inside the expression.</p>
+</section>
+
+<section>
+  <h2>Two boxes are pinned to the wrong language <span class="when">worse than untranslated</span></h2>
+  <div class="note stop">
+    <b><code>checkout.html:41</code> is hard-coded German</b> — <code>'TWINT auflegen'</code> /
+    <code>'Karte auflegen'</code> / <code>'💳 Karte'</code>. A French cashier gets German at the
+    terminal prompt.<br>
+    <b><code>receipt.html:91</code> is hard-coded Italian</b> —
+    <em>Documento non fiscale</em> — on every receipt, in every language.
+  </div>
+  <p>These are not gaps. Somebody wrote one language into a box that serves four, and it will read
+  as a fault rather than as a missing translation.</p>
+</section>
+
+<section>
+  <h2>Where the 359 sit <span class="when">this ordering is the plan</span></h2>
+  <p>Sorted by <b>who is standing in front of it</b>, not by size. The till first.</p>
+  <div class="scroll">
+  <table>
+    <tr><th>Screen</th><th>A</th><th>Who</th><th>Batch</th></tr>
+    <tr><td><code>scan.html</code></td><td class="n">17</td><td>the cashier, all day</td><td><b>1</b></td></tr>
+    <tr><td><code>base.html</code></td><td class="n">14</td><td>every screen</td><td><b>1</b></td></tr>
+    <tr><td><code>checkout.html</code></td><td class="n">11</td><td>the cashier, every sale</td><td><b>1</b></td></tr>
+    <tr><td><code>receipt.html</code></td><td class="n">2</td><td>the customer</td><td><b>1</b></td></tr>
+    <tr><td><code>transactions.html</code></td><td class="n">1</td><td>cashier + Felix</td><td><b>1</b></td></tr>
+    <tr><td><code>login.html</code></td><td class="n">2</td><td>everyone, first thing</td><td><b>1</b></td></tr>
+    <tr><td><code>settings.html</code></td><td class="n">11</td><td>Felix</td><td>2</td></tr>
+    <tr><td><code>catalog.html</code></td><td class="n">11</td><td>Felix + manager</td><td>2</td></tr>
+    <tr><td><code>audit.html</code></td><td class="n">12</td><td>Felix / Treuhänder</td><td>2</td></tr>
+    <tr><td><code>join_card.html</code></td><td class="n">14</td><td>the customer</td><td>2</td></tr>
+    <tr><td><code>catalog_health.html</code></td><td class="n">18</td><td>Felix, at the bench</td><td>3</td></tr>
+    <tr><td><code>catalog_misses.html</code></td><td class="n">40</td><td>Felix, at the bench</td><td>3</td></tr>
+    <tr><td><code>hardware.html</code></td><td class="n">49</td><td>setup only</td><td>3</td></tr>
+    <tr><td><code>shelf_intake.html</code></td><td class="n">131</td><td>Felix, at the bench</td><td>3</td></tr>
+    <tr><td>the rest (9 files)</td><td class="n">26</td><td>labels, selftest, postcards</td><td>3</td></tr>
+  </table>
+  </div>
+  <p><b>Batch 1 is ~47 strings and it is the shop.</b> Batch 3 is 264 and nobody sells with it.</p>
+</section>
+
+<section>
+  <h2>Three things NOT to "fix" <span class="when">read before touching</span></h2>
+  <ul>
+    <li><b>The gun's German menu words.</b> Shelf Intake says <code>Daten hochladen</code>,
+        <code>Anzahl der gescannten Barcodes</code>, <code>Normalmodus</code>. Those are printed on
+        the scanner's own firmware menu. They must stay German in <em>every</em> language, because
+        that is what the person is reading off the device in their hand.</li>
+    <li><b>Category names.</b> <code>Filters &amp; Tips</code>, <code>Accessories (general)</code>
+        are the shop's own catalogue data, not UI. Translating them would change the data.</li>
+    <li><b>The de-CH numeric dates.</b> <code>6.9.2026</code> on a document is the shop's country,
+        by design — settled 2026-09-05. Only day and month <em>names</em> follow the reader.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>What this page cannot tell you <span class="when">the honest limit</span></h2>
+  <div class="note stop"><b>Nothing here says whether a translation that exists is any GOOD.</b>
+  That is the class Angel opened the morning with — "bad italian translations" — and no harness in
+  this repo can see it. <code>Sistemazione</code> for the cleanup report is a real word, real
+  Italian, and wrong. The Italian workbench button reads <b>Banco</b>, inside the app called Banco.
+  The cleanup screen is <em>Coda di sistemazione</em> in Italian and <em>Cockpit du catalogue</em>
+  in French — two different metaphors for one screen.</div>
+  <p>And the standing gap has not moved: <b>nobody who speaks French or Italian has read any of
+  these strings.</b> Angel has no French. Fixing all 359 gets the English off the glass; it does
+  not make the Italian good. Those are two different jobs and only one of them can be done from
+  here.</p>
+  <div class="note">One layout note while we are here: in French the product modal's save button
+  reads <em>Enregistrer les modifications</em> and wraps onto <b>three lines</b>, making it roughly
+  twice as tall as the German and Italian ones. Cosmetic, French only, real.</div>
+</section>
+
+<footer>
+  Every count on this page comes from
+  <span class="mono">scripts/prove-one-box-one-language.py</span> — run it, do not quote this page.
+  The harness was wrong three times before it was right (it parsed JS with a regex; it asked about
+  adjacency instead of ancestry and said 409; it called every <span class="mono">x-text</span>
+  element covered and missed 61 strings inside them). All three are recorded in the file.
+  Written 6 September 2026 from 41 screenshots.
+</footer>
+</div>
