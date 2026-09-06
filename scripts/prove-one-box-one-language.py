@@ -44,6 +44,8 @@ ALLOW = {
     "HelixPOS", "Banco", "La Piazza",        # product names
     "CHF", "TWINT", "Twint", "EAN", "SKU",   # units and identifiers
     "Card / TWINT", "Card / Twint",
+    "worldline", "Visa", "Twint", "Instagram", "Telegram", "Facebook",  # brand names
+    "BL-000",                                 # a placeholder ticket ref, replaced at runtime
 }
 ALLOW_RE = [
     re.compile(r"^[\W\d\s]+$"),               # punctuation / digits / emoji only
@@ -132,7 +134,20 @@ class BareText(HTMLParser):
         if len(s) < 4 or s in ALLOW: return
         if any(r.match(s) for r in ALLOW_RE): return
         if "{{" in s or "{%" in s: return
-        if not re.search(r"[A-Za-z]{2,}\s+[A-Za-z]{2,}", s): return
+        # A SENTENCE IS NOT THE ONLY THING A CASHIER READS. Until 2026-09-06 this
+        # required two Latin words, so `Cancel`, `Saving…`, `buy`, `Price (CHF)`
+        # and `Barcode` were invisible — 118 of them, 15 on the scan screen alone,
+        # including the Cancel on the manager price panel. The third time this
+        # instrument has undercounted the thing it was written to find. A label is
+        # a string; length is not the test.
+        if not re.search(r"[A-Za-z]{2,}", s): return
+        if not re.search(r"[A-Za-z]{2,}\s+[A-Za-z]{2,}", s):
+            # single label: must look like a word, not a code or a fragment
+            # strip leading/trailing symbols and emoji first — "🔔 Notifications"
+            # and "Diagnostics ↗" are labels, and testing the raw string rejected
+            # both because it does not start with a letter.
+            core = re.sub(r"^[^A-Za-z]+|[^A-Za-z'’!?.)…%]+$", "", s)
+            if not re.fullmatch(r"[A-Za-z][A-Za-z'’\-…!?:%()&. ]{1,28}", core): return
         self.hits.append((self.getpos()[0], " ".join(s.split())[:78]))
 
 
@@ -218,6 +233,26 @@ def main():
                 if not re.search(r"[A-Za-z]{2,}", v): continue
                 in_xtext.append((f.name, src.count("\n", 0, m.start()) + 1, v[:60]))
 
+    # (6) A placeholder is text the cashier reads, and it lives in an ATTRIBUTE —
+    # so checks (1) and (2) both miss it: (1) only validates placeholders that
+    # already HAVE a key, and (2) only reads text nodes. The feedback panel's
+    # "Short title (what's up?)" and "Details — what happened…" sat in English in
+    # all four languages the whole time. Same for title= and aria-label=.
+    bare_attr = []
+    for f in files:
+        src = strip_comments(strip_blocks(f.read_text(encoding="utf-8")))
+        for m in re.finditer(r"<[^>]+>", src):
+            tag = m.group(0)
+            for attr, i18n in (("placeholder", "data-i18n-placeholder"),
+                               ("title", "data-i18n-title"),
+                               ("aria-label", "data-i18n-aria")):
+                am = re.search(r'(?<![-\w])%s="([^"]{3,})"' % attr, tag)
+                if not am or i18n in tag: continue
+                v = am.group(1)
+                if v in ALLOW or ":" in v[:6] or "{{" in v: continue
+                if not re.search(r"[A-Za-z]{2,}", v): continue
+                bare_attr.append((f.name, src.count("\n", 0, m.start()) + 1, attr, v[:56]))
+
     if bad_keys:
         print(f"❌ {len(bad_keys)} key(s) that do not resolve in every language")
         for fn, ln, key, miss in bad_keys:
@@ -257,11 +292,27 @@ def main():
     else:
         print("✅ no English written inside an x-text expression")
 
+    # A PLACEHOLDER IS READ; A TITLE IS NOT — not on this shop's machine. `title`
+    # renders as a hover tooltip and the till is a touchscreen with no pointer, so
+    # those strings are invisible there however wrong they are. Reported, never
+    # failed on. `aria-label` is the same: real, but not on the glass.
+    ph = [h for h in bare_attr if h[2] == "placeholder"]
+    other = [h for h in bare_attr if h[2] != "placeholder"]
+    if ph:
+        print(f"❌ {len(ph)} English placeholder(s) with no key — these ARE on the glass")
+        for fn, ln, a, v in ph[:30]: print(f"   {fn}:{ln}  {v!r}")
+        if len(ph) > 30: print(f"   … and {len(ph)-30} more")
+    else:
+        print("✅ every placeholder the cashier reads has a key")
+    if other:
+        print(f"⚠️  {len(other)} title/aria-label attribute(s) in English — NOT a failure: a")
+        print("    title is a hover tooltip and the till is a touchscreen with no pointer.")
+
     print()
     print(f"{len(files)} templates read.")
     print("NOT CHECKED HERE: whether a translation that IS different from English is")
     print("any GOOD. Nobody who speaks French or Italian has read these strings.")
-    return 1 if (bad_keys or bare or english or in_script or in_xtext) else 0
+    return 1 if (bad_keys or bare or english or in_script or in_xtext or ph) else 0
 
 if __name__ == "__main__":
     sys.exit(main())

@@ -150,7 +150,7 @@
                             </template>
                         </select>
                         <p class="text-sm text-gray-600">
-                            <span x-show="searchTotal > 0">Showing <span x-text="searchResults.length"></span> of <span x-text="searchTotal"></span> matches</span>
+                            <span x-show="searchTotal > 0"><span data-i18n="scan.showing_pre">Showing</span> <span x-text="searchResults.length"></span> <span data-i18n="scan.showing_of">of</span> <span x-text="searchTotal"></span> <span data-i18n="scan.showing_match">matches</span></span>
                             <span x-show="searchInput.length >= 2 && searchTotal === 0" data-i18n="scan.no_matches">No matches</span>
                             <span x-show="searchInput.length < 2 && !searchCategory" data-i18n="scan.search_hint">Type at least 2 letters, or pick a category</span>
                         </p>
@@ -281,7 +281,7 @@
                             <button @click="addDepartmentLine()"
                                     class="flex-1 py-4 rounded-lg text-white font-bold text-lg"
                                     :class="Number(deptPrice) >= 200 && !deptConfirmed ? 'bg-red-700' : 'bg-slate-800'"
-                                    x-text="Number(deptPrice) >= 200 && !deptConfirmed ? '⚠️ Confirm' : '➕ Add to cart'"></button>
+                                    x-text="Number(deptPrice) >= 200 && !deptConfirmed ? t('scan.confirm_big') : t('scan.add_to_cart')"></button>
                             <button @click="deptOpen=false; deptChosen=null; deptConfirmed=false"
                                     class="px-4 py-4 rounded-lg border-2 border-slate-300 text-slate-600 flex-none">✕</button>
                           </div>
@@ -506,8 +506,8 @@
                                                 x-text="'🏷️ ' + catLabel(product.category)"></button>
                                     </div>
                                     <p class="text-sm text-gray-600">
-                                        SKU: <span x-text="product.sku"></span>
-                                        <span x-show="product.barcode"> | Barcode: <span x-text="product.barcode"></span></span>
+                                        <span data-i18n="scan.sku_label">SKU:</span> <span x-text="product.sku"></span>
+                                        <span x-show="product.barcode"> | <span data-i18n="scan.barcode_label">Barcode:</span> <span x-text="product.barcode"></span></span>
                                     </p>
                                     <p class="text-lg font-bold text-indigo-600" x-text="formatPrice(product.price)"></p>
                                 </div>
@@ -530,7 +530,7 @@
                     <!-- Pagination: load the next page on demand (big catalog) -->
                     <button x-show="searchResults.length < searchTotal" @click="loadMore()"
                         class="btn-secondary w-full mt-3" :disabled="searchLoading">
-                        <span x-show="!searchLoading">Show more (<span x-text="searchTotal - searchResults.length"></span> more)</span>
+                        <span x-show="!searchLoading"><span data-i18n="scan.show_more_pre">Show more (</span><span x-text="searchTotal - searchResults.length"></span> <span data-i18n="scan.show_more_post">more)</span></span>
                         <span x-show="searchLoading" data-i18n="common.loading">Loading…</span>
                     </button>
                 </div>
@@ -793,7 +793,7 @@
                                 class="input-field text-xl font-bold"
                                 :placeholder="'Max ' + formatPrice(totals.subtotal)">
                             <p x-show="targetTotal && discount > 0" class="text-sm text-green-600 mt-1">
-                                = <span x-text="discount.toFixed(2)"></span>% discount applied
+                                = <span x-text="discount.toFixed(2)"></span><span data-i18n="scan.pct_disc_applied">% discount applied</span>
                             </p>
                         </div>
 
@@ -804,7 +804,7 @@
                                 <span class="font-semibold" x-text="formatPrice(totals.subtotal)"></span>
                             </div>
                             <div x-show="discount > 0" class="flex justify-between text-sm text-green-600">
-                                <span>Discount (<span x-text="discount"></span>%):</span>
+                                <span><span data-i18n="common.discount_pre">Discount (</span><span x-text="discount"></span>%):</span>
                                 <span class="font-semibold" x-text="'-' + formatPrice(totals.discountAmount)"></span>
                             </div>
                             <!-- No TOTAL here any more: it is pinned at the top of this card.
@@ -812,7 +812,7 @@
                                  itself. What stays is the BREAKDOWN — subtotal, discount, VAT —
                                  which is what a cashier reads when a customer queries the figure. -->
                             <div class="flex justify-between text-sm text-gray-500 border-t pt-2">
-                                <span>incl. VAT (<span x-text="_cfg('vat_rate')"></span>%):</span>
+                                <span><span data-i18n="scan.incl_vat_pre">incl. VAT (</span><span x-text="_cfg('vat_rate')"></span>%):</span>
                                 <span x-text="formatPrice(totals.vat)"></span>
                             </div>
                         </div>
@@ -884,22 +884,22 @@
                     <div x-show="user.isManager || user.isAdmin" style="display:none;" class="mt-3">
                         <button x-show="!priceEditOpen" @click="openPriceEdit()"
                                 class="w-full py-2 rounded-lg border-2 border-amber-300 bg-amber-50 text-amber-900 font-semibold text-sm hover:bg-amber-100">
-                            ✏️ <span>Price looks wrong? Fix it here</span>
+                            ✏️ <span data-i18n="scan.price_wrong">Price looks wrong? Fix it here</span>
                         </button>
                         <div x-show="priceEditOpen" style="display:none;"
                              class="border-2 border-amber-300 bg-amber-50 rounded-lg p-3 text-left">
-                            <p class="text-xs font-bold text-amber-900 mb-2">✏️ Manager price fix — the sale keeps going</p>
-                            <label class="block text-xs font-medium text-gray-700">Price (CHF)</label>
+                            <p class="text-xs font-bold text-amber-900 mb-2" data-i18n="scan.price_fix_title">✏️ Manager price fix — the sale keeps going</p>
+                            <label class="block text-xs font-medium text-gray-700" data-i18n="common.price_chf">Price (CHF)</label>
                             <input type="text" inputmode="decimal" data-keypad="decimal" x-model="priceEdit.price"
                                    @input="priceEdit.price = window.posMoneyOnly($event.target.value); $event.target.value = priceEdit.price"
                                    class="w-full border rounded-lg px-3 py-2 text-lg font-bold mb-2">
-                            <label class="block text-xs font-medium text-gray-700">Quantity price breaks</label>
+                            <label class="block text-xs font-medium text-gray-700" data-i18n="scan.qty_breaks">Quantity price breaks</label>
                             <template x-for="(row, i) in priceEdit.tiers" :key="i">
                                 <div class="flex items-center gap-2 mb-1">
-                                    <span class="text-xs text-gray-500 flex-none">buy</span>
+                                    <span class="text-xs text-gray-500 flex-none" data-i18n="scan.tier_buy">buy</span>
                                     <input type="text" inputmode="numeric" data-keypad="numeric" x-model="row.min_qty"
                                            @input="row.min_qty = window.posIntOnly($event.target.value); $event.target.value = row.min_qty" class="border rounded px-2 py-1 w-16 text-sm">
-                                    <span class="text-xs text-gray-500 flex-none">for</span>
+                                    <span class="text-xs text-gray-500 flex-none" data-i18n="scan.tier_for">for</span>
                                     <input type="text" inputmode="decimal" data-keypad="decimal" x-model="row.unit_price"
                                            @input="row.unit_price = window.posMoneyOnly($event.target.value); $event.target.value = row.unit_price" class="border rounded px-2 py-1 w-24 text-sm">
                                     <button @click="priceEdit.tiers.splice(i,1)" class="text-rose-500 text-lg leading-none px-1">&times;</button>
@@ -907,9 +907,9 @@
                             </template>
                             <div class="flex items-center gap-2 mb-2">
                                 <button @click="priceEdit.tiers.push({min_qty:'',unit_price:''})"
-                                        class="text-xs font-semibold text-indigo-600">+ add break</button>
+                                        class="text-xs font-semibold text-indigo-600" data-i18n="scan.add_break">+ add break</button>
                                 <label class="text-xs text-gray-600 ml-auto flex items-center gap-1">
-                                    <input type="checkbox" x-model="priceEdit.bundle"> price is for the whole pack
+                                    <input type="checkbox" x-model="priceEdit.bundle"> <span data-i18n="scan.whole_pack">price is for the whole pack</span>
                                 </label>
                             </div>
                             <!-- WHAT THE CUSTOMER WILL ACTUALLY PAY, before anything is saved.
@@ -921,33 +921,29 @@
                                  the till use, so this preview is not a second opinion. -->
                             <div x-show="pricePreview().length" style="display:none"
                                  class="text-xs bg-white border border-amber-200 rounded p-2 mb-2">
-                                <p class="font-semibold text-gray-700 mb-1">A customer pays:</p>
+                                <p class="font-semibold text-gray-700 mb-1" data-i18n="scan.customer_pays">A customer pays:</p>
                                 <template x-for="r in pricePreview()" :key="r.qty">
                                     <span class="inline-block mr-3 font-mono" :class="r.deal && 'text-emerald-700 font-bold'"
                                           x-text="r.qty + ' → ' + r.total"></span>
                                 </template>
-                                <p x-show="priceEditRise()" style="display:none" class="text-red-700 font-semibold mt-1">
-                                    ⚠️ That is a price RISE, not a deal. Did you mean
-                                    “price is for the whole pack”?
-                                </p>
+                                <p x-show="priceEditRise()" style="display:none" class="text-red-700 font-semibold mt-1"
+                                   data-i18n="scan.price_rise">⚠️ That is a price RISE, not a deal. Did you mean “price is for the whole pack”?</p>
                                 <!-- Naming the box was not enough: four live rows reached the shop with
                                      it unticked. Give the tap, not the instruction. -->
                                 <button x-show="priceEditRise()" style="display:none"
                                         @click="priceEdit.bundle = true"
                                         class="mt-1 px-2.5 py-1 rounded-lg bg-indigo-600 text-white font-bold text-xs">
-                                    Yes — price is for the whole pack
+                                    <span data-i18n="scan.yes_whole_pack">Yes — price is for the whole pack</span>
                                 </button>
                             </div>
-                            <p class="text-xs text-amber-800 mb-2">
-                                ⚠️ This changes the product for everyone, not just this sale.
-                            </p>
+                            <p class="text-xs text-amber-800 mb-2" data-i18n="scan.changes_everyone">⚠️ This changes the product for everyone, not just this sale.</p>
                             <div class="flex gap-2">
                                 <button @click="savePriceEdit()" :disabled="priceEditBusy"
                                         class="flex-1 bg-amber-600 hover:bg-amber-700 text-white py-2 rounded-lg font-semibold text-sm disabled:opacity-50">
-                                    <span x-show="!priceEditBusy">Save &amp; keep selling</span>
-                                    <span x-show="priceEditBusy" style="display:none;">Saving…</span>
+                                    <span x-show="!priceEditBusy" data-i18n="scan.save_keep_selling">Save &amp; keep selling</span>
+                                    <span x-show="priceEditBusy" style="display:none;" data-i18n="common.saving">Saving…</span>
                                 </button>
-                                <button @click="priceEditOpen=false" class="px-3 py-2 rounded-lg border text-sm">Cancel</button>
+                                <button @click="priceEditOpen=false" class="px-3 py-2 rounded-lg border text-sm" data-i18n="common.cancel">Cancel</button>
                             </div>
                             <p x-show="priceEditNote" x-text="priceEditNote" style="display:none;"
                                class="text-xs mt-2 font-medium text-amber-900"></p>
@@ -964,13 +960,9 @@
                          this can never become a discount. -->
                     <div x-show="firstPriceOpen" style="display:none;" class="mt-3">
                         <div class="border-2 border-red-300 bg-red-50 rounded-lg p-3 text-left">
-                            <p class="text-xs font-bold text-red-900 mb-1">💰 This item has no price yet</p>
-                            <p class="text-xs text-red-800 mb-2">
-                                Type what it sells for and carry on. It gets flagged for
-                                <span class="font-semibold">a manager to check</span> — better a sale
-                                with a note than no sale.
-                            </p>
-                            <label class="block text-xs font-medium text-gray-700">Price (CHF)</label>
+                            <p class="text-xs font-bold text-red-900 mb-1" data-i18n="scan.no_price_yet">💰 This item has no price yet</p>
+                            <p class="text-xs text-red-800 mb-2" data-i18n-html="scan.no_price_body">Type what it sells for and carry on. It gets flagged for <span class="font-semibold">a manager to check</span> — better a sale with a note than no sale.</p>
+                            <label class="block text-xs font-medium text-gray-700" data-i18n="common.price_chf">Price (CHF)</label>
                             <input type="text" inputmode="decimal" data-keypad="decimal" x-model="firstPrice"
                                    @input="firstPrice = window.posMoneyOnly($event.target.value); $event.target.value = firstPrice"
                                    @keydown.enter.prevent="saveFirstPrice()"
@@ -979,11 +971,11 @@
                             <div class="flex gap-2">
                                 <button @click="saveFirstPrice()" :disabled="firstPriceBusy"
                                         class="flex-1 py-2 rounded-lg bg-red-600 text-white font-semibold text-sm disabled:opacity-50">
-                                    <span x-show="!firstPriceBusy">Set price &amp; add to cart</span>
-                                    <span x-show="firstPriceBusy" style="display:none;">Saving…</span>
+                                    <span x-show="!firstPriceBusy" data-i18n="scan.set_price_add">Set price &amp; add to cart</span>
+                                    <span x-show="firstPriceBusy" style="display:none;" data-i18n="common.saving">Saving…</span>
                                 </button>
                                 <button @click="firstPriceOpen=false; firstPriceNote=''"
-                                        class="px-3 py-2 rounded-lg border text-sm">Cancel</button>
+                                        class="px-3 py-2 rounded-lg border text-sm" data-i18n="common.cancel">Cancel</button>
                             </div>
                             <!-- the outcome lands HERE, under the button that caused it (2026-08-03:
                                  a CHF 500 skim vanished into a banner the cashier had scrolled past) -->
@@ -997,7 +989,7 @@
                     <h3 class="font-semibold text-gray-900 mb-2" data-i18n="scan.details">Details</h3>
                     <dl class="divide-y border-y">
                         <div class="flex justify-between py-2"><dt class="text-gray-500">SKU</dt><dd class="font-medium text-right" x-text="detailProduct?.sku"></dd></div>
-                        <div class="flex justify-between py-2" x-show="detailProduct?.barcode"><dt class="text-gray-500">Barcode</dt><dd class="font-medium text-right" x-text="detailProduct?.barcode"></dd></div>
+                        <div class="flex justify-between py-2" x-show="detailProduct?.barcode"><dt class="text-gray-500" data-i18n="common.barcode">Barcode</dt><dd class="font-medium text-right" x-text="detailProduct?.barcode"></dd></div>
                         <div class="flex justify-between py-2"><dt class="text-gray-500" data-i18n="scan.category">Category</dt><dd class="font-medium text-right" x-text="detailProduct?.category"></dd></div>
                         <div class="flex justify-between py-2" x-show="detailProduct?.supplier_name"><dt class="text-gray-500" data-i18n="scan.supplier">Supplier</dt><dd class="font-medium text-right" x-text="detailProduct?.supplier_name"></dd></div>
                     </dl>
@@ -2020,7 +2012,7 @@
                 try {
                     const r = await API.get(`/api/v1/pos/customer/scan?code=${encodeURIComponent(code)}`);
                     if (!r || !r.success) {
-                        showToast('🎫 ' + (r && r.message ? r.message : 'Member card not found'), 'warning');
+                        showToast('🎫 ' + (r && r.message ? r.message : t('scan.card_not_found')), 'warning');
                     } else {
                         // Only what checkout needs. The birthdate is NOT here because the server
                         // does not send it — an anonymous member stays anonymous at the till.

@@ -2560,11 +2560,11 @@
     </style>
     <div class="bell-panel" id="bell-panel">
       <div class="bell-head">
-        <b>🔔 Notifications</b>
-        <button id="bell-markread">Mark all read</button>
+        <b data-i18n="nav.notifications">🔔 Notifications</b>
+        <button id="bell-markread" data-i18n="nav.mark_all_read">Mark all read</button>
       </div>
       <div class="bell-list" id="bell-list">
-        <div class="bell-empty">No notifications yet.</div>
+        <div class="bell-empty" data-i18n="nav.no_notifications">No notifications yet.</div>
       </div>
     </div>
     <script>
@@ -2581,7 +2581,7 @@
         var items=d.items||[];
         badge.style.display = d.unread>0 ? 'inline-block':'none';
         badge.textContent = d.unread>9 ? '9+' : d.unread;
-        if(!items.length){ list.innerHTML='<div class="bell-empty">No notifications yet.</div>'; return; }
+        if(!items.length){ list.innerHTML='<div class="bell-empty">'+t('nav.no_notifications')+'</div>'; return; }
         list.innerHTML = items.map(function(n){
           var ref = n.item_number ? '<span class="bell-ref">BL-'+String(n.item_number).padStart(3,'0')+'</span>' : '';
           var inner='<div class="t">'+ref+esc(n.title)+'</div><div class="b">'+esc(n.body)+'</div><div class="ts">'+ago(n.created_at)+'</div>';
@@ -2646,20 +2646,20 @@
     </style>
     <div class="pulse-ov" id="pulse-ov">
       <div class="pulse-card" role="dialog" aria-modal="true" aria-label="Shop Pulse">
-        <h3>📊 Shop Pulse <span id="pulse-shop" style="font-size:12px;font-weight:600;color:#94a3b8;"></span></h3>
-        <p class="sub" id="pulse-sub">Live snapshot of the till.</p>
+        <h3><span data-i18n="nav.pulse_title">📊 Shop Pulse</span> <span id="pulse-shop" style="font-size:12px;font-weight:600;color:#94a3b8;"></span></h3>
+        <p class="sub" id="pulse-sub" data-i18n="nav.pulse_sub">Live snapshot of the till.</p>
         <div class="pulse-grid" id="pulse-grid">
-          <div class="pulse-tile sales span2"><div class="k">Today's sales</div><div class="v" id="pulse-sales">—</div></div>
-          <div class="pulse-tile"><div class="k">Members</div><div class="v" id="pulse-members">—</div></div>
-          <div class="pulse-tile"><div class="k">Open drawers</div><div class="v" id="pulse-drawers">—</div></div>
-          <div class="pulse-tile"><div class="k">Catalog</div><div class="v" id="pulse-catalog">—</div></div>
+          <div class="pulse-tile sales span2"><div class="k" data-i18n="nav.pulse_sales">Today's sales</div><div class="v" id="pulse-sales">—</div></div>
+          <div class="pulse-tile"><div class="k" data-i18n="nav.pulse_members">Members</div><div class="v" id="pulse-members">—</div></div>
+          <div class="pulse-tile"><div class="k" data-i18n="nav.pulse_drawers">Open drawers</div><div class="v" id="pulse-drawers">—</div></div>
+          <div class="pulse-tile"><div class="k" data-i18n="nav.pulse_catalog">Catalog</div><div class="v" id="pulse-catalog">—</div></div>
         </div>
         <div class="pulse-foot">
           <span><span class="dot" id="pulse-dbdot"></span><span id="pulse-env">—</span> · <span class="build" id="pulse-build">—</span></span>
           <span class="pulse-btns">
-            <a class="pulse-btn" href="/health/dashboard" target="_blank" title="Full system diagnostics">Diagnostics ↗</a>
-            <button class="pulse-btn" id="pulse-refresh" type="button">Refresh</button>
-            <button class="pulse-btn primary" id="pulse-close" type="button">Close</button>
+            <a class="pulse-btn" href="/health/dashboard" target="_blank" data-i18n-title="nav.pulse_diag_t" title="Full system diagnostics" data-i18n="nav.pulse_diag">Diagnostics ↗</a>
+            <button class="pulse-btn" id="pulse-refresh" type="button" data-i18n="nav.pulse_refresh">Refresh</button>
+            <button class="pulse-btn primary" id="pulse-close" type="button" data-i18n="nav.pulse_close">Close</button>
           </span>
         </div>
       </div>
@@ -2685,9 +2685,9 @@
           set('pulse-build',(b.version?('v'+b.version):'')+(b.sha?(' ('+b.sha+')'):''));
           set('pulse-env',(b.env||'').toUpperCase()||'—');
           document.getElementById('pulse-dbdot').className='dot '+((j.db==='ok')?'ok':'err');
-          sub.textContent='Live snapshot · '+formatTime(new Date(),{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+          sub.textContent=t('nav.pulse_live')+' · '+formatTime(new Date(),{hour:'2-digit',minute:'2-digit',second:'2-digit'});
         }catch(e){
-          sub.textContent='Could not load stats — '+(e&&e.message?e.message:'try again.');
+          sub.textContent=t('nav.pulse_failed')+' — '+(e&&e.message?e.message:t('nav.try_again'));
           document.getElementById('pulse-dbdot').className='dot err';
         }
       }
@@ -2851,32 +2851,32 @@
         color:#cbd5e1;font-weight:600;cursor:pointer;text-decoration:none;font-size:14px}
       .lpfb-board:hover{border-color:#34d399;color:#fff}
     </style>
-    <button class="lpfb-btn" id="lpfb-open" title="Send feedback" aria-label="Send feedback">💬<span class="lpfb-label">&nbsp;Feedback</span></button>
+    <button class="lpfb-btn" id="lpfb-open" title="Send feedback" aria-label="Send feedback">💬<span class="lpfb-label" data-i18n="nav.fb_label">&nbsp;Feedback</span></button>
     <div class="lpfb-ov" id="lpfb-ov">
       <div class="lpfb-card" role="dialog" aria-modal="true" aria-label="Send feedback">
         <div id="lpfb-form">
-          <h3>Send feedback</h3>
-          <p class="sub">Spot a bug or have an idea at the till? It goes straight to the workbench.</p>
+          <h3 data-i18n="nav.fb_title">Send feedback</h3>
+          <p class="sub" data-i18n="nav.fb_sub">Spot a bug or have an idea at the till? It goes straight to the workbench.</p>
           <div class="lpfb-kinds" id="lpfb-kinds">
-            <div class="lpfb-kind on" data-kind="bug">🐛 Bug</div>
-            <div class="lpfb-kind" data-kind="idea">💡 Idea</div>
-            <div class="lpfb-kind" data-kind="other">💬 Other</div>
+            <div class="lpfb-kind on" data-kind="bug" data-i18n="nav.fb_bug">🐛 Bug</div>
+            <div class="lpfb-kind" data-kind="idea" data-i18n="nav.fb_idea">💡 Idea</div>
+            <div class="lpfb-kind" data-kind="other" data-i18n="nav.fb_other">💬 Other</div>
           </div>
-          <div class="lpfb-sevlabel" id="lpfb-sevlabel">How bad is it?</div>
+          <div class="lpfb-sevlabel" id="lpfb-sevlabel" data-i18n="nav.fb_how_bad">How bad is it?</div>
           <div class="lpfb-sevs" id="lpfb-sevs">
-            <div class="lpfb-sev" data-sev="blocking">🔴 Blocking</div>
-            <div class="lpfb-sev on" data-sev="annoying">🟡 Annoying</div>
-            <div class="lpfb-sev" data-sev="cosmetic">⚪ Cosmetic</div>
+            <div class="lpfb-sev" data-sev="blocking" data-i18n="nav.fb_blocking">🔴 Blocking</div>
+            <div class="lpfb-sev on" data-sev="annoying" data-i18n="nav.fb_annoying">🟡 Annoying</div>
+            <div class="lpfb-sev" data-sev="cosmetic" data-i18n="nav.fb_cosmetic">⚪ Cosmetic</div>
           </div>
-          <input id="lpfb-title" type="text" maxlength="200" placeholder="Short title (what's up?)" />
-          <textarea id="lpfb-body" maxlength="4000" placeholder="Details — what happened, what you expected, steps…"></textarea>
+          <input id="lpfb-title" type="text" maxlength="200" data-i18n-placeholder="nav.fb_ph_title" placeholder="Short title (what's up?)" />
+          <textarea id="lpfb-body" maxlength="4000" data-i18n-placeholder="nav.fb_ph_body" placeholder="Details — what happened, what you expected, steps…"></textarea>
           <div class="lpfb-shotrow">
-            <button class="lpfb-capture" id="lpfb-capture" type="button">📸 Recapture screen</button>
-            <div class="lpfb-thumb" id="lpfb-thumb"><img id="lpfb-thumb-img" alt="screenshot" /><button class="x" id="lpfb-thumb-x" type="button" title="Remove">✕</button></div>
+            <button class="lpfb-capture" id="lpfb-capture" type="button" data-i18n="nav.fb_recapture">📸 Recapture screen</button>
+            <div class="lpfb-thumb" id="lpfb-thumb"><img id="lpfb-thumb-img" alt="screenshot" /><button class="x" id="lpfb-thumb-x" type="button" data-i18n-title="nav.fb_remove" title="Remove">✕</button></div>
           </div>
           <div class="lpfb-attachrow">
-            <button class="lpfb-capture" id="lpfb-attach" type="button">📎 Attach file</button>
-            <button class="lpfb-capture" id="lpfb-photo" type="button">📷 Take photo</button>
+            <button class="lpfb-capture" id="lpfb-attach" type="button" data-i18n="nav.fb_attach">📎 Attach file</button>
+            <button class="lpfb-capture" id="lpfb-photo" type="button" data-i18n="nav.fb_photo">📷 Take photo</button>
           </div>
           <!-- device picker (images + PDFs); camera input only surfaces a capture UI on mobile -->
           <input type="file" id="lpfb-file-input" accept="image/*,application/pdf" multiple style="display:none" />
@@ -2885,17 +2885,17 @@
           <div class="lpfb-meta" id="lpfb-meta"></div>
           <div class="lpfb-row">
             <span class="lpfb-msg" id="lpfb-msg"></span>
-            <button class="lpfb-cancel" id="lpfb-cancel">Cancel</button>
-            <button class="lpfb-send" id="lpfb-send">Send</button>
+            <button class="lpfb-cancel" id="lpfb-cancel" data-i18n="common.cancel">Cancel</button>
+            <button class="lpfb-send" id="lpfb-send" data-i18n="nav.fb_send">Send</button>
           </div>
         </div>
         <div id="lpfb-done" style="display:none">
           <div class="lpfb-done-icon">✓</div>
-          <h3>Filed as <span class="ref" id="lpfb-done-ref">BL-000</span></h3>
-          <p class="sub" id="lpfb-done-sub">Thanks — it's on the workbench. 🐺</p>
+          <h3><span data-i18n="nav.fb_filed_as">Filed as</span> <span class="ref" id="lpfb-done-ref">BL-000</span></h3>
+          <p class="sub" id="lpfb-done-sub" data-i18n="nav.fb_thanks">Thanks — it's on the workbench. 🐺</p>
           <div class="lpfb-row">
-            <a class="lpfb-board" id="lpfb-done-board" href="/pos/my-tickets">View my report ↗</a>
-            <button class="lpfb-send" id="lpfb-done-ok">Done</button>
+            <a class="lpfb-board" id="lpfb-done-board" href="/pos/my-tickets" data-i18n="nav.fb_view">View my report ↗</a>
+            <button class="lpfb-send" id="lpfb-done-ok" data-i18n="nav.fb_done">Done</button>
           </div>
         </div>
       </div>
