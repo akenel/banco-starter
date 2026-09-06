@@ -181,7 +181,7 @@ PHASE0 = [
 ]
 
 
-def build(lang, only=None, phase0=False):
+def build(lang, only=None, phase0=False, screens=None):
     name, native = LANGS[lang]
     pages, found = routes(), findings()
     listed = {p for _, _, ps in GROUPS for p in ps}
@@ -260,7 +260,26 @@ def build(lang, only=None, phase0=False):
             sections.append({"id": gid, "title": gtitle,
                              "time": f"~{max(1, round(len(steps) * 0.75))} min", "steps": steps})
 
-    if only:
+    if screens:
+        # A RE-CHECK SHEET. After a fix you do not want the whole section again —
+        # you want the handful of screens that CHANGED, in the order they were
+        # touched, and nothing else. Angel, 2026-09-06: "what still needs a check".
+        want = [w if w.startswith("/pos") else "/pos/" + w.lstrip("/") for w in screens]
+        keep = []
+        for sec in sections:
+            for st in sec["steps"]:
+                if st.get("link") and any(st["link"]["href"].startswith(HOST + w + "?")
+                                          for w in want):
+                    keep.append(st)
+        order = {w: i for i, w in enumerate(want)}
+        keep.sort(key=lambda st: min(order[w] for w in want
+                                     if st["link"]["href"].startswith(HOST + w + "?")))
+        for i, st in enumerate(keep, 1):
+            st["id"] = f"R{i}"
+            st["ticket"]["title"] = f"{lang.upper()} R{i} · " + st["ticket"]["title"].split(" · ", 1)[1]
+        sections = [{"id": "R", "title": "Re-check — only what changed since you last looked",
+                     "time": f"~{max(1, round(len(keep) * 0.75))} min", "steps": keep}] if keep else []
+    elif only:
         sections = [x for x in sections if x["id"] in only]
 
     # Phase 0 rides in front, as its own section, ONCE — it proves the loop before
@@ -284,8 +303,9 @@ def build(lang, only=None, phase0=False):
     # a tester's marks from one reappear on the other's steps — the template's own
     # header says to bump the version when the steps change, and a section filter
     # changes the steps.
-    scope = ("-" + "".join(sorted(only)).lower()) if only else ""
-    which = (f"section {'+'.join(sorted(only))}" if only else "every screen")
+    scope = ("-recheck" if screens else ("-" + "".join(sorted(only)).lower()) if only else "")
+    which = ("what changed" if screens else
+             f"section {'+'.join(sorted(only))}" if only else "every screen")
     sheet = {
         "key": f"banco-language-walk-{lang}{scope}{'-p0' if phase0 else ''}-v2",
         "eyebrow": f"Banco POS · language walk · {lang.upper()}",
@@ -334,11 +354,14 @@ if __name__ == "__main__":
     phase0 = "--phase0" in args
     if "--only" in args:
         only = set(args[args.index("--only") + 1].split(","))
+    screens = None
+    if "--screens" in args:
+        screens = args[args.index("--screens") + 1].split(",")
     want = [a for a in args if a in LANGS] or list(LANGS)
     for lang in want:
         if lang not in LANGS:
             print(f"unknown language {lang!r} — one of {', '.join(LANGS)}", file=sys.stderr)
             raise SystemExit(2)
-        path, n = build(lang, only=only, phase0=phase0)
+        path, n = build(lang, only=only, phase0=phase0, screens=screens)
         print(f"✅ {path.relative_to(ROOT)}  —  {n} screens, every link carrying ?lang={lang}")
     print("\nOpen one in the browser, work top to bottom, then Copy report at the end.")
