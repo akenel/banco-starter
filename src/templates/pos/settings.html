@@ -318,7 +318,7 @@
                              15%, for ever. Members earn CREDIT, not a repeatable discount. -->
                         <div class="pt-2 mt-2 border-t border-gray-200">
                             <h3 class="font-semibold text-gray-800 mb-1">🎁 <span data-i18n="settings.join_offer">New-member join offer</span></h3>
-                            <p class="text-xs text-gray-500 mb-3" data-i18n="settings.join_offer_hint">A <b>one-time</b> discount on a new member's first order. Set both to <b>0</b> to switch the offer off — the kiosk then offers points instead. Signing up is anonymous and unlimited, so anything given away here can be claimed again with a fresh code.</p>
+                            <p class="text-xs text-gray-500 mb-3" data-i18n-html="settings.join_offer_hint">A <b>one-time</b> discount on a new member's first order. Set both to <b>0</b> to switch the offer off — the kiosk then offers points instead. Signing up is anonymous and unlimited, so anything given away here can be claimed again with a fresh code.</p>
                             <div class="grid grid-cols-3 gap-3 items-end">
                                 <div class="text-sm font-medium text-gray-600 pb-2">🖥️ <span data-i18n="settings.join_kiosk">At the kiosk</span></div>
                                 <div><label class="lbl" data-i18n="settings.tier_discount">Discount (%)</label><input type="number" step="1" min="0" max="100" x-model="form.welcome_discount_kiosk_pct" :disabled="!isAdmin" class="input-field" placeholder="0"></div>
