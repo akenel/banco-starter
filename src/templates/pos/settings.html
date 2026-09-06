@@ -18,7 +18,11 @@
             <div class="flex items-center gap-3">
                 <label class="flex items-center gap-2 text-sm text-gray-600">
                     <span data-i18n="settings.language">🌐 Language</span>
-                    <select onchange="switchLanguage(this.value)"
+                    <!-- Each language names ITSELF — English / Deutsch / Français / Italiano.
+                         That is the universal convention for a language picker: someone who
+                         cannot read the current UI language must still find their own. Marked
+                         exempt so the sweep stops offering to "translate" them. -->
+                    <select data-i18n-exempt="a language picker names each language in its own language, on purpose" onchange="switchLanguage(this.value)"
                         x-init="$el.value = (window._posLang || 'en')"
                         class="border-2 border-gray-300 rounded-lg px-2 py-1 text-sm bg-white">
                         <option value="en">English</option>
@@ -57,7 +61,13 @@
             <!-- The whole form is a fieldset: disabled = read-only for anyone who can't edit
                  (a pure cashier). Managers + admins can edit; the discounts section below has its
                  OWN admin-only fieldset nested inside, so a manager edits everything but discounts. -->
-            <fieldset :disabled="!canEdit" class="bg-white rounded-xl shadow p-5 space-y-4 border-0 min-w-0 disabled:opacity-100">
+            <!-- The placeholders in here are EXAMPLE VALUES of the shop's own details —
+                 "Artemis Lucerne - Headshop", "Murbacherstrasse 37", "contact@…", the
+                 receipt footer, the logo path. They are data, not interface: translating
+                 them would tell a French owner their address is in French. The ones that
+                 ARE language carry a key of their own — the opening-hours example, because
+                 day names are language, and "(optional)". -->
+            <fieldset data-i18n-exempt="placeholders here are example VALUES of the shop's own details — data, not interface" :disabled="!canEdit" class="bg-white rounded-xl shadow p-5 space-y-4 border-0 min-w-0 disabled:opacity-100">
 
                 <!-- IDENTITY & ADDRESS -->
                 <div x-show="tab==='identity'" class="space-y-4">
@@ -94,6 +104,7 @@
                 <div x-show="tab==='hours'" class="space-y-2">
                     <label class="lbl" data-i18n="settings.opening_hours">Opening hours</label>
                     <textarea x-model="form.opening_hours" rows="4" class="input-field"
+                        data-i18n-placeholder="settings.ph_hours"
                         placeholder="Mon–Wed: 11:00–19:00&#10;Thu–Fri: 11:00–20:00&#10;Sat: 11:00–17:00"></textarea>
                     <p class="text-xs text-gray-500" data-i18n="settings.opening_hours_hint">Free text — one line per range. Shows on the receipt / shop profile.</p>
                 </div>
@@ -101,15 +112,15 @@
                 <!-- TAX -->
                 <div x-show="tab==='tax'" class="space-y-5">
                     <div class="grid md:grid-cols-2 gap-4">
-                        <div><label class="lbl">Currency 🔒</label>
+                        <div><label class="lbl" data-i18n="settings.currency_label">Currency 🔒</label>
                             <select x-model="form.currency" :disabled="!isAdmin" class="input-field">
-                                <option value="CHF">CHF — Swiss Franc</option>
-                                <option value="EUR">EUR — Euro</option>
-                                <option value="USD">USD — US Dollar</option>
-                                <option value="GBP">GBP — Pound Sterling</option>
+                                <option value="CHF" data-i18n="settings.ccy_chf">CHF — Swiss Franc</option>
+                                <option value="EUR" data-i18n="settings.ccy_eur">EUR — Euro</option>
+                                <option value="USD" data-i18n="settings.ccy_usd">USD — US Dollar</option>
+                                <option value="GBP" data-i18n="settings.ccy_gbp">GBP — Pound Sterling</option>
                             </select>
-                            <p class="text-xs text-gray-500 mt-1" x-show="!isAdmin">🔒 Admin only. The shop's trading currency — how every price is shown &amp; charged. Not derived from the address or VAT number.</p>
-                            <p class="text-xs text-amber-600 mt-1" x-show="isAdmin">Changes how <strong>every</strong> price is displayed and charged — a provisioning decision, not a daily toggle.</p></div>
+                            <p class="text-xs text-gray-500 mt-1" x-show="!isAdmin" data-i18n="settings.currency_locked">🔒 Admin only. The shop's trading currency — how every price is shown &amp; charged. Not derived from the address or VAT number.</p>
+                            <p class="text-xs text-amber-600 mt-1" x-show="isAdmin" data-i18n-html="settings.currency_warn">Changes how <strong>every</strong> price is displayed and charged — a provisioning decision, not a daily toggle.</p></div>
                         <div><label class="lbl" data-i18n="settings.vat_number">VAT number (UID)</label>
                             <input type="text" x-model="form.vat_number" class="input-field font-mono" placeholder="CHE-XXX.XXX.XXX MWST">
                             <p class="text-xs text-amber-600 mt-1" x-show="!form.vat_number || (form.vat_number||'').includes('X')" data-i18n="settings.vat_number_warn">⟶ enter the real CHE-UID before going live</p></div>
@@ -157,10 +168,10 @@
                     <!-- ACCEPTED CURRENCIES & RATES (multi-currency TENDER) — admin only -->
                     <div class="border-t pt-4">
                         <div class="flex items-center justify-between flex-wrap gap-2 mb-1">
-                            <h3 class="text-base font-bold text-gray-900">💱 Accepted currencies &amp; rates 🔒</h3>
-                            <button type="button" @click="fxRows.push({ccy:'',rate:''})" x-show="isAdmin" class="btn-secondary text-sm">➕ Add currency</button>
+                            <h3 class="text-base font-bold text-gray-900" data-i18n="settings.fx_title">💱 Accepted currencies &amp; rates 🔒</h3>
+                            <button type="button" @click="fxRows.push({ccy:'',rate:''})" x-show="isAdmin" class="btn-secondary text-sm" data-i18n="settings.fx_add">➕ Add currency</button>
                         </div>
-                        <p class="text-xs text-gray-500 mb-3">Foreign <strong>cash</strong> you accept, at your own plan-rate. Rate = how many <strong x-text="form.currency||'CHF'"></strong> you give per 1 unit of that currency. Set once, review when you like. 🔒 Admin only. (Cards are unaffected — the customer's bank converts.)</p>
+                        <p class="text-xs text-gray-500 mb-3"><span data-i18n-html="settings.fx_help_pre">Foreign <strong>cash</strong> you accept, at your own plan-rate. Rate = how many</span> <strong x-text="form.currency||'CHF'"></strong> <span data-i18n="settings.fx_help_post">you give per 1 unit of that currency. Set once, review when you like. 🔒 Admin only. (Cards are unaffected — the customer's bank converts.)</span></p>
                         <div class="space-y-2">
                             <template x-for="(r, i) in fxRows" :key="i">
                                 <div class="grid grid-cols-12 gap-2 items-center">
@@ -179,7 +190,7 @@
                                     </div>
                                 </div>
                             </template>
-                            <p x-show="!fxRows.length" class="text-xs text-gray-400">No foreign currencies accepted yet — cash only in <span x-text="form.currency||'CHF'"></span>.</p>
+                            <p x-show="!fxRows.length" class="text-xs text-gray-400"><span data-i18n="settings.fx_none">No foreign currencies accepted yet — cash only in</span> <span x-text="form.currency||'CHF'"></span>.</p>
                         </div>
                     </div>
                 </div>
@@ -493,8 +504,8 @@
                     <div class="mt-3 grid sm:grid-cols-2 gap-x-6 gap-y-1 text-sm text-gray-700">
                         <div class="flex justify-between gap-2"><span data-i18n="settings.backup_bucket">Bucket</span><span class="font-mono" x-text="bkCfg.bucket || '—'"></span></div>
                         <div class="flex justify-between gap-2"><span data-i18n="settings.backup_key_id">Key ID</span><span class="font-mono" x-text="bkCfg.key_id_masked || '—'"></span></div>
-                        <div class="flex justify-between gap-2"><span data-i18n="settings.backup_app_key">App key</span><span x-text="bkCfg.app_key_set ? '🔒 set' : '— missing'"></span></div>
-                        <div class="flex justify-between gap-2"><span data-i18n="settings.backup_passphrase">Encryption passphrase</span><span x-text="bkCfg.gpg_set ? '🔒 set' : '— missing'"></span></div>
+                        <div class="flex justify-between gap-2"><span data-i18n="settings.backup_app_key">App key</span><span x-text="bkCfg.app_key_set ? t('settings.is_set') : t('settings.is_missing')"></span></div>
+                        <div class="flex justify-between gap-2"><span data-i18n="settings.backup_passphrase">Encryption passphrase</span><span x-text="bkCfg.gpg_set ? t('settings.is_set') : t('settings.is_missing')"></span></div>
                     </div>
                     <p x-show="bkCfg.missing && bkCfg.missing.length" class="mt-3 text-sm text-amber-800">
                         <span data-i18n="settings.backup_missing_lead">Not set in <span class="font-mono">.env</span>:</span>
@@ -545,7 +556,7 @@
                                     <template x-for="b in (bkCheck ? bkCheck.backups : [])" :key="b.name">
                                         <tr class="border-b border-gray-100">
                                             <td class="py-1 pr-3 font-mono text-xs" x-text="b.name"></td>
-                                            <td class="py-1 pr-3 text-right tabular-nums" x-text="b.size_mb + ' MB'"></td>
+                                            <td class="py-1 pr-3 text-right tabular-nums" x-text="b.size_mb + t('settings.size_mb')"></td>
                                             <td class="py-1 text-right tabular-nums text-gray-500" x-text="fmtAge(b.age_hours)"></td>
                                         </tr>
                                     </template>

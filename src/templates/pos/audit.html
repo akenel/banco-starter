@@ -8,22 +8,22 @@
     <!-- header -->
     <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
       <div>
-        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">🕵️ Audit Cockpit</h1>
-        <p class="text-gray-500 text-sm">Every change, who made it, and exactly what — 📦 products · 💰 sales · 🧾 closeouts · 🏭 suppliers · ⚙️ settings.</p>
+        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900" data-i18n="audit.title">🕵️ Audit Cockpit</h1>
+        <p class="text-gray-500 text-sm" data-i18n="audit.subtitle">Every change, who made it, and exactly what — 📦 products · 💰 sales · 🧾 closeouts · 🏭 suppliers · ⚙️ settings.</p>
       </div>
       <div class="flex gap-2">
-        <a href="/pos/dashboard" class="btn-secondary">← Dashboard</a>
-        <button @click="reset()" class="btn-secondary" x-show="hasFilter()" style="display:none">✕ Clear</button>
-        <button @click="load()" class="btn-secondary">↻ Refresh</button>
+        <a href="/pos/dashboard" class="btn-secondary" data-i18n="audit.back">← Dashboard</a>
+        <button @click="reset()" class="btn-secondary" x-show="hasFilter()" style="display:none" data-i18n="audit.clear_all">✕ Clear</button>
+        <button @click="load()" class="btn-secondary" data-i18n="audit.refresh">↻ Refresh</button>
       </div>
     </div>
 
     <!-- scorecard -->
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-      <div class="card text-center"><p class="text-gray-500 text-[11px] uppercase tracking-wide">Total events</p><p class="text-xl sm:text-2xl font-bold text-gray-900" x-text="total"></p></div>
-      <div class="card text-center cursor-pointer" @click="toggleIn('actions','INSERT')" :class="f.actions.includes('INSERT') ? 'ring-2 ring-green-400' : ''"><p class="text-gray-500 text-[11px] uppercase">➕ Created</p><p class="text-xl font-bold text-green-600" x-text="act.INSERT||0"></p></div>
-      <div class="card text-center cursor-pointer" @click="toggleIn('actions','UPDATE')" :class="f.actions.includes('UPDATE') ? 'ring-2 ring-amber-400' : ''"><p class="text-gray-500 text-[11px] uppercase">✏️ Edited</p><p class="text-xl font-bold text-amber-600" x-text="act.UPDATE||0"></p></div>
-      <div class="card text-center cursor-pointer" @click="toggleIn('actions','DELETE')" :class="f.actions.includes('DELETE') ? 'ring-2 ring-red-400' : ''"><p class="text-gray-500 text-[11px] uppercase">🗑️ Deleted</p><p class="text-xl font-bold text-red-600" x-text="act.DELETE||0"></p></div>
+      <div class="card text-center"><p class="text-gray-500 text-[11px] uppercase tracking-wide" data-i18n="audit.total">Total events</p><p class="text-xl sm:text-2xl font-bold text-gray-900" x-text="total"></p></div>
+      <div class="card text-center cursor-pointer" @click="toggleIn('actions','INSERT')" :class="f.actions.includes('INSERT') ? 'ring-2 ring-green-400' : ''"><p class="text-gray-500 text-[11px] uppercase" data-i18n="audit.created">➕ Created</p><p class="text-xl font-bold text-green-600" x-text="act.INSERT||0"></p></div>
+      <div class="card text-center cursor-pointer" @click="toggleIn('actions','UPDATE')" :class="f.actions.includes('UPDATE') ? 'ring-2 ring-amber-400' : ''"><p class="text-gray-500 text-[11px] uppercase" data-i18n="audit.edited">✏️ Edited</p><p class="text-xl font-bold text-amber-600" x-text="act.UPDATE||0"></p></div>
+      <div class="card text-center cursor-pointer" @click="toggleIn('actions','DELETE')" :class="f.actions.includes('DELETE') ? 'ring-2 ring-red-400' : ''"><p class="text-gray-500 text-[11px] uppercase" data-i18n="audit.deleted">🗑️ Deleted</p><p class="text-xl font-bold text-red-600" x-text="act.DELETE||0"></p></div>
     </div>
 
     <!-- filters -->
@@ -32,7 +32,7 @@
         <!-- WHAT (multi) -->
         <div class="relative" x-data="{o:false}">
           <button @click="o=!o" class="chip" :class="f.entity_types.length?'chip-on':''">
-            What: <b x-text="f.entity_types.length ? f.entity_types.length+' selected' : 'All'"></b> ▾
+            <span data-i18n="audit.f_what">What:</span> <b x-text="f.entity_types.length ? f.entity_types.length+t('audit.f_selected') : t('audit.f_all')"></b> ▾
           </button>
           <div x-show="o" @click.outside="o=false" x-transition.opacity style="display:none" class="absolute z-30 mt-1 left-0 bg-white border border-gray-200 rounded-xl shadow-xl p-1 w-56">
             <template x-for="t in entityTypes" :key="t.name">
@@ -41,13 +41,13 @@
                 <span x-text="entityEmoji(t.name)+' '+entityLabel(t.name)+' ('+t.count+')'"></span>
               </label>
             </template>
-            <button x-show="f.entity_types.length" @click="f.entity_types=[];load()" class="w-full text-left px-3 py-1.5 text-xs text-gray-500 hover:bg-gray-100 rounded-lg">✕ clear</button>
+            <button x-show="f.entity_types.length" @click="f.entity_types=[];load()" class="w-full text-left px-3 py-1.5 text-xs text-gray-500 hover:bg-gray-100 rounded-lg" data-i18n="audit.clear">✕ clear</button>
           </div>
         </div>
         <!-- WHO (multi) -->
         <div class="relative" x-data="{o:false}">
           <button @click="o=!o" class="chip" :class="f.actors.length?'chip-on':''">
-            Who: <b x-text="f.actors.length ? f.actors.length+' selected' : 'Everyone'"></b> ▾
+            <span data-i18n="audit.f_who">Who:</span> <b x-text="f.actors.length ? f.actors.length+t('audit.f_selected') : t('audit.f_everyone')"></b> ▾
           </button>
           <div x-show="o" @click.outside="o=false" x-transition.opacity style="display:none" class="absolute z-30 mt-1 left-0 bg-white border border-gray-200 rounded-xl shadow-xl p-1 w-56 max-h-64 overflow-y-auto">
             <template x-for="a in actors" :key="a.name">
@@ -56,13 +56,13 @@
                 <span x-text="(a.name==='system'?'🤖 ':'👤 ')+a.name+' ('+a.count+')'"></span>
               </label>
             </template>
-            <button x-show="f.actors.length" @click="f.actors=[];load()" class="w-full text-left px-3 py-1.5 text-xs text-gray-500 hover:bg-gray-100 rounded-lg">✕ clear</button>
+            <button x-show="f.actors.length" @click="f.actors=[];load()" class="w-full text-left px-3 py-1.5 text-xs text-gray-500 hover:bg-gray-100 rounded-lg" data-i18n="audit.clear">✕ clear</button>
           </div>
         </div>
         <!-- ACTION (multi) -->
         <div class="relative" x-data="{o:false}">
           <button @click="o=!o" class="chip" :class="f.actions.length?'chip-on':''">
-            Action: <b x-text="f.actions.length ? f.actions.length+' selected' : 'Any'"></b> ▾
+            <span data-i18n="audit.f_action">Action:</span> <b x-text="f.actions.length ? f.actions.length+t('audit.f_selected') : t('audit.f_any')"></b> ▾
           </button>
           <div x-show="o" @click.outside="o=false" x-transition.opacity style="display:none" class="absolute z-30 mt-1 left-0 bg-white border border-gray-200 rounded-xl shadow-xl p-1 w-44">
             <template x-for="a in [['INSERT','➕ Created'],['UPDATE','✏️ Edited'],['DELETE','🗑️ Deleted']]" :key="a[0]">
@@ -75,17 +75,17 @@
         </div>
       </div>
       <div class="flex items-center gap-2 flex-wrap">
-        <span class="text-[11px] font-bold text-gray-400 uppercase">When</span>
-        <button @click="preset('hour')" class="chip">Last hour</button>
-        <button @click="preset('today')" class="chip">Today</button>
-        <button @click="preset('yday')" class="chip">Yesterday</button>
-        <button @click="showRange=!showRange" class="chip" :class="showRange?'chip-on':''">📅 Custom range</button>
+        <span class="text-[11px] font-bold text-gray-400 uppercase" data-i18n="audit.when">When</span>
+        <button @click="preset('hour')" class="chip" data-i18n="audit.last_hour">Last hour</button>
+        <button @click="preset('today')" class="chip" data-i18n="audit.today">Today</button>
+        <button @click="preset('yday')" class="chip" data-i18n="audit.yesterday">Yesterday</button>
+        <button @click="showRange=!showRange" class="chip" :class="showRange?'chip-on':''" data-i18n="audit.custom">📅 Custom range</button>
         <span x-show="rangeLabel()" class="text-xs text-gray-600 font-medium" x-text="rangeLabel()"></span>
-        <button @click="clearTime()" class="chip" x-show="f.since||f.until" style="display:none">✕ clear</button>
+        <button @click="clearTime()" class="chip" x-show="f.since||f.until" style="display:none" data-i18n="audit.clear">✕ clear</button>
       </div>
       <div x-show="showRange" style="display:none" class="flex items-end gap-4 flex-wrap bg-gray-50 rounded-lg p-3 border border-gray-100">
         <div>
-          <label class="text-[11px] font-bold text-gray-400 uppercase block mb-1">From</label>
+          <label class="text-[11px] font-bold text-gray-400 uppercase block mb-1" data-i18n="audit.from">From</label>
           <div class="flex gap-1.5 items-center">
             <!-- Banco's own date box (see transactions.html). The wrapper carries the width
                  the input used to set for itself: it is a flex item next to the two spinners,
@@ -117,20 +117,20 @@
             <div class="spin"><button type="button" @click="bump('toM',-5)" class="spb">▼</button><input type="number" min="0" max="59" x-model.number="r.toM" @input="clampT()" class="spi"><button type="button" @click="bump('toM',5)" class="spb">▲</button></div>
           </div>
         </div>
-        <button @click="applyRange()" class="btn-primary text-sm">Apply window</button>
-        <p class="text-[11px] text-gray-400 w-full">Pick a day and, if you like, a start &amp; end time — leave a time blank for the whole day. Then <b>Apply</b>.</p>
+        <button @click="applyRange()" class="btn-primary text-sm" data-i18n="audit.apply_win">Apply window</button>
+        <p class="text-[11px] text-gray-400 w-full" data-i18n-html="audit.range_help">Pick a day and, if you like, a start &amp; end time — leave a time blank for the whole day. Then <b>Apply</b>.</p>
       </div>
       <div>
-        <input type="text" x-model="f.q" @input.debounce.400ms="load()" placeholder="🔎 search a name, field, value, user…"
+        <input type="text" x-model="f.q" @input.debounce.400ms="load()" data-i18n-placeholder="audit.search_ph" placeholder="🔎 search a name, field, value, user…"
                class="input-field w-full text-sm">
       </div>
     </div>
 
-    <div x-show="loading" class="text-center py-10 text-gray-500">Loading the log…</div>
-    <div x-show="!loading && items.length===0" class="card text-center py-10 text-gray-400">Nothing matches. When someone changes a product, rings a sale, or closes out — it lands here.</div>
+    <div x-show="loading" class="text-center py-10 text-gray-500" data-i18n="audit.loading">Loading the log…</div>
+    <div x-show="!loading && items.length===0" class="card text-center py-10 text-gray-400" data-i18n="audit.empty">Nothing matches. When someone changes a product, rings a sale, or closes out — it lands here.</div>
 
     <div x-show="!loading && hasFilter()" style="display:none" class="text-sm text-gray-600 mb-2 px-1">
-      🔎 Showing <b x-text="matched"></b> of <span x-text="total"></span> events matching your filter.
+      <span data-i18n="audit.showing">🔎 Showing</span> <b x-text="matched"></b> <span data-i18n="audit.showing_of">of</span> <span x-text="total"></span> <span data-i18n="audit.showing_post">events matching your filter.</span>
     </div>
 
     <!-- the feed -->
@@ -179,7 +179,7 @@
             <!-- UPDATE: field-level old → new -->
             <template x-if="it.action==='UPDATE'">
               <table class="w-full text-xs">
-                <thead><tr class="text-gray-400 text-left"><th class="pb-1 font-semibold">Field</th><th class="pb-1 font-semibold">Was</th><th class="pb-1"></th><th class="pb-1 font-semibold">Now</th></tr></thead>
+                <thead><tr class="text-gray-400 text-left"><th class="pb-1 font-semibold" data-i18n="audit.col_field">Field</th><th class="pb-1 font-semibold" data-i18n="audit.col_was">Was</th><th class="pb-1"></th><th class="pb-1 font-semibold" data-i18n="audit.col_now">Now</th></tr></thead>
                 <tbody>
                   <template x-for="(d,field) in it.changes" :key="field">
                     <tr class="border-t border-gray-200">
@@ -196,7 +196,7 @@
             <template x-if="it.action!=='UPDATE'">
               <div>
                 <p class="text-[11px] font-bold uppercase mb-2" :class="it.action==='INSERT'?'text-green-600':'text-red-600'"
-                   x-text="it.action==='INSERT' ? '➕ created with these values' : '🗑️ deleted — the record was'"></p>
+                   x-text="it.action==='INSERT' ? t('audit.row_created') : t('audit.row_deleted')"></p>
                 <div class="grid sm:grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
                   <template x-for="(v,field) in nonEmpty(it.changes)" :key="field">
                     <div class="flex gap-2 border-b border-gray-100 py-0.5">
@@ -214,10 +214,10 @@
               <div class="ml-auto flex items-center gap-3">
                 <button x-show="it.action==='UPDATE' && it.entity_type==='products'" @click.stop="revert(it)" :disabled="it._reverting"
                         class="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-800 font-bold hover:bg-amber-200 text-[11px] transition">
-                  <span x-show="!it._reverting">↩️ Revert this change</span>
-                  <span x-show="it._reverting" style="display:none">reverting…</span>
+                  <span x-show="!it._reverting" data-i18n="audit.revert">↩️ Revert this change</span>
+                  <span x-show="it._reverting" style="display:none" data-i18n="audit.reverting">reverting…</span>
                 </button>
-                <button class="underline hover:text-gray-600" @click.stop="onlyThis(it)">🔗 just this record's history</button>
+                <button class="underline hover:text-gray-600" @click.stop="onlyThis(it)" data-i18n="audit.only_this">🔗 just this record's history</button>
               </div>
             </div>
           </div>
@@ -226,7 +226,7 @@
     </div>
 
     <div class="text-center mt-4" x-show="!loading && items.length && items.length < total && !hasFilter()">
-      <button @click="more()" class="btn-secondary" x-text="loadingMore ? 'Loading…' : '↓ Load more'"></button>
+      <button @click="more()" class="btn-secondary" x-text="loadingMore ? t('common.loading') : t('audit.load_more')"></button>
     </div>
   </div>
 

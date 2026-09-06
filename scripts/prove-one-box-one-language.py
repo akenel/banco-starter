@@ -122,6 +122,7 @@ class BareText(HTMLParser):
         self.stack = []        # (tag, covered_by_i18n, exempt)
         self.hits = []
         self.xtext = []
+        self.attrs = []
         self.skip = 0          # inside <script>/<style>
 
     def handle_starttag(self, tag, attrs):
@@ -132,6 +133,24 @@ class BareText(HTMLParser):
         # ANCESTOR — the sandbox overlay wraps the whole terminal, and a scan that
         # only reads the element's own tag cannot see that. Same mistake as the
         # 409, one check along.
+        # PLACEHOLDER / TITLE / ARIA. Collected here, not in a separate regex pass,
+        # for the same reason as x-text: the exemption that covers them sits on an
+        # ANCESTOR. settings.html marks one <fieldset> exempt because every
+        # placeholder inside it is an example of the SHOP'S OWN details — its name,
+        # its street, its email — data rather than interface. A scan reading only
+        # the <input> tag cannot see that. This is the fourth time in one day that
+        # adjacency has been mistaken for ancestry in this file; it is now the
+        # parser's job every time.
+        if not (self.covered_exempt or "data-i18n-exempt" in a0):
+            for attr, key in (("placeholder", "data-i18n-placeholder"),
+                              ("title", "data-i18n-title"),
+                              ("aria-label", "data-i18n-aria")):
+                v = a0.get(attr)
+                if not v or key in a0: continue
+                if v in ALLOW or ":" in v[:6] or "{{" in v: continue
+                if not re.search(r"[A-Za-z]{2,}", v): continue
+                self.attrs.append((self.getpos()[0], attr, v[:56]))
+
         expr = a0.get("x-text") or a0.get("x-html")
         if expr and not (self.covered_exempt or "data-i18n-exempt" in a0):
             for lit in re.finditer(r"'([^']{3,})'", expr):
@@ -203,7 +222,7 @@ def main():
     print(f"keys:      " + " · ".join(f"{c} {len(tables[c])}" for c in codes))
     print()
 
-    bad_keys, bare, in_xtext = [], [], []
+    bad_keys, bare, in_xtext, bare_attr = [], [], [], []
     files = sorted(TPL.glob("*.html"))
 
     for f in files:
@@ -225,6 +244,8 @@ def main():
             bare.append((f.name, ln, snippet))
         for ln, v in bt.xtext:
             in_xtext.append((f.name, ln, v))
+        for ln, a_, v in bt.attrs:
+            bare_attr.append((f.name, ln, a_, v))
 
     # (3) a key can be PRESENT in every language and still be English. On
     # 2026-09-06 Angel photographed the whole 18+ Age Gate screen in English on
@@ -263,82 +284,7 @@ def main():
 
     # (5) collected by BareText above, which knows about ancestors.
 
-    # (6) A placeholder is text the cashier reads, and it lives in an ATTRIBUTE —
-    # so checks (1) and (2) both miss it: (1) only validates placeholders that
-    # already HAVE a key, and (2) only reads text nodes. The feedback panel's
-    # "Short title (what's up?)" and "Details — what happened…" sat in English in
-    # all four languages the whole time. Same for title= and aria-label=.
-    bare_attr = []
-    for f in files:
-        src = strip_comments(strip_blocks(f.read_text(encoding="utf-8")))
-        for m in re.finditer(r"<[^>]+>", src):
-            tag = m.group(0)
-            for attr, i18n in (("placeholder", "data-i18n-placeholder"),
-                               ("title", "data-i18n-title"),
-                               ("aria-label", "data-i18n-aria")):
-                # `:placeholder` / `x-bind:placeholder` hold an EXPRESSION, not a
-                # literal — they are check (5)'s business, not this one's.
-                am = re.search(r'(?<![-\w:])%s="([^"]{3,})"' % attr, tag)
-                if not am or i18n in tag: continue
-                v = am.group(1)
-                if v in ALLOW or ":" in v[:6] or "{{" in v: continue
-                if "data-i18n-exempt" in tag: continue
-                if not re.search(r"[A-Za-z]{2,}", v): continue
-                bare_attr.append((f.name, src.count("\n", 0, m.start()) + 1, attr, v[:56]))
-
-    # (7) A t('some.key') CALL whose key does not exist. This is the worst of the
-    # lot and it was invisible until 2026-09-06: t() returns the RAW KEY on a miss,
-    # so the cashier reads "held.toast_load" as a toast. Ten of these existed, and
-    # nine were written as t('k') || 'English fallback' — which is DEAD CODE,
-    # because the raw key t() hands back is a non-empty string and therefore
-    # truthy, so `||` never fires. A fallback that cannot run is worse than none:
-    # it is a guard that looks like it works (LESSON #12).
-    bad_calls = []
-    for f in files:
-        src = strip_comments(f.read_text(encoding="utf-8"))
-        for m in re.finditer(r"t\(\s*'([A-Za-z_]+\.[A-Za-z0-9_]+)'\s*\)", src):
-            key = m.group(1)
-            missing = [c for c in codes if key not in tables[c]]
-            if missing:
-                bad_calls.append((f.name, src.count("\n", 0, m.start()) + 1, key, missing))
-
-    # (8) A LOCAL VARIABLE NAMED `t`. In this app `t` is the global translator
-    # (window.t = t, base.html). A `var t = ...` is function-scoped, so it shadows
-    # the translator for the WHOLE function including any catch handler, and every
-    # t() call in it throws "t is not a function".
-    #
-    # That shipped in b704: `var t = j.today` in the Shop Pulse loader, three t()
-    # calls below it, and the catch handler that was supposed to report the failure
-    # threw too. It was found by the AI triage brain reading a console breadcrumb
-    # off Angel's own feedback ticket BL-016 — not by any check in this repo.
-    #
-    # The rule is blunt on purpose: never name a local `t` here. A `let` inside a
-    # narrow block is harmless, and it is still not worth the shape.
-    # PRECISE, or it will not be read. A first version flagged every local `t` and
-    # reported 16 — fifteen of them harmless `const t` in narrow scopes, and one of
-    # them THIS COMMENT, because strip_comments() removes HTML comments and not JS
-    # ones. A check that cries wolf fifteen times stops being read, which is how
-    # the real one hides. So: a `var t` is always reported (function-scoped, so it
-    # shadows the whole function including catch handlers), and a `let`/`const t`
-    # only when a t() call actually follows it inside the same brace block.
-    shadowed = []
-    for f in files:
-        src = strip_js_comments(strip_comments(f.read_text(encoding="utf-8")))
-        for m in re.finditer(r"\b(var|let|const)\s+t\s*=", src):
-            kind = m.group(1)
-            # the block this declaration lives in, by brace matching
-            depth, i, end = 0, m.end(), len(src)
-            while i < len(src):
-                if src[i] == "{": depth += 1
-                elif src[i] == "}":
-                    if depth == 0: end = i; break
-                    depth -= 1
-                i += 1
-            block = src[m.end():end]
-            risky = kind == "var" or re.search(r"(?<![\w.$])t\s*\(", block)
-            if risky:
-                shadowed.append((f.name, src.count("\n", 0, m.start()) + 1,
-                                 src[m.start():m.start() + 46].split("\n")[0], kind))
+    # (6) collected by BareText above, which knows about ancestors.
 
     if bad_keys:
         print(f"❌ {len(bad_keys)} key(s) that do not resolve in every language")
