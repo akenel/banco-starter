@@ -531,12 +531,15 @@
             background: #0b1220; border-top: 1px solid rgba(255,255,255,.08);
             padding-bottom: env(safe-area-inset-bottom); user-select: none;
         }
-        .app-bottomnav a {
+        .app-bottomnav a, .app-bottomnav .nav-act {
             position: relative; flex: 1 1 0; display: flex; flex-direction: column;
             align-items: center; justify-content: center; gap: 4px; padding: 9px 2px 7px;
             text-decoration: none; color: #94a3b8; font: 600 12px/1 Inter, system-ui, sans-serif;
         }
-        .app-bottomnav a .ico { position: relative; font-size: 20px; line-height: 1; }
+        .app-bottomnav a .ico, .app-bottomnav .nav-act .ico { position: relative; font-size: 20px; line-height: 1; }
+        /* a <button> brings its own chrome — strip it back to the links' look */
+        .app-bottomnav .nav-act { background: none; border: 0; cursor: pointer; font-family: inherit; }
+        .app-bottomnav .nav-act:hover { color: #e2e8f0; }
         .app-bottomnav a.active { color: #fff; }
         .app-bottomnav a.active .ico { filter: drop-shadow(0 0 6px rgba(99,102,241,.9)); }
         .app-bottomnav a.active::before {
@@ -552,7 +555,7 @@
         body.pre-auth .app-bottomnav, body.pre-auth .helix-status-bar { display: none; }
         /* Print/PDF: drop the app chrome so receipts & reports print clean (thermal + PDF). */
         @media print {
-            .app-bottomnav, .helix-status-bar, .lpfb-btn { display: none !important; }
+            .app-bottomnav, .helix-status-bar { display: none !important; }
         }
         /* ── A CONTROL THAT IS CHOSEN — and why it needs its own class ──────────────
            `.card` and `.btn-secondary` are single-class rules sitting AFTER
@@ -986,11 +989,23 @@
 
     <!-- App-shell bottom navigation (PWA Phase 0.5) — the permanent, thumb-reach nav -->
     <nav class="app-bottomnav" id="app-nav">
+      <a href="/pos/dashboard" data-tab="/pos/dashboard"><span class="ico">🏠</span><span data-i18n="nav.home">Home</span></a>
       <a href="/pos/scan" data-tab="/pos/scan"><span class="ico">📷</span><span data-i18n="nav.scan">Scan</span></a>
       <a href="/pos/checkout" data-tab="/pos/checkout"><span class="ico">🛒<span class="badge" id="nav-cart-badge" style="display:none">0</span></span><span data-i18n="nav.cart">Cart</span></a>
       <a href="/pos/catalog" data-tab="/pos/catalog"><span class="ico">📦</span><span data-i18n="nav.catalog">Catalog</span></a>
       <a href="/pos/customer-lookup" data-tab="/pos/customer-lookup"><span class="ico">👤</span><span data-i18n="nav.customers">Customers</span></a>
       <a href="/pos/my-day" data-tab="/pos/my-day"><span class="ico">📅</span><span data-i18n="nav.my_day">My Day</span></a>
+      <!-- FEEDBACK LIVES HERE NOW, not floating. It was a draggable bubble parked
+           wherever each person left it, which cost a localStorage position, an
+           anchor, a rotation handler and a migration — and on 2026-09-06 an AI
+           triage pass looking at a screenshot asked whether "a red circular icon
+           appearing unanchored at the bottom right" was a UI artifact. It could
+           genuinely sit anywhere, including on top of content. Angel: "maybe it
+           would keep things simpler moving it permanently to the bottom bar."
+           A <button>, not an <a>: the active-tab highlighter queries '#app-nav a',
+           so this can never be marked as the current page — correct, because it
+           is an action and not a destination. -->
+      <button type="button" id="lpfb-open" class="nav-act" aria-label="Send feedback"><span class="ico">💬</span><span data-i18n="nav.fb_label">Feedback</span></button>
     </nav>
 
     <!-- Global JavaScript utilities -->
@@ -2802,15 +2817,6 @@
          and z-index:70 against a pad at z-index:60, so it covered the `n` on the letter pad
          (2026-09-03) and the `0` on the number pad in the catalog PRICE editor (2026-09-04).
          pos-keypad.js marks the document; nobody files feedback mid-keystroke. */
-      html.pk-open .lpfb-btn{display:none!important}
-      .lpfb-btn{position:fixed;right:14px;bottom:104px;top:auto;z-index:70;display:none;
-        align-items:center;justify-content:center;width:48px;height:48px;padding:0;
-        border:none;border-radius:50%;background:#C0392B;color:#fff;font-size:22px;line-height:1;
-        cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;opacity:.92;
-        box-shadow:0 6px 20px rgba(0,0,0,.35)}
-      .lpfb-btn .lpfb-label{display:none}
-      .lpfb-btn.dragging{cursor:grabbing;opacity:.85}
-      .lpfb-btn:hover{background:#8B0000;opacity:1}
       .lpfb-ov{position:fixed;inset:0;z-index:80;display:none;align-items:center;justify-content:center;
         background:rgba(2,6,12,.7);backdrop-filter:blur(3px);padding:16px;font-family:Inter,system-ui,sans-serif}
       .lpfb-card{width:100%;max-width:430px;background:#0b1220;border:1px solid rgba(48,63,84,.8);border-radius:14px;
@@ -2868,7 +2874,6 @@
         color:#cbd5e1;font-weight:600;cursor:pointer;text-decoration:none;font-size:14px}
       .lpfb-board:hover{border-color:#34d399;color:#fff}
     </style>
-    <button class="lpfb-btn" id="lpfb-open" title="Send feedback" aria-label="Send feedback">💬<span class="lpfb-label" data-i18n="nav.fb_label">&nbsp;Feedback</span></button>
     <div class="lpfb-ov" id="lpfb-ov">
       <div class="lpfb-card" role="dialog" aria-modal="true" aria-label="Send feedback">
         <div id="lpfb-form">
@@ -2938,8 +2943,11 @@
       var ATTACH_MAX=5, ATTACH_MAX_BYTES=4400000;
       // Reveal the button once a cashier is logged in. The token can land a tick
       // after load (dashboard parses it from the URL fragment), so poll briefly.
-      function reveal(){if(token()){open.style.display='flex';return true;}return false;}
-      if(!reveal()){var tries=0,iv=setInterval(function(){if(reveal()||++tries>20)clearInterval(iv);},250);}
+      // Visibility is the NAV BAR's business now: `body.pre-auth .app-bottomnav` hides
+      // the whole row until there is a token, so the button cannot be pressed before
+      // login — which is right, since filing needs one. This used to be a reveal()
+      // that polled twenty times at 250ms waiting for a token so it could un-hide a
+      // floating button. Deleted with the rest of the floating machinery.
 
       // Auto-collected context — travels with every report so we can analyse later
       // (which screen, which browser, where they came from, viewport, etc.).
@@ -3009,93 +3017,18 @@
         [].forEach.call(kinds.children,function(c){c.classList.toggle('on',c.getAttribute('data-kind')==='bug');});
         [].forEach.call(sevs.children,function(c){c.classList.toggle('on',c.getAttribute('data-sev')==='annoying');});}
       function openFeedback(){reset();show();autoShot();}
-      // Draggable button (pointer events = mouse + touch). A real drag must NOT
-      // also open the modal, so we only open if the pointer barely moved.
-      (function(){
-        var POS_KEY='lpfb_pos', DRAG_PX=6;
-        try{var saved=JSON.parse(localStorage.getItem(POS_KEY)||'null');}catch(e){var saved=null;}
-        function clamp(v,min,max){return Math.max(min,Math.min(max,v));}
-        function place(left,top){
-          var w=open.offsetWidth||120,h=open.offsetHeight||44;
-          left=clamp(left,4,window.innerWidth-w-4);
-          top=clamp(top,4,window.innerHeight-h-4);
-          open.style.left=left+'px';open.style.top=top+'px';
-          open.style.right='auto';open.style.bottom='auto';
-        }
-        // MIGRATE AN OLD RECORD. Builds before 2026-09-05 stored left/top and nothing
-        // else, so applyAnchor() rejects them and the FIRST rotation after this deploy
-        // is still wrong — only a drag would fix it, and Felix and Layla would each hit
-        // that once. So place it where it was, then derive the corner from where it
-        // actually landed and write that back. No worse than the clamp it replaces, and
-        // it means nobody has to drag anything to get the fix they were shipped.
-        if(!(saved&&applyAnchor(saved))&&saved&&typeof saved.left==='number'){
-          place(saved.left,saved.top);
-          if(!saved.ax){
-            var r0=open.getBoundingClientRect();
-            var rec0=anchorOf(r0); rec0.left=r0.left; rec0.top=r0.top;
-            try{localStorage.setItem(POS_KEY,JSON.stringify(rec0));}catch(e){}
-          }
-        }
-        var dragging=false,moved=false,sx=0,sy=0,ox=0,oy=0;
-        open.addEventListener('pointerdown',function(e){
-          dragging=true;moved=false;
-          var r=open.getBoundingClientRect();ox=r.left;oy=r.top;sx=e.clientX;sy=e.clientY;
-          open.setPointerCapture&&open.setPointerCapture(e.pointerId);
-        });
-        open.addEventListener('pointermove',function(e){
-          if(!dragging)return;
-          var dx=e.clientX-sx,dy=e.clientY-sy;
-          if(!moved&&Math.abs(dx)+Math.abs(dy)>DRAG_PX){moved=true;open.classList.add('dragging');}
-          if(moved){place(ox+dx,oy+dy);}
-        });
-        // REMEMBER THE CORNER IT WAS PARKED IN, NOT THE PIXELS. Storing left/top alone
-        // survives a rotation only as coordinates: Angel keeps this button down by the
-        // bottom bar in landscape ("it's sort of out of the way in between Customers and
-        // My Day"), and on 2026-09-05 turning the tablet to portrait left it sitting in
-        // the middle of the dashboard on top of a menu row. The clamp below had done its
-        // job — it was on-screen — but "down there, out of the way" is an INTENT about an
-        // edge, and an absolute pixel cannot carry it from a 2160-wide viewport to a
-        // 1440-wide one. So record which half of each axis it was nearer, and re-apply it
-        // as a distance from THAT edge when the viewport changes. Dragging is untouched;
-        // parked bottom-right stays bottom-right after a flip.
-        function anchorOf(r){
-          var W=window.innerWidth,H=window.innerHeight;
-          var cx=r.left+r.width/2, cy=r.top+r.height/2;
-          return {
-            ax: cx > W/2 ? 'right' : 'left',
-            ay: cy > H/2 ? 'bottom' : 'top',
-            dx: cx > W/2 ? Math.max(0, W-r.right) : Math.max(0, r.left),
-            dy: cy > H/2 ? Math.max(0, H-r.bottom) : Math.max(0, r.top)
-          };
-        }
-        function applyAnchor(a){
-          if(!a||!a.ax)return false;
-          var w=open.offsetWidth||120,h=open.offsetHeight||44;
-          var left = a.ax==='right' ? window.innerWidth  - w - a.dx : a.dx;
-          var top  = a.ay==='bottom'? window.innerHeight - h - a.dy : a.dy;
-          place(left,top);
-          return true;
-        }
-        function endDrag(){
-          if(!dragging)return;dragging=false;open.classList.remove('dragging');
-          if(moved){
-            var r=open.getBoundingClientRect();
-            // left/top stay in the record for older builds that only know how to read those.
-            var rec=anchorOf(r); rec.left=r.left; rec.top=r.top;
-            try{localStorage.setItem(POS_KEY,JSON.stringify(rec));}catch(e){}
-          }
-        }
-        open.addEventListener('pointerup',function(e){var was=moved;endDrag();if(!was)openFeedback();});
-        open.addEventListener('pointercancel',endDrag);
-        // Rotate/resize: re-derive from the remembered CORNER (see anchorOf above), so a
-        // flip keeps it in the corner it was parked in. Falls back to the old clamp-only
-        // behaviour for a position saved by a build that never stored an anchor.
-        window.addEventListener('resize',function(){
-          var a=null; try{a=JSON.parse(localStorage.getItem(POS_KEY)||'null');}catch(e){}
-          if(a&&applyAnchor(a))return;
-          if(open.style.left){place(parseFloat(open.style.left)||0,parseFloat(open.style.top)||0);}
-        });
-      })();
+      // FEEDBACK OPENS FROM THE NAV BAR. Until 2026-09-06 this button floated and was
+      // draggable, and that cost about sixty lines right here: pointer capture, a
+      // move/end pair, a stored position in localStorage, anchorOf/applyAnchor so a
+      // rotation kept the corner rather than the pixels, a resize handler, and a
+      // migration for records saved before the anchor existed. All of it to answer one
+      // question — where should this button be? — which the nav bar answers for free.
+      //
+      // It also removed a real fault: the thing could sit ON TOP of content, and an AI
+      // triage pass reading a screenshot asked whether "a red circular icon appearing
+      // unanchored at the bottom right" was a UI artifact. It was ours, and it was in
+      // the way. Deleted, not commented out — git remembers it if we are ever wrong.
+      open.addEventListener('click', openFeedback);
       cancel.onclick=hide;
       doneOk.onclick=hide;
       ov.onclick=function(e){if(e.target===ov)hide();};

@@ -71,6 +71,7 @@ window.POS_STRINGS = {
       "error": "Error"
     },
     "nav": {
+      "home": "Home",
       "screen_cash_box": "Cash Box",
       "screen_my_day": "My Day",
       "screen_selftest": "Self-test",
@@ -2342,6 +2343,7 @@ window.POS_STRINGS = {
       "error": "Erreur"
     },
     "nav": {
+      "home": "Accueil",
       "screen_cash_box": "Caisse",
       "screen_my_day": "Ma journée",
       "screen_selftest": "Autotest",
@@ -4623,6 +4625,7 @@ window.POS_STRINGS = {
       "error": "Errore"
     },
     "nav": {
+      "home": "Home",
       "screen_cash_box": "Cassa",
       "screen_my_day": "La mia giornata",
       "screen_selftest": "Autotest",
@@ -6894,6 +6897,7 @@ window.POS_STRINGS = {
       "error": "Fehler"
     },
     "nav": {
+      "home": "Start",
       "screen_cash_box": "Kasse",
       "screen_my_day": "Mein Tag",
       "screen_selftest": "Selbsttest",
