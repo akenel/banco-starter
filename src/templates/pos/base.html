@@ -531,15 +531,12 @@
             background: #0b1220; border-top: 1px solid rgba(255,255,255,.08);
             padding-bottom: env(safe-area-inset-bottom); user-select: none;
         }
-        .app-bottomnav a, .app-bottomnav .nav-act {
+        .app-bottomnav a {
             position: relative; flex: 1 1 0; display: flex; flex-direction: column;
             align-items: center; justify-content: center; gap: 4px; padding: 9px 2px 7px;
             text-decoration: none; color: #94a3b8; font: 600 12px/1 Inter, system-ui, sans-serif;
         }
-        .app-bottomnav a .ico, .app-bottomnav .nav-act .ico { position: relative; font-size: 20px; line-height: 1; }
-        /* a <button> brings its own chrome — strip it back to the links' look */
-        .app-bottomnav .nav-act { background: none; border: 0; cursor: pointer; font-family: inherit; }
-        .app-bottomnav .nav-act:hover { color: #e2e8f0; }
+        .app-bottomnav a .ico { position: relative; font-size: 20px; line-height: 1; }
         .app-bottomnav a.active { color: #fff; }
         .app-bottomnav a.active .ico { filter: drop-shadow(0 0 6px rgba(99,102,241,.9)); }
         .app-bottomnav a.active::before {
@@ -995,17 +992,6 @@
       <a href="/pos/catalog" data-tab="/pos/catalog"><span class="ico">📦</span><span data-i18n="nav.catalog">Catalog</span></a>
       <a href="/pos/customer-lookup" data-tab="/pos/customer-lookup"><span class="ico">👤</span><span data-i18n="nav.customers">Customers</span></a>
       <a href="/pos/my-day" data-tab="/pos/my-day"><span class="ico">📅</span><span data-i18n="nav.my_day">My Day</span></a>
-      <!-- FEEDBACK LIVES HERE NOW, not floating. It was a draggable bubble parked
-           wherever each person left it, which cost a localStorage position, an
-           anchor, a rotation handler and a migration — and on 2026-09-06 an AI
-           triage pass looking at a screenshot asked whether "a red circular icon
-           appearing unanchored at the bottom right" was a UI artifact. It could
-           genuinely sit anywhere, including on top of content. Angel: "maybe it
-           would keep things simpler moving it permanently to the bottom bar."
-           A <button>, not an <a>: the active-tab highlighter queries '#app-nav a',
-           so this can never be marked as the current page — correct, because it
-           is an action and not a destination. -->
-      <button type="button" id="lpfb-open" class="nav-act" aria-label="Send feedback"><span class="ico">💬</span><span data-i18n="nav.fb_label">Feedback</span></button>
     </nav>
 
     <!-- Global JavaScript utilities -->
@@ -2561,6 +2547,16 @@
             </select>
             <a id="cockpit-link" href="/pos/hypercare" title="Cockpit — manage all reports" style="display:none;text-decoration:none;background:none;border:none;cursor:pointer;font-size:16px;padding:0 2px;line-height:1;color:inherit;">🎛️</a>
             <button id="bell-open" title="Notifications" style="position:relative;background:none;border:none;cursor:pointer;font-size:16px;padding:0 2px;line-height:1;color:inherit;">🔔<span id="bell-badge" style="display:none;position:absolute;top:-6px;right:-4px;background:#ef4444;color:#fff;font-size:9px;font-weight:700;min-width:14px;height:14px;line-height:14px;border-radius:7px;padding:0 3px;text-align:center;">0</span></button>
+            <!-- FEEDBACK. It floated (draggable, could land on top of content), then
+                 spent one build as a seventh nav slot — and Angel's phone in ITALIAN
+                 settled it: at ~640px seven slots are 91px each, "La mia giornata"
+                 wrapped to two lines and "Segnalazione" ran off the edge. My own width
+                 sum said it would fit, and it did — in English, at 960px. The same
+                 translation-is-longer class we had been chasing all afternoon, in the
+                 change made to get away from it.
+                 So: up here with the other UTILITIES, icon-only, where a long word costs
+                 nothing. The nav row below is for DESTINATIONS and is back to six. -->
+            <button id="lpfb-open" data-i18n-title="nav.fb_title" data-i18n-aria="nav.fb_title" title="Send feedback" aria-label="Send feedback" style="background:none;border:none;cursor:pointer;font-size:16px;padding:0 2px;line-height:1;color:inherit;">💬</button>
             <button id="pulse-open" title="Shop Pulse — live stats" style="background:none;border:none;cursor:pointer;font-size:16px;padding:0 2px;line-height:1;color:inherit;">📊</button>
         </div>
     </footer>

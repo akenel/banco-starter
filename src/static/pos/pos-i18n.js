@@ -1323,6 +1323,8 @@ window.POS_STRINGS = {
       "visits": "Visits"
     },
     "dashboard": {
+      "view_cards": "▦ Cards",
+      "view_list": "☰ List",
       "age_report": "18+ Record", "age_report_desc": "Proof the age check happened — printable",
       "audit": "Audit Log",
       "audit_desc": "Who changed what, when — every edit, sale & closeout",
@@ -2395,7 +2397,7 @@ window.POS_STRINGS = {
       "cart": "Panier",
       "catalog": "Catalogue",
       "customers": "Clients",
-      "my_day": "Ma journée",
+      "my_day": "Journée",
       "dashboard": "Tableau de bord"
     },
     "status": {
@@ -3605,6 +3607,8 @@ window.POS_STRINGS = {
       "visits": "Visites"
     },
     "dashboard": {
+      "view_cards": "▦ Cartes",
+      "view_list": "☰ Liste",
       "age_report": "Registre 18+", "age_report_desc": "Preuve que le contrôle d’âge a eu lieu — imprimable",
       "audit": "Journal d'audit",
       "audit_desc": "Qui a changé quoi et quand — chaque modification, vente et clôture",
@@ -4677,7 +4681,7 @@ window.POS_STRINGS = {
       "cart": "Carrello",
       "catalog": "Catalogo",
       "customers": "Clienti",
-      "my_day": "La mia giornata",
+      "my_day": "Giornata",
       "dashboard": "Cruscotto"
     },
     "status": {
@@ -5877,6 +5881,8 @@ window.POS_STRINGS = {
       "visits": "Visite"
     },
     "dashboard": {
+      "view_cards": "▦ Schede",
+      "view_list": "☰ Elenco",
       "age_report": "Registro 18+", "age_report_desc": "Prova che il controllo dell’età è avvenuto — stampabile",
       "audit": "Registro di controllo",
       "audit_desc": "Chi ha cambiato cosa e quando — ogni modifica, vendita e chiusura",
@@ -8149,6 +8155,8 @@ window.POS_STRINGS = {
       "visits": "Besuche"
     },
     "dashboard": {
+      "view_cards": "▦ Kacheln",
+      "view_list": "☰ Liste",
       "age_report": "18+ Nachweis", "age_report_desc": "Beleg, dass die Alterskontrolle stattgefunden hat — druckbar",
       "audit": "Audit-Protokoll",
       "audit_desc": "Wer hat was wann geändert — jede Änderung, jeder Verkauf und Abschluss",

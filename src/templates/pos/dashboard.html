@@ -126,7 +126,7 @@
         <div class="flex justify-end mb-3">
           <button @click="setDense(!dense)" class="btn-secondary text-sm"
                   :title="dense ? 'Switch to big cards' : 'Switch to a compact list'"
-                  x-text="dense ? '▦ Cards' : '☰ List'"></button>
+                  x-text="dense ? t('dashboard.view_cards') : t('dashboard.view_list')"></button>
         </div>
 
         <!-- Action Buttons Grid -->
