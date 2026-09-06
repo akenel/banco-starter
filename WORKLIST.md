@@ -56,11 +56,10 @@ activates the new service worker, the second serves from it.
    `bug 92%` into `Question 22%` on the same screenshot. Sheets:
    `python3 scripts/make-language-walk.py it --only A --phase0`.
    → [`2026-09-06-archive-pass.md`](worklist-archive/2026-09-06-archive-pass.md)
-0️⃣d **Gaps found by USING the triage system, 2026-09-06.** (1) **No re-triage affordance** — it
-   is idempotent, so the only way to re-read a ticket after improving the prompt is a
-   `reporter-note`/`reopened`/`disputed`, i.e. impersonating the reporter. The prompt changed four
-   times in one afternoon. (2) **Triage does not feed the KB** — `kb_contribution_model` and
-   `/pos/kb-approvals` exist; `feedback_triage.py` touches neither.
+0️⃣d **Gaps found by USING triage.** (1) **No re-triage button** — it is idempotent, so re-reading
+   a ticket after a prompt change means impersonating the reporter with a `reporter-note`. The
+   prompt changed four times in one afternoon. (2) **Triage does not feed the KB** —
+   `kb_contribution_model` and `/pos/kb-approvals` exist; `feedback_triage.py` touches neither.
 0️⃣e ⚠️ **20 USER-FACING ENGLISH STRINGS ARE BUILT IN `pos_router.py`** — sent to the browser as
    DATA, so no client-side translation can ever reach them. Found by the AI reading a screenshot of
    `/pos/my-tickets` in Italian (BL-035): *"Received — Thanks! We've got your message."* under a
@@ -68,11 +67,10 @@ activates the new service worker, the second serves from it.
    understand it · Being fixed · On hold · All sorted — and it is what a CASHIER reads to find out
    what happened to the thing she reported. **Not a translation job: the endpoints must send a KEY
    and let the client translate.** Now check (9), reported and never failed on.
-0️⃣f ⚠️ **DO THE WALK AT 100% BROWSER ZOOM.** BL-038 reported garbled numbers — `CHF ?'28?'.95`,
-   `13R`, a franc figure "missing its decimal separator" — on a capture taken at **Pixel ratio
-   0.667**. A 2880px page squeezed into 1600 and JPEG'd; the model was reading compression, not the
-   screen. Triage is now told to distrust fine detail when the recorded Pixel ratio is below 1 and
-   to ask for a 100% shot instead, but the cheap fix is not to zoom out.
+0️⃣f ⚠️ **DO THE WALK AT 100% BROWSER ZOOM.** BL-038's garbled numbers (`13R`, a franc figure
+   "missing its decimal separator") came from a capture at **Pixel ratio 0.667** — the model read
+   compression, not the screen. Triage now distrusts fine detail below ratio 1; the cheap fix is
+   not to zoom out.
 0️⃣a ⚠️ **THE FRENCH AND ITALIAN ARE UNVERIFIED — nobody who speaks either has read a word.** Angel
    has no French. ~720 FR/IT strings were written by the copilot on 2026-09-06 alone. Not a
    translation gap — a **review** gap, and `Sistemazione` is the proof it is real.
@@ -126,20 +124,17 @@ activates the new service worker, the second serves from it.
 - **ⓐ–ⓛ · the 2026-09-03/04 contact-sheet threads — all twelve closed and archived** (scale factor · VAT · pack badge · the frozen stylesheet · the masked-box pad · the invisible refusal · the dead date effect · the red box that did not stop the save · the 131 no-op classes · the Search category picker · the gun pressing the button). → [`2026-09-04-archive-pass.md`](worklist-archive/2026-09-04-archive-pass.md)
 ## 🖥️ THE TABLET — fixed, locked and self-patching · 2026-09-05
 
-*Eleven faults on Saturday, **none of them Banco's code** — all of it the machine around it,
-shipping laptop defaults that are wrong for a till. **Now, proven over fourteen cold boots on
-2026-09-05:** the till is on the glass in **~58s, unattended, no password and no press** · never
-sleeps · never goes black · patches itself at 03:15 · `art`'s password is safe to give Layla.
-**The "17s unattended" this section used to claim was measured with `reboot` over SSH and was
-never true of a cold boot** — see ⓪. Two ssh doors: **`tablet` → art** for checks (gsettings are
-per-SESSION), **`tablet-admin` → admin** for `--push`.
+*Eleven faults on Saturday, **none of them Banco's code** — shipping laptop defaults that are
+wrong for a till. **Proven over fourteen cold boots:** on the glass in **~58s, unattended, no
+password, no press** · never sleeps · patches itself at 03:15. The "17s" this section used to
+claim was measured with `reboot` over SSH and was never true of a cold boot. Two ssh doors:
+**`tablet` → art** (gsettings are per-SESSION), **`tablet-admin` → admin** for `--push`.
 → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)*
 
 ### ~~⚠️ PORTRAIT — the close-out in the orientation it will be used in~~
 
-**DONE 2026-09-05, PASSED — portrait is BETTER for the money screen.** At 1440 × 2160 the **whole
-denomination table fits with no scrolling** (CHF 1000 → 0.05); landscape cannot show it. A real
-close filed, balanced. **Do not lock rotation.** Three bugs → ⓪h–⓪j.
+**DONE 2026-09-05, PASSED — portrait is BETTER for the money screen.** At 1440 × 2160 the whole
+denomination table fits with no scrolling; landscape cannot. **Do not lock rotation.**
 → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
 
 ⓪h–k. ~~**The four portrait findings**~~ — **ALL DONE, b690–b693.** The note strip and the 💬
