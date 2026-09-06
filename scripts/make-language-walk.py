@@ -47,6 +47,15 @@ TEMPLATE = ROOT / "onboarding/testsheets/TEMPLATE.html"
 OUT = ROOT / "onboarding/testsheets"
 HOST = "https://banco.wolfhold.app"
 
+# One neutral sentence, identical on every step. Says WHAT was looked at and claims
+# NOTHING — no "looks wrong", no "some text is English". BL-019 proved a leading body
+# is enough to make triage confirm a defect that is not there.
+NEUTRAL_BODY = {
+    "it": "Checking this screen in Italian.",
+    "fr": "Checking this screen in French.",
+    "de": "Checking this screen in German.",
+}
+
 LANGS = {
     # (English name, the language's own name). An earlier version also carried the
     # phrase for "every word" and dropped it into an English sentence, producing
@@ -194,8 +203,9 @@ def build(lang, only=None, phase0=False):
             known = n_bare + n_ph + n_x + n_s
 
             label = path.replace("/pos/", "").replace("/pos", "sign-in").replace("/", " · ") or "sign-in"
-            do = (f'Open <b>{label}</b> with the link, wait for it to settle, '
-                  f'then <b>screenshot the whole screen</b>.')
+            do = (f'Tap the link. When the page has settled, tap <b>💬</b> in the bottom bar, '
+                  f'paste the two lines below, and <b>Send</b>. Nothing else — do not add your own '
+                  f'wording.')
             if path in CAREFUL:
                 do += f' <b>{CAREFUL[path]}</b>'
             twin = seen_tpl.get(tpl)
@@ -235,7 +245,16 @@ def build(lang, only=None, phase0=False):
                 # Tap to copy, paste into the 💬 title box. A fixed shape means 34
                 # tickets can be grouped, sorted and closed as a batch instead of
                 # read one at a time.
-                "codes": [f"{lang.upper()} {gid}{i} · {label}"],
+                # THE BODY IS THE SAME ON EVERY STEP, DELIBERATELY. It is the control.
+                # With one wording across ten screens the only thing that varies is the
+                # SCREEN, so any difference in what triage says is caused by the screen
+                # and nothing else. It also tests the one property BL-019 nearly failed:
+                # given identical input text, does it still tell a clean screen from a
+                # broken one? A body that changes per screen would hand it the answer —
+                # which is exactly how BL-019 got a confident phantom out of "checking
+                # this screen for language problems".
+                "ticket": {"title": f"{lang.upper()} {gid}{i} · {label}",
+                           "body": NEUTRAL_BODY[lang]},
             })
         if steps:
             sections.append({"id": gid, "title": gtitle,
@@ -251,12 +270,13 @@ def build(lang, only=None, phase0=False):
         # P1 lands on the same screen as A1 but is a DIFFERENT ticket — it is the
         # smoke test, not the language check. Same title on both would give two
         # tickets nobody can tell apart.
-        first_code = f"{lang.upper()} P1 · smoke"
         sections.insert(0, {
             "id": "P", "title": "Phase 0 — prove the loop on ONE page first", "time": "~5 min",
             "steps": [{"id": pid, "do": do, "expect": exp, "why": why,
                        **({"link": {"text": "Open the first screen  ↗", "href": first},
-                           "codes": [first_code]} if pid == "P1" else {})}
+                           "ticket": {"title": f"{lang.upper()} P1 · smoke",
+                                      "body": "Phase 0 — checking the feedback loop."}}
+                          if pid == "P1" else {})}
                       for pid, do, exp, why in PHASE0]})
 
     total = sum(len(s["steps"]) for s in sections)

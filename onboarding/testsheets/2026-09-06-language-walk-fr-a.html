@@ -17,15 +17,15 @@
                  that way we can have a super controlled set of tickets".
    ═══════════════════════════════════════════════════════════════════════════════════════ */
 const SHEET = {
-  "key": "banco-language-walk-it-a-p0-v2",
-  "eyebrow": "Banco POS · language walk · IT",
-  "title": "Italian: section A",
-  "standfirst": "One tap per screen, each link already carrying <code>?lang=it</code> so you never touch the language dropdown. Open it, screenshot it, mark it, next. <b>The timer starts on your first mark and freezes on your last</b>, and every step stamps the time to the second — so the screenshots in your Pictures folder line up with the steps that produced them without renaming a thing. <b>Phase 0 first — six checks on ONE page</b>, before 34 tickets are fired at a system that has never seen more than a handful. Then 7 screens, one ticket each.</b>",
+  "key": "banco-language-walk-fr-a-p0-v2",
+  "eyebrow": "Banco POS · language walk · FR",
+  "title": "French: section A",
+  "standfirst": "One tap per screen, each link already carrying <code>?lang=fr</code> so you never touch the language dropdown. Open it, screenshot it, mark it, next. <b>The timer starts on your first mark and freezes on your last</b>, and every step stamps the time to the second — so the screenshots in your Pictures folder line up with the steps that produced them without renaming a thing. <b>Phase 0 first — six checks on ONE page</b>, before 34 tickets are fired at a system that has never seen more than a handful. Then 7 screens, one ticket each.</b>",
   "meta": [
     [
       "Shop",
       "banco.wolfhold.app",
-      "https://banco.wolfhold.app/pos?lang=it"
+      "https://banco.wolfhold.app/pos?lang=fr"
     ],
     [
       "Build",
@@ -33,7 +33,7 @@ const SHEET = {
     ],
     [
       "Language",
-      "Italian (Italiano)"
+      "French (Français)"
     ],
     [
       "Log in as",
@@ -54,7 +54,7 @@ const SHEET = {
   },
   "setup": {
     "needs": [
-      "the language showing <b>IT</b> in the top bar after the first link",
+      "the language showing <b>FR</b> in the top bar after the first link",
       "screenshots saving somewhere you can find them",
       "the same build on screen as the one you are testing"
     ]
@@ -72,10 +72,10 @@ const SHEET = {
           "why": "Two checks in one tap. No thumbnail means triage is reading nothing, because the screenshot IS what the vision model gets. And the number is the unit of work from here on.",
           "link": {
             "text": "Open the first screen  ↗",
-            "href": "https://banco.wolfhold.app/pos?lang=it"
+            "href": "https://banco.wolfhold.app/pos?lang=fr"
           },
           "ticket": {
-            "title": "IT P1 · smoke",
+            "title": "FR P1 · smoke",
             "body": "Phase 0 — checking the feedback loop."
           }
         },
@@ -101,29 +101,29 @@ const SHEET = {
         {
           "id": "A1",
           "do": "Tap the link. When the page has settled, tap <b>💬</b> in the bottom bar, paste the two lines below, and <b>Send</b>. Nothing else — do not add your own wording.",
-          "expect": "<b>Every word on this screen is Italian (Italiano).</b> Mark <b>ISSUE</b> the moment you see one English word — the check says there are none, so anything you find is a hole in it.",
+          "expect": "<b>Every word on this screen is French (Français).</b> Mark <b>ISSUE</b> the moment you see one English word — the check says there are none, so anything you find is a hole in it.",
           "why": "<code>login.html</code> reports CLEAN. That is a claim by a script that has been wrong six times; your eyes are the only thing that has ever caught a translation that EXISTS and is wrong.",
           "link": {
-            "href": "https://banco.wolfhold.app/pos?lang=it",
-            "text": "/pos  ?lang=it  ↗"
+            "href": "https://banco.wolfhold.app/pos?lang=fr",
+            "text": "/pos  ?lang=fr  ↗"
           },
           "ticket": {
-            "title": "IT A1 · sign-in",
-            "body": "Checking this screen in Italian."
+            "title": "FR A1 · sign-in",
+            "body": "Checking this screen in French."
           }
         },
         {
           "id": "A2",
           "do": "Tap the link. When the page has settled, tap <b>💬</b> in the bottom bar, paste the two lines below, and <b>Send</b>. Nothing else — do not add your own wording. <b>Do NOT press a payment button. Look, screenshot, come back.</b>",
-          "expect": "<b>Every word on this screen is Italian (Italiano).</b> Mark <b>ISSUE</b> the moment you see one English word — the check says there are none, so anything you find is a hole in it.",
+          "expect": "<b>Every word on this screen is French (Français).</b> Mark <b>ISSUE</b> the moment you see one English word — the check says there are none, so anything you find is a hole in it.",
           "why": "<code>checkout.html</code> reports CLEAN. That is a claim by a script that has been wrong six times; your eyes are the only thing that has ever caught a translation that EXISTS and is wrong.",
           "link": {
-            "href": "https://banco.wolfhold.app/pos/checkout?lang=it",
-            "text": "/pos/checkout  ?lang=it  ↗"
+            "href": "https://banco.wolfhold.app/pos/checkout?lang=fr",
+            "text": "/pos/checkout  ?lang=fr  ↗"
           },
           "ticket": {
-            "title": "IT A2 · checkout",
-            "body": "Checking this screen in Italian."
+            "title": "FR A2 · checkout",
+            "body": "Checking this screen in French."
           }
         },
         {
@@ -132,12 +132,12 @@ const SHEET = {
           "expect": "<b>Expect English here — about 2 strings</b> (2 built in code). Screenshot it and mark <b>ISSUE</b>. Mark <b>FAIL</b> only if the screen is broken, not merely English.",
           "why": "<code>closeout.html</code> is not fixed yet. The shot is the before-picture, and it tells us whether 2 is anywhere near the truth.",
           "link": {
-            "href": "https://banco.wolfhold.app/pos/closeout?lang=it",
-            "text": "/pos/closeout  ?lang=it  ↗"
+            "href": "https://banco.wolfhold.app/pos/closeout?lang=fr",
+            "text": "/pos/closeout  ?lang=fr  ↗"
           },
           "ticket": {
-            "title": "IT A3 · closeout",
-            "body": "Checking this screen in Italian."
+            "title": "FR A3 · closeout",
+            "body": "Checking this screen in French."
           }
         },
         {
@@ -146,12 +146,12 @@ const SHEET = {
           "expect": "<b>Expect English here — about 10 strings</b> (4 untranslated · 5 in a placeholder box · 1 built in code). Screenshot it and mark <b>ISSUE</b>. Mark <b>FAIL</b> only if the screen is broken, not merely English.",
           "why": "<code>customer_lookup.html</code> is not fixed yet. The shot is the before-picture, and it tells us whether 10 is anywhere near the truth.",
           "link": {
-            "href": "https://banco.wolfhold.app/pos/customer-lookup?lang=it",
-            "text": "/pos/customer-lookup  ?lang=it  ↗"
+            "href": "https://banco.wolfhold.app/pos/customer-lookup?lang=fr",
+            "text": "/pos/customer-lookup  ?lang=fr  ↗"
           },
           "ticket": {
-            "title": "IT A4 · customer-lookup",
-            "body": "Checking this screen in Italian."
+            "title": "FR A4 · customer-lookup",
+            "body": "Checking this screen in French."
           }
         },
         {
@@ -160,82 +160,82 @@ const SHEET = {
           "expect": "<b>Expect English here — about 3 strings</b> (3 built in code). Screenshot it and mark <b>ISSUE</b>. Mark <b>FAIL</b> only if the screen is broken, not merely English.",
           "why": "<code>dashboard.html</code> is not fixed yet. The shot is the before-picture, and it tells us whether 3 is anywhere near the truth.",
           "link": {
-            "href": "https://banco.wolfhold.app/pos/dashboard?lang=it",
-            "text": "/pos/dashboard  ?lang=it  ↗"
+            "href": "https://banco.wolfhold.app/pos/dashboard?lang=fr",
+            "text": "/pos/dashboard  ?lang=fr  ↗"
           },
           "ticket": {
-            "title": "IT A5 · dashboard",
-            "body": "Checking this screen in Italian."
+            "title": "FR A5 · dashboard",
+            "body": "Checking this screen in French."
           }
         },
         {
           "id": "A6",
           "do": "Tap the link. When the page has settled, tap <b>💬</b> in the bottom bar, paste the two lines below, and <b>Send</b>. Nothing else — do not add your own wording.",
-          "expect": "<b>Every word on this screen is Italian (Italiano).</b> Mark <b>ISSUE</b> the moment you see one English word — the check says there are none, so anything you find is a hole in it.",
+          "expect": "<b>Every word on this screen is French (Français).</b> Mark <b>ISSUE</b> the moment you see one English word — the check says there are none, so anything you find is a hole in it.",
           "why": "<code>held_orders.html</code> reports CLEAN. That is a claim by a script that has been wrong six times; your eyes are the only thing that has ever caught a translation that EXISTS and is wrong.",
           "link": {
-            "href": "https://banco.wolfhold.app/pos/held-orders?lang=it",
-            "text": "/pos/held-orders  ?lang=it  ↗"
+            "href": "https://banco.wolfhold.app/pos/held-orders?lang=fr",
+            "text": "/pos/held-orders  ?lang=fr  ↗"
           },
           "ticket": {
-            "title": "IT A6 · held-orders",
-            "body": "Checking this screen in Italian."
+            "title": "FR A6 · held-orders",
+            "body": "Checking this screen in French."
           }
         },
         {
           "id": "A7",
           "do": "Tap the link. When the page has settled, tap <b>💬</b> in the bottom bar, paste the two lines below, and <b>Send</b>. Nothing else — do not add your own wording.",
-          "expect": "<b>Every word on this screen is Italian (Italiano).</b> Mark <b>ISSUE</b> the moment you see one English word — the check says there are none, so anything you find is a hole in it.",
+          "expect": "<b>Every word on this screen is French (Français).</b> Mark <b>ISSUE</b> the moment you see one English word — the check says there are none, so anything you find is a hole in it.",
           "why": "<code>my_day.html</code> reports CLEAN. That is a claim by a script that has been wrong six times; your eyes are the only thing that has ever caught a translation that EXISTS and is wrong.",
           "link": {
-            "href": "https://banco.wolfhold.app/pos/my-day?lang=it",
-            "text": "/pos/my-day  ?lang=it  ↗"
+            "href": "https://banco.wolfhold.app/pos/my-day?lang=fr",
+            "text": "/pos/my-day  ?lang=fr  ↗"
           },
           "ticket": {
-            "title": "IT A7 · my-day",
-            "body": "Checking this screen in Italian."
+            "title": "FR A7 · my-day",
+            "body": "Checking this screen in French."
           }
         },
         {
           "id": "A8",
           "do": "Tap the link. When the page has settled, tap <b>💬</b> in the bottom bar, paste the two lines below, and <b>Send</b>. Nothing else — do not add your own wording.",
-          "expect": "<b>Every word on this screen is Italian (Italiano).</b> Mark <b>ISSUE</b> the moment you see one English word — the check says there are none, so anything you find is a hole in it.",
+          "expect": "<b>Every word on this screen is French (Français).</b> Mark <b>ISSUE</b> the moment you see one English word — the check says there are none, so anything you find is a hole in it.",
           "why": "<code>scan.html</code> reports CLEAN. That is a claim by a script that has been wrong six times; your eyes are the only thing that has ever caught a translation that EXISTS and is wrong.",
           "link": {
-            "href": "https://banco.wolfhold.app/pos/scan?lang=it",
-            "text": "/pos/scan  ?lang=it  ↗"
+            "href": "https://banco.wolfhold.app/pos/scan?lang=fr",
+            "text": "/pos/scan  ?lang=fr  ↗"
           },
           "ticket": {
-            "title": "IT A8 · scan",
-            "body": "Checking this screen in Italian."
+            "title": "FR A8 · scan",
+            "body": "Checking this screen in French."
           }
         },
         {
           "id": "A9",
           "do": "Tap the link. When the page has settled, tap <b>💬</b> in the bottom bar, paste the two lines below, and <b>Send</b>. Nothing else — do not add your own wording. <b>Look only. Do not open or close the drawer.</b>",
-          "expect": "<b>Every word on this screen is Italian (Italiano).</b> Mark <b>ISSUE</b> the moment you see one English word — the check says there are none, so anything you find is a hole in it.",
+          "expect": "<b>Every word on this screen is French (Français).</b> Mark <b>ISSUE</b> the moment you see one English word — the check says there are none, so anything you find is a hole in it.",
           "why": "<code>shift.html</code> reports CLEAN. That is a claim by a script that has been wrong six times; your eyes are the only thing that has ever caught a translation that EXISTS and is wrong.",
           "link": {
-            "href": "https://banco.wolfhold.app/pos/shift?lang=it",
-            "text": "/pos/shift  ?lang=it  ↗"
+            "href": "https://banco.wolfhold.app/pos/shift?lang=fr",
+            "text": "/pos/shift  ?lang=fr  ↗"
           },
           "ticket": {
-            "title": "IT A9 · shift",
-            "body": "Checking this screen in Italian."
+            "title": "FR A9 · shift",
+            "body": "Checking this screen in French."
           }
         },
         {
           "id": "A10",
           "do": "Tap the link. When the page has settled, tap <b>💬</b> in the bottom bar, paste the two lines below, and <b>Send</b>. Nothing else — do not add your own wording.",
-          "expect": "<b>Every word on this screen is Italian (Italiano).</b> Mark <b>ISSUE</b> the moment you see one English word — the check says there are none, so anything you find is a hole in it.",
+          "expect": "<b>Every word on this screen is French (Français).</b> Mark <b>ISSUE</b> the moment you see one English word — the check says there are none, so anything you find is a hole in it.",
           "why": "<code>transactions.html</code> reports CLEAN. That is a claim by a script that has been wrong six times; your eyes are the only thing that has ever caught a translation that EXISTS and is wrong.",
           "link": {
-            "href": "https://banco.wolfhold.app/pos/transactions?lang=it",
-            "text": "/pos/transactions  ?lang=it  ↗"
+            "href": "https://banco.wolfhold.app/pos/transactions?lang=fr",
+            "text": "/pos/transactions  ?lang=fr  ↗"
           },
           "ticket": {
-            "title": "IT A10 · transactions",
-            "body": "Checking this screen in Italian."
+            "title": "FR A10 · transactions",
+            "body": "Checking this screen in French."
           }
         }
       ]
