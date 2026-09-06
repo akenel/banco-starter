@@ -163,7 +163,7 @@ open `LESSONS.md` when one of them is about to apply.*
 **When something bites: add the narrative to `LESSONS.md`, and if it is a new instance of a
 pattern below, bump the count here. A pattern at ×7 is telling you something a paragraph cannot.**
 
-1. **×14 · Green on the layer you can reach says nothing about the layer the user stands on.**
+1. **×15 · Green on the layer you can reach says nothing about the layer the user stands on.**
    `cash_box_float`, the force-close, `POST /catalog/merge`, honest confidence, `best_match_score`,
    the 18+ refusals, the evidence with no screen — each existed on every layer a test could reach
    and on **no screen**; the tablet's LTE was proved on Angel's home Wi-Fi, in a flat, with a route
@@ -190,9 +190,19 @@ pattern below, bump the count here. A pattern at ×7 is telling you something a 
    tablet's own `curl` got **200 in 86 ms**. Autologin leaves the login keyring locked, Chromium
    blocks on it and never navigates. Four months of boot proofs missed it because every one was
    `reboot` **over SSH, with nobody looking at the screen**.
+   The fifteenth, 2026-09-06: a language sweep reported CLEAN on screens a person then
+   photographed as broken. **Nine distinct classes of untranslated text existed and the harness
+   could originally see ONE.** It could not see a key whose VALUE was the English (45 of 45 on the
+   18+ screen, in French *and* Italian), a map keyed by a database value (`entityLabel`,
+   `roleDisplay` — "felix | Owner" in the header of every screen in every language, in every
+   screenshot taken that day), or a sentence built in **Python** and sent to the browser as data —
+   which is the reporter's own progress timeline, the screen where a cashier learns what happened
+   to the thing she reported. And it found `CRACK` on nothing: that word sat on the cashier's
+   customer screen, correctly translated, key and all, reading as a drug name in a hemp shop.
    *Ask where the person is STANDING when they need it — which building, and which screen. And if
    your harness cannot see the glass, or cannot see the first ninety seconds, it is not testing
-   the morning.*
+   the morning. A string can be present, keyed, and translated, and still be the wrong word in the
+   room.*
 2. **×9 · A downstream filter quietly discards the row the fix existed to find — and a field whose meaning shifts between rows is worse than a missing one.** The dedup guard's
    same-size rule, the alias filters judging `products.name`, the category "boost" that was a sort
    key above `score`; on 2026-08-22 `eligible_subtotal` dropped two full-price papers because
@@ -239,7 +249,7 @@ pattern below, bump the count here. A pattern at ×7 is telling you something a 
    guard, and it is the more confident half.* A test that counted occurrences
    matched its own `def` line. Reverting each guard one at a time has caught something every time it
    has been done. *If you did not watch it go red, you do not know it works.*
-5. **×7 · A measurement harness will accuse working code as confidently as it reports the truth —
+5. **×8 · A measurement harness will accuse working code as confidently as it reports the truth —
    and will PASS on the very bug it was written to catch.**
    The rounding proof; the partial prod copy that manufactured a 24-product compliance scare; and on
    2026-08-28 a timer that started when a card **scrolled into view** rather than when a decision was
@@ -257,6 +267,17 @@ pattern below, bump the count here. A pattern at ×7 is telling you something a 
    relevance" and "chosen by recall" were the same set. *A reference figure must come from the
    EXACT predicate the feature will use, and a fixture that cannot fail the way production fails is
    not a fixture.*
+   The eighth, 2026-09-06, and it is the worst shape yet: **the harness was CRASHING and I read its
+   partial output as a result, for several commits.** A splice deleted two checks' collection blocks
+   and left their reporting, so it died on `NameError` after printing checks 1–6 — and every run was
+   piped through `grep`, which ate the traceback AND the exit code. The same script was corrected
+   eight times in one day, and its count went **359 → 458** before it came down: it had required two
+   Latin words (so `Cancel` was invisible), read adjacency instead of ancestry (so it reported 409,
+   three of them fragments of ONE healthy sentence containing a `<b>`), and never looked at
+   attributes, at `<script>`, or at Python at all. *Never pipe a harness through `grep` and read the
+   result: you are filtering out the only evidence that it failed. And a check that only catches the
+   TIDY case reports clean on the messy one — `var t =` was caught, `const c = …, t = []` was not,
+   and that is the one that shipped.*
    Two more on 2026-08-28: I predicted 40 age-gate changes and prod made **44**, because I measured
    a **5,061-row snapshot** of a **5,408-row** shop and the four extras sat in the 347 I could not
    see; and I quoted *"49 test failures before and after"* as evidence when 30 test files were

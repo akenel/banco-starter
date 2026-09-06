@@ -1215,3 +1215,89 @@ Full run, numbers and the rewritten card:
 the screen can be empty, and only a person looking at the glass at the right moment knows which.
 If the harness cannot see the screen, and cannot see the first ninety seconds, it is not testing
 the morning.**
+
+
+---
+
+## 2026-09-06 — nine classes, one instrument, and the word nobody could check for
+
+**LESSON #1, the fifteenth. LESSON #5, the eighth. LESSON #10, twice in one sitting.**
+
+A day that began as "deploy the morning guard and close the cash box" and became the whole
+language surface of the app. The ledger, including what was wrong:
+[`worklist-archive/2026-09-06-archive-pass.md`](worklist-archive/2026-09-06-archive-pass.md).
+
+### The shape worth remembering
+
+**Nine distinct classes of untranslated text existed. The harness written to find them could
+originally see one.** Not because it was badly written — because each new class was invisible from
+where it was standing:
+
+- a key present in all four languages whose VALUE is the English (45 of 45 on the 18+ screen, in
+  French *and* Italian — key-parity said 100%)
+- a JS map keyed by a database value: `entityLabel`, `roleDisplay`. **"felix | Owner" sat in the
+  header of every screen in every language, in every screenshot taken that day**, and was named by
+  an AI reading a picture rather than by any check reading the code.
+- a sentence built in **Python** and sent to the browser as data — the reporter's own progress
+  timeline, the screen where a cashier finds out what happened to the thing she reported. No
+  client-side sweep can reach it; no check in the repo had ever read a `.py`.
+- and `CRACK`: a string with a key, translated into all four languages, correct by every automated
+  measure, sitting on the cashier's customer screen in a hemp shop, reading as a drug name.
+
+**A string can be present, keyed, and translated, and still be the wrong word in the room.**
+
+### The instrument failed in a new way
+
+`prove-one-box-one-language.py` was corrected **eight times in one day**, and its count went
+**359 → 458 → 312** — up, then down. It had required two Latin words (`Cancel` invisible), read
+adjacency instead of ancestry (409, three of them fragments of one healthy sentence containing a
+`<b>` — loudest exactly where the code was healthiest), ignored attributes, ignored `<script>`,
+ignored Python.
+
+And then the one that matters most: **it was crashing, and I read its partial output as a result
+for several commits.** A splice deleted two checks' collection blocks and left their reporting, so
+it died on `NameError` after printing checks 1–6. I never saw it because every run was piped
+through `grep`, which ate the traceback and the exit code.
+
+> **Never pipe a harness through `grep` and read the result.** You are filtering out the only
+> evidence that it failed.
+
+> **A check that only catches the TIDY case reports clean on the messy one.** `var t =` was caught;
+> `const c = it.changes || {}, t = []` was not — and that is the one that shipped.
+
+### The `t` shadow, three times in one day
+
+`t` is the global translator. It was shadowed three ways, all by me:
+
+1. `var t = j.today` in Shop Pulse — **shipped**, function-scoped so it took the catch handler with
+   it, surfacing as an unhandled rejection rather than a message.
+2. `const c = …, t = []` in `audit.html` — written **hours after adding the check for it**.
+3. `x-for="t in shown()"` — an Alpine loop variable shadowing it across 103 expressions in one
+   template. Check (8) cannot see that one at all; it is not a JS declaration.
+
+### And the part that is genuinely new
+
+**The AI triage system found a live regression in my own code** — `TypeError: t is not a function`
+— from a console breadcrumb the feedback button had collected alongside a test ticket about
+something else entirely. No check in this repo could have caught it: valid JavaScript, every
+template parsing, every key resolving, and it only threw when a particular panel was opened.
+
+It also **stayed quiet on clean screens four times running** — but only after being taught that a
+reporter can be WRONG. Before that, a neutral report on a clean screen produced a confident invented
+defect at **conf 92%**. The prompt had no way to conclude "nothing is wrong here", so every input
+had to become a ticket, and every input became one. After: the same ticket, the same screenshot,
+**Question at conf 22%**.
+
+> **A system that cannot say "nothing is wrong here" cannot be believed when it says something is.**
+> And the difference between a real finding and a phantom is QUOTED EVIDENCE — so make confidence
+> measure evidence, not agreement.
+
+### The division of labour, settled by evidence
+
+The script finds every untranslated string exactly, free, repeatably — including ones a screenshot
+cannot show. The human finds what is *wrong* rather than *missing*. The picture finds a word that
+reads badly in a room, and text too long for its box.
+
+On one screen Angel marked PASS with 22 English strings in front of him. That is not a failure —
+it is the proof that **scattered English hides from a person and cannot hide from a script**, and
+that neither instrument is optional.

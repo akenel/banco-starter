@@ -259,3 +259,128 @@ errors and failed calls without her doing anything. **And it is not a system for
 interface is one button.** The cockpit is Angel's instrument for supporting a shop he is not
 standing in. For a two-person shop a ticketing system would be absurd; for remote hypercare it is
 exactly right. The AI rewrite stays on probation until it has earned more than one good day.
+
+---
+
+## The language day, end to end · 2026-09-06
+
+Started as "deploy `4bed4a2` and finish the cash box". Ended with nine distinct bug classes, a
+harness corrected eight times, and an AI triage system that found a regression in the copilot's own
+code. What follows is the honest ledger, including the parts that were wrong.
+
+### What was fixed
+
+| screen | was | now |
+|---|---|---|
+| the till — scan · base · checkout · receipt · transactions · login | 47 bare strings | **clean** |
+| `audit` | **100% English** — the Treuhänder's change log | **clean**, incl. the rows |
+| `settings` | 36 | **clean** |
+| `catalog_misses` | 50 | **clean** |
+| `age_report` | **45/45 keys were the English string** in FR *and* IT | **clean** |
+| `my_tickets` | the reporter's own progress timeline, built in Python | **clean** |
+
+**~1,100 new FR/IT/DE strings.** Left for tomorrow: `shelf_intake` 173 · `hardware` 59 ·
+`catalog` 22 · `catalog_health` 21.
+
+### The nine classes — only ONE of which the harness could originally see
+
+| | class | how it was found |
+|---|---|---|
+| **A** | no key at all | the harness (the only one it could see) |
+| **B** | key present in all four, value IS the English | **Angel's eyes** — 45/45 of `agerep` |
+| **C** | written in `<script>`, never reaches `t()` | chasing a date-range picker |
+| **D** | key resolves in NO language → prints English | the harness, once corrected |
+| **E** | English inside an `x-text` expression | **Angel's screenshots** of the product modal |
+| **F** | English in a `placeholder` attribute | fixing E |
+| **G** | a `t()` call whose key does not exist → prints the RAW KEY | a parity script written for something else |
+| **H** | a JS map keyed by a database value (`entityLabel`, `roleDisplay`) | **the AI**, off a screenshot |
+| **I** | English built in **Python** and sent as data | **the AI**, off a screenshot (BL-035) |
+
+### The harness was wrong eight times
+
+Every correction is in `scripts/prove-one-box-one-language.py`, with the evidence:
+
+1. parsed JS with a regex and died on a `//` **inside a string**
+2. asked about **adjacency, not ancestry** → reported 409, three of them fragments of ONE translated
+   sentence containing a `<b>`. Loudest exactly where the code was healthiest.
+3. blind to keys whose VALUE is the English
+4. blind to strings in `<script>`
+5. blind to English inside `x-text` — having marked every `x-text` element "covered"
+6. required TWO Latin words, so `Cancel`, `Saving…`, `buy` were invisible; and a leading emoji made
+   it worse, because `🔔 Notifications` does not start with a letter
+7. never looked at `placeholder` attributes, nor checked that a `t()` key exists
+8. **it was CRASHING and printing partial results.** A splice deleted the collection blocks for
+   checks 7 and 8 and left their reporting, so it died on `NameError` for several commits — and
+   every run was piped through `grep`, which ate the traceback and the exit code.
+
+**359 → 458 → 312.** The number went UP under scrutiny before it came down. The morning's audit
+page predicted the opposite and was corrected to say so.
+
+### Four findings withdrawn — two mine, two the AI's
+
+- **`checkout.html` hard-coded German** — a `worldline_sim` SANDBOX that never renders at Artemis.
+- **`receipt.html` hard-coded Italian** — the IT legal disclaimer, printed only for an IT-regime
+  tenant. Translating it would break what it exists to do.
+  *Both had a comment saying so three lines above the string. LESSON #10, twice in one sitting.*
+- **dashboard "truncation"** (AI, conf 92%) — a deliberate `text-overflow: ellipsis` in the dense
+  list. Real weakness, not a defect: the design is calibrated for English lengths.
+- **"the Home tab is highlighted"** (AI, conf 92%) — no `data-tab` matches that path. The model read
+  the 🏠 emoji's warm colour as an active state.
+
+### The `t` shadow, three times in one day
+
+`t` is the global translator. Three separate disguises, all shipped or nearly shipped by the
+copilot:
+
+1. `var t = j.today` in Shop Pulse — **shipped in b704**, took the catch handler with it, surfaced
+   as an unhandled rejection. Found by the AI reading a console breadcrumb attached to a ZZTEST
+   about something else entirely.
+2. `const c = …, t = []` in `audit.html` — written *hours after* adding the check for it, and the
+   check missed it because its regex only matched `t` first in the declarator list.
+3. `x-for="t in shown()"` in `my_tickets.html` — an Alpine loop variable shadowing it across 103
+   expressions. Check (8) cannot see this one at all; it is not a JS declaration. Avoided by putting
+   the lookup in a method.
+
+### What the AI triage system actually proved
+
+Real brain (`gpt-oss:120b` on Turbo). Across ~20 tickets:
+
+- **It found a live regression in the copilot's code** from a console breadcrumb on an unrelated
+  ticket, and wrote it up correctly at conf 85%.
+- **It named three strings Angel never typed** off a screenshot (BL-018, conf 96%).
+- **It found `CRACK` on the cashier's customer screen** — a correctly translated, key-having,
+  perfectly valid string that reads as a drug name in a hemp shop. **No static check can ever find
+  that.** Renamed to *member* at Angel's call; CRACK survives in `kb-approvals`, where only Felix
+  sees it.
+- **It stayed quiet on clean screens four times running** — after being taught that a reporter can
+  be WRONG. Before that fix it invented a defect on a clean screen at **conf 92%**; after, the same
+  ticket and the same screenshot came back **Question, conf 22%**.
+- **Its confidence is calibrated**: 96% with quotes, 22% with none, 30% on a vague report.
+- **The graceful fallback fired for real** (BL-041) and looks tidy enough to be mistaken for a
+  result: *other · annoying · conf 0% · model "? (fallback)"*.
+
+**And it files phantoms when the picture is bad.** Three tickets were captured at Pixel ratio 0.5–0.8
+— a zoomed-out browser — and it reported compression artifacts as defects: `13R`, `CHF ?'28?'.95`, a
+franc figure "missing its decimal separator". The prompt now distrusts fine detail below ratio 1.
+**Do the walk at 100% zoom.**
+
+### The division of labour, settled by evidence
+
+- **the script** finds every untranslated string exactly, free, repeatably — and finds ones a
+  screenshot cannot show (a placeholder you must click into, a toast that needs an error)
+- **Angel's eyes** find what is *wrong* rather than *missing*
+- **the AI** finds what is wrong in a picture: a word that reads badly in a room, text too long for
+  its box, a language that does not match its neighbours
+
+On `catalog` Angel marked PASS with 22 English strings on screen. Not a failure — the proof that
+scattered English hides from a person and cannot hide from a script. Both instruments, or neither.
+
+### Still open
+
+- **`0️⃣a`** — nobody who speaks French or Italian has read ANY of ~1,100 strings. Not a translation
+  gap, a **review** gap. `Sistemazione` is the proof it is real.
+- **the bench** — 275 strings, nobody sells with it
+- **triage has no re-triage button**, and does not feed the KB it was built to grow
+- **the dense-list ellipsis** is calibrated for English lengths — Angel's call
+- **`Unsorted` vs `Uncategorized`** — two names for "we do not know", from two code paths, in one
+  report. A catalogue smell, not a language one.

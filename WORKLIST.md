@@ -23,32 +23,36 @@ tablet, zero fails. Live on the shop: `b629 · 6cc1bb5`.*
 
 ---
 
-## ▶️ THE DECK — READ THIS FIRST · last touched 2026-09-06 morning
+## ▶️ THE DECK — READ THIS FIRST · last touched 2026-09-06 night
 
-**Live on the shop: `b693 · 972578a`.** Reload the tablet TWICE after any deploy — the first load
+**Live on the shop: `b726 · 11559c1`.** Reload the tablet TWICE after any deploy — the first load
 activates the new service worker, the second serves from it.
 *The 2026-09-04 method note, and what went in that night (four fixes, five suites, three sheets,
 54 pass · 5 issue · 0 fail), are in [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md).*
 
 ### Pick up here, in this order
 
-0️⃣ ~~**The cash box, finished.**~~ — **(a)–(d) all shipped, `b693`, 2026-09-06.** The note strip
-   **passed on the glass** (*Filing with note: zztest3 · Remove* → Remove → **no note on the filed
-   report**), the drawer closed **balanced at CHF 1'216.00**, and the 💬 held the bottom bar through
-   landscape → portrait → landscape. ⚠️ **But two are deployed, not SEEN** — the guard's translated
-   body never fired (the box opened clean) and the 💬 *migration* could not run here (Angel's saved
-   position already has a corner); both run first on Felix's and Layla's devices.
+0️⃣ ~~**The cash box, finished.**~~ — **all four shipped `b693`.** Note strip passed on the glass,
+   drawer closed balanced at CHF 1'216.00. ⚠️ The morning guard's translated body has still never
+   fired on a screen. *(The 💬 anchor migration is moot — the button no longer floats.)*
    → [`2026-09-06-archive-pass.md`](worklist-archive/2026-09-06-archive-pass.md)
 
-0️⃣b **▶️ THE LANGUAGE WORK — batch 1 and 2 done, the bench is what is left.** Nine bug classes,
-   not one, all found on 2026-09-06. ~~batch 1: the till~~ · ~~batch 2: audit · settings~~ ·
-   ~~`catalog_misses`~~ — all CLEAN. **Left: `shelf_intake` 173 · `hardware` 59 · `catalog` 22 ·
-   `catalog_health` 21**, plus 23 placeholders · 33 `x-text` · 3 `<script>`. Run
-   `python3 scripts/prove-one-box-one-language.py` — **9 checks, and it has been wrong SEVEN
-   times**, every correction recorded in the file. Guards: never translate the gun's German
-   firmware words, the category names, the de-CH numeric dates, a language picker, or anything
-   marked `data-i18n-exempt`.
-   → [`2026-09-06-archive-pass.md`](worklist-archive/2026-09-06-archive-pass.md)
+0️⃣b **▶️ START HERE 2026-09-07 — the bench is all that is left of the language work.**
+   `shelf_intake` 173 · `hardware` 59 · `catalog` 22 · `catalog_health` 21 = **275 strings, and
+   nobody sells with any of it.** Everything a cashier or Felix touches is CLEAN: the till (6
+   screens) · audit · settings · catalog_misses · age-report · my-tickets.
+   **Four things are live and NOBODY HAS LOOKED AT THEM** — `felix | Titolare` in the header, the
+   `Ricevuta` stage on My Reports, six nav items in Italian **on a phone**, and whether the 💬 in
+   the top bar still opens with a thumbnail. Sheet is cut and stamped `b726`:
+   [`it-recheck`](onboarding/testsheets/2026-09-06-language-walk-it-recheck.html).
+   **Nine classes, and the harness could originally see ONE** —
+   `python3 scripts/prove-one-box-one-language.py`, 9 checks, **wrong eight times in one day**,
+   every correction in the file. Never pipe it through `grep`: that eats the traceback AND the exit
+   code, and it spent several commits crashing while printing partial results.
+   Guards: never translate the gun's German firmware words, category names, the de-CH numeric
+   dates, a language picker, or anything marked `data-i18n-exempt`.
+   → [`2026-09-06-archive-pass.md`](worklist-archive/2026-09-06-archive-pass.md) ·
+   [`LESSONS.md`](LESSONS.md)
 0️⃣c ~~**THE 💬 → TRIAGE LOOP**~~ — **PROVEN END TO END, 2026-09-06.** Real brain
    (`gpt-oss:120b`, Turbo). It named three strings Angel never typed (BL-018, `conf 96%`), found a
    live regression of mine from a console breadcrumb on an unrelated ticket (BL-016), and — after
@@ -60,13 +64,10 @@ activates the new service worker, the second serves from it.
    a ticket after a prompt change means impersonating the reporter with a `reporter-note`. The
    prompt changed four times in one afternoon. (2) **Triage does not feed the KB** —
    `kb_contribution_model` and `/pos/kb-approvals` exist; `feedback_triage.py` touches neither.
-0️⃣e ⚠️ **20 USER-FACING ENGLISH STRINGS ARE BUILT IN `pos_router.py`** — sent to the browser as
-   DATA, so no client-side translation can ever reach them. Found by the AI reading a screenshot of
-   `/pos/my-tickets` in Italian (BL-035): *"Received — Thanks! We've got your message."* under a
-   fully Italian page. **The whole reporter progress timeline is like this** — Received · We
-   understand it · Being fixed · On hold · All sorted — and it is what a CASHIER reads to find out
-   what happened to the thing she reported. **Not a translation job: the endpoints must send a KEY
-   and let the client translate.** Now check (9), reported and never failed on.
+0️⃣e ~~**English built in `pos_router.py`**~~ — **the reporter timeline is FIXED, `11559c1`.**
+   `_friendly_stage` now sends a KEY alongside the English, so Layla reads *Ricevuta · Abbiamo
+   capito · In correzione · Risolta!* about her own ticket. ⚠️ **~19 more remain** in that file
+   (duplicate warnings, picture-search hints) — check (9) lists them, reported never failed.
 0️⃣f ⚠️ **DO THE WALK AT 100% BROWSER ZOOM.** BL-038's garbled numbers (`13R`, a franc figure
    "missing its decimal separator") came from a capture at **Pixel ratio 0.667** — the model read
    compression, not the screen. Triage now distrusts fine detail below ratio 1; the cheap fix is
@@ -75,11 +76,9 @@ activates the new service worker, the second serves from it.
    has no French. ~720 FR/IT strings were written by the copilot on 2026-09-06 alone. Not a
    translation gap — a **review** gap, and `Sistemazione` is the proof it is real.
 
-0. ~~**THE STARTUP THREAD — walked, measured, fixed. Fourteen cold boots, 2026-09-05.**~~ The till
-   **did not come up at all** on a cold boot; five faults behind it. **Fixed and deployed
-   (b684–b690) → ~58s, unattended, no password, no press.** Invisible for four months because
-   every earlier proof was `reboot` over SSH **with nobody watching the screen** — LESSON #1 ×14.
-   → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
+0. ~~**THE STARTUP THREAD**~~ — the till **did not come up at all** on a cold boot; five faults.
+   **Fixed → ~58s, unattended.** Invisible for four months because every proof was `reboot` over
+   SSH **with nobody watching the screen**. → [`09-05`](worklist-archive/2026-09-05-archive-pass.md)
 
 0c. **Do they log out at night?** Raised, not decided. · 0f. **My Day: red `failed to fetch`
    while offline**, under a banner that already said so. LESSON #12.
