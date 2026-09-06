@@ -71,6 +71,8 @@ window.POS_STRINGS = {
       "error": "Error"
     },
     "nav": {
+      "fb_need_title": "Give it a short title (3+ characters).",
+      "fb_sending": "Sending…",
       "fb_capturing": "Capturing…",
       "fb_recapture_s": "📸 Recapture",
       "fb_capture_s": "📸 Capture screen",
@@ -2337,6 +2339,8 @@ window.POS_STRINGS = {
       "error": "Erreur"
     },
     "nav": {
+      "fb_need_title": "Donnez-lui un titre court (3 caractères minimum).",
+      "fb_sending": "Envoi…",
       "fb_capturing": "Capture en cours…",
       "fb_recapture_s": "📸 Recapturer",
       "fb_capture_s": "📸 Capturer l'écran",
@@ -4613,6 +4617,8 @@ window.POS_STRINGS = {
       "error": "Errore"
     },
     "nav": {
+      "fb_need_title": "Dagli un titolo breve (almeno 3 caratteri).",
+      "fb_sending": "Invio in corso…",
       "fb_capturing": "Acquisizione…",
       "fb_recapture_s": "📸 Ricattura",
       "fb_capture_s": "📸 Cattura schermo",
@@ -6879,6 +6885,8 @@ window.POS_STRINGS = {
       "error": "Fehler"
     },
     "nav": {
+      "fb_need_title": "Gib einen kurzen Titel ein (mind. 3 Zeichen).",
+      "fb_sending": "Wird gesendet…",
       "fb_capturing": "Wird aufgenommen…",
       "fb_recapture_s": "📸 Neu aufnehmen",
       "fb_capture_s": "📸 Bildschirm aufnehmen",

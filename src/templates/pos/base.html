@@ -2672,11 +2672,17 @@
       function show(){ov.style.display='flex';load();}
       function hide(){ov.style.display='none';}
       async function load(){
-        sub.textContent='Loading…';
+        sub.textContent=t('common.loading');
         try{
           var j=await API.get('/api/v1/pos/system/pulse');
-          var t=j.today||{};
-          document.getElementById('pulse-sales').innerHTML=formatPrice(t.sales||0)+' <small>· '+(t.transactions||0)+' sale'+((t.transactions===1)?'':'s')+'</small>';
+          // NOT `t`. `t` is the global translator (window.t), and `var` is
+          // function-scoped — so `var t = j.today` shadowed it for the WHOLE
+          // function, including the catch handler, and every t() call below threw
+          // "t is not a function". Shipped in b704 and caught by the AI triage
+          // brain off Angel's own BL-016, from a console breadcrumb the feedback
+          // button had collected. Never name a local `t` in this app.
+          var today=j.today||{};
+          document.getElementById('pulse-sales').innerHTML=formatPrice(today.sales||0)+' <small>· '+(today.transactions||0)+' sale'+((today.transactions===1)?'':'s')+'</small>';
           set('pulse-members',j.members!=null?j.members:'—');
           set('pulse-drawers',j.open_drawers!=null?j.open_drawers:'—');
           set('pulse-catalog',j.catalog!=null?j.catalog:'—');
@@ -3179,11 +3185,11 @@
       camInput.onchange=function(){addFiles(camInput.files);};
 
       send.onclick=function(){
-        var t=(title.value||'').trim();
-        if(t.length<3){msg.textContent='Give it a short title (3+ characters).';msg.className='lpfb-msg err';return;}
-        send.disabled=true;send.textContent='Sending…';msg.textContent='';msg.className='lpfb-msg';
+        var ttl=(title.value||'').trim();
+        if(ttl.length<3){msg.textContent=t('nav.fb_need_title');msg.className='lpfb-msg err';return;}
+        send.disabled=true;send.textContent=t('nav.fb_sending');msg.textContent='';msg.className='lpfb-msg';
         // API.post injects the bearer token + handles silent refresh; returns parsed JSON.
-        API.post('/api/v1/pos/feedback',{kind:kind,severity:sev,title:t,body:(body.value||'').trim(),
+        API.post('/api/v1/pos/feedback',{kind:kind,severity:sev,title:ttl,body:(body.value||'').trim(),
           screenshot:shot||null,attachments:attachments,meta:collectMeta(),diagnostics:collectDiag()})
         .then(function(j){
           if(j&&j.ok){showDone(j.ref,j.item_number,!!(j.screenshot||shot),(j.attachments!=null?j.attachments:attachments.length));}
@@ -3226,8 +3232,8 @@
       if(!sessionStorage.getItem('pos_token') && !_authInFlight) document.body.classList.add('pre-auth');
       var path = location.pathname;
       Array.prototype.forEach.call(document.querySelectorAll('#app-nav a'), function(a){
-        var t=a.getAttribute('data-tab');
-        if(path===t || path.indexOf(t+'/')===0 || path===t) a.classList.add('active');
+        var tab=a.getAttribute('data-tab');
+        if(path===tab || path.indexOf(tab+'/')===0) a.classList.add('active');
       });
       function cartBadge(){
         try{

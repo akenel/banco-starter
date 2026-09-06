@@ -1257,8 +1257,8 @@ function shelfIntake() {
     // harder", and it is honest: it never claims to know WHICH language. Our real detector
     // (_guess_base_lang) only knows German-vs-unknown and returned nothing for Hungarian.
     langWarning(facts) {
-      var t = ((facts && facts.name) || '') + ' ' + ((facts && facts.description) || '');
-      return /[őűąćęłńśźżřěščžığşİĞŞ\u0400-\u04FF\u0370-\u03FF]/.test(t);
+      var text = ((facts && facts.name) || '') + ' ' + ((facts && facts.description) || '');
+      return /[őűąćęłńśźżřěščžığşİĞŞ\u0400-\u04FF\u0370-\u03FF]/.test(text);
     },
 
     // Grey out the words the operator already typed and BOLD everything else — the leftover

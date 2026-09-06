@@ -89,6 +89,16 @@ def flat(d, prefix=""):
 def strip_comments(t):
     return re.sub(r"<!--.*?-->", lambda m: "\n" * m.group(0).count("\n"), t, flags=re.S)
 
+def strip_js_comments(t):
+    """Blank out // line comments and /* */ blocks, leaving line numbers intact.
+
+    Added because check (8) matched the sentence in ITS OWN documentation that
+    quotes the bug it looks for. `://` is spared so URLs survive.
+    """
+    t = re.sub(r"/\*.*?\*/", lambda m: "\n" * m.group(0).count("\n"), t, flags=re.S)
+    return re.sub(r"(?m)^(\s*)//[^\n]*", r"\1", t)
+
+
 def strip_blocks(t):
     for tag in ("script", "style"):
         t = re.sub(rf"<{tag}\b.*?</{tag}>",
@@ -292,6 +302,44 @@ def main():
             if missing:
                 bad_calls.append((f.name, src.count("\n", 0, m.start()) + 1, key, missing))
 
+    # (8) A LOCAL VARIABLE NAMED `t`. In this app `t` is the global translator
+    # (window.t = t, base.html). A `var t = ...` is function-scoped, so it shadows
+    # the translator for the WHOLE function including any catch handler, and every
+    # t() call in it throws "t is not a function".
+    #
+    # That shipped in b704: `var t = j.today` in the Shop Pulse loader, three t()
+    # calls below it, and the catch handler that was supposed to report the failure
+    # threw too. It was found by the AI triage brain reading a console breadcrumb
+    # off Angel's own feedback ticket BL-016 — not by any check in this repo.
+    #
+    # The rule is blunt on purpose: never name a local `t` here. A `let` inside a
+    # narrow block is harmless, and it is still not worth the shape.
+    # PRECISE, or it will not be read. A first version flagged every local `t` and
+    # reported 16 — fifteen of them harmless `const t` in narrow scopes, and one of
+    # them THIS COMMENT, because strip_comments() removes HTML comments and not JS
+    # ones. A check that cries wolf fifteen times stops being read, which is how
+    # the real one hides. So: a `var t` is always reported (function-scoped, so it
+    # shadows the whole function including catch handlers), and a `let`/`const t`
+    # only when a t() call actually follows it inside the same brace block.
+    shadowed = []
+    for f in files:
+        src = strip_js_comments(strip_comments(f.read_text(encoding="utf-8")))
+        for m in re.finditer(r"\b(var|let|const)\s+t\s*=", src):
+            kind = m.group(1)
+            # the block this declaration lives in, by brace matching
+            depth, i, end = 0, m.end(), len(src)
+            while i < len(src):
+                if src[i] == "{": depth += 1
+                elif src[i] == "}":
+                    if depth == 0: end = i; break
+                    depth -= 1
+                i += 1
+            block = src[m.end():end]
+            risky = kind == "var" or re.search(r"(?<![\w.$])t\s*\(", block)
+            if risky:
+                shadowed.append((f.name, src.count("\n", 0, m.start()) + 1,
+                                 src[m.start():m.start() + 46].split("\n")[0], kind))
+
     if bad_keys:
         print(f"❌ {len(bad_keys)} key(s) that do not resolve in every language")
         for fn, ln, key, miss in bad_keys:
@@ -354,11 +402,19 @@ def main():
     else:
         print("✅ every t() call in the templates resolves in all four languages")
 
+    if shadowed:
+        print(f"❌ {len(shadowed)} local variable(s) named `t` — they shadow the translator")
+        for fn, ln, txt, kind in shadowed:
+            why = "var is function-scoped" if kind == "var" else "a t() call follows it"
+            print(f"   {fn}:{ln}  {txt}   ({why})")
+    else:
+        print("✅ no local variable shadows the global t() translator")
+
     print()
     print(f"{len(files)} templates read.")
     print("NOT CHECKED HERE: whether a translation that IS different from English is")
     print("any GOOD. Nobody who speaks French or Italian has read these strings.")
-    return 1 if (bad_keys or bare or english or in_script or in_xtext or ph or bad_calls) else 0
+    return 1 if (bad_keys or bare or english or in_script or in_xtext or ph or bad_calls or shadowed) else 0
 
 if __name__ == "__main__":
     sys.exit(main())
