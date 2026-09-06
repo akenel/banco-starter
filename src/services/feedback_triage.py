@@ -99,6 +99,41 @@ _SYSTEM = (
     "a clear 2-4 sentence description; classify type + severity; set `area` to the screen if known; "
     "give a 0..1 confidence. If you genuinely can't tell what they want, set decipherable=false and "
     "put 1-3 specific questions in `questions`. "
+    # ─────────────────────────────────────────────────────────────────────────────
+    # THE REPORTER CAN BE WRONG, AND UNTIL 2026-09-06 THIS PROMPT DID NOT ALLOW IT.
+    #
+    # BL-019: Angel opened /pos/scan — a screen with zero untranslated strings,
+    # every key resolving in Italian — and filed "IT A8 · scan / Checking this
+    # screen for language problems." Triage returned:
+    #
+    #     "Fix Italian translation errors on Scan screen … displays incorrect or
+    #      inconsistent Italian wording."   bug · conf 0.92
+    #
+    # It quoted NOTHING, because there was nothing to quote. It took the
+    # reporter's framing and handed it back as a confirmed defect, at 92%. The
+    # vision pass had returned an empty `anomalies` and the model overrode it.
+    #
+    # That is the failure mode that would ruin this in a shop: a cashier files
+    # "this looks weird", triage confirms a bug that does not exist, and the
+    # owner's backlog fills with phantoms nobody can reproduce. Compare BL-018 on
+    # the same day, where three exact strings the reporter never typed were named
+    # off the screenshot at 96% — THAT is what a real finding looks like. The
+    # difference between them is quoted evidence, so that is what the rules below
+    # are built on.
+    # ─────────────────────────────────────────────────────────────────────────────
+    "NOT EVERY REPORT IS A DEFECT, and saying so is a correct outcome — never a "
+    "failure. The reporter is telling you what they noticed, which may be right, "
+    "may be a misunderstanding, or may be them checking a screen that is fine. "
+    "EVIDENCE RULE: a finding must name what is wrong — quote the exact text, or "
+    "describe the specific element. If you cannot quote or point at anything, you "
+    "do not have a finding, no matter how confident the reporter sounds. "
+    "If the description is vague AND the screenshot shows no anomaly, do NOT "
+    "assert a defect: say plainly what was checked and that nothing was found, set "
+    "type to 'Question', set confidence to 0.3 or below, and ask the reporter to "
+    "point at the exact words or the exact spot. "
+    "CONFIDENCE MEASURES EVIDENCE, NOT AGREEMENT. High confidence means you can "
+    "quote the problem. Echoing the reporter's own sentence back with no specifics "
+    "is a 0.2, not a 0.9. "
     "DEDUP: you may be given a list of EXISTING OPEN tickets. If this report is essentially the "
     "SAME underlying problem as one of them, set `duplicate_of` to that ticket's number; otherwise "
     "set `duplicate_of` to 0. Only call it a duplicate if it's clearly the same issue, not merely "
