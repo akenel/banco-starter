@@ -50,24 +50,23 @@ activates the new service worker, the second serves from it.
    Plan + counts: [`the-language-audit.html`](onboarding/the-language-audit.html) · full narrative,
    the six harness corrections and the two withdrawn findings:
    [`2026-09-06-archive-pass.md`](worklist-archive/2026-09-06-archive-pass.md)
-0️⃣c **▶️ THE LANGUAGE WALK — via the 💬 BUTTON, not a screenshot folder.** Angel's idea, 09-06,
-   and most of it was already built: 💬 auto-captures the screen, files a numbered ticket, and
-   `POST /feedback/triage` runs an **Ollama** brain (Turbo if `BH_OLLAMA_KEY`, else local) with a
-   **vision pass over the screenshot** — clean rewrite stored as a separate activity, original
-   untouched, idempotent, `decipherable=false` + questions when it cannot tell.
-   **Loop:** link (`?lang=it`) → 💬 → paste the tap-to-copy title → Send. ~15s a screen.
-   **Unit of work = one SECTION × all four languages, then fix all four at once.**
-   **File a ticket even when the page is FINE** — the only way to learn whether triage invents a
-   problem when there is none.
-   ▶️ [`the phase-0 + section A sheet, Italian`](onboarding/testsheets/2026-09-06-language-walk-it-a.html)
-   — 6 checks on ONE page, then 10 screens. Regenerate:
-   `python3 scripts/make-language-walk.py it --only A --phase0` (screens come from the ROUTER,
-   counts from the harness, so neither can drift).
-   ⚠️ **Two gaps found while planning:** `POST /feedback/{n}/done` DOES take `{"commit":"<sha>"}`
-   (80 chars) so Angel's SHA loop works today — **but triage does NOT feed the KB.** A
-   `kb_contribution_model` and `/pos/kb-approvals` exist and `feedback_triage.py` touches neither.
-   Intent, not wiring. · Phase 0's real question is P5: **is a brain configured on prod at all,**
-   or does triage degrade gracefully and return boilerplate that looks like it worked?
+0️⃣c **▶️ THE 💬 → TRIAGE LOOP — PROVEN END TO END, 2026-09-06.** Angel's idea: file through the
+   feedback button, not a screenshot folder. Real brain confirmed (`gpt-oss:120b` on Turbo).
+   **BL-018:** off *"three boxes are in English"* it named three exact strings he never typed,
+   `conf 96%`. **BL-016:** it found a live regression of MINE from a console breadcrumb attached to
+   an unrelated ZZTEST. **BL-019 was the failure that mattered** — a clean screen, and it invented
+   a bug at `conf 92%`. Cured: the prompt now allows *nothing is wrong*, requires a QUOTE, and ties
+   confidence to evidence. Re-run of the same ticket: **`bug 92%` → `Question 22%`**, 4/4 against a
+   written prediction. Sheet: [`it · section A`](onboarding/testsheets/2026-09-06-language-walk-it-a.html)
+   (`python3 scripts/make-language-walk.py it --only A --phase0`).
+   → [`2026-09-06-archive-pass.md`](worklist-archive/2026-09-06-archive-pass.md)
+0️⃣d **Two gaps in the triage system, both found by using it.** (1) **No re-triage affordance** —
+   it is idempotent, so the only way to re-read a ticket after improving the prompt is a
+   `reporter-note`/`reopened`/`disputed`, i.e. impersonating the reporter. The prompt changed twice
+   in one afternoon. (2) **Triage does not feed the KB** — `kb_contribution_model` and
+   `/pos/kb-approvals` exist; `feedback_triage.py` touches neither. ⚠️ Also **check the dedup**:
+   BL-021 was joined to BL-019; if it was filed from a different screen that is a false merge, and
+   a wrongly-merged ticket gets closed when the other is fixed.
 0️⃣a ⚠️ **THE FRENCH AND ITALIAN ARE UNVERIFIED — nobody who speaks either has read a word.** Angel
    has no French. ~720 FR/IT strings were written by the copilot on 2026-09-06 alone. Not a
    translation gap — a **review** gap, and `Sistemazione` is the proof it is real.

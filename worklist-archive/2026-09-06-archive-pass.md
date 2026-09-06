@@ -186,3 +186,76 @@ names** (`Filters & Tips`) are catalogue data. The **de-CH numeric dates** were 
 **Nobody who speaks French or Italian has read any of the ~720 strings written on 2026-09-06.**
 Angel has no French. The English is off the glass; that is not the same as the Italian being good,
 and `Sistemazione` — a real Italian word, and the wrong one — is the proof.
+
+---
+
+## The feedback → triage loop, proven end to end · 2026-09-06 afternoon
+
+Angel's idea, and the better one: stop taking screenshots by hand, use the 💬 button — it already
+captures the screen, files a numbered ticket, and `POST /feedback/triage` already runs an Ollama
+brain with a vision pass over that screenshot. The loop was built; this was the first day it was
+pointed at real work.
+
+### Phase 0 — what each ticket settled
+
+| | what it proved |
+|---|---|
+| **BL-016** | The brain is REAL — `model: gpt-oss:120b` on Turbo, not the graceful fallback. And it found a live regression *of mine* (below). |
+| **BL-017** | Vision reads the screen truthfully — but asked whether **our own 💬 button** was a UI artifact. Prompt taught Banco's furniture. |
+| **BL-018** | Off a body saying only *"Three boxes in the middle are in English"*, it named **"Price not verified yet", "Scannable at the till", "Margin known"** — three strings Angel never typed, all matching the harness exactly. `bug · medium · conf 96%`. **Thin tickets work.** |
+| **BL-019** | **The failure.** A CLEAN screen, a neutral body — and it invented *"Fix Italian translation errors"* at **conf 92%**, quoting nothing. |
+| **BL-021** | Dedup fired and linked it to #19 with good reporter-facing copy. |
+
+### BL-016 — the AI found a regression I had shipped that morning
+
+Angel filed a ZZTEST about something else. The 💬 button collected a console breadcrumb with it:
+
+    ❌ unhandledrejection: TypeError: t is not a function at load (/pos/dashboard:3260:27)
+
+Triage read the breadcrumb and wrote *"Fix TypeError on dashboard load in build b704 · bug · high
+· conf 85%"*. It was right. `var t = j.today` in the Shop Pulse loader shadowed the global
+translator — `var` is function-scoped, so it took the catch handler down too, which is why it
+surfaced as an unhandled rejection instead of a message. **No check in this repo could see it:**
+valid JavaScript, every template parsed, every key resolved, and it only threw when the panel was
+opened. Now `scripts/prove-one-box-one-language.py` check (8).
+
+### BL-019 — sycophancy, and the fix that cured it
+
+A clean screen and a neutral body produced a confident phantom. The cause was in `_SYSTEM`: the
+prompt had **no way to conclude "nothing is wrong"**. Every input had to become a ticket, so every
+input became one. Four rules added — the reporter may be mistaken; a finding must QUOTE the exact
+text; vague body + clean screenshot → Question, confidence ≤ 0.3; **confidence measures evidence,
+not agreement**.
+
+Re-triaged the same ticket, same screenshot, same model:
+
+| | before | after |
+|---|---|---|
+| type | `bug` | **`Question`** |
+| confidence | **92%** | **22%** |
+| description | "displays incorrect or inconsistent Italian wording" | "**the screenshot shows the normal layout with no visible anomalies** … clarify which text appears wrong and where" |
+
+**Four out of four against a prediction written before the result was seen.** The property that
+matters is not that it finds bugs — it is that it can say *nothing is wrong here*, which is the
+only reason to believe it when it says something is.
+
+### Found along the way
+
+- **Re-triage has no affordance.** Triage is idempotent; the only way to re-read a ticket after
+  improving the prompt is `reporter-note`, `reopened` or `disputed` — i.e. impersonating the
+  reporter. The prompt changed twice in one afternoon. A manager needs a plain "re-triage this".
+- **Triage does not feed the KB.** `kb_contribution_model` and `/pos/kb-approvals` both exist and
+  `feedback_triage.py` touches neither.
+- The raw ticket was rendered `.slice(0,300)`, cutting every context block off mid-word — the AI
+  always had it, the human never did.
+
+### The judgement, asked and answered
+
+Angel: *"can you see how this could actually be useful for Layla and Felix … or is it overkill?"*
+
+**The valuable part is the evidence, not the AI.** Layla will never report a stack trace; she will
+say the shop thing went funny. The button captures screen, build, language, orientation, console
+errors and failed calls without her doing anything. **And it is not a system for Layla — her whole
+interface is one button.** The cockpit is Angel's instrument for supporting a shop he is not
+standing in. For a two-person shop a ticketing system would be absurd; for remote hypercare it is
+exactly right. The AI rewrite stays on probation until it has earned more than one good day.
