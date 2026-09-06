@@ -339,14 +339,14 @@
                          about whoever happens to be looking at it. -->
                     <p class="text-sm text-gray-500">
                         <template x-if="report && (!report.reconciled_by || report.reconciled_by === (report.opened_by || report.username))">
-                            <span>opened and closed by
+                            <span><span data-i18n="shift.by_opened_closed">opened and closed by</span>
                                 <span class="font-medium text-gray-700" x-text="report.opened_by || report.username"></span>
                             </span>
                         </template>
                         <template x-if="report && report.reconciled_by && report.reconciled_by !== (report.opened_by || report.username)">
-                            <span>opened by
+                            <span><span data-i18n="shift.by_opened">opened by</span>
                                 <span class="font-medium text-gray-700" x-text="report.opened_by || report.username"></span>
-                                · counted &amp; closed by
+                                <span data-i18n="shift.by_counted_closed">· counted &amp; closed by</span>
                                 <span class="font-medium text-gray-700" x-text="report.reconciled_by"></span>
                             </span>
                         </template>
@@ -361,9 +361,9 @@
                          like a day's trading. -->
                     <p x-show="report && report.hours > 24" style="display:none"
                        class="text-sm text-amber-700 font-semibold mt-1">
-                        ⚠️ This drawer was open for
-                        <span x-text="report ? (report.hours / 24).toFixed(1) : ''"></span> days —
-                        the figures below cover the whole period, not one day.
+                        <span data-i18n="shift.long_open_pre">⚠️ This drawer was open for</span>
+                        <span x-text="report ? (report.hours / 24).toFixed(1) : ''"></span>
+                        <span data-i18n="shift.long_open_post">days — the figures below cover the whole period, not one day.</span>
                     </p>
                 </div>
 
