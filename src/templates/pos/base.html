@@ -2991,7 +2991,20 @@
           open.style.left=left+'px';open.style.top=top+'px';
           open.style.right='auto';open.style.bottom='auto';
         }
-        if(!(saved&&applyAnchor(saved))&&saved&&typeof saved.left==='number'){place(saved.left,saved.top);}
+        // MIGRATE AN OLD RECORD. Builds before 2026-09-05 stored left/top and nothing
+        // else, so applyAnchor() rejects them and the FIRST rotation after this deploy
+        // is still wrong — only a drag would fix it, and Felix and Layla would each hit
+        // that once. So place it where it was, then derive the corner from where it
+        // actually landed and write that back. No worse than the clamp it replaces, and
+        // it means nobody has to drag anything to get the fix they were shipped.
+        if(!(saved&&applyAnchor(saved))&&saved&&typeof saved.left==='number'){
+          place(saved.left,saved.top);
+          if(!saved.ax){
+            var r0=open.getBoundingClientRect();
+            var rec0=anchorOf(r0); rec0.left=r0.left; rec0.top=r0.top;
+            try{localStorage.setItem(POS_KEY,JSON.stringify(rec0));}catch(e){}
+          }
+        }
         var dragging=false,moved=false,sx=0,sy=0,ox=0,oy=0;
         open.addEventListener('pointerdown',function(e){
           dragging=true;moved=false;
