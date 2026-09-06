@@ -86,6 +86,26 @@ CAREFUL = {
 }
 
 
+def build_stamp():
+    """b<commit-count> · <short sha> — the same pair the status bar shows.
+
+    src/build_info.py builds the label as "b" + the git commit count, and the
+    deploy prints "commit 5e15e56 (b704)". Angel's FIRST report on 2026-09-06
+    came back reading "build undefined", because the shell takes it from
+    meta['Build'] and this generator never set one. A sheet with no build stamp
+    is a sheet whose marks are about an unknown build — which is the whole point
+    of the step 0.1 the shell prepends.
+    """
+    def git(*a):
+        try:
+            return subprocess.run(["git", *a], capture_output=True, text=True,
+                                  cwd=ROOT).stdout.strip()
+        except Exception:
+            return ""
+    n, sha = git("rev-list", "--count", "HEAD"), git("rev-parse", "--short", "HEAD")
+    return f"b{n} · {sha}" if n and sha else (sha or "unknown")
+
+
 def routes():
     """Every page route, straight from the router — never a typed list."""
     src = ROUTER.read_text(encoding="utf-8")
@@ -127,36 +147,28 @@ def esc(s):
 
 
 PHASE0 = [
-    ("P1", "Open the FIRST link in section A. When the page has settled, tap the "
-           "<b>💬 button</b> — bottom bar. Do not type anything yet.",
-           "The panel opens and a <b>thumbnail of this screen</b> is already sitting in it. "
-           "You did not press capture — it captures on open.",
-           "If there is no thumbnail, everything downstream is theatre: triage reads the "
-           "screenshot, so a ticket without one is a ticket the brain cannot see."),
-    ("P2", "Tap the thumbnail to enlarge it, or just look hard at it. Find the smallest grey "
-           "text on the screen.",
-           "You can <b>read the small text</b> in the shot.",
-           "The capture was raised to 1600px / q0.85 on 2026-09-06 for exactly this. At the old "
-           "1100 / 0.7 a tablet screen was halved before being JPEG'd, and the job here is "
-           "reading 12px Italian. If it is mush, say so and we raise it again."),
-    ("P3", "Type the title the step below gives you, add a line if anything looks wrong, "
+    ("P1", "Tap the link, let the page settle, then tap the <b>💬 button</b> in the bottom bar. "
+           "Type the title from the chip below, add a line only if something looks wrong, "
            "and <b>Send</b>.",
-           "A <b>ticket number</b> comes back — <code>BL-###</code>.",
-           "That number is the unit of work from here on."),
-    ("P4", "Go to <b>My tickets</b> and open the one you just filed.",
-           "It is there, with your title and <b>the screenshot attached</b>.",
-           "Round trip proven: filed, stored, readable. This is also the first real test of "
-           "the reporter-side screens."),
-    ("P5", "Tell Angel's copilot the ticket number. Triage gets run over that ONE ticket.",
-           "Either a clean rewritten ticket with a type, a severity and a confidence — or a "
-           "clearly-marked <b>fallback</b> saying no brain was reachable.",
-           "This is the check that decides the whole plan. If <code>BH_OLLAMA_KEY</code> is not "
-           "set on prod, triage degrades gracefully and returns boilerplate — which looks like "
-           "it worked. Better to find that on ticket one than ticket ninety."),
-    ("P6", "Read what triage said about the screenshot.",
-           "It describes <b>the screen you were actually on</b>.",
-           "Vision either read the screen or invented one. A brain that hallucinates a screen "
-           "will hallucinate a fix, and we would be merging its guesses."),
+           "A <b>ticket number</b> comes back — <code>BL-###</code> — and the panel already had a "
+           "<b>thumbnail of this screen</b> in it before you typed anything.",
+           "Two checks in one tap. No thumbnail means triage is reading nothing, because the "
+           "screenshot IS what the vision model gets. And the number is the unit of work from "
+           "here on."),
+    ("P2", "Open <b>My tickets</b> and look at the one you just filed. Find the smallest grey "
+           "text in the attached shot and try to read it.",
+           "It is there, with your title, and <b>you can read the small text</b>.",
+           "The capture went to 1600px / q0.85 in b704 for exactly this — at the old 1100 / 0.7 a "
+           "tablet screen was halved before being JPEG'd. If it is mush, say so and we raise it "
+           "again, because reading 12px Italian is the entire job."),
+    ("P3", "Tell the copilot the ticket number and let triage run on that ONE ticket.",
+           "Either a clean rewritten ticket with a type, a severity and a confidence — <b>or a "
+           "clearly-marked fallback</b> saying no brain was reachable. And whatever it says about "
+           "the screenshot describes <b>the screen you were actually on</b>.",
+           "This is the step the whole plan turns on. If BH_OLLAMA_KEY is not set on prod, triage "
+           "degrades GRACEFULLY and returns boilerplate — which from a distance looks like it "
+           "worked. And a brain that hallucinates a screen will hallucinate a fix. Better to learn "
+           "both on ticket one than on ticket ninety."),
 ]
 
 
@@ -236,10 +248,15 @@ def build(lang, only=None, phase0=False):
     # 34 tickets are fired at a system that has never seen more than a handful.
     if phase0 and sections:
         first = sections[0]["steps"][0]["link"]["href"]
+        # P1 lands on the same screen as A1 but is a DIFFERENT ticket — it is the
+        # smoke test, not the language check. Same title on both would give two
+        # tickets nobody can tell apart.
+        first_code = f"{lang.upper()} P1 · smoke"
         sections.insert(0, {
             "id": "P", "title": "Phase 0 — prove the loop on ONE page first", "time": "~5 min",
             "steps": [{"id": pid, "do": do, "expect": exp, "why": why,
-                       **({"link": {"text": first + "  ↗", "href": first}} if pid == "P1" else {})}
+                       **({"link": {"text": "Open the first screen  ↗", "href": first},
+                           "codes": [first_code]} if pid == "P1" else {})}
                       for pid, do, exp, why in PHASE0]})
 
     total = sum(len(s["steps"]) for s in sections)
@@ -250,7 +267,7 @@ def build(lang, only=None, phase0=False):
     scope = ("-" + "".join(sorted(only)).lower()) if only else ""
     which = (f"section {'+'.join(sorted(only))}" if only else "every screen")
     sheet = {
-        "key": f"banco-language-walk-{lang}{scope}{'-p0' if phase0 else ''}-v1",
+        "key": f"banco-language-walk-{lang}{scope}{'-p0' if phase0 else ''}-v2",
         "eyebrow": f"Banco POS · language walk · {lang.upper()}",
         "title": (f"{name}: {which}" if only else f"Every screen in {name}"),
         "standfirst": (
@@ -264,6 +281,7 @@ def build(lang, only=None, phase0=False):
             + f"{total - (6 if phase0 else 0)} screens{'' if phase0 else '.</b>'}"
             + (", one ticket each.</b>" if phase0 else "")),
         "meta": [["Shop", "banco.wolfhold.app", f"{HOST}/pos?lang={lang}"],
+                 ["Build", build_stamp()],
                  ["Language", f"{name} ({native})"],
                  ["Log in as", "felix for B and C · pam or layla for A"],
                  ["Counts from", "scripts/prove-one-box-one-language.py"],

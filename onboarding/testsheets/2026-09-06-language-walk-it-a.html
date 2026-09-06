@@ -12,15 +12,19 @@
                  load-bearing ones) · codes[] (tap to copy) · link {href,text}
    ═══════════════════════════════════════════════════════════════════════════════════════ */
 const SHEET = {
-  "key": "banco-language-walk-it-a-p0-v1",
+  "key": "banco-language-walk-it-a-p0-v2",
   "eyebrow": "Banco POS · language walk · IT",
   "title": "Italian: section A",
-  "standfirst": "One tap per screen, each link already carrying <code>?lang=it</code> so you never touch the language dropdown. Open it, screenshot it, mark it, next. <b>The timer starts on your first mark and freezes on your last</b>, and every step stamps the time to the second — so the screenshots in your Pictures folder line up with the steps that produced them without renaming a thing. <b>Phase 0 first — six checks on ONE page</b>, before 34 tickets are fired at a system that has never seen more than a handful. Then 10 screens, one ticket each.</b>",
+  "standfirst": "One tap per screen, each link already carrying <code>?lang=it</code> so you never touch the language dropdown. Open it, screenshot it, mark it, next. <b>The timer starts on your first mark and freezes on your last</b>, and every step stamps the time to the second — so the screenshots in your Pictures folder line up with the steps that produced them without renaming a thing. <b>Phase 0 first — six checks on ONE page</b>, before 34 tickets are fired at a system that has never seen more than a handful. Then 7 screens, one ticket each.</b>",
   "meta": [
     [
       "Shop",
       "banco.wolfhold.app",
       "https://banco.wolfhold.app/pos?lang=it"
+    ],
+    [
+      "Build",
+      "b704 · 5e15e56"
     ],
     [
       "Language",
@@ -36,7 +40,7 @@ const SHEET = {
     ],
     [
       "Budget",
-      "~12 min"
+      "~10 min"
     ]
   ],
   "safety": {
@@ -58,43 +62,28 @@ const SHEET = {
       "steps": [
         {
           "id": "P1",
-          "do": "Open the FIRST link in section A. When the page has settled, tap the <b>💬 button</b> — bottom bar. Do not type anything yet.",
-          "expect": "The panel opens and a <b>thumbnail of this screen</b> is already sitting in it. You did not press capture — it captures on open.",
-          "why": "If there is no thumbnail, everything downstream is theatre: triage reads the screenshot, so a ticket without one is a ticket the brain cannot see.",
+          "do": "Tap the link, let the page settle, then tap the <b>💬 button</b> in the bottom bar. Type the title from the chip below, add a line only if something looks wrong, and <b>Send</b>.",
+          "expect": "A <b>ticket number</b> comes back — <code>BL-###</code> — and the panel already had a <b>thumbnail of this screen</b> in it before you typed anything.",
+          "why": "Two checks in one tap. No thumbnail means triage is reading nothing, because the screenshot IS what the vision model gets. And the number is the unit of work from here on.",
           "link": {
-            "text": "https://banco.wolfhold.app/pos?lang=it  ↗",
+            "text": "Open the first screen  ↗",
             "href": "https://banco.wolfhold.app/pos?lang=it"
-          }
+          },
+          "codes": [
+            "IT P1 · smoke"
+          ]
         },
         {
           "id": "P2",
-          "do": "Tap the thumbnail to enlarge it, or just look hard at it. Find the smallest grey text on the screen.",
-          "expect": "You can <b>read the small text</b> in the shot.",
-          "why": "The capture was raised to 1600px / q0.85 on 2026-09-06 for exactly this. At the old 1100 / 0.7 a tablet screen was halved before being JPEG'd, and the job here is reading 12px Italian. If it is mush, say so and we raise it again."
+          "do": "Open <b>My tickets</b> and look at the one you just filed. Find the smallest grey text in the attached shot and try to read it.",
+          "expect": "It is there, with your title, and <b>you can read the small text</b>.",
+          "why": "The capture went to 1600px / q0.85 in b704 for exactly this — at the old 1100 / 0.7 a tablet screen was halved before being JPEG'd. If it is mush, say so and we raise it again, because reading 12px Italian is the entire job."
         },
         {
           "id": "P3",
-          "do": "Type the title the step below gives you, add a line if anything looks wrong, and <b>Send</b>.",
-          "expect": "A <b>ticket number</b> comes back — <code>BL-###</code>.",
-          "why": "That number is the unit of work from here on."
-        },
-        {
-          "id": "P4",
-          "do": "Go to <b>My tickets</b> and open the one you just filed.",
-          "expect": "It is there, with your title and <b>the screenshot attached</b>.",
-          "why": "Round trip proven: filed, stored, readable. This is also the first real test of the reporter-side screens."
-        },
-        {
-          "id": "P5",
-          "do": "Tell Angel's copilot the ticket number. Triage gets run over that ONE ticket.",
-          "expect": "Either a clean rewritten ticket with a type, a severity and a confidence — or a clearly-marked <b>fallback</b> saying no brain was reachable.",
-          "why": "This is the check that decides the whole plan. If <code>BH_OLLAMA_KEY</code> is not set on prod, triage degrades gracefully and returns boilerplate — which looks like it worked. Better to find that on ticket one than ticket ninety."
-        },
-        {
-          "id": "P6",
-          "do": "Read what triage said about the screenshot.",
-          "expect": "It describes <b>the screen you were actually on</b>.",
-          "why": "Vision either read the screen or invented one. A brain that hallucinates a screen will hallucinate a fix, and we would be merging its guesses."
+          "do": "Tell the copilot the ticket number and let triage run on that ONE ticket.",
+          "expect": "Either a clean rewritten ticket with a type, a severity and a confidence — <b>or a clearly-marked fallback</b> saying no brain was reachable. And whatever it says about the screenshot describes <b>the screen you were actually on</b>.",
+          "why": "This is the step the whole plan turns on. If BH_OLLAMA_KEY is not set on prod, triage degrades GRACEFULLY and returns boilerplate — which from a distance looks like it worked. And a brain that hallucinates a screen will hallucinate a fix. Better to learn both on ticket one than on ticket ninety."
         }
       ]
     },
@@ -366,6 +355,16 @@ const SHEET = {
              font-family:"IBM Plex Mono",monospace; letter-spacing:.04em; text-transform:uppercase}
 
   .codes{display:flex; flex-wrap:wrap; gap:6px; margin:8px 0}
+  /* THE LINK IS THE ACTION. `link {href,text}` was documented as a step field from
+     the day this template was written and the renderer never emitted it — so every
+     sheet that set one silently had none, and Angel hit exactly that on 2026-09-06:
+     "we need a link for each page IMHO". It is now the biggest thing in the step
+     after the instruction, because on a walk it is what the hand goes to. */
+  .golink{display:inline-block; margin:9px 0 2px; padding:9px 14px; border-radius:9px;
+          background:var(--ink); color:var(--paper); text-decoration:none;
+          font:600 14px/1.2 "IBM Plex Sans",system-ui,sans-serif; letter-spacing:.01em}
+  .golink:hover{filter:brightness(1.15)}
+  .golink:active{transform:translateY(1px)}
   .ean{font-family:"IBM Plex Mono",monospace; font-size:13.5px; font-weight:600;
        background:var(--accent-soft); color:var(--accent-ink); padding:3px 9px; border-radius:4px;
        cursor:pointer; border:1px solid transparent}
@@ -527,6 +526,8 @@ const SHEET = {
             '<div>' +
               '<p class="do">' + st.do + '</p>' +
               (codes ? '<div class="codes">' + codes + '</div>' : '') +
+              (st.link ? '<p><a class="golink" href="' + esc(st.link.href) + '" target="_blank" ' +
+                         'rel="noopener">' + esc(st.link.text || 'Open this screen') + '</a></p>' : '') +
               (st.expect ? '<p class="expect js-expect">' + st.expect + '</p>' +
                            '<p class="hidden-expect js-hidden" style="display:none">' +
                            '<button type="button" class="js-reveal">Show what should happen ›</button></p>' : '') +

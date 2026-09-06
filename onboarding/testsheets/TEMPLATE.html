@@ -194,6 +194,16 @@ const SHEET = {
              font-family:"IBM Plex Mono",monospace; letter-spacing:.04em; text-transform:uppercase}
 
   .codes{display:flex; flex-wrap:wrap; gap:6px; margin:8px 0}
+  /* THE LINK IS THE ACTION. `link {href,text}` was documented as a step field from
+     the day this template was written and the renderer never emitted it — so every
+     sheet that set one silently had none, and Angel hit exactly that on 2026-09-06:
+     "we need a link for each page IMHO". It is now the biggest thing in the step
+     after the instruction, because on a walk it is what the hand goes to. */
+  .golink{display:inline-block; margin:9px 0 2px; padding:9px 14px; border-radius:9px;
+          background:var(--ink); color:var(--paper); text-decoration:none;
+          font:600 14px/1.2 "IBM Plex Sans",system-ui,sans-serif; letter-spacing:.01em}
+  .golink:hover{filter:brightness(1.15)}
+  .golink:active{transform:translateY(1px)}
   .ean{font-family:"IBM Plex Mono",monospace; font-size:13.5px; font-weight:600;
        background:var(--accent-soft); color:var(--accent-ink); padding:3px 9px; border-radius:4px;
        cursor:pointer; border:1px solid transparent}
@@ -355,6 +365,8 @@ const SHEET = {
             '<div>' +
               '<p class="do">' + st.do + '</p>' +
               (codes ? '<div class="codes">' + codes + '</div>' : '') +
+              (st.link ? '<p><a class="golink" href="' + esc(st.link.href) + '" target="_blank" ' +
+                         'rel="noopener">' + esc(st.link.text || 'Open this screen') + '</a></p>' : '') +
               (st.expect ? '<p class="expect js-expect">' + st.expect + '</p>' +
                            '<p class="hidden-expect js-hidden" style="display:none">' +
                            '<button type="button" class="js-reveal">Show what should happen ›</button></p>' : '') +
