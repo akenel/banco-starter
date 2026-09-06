@@ -40,33 +40,39 @@ activates the new service worker, the second serves from it.
    position already has a corner); both run first on Felix's and Layla's devices.
    → [`2026-09-06-archive-pass.md`](worklist-archive/2026-09-06-archive-pass.md)
 
-0️⃣b **▶️ THE LANGUAGE AUDIT — batch 1 DONE, needs eyes.** 41 screenshots, 2026-09-06. **Seven**
-   bug classes, not one. ~~**B** 45/45 `agerep` English in FR+IT~~ · ~~**D** 14 dead keys~~ ·
-   ~~**G** 10 `t()` calls printing their own key~~ · ~~**batch 1**: scan · base · checkout ·
-   receipt · transactions · login~~ — **CLEAN, `96ca533`. NOT DEPLOYED, NOT SEEN.**
-   Left: **428 bare · 41 placeholders · 47 `x-text` · 3 `<script>`**; 119 title/aria reported but
-   not failed (a tooltip needs a pointer). **Next: batch 2** = settings · catalog · audit ·
-   join_card. **Then batch 3** = the bench, 238, nobody sells with it.
-   Plan + counts: [`the-language-audit.html`](onboarding/the-language-audit.html) · full narrative,
-   the six harness corrections and the two withdrawn findings:
-   [`2026-09-06-archive-pass.md`](worklist-archive/2026-09-06-archive-pass.md)
-0️⃣c **▶️ THE 💬 → TRIAGE LOOP — PROVEN END TO END, 2026-09-06.** Angel's idea: file through the
-   feedback button, not a screenshot folder. Real brain confirmed (`gpt-oss:120b` on Turbo).
-   **BL-018:** off *"three boxes are in English"* it named three exact strings he never typed,
-   `conf 96%`. **BL-016:** it found a live regression of MINE from a console breadcrumb attached to
-   an unrelated ZZTEST. **BL-019 was the failure that mattered** — a clean screen, and it invented
-   a bug at `conf 92%`. Cured: the prompt now allows *nothing is wrong*, requires a QUOTE, and ties
-   confidence to evidence. Re-run of the same ticket: **`bug 92%` → `Question 22%`**, 4/4 against a
-   written prediction. Sheet: [`it · section A`](onboarding/testsheets/2026-09-06-language-walk-it-a.html)
-   (`python3 scripts/make-language-walk.py it --only A --phase0`).
+0️⃣b **▶️ THE LANGUAGE WORK — batch 1 and 2 done, the bench is what is left.** Nine bug classes,
+   not one, all found on 2026-09-06. ~~batch 1: the till~~ · ~~batch 2: audit · settings~~ ·
+   ~~`catalog_misses`~~ — all CLEAN. **Left: `shelf_intake` 173 · `hardware` 59 · `catalog` 22 ·
+   `catalog_health` 21**, plus 23 placeholders · 33 `x-text` · 3 `<script>`. Run
+   `python3 scripts/prove-one-box-one-language.py` — **9 checks, and it has been wrong SEVEN
+   times**, every correction recorded in the file. Guards: never translate the gun's German
+   firmware words, the category names, the de-CH numeric dates, a language picker, or anything
+   marked `data-i18n-exempt`.
    → [`2026-09-06-archive-pass.md`](worklist-archive/2026-09-06-archive-pass.md)
-0️⃣d **Two gaps in the triage system, both found by using it.** (1) **No re-triage affordance** —
-   it is idempotent, so the only way to re-read a ticket after improving the prompt is a
-   `reporter-note`/`reopened`/`disputed`, i.e. impersonating the reporter. The prompt changed twice
-   in one afternoon. (2) **Triage does not feed the KB** — `kb_contribution_model` and
-   `/pos/kb-approvals` exist; `feedback_triage.py` touches neither. ⚠️ Also **check the dedup**:
-   BL-021 was joined to BL-019; if it was filed from a different screen that is a false merge, and
-   a wrongly-merged ticket gets closed when the other is fixed.
+0️⃣c ~~**THE 💬 → TRIAGE LOOP**~~ — **PROVEN END TO END, 2026-09-06.** Real brain
+   (`gpt-oss:120b`, Turbo). It named three strings Angel never typed (BL-018, `conf 96%`), found a
+   live regression of mine from a console breadcrumb on an unrelated ticket (BL-016), and — after
+   the prompt was taught that a reporter can be WRONG — turned its own confident phantom from
+   `bug 92%` into `Question 22%` on the same screenshot. Sheets:
+   `python3 scripts/make-language-walk.py it --only A --phase0`.
+   → [`2026-09-06-archive-pass.md`](worklist-archive/2026-09-06-archive-pass.md)
+0️⃣d **Gaps found by USING the triage system, 2026-09-06.** (1) **No re-triage affordance** — it
+   is idempotent, so the only way to re-read a ticket after improving the prompt is a
+   `reporter-note`/`reopened`/`disputed`, i.e. impersonating the reporter. The prompt changed four
+   times in one afternoon. (2) **Triage does not feed the KB** — `kb_contribution_model` and
+   `/pos/kb-approvals` exist; `feedback_triage.py` touches neither.
+0️⃣e ⚠️ **20 USER-FACING ENGLISH STRINGS ARE BUILT IN `pos_router.py`** — sent to the browser as
+   DATA, so no client-side translation can ever reach them. Found by the AI reading a screenshot of
+   `/pos/my-tickets` in Italian (BL-035): *"Received — Thanks! We've got your message."* under a
+   fully Italian page. **The whole reporter progress timeline is like this** — Received · We
+   understand it · Being fixed · On hold · All sorted — and it is what a CASHIER reads to find out
+   what happened to the thing she reported. **Not a translation job: the endpoints must send a KEY
+   and let the client translate.** Now check (9), reported and never failed on.
+0️⃣f ⚠️ **DO THE WALK AT 100% BROWSER ZOOM.** BL-038 reported garbled numbers — `CHF ?'28?'.95`,
+   `13R`, a franc figure "missing its decimal separator" — on a capture taken at **Pixel ratio
+   0.667**. A 2880px page squeezed into 1600 and JPEG'd; the model was reading compression, not the
+   screen. Triage is now told to distrust fine detail when the recorded Pixel ratio is below 1 and
+   to ask for a 100% shot instead, but the cheap fix is not to zoom out.
 0️⃣a ⚠️ **THE FRENCH AND ITALIAN ARE UNVERIFIED — nobody who speaks either has read a word.** Angel
    has no French. ~720 FR/IT strings were written by the copilot on 2026-09-06 alone. Not a
    translation gap — a **review** gap, and `Sistemazione` is the proof it is real.

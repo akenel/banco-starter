@@ -60,6 +60,19 @@ TRIAGE_VISION = VisionDomain(
         # THE THING THE STATIC CHECKS CANNOT SEE. scripts/prove-one-box-one-language.py
         # finds every untranslated string exactly and for free; what it cannot do is
         # judge a translation that EXISTS. That is what a picture is for.
+        # ZOOM MAKES A LIAR OF THE PICTURE. On 2026-09-06 Angel walked ten screens
+        # with his browser zoomed out (Pixel ratio 0.5-0.8) and triage reported
+        # "CHF ?'28?'.95", "13R", "5R" and a franc figure "missing its decimal
+        # separator" — every one an artifact of a 3840px page squeezed into 1600
+        # and JPEG'd, not a defect. A model that cannot tell mush from a bug will
+        # file bugs about mush, and those are expensive: they look exactly like the
+        # real ones.
+        "THE SCREENSHOT MAY BE LOSSY. The context includes a Pixel ratio. If it is "
+        "below 1 the browser was zoomed OUT and the image has been downscaled twice, "
+        "so fine detail is unreliable: do NOT report garbled characters, stray "
+        "letters, missing decimal points or odd spacing inside numbers as defects — "
+        "say instead that the capture is too coarse to judge and ask for a "
+        "screenshot at 100% zoom. Layout, language and wording are still fair game. "
         "LANGUAGE MATTERS ON THIS SCREEN. The whole interface should be in ONE language. "
         "If some text is in a different language from the rest, say so and quote the exact "
         "words. Also flag text that is cut off, overlapping, or spilling out of its button "
