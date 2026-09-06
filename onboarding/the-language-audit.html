@@ -77,16 +77,25 @@
   ever visible to an automated check. <b>A string with no key is English in every language</b> —
   so German and French are hit exactly as hard as Italian, not less.</p>
   <div class="grid">
-    <div class="stat"><div class="k">A · bare strings</div><div class="v">359</div></div>
+    <div class="stat"><div class="k">A · bare strings</div><div class="v">428</div><div class="k" style="margin-top:.2rem">batch 1 clear</div></div>
     <div class="stat"><div class="k">B · "translated" to English</div><div class="v" style="color:var(--good)">FIXED</div></div>
-    <div class="stat"><div class="k">C · in &lt;script&gt;</div><div class="v">10+</div></div>
+    <div class="stat"><div class="k">C · in &lt;script&gt;</div><div class="v">3</div></div>
     <div class="stat"><div class="k">D · dead keys</div><div class="v" style="color:var(--good)">FIXED</div></div>
-    <div class="stat"><div class="k">E · inside x-text</div><div class="v">61+</div></div>
+    <div class="stat"><div class="k">E · inside x-text</div><div class="v">47</div></div>
+    <div class="stat"><div class="k">F · placeholders</div><div class="v">41</div></div>
+    <div class="stat"><div class="k">G · dead t() calls</div><div class="v" style="color:var(--good)">FIXED</div></div>
   </div>
-  <div class="note warn"><b>Read the counts as instruments, not facts.</b> A, D and B are exact.
-  C and E are <b>floors</b> — deliberately conservative patterns, so the true number is higher.
-  And A's first two versions said <b>409</b> before the harness was corrected twice. Nothing here
-  is a hand audit.</div>
+  <div class="note good"><b>Batch 1 is done — <code>96ca533</code>.</b> scan · base · checkout ·
+  receipt · transactions · login all report clean on every check. <b>Not deployed and not seen on
+  the tablet yet.</b></div>
+  <div class="note stop"><b>Read the counts as instruments, not facts — this one has been wrong six
+  times.</b> It said 409, then 359, then 458 as it was corrected; the number went <em>up</em> under
+  scrutiny, which is the opposite of what this page predicted this morning. What it missed, in
+  order: a <code>//</code> inside a string · adjacency instead of ancestry · keys whose value is the
+  English · strings in <code>&lt;script&gt;</code> · English inside <code>x-text</code> ·
+  single-word labels like <em>Cancel</em> · labels starting with an emoji · placeholders, which are
+  attributes · and <code>t()</code> calls with no key at all. Every one of those is now a check, and
+  every one is recorded in the file.</div>
 </section>
 
 <section>

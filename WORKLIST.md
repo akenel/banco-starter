@@ -40,23 +40,22 @@ activates the new service worker, the second serves from it.
    position already has a corner); both run first on Felix's and Layla's devices.
    → [`2026-09-06-archive-pass.md`](worklist-archive/2026-09-06-archive-pass.md)
 
-0️⃣b **▶️ NEXT — the language audit: FIVE bugs, not one.** Angel walked the cashier screens in
-   Italian and the Felix screens in DE/IT/FR/EN, 41 screenshots, 2026-09-06. **Read the page, it
-   carries the plan and the counts:** [`onboarding/the-language-audit.html`](onboarding/the-language-audit.html).
-   **A** 359 bare strings · ~~**B** keys whose value IS the English~~ **FIXED `50572bf` — it was
-   45/45 of `agerep` in FR *and* IT, not the 27 I first said** · **C** 10+ in `<script>` ·
-   ~~**D** 14 dead keys~~ **FIXED `50572bf`** · **E** 61+ inside `x-text` — incl. the cashier's
-   own `'➕ Add to cart'`.
-   **A bare string is English in EVERY language**, so DE and FR are hit as hard as IT.
-   ~~Two boxes pinned to the wrong language~~ — **WITHDRAWN 2026-09-06, both wrong.** `checkout`
-   is a `worldline_sim` SANDBOX that never renders at Artemis; `receipt.html:91` is Italian **by
-   design** (the IT legal disclaimer, `isNonFiscal()` only). Both had a comment saying so three
-   lines up — LESSON #10. Real checkout count is 9, not 11.
-   ⚠️ A/B/D are exact; **C and E are floors**; A said 409 before the harness was fixed twice.
-   **Batch 1 = the till, ~47 strings** (scan · base · checkout · receipt · transactions · login).
-   Batch 2 = Felix's office. Batch 3 = the bench (264, nobody sells with it).
-   Guard: do NOT translate the gun's German firmware words in Shelf Intake, the category names,
-   or the de-CH numeric dates. Harness: `scripts/prove-one-box-one-language.py` (5 checks).
+0️⃣b **▶️ THE LANGUAGE AUDIT — batch 1 DONE, needs eyes on the tablet.** 41 screenshots from
+   Angel, 2026-09-06. Page carries the plan: [`onboarding/the-language-audit.html`](onboarding/the-language-audit.html).
+   ~~**B** 45/45 `agerep` English in FR+IT~~ · ~~**D** 14 dead keys~~ · ~~**batch 1**: scan · base ·
+   checkout · receipt · transactions · login~~ — **all CLEAN, `96ca533`. NOT DEPLOYED, NOT SEEN.**
+   Two real bugs fell out that are not translation: `transactions.html` printed **"Artemis Store"
+   hard-coded** on every self-hoster's paper, and **10 `t()` calls with no key** printed the raw
+   key (`held.toast_load`) to the cashier — their `|| 'fallback'` was dead code, `t()` returns a
+   truthy key. Both fixed.
+   **▶️ NEXT — batch 2, Felix's office:** settings 11 · catalog 11 · audit 12 · join_card 14.
+   **Then batch 3, the bench:** shelf_intake 131 · hardware 49 · catalog_misses 40 · catalog_health 18.
+   Left: **428 bare · 41 placeholders · 47 in `x-text` · 3 in `<script>`**; 119 title/aria reported
+   but NOT failed (a tooltip needs a pointer; the till is a touchscreen).
+   Guard: never translate the gun's German firmware words, the category names, the de-CH numeric
+   dates, or anything marked `data-i18n-exempt` (the `worldline_sim` sandbox, the receipt's Italian
+   legal line, the tenant's own name). Harness: `scripts/prove-one-box-one-language.py`, 7 checks —
+   **wrong six times before it was right, all six recorded in the file.**
 0️⃣a ⚠️ **THE FRENCH IS UNVERIFIED — nobody who speaks French has read it.** Angel has no French and
    said so; I wrote `guard_body`, `guard_src_*`, `note_will_file`, `note_drop` and every other FR
    string in this build. Not a translation gap — a *review* gap. Same for Italian.
