@@ -78,9 +78,9 @@
   so German and French are hit exactly as hard as Italian, not less.</p>
   <div class="grid">
     <div class="stat"><div class="k">A · bare strings</div><div class="v">359</div></div>
-    <div class="stat"><div class="k">B · "translated" to English</div><div class="v">29</div></div>
+    <div class="stat"><div class="k">B · "translated" to English</div><div class="v" style="color:var(--good)">FIXED</div></div>
     <div class="stat"><div class="k">C · in &lt;script&gt;</div><div class="v">10+</div></div>
-    <div class="stat"><div class="k">D · dead keys</div><div class="v">14</div></div>
+    <div class="stat"><div class="k">D · dead keys</div><div class="v" style="color:var(--good)">FIXED</div></div>
     <div class="stat"><div class="k">E · inside x-text</div><div class="v">61+</div></div>
   </div>
   <div class="note warn"><b>Read the counts as instruments, not facts.</b> A, D and B are exact.
@@ -97,25 +97,37 @@
   the proof:</b> in French, Italian and German it is byte-identical English — only the bottom nav
   bar changes. Same for the Audit Cockpit and What the till couldn't find.</p>
 
-  <h3><span class="cls">B</span> &nbsp;The key exists and its value <em>is</em> English — 29</h3>
-  <p><b>27 <code>agerep.*</code> keys</b> have Italian and French values that are the English string,
-  byte for byte. That is the whole 18+ Age Gate screen. It passes key-parity at 100%, so every
-  automated check in this repo has been green on it since it was written.
-  <b>fr 28 · it 27 · de 1.</b> This is the class Angel's eyes found and no instrument did.</p>
+  <h3><span class="cls">B</span> &nbsp;The key exists and its value <em>is</em> English — <span style="color:var(--good)">FIXED, <code>50572bf</code></span></h3>
+  <p>This page first said <b>27</b> <code>agerep.*</code> keys. The truth was <b>45 of 45</b>, in
+  both French and Italian — the entire namespace, copied from English and never translated. My
+  count only included multi-word strings, so <em>Alcohol</em>, <em>Today</em>, <em>Period</em>,
+  <em>When</em> and <em>Reason</em> were invisible to the instrument written to find them. German
+  had been done properly, so it served as the sense-check for all 90 new strings.</p>
+  <p>Two stragglers elsewhere, same class: <code>status.ok</code> was <em>System OK</em> in German
+  while French and Italian both translate it; <code>reports.vat_total</code> was <em>VAT total</em>
+  in French while German says <em>MWST Total</em>. Both taken from their own siblings.
+  <b>Now 0 in all four</b>, bar <code>class_standard</code> = <em>Standard</em>, the same word in
+  every language.</p>
+  <div class="note">This was the class Angel's eyes found and no instrument did — it passes
+  key-parity at 100%, because a string missing from all four languages equally is not a gap
+  any comparison between them can see.</div>
 
   <h3><span class="cls">C</span> &nbsp;Written in JavaScript, never reaches <code>t()</code> — 10+</h3>
   <p>Transaction History's date range — <code>Today · Last 7 days · Last 2 weeks · This month</code> —
   is a list of JS literals at <code>transactions.html:378</code>. Also <code>roleDisplay()</code>,
   which is why the header reads <b>felix | Owner</b> and <b>pam | Cashier</b> in every language.</p>
 
-  <h3><span class="cls">D</span> &nbsp;A key that resolves in <em>no</em> language — 14</h3>
-  <p>It falls back to the English in the tag, in all four. Two were photographed:
-  <code>reorder.by</code> gives <b>Riassortimento · <em>by</em> layla</b> in Italian and
-  <b>Réapprovisionnement · <em>by</em> layla</b> in French; the four <code>settings.join_*</code>
-  keys give the English <em>New-member join offer</em> block under an Italian heading.
-  The rest: <code>catalog.code_use_anyway</code> · <code>catalog.code_let_me_fix</code> ·
-  <code>catalog.ref_search_*</code> (4) · <code>cleanup.no_price</code> ·
-  <code>cleanup.no_tier</code> · <code>reports.age_report</code>.</p>
+  <h3><span class="cls">D</span> &nbsp;A key that resolves in <em>no</em> language — <span style="color:var(--good)">FIXED, <code>50572bf</code></span></h3>
+  <p>All 14 fell back to the English in the tag, in all four languages. Two were photographed:
+  <code>reorder.by</code> gave <b>Riassortimento · <em>by</em> layla</b> and
+  <b>Réapprovisionnement · <em>by</em> layla</b>; the four <code>settings.join_*</code> keys put an
+  English <em>New-member join offer</em> block under an Italian heading.</p>
+  <div class="note warn"><b>One of them would have shipped a new visible bug.</b>
+  <code>settings.join_offer_hint</code> contains <code>&lt;b&gt;</code> tags and
+  <code>data-i18n</code> sets <code>textContent</code> — so simply supplying the key would have
+  printed <em>A &lt;b&gt;one-time&lt;/b&gt; discount</em> on the screen. It needed
+  <code>data-i18n-html</code>, which exists for exactly this. Every one of the 14 was checked for
+  markup before a single value was written.</div>
 
   <h3><span class="cls">E</span> &nbsp;English inside an <code>x-text</code> expression — 61+</h3>
   <p>The hole the harness was actively hiding: it treated any element with <code>x-text</code> as
@@ -127,16 +139,31 @@
 </section>
 
 <section>
-  <h2>Two boxes are pinned to the wrong language <span class="when">worse than untranslated</span></h2>
-  <div class="note stop">
-    <b><code>checkout.html:41</code> is hard-coded German</b> — <code>'TWINT auflegen'</code> /
-    <code>'Karte auflegen'</code> / <code>'💳 Karte'</code>. A French cashier gets German at the
-    terminal prompt.<br>
-    <b><code>receipt.html:91</code> is hard-coded Italian</b> —
-    <em>Documento non fiscale</em> — on every receipt, in every language.
-  </div>
-  <p>These are not gaps. Somebody wrote one language into a box that serves four, and it will read
-  as a fault rather than as a missing translation.</p>
+  <h2>WITHDRAWN — the two "wrong language" boxes <span class="when">I was wrong</span></h2>
+  <div class="note stop"><b>This section said, earlier today, that <code>checkout.html</code> was
+  hard-coded German and <code>receipt.html</code> hard-coded Italian, and that a French cashier
+  would get German at the terminal and Italian on the paper. Both claims are wrong. Neither
+  string can reach the shop.</b></div>
+  <ul>
+    <li><b><code>checkout.html</code> — a SANDBOX SIMULATOR.</b> <code>TWINT auflegen</code> and
+        <code>simulate decline</code> live in a mock Worldline terminal that only renders when
+        <code>payment_provider === 'worldline_sim'</code>. Artemis is Phase 1, which is
+        <code>manual</code>, so <code>terminal.show</code> never becomes true. Not shop text at
+        all — and Phase 1 integrates no Worldline, which was settled on 2026-09-05.</li>
+    <li><b><code>receipt.html:91</code> — Italian ON PURPOSE.</b> It is the Italian legal
+        disclaimer, printed only when <code>isNonFiscal()</code> — an Italian-regime tenant with
+        no wired RT certificate — so a clean-looking receipt is never mistaken for a
+        <em>documento commerciale</em>. Translating it would break the thing it exists to do.</li>
+  </ul>
+  <div class="note warn"><b>Both had a comment saying so, three lines above the string</b>
+  — <em>"Only shown for a card/TWINT sale on a worldline_sim store"</em> and <em>"Italian by
+  design — it is the legal disclaimer for IT"</em>. That is LESSON #10 word for word: before
+  filling an empty field, grep for its name in the comments, because a design that rejected
+  something usually left a note saying so. I read the string and not the paragraph above it, and
+  put both into a page written for Angel to steer by. Corrected the same session, before any
+  code was changed on the strength of it.</div>
+  <p><b>What this costs the count:</b> 2 of <code>checkout.html</code>'s 11 bare strings are
+  sandbox-only, so the real checkout screen has 9. Nothing else moves.</p>
 </section>
 
 <section>

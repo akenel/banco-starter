@@ -43,12 +43,15 @@ activates the new service worker, the second serves from it.
 0️⃣b **▶️ NEXT — the language audit: FIVE bugs, not one.** Angel walked the cashier screens in
    Italian and the Felix screens in DE/IT/FR/EN, 41 screenshots, 2026-09-06. **Read the page, it
    carries the plan and the counts:** [`onboarding/the-language-audit.html`](onboarding/the-language-audit.html).
-   **A** 359 bare strings · **B** 29 keys whose value IS the English (27 `agerep.*` = the whole 18+
-   screen, fr 28 · it 27 · de 1) · **C** 10+ in `<script>` · **D** 14 keys dead in every language ·
-   **E** 61+ inside `x-text` — including the cashier's own `'➕ Add to cart'`.
+   **A** 359 bare strings · ~~**B** keys whose value IS the English~~ **FIXED `50572bf` — it was
+   45/45 of `agerep` in FR *and* IT, not the 27 I first said** · **C** 10+ in `<script>` ·
+   ~~**D** 14 dead keys~~ **FIXED `50572bf`** · **E** 61+ inside `x-text` — incl. the cashier's
+   own `'➕ Add to cart'`.
    **A bare string is English in EVERY language**, so DE and FR are hit as hard as IT.
-   Two boxes are pinned to the WRONG language: `checkout.html:41` hard-coded **German**,
-   `receipt.html:91` hard-coded **Italian**.
+   ~~Two boxes pinned to the wrong language~~ — **WITHDRAWN 2026-09-06, both wrong.** `checkout`
+   is a `worldline_sim` SANDBOX that never renders at Artemis; `receipt.html:91` is Italian **by
+   design** (the IT legal disclaimer, `isNonFiscal()` only). Both had a comment saying so three
+   lines up — LESSON #10. Real checkout count is 9, not 11.
    ⚠️ A/B/D are exact; **C and E are floors**; A said 409 before the harness was fixed twice.
    **Batch 1 = the till, ~47 strings** (scan · base · checkout · receipt · transactions · login).
    Batch 2 = Felix's office. Batch 3 = the bench (264, nobody sells with it).
@@ -66,9 +69,8 @@ activates the new service worker, the second serves from it.
 
 0c. **Do they log out at night?** Raised, not decided. · 0f. **My Day: `could not load your
    profile: failed to fetch` in red** while offline, under a banner that said so. LESSON #12.
-0g. ✅ **Rock-solid check passed 2026-09-05: three consecutive clean cold boots** (57.8 / 58.3 /
-   58.2s, `kernel->till` 19s every time, 0.49s spread), criteria agreed before the first one.
-   45 passed · 0 failed. **The cashier now does nothing at all in the morning.**
+0g. ✅ **Three consecutive clean cold boots, 2026-09-05** — 57.8 / 58.3 / 58.2s, 0.49s spread,
+   criteria agreed first. **The cashier now does nothing at all in the morning.**
 1. ~~**② The keyboard buries the search results**~~ — **FIXED**, confirmed on the tablet, `b644`.
 2. ~~**Pam's picker + Angel's shelf pill**~~ — **DONE**, `b647`, needs eyes. Shipped wrong first,
    on a bad number of mine that was in this file.
@@ -134,11 +136,9 @@ denomination table fits with no scrolling** (CHF 1000 → 0.05); landscape canno
 close filed, balanced. **Do not lock rotation.** Three bugs → ⓪h–⓪j.
 → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
 
-⓪h–k. ~~**The four portrait findings**~~ — **DEPLOYED b690.** (h) a note for a variance survived
-   onto a BALANCED report — fixed, and the strip **passed on the glass 2026-09-06**. (i) `Samstag`
-   under EN/FR/IT — fixed and **proven on the tablet in all three**; receipts pinned to the shop.
-   (j) withdrawn: `CHF-1'216.85` is Intl's own de-CH output. (k) the 💬 button anchored to its
-   corner. → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
+⓪h–k. ~~**The four portrait findings**~~ — **ALL DONE, b690–b693.** The note strip and the 💬
+   anchor both passed on the glass 2026-09-06; `Samstag` proven in three languages; (j) withdrawn.
+   → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
 
 ### Still open on the tablet
 
