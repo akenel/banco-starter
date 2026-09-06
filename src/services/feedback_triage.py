@@ -38,11 +38,37 @@ TRIAGE_VISION = VisionDomain(
     name="feedback_triage",
     prompt=(
         "You are looking at a screenshot from the 'Banco' point-of-sale web app, attached to a "
-        "user bug report. Reply with ONLY a JSON object: "
+        "user bug report. "
+        # BANCO'S OWN FURNITURE. On 2026-09-06, off its very first real ticket, the
+        # model asked whether "the red circular icon with three dots at the bottom
+        # right" was a UI artifact. That is the 💬 button — the one that FILED the
+        # ticket. It is on every screen, so without this every ticket in a 34-screen
+        # walk would have burned a clarifying question on our own chrome.
+        "These are PERMANENT parts of every Banco screen and are never faults: a round "
+        "red 💬 speech-bubble button floating over the page (the feedback button — it is "
+        "draggable, so it can sit anywhere, often over content); a dark bar along the top "
+        "showing the time, a build number like b707, the user and a language selector; and "
+        "a dark navigation bar along the bottom with Scan, Cart, Catalog, Customers and My "
+        "Day. Never report any of these as an anomaly. "
+        # AN EMPTY STATE IS USUALLY CORRECT. The old prompt listed "an empty state" as
+        # an anomaly outright, so the model flagged an un-triaged panel that was
+        # empty precisely because it had not been triaged yet. "No transactions
+        # found" on a quiet day is the screen working.
+        "An empty panel or an empty list is usually CORRECT — a till with no sales shows "
+        "no sales. Only call emptiness an anomaly if something clearly should have been "
+        "there and is not. "
+        # THE THING THE STATIC CHECKS CANNOT SEE. scripts/prove-one-box-one-language.py
+        # finds every untranslated string exactly and for free; what it cannot do is
+        # judge a translation that EXISTS. That is what a picture is for.
+        "LANGUAGE MATTERS ON THIS SCREEN. The whole interface should be in ONE language. "
+        "If some text is in a different language from the rest, say so and quote the exact "
+        "words. Also flag text that is cut off, overlapping, or spilling out of its button "
+        "or box. "
+        "Reply with ONLY a JSON object: "
         '{"screen": which screen/area this is (e.g. Catalog, Receipt, Checkout, Reports), '
         '"visible": a one-line summary of what is on screen, '
-        '"anomalies": anything that looks WRONG, broken, misaligned, an error message, an empty '
-        "state, or off — or empty string if nothing looks wrong}."
+        '"anomalies": anything that looks WRONG, broken, misaligned, an error message, mixed '
+        "languages, or text that is cut off — or empty string if nothing looks wrong}."
     ),
     coerce=_coerce_shot,
 )
