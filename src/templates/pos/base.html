@@ -2524,6 +2524,17 @@
             <span class="sb-build" data-build-iso="{{ build_date_iso or '' }}" title="build {{ app_version }} · {{ git_sha[:7] if git_sha else 'dev' }}{% if build_date %} · deployed {{ build_date }} (your local time){% endif %}">⚙ <span id="status-version">{{ app_version or '3.3.0' }}</span></span>
         </div>
         <div class="status-section">
+            <!-- The screen's name in the status bar. A child template fills the page_name
+                 block below, which is SERVER-rendered Jinja — so for months this said
+                 "Cash Box" and "My Day" in English on an Italian till, and
+                 prove-one-box-one-language.py could not see it either, because that sweep
+                 skips any text carrying Jinja delimiters. Found on 2026-09-06 by the AI
+                 triage brain reading a screenshot of /pos/shift in Italian. Children now
+                 wrap the name in a data-i18n span, which the client-side sweep applies
+                 like any other. Keep it that way.
+                 (And a lesson at zero cost: the first version of THIS comment quoted the
+                 Jinja tags literally, and Jinja parsed them out of the HTML comment and
+                 failed the whole template. A comment is not inert here.) -->
             <span id="status-screen" class="sm-hide" title="screen">{% block page_name %}POS{% endblock %}</span>
             <span title="cashier">👤 <span id="status-user">--</span></span>
             <select id="pos-lang-switch" onchange="switchLanguage(this.value)" title="Language / Sprache / Lingua"

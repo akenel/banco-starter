@@ -26,7 +26,7 @@
     <div class="max-w-4xl mx-auto px-4 py-8">
         <div class="card">
             <h1 class="text-3xl font-bold text-gray-900 mb-2" data-i18n="customer.lookup_title">👤 Customer Lookup</h1>
-            <p class="text-gray-600 mb-6" data-i18n="customer.lookup_subtitle">Find CRACK profile for checkout recognition</p>
+            <p class="text-gray-600 mb-6" data-i18n="customer.lookup_subtitle">Find a member profile for checkout recognition</p>
 
             <!-- Search -->
             <div class="mb-6">
@@ -45,7 +45,7 @@
                 <div class="flex items-center justify-between mt-3 gap-2 flex-wrap">
                     <!-- Always available: knows the member is new? add one straight away, no dead-end search first. -->
                     <button @click="startNewCrack()" class="btn-success" data-i18n="customer.add_new_crack">
-                        ➕ Add New CRACK
+                        ➕ Add new member
                     </button>
                     <button @click="toggleDirectory()" class="text-sm font-semibold text-indigo-600 hover:underline"
                             x-text="showDirectory ? t('customer.hide_member_list') : t('customer.browse_all_members')"></button>
@@ -83,14 +83,14 @@
                 <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                     <p class="text-yellow-800 mb-3" data-i18n="customer.not_found">Customer not found. Create new profile?</p>
                     <button @click="showNewCustomerForm = true" class="btn-secondary" data-i18n="customer.add_new_crack">
-                        ➕ Add New CRACK
+                        ➕ Add new member
                     </button>
                 </div>
             </div>
 
             <!-- New Customer Form -->
             <div x-show="showNewCustomerForm" x-transition class="mb-6 bg-blue-50 rounded-lg p-4">
-                <h3 class="text-lg font-semibold text-blue-800 mb-4" data-i18n="customer.new_crack_profile">New CRACK Profile</h3>
+                <h3 class="text-lg font-semibold text-blue-800 mb-4" data-i18n="customer.new_crack_profile">New member profile</h3>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="customer.handle_label">Handle *</label>
@@ -182,7 +182,14 @@
                         </div>
                     </div>
 
-                    <!-- Stats Grid (Phase 0: KBs/CRACK hidden until the community ships) -->
+                    <!-- Stats Grid (Phase 0: KBs/CRACK hidden until the community ships).
+                         CRACK stays the internal La Piazza word for an expert customer — Mosey and
+                         Felix's own name for the people who know the products better than they do.
+                         It is NOT shown at the counter: an AI triage pass on 2026-09-06 read
+                         "➕ Add New CRACK" off a screenshot of this screen and flagged it, and a
+                         cashier reading that word to a customer in a hemp shop is not a joke that
+                         lands. Customer-facing wording is "member"; CRACK survives in
+                         kb-approvals, which only Felix opens. Angel's call. -->
                     <div class="grid grid-cols-3 gap-4 mb-4">
                         <div class="bg-white/20 rounded-lg p-3 text-center">
                             <div class="text-2xl font-bold" x-text="customer.credits_balance"></div>
@@ -455,7 +462,7 @@
                 }
             },
 
-            // Jump straight to a new profile (the always-on "➕ Add New CRACK" button). Prefills the
+            // Jump straight to a new profile (the always-on "➕ Add new member" button). Prefills the
             // handle from whatever they typed, and clears the "not found" nudge so there's no double
             // Add button, then reveals + scrolls to the form.
             startNewCrack() {
