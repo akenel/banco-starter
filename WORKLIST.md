@@ -110,13 +110,12 @@ slog nobody sells with · ⑥ My Day's red `failed to fetch`.
    larger than the 9px above it, on every receipt ever printed.
    ⚠️ **Human-green is owed: it has not come off a printer.** Sheet cut and ready, 19 steps:
    [`2026-09-07-the-receipt-is-the-shops-own.html`](onboarding/testsheets/2026-09-07-the-receipt-is-the-shops-own.html)
-   🔴 **THREE SETTINGS EDITS ON THE LIVE SHOP, and one of them is Felix's to answer.**
-   (a) `store_name` said **Lucerne**; his own site says **Luzern** — the shop's name, misspelled
-   at the top of its receipt. (b) `website` → **`www.artemisluzern.ch`**, the form that answers
-   200 (the QR encodes it verbatim, no probe at print time). (c) **`vat_number` is still the
-   seed's `CHE-XXX.XXX.XXX MWST`** and it was printing — a made-up tax number on a document a
-   bookkeeper may file. **The receipt now hides the line until a real UID is in Settings, so
-   ask Felix for the CHE-UID on the visit.** Seed + dev DB already corrected for (a) and (b).
+   🔴 **ONE SETTINGS EDIT LEFT ON THE LIVE SHOP.** `store_name` still reads **Artemis Lucerne**
+   — checked 18:50 after the b735 deploy, twice. His own site says **Luzern**, and it is the
+   shop's own name at the top of its receipt. Marked PASS on the sheet, so the save did not
+   land: **redo it and watch for the toast.** ~~website~~ was already the www form; ~~vat_number~~
+   turned out to hold Felix's real **CHE-105.401.803** — the receipt hides that line while it is
+   a placeholder, and the line is printing, so it is real.
    📸 `onboarding/evidence/receipt-print-2026-09-07.png` · `scripts/prove-the-receipt-is-the-shops-own.js`
 8b. **The OTHER apps in this repo still fetch Inter from Google** — `templates/base.html`,
    `index`, `sitemap`, `home`, `submit_form`, `isotto`, `camper`, `backlog`, `testing`,
