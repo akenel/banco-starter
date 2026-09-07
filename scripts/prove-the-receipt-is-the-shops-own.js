@@ -184,9 +184,54 @@ const isOurs = (u) => {
         "the shop's logo is not squeezed to a smudge",
         paper.logo ? paper.logo.height.toFixed(0) + 'px tall' : 'no logo set in Settings');
 
+  // ── D2 · THE PAGE BOX ITSELF. Angel, off the first real print: "there are no margins so
+  //         text is full left or full right — is that normal". It was not: `@page margin: 0`
+  //         put the totals hard against the paper edge, inside the 4-6mm dead border almost
+  //         every office printer refuses to image. Read through the CSSOM, not by grepping the
+  //         template — this is the rule the BROWSER resolved from the file it was served.
+  const page = await p.evaluate(() => {
+    for (const sheet of document.styleSheets) {
+      let rules; try { rules = sheet.cssRules; } catch (e) { continue; }
+      for (const r of rules) {
+        if (r.constructor.name === 'CSSMediaRule' && /print/.test(r.conditionText || ''))
+          for (const q of r.cssRules) if (q.constructor.name === 'CSSPageRule')
+            return { margin: q.style.margin || q.style.marginTop, size: q.style.getPropertyValue('size') };
+        if (r.constructor.name === 'CSSPageRule')
+          return { margin: r.style.margin || r.style.marginTop, size: r.style.getPropertyValue('size') };
+      }
+    }
+    return null;
+  });
+  check(page && page.margin && !/^0\b/.test(page.margin),
+        'the printed page has a margin — nothing sits on the paper edge',
+        page ? `@page { size: ${page.size}; margin: ${page.margin} }` : 'no @page rule found');
+
+  // Nothing of the APP may print under the receipt. `.app-content` is grey (#f9fafb) and
+  // min-height:100vh, so it painted a slab across the bottom third of the first real PDF.
+  const below = await p.evaluate(() => {
+    const rp = document.querySelector('.receipt-page').getBoundingClientRect(); const out = [];
+    document.querySelectorAll('*').forEach(el => {
+      const cs = getComputedStyle(el), r = el.getBoundingClientRect();
+      if (cs.display === 'none' || r.height < 20) return;
+      const bg = cs.backgroundColor;
+      if (bg === 'rgba(0, 0, 0, 0)' || bg === 'transparent' || bg === 'rgb(255, 255, 255)') return;
+      if (r.bottom > rp.bottom - 2) out.push(el.tagName + '.' + (el.className || '').toString().slice(0, 40) + ' ' + bg);
+    });
+    return out;
+  });
+  check(below.length === 0, 'no app chrome paints below the receipt',
+        below.length ? below.slice(0, 3).join(' · ') : 'the sheet ends where the receipt ends');
+
   const shot = 'onboarding/evidence/receipt-print-' + new Date().toISOString().slice(0, 10) + '.png';
   await p.screenshot({ path: shot, fullPage: true });
   console.log('\n  📸 ' + shot + '  (print media — this is the paper)');
+  // A screenshot under emulateMedia is close to paper; a PDF through the print pipeline IS
+  // the paper, @page box and all. NOTE: never call emulateMedia('screen') before pdf() —
+  // it renders the app shell, nav bars and all, and looks convincingly like a receipt.
+  await p.emulateMedia({ media: null });
+  const pdf = 'onboarding/evidence/receipt-a4.pdf';
+  await p.pdf({ path: pdf, preferCSSPageSize: true, printBackground: true });
+  console.log('  📄 ' + pdf + '  (A4, straight through the print pipeline)');
 
   console.log(`\n${fail ? '❌' : '✅'}  ${pass} pass · ${fail} fail`);
   await b.close();

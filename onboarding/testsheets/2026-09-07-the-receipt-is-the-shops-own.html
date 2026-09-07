@@ -84,9 +84,9 @@ const SHEET = {
 
     { id: 'C', title: 'On paper — this is the whole point', time: '5 min', steps: [
       { id: 'C1',
-        do: 'Press <b>\u{1F5A8}️ Print</b> and print it. Actual paper.',
-        expect: 'One page comes out',
-        callout: 'A PDF on a screen is NOT this test. A phone reads a glowing screen far more easily than ink on paper, and paper is what the customer walks out with. If there is no printer at the counter, print it at home — but print it.' },
+        do: 'Press <b>\u{1F5A8}️ Print</b>. If there is a printer, print it. If there is not, choose <b>Save as PDF</b> in the print dialog and open the file.',
+        expect: 'One page — and it looks like the receipt, not like the app',
+        callout: 'THE PDF ROUTE IS ENOUGH FOR C2, C3 AND C4. The print dialog applies the same page box either way, so margins, sizes and the watermark are all real in a PDF. Only D1 and D3 — a phone reading the QR off a physical sheet — actually need ink. Do not skip the section because there is no printer.' },
 
       { id: 'C2',
         do: 'Look at the sheet at arm’s length, the way someone reads a receipt.',

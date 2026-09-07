@@ -164,7 +164,15 @@
                         <th class="text-center py-2" data-i18n="receipt.qty">Qty</th>
                         <th class="text-right py-2" data-i18n="receipt.price">Price</th>
                         <th class="text-right py-2" data-i18n="receipt.total_col">Total</th>
-                        <th class="text-center py-2 w-6" title="VAT rate code">VAT</th>
+                        <!-- vatLabel(), not the word "VAT": this is the ONE column head a
+                             customer reads in their own language, and it printed "VAT" on an
+                             Italian receipt while the legend two rows down already said "IVA".
+                             The harness could not see it — three characters and all caps, so it
+                             fell through BOTH the <4-char filter and the SCREAMING-constants
+                             rule, which exist to skip things like TAM and CHF. Measured: those
+                             two filters hide 23 strings across the POS and about three of them
+                             matter. This was one. -->
+                        <th class="text-center py-2 w-6" :title="vatLabel() + ' rate code'" x-text="vatLabel()">VAT</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -390,7 +398,30 @@
         .receipt-page .border-b-2 { padding-bottom: 4px !important; margin-bottom: 5px !important; }
         .receipt-page .border-b-2 p { line-height: 1.15 !important; margin-top: 1px !important; }
 
-        @page { size: A4; margin: 0; }
+        /* THE SHEET NEEDS A MARGIN. Angel, off the first real print, 2026-09-07:
+           "there are no margins so text is full left or full right — is that normal".
+           It is not. `margin: 0` was paired with `.p-8 -> padding: 0` to win back vertical
+           space back when a fake barcode and a La Piazza QR were also on the page, and it
+           put the totals hard against the paper edge. Two things wrong with that: almost no
+           office printer can image to the edge — there is a 4-6mm dead border it simply will
+           not put toner on, so the right-hand column was being CLIPPED, not just crowded —
+           and a document with no margin does not read as a receipt from a shop.
+           12mm each side, 14mm at the foot for the grippers. The receipt is one short page;
+           there is no vertical pressure to spend it on. */
+        @page { size: A4; margin: 12mm 12mm 14mm; }
+        /* …and once the page box has margins, the sheet must stop pretending it is 297mm tall.
+           `min-height: 297mm` is an INLINE style on .receipt-page, sized for a full page with
+           no margin; against a 271mm printable box it overflows the first page and pushes the
+           grey app background onto the paper below the receipt. Seen in the first real PDF.
+           The receipt is as long as the receipt is. */
+        .receipt-page { min-height: 0 !important; }
+        /* Everything the sheet sits inside goes white and stops reserving a screen's worth of
+           height. `min-h-screen` and `bg-gray-100` are the APP's chrome — correct behind a
+           receipt on a monitor, and a grey slab printed under it on paper. Tailwind's own
+           `print:bg-white` is on that div and did not take, so this says it outright rather
+           than trusting a variant to be in the built stylesheet. */
+        html, body, .receipt-page, .min-h-screen, .app-content { background: #fff !important; }
+        .min-h-screen, .app-content { min-height: 0 !important; }
     }
 
     /* Watermark */
