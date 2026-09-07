@@ -23,27 +23,25 @@ tablet, zero fails. Live on the shop: `b629 · 6cc1bb5`.*
 
 ---
 
-## ▶️ THE DECK — READ THIS FIRST · last touched 2026-09-06 night
+## ▶️ THE DECK — READ THIS FIRST · last touched 2026-09-07
 
 **Live on the shop: `b726 · 11559c1`.** Reload the tablet TWICE after any deploy — the first load
 activates the new service worker, the second serves from it.
 *The 2026-09-04 method note, and what went in that night (four fixes, five suites, three sheets,
 54 pass · 5 issue · 0 fail), are in [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md).*
 
-### What is actually a CODING task — asked and answered 2026-09-06 night
+### What is actually a CODING task — asked and answered 2026-09-06
 
 **Very little, and almost none of it on the selling path.** ① wire triage → the KB (medium, and
-the only genuinely valuable software left) · ② the receipt QR (small, **blocked on Angel's call**
-about the blank-`website` fallback) · ③ a re-triage button (small) · ④ ~19 server strings in
-`pos_router.py` · ⑤ the bench, 275 strings, a slog nobody sells with · ⑥ My Day's red
-`failed to fetch`. **Everything else below is a DECISION, a TRIP, or a LOOK.**
+the only genuinely valuable software left) · ~~② the receipt QR~~ **DONE `ab527e4`** · ③ a
+re-triage button (small) · ④ ~19 server strings in `pos_router.py` · ⑤ the bench, 275 strings, a
+slog nobody sells with · ⑥ My Day's red `failed to fetch`.
+**Everything else below is a DECISION, a TRIP, or a LOOK.**
 
 ### Pick up here, in this order
 
-0️⃣ ~~**The cash box, finished.**~~ — **all four shipped `b693`.** Note strip passed on the glass,
-   drawer closed balanced at CHF 1'216.00. ⚠️ The morning guard's translated body has still never
-   fired on a screen. *(The 💬 anchor migration is moot — the button no longer floats.)*
-   → [`2026-09-06-archive-pass.md`](worklist-archive/2026-09-06-archive-pass.md)
+0️⃣ ~~**The cash box**~~ — **all four shipped `b693`**, drawer balanced at CHF 1'216.00. ⚠️ **The
+   morning guard's translated body has still never fired on a screen.** → [`09-06`](worklist-archive/2026-09-06-archive-pass.md)
 
 0️⃣b **▶️ START HERE 2026-09-07 — the bench is all that is left of the language work.**
    `shelf_intake` 173 · `hardware` 59 · `catalog` 22 · `catalog_health` 21 = **275 strings, and
@@ -54,10 +52,9 @@ about the blank-`website` fallback) · ③ a re-triage button (small) · ④ ~19
    Guards: never translate the gun's German firmware words, category names, the de-CH numeric
    dates, a language picker, or anything marked `data-i18n-exempt`.
    → [`2026-09-06-archive-pass.md`](worklist-archive/2026-09-06-archive-pass.md) · [`LESSONS.md`](LESSONS.md)
-0️⃣c ~~**THE 💬 → TRIAGE LOOP**~~ — **PROVEN, 2026-09-06.** Real brain (`gpt-oss:120b`). It found a
-   live regression of mine from a breadcrumb on an unrelated ticket, and — once taught a reporter
-   can be WRONG — turned its own phantom from `bug 92%` to `Question 22%` on the same screenshot.
-   Sheets: `scripts/make-language-walk.py`. → [`09-06`](worklist-archive/2026-09-06-archive-pass.md)
+0️⃣c ~~**THE 💬 → TRIAGE LOOP**~~ — **PROVEN 2026-09-06** on the real brain (`gpt-oss:120b`); it
+   found a live regression of mine off an unrelated ticket. Sheets: `scripts/make-language-walk.py`.
+   → [`09-06`](worklist-archive/2026-09-06-archive-pass.md)
 0️⃣d **Gaps found by USING triage.** (1) **No re-triage button** — it is idempotent, so re-reading
    a ticket after a prompt change means impersonating the reporter with a `reporter-note`. The
    prompt changed four times in one afternoon. (2) **Triage does not feed the KB** —
@@ -70,24 +67,22 @@ about the blank-`website` fallback) · ③ a re-triage button (small) · ④ ~19
    "missing its decimal separator") came from a capture at **Pixel ratio 0.667** — the model read
    compression, not the screen. Triage now distrusts fine detail below ratio 1; the cheap fix is
    not to zoom out.
-0️⃣a **FR/IT — three passes done, call it 90%.** Written by the copilot, read by a vision model on
-   ~25 real screens, walked by Angel in Italian (high-school French, 195-day Duolingo streak — he
-   tells German from French from Italian on sight, and caught `Samstag` himself). **Retired the
-   "nobody has read a word" framing on 2026-09-06 — it was overstated.** What is genuinely left is
-   REGISTER, not language: is a shop owner `Titolare` or `Proprietario`, is `Giornata` right for a
-   nav slot, is `Sistemazione` the word for a cleanup queue. Perhaps 20–30 judgement calls out of
-   ~1,100, each settleable by Angel or Felix in a minute. A footnote, not a blocker.
+0️⃣a **FR/IT — three passes done, call it 90%.** Written here, read by a vision model on ~25 real
+   screens, walked by Angel in Italian — he caught `Samstag` before any check did. **The "nobody
+   has read a word" framing was overstated and is retired (2026-09-06).** What is left is
+   REGISTER: `Titolare` or `Proprietario`, is `Giornata` right for a nav slot. Perhaps 20–30
+   judgement calls out of ~1,100, a minute each for Angel or Felix. A footnote, not a blocker.
 
-0. ~~**THE STARTUP THREAD**~~ — the till **did not come up at all** on a cold boot; five faults.
-   **Fixed → ~58s, unattended.** Invisible for four months because every proof was `reboot` over
-   SSH **with nobody watching the screen**. → [`09-05`](worklist-archive/2026-09-05-archive-pass.md)
+0 · 1–3 · 4 · 6. ~~**Startup · keyboard · Pam's picker · kiosk leftovers · the tablet ·
+   Worldline**~~ — **ALL CLOSED.** The till did not come up at all on a cold boot (five faults,
+   now ~58s unattended, invisible for four months because every proof was `reboot` over SSH
+   **with nobody watching the screen**); eleven tablet faults, none of them Banco's code; and
+   Worldline is **answered — Phase 1 integrates NOTHING, Banco replaces the CALCULATOR.**
+   → [`09-05`](worklist-archive/2026-09-05-archive-pass.md)
 
 0c. **Do they log out at night?** Raised, not decided. · 0f. **My Day: red `failed to fetch`
    offline**, under a banner that said so. LESSON #12. · 0g. ✅ **Three clean cold boots** —
    57.8/58.3/58.2s. **The cashier does nothing at all in the morning.**
-1–3. ~~**The keyboard · Pam's picker · the kiosk leftovers**~~ — **all DONE**, `b644`/`b647`.
-   → [`09-05`](worklist-archive/2026-09-05-archive-pass.md)
-4. ~~**The tablet**~~ — **DONE 2026-09-05**, eleven faults fixed; what is left is under 🖥️ below.
 5. 🔴 **THE COUNTER VISIT — THE BIGGEST OPEN RISK IN THIS FILE, and it is not code.**
    **Nothing has completed a sale on this build. The last one was 2026-08-21 — sixteen days.**
    Two sheets, prepped since 2026-09-05, needing only the drive.
@@ -96,27 +91,31 @@ about the blank-`website` fallback) · ③ a re-triage button (small) · ④ ~19
    [`2026-09-05-four-real-sales.html`](onboarding/testsheets/2026-09-05-four-real-sales.html)
    — 18 steps, and **the one sheet where the payment button IS pressed.** Same trip, second.
    Everything settleable from here was settled — barcodes, VAT **inclusive**, pack deals run
-   through the real pricing function. **Nothing has completed a sale on this build** (last:
-   2026-08-21). → [`09-05`](worklist-archive/2026-09-05-archive-pass.md)
+   through the real pricing function. **Print a receipt while you are there** (item 8).
+   → [`09-05`](worklist-archive/2026-09-05-archive-pass.md)
    ~~**The window-drag bug**~~ — **CLOSED, a compromise Angel accepted:** the title bar is both
    the cause AND the escape hatch, so it is now a DRILL (steps B4a–c).
    → [`09-05`](worklist-archive/2026-09-05-archive-pass.md)
 
-6. ~~**Worldline today?**~~ — **ANSWERED: two terminals, both do TWINT. Phase 1 integrates
-   NOTHING — Banco replaces the CALCULATOR.** → [`09-05`](worklist-archive/2026-09-05-archive-pass.md)
 7. **The Felix conversation — four decisions that are HIS, written up, none agreed yet.**
    [`the-felix-conversation.html`](onboarding/the-felix-conversation.html): the payment buttons,
    Worldline as **Phase 2**, split tender parked, and the trial terms — **FAIL = free defect ·
    ISSUE = quoted change**, agreed BEFORE the trial starts. Plus the two cheap asks: a day of
    Banana CSV via his Treuhänder, and his real chart-of-accounts codes.
-8. **The receipt QR — spec written, not built.**
-   [`onboarding/receipt-qr-spec.html`](onboarding/receipt-qr-spec.html). Every receipt fetches its QR
-   from **`api.qrserver.com`** — a third-party call on every receipt, and the failure mode is a
-   broken image box exactly when the wifi is already down. `_qr_data_uri()` already exists to draw
-   it locally. **Not blocking.**
-   ⚠️ **Open decision:** with `website` blank the spec falls back to the La Piazza invite — so a
-   third-party shop prints Angel's community on its customers' receipts by default. Probably wrong;
-   no QR may be the right default. **Angel's call before it is built.**
+8. ~~**The receipt QR**~~ — **BUILT 2026-09-07, `ab527e4`, 13 checks pass.** The QR is ours, drawn
+   by `_qr_data_uri()`, pointing at the shop's own website; **blank `website` prints NO QR** —
+   Angel's call, and it settles [`receipt-qr-spec.html`](onboarding/receipt-qr-spec.html) §4. Also
+   gone from the sheet: two hardcoded *Artemis* fallbacks (one of them a **legal name**), the fake
+   barcode, `api.qrserver.com`, and — found by the proof, not by me — **Google Fonts**, which the
+   whole till was still fetching Inter from. Print type ladder fixed: `text-xs` printed at 12px,
+   larger than the 9px above it, on every receipt ever printed.
+   ⚠️ **Human-green is owed: it has not come off a printer.** Print one on the counter visit —
+   check the QR scans off PAPER with a phone, and that the logo is not a smudge.
+   📸 `onboarding/evidence/receipt-print-2026-09-07.png` · `scripts/prove-the-receipt-is-the-shops-own.js`
+8b. **The OTHER apps in this repo still fetch Inter from Google** — `templates/base.html`,
+   `index`, `sitemap`, `home`, `submit_form`, `isotto`, `camper`, `backlog`, `testing`,
+   `compute/*`. Banco POS is fixed; those are not. One-line swap each to `/static/vendor/fonts.css`.
+   Nobody sells with them, so it is a tidy, not a blocker.
 
 ---
 

@@ -163,7 +163,7 @@ open `LESSONS.md` when one of them is about to apply.*
 **When something bites: add the narrative to `LESSONS.md`, and if it is a new instance of a
 pattern below, bump the count here. A pattern at ×7 is telling you something a paragraph cannot.**
 
-1. **×15 · Green on the layer you can reach says nothing about the layer the user stands on.**
+1. **×16 · Green on the layer you can reach says nothing about the layer the user stands on.**
    `cash_box_float`, the force-close, `POST /catalog/merge`, honest confidence, `best_match_score`,
    the 18+ refusals, the evidence with no screen — each existed on every layer a test could reach
    and on **no screen**; the tablet's LTE was proved on Angel's home Wi-Fi, in a flat, with a route
@@ -199,8 +199,18 @@ pattern below, bump the count here. A pattern at ×7 is telling you something a 
    which is the reporter's own progress timeline, the screen where a cashier learns what happened
    to the thing she reported. And it found `CRACK` on nothing: that word sat on the cashier's
    customer screen, correctly translated, key and all, reading as a drug name in a hemp shop.
-   *Ask where the person is STANDING when they need it — which building, and which screen. And if
-   your harness cannot see the glass, or cannot see the first ninety seconds, it is not testing
+   The sixteenth, 2026-09-07, and it adds a layer BELOW the glass: **paper.** The receipt
+   fetched its QR image from `api.qrserver.com` and its typeface from `fonts.googleapis.com`
+   AT PRINT TIME — so the one document a customer takes home needed the internet, and the
+   failure mode was a broken image box and a changed font exactly when the wifi was already
+   down. And the print stylesheet's type ladder stopped at `.text-sm`, so every `text-xs` line
+   printed at 12px, LARGER than the 9px above it and the 11px totals — on every receipt ever
+   printed, invisible in a browser because on screen that ladder is not applied at all. Three
+   faults, none findable by reading the template or looking at the page; all three fell out of
+   two lines of Playwright, `emulateMedia('print')` and a network log.
+   *Ask where the person is STANDING when they need it — which building, which screen, and
+   whether the answer is a screen at all. If your harness cannot see the glass, cannot see the
+   first ninety seconds, or cannot see the sheet coming out of the printer, it is not testing
    the morning. A string can be present, keyed, and translated, and still be the wrong word in the
    room.*
 2. **×9 · A downstream filter quietly discards the row the fix existed to find — and a field whose meaning shifts between rows is worse than a missing one.** The dedup guard's
@@ -249,7 +259,7 @@ pattern below, bump the count here. A pattern at ×7 is telling you something a 
    guard, and it is the more confident half.* A test that counted occurrences
    matched its own `def` line. Reverting each guard one at a time has caught something every time it
    has been done. *If you did not watch it go red, you do not know it works.*
-5. **×8 · A measurement harness will accuse working code as confidently as it reports the truth —
+5. **×9 · A measurement harness will accuse working code as confidently as it reports the truth —
    and will PASS on the very bug it was written to catch.**
    The rounding proof; the partial prod copy that manufactured a 24-product compliance scare; and on
    2026-08-28 a timer that started when a card **scrolled into view** rather than when a decision was
@@ -278,6 +288,12 @@ pattern below, bump the count here. A pattern at ×7 is telling you something a 
    result: you are filtering out the only evidence that it failed. And a check that only catches the
    TIDY case reports clean on the messy one — `var t =` was caught, `const c = …, t = []` was not,
    and that is the one that shipped.*
+   The ninth, 2026-09-07, in the same instrument: it could not see JINJA comments. `strip_comments()`
+   blanked `<!-- -->` and handed `{# … #}` to the HTML parser, which read the prose inside as a bare
+   English text node — so **the comment explaining a fix was reported as untranslated English on an
+   Italian till.** Six false positives, four of them pre-existing. *An HTML comment containing
+   `{% %}` breaks Jinja; a Jinja comment is invisible to an HTML parser. Neither layer can see the
+   other's comments, and a harness has to be told about both.*
    Two more on 2026-08-28: I predicted 40 age-gate changes and prod made **44**, because I measured
    a **5,061-row snapshot** of a **5,408-row** shop and the four extras sat in the 347 I could not
    see; and I quoted *"49 test failures before and after"* as evidence when 30 test files were
@@ -359,5 +375,5 @@ pattern below, bump the count here. A pattern at ×7 is telling you something a 
 
 ---
 
-*Last updated: 2026-09-04*
+*Last updated: 2026-09-07*
 *"You can't clone SAP. You can clone this."*

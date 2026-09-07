@@ -1301,3 +1301,70 @@ reads badly in a room, and text too long for its box.
 On one screen Angel marked PASS with 22 English strings in front of him. That is not a failure —
 it is the proof that **scattered English hides from a person and cannot hide from a script**, and
 that neither instrument is optional.
+
+---
+
+## 2026-09-07 — the paper, and the three things on it that belonged to somebody else
+
+Angel, before the counter visit: *"we should change the QR code and the logo and style of the
+receipt — the numbers are all ok but we need to remove the La Piazza stuff … the QR code should
+be under our control."*
+
+The numbers were fine. Everything around them was not, and **not one of the four faults was
+findable by reading the template or by looking at the page on a screen.**
+
+**1 · A receipt that needed the internet to print.** The QR's image came from
+`api.qrserver.com`, fetched at print time. The failure mode is a broken image box exactly when
+the wifi is already down — which is the one moment a shop is most likely to be printing paper
+instead of sending anything. `_qr_data_uri()` had been sitting in the same file since July,
+server-side, measured against both of the shop's guns down to 10mm, with a mark-in-the-middle
+routine somebody had tuned on a halo ladder. **A solved problem, twenty lines above an unsolved
+copy of itself.** (Pattern: LESSON #1's siblings — the third door this month that was already
+built and had no handle on it.)
+
+**2 · Another company's legal name on a document the customer keeps.**
+`legal_name || 'Artemis Growing Supplies GmbH'`. A demo fallback, harmless in every environment
+where the setting is filled in, and it prints a false company on a tax document for every shop
+that clones Banco and has not got there yet. The same shape sat in `base.html`'s `<title>` —
+`- Artemis Store`, hardcoded for every tenant on every page, and `<title>` is **what the browser
+stamps into the print header.** *A default that is right for the author is a lie for everyone
+else. On anything with legal weight, blank beats a guess.*
+
+**3 · A barcode that was not one.** Eight hand-drawn `<rect>` bars, left from the demo, printed
+on every receipt, encoding nothing. It had the shape of a scannable thing for as long as the
+file existed. *Something that looks scannable and is not is worse than nothing there.*
+
+**4 · The font, which the proof found and I did not.** The first run of
+`prove-the-receipt-is-the-shops-own.js` failed on one check — *no third-party request* — and
+named `fonts.googleapis.com`. The whole till was still fetching Inter from Google, under a
+comment reading *"still CDN — falls back to system sans offline; vendor in a later phase"*. The
+later phase was **already done**: `src/static/vendor/fonts.css` and `inter-latin.woff2`, the
+exact 300–800 variable range, in the repo, unused by the POS. "Falls back to system sans" means
+the entire POS silently changes typeface whenever the line is down — including mid-print, with
+no error anywhere.
+
+**And then, only once the sheet was screenshotted under `emulateMedia('print')`:** the print
+type ladder stopped at `.text-sm → 9px` and never scaled `.text-xs`, which therefore printed at
+Tailwind's untouched **12px** — bigger than the 9px above it and bigger than the 11px totals.
+Every quiet line on the page (the VAT legend, the member rows, the caption under the QR) has
+been the loudest thing on **every receipt ever printed**, and no amount of looking at that page
+in a browser would show it, because on screen the ladder is not applied at all.
+
+**The lesson is the one that keeps coming back, with a new bottom layer.** For the till, the
+layer under the tests was the glass. For the receipt, **the layer under the glass is paper** —
+a different stylesheet, a different set of dependencies, and a moment (the wifi down, the
+customer waiting) that no screen test is ever in. `emulateMedia('print')` and a network log are
+two lines of Playwright, and between them they found three faults that had survived every check
+this repo owns.
+
+**A second, smaller one, and it is LESSON #5 again in my own instrument.**
+`prove-one-box-one-language.py` cannot see Jinja comments. `strip_comments()` blanked
+`<!-- -->` and handed `{# … #}` straight to the HTML parser, which read the prose inside as a
+bare English text node — so **the comment explaining why the receipt no longer prints a fake
+barcode was reported as untranslated English on an Italian till.** Six false positives, four of
+them sitting there before today. 312 → 308. *The mirror image of the trap already in this file:
+an HTML comment containing `{% %}` is not a comment to Jinja and breaks the page. Neither
+templating layer can see the other's comments, and a harness has to be told about both.*
+
+**Owed:** human-green. Thirteen checks pass and a screenshot looks right, and **nothing has come
+off a printer.** That is item 8 on the counter visit.
