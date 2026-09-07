@@ -108,8 +108,8 @@ slog nobody sells with · ⑥ My Day's red `failed to fetch`.
    barcode, `api.qrserver.com`, and — found by the proof, not by me — **Google Fonts**, which the
    whole till was still fetching Inter from. Print type ladder fixed: `text-xs` printed at 12px,
    larger than the 9px above it, on every receipt ever printed.
-   ⚠️ **Human-green is owed: it has not come off a printer.** Print one on the counter visit —
-   check the QR scans off PAPER with a phone, and that the logo is not a smudge.
+   ⚠️ **Human-green is owed: it has not come off a printer.** Sheet cut and ready, 19 steps:
+   [`2026-09-07-the-receipt-is-the-shops-own.html`](onboarding/testsheets/2026-09-07-the-receipt-is-the-shops-own.html)
    🔴 **THREE SETTINGS EDITS ON THE LIVE SHOP, and one of them is Felix's to answer.**
    (a) `store_name` said **Lucerne**; his own site says **Luzern** — the shop's name, misspelled
    at the top of its receipt. (b) `website` → **`www.artemisluzern.ch`**, the form that answers

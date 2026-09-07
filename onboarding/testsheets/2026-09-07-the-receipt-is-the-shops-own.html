@@ -17,57 +17,129 @@
                  that way we can have a super controlled set of tickets".
    ═══════════════════════════════════════════════════════════════════════════════════════ */
 const SHEET = {
-  key:      'banco-uat-CHANGE-ME-v1',            // bump the version when the steps change,
-                                                 // or a tester's old marks reappear on new steps
+  key:      'banco-uat-receipt-is-the-shops-own-v1',
   eyebrow:  'Banco POS · UAT',
-  title:    'What is being tested',              // short. It is the browser tab and the report header
-  standfirst: 'One paragraph: what broke, why this sheet exists, and what a GO would mean.',
-  meta: [['Shop','banco.wolfhold.app','https://banco.wolfhold.app/pos'], ['Log in as','cashier or manager'],
-         ['Build','abc1234'], ['Deployed','1 Jan 2026'], ['Budget','~10 min']],
-  safety: { title: 'Never press Checkout.',
-            body: 'Every basket ends with 🗑️ Clear. A completed transaction is a line in the Kassenbuch and cannot be taken back out.' },
+  title:    'The receipt is the shop\'s own',
+  standfirst: 'The receipt is the one piece of Banco a customer takes home, and it was carrying three things that were not Artemis’: a La Piazza QR fetched from a third party at print time, a fallback that printed <b>another company’s legal name</b> when Settings was blank, and a barcode that encoded nothing. All three are gone. What no machine here can check is the last ten centimetres — a phone, pointed at a piece of paper. That is what this sheet is for. A GO means Felix can hand one of these across the counter.',
+  meta: [['Shop','banco.wolfhold.app','https://banco.wolfhold.app/pos'],
+         ['Log in as','Felix (owner — you need Settings)'],
+         ['Build','b731 · fa0fbe7'], ['Deployed','7 Sep 2026'], ['Budget','~15 min']],
+  safety: { title: 'Do not ring a sale for this sheet.',
+            body: 'Every receipt you need already exists. Open one from <b>Reports</b> and reprint it. A completed transaction is a line in the Kassenbuch and cannot be taken back out — the sheet that DOES ring sales is the counter-visit one, and it is a separate trip.' },
 
-  // ── SECTION 0 IS ADDED FOR YOU. You do not write it; the shell prepends it. ───────────
-  //  Why: on 2026-09-04 two runs were invalidated AFTER the fact because the tester had the
-  //  folio keyboard attached — so Banco's own on-screen pad never appeared, and the pad was
-  //  the entire subject of the test. One PASS had to be thrown out, and the date fields had
-  //  passed for a full day while being unusable on the tablet alone.
-  //  `needs` is the list of conditions THIS sheet depends on. Say them out loud and the
-  //  tester confirms them as step 0.2, in the record, before anything else is marked.
-  setup: { needs: ['the folio keyboard DETACHED', 'the scanner gun in your hand', 'landscape'] },
+  setup: { needs: ['a printer with paper in it — A4, any printer',
+                   'your phone, camera app open',
+                   'signed in as Felix (sections A and D need Settings)'] },
 
-  // ── the steps ──────────────────────────────────────────────────────────────────────────
-  //  do       what to DO. Click for click — assume the reader has never seen the screen.
-  //  expect   what should happen. One observable thing. If you cannot write it as something
-  //           a person SEES, it is not a UAT step.
-  //  why      the story behind it. This is what makes the sheet a training tool rather than
-  //           a checklist — Ralph should finish knowing why the shop cares.
-  //  callout  boxed and loud. Use it ONLY on load-bearing steps, or it stops meaning anything.
-  //  codes    barcodes, tap to copy. Several can be pasted into shelf intake at once.
-  //
-  //  Write at least one step whose expected result is that NOTHING happens. A feature that
-  //  only ever gets tested for firing will fire on everything.
   sections: [
-    { id: 'A', title: 'First thing to check', time: '3 min', steps: [
+
+    { id: 'A', title: 'The shop’s own details — three of them were wrong', time: '4 min', steps: [
       { id: 'A1',
-        do: 'Scan <b>two</b> of the same paper.',
-        codes: ['84157065'],
-        expect: 'The line reads <b>not reached yet</b> and the total is <b>CHF 4.00</b>',
-        why: 'Two is below the three-pack rung, so the deal must not claim to apply.' },
+        do: 'Open <b>Settings → Company</b>. Read the <b>Store name</b> field out loud.',
+        link: { href: 'https://banco.wolfhold.app/pos/settings', text: 'Open Settings' },
+        expect: 'If it says <b>Lucerne</b>, change it to <b>Luzern</b> and save',
+        why: 'Your own site says Artemis <b>Luzern</b> — the tab and the footer both. Banco was seeded with the English exonym and it was printing at the top of the customer’s receipt: the shop’s own name, spelled the way the shop does not spell it.',
+        callout: 'The fix is in the seed, so a FRESH install is now right. This shop already has the old value in its database and only you can change it.' },
+
       { id: 'A2',
-        do: 'Scan something with no deal at all.',
-        expect: '<b>Nothing</b> — no badge, no message on that line',
-        callout: 'The quiet check. A till that comments on every line is a till nobody reads.' },
+        do: 'Same screen, <b>Contact &amp; Links</b>. Set <b>Website</b> to the www form and save.',
+        codes: ['www.artemisluzern.ch'],
+        expect: 'The field reads <b>www.artemisluzern.ch</b>',
+        why: 'The QR encodes this field <i>exactly as typed</i> — there is deliberately no lookup at print time, because a receipt must print with the line down. The bare host redirects to the www form, so typing the www form here saves the customer a round trip on a weak signal outside the shop.' },
+
+      { id: 'A3',
+        do: 'Same screen. Look at <b>VAT number</b>.',
+        expect: 'It almost certainly still reads <b>CHE-XXX.XXX.XXX MWST</b>',
+        why: 'That is the placeholder Banco ships with, and until today it was PRINTING — an invented tax identifier on a document a customer keeps and a bookkeeper may file. The receipt now hides the line until a real number is in this box, which is why you will not see a VAT line in section B.',
+        callout: 'ASK FELIX FOR THE REAL CHE-UID. It is a two-minute question and it is the last thing standing between this receipt and a real one. Type it in here when you have it, then come back and do B4.' },
     ]},
-    { id: 'B', title: 'Put the shop back', time: '1 min', steps: [
-      { id: 'B1', do: '🗑️ <b>Clear</b> the cart. Delete any ZZTEST rows you made.',
-        expect: 'Empty cart, clean catalogue',
-        why: 'A test row left active is a row someone can sell.' },
+
+    { id: 'B', title: 'On the screen', time: '3 min', steps: [
+      { id: 'B1',
+        do: 'Open <b>Reports</b>, pick any completed sale, and click through to its receipt.',
+        link: { href: 'https://banco.wolfhold.app/pos/reports', text: 'Open Reports' },
+        expect: 'The receipt opens with the <b>Artemis</b> logo at the top and <b>Artemis Luzern - Headshop</b> under it',
+        why: 'The logo comes from Settings → Receipt. It used to be capped at 34px in print, which turned "Kräuter &amp; Düfte" into grey mush; it now gets 20mm, the same as the QR.' },
+
+      { id: 'B2',
+        do: 'Scroll to the bottom third and look at the block under the totals.',
+        expect: 'A QR, <b>\u{1F310} Find us online</b>, and <b>www.artemisluzern.ch</b> printed under it',
+        why: 'It used to say "Come find us on La Piazza" on every receipt whether or not the module was even switched on, and the image came from api.qrserver.com — so a printed receipt needed the internet, and the failure mode was a broken image box exactly when the wifi was already down.' },
+
+      { id: 'B3',
+        do: 'Look for a <b>VAT / MWST</b> line in the header block, and for a <b>barcode</b> at the very bottom.',
+        expect: '<b>Neither is there.</b> Just the transaction number, small and grey',
+        callout: 'The quiet check — the one where nothing happening IS the pass. The VAT line is hidden because the number is still a placeholder (A3). The barcode was eight hand-drawn bars that encoded nothing at all, and a shape that looks scannable and is not is worse than no shape.' },
+
+      { id: 'B4',
+        do: '<b>Only if you got the real UID from Felix in A3.</b> Put it in Settings, save, reload this receipt.',
+        expect: 'A <b>MWST: CHE-…</b> line appears under the address',
+        why: 'Proves the line is hidden because the number is fake, not because it is broken.' },
+
+      { id: 'B5',
+        do: 'Add <span class="mono">?lang=it</span> to the end of the receipt URL and press enter.',
+        expect: 'The QR block reads <b>\u{1F310} Trovaci online</b> — and the shop’s name, address and footer stay in their own words',
+        why: 'The labels translate; the shop’s identity never does. Worth thirty seconds because this is the one screen a customer reads.' },
+    ]},
+
+    { id: 'C', title: 'On paper — this is the whole point', time: '5 min', steps: [
+      { id: 'C1',
+        do: 'Press <b>\u{1F5A8}️ Print</b> and print it. Actual paper.',
+        expect: 'One page comes out',
+        callout: 'A PDF on a screen is NOT this test. A phone reads a glowing screen far more easily than ink on paper, and paper is what the customer walks out with. If there is no printer at the counter, print it at home — but print it.' },
+
+      { id: 'C2',
+        do: 'Look at the sheet at arm’s length, the way someone reads a receipt.',
+        expect: 'No giant diagonal <b>PAID by TWINT</b> across it',
+        why: 'The watermark was the second-biggest thing on the page after the total and it read as demo software. It still shows on the SCREEN, where it does its real job — telling the cashier at a glance that the sale went through.' },
+
+      { id: 'C3',
+        do: 'Read the small lines: the <b>VAT: A = 8.1%</b> legend, and the line under the QR.',
+        expect: 'They are <b>smaller</b> than the lines above them',
+        why: 'They were not. The print stylesheet stopped scaling at one size and left these at 12px — bigger than the 9px above them and bigger than the totals. Every receipt this shop has ever printed looked like that, and it is invisible on a screen because that stylesheet only applies to paper.' },
+
+      { id: 'C4',
+        do: 'Look at the logo on the paper.',
+        expect: 'You can read <b>Kräuter &amp; Düfte</b> under the word Artemis',
+        why: 'That line is the test. If it is legible the logo is big enough; if it is a grey smear it is not, and this is an ISSUE, not a FAIL.' },
+    ]},
+
+    { id: 'D', title: 'The last ten centimetres', time: '3 min', steps: [
+      { id: 'D1',
+        do: 'Point your phone camera at the QR <b>on the paper</b>. Do not tap yet.',
+        expect: 'The phone offers <b>www.artemisluzern.ch</b> — and that is the address it shows, not a redirect',
+        why: 'A phone shows the URL before you tap it. That is exactly why this stopped going through a Banco-owned redirect: a caption saying artemisluzern.ch over a preview reading banco.wolfhold.app/join looks like something you should not trust.',
+        callout: 'THE ONE CHECK NOTHING ELSE CAN DO. Thirteen automated checks pass on this receipt and not one of them has ever seen paper.' },
+
+      { id: 'D2',
+        do: 'Now tap it.',
+        expect: 'The Artemis site opens',
+        why: 'End to end, off paper, on a real phone.' },
+
+      { id: 'D3',
+        do: 'Hold the paper at an angle, then under the counter light rather than a window. Scan again.',
+        expect: 'Still reads',
+        why: 'The QR carries the shop’s star through its middle, which costs it some redundancy. It was measured readable to 10mm on both scanner guns and it prints at 20mm — but a gun is not a phone and a shop is not a lab.' },
+
+      { id: 'D4',
+        do: 'Turn the shop wifi off, or put the tablet in flight mode. Open a receipt and print it again.',
+        expect: 'The page still shows the logo, the right typeface, and the <b>QR</b> — no broken image box',
+        callout: 'This is the reason the whole change happened. The QR is drawn by Banco and travels inside the page; the typeface is served by Banco too, which it was not until today. A receipt must not need the internet.' },
+    ]},
+
+    { id: 'E', title: 'Put the shop back', time: '1 min', steps: [
+      { id: 'E1',
+        do: 'Turn the wifi back on. Bin the test printouts, or keep the one you scanned as evidence.',
+        expect: 'Shop back to normal',
+        why: 'Nothing on this sheet rang a sale, so there is nothing in the books to undo.' },
     ]},
   ],
+
   closing: [
-    'Every check here is on the <b>screens</b>. Nothing on this sheet rings a sale.',
-    'If a step is <b>ISSUE</b> rather than FAIL, it worked but something was off — wording, layout, speed, or it simply confused you. Those are worth as much as the failures.',
+    'Nothing on this sheet rings a sale. Every receipt you opened already existed.',
+    'The three <b>load-bearing</b> steps are <b>C1</b> (it actually printed), <b>D1</b> (a phone read it off paper) and <b>D4</b> (it printed with the wifi down). If those three pass, the receipt is done.',
+    'If a step is <b>ISSUE</b> rather than FAIL, it worked but something was off — wording, layout, the logo a shade too small. Those are worth as much as the failures.',
+    '<b>A3 is a question, not a check.</b> If Felix gives you the CHE-UID, the receipt is finished today. If he does not, the VAT line simply stays hidden and no customer ever sees an invented tax number — which is the right failure to have.',
   ],
 };</script>
 
