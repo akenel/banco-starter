@@ -25,7 +25,7 @@ tablet, zero fails. Live on the shop: `b629 · 6cc1bb5`.*
 
 ## ▶️ THE DECK — READ THIS FIRST · last touched 2026-09-07
 
-**Live on the shop: `b726 · 11559c1`.** Reload the tablet TWICE after any deploy — the first load
+**Live on the shop: `b732 · f22afb2`.** Reload the tablet TWICE after any deploy — the first load
 activates the new service worker, the second serves from it.
 *The 2026-09-04 method note, and what went in that night (four fixes, five suites, three sheets,
 54 pass · 5 issue · 0 fail), are in [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md).*
