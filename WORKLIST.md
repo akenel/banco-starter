@@ -110,12 +110,13 @@ slog nobody sells with · ⑥ My Day's red `failed to fetch`.
    larger than the 9px above it, on every receipt ever printed.
    ⚠️ **Human-green is owed: it has not come off a printer.** Sheet cut and ready, 19 steps:
    [`2026-09-07-the-receipt-is-the-shops-own.html`](onboarding/testsheets/2026-09-07-the-receipt-is-the-shops-own.html)
-   🔴 **ONE SETTINGS EDIT LEFT ON THE LIVE SHOP.** `store_name` still reads **Artemis Lucerne**
-   — checked 18:50 after the b735 deploy, twice. His own site says **Luzern**, and it is the
-   shop's own name at the top of its receipt. Marked PASS on the sheet, so the save did not
-   land: **redo it and watch for the toast.** ~~website~~ was already the www form; ~~vat_number~~
-   turned out to hold Felix's real **CHE-105.401.803** — the receipt hides that line while it is
-   a placeholder, and the line is printing, so it is real.
+   🔴 **SETTINGS EDITS LEFT ON THE LIVE SHOP** — nothing here is code, and all of it prints.
+   (1) `store_name` still reads **Artemis Lucerne**, checked twice after b735; the shop's own
+   German page says **Luzern** and Banco never translates tenant data. (2) `email` reads
+   `contact@artemis-gmbh.ch`; **Felix asked for `contact@artemisluzern.ch`**, which is also what
+   his site prints. (3) blank `country` — "Switzerland" is English on a German sheet and their
+   own footer stops at Luzern. ~~website~~ already www; ~~vat_number~~ is Felix's real
+   **CHE-105.401.803** (the receipt hides that line while it is a placeholder; it is printing).
    📸 `onboarding/evidence/receipt-print-2026-09-07.png` · `scripts/prove-the-receipt-is-the-shops-own.js`
 8b. **The OTHER apps in this repo still fetch Inter from Google** — `templates/base.html`,
    `index`, `sitemap`, `home`, `submit_form`, `isotto`, `camper`, `backlog`, `testing`,
