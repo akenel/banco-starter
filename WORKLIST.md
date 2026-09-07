@@ -111,8 +111,8 @@ slog nobody sells with · ⑥ My Day's red `failed to fetch`.
    ⚠️ **Human-green is owed: it has not come off a printer.** Sheet cut and ready, 19 steps:
    [`2026-09-07-the-receipt-is-the-shops-own.html`](onboarding/testsheets/2026-09-07-the-receipt-is-the-shops-own.html)
    🔴 **SETTINGS EDITS LEFT ON THE LIVE SHOP** — nothing here is code, and all of it prints.
-   (1) `store_name` still reads **Artemis Lucerne**, checked twice after b735; the shop's own
-   German page says **Luzern** and Banco never translates tenant data. (2) `email` reads
+   (1) ~~`store_name`~~ **saved 19:0x — now `Artemis Kräuter & Düfte`.** ⚠️ That is the wording
+   INSIDE the logo sitting directly above it, so the sheet says it twice; Angel's call. (2) `email` reads
    `contact@artemis-gmbh.ch`; **Felix asked for `contact@artemisluzern.ch`**, which is also what
    his site prints. (3) blank `country` — "Switzerland" is English on a German sheet and their
    own footer stops at Luzern. ~~website~~ already www; ~~vat_number~~ is Felix's real
