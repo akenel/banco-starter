@@ -414,7 +414,7 @@
            no margin; against a 271mm printable box it overflows the first page and pushes the
            grey app background onto the paper below the receipt. Seen in the first real PDF.
            The receipt is as long as the receipt is. */
-        .receipt-page { min-height: 0 !important; }
+        .receipt-page { min-height: 0 !important; padding: 0 !important; }
         /* Everything the sheet sits inside goes white and stops reserving a screen's worth of
            height. `min-h-screen` and `bg-gray-100` are the APP's chrome — correct behind a
            receipt on a monitor, and a grey slab printed under it on paper. Tailwind's own
@@ -441,6 +441,17 @@
     .receipt-page {
         position: relative;
         z-index: 1;
+        /* THE SHEET NEEDS ITS OWN PADDING ON SCREEN, and never had any. The `p-2 sm:p-8` sits on
+           the wrapper OUTSIDE this card — it is the grey gap AROUND the paper, not a margin on
+           it — so everything from "Receipt #" down through TOTAL ran flush to the card's edge.
+           Angel, 2026-09-07, off the deployed build: "the text basically touches the edge — if a
+           pdf is printed it would be fine, on the screen it looks wrong."
+           The company header only LOOKED inset because it is centred.
+           Screen-only: on paper the @page box supplies the margin, and the print block above
+           zeroes this so the two do not stack into a 24mm gutter.
+           The 480px rule below already set a padding here, which is the tell — it looked wrong on
+           a phone first and got patched in the one place somebody was looking. */
+        padding: 28px 34px;
     }
 
     /* Screen on a phone (NOT print): the receipt is A4-shaped, so the big watermark +

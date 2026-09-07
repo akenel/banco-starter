@@ -151,6 +151,29 @@ const isOurs = (u) => {
   });
   check(!!host, 'the address is printed as text under the QR, for anyone who will not scan', host);
 
+  // ── C2 · THE SHEET ON SCREEN, which is where it is read a hundred times for every once
+  //         it is printed. The `p-2 sm:p-8` in the markup is on the wrapper OUTSIDE the white
+  //         card — the grey gap AROUND the paper — so the card itself had no padding and every
+  //         line from "Receipt #" down through TOTAL ran flush to its edge. Angel, off the
+  //         deployed build: "the text basically touches the edge … on the screen it looks
+  //         wrong". Measured against the CARD, not the viewport: that is the edge he means.
+  console.log('\n── C2 · the sheet on screen ──');
+  const gaps = await p.evaluate(() => {
+    const card = document.querySelector('.receipt-page').getBoundingClientRect();
+    const vis = s => [...document.querySelectorAll(s)].find(x => x.getBoundingClientRect().width > 0);
+    const o = {};
+    const a = vis('.receipt-page .grid p');   if (a) o.receiptNo = Math.round(a.getBoundingClientRect().left - card.left);
+    const h = vis('.receipt-page thead th');  if (h) o.itemHead  = Math.round(h.getBoundingClientRect().left - card.left);
+    const t = document.querySelector('.receipt-page .text-2xl span');
+    if (t) o.total = Math.round(t.getBoundingClientRect().left - card.left);
+    const r = [...document.querySelectorAll('.receipt-page .text-2xl span')].pop();
+    if (r) o.totalRight = Math.round(card.right - r.getBoundingClientRect().right);
+    return o;
+  });
+  const worst = Math.min(...Object.values(gaps));
+  check(worst >= 16, 'nothing on screen runs flush to the edge of the sheet',
+        Object.entries(gaps).map(([k, v]) => k + ' ' + v + 'px').join(' · '));
+
   // ── D · ON PAPER. The one thing only print media can answer ──────────────────────────
   console.log('\n── D · under print media ──');
   await p.emulateMedia({ media: 'print' });
