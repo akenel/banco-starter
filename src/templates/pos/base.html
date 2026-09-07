@@ -10,7 +10,13 @@
     <!-- The app has its OWN language picker (pos-i18n) — tell Chrome/Google NOT to auto-translate,
          or mobile "translate to English" stomps on the language the user actually chose. -->
     <meta name="google" content="notranslate">
-    <title>{% block title %}HelixPOS{% endblock %} - Artemis Store</title>
+    <!-- The <title> is not decoration: it is what the browser stamps into the PAGE HEADER of
+         anything printed from here, and the one page that gets printed is the customer's
+         receipt. Until 2026-09-07 it read "… - Artemis Store" for every tenant, hardcoded, so a
+         cloned shop printed Artemis' name across the top of its own customers' paper. The suffix
+         now comes from POSConfig.store_name (see load() below); with no store name it stays
+         plain, which is right — better a bare title than the wrong shop's. -->
+    <title>{% block title %}Banco{% endblock %}</title>
 
     <!-- PWA (Phase 0): installable, standalone, phone-first. Service worker registered below. -->
     <link rel="manifest" href="/static/pos/manifest.webmanifest">
@@ -972,8 +978,16 @@
       })();
     </script>
 
-    <!-- Inter font (still CDN — falls back to system sans offline; vendor in a later phase) -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Inter, SERVED BY US. This said "still CDN — falls back to system sans offline; vendor
+         in a later phase" until 2026-09-07, when a proof of the RECEIPT caught it: the one page
+         a customer takes home was still asking fonts.googleapis.com for its typeface at print
+         time. The later phase turned out to be already done — src/static/vendor/fonts.css and
+         inter-latin.woff2 (variable, 300-800, the whole range this link asked for) have been
+         sitting in the repo unused by the POS.
+         Not a cosmetic swap: the till lives on a shop's wifi, and "falls back to system sans"
+         means the whole POS quietly changes typeface whenever the line is down — including on
+         paper, mid-print, with no error anywhere. Own the font like everything else here. -->
+    <link rel="stylesheet" href="/static/vendor/fonts.css?v={{ asset_v('vendor/fonts.css') }}">
 
 
     {% block extra_head %}{% endblock %}
@@ -1538,6 +1552,13 @@
                         this.currency = config.currency;
                         this.locale = config.locale;
                         this.store_name = config.store_name || '';
+                        // Stamp the shop's name into the document title -> the print header.
+                        // Guarded so a second config load (or a re-language) can't stack it up
+                        // as "Receipt · Artemis · Artemis".
+                        try {
+                            if (this.store_name && !document.title.endsWith(' \u00b7 ' + this.store_name))
+                                document.title = document.title + ' \u00b7 ' + this.store_name;
+                        } catch (e) {}
                         // PHASE 0/2: per-tenant regime (code + VAT-number format) for the receipt
                         // VAT label + IT non-fiscal banner. Falls back to CH defaults if absent.
                         if (config.regime && typeof config.regime === 'object') {

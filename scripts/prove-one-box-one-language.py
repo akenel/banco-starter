@@ -87,7 +87,17 @@ def flat(d, prefix=""):
     return out
 
 def strip_comments(t):
-    return re.sub(r"<!--.*?-->", lambda m: "\n" * m.group(0).count("\n"), t, flags=re.S)
+    """Blank out both comment syntaxes a Jinja template can carry, keeping line numbers.
+
+    JINJA comments were invisible to this until 2026-09-07, so `{# ... #}` was handed to
+    the HTML parser, which quite reasonably read the prose inside as a bare English text
+    node and reported the receipt's own explanation of why it no longer prints a fake
+    barcode as untranslated text on an Italian till. A `{# #}` never reaches the browser.
+    (The reverse of the trap in LESSONS: an HTML comment containing `{% %}` is NOT a
+    comment to Jinja, which parses the tags inside it and breaks the page.)
+    """
+    t = re.sub(r"<!--.*?-->", lambda m: "\n" * m.group(0).count("\n"), t, flags=re.S)
+    return re.sub(r"\{#.*?#\}", lambda m: "\n" * m.group(0).count("\n"), t, flags=re.S)
 
 def strip_js_comments(t):
     """Blank out // line comments and /* */ blocks, leaving line numbers intact.
@@ -444,8 +454,14 @@ def main():
 
     print()
     print(f"{len(files)} templates read.")
+    # The line under this used to end "Nobody who speaks French or Italian has read
+    # these strings." True when it was written, retired 2026-09-06: three passes have
+    # been made over them — written here, read by a vision model on ~25 real screens,
+    # and walked by Angel in Italian, who caught `Samstag` before any check did. What
+    # is genuinely unchecked is REGISTER, which no harness can measure.
     print("NOT CHECKED HERE: whether a translation that IS different from English is")
-    print("any GOOD. Nobody who speaks French or Italian has read these strings.")
+    print("the RIGHT WORD — Titolare or Proprietario, Giornata or something else.")
+    print("That is a judgement call for the shop, not a check.")
     return 1 if (bad_keys or bare or english or in_script or in_xtext or ph or bad_calls or shadowed) else 0
 
 if __name__ == "__main__":

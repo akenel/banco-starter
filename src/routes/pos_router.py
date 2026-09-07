@@ -12234,6 +12234,52 @@ def _qr_data_uri(payload: str, logo_url: str | None = None) -> str:
         return ""
 
 
+def _receipt_site_url(website: str | None) -> str:
+    """Normalise the shop's own website into something a phone camera can open, or "".
+
+    A customer's receipt is the one piece of Banco they take home, and the QR on it
+    points at the SHOP — not at us, not at a redirect we own, and not at a third
+    party. `store_settings.website` is what the shop typed into Settings ->
+    Contact & Links, so it arrives as whatever a human types: `artemisluzern.ch`,
+    `www.shop.ch/`, `https://shop.ch`, or a blank.
+
+    A bare hostname in a QR is the quiet failure: it scans, it looks fine, and some
+    scanner apps show it as plain TEXT with nothing to tap. So a scheme is always
+    added, and always https — never http, which a printed code cannot be talked out
+    of once it is on paper.
+
+    Deliberately NOT probing the address. The spec (receipt-qr-spec.html §3) asked
+    for the form that answers 200 without redirecting — `https://www.artemisluzern.ch/`
+    here — and the only honest way to know that is an HTTP request, which is exactly
+    the network call at print time this whole change exists to remove. Guessing `www.`
+    for everyone is worse than a 301: plenty of hosts redirect the other way. So we
+    encode what the shop typed. If a shop wants the zero-redirect form, it types the
+    zero-redirect form into Settings, and the QR follows it with no code change.
+
+    Anything that is not a plausible host comes back "" -> the receipt prints NO QR
+    block at all. That is the decision of 2026-09-07, and it replaces the spec's
+    fallback: a shop that has not filled in a website must never print somebody
+    else's community invite on its own customers' paper.
+    """
+    host = (website or "").strip()
+    if not host:
+        return ""
+    host = re.sub(r"^[a-zA-Z][a-zA-Z0-9+.-]*://", "", host).strip().rstrip("/")
+    if not host:
+        return ""
+    # host[/path] — judge the HOST only; a shop may well point at a subpage. The host is
+    # case-insensitive and gets lowered so the caption reads `shop.ch` however it was typed;
+    # the PATH is left exactly as entered, because paths are not case-insensitive.
+    head, _, tail = host.partition("/")
+    head = head.lower()
+    host = head + ("/" + tail if tail else "")
+    if not re.fullmatch(r"(?=.{4,253}$)[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?"
+                        r"(\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)*"
+                        r"\.[A-Za-z]{2,}", head):
+        return ""
+    return "https://" + host
+
+
 # ================================================================
 # THE KIOSK — guest self-service station (banco-kiosk-guest-station).
 # A no-login, full-screen, scan-first shell a customer walks up to while the cashier is
@@ -13204,7 +13250,8 @@ async def pos_kb_approvals(request: Request):
 
 
 @html_router.get("/pos/receipt/{transaction_id}", response_class=HTMLResponse, name="pos_receipt")
-async def pos_receipt(request: Request, transaction_id: UUID):
+async def pos_receipt(request: Request, transaction_id: UUID,
+                      db: AsyncSession = Depends(get_db_session)):
     """
     Receipt View & Print - Display completed transaction receipt
 
@@ -13238,8 +13285,31 @@ async def pos_receipt(request: Request, transaction_id: UUID):
     2. Spot errors (e.g., CHF 25 should be CHF 250)
     3. Call Pam for explanation
     4. Note for Banana journal entry
+
+    THE QR IS DRAWN HERE, server-side, and handed down as a data URI in the template
+    context — not fetched by the page. Until 2026-09-07 the receipt built an <img> src
+    pointing at `api.qrserver.com`, so every printed receipt depended on a third party
+    being reachable at the moment the cashier pressed Print, and the failure mode was a
+    broken image box exactly when the wifi was already down. `_qr_data_uri()` already
+    solved this for the shelf labels (measured against both of the shop's guns on
+    2026-07-29, readable down to 10mm) and punches the shop's own `*-mark.png` through
+    the middle. Context rather than a fetch on purpose: no network at print time at all.
+
+    It points at the SHOP's own website. Blank or unusable website -> "" -> the receipt
+    prints no QR block. See _receipt_site_url for why there is no fallback destination.
     """
-    return templates.TemplateResponse("pos/receipt.html", {"request": request})
+    _store = await get_active_store_settings(db)
+    _site = _receipt_site_url(getattr(_store, "website", None))
+    return templates.TemplateResponse("pos/receipt.html", {
+        "request": request,
+        # The address the QR encodes (full https URL) and the bare host the caption shows.
+        # Both come from Store Settings; neither is ever hardcoded, because the next shop
+        # to clone this is not Artemis and a customer's domain baked into a template is
+        # how a starter turns into a one-customer fork.
+        "receipt_site_url": _site,
+        "receipt_site_host": _site[len("https://"):] if _site else "",
+        "receipt_site_qr": _qr_data_uri(_site, getattr(_store, "receipt_logo_url", None)) if _site else "",
+    })
 
 
 @html_router.get("/p/{product_id}", name="banco_permalink")
@@ -13264,7 +13334,12 @@ async def banco_join_lapiazza():
     A ONE-WAY funnel: it 302s the buyer to La Piazza so they discover + join the community. By
     design there is NO tie-back to HelixPOS — the till does loyalty internally, La Piazza is the
     community, and this QR is just the door between them. Banco-owned so the destination can change
-    without reprinting receipts. PUBLIC (redirect, no data)."""
+    without reprinting receipts. PUBLIC (redirect, no data).
+
+    NO LONGER PRINTED. The receipt stopped carrying this QR on 2026-09-07 — a receipt is the
+    shop's paper and now points at the shop's own website. The route STAYS because receipts
+    printed before that date are in customers' pockets with this address on them, and a
+    permalink you can still read off paper is the only reason to own one."""
     from fastapi.responses import RedirectResponse
     return RedirectResponse(get_settings().SQUARE_PUBLIC_URL.rstrip("/"), status_code=302)
 

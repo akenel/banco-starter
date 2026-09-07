@@ -1,6 +1,6 @@
 {% extends "pos/base.html" %}
 
-{% block title %}Receipt - HelixPOS - Artemis Store{% endblock %}
+{% block title %}Receipt{% endblock %}   {# base.html appends the SHOP's name from POSConfig #}
 
 {% block content %}
 <div class="min-h-screen bg-gray-100 print:bg-white" x-data="receiptData()">
@@ -93,17 +93,36 @@
                 Documento non fiscale — Ricevuta non valida ai fini fiscali
               </div>
             </div>
-            <!-- Company Header -->
+            <!-- Company Header — THE ONLY BRANDING ON THIS PAGE, and all of it is tenant data.
+                 The two `|| 'Artemis …'` fallbacks that used to sit on the name and the LEGAL
+                 NAME are gone (2026-09-07): a shop that has not filled in Settings printed
+                 "Artemis Growing Supplies GmbH" on a document its customer keeps, which is a
+                 wrong company on a tax document, not a cosmetic default. Blank now prints
+                 nothing and the line collapses.
+                 Logo -> name -> legal name is one identity block, so the gaps inside it are
+                 tight and the space is spent BELOW it, separating identity from contact. -->
             <div class="text-center border-b-2 border-gray-300 pb-6 mb-6">
-                <div x-show="storeSettings.receipt_logo_url" class="mb-4">
-                    <img :src="storeSettings.receipt_logo_url" alt="Store Logo" class="mx-auto h-20">
+                <div x-show="storeSettings.receipt_logo_url" class="mb-3">
+                    <img :src="storeSettings.receipt_logo_url" alt="" class="mx-auto h-20 receipt-logo">
                 </div>
-                <h1 class="text-3xl font-bold text-gray-900" data-i18n-exempt="tenant data — the shop's own name, never translated" x-text="storeSettings.store_name || 'Artemis Store'"></h1>
-                <p class="text-lg text-gray-700 mt-2" data-i18n-exempt="tenant data — the shop's own legal name" x-text="storeSettings.legal_name || 'Artemis Growing Supplies GmbH'"></p>
-                <p class="text-sm text-gray-600 mt-2" x-text="formatAddress()"></p>
-                <p class="text-sm text-gray-600" x-show="storeSettings.phone"><span data-i18n="receipt.phone_label">Phone:</span> <span x-text="storeSettings.phone"></span></p>
-                <p class="text-sm text-gray-600" x-show="storeSettings.email"><span data-i18n="receipt.email_label">Email:</span> <span x-text="storeSettings.email"></span></p>
-                <p class="text-sm text-gray-600" x-show="storeSettings.website" x-text="storeSettings.website"></p>
+                <h1 class="text-3xl font-bold text-gray-900 leading-tight" data-i18n-exempt="tenant data — the shop's own name, never translated" x-show="storeSettings.store_name" x-text="storeSettings.store_name"></h1>
+                <p class="text-base text-gray-700 mt-1" data-i18n-exempt="tenant data — the shop's own legal name" x-show="storeSettings.legal_name" x-text="storeSettings.legal_name"></p>
+                <div class="mt-3 text-sm text-gray-600 leading-snug">
+                    <p x-show="formatAddress()" x-text="formatAddress()"></p>
+                    <p x-show="storeSettings.phone || storeSettings.email">
+                        <span x-show="storeSettings.phone"><span data-i18n="receipt.phone_label">Phone:</span> <span x-text="storeSettings.phone"></span></span>
+                        <span x-show="storeSettings.phone && storeSettings.email" data-i18n-exempt="a separator, not a word"> · </span>
+                        <span x-show="storeSettings.email"><span data-i18n="receipt.email_label">Email:</span> <span x-text="storeSettings.email"></span></span>
+                    </p>
+                    {# The website sits under the QR further down, where it is the thing you
+                       type if you will not scan. Printing it up here as well says the same
+                       address twice on one sheet. It comes BACK here when there is no QR
+                       block — a shop whose website is blank or unusable in Settings — because
+                       then this is the only place a customer can read it. #}
+                    {% if not receipt_site_qr %}
+                    <p x-show="storeSettings.website" x-text="storeSettings.website"></p>
+                    {% endif %}
+                </div>
                 <p class="text-sm font-semibold text-gray-700 mt-2" x-show="storeSettings.vat_number"><span x-text="vatLabel()">VAT</span>: <span x-text="storeSettings.vat_number"></span></p>
             </div>
 
@@ -208,13 +227,24 @@
                 </div>
             </div>
 
-            <!-- Wire 2 — community loop: ONE "join La Piazza" QR (a one-way funnel into the community) -->
-            <div class="border-t-2 border-dashed border-teal-400 mt-4 pt-4 text-center">
-                <p class="text-sm font-semibold text-teal-700 mb-1" data-i18n="receipt.lapiazza_title">🏛️ Come find us on La Piazza</p>
-                <p class="text-xs text-gray-500 mb-3" data-i18n="receipt.lapiazza_sub">Scan to join the community — see what's worth talking about, and share your own.</p>
-                <img class="mx-auto border border-gray-200 rounded" width="140" height="140"
-                     :src="joinQrUrl()" alt="Join La Piazza" loading="lazy">
+            {# THE SHOP'S OWN QR. Rendered server-side into a data URI by _qr_data_uri(), the
+               shop's own *-mark punched through the middle, pointing at the shop's own website
+               from Store Settings. Three things changed here on 2026-09-07: it no longer says
+               La Piazza (a receipt is the shop's paper, not ours), it no longer fetches the
+               image from api.qrserver.com (a printed receipt must not need the internet, and
+               the old failure mode was a broken image box exactly when the wifi was down), and
+               there is NO fallback destination — a shop with no website in Settings prints no
+               QR at all rather than somebody else's invite. Jinja, not x-show: with no usable
+               website the block is never sent to the browser. #}
+            {% if receipt_site_qr %}
+            <div class="border-t-2 border-dashed border-gray-300 mt-4 pt-4 text-center">
+                <p class="text-sm font-semibold text-gray-700 mb-1" data-i18n="receipt.site_title">🌐 Find us online</p>
+                <p class="text-xs text-gray-500 mb-3" data-i18n="receipt.site_sub">Scan the code, or type the address below.</p>
+                <img class="mx-auto border border-gray-200 rounded receipt-qr" width="140" height="140"
+                     src="{{ receipt_site_qr }}" alt="{{ receipt_site_host }}">
+                <p class="text-sm font-semibold text-gray-700 mt-2" data-i18n-exempt="tenant data — the shop's own web address, from Store Settings">{{ receipt_site_host }}</p>
             </div>
+            {% endif %}
 
             <!-- Loyalty member (only when a member was on the sale) -->
             <div x-show="member" class="border-t-2 border-dashed border-gray-400 mt-4 pt-3 space-y-1 text-sm">
@@ -268,20 +298,13 @@
                 Thank You for Your Purchase!
             </div>
 
-            <!-- QR Code / Barcode Placeholder -->
+            {# The transaction number, quietly, as the last line — the thing Felix reads out
+               when he rings about a sale. Until 2026-09-07 it sat under a BARCODE THAT WAS NOT
+               ONE: eight hand-drawn <rect> bars, left over from the demo, printed on every
+               receipt and encoding nothing at all. Nothing in the shop scans a receipt, and a
+               shape that looks scannable and is not is worse than no shape. #}
             <div class="text-center mt-6 mb-8">
-                <svg class="mx-auto" width="200" height="60">
-                    <!-- Simple barcode representation -->
-                    <rect x="10" y="10" width="2" height="40" fill="black"/>
-                    <rect x="15" y="10" width="4" height="40" fill="black"/>
-                    <rect x="22" y="10" width="2" height="40" fill="black"/>
-                    <rect x="27" y="10" width="6" height="40" fill="black"/>
-                    <rect x="36" y="10" width="2" height="40" fill="black"/>
-                    <rect x="41" y="10" width="4" height="40" fill="black"/>
-                    <rect x="48" y="10" width="2" height="40" fill="black"/>
-                    <rect x="53" y="10" width="6" height="40" fill="black"/>
-                </svg>
-                <p class="text-xs text-gray-500 mt-2" x-text="transaction.transaction_number"></p>
+                <p class="text-xs text-gray-500 font-mono" x-text="transaction.transaction_number"></p>
             </div>
         </div>
     </div>
@@ -319,7 +342,15 @@
         .receipt-page .text-2xl { font-size: 14px !important; }
         .receipt-page .text-xl  { font-size: 12px !important; }
         .receipt-page .text-lg  { font-size: 11px !important; }
+        .receipt-page .text-base{ font-size: 10px !important; }
         .receipt-page .text-sm  { font-size: 9px !important; }
+        /* The ladder used to STOP at text-sm, so `text-xs` — every quiet line on the sheet:
+           the VAT legend, the member rows, the foreign-cash line, the caption under the QR —
+           printed at Tailwind's untouched 12px. Larger than text-sm above it (9px) and larger
+           than text-lg (11px): the whisper was the loudest thing on the page and every printed
+           receipt has looked like that. Visible the moment the sheet was screenshotted under
+           print media rather than read in the template. */
+        .receipt-page .text-xs  { font-size: 8px !important; }
         .receipt-page .mb-6 { margin-bottom: 5px !important; }
         .receipt-page .mb-8 { margin-bottom: 6px !important; }
         .receipt-page .mb-4 { margin-bottom: 4px !important; }
@@ -334,13 +365,21 @@
         .receipt-page .p-8  { padding: 0 !important; }
         .receipt-page .p-4  { padding: 6px !important; }
         .receipt-page .space-y-2 > * + * { margin-top: 2px !important; }
-        .receipt-page svg { height: 28px !important; width: auto !important; }   /* tiny barcode */
-        /* The store logo (img, h-20=80px) was NOT capped in print — that + the new
-           identity lines ate ~half a page. Keep the whole company header tight. */
-        .receipt-page img { max-height: 34px !important; width: auto !important; }
+        /* The store logo used to be capped at 34px in print, along with EVERY other image on
+           the page, by one blanket `img` rule. That was written when the fake barcode and a
+           La Piazza QR were also competing for the sheet. Both are gone (2026-09-07), so the
+           logo is now the only mark on a customer's receipt and gets room to be one: 56px,
+           still comfortably inside a page. The QR is sized on its own class — a shared cap is
+           what shrank it to a smudge, and a QR below ~15mm stops being reliably scannable. */
+        .receipt-page .receipt-logo { max-height: 56px !important; width: auto !important; }
+        .receipt-page .receipt-qr { width: 20mm !important; height: 20mm !important; }
+        /* The `PAID by CASH` watermark does NOT print. 80px of diagonal green across a sheet
+           the customer takes home reads as demo software, and it is the single biggest thing
+           on the page after the total. It stays on SCREEN, where it does its real job: telling
+           the cashier at a glance that this sale went through. */
+        .receipt-page .watermark { display: none !important; }
         .receipt-page .border-b-2 { padding-bottom: 4px !important; margin-bottom: 5px !important; }
         .receipt-page .border-b-2 p { line-height: 1.15 !important; margin-top: 1px !important; }
-        .receipt-page .watermark { font-size: 80px !important; }
 
         @page { size: A4; margin: 0; }
     }
@@ -562,16 +601,6 @@
             // Points earned on this sale = 1 per whole unit of currency paid, floored (matches the server).
             pointsEarned() {
                 return Math.floor(parseFloat(this.transaction.total || 0));
-            },
-
-            // Wire 2 — community loop: ONE "join La Piazza" QR on every receipt. A one-way funnel —
-            // it points at the Banco-owned /join permalink (302s to La Piazza), NO tie-back to the
-            // POS. The till does loyalty internally; this just opens the door to the community.
-            joinQrUrl() {
-                const permalink = window.location.origin + '/join';
-                // TODO(prod-hardening): self-host the QR (vendored lib / server endpoint) — a printed
-                // receipt shouldn't depend on the net; the image service is fine for the test.
-                return 'https://api.qrserver.com/v1/create-qr-code/?size=140x140&margin=0&data=' + encodeURIComponent(permalink);
             },
 
             formatAddress() {
