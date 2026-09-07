@@ -123,7 +123,14 @@
                     <p x-show="storeSettings.website" x-text="storeSettings.website"></p>
                     {% endif %}
                 </div>
-                <p class="text-sm font-semibold text-gray-700 mt-2" x-show="storeSettings.vat_number"><span x-text="vatLabel()">VAT</span>: <span x-text="storeSettings.vat_number"></span></p>
+                <!-- The VAT number prints only when it is a REAL one. The seed ships
+                     `CHE-XXX.XXX.XXX MWST` with a TODO on it ("replace with Felix's real CHE-UID
+                     before go-live"), and on 2026-09-07 that placeholder was sitting on the
+                     receipt — a fabricated tax identifier on a document a customer keeps and a
+                     bookkeeper may file. Same rule as the legal name two lines up: on anything
+                     with legal weight, nothing beats something wrong. Felix's real UID goes in
+                     Settings → Company and this line comes back on its own. -->
+                <p class="text-sm font-semibold text-gray-700 mt-2" x-show="vatNumberIsReal()"><span x-text="vatLabel()">VAT</span>: <span x-text="storeSettings.vat_number"></span></p>
             </div>
 
             <!-- Receipt Header Text -->
@@ -368,10 +375,12 @@
         /* The store logo used to be capped at 34px in print, along with EVERY other image on
            the page, by one blanket `img` rule. That was written when the fake barcode and a
            La Piazza QR were also competing for the sheet. Both are gone (2026-09-07), so the
-           logo is now the only mark on a customer's receipt and gets room to be one: 56px,
-           still comfortably inside a page. The QR is sized on its own class — a shared cap is
+           logo is now the only mark on a customer's receipt and gets room to be one: 76px
+           (20mm, the same as the QR below it), still comfortably inside a page. Artemis' mark is
+           a WIDE lockup — 564x342 — so height is what limits it; a square logo will simply
+           render smaller and that is correct. The QR is sized on its own class — a shared cap is
            what shrank it to a smudge, and a QR below ~15mm stops being reliably scannable. */
-        .receipt-page .receipt-logo { max-height: 56px !important; width: auto !important; }
+        .receipt-page .receipt-logo { max-height: 76px !important; width: auto !important; }
         .receipt-page .receipt-qr { width: 20mm !important; height: 20mm !important; }
         /* The `PAID by CASH` watermark does NOT print. 80px of diagonal green across a sheet
            the customer takes home reads as demo software, and it is the single biggest thing
@@ -601,6 +610,14 @@
             // Points earned on this sale = 1 per whole unit of currency paid, floored (matches the server).
             pointsEarned() {
                 return Math.floor(parseFloat(this.transaction.total || 0));
+            },
+
+            // A UID still carrying the seed's XXX placeholder is blank in disguise. Matched on
+            // the run of X's rather than the whole literal, because the shape survives a partial
+            // edit: someone who fills in half of `CHE-XXX.XXX.XXX` still has not got a number.
+            vatNumberIsReal() {
+                const v = (this.storeSettings.vat_number || '').trim();
+                return !!v && !/X{3}/i.test(v);
             },
 
             formatAddress() {

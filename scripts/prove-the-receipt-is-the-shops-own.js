@@ -57,11 +57,28 @@ const isOurs = (u) => {
     else { fail++; console.log('  ❌ ' + what + d); }
   };
 
-  await p.goto(BASE + '/pos', { waitUntil: 'domcontentloaded' });
-  if (await p.$('button:has-text("Login")')) { await p.click('button:has-text("Login")'); await p.waitForTimeout(3500); }
-  if (await p.$('#username')) {
-    await p.fill('#username', 'ralph'); await p.fill('#password', 'ralph');
-    await p.click('#kc-login, input[type=submit]'); await p.waitForURL('**/pos/**', { timeout: 20000 });
+  // The Keycloak hop occasionally times out — measured 1 run in 8 — and it has nothing to do
+  // with the receipt. Uncaught it exits on a stack trace that reads exactly like the receipt
+  // being broken, which is the worst thing a proof can do: report a fault in the subject when
+  // the fault is in the fixture. Say which one it is.
+  try {
+    await p.goto(BASE + '/pos', { waitUntil: 'domcontentloaded' });
+    if (await p.$('button:has-text("Login")')) {
+      await p.click('button:has-text("Login")');
+      // WAIT FOR THE BOX, not for a number. The other prove-*.js files sleep 3500ms here and
+      // then check for #username; when Keycloak took longer than that the login simply did not
+      // happen, the run carried on signed-out, and the guard above caught it 3 times in 6.
+      // A fixed sleep is a coin toss with extra steps.
+      await p.waitForSelector('#username', { timeout: 20000 });
+    }
+    if (await p.$('#username')) {
+      await p.fill('#username', 'ralph'); await p.fill('#password', 'ralph');
+      await p.click('#kc-login, input[type=submit]'); await p.waitForURL('**/pos/**', { timeout: 20000 });
+    }
+  } catch (e) {
+    console.log('\n⚠️  could not sign in — this says NOTHING about the receipt. Run it again.');
+    console.log('    ' + (e.message || e).split('\n')[0]);
+    await b.close(); process.exit(2);
   }
 
   // ── A · the receipt, and every byte it asks the network for ──────────────────────────
@@ -69,7 +86,24 @@ const isOurs = (u) => {
   const foreign = [];
   p.on('request', r => { if (!isOurs(r.url())) foreign.push(r.url()); });
   await p.goto(`${BASE}/pos/receipt/${TX}`, { waitUntil: 'networkidle' });
-  await p.waitForTimeout(1200);   // let the settings + transaction fetches settle
+
+  // THE PAGE MUST HAVE LOADED BEFORE ANYTHING BELOW IS ALLOWED TO MEAN ANYTHING.
+  // Caught this file doing the very thing it exists to catch: the Keycloak hop failed on one
+  // run in eight, the receipt rendered signed-out and EMPTY, and "no other company's legal
+  // name" went green — on a page with no name on it at all. A check that passes hardest when
+  // there is nothing to check is the shape in LESSON #5. So: the shop's own name has to be on
+  // the sheet first, and if it is not, this exits saying so rather than reporting a clean run.
+  try {
+    await p.waitForFunction(() => {
+      const h = document.querySelector('.receipt-page h1');
+      return h && h.textContent.trim().length > 0;
+    }, null, { timeout: 15000 });
+  } catch (e) {
+    console.log('\n⚠️  the receipt rendered EMPTY — not signed in, or the API did not answer.');
+    console.log('    This says NOTHING about the receipt itself. Run it again.');
+    await b.close(); process.exit(2);
+  }
+  await p.waitForTimeout(600);   // let the loyalty/member fetch settle too
 
   check(foreign.length === 0,
         'the receipt makes NO third-party request — it prints with the wifi down',
@@ -90,6 +124,11 @@ const isOurs = (u) => {
         "no other company's legal name", seen.text.slice(0, 120));
   check(/Artemis/.test(seen.title) && !/HelixPOS/.test(seen.title),
         'the page title names the SHOP, not the vendor — it is the print header', seen.title);
+  // A UID full of X's is what the seed ships with a TODO on it. It was printing on 2026-09-07:
+  // a fabricated tax identifier on a document a customer keeps and a bookkeeper may file.
+  check(!/X{3}/.test(seen.text),
+        'no placeholder tax identifier on the sheet',
+        (seen.text.match(/[^\n]*X{3}[^\n]*/) || ['none'])[0]);
 
   // ── C · the QR: ours, drawn here, and actually decoded ───────────────────────────────
   console.log('\n── C · the QR ──');
@@ -115,6 +154,13 @@ const isOurs = (u) => {
   // ── D · ON PAPER. The one thing only print media can answer ──────────────────────────
   console.log('\n── D · under print media ──');
   await p.emulateMedia({ media: 'print' });
+  // WAIT FOR THE IMAGES TO BE IMAGES. This measured 0px tall on one run and 56px on the next,
+  // for the same page and the same logo: `width:auto` on an <img> that has not decoded yet has
+  // no height, and the geometry read below happened to land in that window. A check that
+  // reports a fault on a good page is as useless as one that misses a bad one (LESSON #5), so
+  // the wait is on the CONDITION rather than on a longer sleep, which only moves the odds.
+  await p.waitForFunction(() => [...document.querySelectorAll('.receipt-page img')]
+      .every(i => i.complete && i.naturalWidth > 0), null, { timeout: 10000 });
   await p.waitForTimeout(300);
   const paper = await p.evaluate(() => {
     const g = s => { const e = document.querySelector(s); return e ? e.getBoundingClientRect() : null; };
@@ -133,7 +179,8 @@ const isOurs = (u) => {
   // readable to 10mm on both of the shop's guns, and a customer's phone is worse than a gun.
   check(paper.qr && paper.qr.width >= 57,
         'the QR prints at least 15mm wide', paper.qr ? paper.qr.width.toFixed(0) + 'px' : 'no QR');
-  check(paper.logo && paper.logo.height > 34,
+  // 34px was the old blanket cap that made it a smudge; the floor is comfortably above it.
+  check(paper.logo && paper.logo.height >= 70,
         "the shop's logo is not squeezed to a smudge",
         paper.logo ? paper.logo.height.toFixed(0) + 'px tall' : 'no logo set in Settings');
 

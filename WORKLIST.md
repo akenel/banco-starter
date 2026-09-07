@@ -59,10 +59,9 @@ slog nobody sells with · ⑥ My Day's red `failed to fetch`.
    a ticket after a prompt change means impersonating the reporter with a `reporter-note`. The
    prompt changed four times in one afternoon. (2) **Triage does not feed the KB** —
    `kb_contribution_model` and `/pos/kb-approvals` exist; `feedback_triage.py` touches neither.
-0️⃣e ~~**English built in `pos_router.py`**~~ — **the reporter timeline is FIXED, `11559c1`.**
-   `_friendly_stage` now sends a KEY alongside the English, so Layla reads *Ricevuta · Abbiamo
-   capito · In correzione · Risolta!* about her own ticket. ⚠️ **~19 more remain** in that file
-   (duplicate warnings, picture-search hints) — check (9) lists them, reported never failed.
+0️⃣e ~~**English built in `pos_router.py`**~~ — **reporter timeline FIXED, `11559c1`**; Layla
+   reads *Ricevuta · Abbiamo capito · In correzione · Risolta!* about her own ticket.
+   ⚠️ **~19 more remain** in that file — check (9) lists them, and it has never failed.
 0️⃣f ⚠️ **DO THE WALK AT 100% BROWSER ZOOM.** BL-038's garbled numbers (`13R`, a franc figure
    "missing its decimal separator") came from a capture at **Pixel ratio 0.667** — the model read
    compression, not the screen. Triage now distrusts fine detail below ratio 1; the cheap fix is
@@ -111,6 +110,13 @@ slog nobody sells with · ⑥ My Day's red `failed to fetch`.
    larger than the 9px above it, on every receipt ever printed.
    ⚠️ **Human-green is owed: it has not come off a printer.** Print one on the counter visit —
    check the QR scans off PAPER with a phone, and that the logo is not a smudge.
+   🔴 **THREE SETTINGS EDITS ON THE LIVE SHOP, and one of them is Felix's to answer.**
+   (a) `store_name` said **Lucerne**; his own site says **Luzern** — the shop's name, misspelled
+   at the top of its receipt. (b) `website` → **`www.artemisluzern.ch`**, the form that answers
+   200 (the QR encodes it verbatim, no probe at print time). (c) **`vat_number` is still the
+   seed's `CHE-XXX.XXX.XXX MWST`** and it was printing — a made-up tax number on a document a
+   bookkeeper may file. **The receipt now hides the line until a real UID is in Settings, so
+   ask Felix for the CHE-UID on the visit.** Seed + dev DB already corrected for (a) and (b).
    📸 `onboarding/evidence/receipt-print-2026-09-07.png` · `scripts/prove-the-receipt-is-the-shops-own.js`
 8b. **The OTHER apps in this repo still fetch Inter from Google** — `templates/base.html`,
    `index`, `sitemap`, `home`, `submit_form`, `isotto`, `camper`, `backlog`, `testing`,
@@ -122,18 +128,14 @@ slog nobody sells with · ⑥ My Day's red `failed to fetch`.
 - **ⓐ–ⓛ · the 2026-09-03/04 contact-sheet threads — all twelve closed and archived** (scale factor · VAT · pack badge · the frozen stylesheet · the masked-box pad · the invisible refusal · the dead date effect · the red box that did not stop the save · the 131 no-op classes · the Search category picker · the gun pressing the button). → [`2026-09-04-archive-pass.md`](worklist-archive/2026-09-04-archive-pass.md)
 ## 🖥️ THE TABLET — fixed, locked and self-patching · 2026-09-05
 
-*Eleven faults on Saturday, **none of them Banco's code** — shipping laptop defaults that are
-wrong for a till. **Proven over fourteen cold boots:** on the glass in **~58s, unattended, no
-password, no press** · never sleeps · patches itself at 03:15. The "17s" this section used to
-claim was measured with `reboot` over SSH and was never true of a cold boot. Two ssh doors:
-**`tablet` → art** (gsettings are per-SESSION), **`tablet-admin` → admin** for `--push`.
-→ [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)*
+*Eleven faults, **none of them Banco's code** — laptop defaults that are wrong for a till.
+**Proven over fourteen cold boots:** on the glass in **~58s, unattended** · never sleeps ·
+patches itself at 03:15. Two ssh doors: **`tablet` → art** (gsettings are per-SESSION),
+**`tablet-admin` → admin** for `--push`. → [`09-05`](worklist-archive/2026-09-05-archive-pass.md)*
 
-### ~~⚠️ PORTRAIT — the close-out in the orientation it will be used in~~
-
-**DONE 2026-09-05, PASSED — portrait is BETTER for the money screen.** At 1440 × 2160 the whole
-denomination table fits with no scrolling; landscape cannot. **Do not lock rotation.**
-→ [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
+### ~~⚠️ PORTRAIT~~ — **DONE 2026-09-05, PASSED.** At 1440 × 2160 the whole denomination table
+fits with no scrolling; landscape cannot. **Do not lock rotation.**
+→ [`09-05`](worklist-archive/2026-09-05-archive-pass.md)
 
 ⓪h–k. ~~**The four portrait findings**~~ — **ALL DONE, b690–b693.** The note strip and the 💬
    anchor both passed on the glass 2026-09-06; `Samstag` proven in three languages; (j) withdrawn.

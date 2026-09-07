@@ -40,7 +40,11 @@ async def seed_store_settings(db: AsyncSession) -> None:
     # Create default Store #1 settings
     store1 = StoreSettingsModel(
         store_number=1,
-        store_name="Artemis Lucerne - Headshop",
+        # LUZERN, with a z. Angel photographed the shop's own site on 2026-09-07 — the tab
+        # reads "Artemis Luzern - Headshop" and so does the footer. This said "Lucerne", the
+        # English exonym, and it was printing at the top of the customer's receipt: the shop's
+        # own name, spelled the way the shop does not spell it.
+        store_name="Artemis Luzern - Headshop",
         is_active=True,
 
         # Company Information (Felix's real shop — Artemis GmbH, Luzern, since 1999)
@@ -54,7 +58,10 @@ async def seed_store_settings(db: AsyncSession) -> None:
         # Contact Information
         phone="041 220 22 22",
         email="contact@artemisluzern.ch",
-        website="artemisluzern.ch",
+        # The www form on purpose — measured, not guessed: the bare host 301s here, and the
+        # receipt QR encodes this string verbatim (no probe at print time). One less round trip
+        # for someone scanning on a weak signal outside the shop. See _receipt_site_url().
+        website="www.artemisluzern.ch",
 
         # Swiss VAT Information. ⟶ TODO: replace with Felix's real CHE-UID before go-live.
         vat_number="CHE-XXX.XXX.XXX MWST",

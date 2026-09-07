@@ -62,7 +62,7 @@
                  (a pure cashier). Managers + admins can edit; the discounts section below has its
                  OWN admin-only fieldset nested inside, so a manager edits everything but discounts. -->
             <!-- The placeholders in here are EXAMPLE VALUES of the shop's own details —
-                 "Artemis Lucerne - Headshop", "Murbacherstrasse 37", "contact@…", the
+                 "Artemis Luzern - Headshop", "Murbacherstrasse 37", "contact@…", the
                  receipt footer, the logo path. They are data, not interface: translating
                  them would tell a French owner their address is in French. The ones that
                  ARE language carry a key of their own — the opening-hours example, because
@@ -72,7 +72,7 @@
                 <!-- IDENTITY & ADDRESS -->
                 <div x-show="tab==='identity'" class="space-y-4">
                     <div class="grid md:grid-cols-2 gap-4">
-                        <div><label class="lbl" data-i18n="settings.store_name">Store name</label><input type="text" x-model="form.store_name" class="input-field" placeholder="Artemis Lucerne - Headshop"></div>
+                        <div><label class="lbl" data-i18n="settings.store_name">Store name</label><input type="text" x-model="form.store_name" class="input-field" placeholder="Artemis Luzern - Headshop"></div>
                         <div><label class="lbl" data-i18n="settings.legal_name">Legal / company name</label><input type="text" x-model="form.legal_name" class="input-field" placeholder="Artemis GmbH"></div>
                         <div><label class="lbl" data-i18n="settings.address">Address</label><input type="text" x-model="form.address_line1" class="input-field" placeholder="Murbacherstrasse 37"></div>
                         <div><label class="lbl" data-i18n="settings.address_line2">Address line 2</label><input type="text" x-model="form.address_line2" class="input-field" data-i18n-placeholder="settings.ph_optional" placeholder="(optional)"></div>
