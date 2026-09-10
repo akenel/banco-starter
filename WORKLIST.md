@@ -76,6 +76,15 @@ Two sheets run: **9 pass · 0 fail**, then **25 pass · 2 issue · 0 fail**.
    it's just not that practical… typing long names on the tablet, forget it. It's just a pain."* It is
    probably slower than a good typist on a real keyboard — and on the glass that comparison does not
    apply. A delight item with a use case its own author has now lived.
+   **Asked and answered 2026-09-10 — the code already exists here.** `compute/concierge.html` has a
+   working `webkitSpeechRecognition` with a feature test; lifting it into `pos-keypad.js` is small.
+   **The hard part is not the button: Chrome's speech API ships the audio to GOOGLE** — so it needs
+   the network on a till built to survive without one, and counter audio leaves the shop. Paid STT
+   costs per minute; local Whisper has nowhere to run (`MAP.md`: no spare capacity anywhere).
+   **Do these two first:** ① a PASTE button — and Banco's own clipboard with the last few entries
+   beats the OS one (no permission prompt, works offline, and intake is *Beats "Goa"* → *"Hip Hop"*
+   → *"Reggae"*). ② **LOOK** at whether `✨ Fotografieren & ausfüllen` already solves naming at the
+   counter; if it does, dictation is only about descriptions and is a much smaller want.
 10. 💻 **ROLLOUT DECISION — do NOT hand them the tablet in week one.** Angel, after two hours behind
    the counter: *"really, it's not the best idea to give them the tablet to start… they should use a
    desktop, like a laptop. Or at least the unit with the keyboard intact for the first week or the
