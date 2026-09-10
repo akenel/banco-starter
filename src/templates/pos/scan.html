@@ -582,9 +582,14 @@
                         <div x-show="cartSavedTotal(cart) > 0 || totals.subtotal !== totals.total"
                              x-cloak style="display:none"
                              class="flex items-baseline justify-between text-sm mb-3">
+                            <!-- The GROSS subtotal — what the lines above actually add up to,
+                                 before the deal comes off. With the saving beside it and the
+                                 total above, the three numbers close: 14.00 − 2.00 = 12.00.
+                                 Showing the post-deal figure here while the lines showed shelf
+                                 prices would be the same unreadable arithmetic in a new place. -->
                             <span class="text-gray-500">
                                 <span data-i18n="scan.subtotal">Subtotal:</span>
-                                <span class="font-semibold" x-text="formatPrice(totals.subtotal)"></span>
+                                <span class="font-semibold" x-text="formatPrice(cartGrossSubtotal(cart))"></span>
                             </span>
                             <span x-show="cartSavedTotal(cart) > 0" class="font-semibold text-emerald-700"
                                   data-i18n-exempt="the '{amount}' token is a substitution slot inside an already-translated string, not English text"
@@ -688,8 +693,10 @@
                                                aria-label="Quantity">
                                         <button @click="increaseQuantity(index)" class="bg-gray-200 hover:bg-gray-300 active:bg-gray-400 w-12 h-12 rounded-full text-2xl font-bold leading-none flex items-center justify-center" aria-label="Increase quantity">+</button>
                                     </div>
+                                    <!-- The SHELF price × quantity. The deal's saving is named
+                                         once, in the deals block below — see cartLineGross(). -->
                                     <p class="text-lg font-bold text-indigo-600">
-                                        <span x-text="formatPrice(cartLineTotal(cart, index))"></span>
+                                        <span x-text="formatPrice(cartLineGross(cart, index))"></span>
                                         <span x-show="cartTierApplied(cart, index)" class="text-xs text-green-600 font-semibold ml-1" data-i18n="scan.tier_badge">pack ✓</span>
                                     </p>
                                 </div>

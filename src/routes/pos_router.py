@@ -27,7 +27,7 @@ from src.services.catalog_enrichment import mint_internal_ean13
 from src.services.lp_publish import publish_product
 from src.services.square_bridge import SquareBridgeError
 from src.services.vat_resolver import line_vat, split_vat
-from src.services.pricing import tier_unit_price
+from src.services.pricing import tier_unit_price, line_money
 from src.services.total_rounding import rounding_step, round_total
 from src.db.models import (
     ProductModel,
@@ -6063,10 +6063,14 @@ async def add_item_to_transaction(
         # leaves (deducted at checkout) so it's tracked for COGS/tax.
         unit_price = Decimal("0.00") if item.is_giveaway else product.price
         tier_final = False
+        line_discount = Decimal("0.00")
         if not item.is_giveaway:
-            # BL-26: a quantity-break tier price wins over the flat price for this qty.
-            unit_price, tier_final = tier_unit_price(
-                product.price_tiers, unit_price, item.quantity, mode=product.tier_mode or "per_unit")
+            # Same rule as the atomic /sales path — a guard on one of two doors is not a guard,
+            # and this route reaches the drawer too. No pooling here (this path adds one item at
+            # a time and never sees the basket), so a bundle is judged on its own line only.
+            unit_price, _gross, line_discount, _deal_total, tier_final = line_money(
+                product.price_tiers, unit_price, item.quantity,
+                mode=product.tier_mode or "per_unit")
         line_notes = ("🎁 Treat — on the house" if item.is_giveaway else item.notes)
     else:
         # Custom line (manual catalog entry / product-as-change treat): no catalog
@@ -6075,6 +6079,7 @@ async def add_item_to_transaction(
             raise HTTPException(status_code=422, detail="Custom line item requires unit_price")
         unit_price = item.unit_price
         tier_final = False
+        line_discount = Decimal("0.00")   # a custom line has no catalogue deal to explain
         # Keep the name for the receipt -- stored in notes (the only free-text column).
         # Custom line OR department key — one helper, shared with the atomic /sales path.
         _dept_class, line_notes = _resolve_custom_line(item)
@@ -6084,7 +6089,7 @@ async def add_item_to_transaction(
     # re-rounded on each item's commit drifted a cent vs the till's single-rounded total
     # on multi-item discounts.)
     line_gross = (unit_price * item.quantity).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-    line_total = line_gross
+    line_total = line_gross - line_discount   # 0 unless a bundle deal priced this line
 
     # Per-line Swiss VAT (cafe multi-line tax). The product's behaviour class drives the
     # rate (alcohol/tobacco always 8.1%; cafe food/drink splits dine-in 8.1% / takeaway
@@ -6121,7 +6126,7 @@ async def add_item_to_transaction(
         quantity=item.quantity,
         unit_price=unit_price,
         discount_percent=item.discount_percent,
-        discount_amount=Decimal("0.00"),
+        discount_amount=line_discount,
         line_total=line_total,
         notes=line_notes,
         is_giveaway=item.is_giveaway,
@@ -6690,6 +6695,9 @@ async def create_sale(
     pooled = await _pool_bundle_prices(db, list(sale.lines))
     for _idx, ln in enumerate(sale.lines):
         tier_final = False  # BL-26: True once a volume break (min_qty>=2) sets the price → discount-final
+        # A bundle deal is carried as a DISCOUNT off the shelf price, never as a funny unit
+        # rate — see pricing.line_money(). None until a deal actually moves money.
+        line_discount = Decimal("0.00")
         if ln.product_id is not None:
             product = (await db.execute(
                 select(ProductModel).where(ProductModel.id == ln.product_id))).scalar_one_or_none()
@@ -6700,15 +6708,14 @@ async def create_sale(
             _guard_unverified_price(product, ln.is_giveaway)
             unit_price = Decimal("0.00") if ln.is_giveaway else product.price
             if not ln.is_giveaway:
-                if _idx in pooled:
-                    # This line is part of a mix. Its share of the pooled basket is already money;
-                    # carry it as a unit rate at full precision so line_gross lands back on it.
-                    unit_price = pooled[_idx] / Decimal(ln.quantity or 1)
-                    tier_final = True      # a volume break set this price — no discount stacks
-                else:
-                    # BL-26: a quantity-break tier price wins over the flat price for this qty.
-                    unit_price, tier_final = tier_unit_price(
-                        product.price_tiers, unit_price, ln.quantity, mode=product.tier_mode or "per_unit")
+                # ONE rule for both shapes of the same deal: a mix priced by the pool, and
+                # "3 for 5" standing alone on one line. Both keep the SHELF price on the line
+                # and hand back the saving as a discount; a per_unit ladder is left alone,
+                # because "buy 6, they are 2.60 each" already multiplies out. 2026-09-10.
+                unit_price, _gross, line_discount, _deal_total, tier_final = line_money(
+                    product.price_tiers, unit_price, ln.quantity,
+                    mode=product.tier_mode or "per_unit",
+                    pooled_total=pooled.get(_idx))
             line_notes = ("🎁 Treat — on the house" if ln.is_giveaway else ln.notes)
             prod_class = product.product_class
         else:
@@ -6730,13 +6737,17 @@ async def create_sale(
         # no dead-end: a mixed cart discounts the rest and completes.
 
         line_gross = (unit_price * ln.quantity).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-        line_total = line_gross
+        # `line_discount` is 0 for everything except a bundle deal, so this is byte-identical
+        # for every other line — and for a deal line it restores the invariant the column
+        # comment has always stated: line_total = (quantity * unit_price) - discount_amount.
+        # The MONEY does not move: line_total is the same cent it was before this change.
+        line_total = line_gross - line_discount
         line_rate, line_vat_amount = line_vat(prod_class, ln.consumption, line_total,
                                               standard_rate=_sale_std, reduced_rate=_sale_red)
         line = LineItemModel(
             transaction_id=txn.id, product_id=ln.product_id, quantity=ln.quantity,
             unit_price=unit_price, discount_percent=Decimal("0.00"),
-            discount_amount=Decimal("0.00"), line_total=line_total, notes=line_notes,
+            discount_amount=line_discount, line_total=line_total, notes=line_notes,
             is_giveaway=ln.is_giveaway, consumption=ln.consumption.value,
             vat_rate=line_rate, vat_amount=line_vat_amount,
             # 18+ SNAPSHOT, for the same reason as the VAT rate and the department key
@@ -6753,10 +6764,15 @@ async def create_sale(
             await _record_catalog_miss(db, ln.unresolved_barcode,
                                        ln.department_code.strip().upper(), unit_price)
         built_lines.append(line)
-        subtotal += line_gross
+        # Both of these track what the line is WORTH, not what it would have cost without the
+        # deal — `line_total`, exactly as they did when line_gross and line_total were the same
+        # number. txn.subtotal therefore keeps its meaning to the cent, and the Z-report, the
+        # Banana export and every past receipt read identically. The deal's saving lives on the
+        # line (discount_amount) and the receipt derives it from gross vs total.
+        subtotal += line_total
         # BL-26: a volume-break line is discount-FINAL — keep it out of the discount base too.
         if not class_promo_restricted(prod_class) and not tier_final:
-            eligible_subtotal += line_gross   # only this portion can carry a discount (manual or member)
+            eligible_subtotal += line_total   # only this portion can carry a discount (manual or member)
 
     # --- Cart totals (inclusive VAT; the EXACT formula the till displays, so charged == shown).
     # The MANUAL discount applies to the ELIGIBLE portion only — tobacco/alcohol always ring full

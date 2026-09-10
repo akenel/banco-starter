@@ -398,3 +398,93 @@ def test_a_real_per_unit_ladder_is_still_a_per_unit_ladder():
     tiers = [{"min_qty": 1, "unit_price": "1.50"}, {"min_qty": 500, "unit_price": "0.60"}]
     assert tier_line_total(tiers, Decimal("1.50"), 500, mode="per_unit") == Decimal("300.00")
     assert tier_line_total(tiers, Decimal("1.50"), 499, mode="per_unit") == Decimal("748.50")
+
+
+# ── A BUNDLE IS A DISCOUNT, NOT A FUNNY UNIT PRICE (2026-09-10) ────────────────────────────
+# Angel, at the counter in Luzern, on a build whose arithmetic was correct: seven King Size
+# papers on "3 for 5.00" rang up as 5.14 + 5.14 + 1.72. Twelve francs, which is right. His
+# words: "a complete mess... seemed to work on some, didn't work on others."
+#
+# Nothing was broken. The deal was being divided back into a per-unit RATE, and a rate is a
+# thing nobody quoted: it is on no shelf label, cannot be paid in coins, and moves again the
+# moment the next packet is scanned. Every test in this file checked totals, so every test
+# was green all morning.
+
+from src.services.pricing import line_money
+
+
+def test_a_bundle_line_keeps_the_shelf_price_and_carries_the_deal_as_a_discount():
+    unit, gross, disc, total, final = line_money(PAPERS, Decimal("2.00"), 3, mode="bundle")
+    assert unit == Decimal("2.00")        # the number printed on the packet
+    assert gross == Decimal("6.00")
+    assert disc == Decimal("1.00")
+    assert total == Decimal("5.00")       # the money is unchanged — this is what it always was
+    assert final is True
+
+
+def test_the_line_multiplies_out():
+    """`line_total = (quantity * unit_price) - discount_amount` — the invariant LineItemModel's
+    own column comment has always stated, and which a printed receipt is checked against by
+    anyone who can do arithmetic.
+
+    It did NOT hold before this change: `unit_price` is Numeric(10,2), so a pooled rate of
+    1.714285... was stored as 1.71 and 1.71 x 3 = 5.13 against a line total of 5.14. Seven such
+    lines are already sold and printed on the shop (drift 0.07)."""
+    for qtys in ([3], [7], [3, 3, 1], [1, 2, 3, 4], [2, 2, 1], [10]):
+        pooled = None
+        if len(qtys) > 1:
+            totals = allocate_pool(PAPERS, Decimal("2.00"), qtys)
+            if sum(totals) < Decimal("2.00") * sum(qtys):
+                pooled = totals
+        for j, q in enumerate(qtys):
+            unit, gross, disc, total, _ = line_money(
+                PAPERS, Decimal("2.00"), q, mode="bundle",
+                pooled_total=(pooled[j] if pooled else None))
+            assert unit * q - disc == total, (qtys, j, unit, disc, total)
+
+
+def test_the_money_does_not_move():
+    """The whole change is presentational. Whatever the till charged for a basket before, it
+    charges now — line for line, to the cent."""
+    for qtys in ([1, 1, 1], [2, 1], [3, 3, 1], [5, 1, 1], [1, 2, 3, 4], [9, 1]):
+        before = allocate_pool(PAPERS, Decimal("2.00"), qtys)
+        after = [line_money(PAPERS, Decimal("2.00"), q, mode="bundle", pooled_total=before[j])[3]
+                 for j, q in enumerate(qtys)]
+        assert after == list(before), qtys
+
+
+def test_a_bundle_below_its_rung_is_not_a_deal():
+    """Two papers on a 3-for-5 are two papers at full price. Reporting that as a deal is what
+    once set tier_final on full-price lines and silently took them out of a manager's discount
+    base (2026-08-22)."""
+    unit, gross, disc, total, final = line_money(PAPERS, Decimal("2.00"), 2, mode="bundle")
+    assert (disc, total, final) == (Decimal("0.00"), Decimal("4.00"), False)
+
+
+def test_a_per_unit_ladder_gets_no_discount_line():
+    """"Buy 6 and they are 2.60 each" IS a unit price. It multiplies out on its own line, a
+    customer can check it, and inventing a discount row for it would be noise."""
+    tiers = [{"min_qty": 1, "unit_price": "3.00"}, {"min_qty": 6, "unit_price": "2.60"}]
+    unit, gross, disc, total, final = line_money(tiers, Decimal("3.00"), 6, mode="per_unit")
+    assert (unit, gross, disc, total, final) == (
+        Decimal("2.60"), Decimal("15.60"), Decimal("0.00"), Decimal("15.60"), True)
+
+
+def test_a_plain_product_is_untouched():
+    unit, gross, disc, total, final = line_money(None, Decimal("2.50"), 2, mode="per_unit")
+    assert (unit, gross, disc, total, final) == (
+        Decimal("2.50"), Decimal("5.00"), Decimal("0.00"), Decimal("5.00"), False)
+
+
+def test_the_column_closes_across_a_mixed_basket():
+    """gross - saved == what the drawer takes. The number a person adds up on the screen has to
+    be the number on the receipt, or the explanation is worse than no explanation."""
+    qtys = [3, 3, 1]
+    pooled = allocate_pool(PAPERS, Decimal("2.00"), qtys)
+    rows = [line_money(PAPERS, Decimal("2.00"), q, mode="bundle", pooled_total=pooled[j])
+            for j, q in enumerate(qtys)]
+    gross = sum(r[1] for r in rows)
+    saved = sum(r[2] for r in rows)
+    taken = sum(r[3] for r in rows)
+    assert (gross, saved, taken) == (Decimal("14.00"), Decimal("2.00"), Decimal("12.00"))
+    assert gross - saved == taken

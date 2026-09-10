@@ -245,6 +245,36 @@ const isOurs = (u) => {
   check(below.length === 0, 'no app chrome paints below the receipt',
         below.length ? below.slice(0, 3).join(' · ') : 'the sheet ends where the receipt ends');
 
+  // ── THE ROWS MUST MULTIPLY OUT, AND THE COLUMN MUST CLOSE ──────────────────────────────
+  // 2026-09-10. A customer holding this sheet does the only check available to them: quantity
+  // times price, and does the bottom line follow. Until today a pack deal printed
+  // "3 × CHF 2.00 = CHF 5.14" — right to the cent and impossible to verify, because the deal
+  // had been divided back into a per-unit rate and there is no discount column on a receipt.
+  // Read under PRINT media on purpose: paper is the layer no fix reaches afterwards.
+  const sheet = await p.evaluate(() => {
+    const money = (s) => parseFloat(String(s).replace(/[^\d.,-]/g, '').replace(',', '.'));
+    const rows = [...document.querySelectorAll('table tbody tr')].map(tr => {
+      const c = [...tr.querySelectorAll('td')].map(td => td.innerText.trim());
+      return c.length >= 4 ? { qty: parseInt(c[1], 10), unit: money(c[2]), total: money(c[3]) } : null;
+    }).filter(r => r && isFinite(r.qty) && isFinite(r.unit) && isFinite(r.total));
+    const label = (re) => {
+      const el = [...document.querySelectorAll('div')].find(d => re.test(d.innerText) && d.children.length === 2);
+      return el ? money(el.children[1].innerText) : null;
+    };
+    return { rows, sub: label(/Subtotal|Zwischensumme|Sous-total|Subtotale/i),
+             total: label(/^\s*(TOTAL|TOTALE)\s*:/i) };
+  });
+  const offenders = sheet.rows.filter(r => Math.abs(r.qty * r.unit - r.total) >= 0.005);
+  check(sheet.rows.length > 0 && offenders.length === 0,
+        'every row multiplies out: quantity × price = the line',
+        offenders.length
+          ? offenders.map(r => `${r.qty} × ${r.unit.toFixed(2)} ≠ ${r.total.toFixed(2)}`).join(' · ')
+          : `${sheet.rows.length} rows, checked on PAPER`);
+  const rowSum = sheet.rows.reduce((s, r) => s + r.qty * r.unit, 0);
+  check(sheet.sub !== null && Math.abs(rowSum - sheet.sub) < 0.02,
+        'the rows add up to the subtotal printed under them',
+        `rows ${rowSum.toFixed(2)} · subtotal ${sheet.sub}`);
+
   const shot = 'onboarding/evidence/receipt-print-' + new Date().toISOString().slice(0, 10) + '.png';
   await p.screenshot({ path: shot, fullPage: true });
   console.log('\n  📸 ' + shot + '  (print media — this is the paper)');

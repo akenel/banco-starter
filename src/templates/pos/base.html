@@ -1727,6 +1727,38 @@
             return (i in cartPools(cart)) || tierApplied(cart[i]);
         }
 
+        // ── WHAT THE LINE SHOWS ───────────────────────────────────────────────────────────
+        // MIRRORS pricing.line_money(). `cartLineTotal` above is the MONEY — the pooled or
+        // tier-broken figure the drawer will take, and every total on every screen is still
+        // summed from it. This is what the line is allowed to SAY, which is not the same
+        // thing once a deal is in play.
+        //
+        // 2026-09-10, Luzern. Seven King Size papers on "3 for 5.00" showed 5.14, 5.14 and
+        // 1.72 — twelve francs, correctly, spread evenly across the lines. Angel: "a complete
+        // mess... seemed to work on some, didn't work on others." Nothing was broken; the
+        // numbers were simply unreadable. A cashier cannot check a price that is on no shelf
+        // label, a customer cannot pay 1.72 in coins, and every figure moved again the moment
+        // the next packet was scanned.
+        //
+        // So a bundle line shows the SHELF price × quantity, and the saving is named once, in
+        // the deals block below (cartDeals) — which already existed and already says it. The
+        // two agree by construction: gross − saved === the pooled subtotal, to the cent.
+        //
+        // per_unit ladders are untouched: "buy 6, they are 2.60 each" IS a unit price and
+        // multiplies out on its own line.
+        function cartLineGross(cart, i) {
+            const it = (cart || [])[i];
+            if (!it) return 0;
+            if (_poolKey(it)) {            // bundle terms — pooled or standing alone
+                return Math.round((Number(it.price) || 0) * (Number(it.quantity) || 0) * 100) / 100;
+            }
+            return tierLineTotal(it);
+        }
+        // Sum of what the LINES say. Equals totals.subtotal + cartSavedTotal(), always.
+        function cartGrossSubtotal(cart) {
+            return (cart || []).reduce((s, _it, i) => s + cartLineGross(cart, i), 0);
+        }
+
         function tierLineTotal(item) {
             const qty = Number(item.quantity) || 0;
             const base = Number(item.price) || 0;

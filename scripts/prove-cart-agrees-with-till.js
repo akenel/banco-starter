@@ -29,9 +29,17 @@ print(json.dumps({nm: [str(tier_line_total(t, Decimal(b), q, mode=m)) for q in r
 (async()=>{
   const b=await chromium.launch(); const p=await (await b.newContext()).newPage();
   await p.goto('http://localhost:3000/pos',{waitUntil:'domcontentloaded'});
-  if (await p.$('button:has-text("Login")')) { await p.click('button:has-text("Login")'); await p.waitForTimeout(3500); }
+  // WAIT FOR THE FIELD, NOT FOR A GUESS AT THE CLOCK. This used to sleep a flat 3.5s after
+  // clicking Login; on a Keycloak that has just been restarted the form is not up yet, so
+  // #username was missing, no token was ever stored, and FIVE later sections reported
+  // "Invalid or expired token" as a pricing FAILURE. A harness that goes red for a reason
+  // that has nothing to do with the code under test teaches you to ignore it (LESSON #5).
+  if (await p.$('button:has-text("Login")')) {
+    await p.locator('button:has-text("Login")').first().click();
+    await p.waitForSelector('#username', { timeout: 30000 }).catch(() => {});
+  }
   if (await p.$('#username')) { await p.fill('#username','ralph'); await p.fill('#password','ralph');
-    await p.click('#kc-login, input[type=submit]'); await p.waitForURL('**/pos/**',{timeout:20000}); }
+    await p.click('#kc-login, input[type=submit]'); await p.waitForURL('**/pos/**',{timeout:30000}); }
   const client = await p.evaluate(()=>{
     const CASES={"3 for 10":[[{min_qty:3,unit_price:"10.00"}],4.00,'bundle'],
                  "nested":[[{min_qty:3,unit_price:"10.00"},{min_qty:10,unit_price:"24.00"}],4.00,'bundle'],
@@ -354,7 +362,7 @@ print(json.dumps(str(tier_line_total([{"min_qty":3,"unit_price":"10.00"}], Decim
       await p.waitForTimeout(2500);
 
       const totalNow = async () => {
-        const loc = p.locator('[data-i18n="scan.total"]').locator('xpath=following-sibling::span[1]');
+        const loc = p.locator('[data-i18n="scan.total"]').locator('xpath=../following-sibling::span[1]');
         for (let i = 0; i < 40; i++) {
           try {
             const m = ((await loc.textContent({ timeout: 2000 })) || '').match(/(\d+\.\d{2})/);
@@ -503,9 +511,15 @@ print(json.dumps(str(tier_line_total([{"min_qty":3,"unit_price":"10.00"}], Decim
       const rate = await p.evaluate(() => Number(POSConfig.vat_rate));
       const contained = (t) => (Number(t) * rate / (100 + rate)).toFixed(2);
 
-      const scanTotal = p.locator('[data-i18n="scan.total"]').locator('xpath=following-sibling::span[1]');
-      const scanVatEl = p.locator('[data-i18n="scan.total"]')
-                         .locator('xpath=../following-sibling::div[1]/span[2]');
+      const scanTotal = p.locator('[data-i18n="scan.total"]').locator('xpath=../following-sibling::span[1]');
+      // ASK FOR THE VAT ROW BY ITS OWN LABEL. This used to walk from the TOTAL — "the div after
+      // the total, second span" — and the total was later PINNED to the top of the cart card
+      // while the subtotal/discount/VAT breakdown stayed at the bottom. The walk then landed on
+      // nothing, `money()` returned null, and two checks reported a VAT disagreement that did
+      // not exist. A locator that describes a LAYOUT breaks the next time the layout moves; one
+      // that names the thing it wants survives. (Same shape as the checkout locator below.)
+      const scanVatEl = p.locator('[data-i18n="scan.incl_vat_pre"]').first()
+                         .locator('xpath=../..').locator('span').last();
       const sTot = await money(scanTotal);
       const sVat = await money(scanVatEl);
 
@@ -772,5 +786,104 @@ print(json.dumps(str(tier_line_total([{"min_qty":3,"unit_price":"10.00"}], Decim
   }
 
 
-  await b.close(); process.exit((bad + mbad + hbad + rbad + tbad + vbad + kbad) ? 1 : 0);
+  // ── WHAT THE LINE SAYS, NOT JUST WHAT IT CHARGES ─────────────────────────────────────
+  // 2026-09-10. Every section above compares MONEY, and every one of them was green on the
+  // morning Angel stood at the counter and called the pack pricing "a complete mess" — because
+  // the money was right. Seven papers on "3 for 5.00" charged CHF 12.00 and showed it as
+  // 5.14 + 5.14 + 1.72: correct, reproducible, and unreadable. A price that is on no shelf
+  // label cannot be checked by a cashier or paid in coins by a customer, and every figure moved
+  // again on the next scan.
+  //
+  // So this section asserts what a PERSON can verify, in both implementations:
+  //   1. a bundle line shows shelf price × quantity — the number on the packet;
+  //   2. the column adds up: gross − saved === the pooled subtotal the drawer takes;
+  //   3. the stored line satisfies its own column comment,
+  //      line_total = (quantity × unit_price) − discount_amount,
+  //      which is what makes a printed receipt multiply out. Seven already-sold lines on the
+  //      shop fail that today (drift 0.07) because the deal was divided back into a per-unit
+  //      rate and Numeric(10,2) then truncated it: 1.71 × 3 = 5.13 against a total of 5.14.
+  let gbad = 0, gn = 0;
+  try {
+    const gCases = [[3], [2], [3, 3, 1], [1, 1], [2, 2, 1], [7], [1, 2, 3, 4]];
+    const srvG = JSON.parse(execFileSync('python3', ['-c', `
+import sys, logging, json
+sys.path.insert(0, '${process.env.BANCO_REPO || '/home/angel/repos/banco-starter'}')
+logging.disable(logging.WARNING)
+from decimal import Decimal
+from src.services.pricing import line_money, pool_key, allocate_pool
+T = [{"min_qty": 3, "unit_price": "5.00"}]
+BASE = Decimal("2.00")
+out = []
+for qtys in ${JSON.stringify(gCases)}:
+    # Mirror what the checkout does: pool only when two or more lines share the deal AND the
+    # pool actually saves something, else each line stands on its own bundle rungs.
+    pooled = None
+    if len(qtys) > 1:
+        totals = allocate_pool(T, BASE, qtys)
+        if sum(totals) < BASE * sum(qtys):
+            pooled = totals
+    rows = []
+    for j, q in enumerate(qtys):
+        unit, gross, disc, total, final = line_money(
+            T, BASE, q, mode="bundle", pooled_total=(pooled[j] if pooled else None))
+        rows.append({"unit": str(unit), "gross": str(gross), "disc": str(disc),
+                     "total": str(total), "final": final})
+    out.append(rows)
+print(json.dumps(out))
+`], { encoding: 'utf8' }));
+
+    const cliG = await p.evaluate((cases) => cases.map(qtys => {
+      const cart = qtys.map(q => ({ quantity: q, price: 2.00, tier_mode: 'bundle', name: 'ZZ',
+                                    price_tiers: [{ min_qty: 3, unit_price: '5.00' }] }));
+      const pools = cartPools(cart);
+      return {
+        gross: cart.map((_, i) => cartLineGross(cart, i).toFixed(2)),
+        net: cart.map((_, i) => (i in pools ? pools[i] : tierLineTotal(cart[i])).toFixed(2)),
+        grossSub: cartGrossSubtotal(cart).toFixed(2),
+        saved: cartSavedTotal(cart).toFixed(2),
+      };
+    }), gCases);
+
+    gCases.forEach((qtys, i) => {
+      const srv = srvG[i], cli = cliG[i];
+      // 1. THE LINE SAYS THE SHELF PRICE — server and screen, independently.
+      srv.forEach((row, j) => {
+        gn++;
+        const wantGross = (2.00 * qtys[j]).toFixed(2);
+        if (row.gross !== wantGross || cli.gross[j] !== wantGross) {
+          gbad++;
+          console.log(`  ❌ ${JSON.stringify(qtys)} line ${j}: shelf 2.00 × ${qtys[j]} should read ${wantGross}`
+                    + ` — till says ${row.gross}, cart says ${cli.gross[j]}`);
+        }
+        // 3. THE RECEIPT MUST MULTIPLY OUT.
+        gn++;
+        const lhs = (parseFloat(row.unit) * qtys[j] - parseFloat(row.disc)).toFixed(2);
+        if (lhs !== row.total) {
+          gbad++;
+          console.log(`  ❌ ${JSON.stringify(qtys)} line ${j} does not multiply out:`
+                    + ` ${row.unit} × ${qtys[j]} − ${row.disc} = ${lhs}, stored total ${row.total}`);
+        }
+      });
+      // 2. THE COLUMN ADDS UP, and the cart's money is unchanged by any of this.
+      gn++;
+      const srvNet = srv.reduce((s, r) => s + parseFloat(r.total), 0).toFixed(2);
+      if (cli.net.reduce((s, v) => s + parseFloat(v), 0).toFixed(2) !== srvNet) {
+        gbad++;
+        console.log(`  ❌ ${JSON.stringify(qtys)}: the money moved — till ${srvNet} · cart ${cli.net}`);
+      }
+      gn++;
+      if ((parseFloat(cli.grossSub) - parseFloat(cli.saved)).toFixed(2) !== srvNet) {
+        gbad++;
+        console.log(`  ❌ ${JSON.stringify(qtys)} does not add up on screen:`
+                  + ` ${cli.grossSub} − ${cli.saved} ≠ ${srvNet}`);
+      }
+    });
+    if (!gbad) console.log(`  ✅ every deal line reads at its shelf price, multiplies out, and the`
+                         + ` column closes — ${gn} checks over ${gCases.length} baskets`);
+  } catch (e) {
+    gbad++; gn++;
+    console.log('  ❌ deal-readability check threw — a FAILURE, not a warning: ' + e.message);
+  }
+
+  await b.close(); process.exit((bad + mbad + hbad + rbad + tbad + vbad + kbad + gbad) ? 1 : 0);
 })();

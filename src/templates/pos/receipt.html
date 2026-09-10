@@ -187,7 +187,16 @@
                             </td>
                             <td class="text-center" x-text="item.quantity"></td>
                             <td class="text-right" x-text="formatPrice(item.unit_price)"></td>
-                            <td class="text-right font-semibold" x-text="formatPrice(item.line_total)"></td>
+                            <!-- QTY × PRICE, so the row multiplies out in the customer's head.
+                                 This printed `line_total`, and there is no discount column to
+                                 explain the gap: a 3-for-5 pack rendered as "3 × CHF 2.00 =
+                                 CHF 5.14" on a sheet of paper the customer takes home. Every
+                                 discount — the deal, the member rate, the cashier's manual %  —
+                                 already comes off once at the bottom, against a Subtotal that
+                                 has ALWAYS been the gross sum of these same rows (grossSubtotal
+                                 below). Printing the discounted figure here was the only thing
+                                 stopping the column from adding up. 2026-09-10. -->
+                            <td class="text-right font-semibold" x-text="formatPrice(item.quantity * item.unit_price)"></td>
                             <!-- Per-line VAT rate code (A=standard / B=reduced) — legend below -->
                             <td class="text-center text-sm font-bold" :class="rateCode(item)==='B' ? 'text-teal-700' : 'text-gray-700'" x-text="rateCode(item)"></td>
                         </tr>

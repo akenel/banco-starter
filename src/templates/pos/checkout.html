@@ -118,8 +118,10 @@
                                     <!-- 🔞 early warning for the cashier — same chip as the catalog -->
                                     <span x-show="isAgeLine(item)" class="chip chip-age">🔞 18+</span>
                                 </span>
+                                <!-- Shelf price × quantity, same rule as the till's cart panel
+                                     and the printed receipt — cartLineGross() in base.html. -->
                                 <span>
-                                    <span x-text="formatPrice(cartLineTotal(cartData.cart, index))"></span>
+                                    <span x-text="formatPrice(cartLineGross(cartData.cart, index))"></span>
                                     <span x-show="tierApplied(item)" class="text-xs text-green-600 font-semibold ml-1" data-i18n="scan.tier_badge">pack ✓</span>
                                 </span>
                             </div>
@@ -210,9 +212,18 @@
 
             <!-- Price Breakdown -->
             <div class="bg-indigo-50 rounded-lg p-6 mb-6 space-y-3">
+                <!-- Subtotal is the GROSS of the lines above (shelf price × qty), and the deal
+                     comes off on its own row underneath — so this block reads top to bottom the
+                     way a Swiss till receipt does. gross − deals === the pooled subtotal every
+                     total below is still calculated from; no money moves here. -->
                 <div class="flex justify-between">
                     <span data-i18n="checkout.subtotal">Subtotal:</span>
-                    <span x-text="formatPrice(cartData.totals.subtotal)"></span>
+                    <span x-text="formatPrice(cartGrossSubtotal(cartData.cart))"></span>
+                </div>
+                <div x-show="cartSavedTotal(cartData.cart) > 0" x-cloak style="display:none"
+                     class="flex justify-between text-green-600">
+                    <span data-i18n="scan.deals_row">Deals</span>
+                    <span x-text="'-' + formatPrice(cartSavedTotal(cartData.cart))"></span>
                 </div>
                 <!-- BL-25: only show a discount row when a REAL discount applies. On a tobacco/alcohol-
                      only cart the eligible subtotal is 0, so the amount is 0 — showing "5%: -0.00" was

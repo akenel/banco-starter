@@ -294,3 +294,58 @@ def validate_price_tiers(raw, mode="per_unit"):
     elif rows[0]["min_qty"] != 1:
         raise ValueError("the first tier must start at min_qty 1 (the base price)")
     return rows
+
+
+# ── A BUNDLE IS A DISCOUNT, NOT A FUNNY UNIT PRICE ────────────────────────────────────────
+#
+# 2026-09-10, Angel at the counter in Luzern, on a build whose arithmetic was correct:
+# seven King Size papers at "3 for 5.00" rang up as 5.14 + 5.14 + 1.72. Twelve francs, which
+# is right — shown as three prices that are on no shelf label, that no customer can hand you
+# coins for, and that CHANGE every time the next packet is scanned. His word for it was
+# "a complete mess", and the reason it survived every test is that every test checked totals.
+#
+# The cause: both call sites stored the deal by dividing it back into a per-unit RATE. Two
+# things go wrong with that. The receipt stops multiplying out — `unit_price` is Numeric(10,2),
+# so 1.714285… is saved as 1.71 and 1.71 x 3 = 5.13 against a line total of 5.14 (seven such
+# lines are already sold and printed, drift 0.07). And nobody can check a price they cannot
+# find on the shelf.
+#
+# So: keep the SHELF price on the line, and carry the deal as the discount it always was.
+# `line_total` is unchanged to the cent — this moves no money, it only makes the money
+# legible — and the line finally satisfies the invariant its own column comment states:
+#
+#     line_total = (quantity * unit_price) - discount_amount
+#
+# per_unit ladders are NOT touched. "Buy 6 and they are 2.60 each" IS a unit price; it
+# multiplies out, a customer can check it, and inventing a discount line for it would be
+# noise. Only bundle terms ("N for X") produce a rate nobody quoted.
+
+def line_money(price_tiers, base_price, qty, mode="per_unit", pooled_total=None):
+    """The four numbers one cart line needs: ``(unit_price, gross, discount, total, tier_final)``.
+
+    ``pooled_total`` is the line's share of a mix-and-match basket (from ``allocate_pool``);
+    pass it when the line pools with another, and the bundle rungs are not consulted again.
+
+    ``tier_final`` keeps its BL-26 meaning — a volume break set this price, so no member or
+    manual discount stacks on top. For a bundle it is True only when the deal actually moved
+    money: two papers in a "3 for 5" pool below the rung are full price, and calling that
+    final is what once took two full-price papers out of a manager's discount base.
+    """
+    base = _q(base_price)
+    qty = int(qty or 0)
+    gross = _q(base * Decimal(qty))
+
+    if pooled_total is not None:
+        total = _q(pooled_total)
+    elif mode == "bundle" and price_tiers:
+        total = tier_line_total(price_tiers, base, qty, mode="bundle")
+    else:
+        # per_unit (or no tiers at all): the tier value IS the unit price. Nothing to explain.
+        unit, tier_final = tier_unit_price(price_tiers, base, qty, mode=mode)
+        unit = _q(unit)
+        return unit, _q(unit * Decimal(qty)), Decimal("0.00"), _q(unit * Decimal(qty)), tier_final
+
+    if total > gross:                    # a deal is never worse than no deal
+        total = gross
+    discount = _q(gross - total)
+    return base, gross, discount, total, discount > 0
