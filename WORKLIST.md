@@ -55,8 +55,14 @@ Two sheets run: **9 pass · 0 fail**, then **25 pass · 2 issue · 0 fail**.
    12:36, so *"nobody sells with any of it"* is retired. Plus `Invalid price tiers: … min_qty 1` in the
    manager panel (English, and it quotes a DB column at a shop owner) and a `Price updated` toast.
 5. 🖥️ **The till fell out of fullscreen** at 11:48 and stayed out until 13:04, Chromium's own Esc bar
-   over the total. Angel's read is kiosk mode. **Kiosk does not cost the screenshots** —
-   `tablet-lockdown.sh` binds `Print` at the GNOME level, not in the browser.
+   over the total. Angel's read is kiosk mode. ⚠️ **KIOSK DOES COST THE SCREENSHOTS, and I said
+   otherwise — that was wrong.** `tablet-lockdown.sh` does bind `Print` at the GNOME level, but
+   **a key binding needs a key**: with the folio detached there is no Print key, and in kiosk
+   fullscreen you cannot pull down the shell to reach the screenshot UI either. Angel, 2026-09-10:
+   *"on the tablet, if there's no keyboard attached, you can't do a screenshot. It just won't
+   work."* So the kiosk decision costs the evidence trail on the ONE device that keeps producing
+   findings — unless something else takes the picture (a gesture binding, a corner tap, a
+   Banco-side capture button, or simply leaving the folio on, which item 10 now argues for anyway).
 6. 🧾 **The cart says `incl. VAT 1.05`, the receipt says `1.04`** on the same sale. The books are right
    (`tax_amount` == sum of line VAT); the cart's estimate is the odd one out. Predates 5 August.
 7. 💤 **A paper outside a deal says nothing.** *Rips Extra Dünn*, CHF 2.00, same shelf as six papers on
