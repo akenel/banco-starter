@@ -70,22 +70,23 @@ Two sheets run: **9 pass · 0 fail**, then **25 pass · 2 issue · 0 fail**.
    tiers at all.
 8. 📦 **NEW IDEA — the box code.** A filter packet has no code; the code on the shelf is the outer box.
    Bind the box, record how many singles are in it, let the till break it down. Angel's, not designed.
-9. 🎤 **NEW IDEA — dictate the description instead of typing it.** Felix asked for a microphone in the
-   keyboard and called it phase 3. **Angel wants it sooner, and for a better reason than Felix's:** he
-   spent 2026-09-10 typing product names on the soft keyboard himself. *"Even though it works great,
-   it's just not that practical… typing long names on the tablet, forget it. It's just a pain."* It is
-   probably slower than a good typist on a real keyboard — and on the glass that comparison does not
-   apply. A delight item with a use case its own author has now lived.
-   **Asked and answered 2026-09-10 — the code already exists here.** `compute/concierge.html` has a
-   working `webkitSpeechRecognition` with a feature test; lifting it into `pos-keypad.js` is small.
-   **The hard part is not the button: Chrome's speech API ships the audio to GOOGLE** — so it needs
-   the network on a till built to survive without one, and counter audio leaves the shop. Paid STT
-   costs per minute; local Whisper has nowhere to run (`MAP.md`: no spare capacity anywhere).
-   **Do these two first:** ① a PASTE button — and Banco's own clipboard with the last few entries
-   beats the OS one (no permission prompt, works offline, and intake is *Beats "Goa"* → *"Hip Hop"*
-   → *"Reggae"*). ② **LOOK** at whether `✨ Fotografieren & ausfüllen` already solves naming at the
-   counter; if it does, dictation is only about descriptions and is a much smaller want.
-10. 💻 **ROLLOUT DECISION — do NOT hand them the tablet in week one.** Angel, after two hours behind
+9. 🎤 **NEW IDEA — dictate instead of typing** (Felix said phase 3; Angel wants it sooner, having
+   spent 2026-09-10 typing long names on the glass). **Answered:** the code already exists here —
+   `compute/concierge.html` carries a working `webkitSpeechRecognition`. The hard part is that
+   Chrome's speech API **ships the audio to Google**. A **paste button goes first** — Banco's own
+   clipboard with the last few entries, no permission prompt, works offline.
+   ⚠️ The photo-fill alternative I proposed is **dead on the tablet** (item 10), which moves this UP.
+10. 📷 **THE TABLET CAMERA — diagnosed 2026-09-10, and it is NOT broken hardware.** `ov2740` sensor
+   bound · `ipu3` loaded · libcamera 0.4.0 · pipewire up — and **`cam --list` returns zero cameras.**
+   Every `/dev/video*` belongs to `ipu3-imgu` (processing, not capture). An Intel **IPU3 MIPI** sensor
+   never presents a plain V4L2 node; libcamera must build the pipeline, and that is the failing step.
+   **Banco's side is correct — do not touch `posShowWebcam()`.** Pull the libcamera IPU3 pipeline
+   handler, not the kernel driver. **Untried cheap unblock: a powered USB hub (~CHF 20)** — the tablet
+   has one port and the gun owns it. (LESSON #3: the 2026-08-05 "nothing attached" verdict was wrong
+   too — ACPI declares two fitted sensors. Angel's instinct has now been right twice.)
+
+
+11. 💻 **ROLLOUT DECISION — do NOT hand them the tablet in week one.** Angel, after two hours behind
    the counter: *"really, it's not the best idea to give them the tablet to start… they should use a
    desktop, like a laptop. Or at least the unit with the keyboard intact for the first week or the
    first month, because it's just cumbersome."* **Note this cuts against the UAT guidance**, which is

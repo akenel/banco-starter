@@ -223,6 +223,49 @@ rare, I guess. It's more of filters. He sells a lot of filters."</i></p>
 <p>Not built, not designed. Written down so it survives the night.</p>
 </div>
 
+<h2>The camera, the microphone, and the one USB port</h2>
+
+<h3>The tablet camera is not broken hardware</h3>
+<p>Angel: <i>"the camera doesn't seem to work on our tablet… we've tried two or three times. So the
+third time is a charm maybe."</i> Measured on the machine, 2026-09-10:</p>
+<div class="tw"><table>
+<tr><th>what</th><th>state</th></tr>
+<tr><td><code>ov2740</code> sensor driver</td><td>✅ loaded and bound</td></tr>
+<tr><td><code>ipu3_cio2</code> · <code>ipu3_imgu</code></td><td>✅ loaded</td></tr>
+<tr><td><code>/dev/video0…12</code></td><td>present — but every one belongs to <code>ipu3-imgu</code>,
+    which are <b>image-processing</b> nodes, not capture devices</td></tr>
+<tr><td>libcamera 0.4.0 + tools · pipewire</td><td>✅ installed and running</td></tr>
+<tr><td><code>cam --list</code></td><td>❌ <b>"Available cameras:" and then nothing</b></td></tr>
+</table></div>
+<p>That is the wall, and it is a <b>named</b> one. An Intel <b>IPU3 MIPI</b> sensor never presents a
+plain V4L2 capture node the way a USB webcam does — libcamera has to build the pipeline for it, and
+that is the step returning zero. Chromium's <code>enumerateDevices()</code> therefore sees nothing, and
+Banco correctly hides its own button: <code>posShowWebcam()</code> gates on <code>getUserMedia</code>
+<b>and</b> on device presence, deliberately, since 2026-08-22 — <i>a button that lies is worse than no
+button.</i> <b>Banco's side is right. Pull the libcamera IPU3 pipeline handler, not the kernel
+driver.</b></p>
+<p>LESSON #3 already records that the 2026-08-05 verdict — <i>"nothing attached to the other end"</i> —
+was wrong, because ACPI declares <b>two fitted sensors</b>. Angel's instinct (<i>"I know that camera
+could work. I'm just sure of it"</i>) has now been right twice.</p>
+
+<h3>The one USB port</h3>
+<p><i>"I used a webcam, but then I need the dongle, and it's only got one port… the idea was the one
+USB port was for the gun."</i> A <b>powered USB hub, about CHF 20</b>, lets the gun and a webcam
+coexist — and he has <b>never tried it</b>. The cheap unblock while the built-in camera waits.</p>
+
+<h3>What this does to the microphone question</h3>
+<p>An hour earlier I recommended checking whether <code>✨ Fotografieren &amp; ausfüllen</code> already
+solves naming at the counter, before spending anything on dictation. <b>On the tablet it cannot — there
+is no camera.</b> Photographing is not the cheaper alternative there; it is unavailable, which moves
+dictation <i>up</i> rather than down.</p>
+<p>The mic is not the hard part: <code>compute/concierge.html</code> already carries a working
+<code>webkitSpeechRecognition</code> with a feature test. The hard part is that Chrome's speech API
+<b>ships the audio to Google</b> — network required on a till built to survive without one, and counter
+audio leaving the shop. Paid STT costs per minute; local Whisper has nowhere to run
+(<code>MAP.md</code>: no spare capacity anywhere). <b>A paste button goes first</b>, and Banco's own
+clipboard holding the last few entries beats the OS clipboard for this job: no permission prompt, works
+offline, and intake is <i>Beats "Goa"</i> → <i>"Hip Hop"</i> → <i>"Reggae"</i>.</p>
+
 <h2>What today should teach us</h2>
 <ul>
 <li><b>A test that checks totals cannot see an unreadable total.</b> Nine green proof sections, 2,378
