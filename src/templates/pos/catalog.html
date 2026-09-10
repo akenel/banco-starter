@@ -153,7 +153,7 @@
                              can fire straight into it. The pad does NOT open on this focus — it
                              waits for a real gesture (see pos-keypad.js) — so the catalogue is
                              fully visible until somebody actually taps the box. -->
-                        <input type="text" data-keypad="text" x-model="q" @input.debounce.300ms="search()"
+                        <input type="text" data-keypad="text" x-model="q" data-recall="search" @input.debounce.300ms="search()"
                                placeholder="Name, SKU or barcode…" data-i18n-placeholder="catalog.search_placeholder" class="input-field flex-1"
                                autofocus>
                         <!-- BL-10 (Felix): scan a barcode to pull the item up, no typing. -->
@@ -518,7 +518,7 @@
                 <div x-show="!mergePick">
                     <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="catalog.merge_find">Which row is the same product?</label>
                     <div class="flex gap-2">
-                        <input type="text" data-keypad="text" x-model="mergeQuery" @keydown.enter="mergeSearch()"
+                        <input type="text" data-keypad="text" x-model="mergeQuery" data-recall="search" @keydown.enter="mergeSearch()"
                                class="input-field flex-1" placeholder="name, SKU or barcode"
                                data-i18n-placeholder="catalog.merge_ph">
                         <button @click="mergeSearch()" :disabled="mergeBusy" class="btn-secondary flex-none">
@@ -684,7 +684,7 @@
                 <div class="grid md:grid-cols-2 gap-4">
                     <div class="md:col-span-2">
                         <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="catalog.form_name">Name *</label>
-                        <input type="text" data-keypad="text" x-model="form.name" class="input-field" placeholder="Product name" data-i18n-placeholder="catalog.name_placeholder">
+                        <input type="text" data-keypad="text" x-model="form.name" data-recall="product" class="input-field" placeholder="Product name" data-i18n-placeholder="catalog.name_placeholder">
                         <!-- BL-34: the "search similar" everywhere. Any create OR edit — find this item
                              already in the catalog / at a supplier and grab the right photo + details. -->
                         <button type="button" @click="searchSimilar()" :disabled="!(form.name||'').trim() || snapBusy"
@@ -899,7 +899,7 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1"><span data-i18n="catalog.form_category">Category</span>
                             <span class="text-xs text-gray-400 font-normal" data-i18n="catalog.form_category_hint">— what it is (on the wall)</span></label>
-                        <input type="text" data-keypad="text" x-model="form.category" list="catlist" class="input-field" placeholder="Pick existing or type new" data-i18n-placeholder="catalog.category_placeholder">
+                        <input type="text" data-keypad="text" x-model="form.category" data-recall="category" list="catlist" class="input-field" placeholder="Pick existing or type new" data-i18n-placeholder="catalog.category_placeholder">
                         <datalist id="catlist">
                             <template x-for="name in allCategoryNames()" :key="name">
                                 <option :value="name"></option>
@@ -923,7 +923,7 @@
                         <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="catalog.form_supplier">Supplier</label>
                         <!-- pick from known suppliers (datalist) — still tolerant of an existing value
                              that isn't a formal supplier row (e.g. "Artemis"), so no data is lost. -->
-                        <input type="text" data-keypad="text" x-model="form.supplier_name" list="catalog-supplier-list" class="input-field" placeholder="(optional)" data-i18n-placeholder="catalog.optional_placeholder">
+                        <input type="text" data-keypad="text" x-model="form.supplier_name" data-recall="supplier" list="catalog-supplier-list" class="input-field" placeholder="(optional)" data-i18n-placeholder="catalog.optional_placeholder">
                         <datalist id="catalog-supplier-list">
                             <template x-for="s in suppliers" :key="s.id || s.code || s.name"><option :value="s.name"></option></template>
                         </datalist>
@@ -1157,7 +1157,7 @@
                         <span class="normal-case font-normal text-gray-400" data-i18n="catalog.ref_search_hint">— try one word: a colour, a brand, a shape</span>
                     </div>
                     <div class="flex gap-2">
-                        <input data-keypad="text" x-model="refQ" @keydown.enter.prevent="searchReference()"
+                        <input data-keypad="text" x-model="refQ" data-recall="search" @keydown.enter.prevent="searchReference()"
                                class="input-field flex-1" :placeholder="t('catalog.ref_search_ph')"
                                placeholder="rasta · kawumm · black leaf · grinder…">
                         <button @click="searchReference()" :disabled="refBusy"

@@ -319,6 +319,17 @@
     + '.pk-del{background:#fee2e2;color:#b91c1c}'
     + '.pk-done{background:#4f46e5;color:#fff;border-color:#4f46e5;font-size:1rem}'
     + '.pk-lock{background:#4f46e5;color:#fff;border-color:#4f46e5}'
+    // THE RECALL LIST IS CAPPED TO THE HEIGHT OF THE LETTERS ON PURPOSE. open() measures
+    // pad.offsetHeight once and uses it to lift a fixed overlay off the pad (see
+    // liftFixedOverlay). A list that grew taller than the letters would leave that
+    // measurement stale and put the pad back over the box it just moved out of. Three
+    // letter rows are 54px + .4rem gaps; 172px of scrollable list matches it.
+    + '.pk-list{max-height:172px;overflow-y:auto;-webkit-overflow-scrolling:touch}'
+    + '.pk-item{display:block;width:100%;text-align:left;height:auto;min-height:46px;'
+    + 'padding:.55rem .75rem;font-size:1rem;font-weight:500;margin-bottom:.4rem;'
+    + 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
+    + '.pk-empty{padding:1.1rem .5rem;text-align:center;color:#4b5563;font-size:.95rem;'
+    + 'line-height:1.35}'
     + '#pk-num .pk-k{height:62px;font-size:1.5rem;font-weight:700}'
     + '#pk-num .pk-done,#pk-num .pk-util{font-size:1.05rem}';
 
@@ -332,6 +343,75 @@
     ['/','(',')','%','+','.',',',"'",'"','!'],
     ['#','*','@','§','?',':',';','_','&']
   ];
+
+  /* ── RECALL: Banco's own clipboard ─────────────────────────────────────────
+     Angel, 2026-09-10, after two hours at the counter: "typing on the soft
+     keyboard is really a... it's just not that practical." The long answer is
+     dictation; this is the short one, and it needs no microphone, no network,
+     no permission prompt and no Google.
+
+     WHAT IT REMEMBERS, AND WHY IT IS OPT-IN. A device-local list that any later
+     cashier can paste must never contain a person. customer_lookup.html alone
+     has fourteen data-keypad="text" boxes -- real_name, email, phone, telegram,
+     instagram -- and checkout.html holds the AGE GATE handle, which is
+     compliance evidence. So nothing is remembered unless the field asks:
+
+         <input data-keypad="text" data-recall="product">
+
+     Opt-in, not opt-out, because the failure mode of forgetting to exclude a
+     field is a customer's phone number sitting in a shared paste list, and the
+     failure mode of forgetting to include one is that a cashier types a name
+     the slow way. Those are not the same size of mistake.
+
+     Buckets keep the lists honest: a product name and a shift note are not
+     interchangeable, and a nine-item list you have to read is not faster than
+     typing.  Per device, per browser. Never sent anywhere. */
+  var RECALL_MAX = 9;         // one screenful; more is slower to read than to type
+  var RECALL_MAXLEN = 120;
+  var RECALL_PREFIX = 'banco.recall.';
+
+  function recallBucket(el) {
+    var b = el && el.getAttribute && el.getAttribute('data-recall');
+    return (b && /^[a-z0-9_-]{1,24}$/i.test(b)) ? b : null;
+  }
+  function recallRead(bucket) {
+    if (!bucket) return [];
+    try {
+      var raw = window.localStorage.getItem(RECALL_PREFIX + bucket);
+      var a = raw ? JSON.parse(raw) : [];
+      return Object.prototype.toString.call(a) === '[object Array]'
+        ? a.filter(function (x) { return typeof x === 'string' && x; }).slice(0, RECALL_MAX)
+        : [];
+    } catch (e) { return []; }   // private window, cleared storage, quota -- never throw
+  }
+  function remember(el) {
+    var bucket = recallBucket(el);
+    if (!bucket) return;
+    var v = String(el.value == null ? '' : el.value).trim();
+    // Two characters is a typo, not an entry worth a slot in a nine-item list.
+    if (v.length < 3) return;
+    if (v.length > RECALL_MAXLEN) v = v.slice(0, RECALL_MAXLEN);
+    var list = recallRead(bucket).filter(function (x) { return x !== v; });
+    list.unshift(v);
+    try {
+      window.localStorage.setItem(RECALL_PREFIX + bucket,
+                                  JSON.stringify(list.slice(0, RECALL_MAX)));
+    } catch (e) { /* storage full or blocked: the pad must still work */ }
+  }
+  function canRecall() { return recallBucket(active) !== null; }
+
+  /* The pad cannot call base.html's t() -- it is a local function in an inline
+     script -- but POS_STRINGS and _posLang are globals, so read them directly.
+     Falls back to English rather than rendering a key at a cashier. */
+  function tr(key, fallback) {
+    try {
+      var lang = (window._posLang || 'en').slice(0, 2);
+      var tbl = window.POS_STRINGS && (window.POS_STRINGS[lang] || window.POS_STRINGS.en);
+      var parts = key.split('.');
+      for (var i = 0; i < parts.length && tbl; i++) tbl = tbl[parts[i]];
+      return (typeof tbl === 'string' && tbl) ? tbl : fallback;
+    } catch (e) { return fallback; }
+  }
 
   var num = null, abc = null, active = null, kind = null;
   var shift = false, caps = false, symbols = false, shiftAt = 0;
@@ -385,9 +465,37 @@
     abc.innerHTML =
         '<div class="pk-top">'
       + '<button class="pk-k pk-util" data-k="mode">' + (symbols ? 'abc' : '123') + '</button>'
+      // The key only exists on a field that opted in, so it never appears over a
+      // customer's name or the age-gate handle -- there is nothing there to show.
+      + (canRecall() ? '<button class="pk-k pk-util" data-k="recall" '
+                     + 'title="' + esc(tr('keypad.recall', 'Recent entries')) + '">📋</button>' : '')
       + '<button class="pk-k pk-space" data-k=" ">space</button>'
       + '<button class="pk-k pk-done pk-wide" data-k="done">OK</button></div>'
       + html;
+  }
+
+  /* ── the recall list, drawn in place of the letters ────────────────────────
+     In place, not above: the pad's height is measured ONCE in open() and used to
+     lift whatever fixed overlay the field sits inside. A panel on top of the
+     letters would change that height and un-do the lift. */
+  function drawRecall() {
+    var list = recallRead(recallBucket(active)), body;
+    if (!list.length) {
+      body = '<div class="pk-empty">'
+           + esc(tr('keypad.recall_empty',
+                    'Nothing yet. What you type here is remembered when you press OK.'))
+           + '</div>';
+    } else {
+      body = '<div class="pk-list">' + list.map(function (v, i) {
+        return '<button class="pk-k pk-item" data-k="recall:' + i + '">' + esc(v) + '</button>';
+      }).join('') + '</div>';
+    }
+    abc.innerHTML =
+        '<div class="pk-top">'
+      + '<button class="pk-k pk-util pk-wide" data-k="letters">abc</button>'
+      + '<span class="pk-gap"></span>'
+      + '<button class="pk-k pk-done pk-wide" data-k="done">OK</button></div>'
+      + body;
   }
 
   /* ── open / close ─────────────────────────────────────────────────────── */
@@ -506,6 +614,7 @@
     // changed Qty to 5, tapped across to Target total, and price × qty stayed
     // at 1 until he pressed DONE. DONE always worked; this is the other way out.
     if (active && active !== el) {
+      remember(active);          // tapping across to the next box IS finishing this one
       active.dispatchEvent(new Event('change', { bubbles: true }));
     }
     active = el; kind = k;
@@ -515,6 +624,11 @@
     // appearing UNDER our own pad.)
     el.setAttribute('inputmode', 'none');
     var pad = (k === 'decimal' || k === 'numeric' || k === 'date' || k === 'time') ? num : abc;
+    // Redraw the letters for THIS field: the 📋 key is per-field (it is drawn only
+    // when the box opted in), and a pad left showing the previous field's recall
+    // list would paste one box's history into another. Also drops shift/symbols,
+    // which is what a fresh box should get anyway.
+    if (pad === abc) { symbols = false; shift = false; drawLetters(); }
     num.classList.toggle('on', pad === num);
     abc.classList.toggle('on', pad === abc);
     // THE RED CHAT BUBBLE SITS ON THE PAD. Twice off the tablet: on 2026-09-03 it
@@ -828,7 +942,18 @@
 
   function press(k) {
     if (!active) return;
-    if (k === 'done') { shutSafely(); return; }
+    if (k === 'done') { remember(active); shutSafely(); return; }
+    if (k === 'recall')  { drawRecall(); return; }
+    if (k === 'letters') { symbols = false; drawLetters(); return; }
+    if (k.indexOf('recall:') === 0) {
+      var picked = recallRead(recallBucket(active))[parseInt(k.slice(7), 10)];
+      // Inserted at the caret like every other key, never as a silent overwrite:
+      // on an empty box -- the ordinary case -- that IS a replace, and on a
+      // half-typed one the cashier keeps what they had.
+      if (picked) insert(active, picked);
+      drawLetters();
+      return;
+    }
     if (k === 'clr')  { active.value = ''; place(active, 0); commit(active); return; }
     if (k === 'del')  { backspace(active); return; }
     if (k === 'mode') { symbols = !symbols; shift = false; drawLetters(); return; }

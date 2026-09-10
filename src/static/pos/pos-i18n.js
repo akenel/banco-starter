@@ -21,6 +21,10 @@
  */
 window.POS_STRINGS = {
   "en": {
+    "keypad": {
+      "recall": "Recent entries",
+      "recall_empty": "Nothing yet. What you type here is remembered when you press OK."
+    },
     "dept": {
       "GLAS_help": "Anything glass you smoke from: bongs, bubblers, glass pipes — and the spare parts, downstems, bowls, adapters.",
       "GRIP_help": "Every grinder, whatever it is made of — plastic, metal, wood, 2-part or 4-part. Do not hunt for the exact model.",
@@ -2441,6 +2445,10 @@ window.POS_STRINGS = {
     }
   },
   "fr": {
+    "keypad": {
+      "recall": "Saisies récentes",
+      "recall_empty": "Rien pour l'instant. Ce que vous tapez ici est mémorisé quand vous appuyez sur OK."
+    },
     "dept": {
       "GLAS_help": "Tout ce qui est en verre pour fumer : bongs, bubblers, pipes en verre — et les pièces détachées.",
       "GRIP_help": "Tous les grinders, quelle que soit la matière — plastique, métal, bois. Ne cherchez pas le modèle exact.",
@@ -4871,6 +4879,10 @@ window.POS_STRINGS = {
     }
   },
   "it": {
+    "keypad": {
+      "recall": "Voci recenti",
+      "recall_empty": "Ancora niente. Quello che scrivi qui viene memorizzato quando premi OK."
+    },
     "dept": {
       "GLAS_help": "Tutto ciò che è in vetro per fumare: bong, bubbler, pipe di vetro — e i ricambi.",
       "GRIP_help": "Tutti i grinder, di qualsiasi materiale — plastica, metallo, legno. Non cercare il modello esatto.",
@@ -7291,6 +7303,10 @@ window.POS_STRINGS = {
     }
   },
   "de": {
+    "keypad": {
+      "recall": "Zuletzt eingegeben",
+      "recall_empty": "Noch nichts. Was du hier eintippst, wird beim Drücken von OK gemerkt."
+    },
     "dept": {
       "GLAS_help": "Alles aus Glas zum Rauchen: Bongs, Bubbler, Glaspfeifen — und Ersatzteile wie Chillum, Kopf oder Adapter.",
       "GRIP_help": "Jeder Grinder, egal woraus — Plastik, Metall, Holz, 2- oder 4-teilig. Nicht nach dem genauen Modell suchen.",

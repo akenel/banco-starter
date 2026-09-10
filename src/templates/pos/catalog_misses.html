@@ -234,7 +234,7 @@
                   <span x-show="m.lookup && m.lookup.crowd" class="text-slate-700 font-semibold" data-i18n="misses.name_rewrite">
                     — rewrite it: this came from a barcode database</span>
                 </label>
-                <input type="text" data-keypad="text" x-model="m.newName" class="input-field"
+                <input type="text" data-keypad="text" x-model="m.newName" data-recall="product" class="input-field"
                        :class="m.lookup && (m.lookup.exact === false || m.lookup.crowd) ? 'border-rose-400' : ''"
                        data-i18n-placeholder="misses.ph_packet" placeholder="what is on the packet">
               </div>

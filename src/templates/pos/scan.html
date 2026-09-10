@@ -361,7 +361,7 @@
 
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2"><span data-i18n="scan.item_name">Item name</span> <span class="text-red-500">*</span></label>
-                            <input type="text" data-keypad="text" x-model="otfName" @keyup.enter="createNoCodeItem()"
+                            <input type="text" data-keypad="text" x-model="otfName" data-recall="product" @keyup.enter="createNoCodeItem()"
                                    @input.debounce.400ms="searchOwnedForOtf()"
                                    placeholder="e.g. Cynthia cup — red" data-i18n-placeholder="scan.ph_item_name" class="input-field">
                         </div>
@@ -446,7 +446,7 @@
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="scan.category">Category</label>
-                                    <input type="text" data-keypad="text" x-model="otfCategory" list="otf-cats" placeholder="(optional) leave blank = On the fly" data-i18n-placeholder="scan.ph_category" class="input-field">
+                                    <input type="text" data-keypad="text" x-model="otfCategory" data-recall="category" list="otf-cats" placeholder="(optional) leave blank = On the fly" data-i18n-placeholder="scan.ph_category" class="input-field">
                                     <datalist id="otf-cats"><template x-for="c in categories" :key="c.name"><option :value="c.name"></option></template></datalist>
                                 </div>
                             </div>
@@ -1125,7 +1125,7 @@
                      Hidden while the BL-102 camera hero leads a fresh barcode miss. -->
                 <div x-show="!lazyPhotoFirst || lazyLinkResults.length || refResults.length || aiNote">
                     <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="scan.what_is_it">What is it? Find it in the catalog</label>
-                    <input type="text" data-keypad="text" x-model="lazyLinkQuery" x-ref="lazyLinkInput"
+                    <input type="text" data-keypad="text" x-model="lazyLinkQuery" data-recall="search" x-ref="lazyLinkInput"
                            @input.debounce.300ms="searchExisting(); searchReference()"
                            placeholder="Type a name or keyword — e.g. papers, grinder, Gizeh" data-i18n-placeholder="scan.ph_find" class="input-field">
                     <p class="text-xs text-gray-500 mt-1" data-i18n="scan.bind_hint">Tap the right product to bind this barcode to it — it'll scan instantly next time.</p>
@@ -1251,7 +1251,7 @@
                         <p class="text-xs text-amber-700 bg-amber-50 rounded-lg p-2" data-i18n="scan.new_catalog_warning">New catalog item — only do this if it truly isn't in the search above.</p>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="scan.product_name">Product name</label>
-                            <input type="text" data-keypad="text" x-model="lazyName" @keyup.enter="saveLazyCapture()" placeholder="e.g. Rolling papers — King Size" data-i18n-placeholder="scan.ph_product_name" class="input-field">
+                            <input type="text" data-keypad="text" x-model="lazyName" data-recall="product" @keyup.enter="saveLazyCapture()" placeholder="e.g. Rolling papers — King Size" data-i18n-placeholder="scan.ph_product_name" class="input-field">
                             <!-- 🔎 TIER-2 web lookup at the TILL (Pam): barcode → free DB → pick image + auto-fill.
                                  Quota-aware; Google fallback on a miss or when the day's used up. -->
                             <div x-show="(lazyBarcode||'').trim() || (lazyName||'').trim()" class="mt-2" style="display:none;">

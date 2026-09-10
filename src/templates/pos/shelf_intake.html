@@ -506,7 +506,7 @@
                   The wholesale row keeps its description, tier pricing and layout. Your EAN moves onto it,
                   and this row is retired — not deleted, so any sales history stays intact.
                 </p>
-                <input data-keypad="text" x-model="row.mergeQuery" @keydown.enter="findMerge(row)" placeholder="gizeh king size"
+                <input data-keypad="text" x-model="row.mergeQuery" data-recall="search" @keydown.enter="findMerge(row)" placeholder="gizeh king size"
                        class="border rounded-lg px-3 py-2 text-sm w-full mb-2">
                 <p x-show="row.mergeBusy" style="display:none" class="text-sm text-gray-500">Looking…</p>
                 <template x-for="c in (row.mergeCandidates || [])" :key="c.id">
@@ -549,7 +549,7 @@
                     ① Type what you see on the packet — it's probably already in the catalogue
                   </label>
                   <div class="flex gap-2">
-                    <input data-keypad="text" x-model="row.query" @keydown.enter="lookupName(row)" placeholder="gizeh king size"
+                    <input data-keypad="text" x-model="row.query" data-recall="search" @keydown.enter="lookupName(row)" placeholder="gizeh king size"
                            class="border-2 border-indigo-200 focus:border-indigo-500 rounded-lg px-3 py-2 text-sm flex-1 min-w-0">
                     <button @click="lookupName(row)" :disabled="row.busy" class="btn-primary text-sm flex-none">Check catalogue</button>
                   </div>
@@ -762,7 +762,7 @@
                   <div x-show="(row.facts && row.facts.name) || row.checked" style="display:none" class="mb-2">
                     <label class="text-sm block mb-2">
                       <span class="block text-xs text-gray-500 mb-1">Name at the counter — edit it to what the shop says</span>
-                      <input type="text" data-keypad="text" x-model="row.title" maxlength="255"
+                      <input type="text" data-keypad="text" x-model="row.title" data-recall="product" maxlength="255"
                              class="border rounded-lg px-3 py-2 text-sm w-full">
                     </label>
                     <p x-show="row.facts && row.title !== row.facts.name" style="display:none"
