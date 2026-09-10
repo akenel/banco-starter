@@ -300,13 +300,6 @@ paper till records nothing at all.
 ---
 
 - **ⓝ Close of 2026-09-04 (daytime)** — superseded by tonight’s close. → [`worklist-archive/2026-09-04-archive-pass.md`](worklist-archive/2026-09-04-archive-pass.md)
-## ~~ⓞ THE COUNTER VISIT~~ · ~~ⓒ5 PAM'S RUN~~ — **BOTH CLOSED**
-
-*ⓞ done 2026-09-10 (21 screenshots, four defects — see the deck). ⓒ5 was 14 pass · 3 issue · 0 fail
-on 2026-09-04. Both moved out verbatim:*
-[`2026-09-10-archive-pass.md`](worklist-archive/2026-09-10-archive-pass.md).
-**The one code-touching decision from ⓞ still stands: LANDSCAPE, LOCKED** — every geometry proof
-runs at 1440 × 895.
 
 ## 💡 FIRST-USE AGE CHECK + THE T&C PAGE — waiting on Angel, not on code
 
@@ -493,6 +486,7 @@ Playwright is **borrowed via `NODE_PATH`, not vendored** — this repo has no no
 
 | file | what's in it |
 |---|---|
+| [`worklist-archive/2026-09-10-archive-pass.md`](worklist-archive/2026-09-10-archive-pass.md) | **the fourth cut** — 2026-09-10, verified line-for-line: **ⓞ THE COUNTER VISIT** (closed the day Angel worked the till — the prep prose; *the one code-touching decision it carried still stands: **LANDSCAPE, LOCKED**, every geometry proof runs at 1440 × 895*) and **ⓒ5 PAM'S RUN** (14 pass · 3 issue · 0 fail, 2026-09-04). The day itself is the HTML beside it |
 | [`worklist-archive/2026-09-04-archive-pass.md`](worklist-archive/2026-09-04-archive-pass.md) | **the third cut** — 1,730 lines moved out verbatim on the night of 2026-09-04, 0 lost: the 11-shot contact sheet, the 131 no-op classes (ⓔ + ⓙ), the masked-box pad bug (ⓕ), the invisible refusal (ⓖ), the dead effect (ⓗ), the ungreyed save (ⓘ), the category picker (ⓚ), the gun that pressed the button (ⓛ), the daytime close (ⓝ), the date-filter thread (ⓒ2–ⓒ4), and everything written before 2026-09-03 |
 | [`worklist-archive/2026-08-27-archive-pass.md`](worklist-archive/2026-08-27-archive-pass.md) | **the second cut** — 889 lines moved out verbatim 2026-08-27: the member card, ART-AB12, the join offer, the counter card, bundle pricing, the price warning, the whole FourTwenty thread, the six till reports, adopt-images, both prod-live days |
 | [`worklist-archive/2026-08-18plus-and-compliance.md`](worklist-archive/2026-08-18plus-and-compliance.md) | Gate Zero, and the whole 18+ evidence thread 08-10 → 08-13 |
