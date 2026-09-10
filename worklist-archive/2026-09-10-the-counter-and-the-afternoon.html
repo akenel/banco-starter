@@ -286,6 +286,80 @@ offline, and intake is <i>Beats "Goa"</i> → <i>"Hip Hop"</i> → <i>"Reggae"</
   Angel's hands, not in the repo.</li>
 </ul>
 
+<h2>The night shift — the age gate, 2026-09-10 evening <span class="tag">9c292b8</span></h2>
+
+<p>Angel picked the age gate off the deck. The deck said to prove it "by counting the flag per
+category", and that instruction was wrong: <code>Papers &amp; Filters</code> is <i>legitimately</i>
+mixed — blunts gate, booklets do not — so a category count reports noise. What actually found the bug
+was Angel's eye, and his eye used a better rule: <b>siblings</b>. Three Cyclones gated, two not. That
+is mechanical — group the catalogue by brand token, report every group that disagrees with itself.</p>
+
+<p>45 clusters disagreed. Most honestly (elfbar 190 gated / 54 open — the 0&nbsp;mg variants are
+<i>meant</i> to be open). The signal was in the near-unanimous ones, and reading the 45 rows one by one
+separated the six correct refusals (a tobacco-<i>free</i> snuff, a glass tube with a spoon, a humidifier,
+a lotion, an ointment, a shisha gasket) from nine real leaks in two families.</p>
+
+<p><b>Family one: a cosmetics keyword was un-gating hashish.</b> <code>_CBD_OPEN</code> carries
+<code>creme|cream</code> for the CBD cosmetic. <b>"Cream" is also a hashish grade</b> — Black Afghan
+Cream, Manali Cream, Bubble Cream, Creamy. Five products, sellable with no ID, and three of them filed
+under <b>Creams &amp; Topicals</b>: Black Afghan hashish in the moisturiser aisle. The same shape as the
+tomato variety "Brandywine" that once classified as alcohol, running the other way.</p>
+
+<p><b>Family two: flower whose title never prints the letters CBD.</b> <code>Blüten</code> is German for
+flower and <code>_CBD_TOKEN</code> did not know the word. Seven BLOW rows, two BudBouncy, two Cannabees,
+two "Kleine Blüten" — all hand-captured, all with no supplier tags, all open.</p>
+
+<p><b>And the Cyclones.</b> 19 products on one shelf, 16 gated, and every one of the 16 gates because its
+<i>flavour name</i> happens to contain "Blunt" or "Cigar". Whether a customer was asked for ID depended
+on the marketing.</p>
+
+<h3>What was thrown away, and why that is the point</h3>
+
+<p>Every candidate word was counted against the 5,436 live products <i>before</i> it was written into a
+regex. Two were rejected:</p>
+
+<ul>
+<li><code>weed</code> — <b>17 open matches, not one a substance</b>: an ashtray, a retro tin sign, three
+  grinders, a rolling-tray console, a joint box, a cigarette case, a packaging grip, and two
+  activated-carbon filters that matched only because "S<b>weed</b>z" contains it.</li>
+<li><code>kush</code> — <b>9 open matches</b>: two rolling trays, a grinder, a grinder card, a
+  <b>board game</b>, two <code>Tabakersatz</code> herbal substitutes, and G-Rollz empty cones.</li>
+</ul>
+
+<p>Words that ride on <b>artwork</b> are not signals. The two that survived were measured clean:
+<code>Blüten</code> (6 open matches, all six real flower) and <code>cyclone</code> (2 open, both real,
+17 already gated).</p>
+
+<p>The first cut still got it wrong. A generic <code>hemp\s*cones?</code> immediately gated <b>"RAW
+Organic Hemp Cones — <i>leere</i> Cones"</b> — empty rolling papers, the exact thing this file's own
+G-Rollz note says must never be gated. The brand is the signal; the shape is not. Caught by the
+whole-catalogue A/B, not by reading the diff.</p>
+
+<p>And <b>"Hausgemachtes Haschisch von Andi Haller"</b> is a <b>book</b>, CHF 14.90, whose own description
+says "the author … has already published books". Nothing else in that title distinguishes it from a bar of
+hash, <i>because nothing can</i> — "Homemade Hashish" is a fine name for hash. Hence a byline rule:
+case-sensitive, anchored to the end, so "Hash von der Sonne" still gates.</p>
+
+<h3>The thing found by accident, which may be bigger</h3>
+
+<p>Testing whether the obvious fix for four over-gated rolling papers was safe (it is not —
+<code>filter</code> would un-gate <i>Cyclones Blunt mit Holzfilter</i>) turned up <b>~50 accessories in
+the live shop that currently demand ID</b>: <code>Zigaretten-Filter OCB Slim</code>,
+<code>Zigaretten-Hülsen 100er GIZEH</code>, <code>Zigaretten-Stopfmaschine Powermatic 3+</code>.
+<code>_TOBACCO_ACCESSORY</code> was written to prevent exactly this and is consulted <i>only</i> on the
+supplier-tag path, never on the title path — so <code>Zigaretten-</code> gates them first. Deck item 1b.
+Over-gating is not the harmless direction: it teaches staff the prompt is noise.</p>
+
+<h3>The check that makes it stay fixed</h3>
+
+<p><code>scripts/prove-age-gate-siblings.py</code>, three properties. <b>A</b>: the 14 field-found leaks
+gate, the 22 measured accessories do not. <b>B</b>, the one that matters — a <b>ratchet</b> across all
+5,436 live products against the previously committed classifier: <i>the gate may widen, never narrow</i>.
+29 newly gated, <b>0 newly un-gated, 0 class drift</b> (a <code>cbd_hemp → tobacco_nicotine</code> move
+would silently drop the <code>thc_report</code> duty and keep the gate, so it is checked separately).
+<b>C</b>: <code>weed</code> and <code>kush</code> stay rejected, pinned with the counts that rejected
+them. Reverted on purpose: 14 red. Restored: green.</p>
+
 <p class="meta" style="margin-top:34px">Written 2026-09-10 evening. Four defects, four found by the
 person standing at the counter. <span class="tag">the tablet run is still to come</span></p>
 </div>

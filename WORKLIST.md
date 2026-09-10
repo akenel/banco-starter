@@ -40,10 +40,12 @@ Two sheets run: **9 pass · 0 fail**, then **25 pass · 2 issue · 0 fail**.
 
 **What is still open, in the order it matters** (detail in that file, do not re-derive it here):
 
-1. 🔞 **The age gate misses siblings.** *Cyclones Hemp Original* and *Cycle Cones Mean Green* carry no
-   18+ beside three Cyclones blunt cones that do; **two nicotine pod flavours carry none** beside an
-   Elfbar that does. LESSON #2 again — decide the gate by CLASS, not by matching the title, and prove
-   it by counting the flag per category.
+1. ~~🔞 **The age gate misses siblings.**~~ **FIXED `9c292b8`** — 29 products, 5 hashish sold with no
+   ID. Ratchet proof, 5,436 swept, 0 un-gated. **14 live rows await Angel**; `ELFBAR 4in1 Pod Cherry
+   ICE` needs the packet. Full record → the archive page below.
+1b. 🔓 **NEW — the gate fires on ~50 ACCESSORIES** (`Zigaretten-Filter`/`-Hülsen`/`-Stopfmaschine`).
+   `_TOBACCO_ACCESSORY` runs only on the supplier-tag path. Naive fix un-gates real blunts (`filter`
+   is in *Holzfilter*). Treuhänder call. LESSON #12 — over-gating teaches staff to wave it away.
 2. ⚠️ **The placeholder guard is still two values wide.** `UNVERIFIED_PRICES = (99.00, 999.99)`. The
    six live rows at 999.00 were moved to 999.99 on 2026-09-10 (Angel likes the guard: *"it basically
    forced the user to put the right price in"*), **but type 999.00 tomorrow and it walks through.**
@@ -93,9 +95,7 @@ Two sheets run: **9 pass · 0 fail**, then **25 pass · 2 issue · 0 fail**.
    folio OFF — that is right for TESTING the on-screen pad and wrong for a cashier's first week. Two
    different questions: *does the pad work* vs *what does Layla learn on*. Decide before go-live.
 
-*Older deck notes below. The 2026-09-04 method note and that night's work are in
-[`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md).*
-*The 2026-09-04 method note, and what went in that night (four fixes, five suites, three sheets,
+*Older deck notes below. The 2026-09-04 method note, and what went in that night (four fixes, five suites, three sheets,
 54 pass · 5 issue · 0 fail), are in [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md).*
 
 ### What is actually a CODING task — asked and answered 2026-09-06
