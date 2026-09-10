@@ -1,0 +1,675 @@
+<title>Pack pricing you can read — Banco UAT</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════════════════
+   THE SHEET. Everything below this block is the reusable shell — to make a new UAT sheet,
+   change only this object. Kept in the repo as onboarding/testsheets/TEMPLATE.html.
+
+   step fields:  id · do (required) · expect · why (italic aside) · callout (boxed, for the
+                 load-bearing ones) · codes[] (tap to copy) · link {href,text}
+                 ticket {title, body} — for a sheet whose steps are FILED THROUGH the 💬
+                 button. Renders a labelled block with both strings tap-to-copy, so the
+                 tester pastes rather than composes. Angel, 2026-09-06: "give me the link,
+                 the title you want me to put into that feedback and the body text too …
+                 that way we can have a super controlled set of tickets".
+   ═══════════════════════════════════════════════════════════════════════════════════════ */
+const SHEET = {
+  key:      'banco-uat-pack-pricing-reads-right-v1',
+  eyebrow:  'Banco POS · UAT',
+  title:    'Pack pricing you can read',
+  standfirst: 'On 10 September, at the counter, seven King Size papers on "3 for CHF 5.00" rang up as '
+            + '<b>5.14 + 5.14 + 1.72</b>. Twelve francs — the right twelve francs — shown as three prices that are '
+            + 'on no shelf label, that no customer can pay in coins, and that changed again every time the next '
+            + 'packet was scanned. Angel: <i>"a complete mess... seemed to work on some, did not work on others."</i> '
+            + 'It worked on some because a line only goes odd once a <b>second product</b> joins its deal. '
+            + 'The fix keeps the shelf price on every line and shows the deal as one saving. '
+            + '<b>No money moved</b> — every total is the same franc it was. A GO means the lines can be checked '
+            + 'by a person: quantity times the price on the packet, and the bottom line follows.',
+  meta: [['Shop','banco.wolfhold.app','https://banco.wolfhold.app/pos/scan'],
+         ['Log in as','felix or layla'],
+         ['Build','b740 · 6513fb3'],
+         ['Deployed','10 Sep 2026'],
+         ['Budget','~15 min']],
+  safety: { title: 'Section E rings ONE real sale. Everything before it does not.',
+            body: 'A-D end with 🗑️ Clear and touch nothing. Section E deliberately completes one cash sale, '
+                + 'because the receipt is the only place the deal can still be printed wrong and no fix reaches '
+                + 'paper afterwards. That sale lands in the pre-prod ledger as a rehearsal line. Ring it ONCE.' },
+
+  setup: { needs: ['the build stamp reads b740 or higher',
+                   'a hard refresh since the deploy (Ctrl+Shift+R on desktop; on the tablet reload TWICE)',
+                   'the deal products are the CHF 2.00 papers and CHF 4.00 rolls listed in each step'] },
+
+  sections: [
+    { id: 'A', title: 'One product, one deal — the case that always looked fine', time: '3 min', steps: [
+      { id: 'A1',
+        do: 'Add <b>Gizeh King Size Slim</b> and set the quantity to <b>2</b>.',
+        codes: ['42425700'],
+        expect: '<b>Nothing.</b> Line reads <b>CHF 4.00</b>, no <b>pack ✓</b>, no saving anywhere',
+        why: 'Two is below the three-pack rung. A till that claims a deal it is not giving is worse than one that says nothing.',
+        callout: 'The quiet check. A feature only ever tested for firing will fire on everything.' },
+      { id: 'A2',
+        do: 'Take that same line to <b>3</b>.',
+        expect: 'Line <b>CHF 6.00</b> · Subtotal <b>CHF 6.00</b> · saved <b>CHF 1.00</b> · TOTAL <b>CHF 5.00</b>',
+        why: 'The line now shows 3 × the price on the packet. The deal is a separate, named saving — not a strange unit price.' },
+      { id: 'A3',
+        do: 'Take it to <b>4</b>.',
+        expect: 'Line <b>CHF 8.00</b> · saved <b>CHF 1.00</b> · TOTAL <b>CHF 7.00</b>',
+        why: 'Ralph, who works the counter: a fourth packet starts the deal again, it does not get a share of it. '
+           + 'Four is one pack at 5.00 plus one single at 2.00. If the total says <b>6.67</b> the old rule is back.',
+        callout: 'CHF 7.00, never 6.67. This is the number the shop actually charges.' },
+      { id: 'A4',
+        do: '🗑️ <b>Clear</b> the cart.',
+        expect: 'Empty cart' },
+    ]},
+
+    { id: 'B', title: 'Two products, one deal — the case that broke', time: '5 min', steps: [
+      { id: 'B1',
+        do: 'Add <b>Gizeh King Size Slim</b> × <b>2</b>, then <b>OCB King Size slim black</b> × <b>1</b>.',
+        codes: ['42425700', '30058569'],
+        expect: 'Lines read <b>CHF 4.00</b> and <b>CHF 2.00</b> · Subtotal <b>CHF 6.00</b> · saved <b>CHF 1.00</b> · TOTAL <b>CHF 5.00</b>',
+        why: 'Three different papers on one deal is what a customer actually buys — a Gizeh, an OCB and a Raw, not three of one. '
+           + 'Both lines keep the price on their own packet.' },
+      { id: 'B2',
+        do: 'Add <b>Greengo King Size</b> × <b>1</b>.',
+        codes: ['85951815'],
+        expect: 'Three lines: <b>4.00 · 2.00 · 2.00</b> · Subtotal <b>CHF 8.00</b> · saved <b>CHF 1.00</b> · TOTAL <b>CHF 7.00</b>',
+        why: 'Four in the deal. Same Ralph rule across a mix as within one line.' },
+      { id: 'B3',
+        do: 'Now rebuild the basket that failed at the counter: <b>Gizeh King Size Slim × 4</b>, '
+          + '<b>OCB King Size slim black × 3</b>, <b>Greengo King Size × 1</b> — eight papers across three products.',
+        codes: ['42425700', '30058569', '85951815'],
+        expect: 'Lines <b>8.00 · 6.00 · 2.00</b> · Subtotal <b>CHF 16.00</b> · saved <b>CHF 2.00</b> · TOTAL <b>CHF 14.00</b>',
+        why: 'This is the shape that produced 5.14 and 1.72. Eight papers = two packs at 5.00 plus two singles at 2.00 = 14.00.',
+        callout: 'Every line must be a whole multiple of CHF 2.00. If you see a single rappen that is not 00, 50 or a clean multiple of the shelf price, that is a FAIL.' },
+      { id: 'B4',
+        do: 'Read the <b>🏷️ Deals in this basket</b> block underneath the cart.',
+        expect: 'One deal, <b>3 for CHF 5.00 · 8 × CHF 14.00 (saved CHF 2.00)</b>, naming <b>all three</b> products',
+        why: 'A per-line badge says a line is in a deal. Only this block can say WHICH lines are in it together — the question Angel asked twice at the counter.' },
+      { id: 'B5',
+        do: 'Check the arithmetic on the screen with your own eyes: add the three line figures up.',
+        expect: 'They add to the <b>Subtotal</b>, and Subtotal − saved = <b>TOTAL</b>',
+        why: 'Before the fix the panel showed Subtotal 38.00, TOTAL 38.00 and "saved CHF 6.00" — with nothing anywhere showing 44.00. '
+           + 'A saving with nothing to have saved it FROM reads as a mistake.',
+        callout: 'The column has to close. This is the whole point of the change.' },
+    ]},
+
+    { id: 'C', title: 'Two different deals must never merge', time: '2 min', steps: [
+      { id: 'C1',
+        do: 'Keeping the papers, add <b>Gizeh Rolls Slim</b> × <b>3</b> (CHF 4.00 rolls).',
+        codes: ['42238072'],
+        expect: 'Roll line <b>CHF 12.00</b>, and the deals block now lists <b>TWO</b> separate deals — <b>3 for CHF 5.00</b> and <b>3 for CHF 10.00</b>',
+        why: 'A roll and a paper are different deals at different prices. Pooling them would invent a deal the shop never offered.' },
+      { id: 'C2',
+        do: 'Read the roll line and the paper lines together.',
+        expect: 'Rolls at <b>CHF 4.00</b> each, papers at <b>CHF 2.00</b> each — no line borrows the other deal price',
+        why: 'The deal terms ARE the group. 10.00 is not 5.00, so nothing can cross.' },
+      { id: 'C3',
+        do: '🗑️ <b>Clear</b> the cart.',
+        expect: 'Empty cart' },
+    ]},
+
+    { id: 'D', title: 'The papers that are NOT in the deal', time: '3 min', steps: [
+      { id: 'D1',
+        do: 'Add <b>Gizeh King Size Slim × 3</b>, then add <b>Rips Extra Dünn King Size schwarz</b> × <b>1</b>.',
+        codes: ['42425700', '5027978771263'],
+        expect: 'The Rips line reads <b>CHF 2.00</b>, has <b>no pack ✓</b>, and is <b>not</b> counted in the deal',
+        why: 'Rips is CHF 2.00 — the same price, the same shelf, the same King Size paper — and carries no deal at all. '
+           + 'It is correct that it rings full price. The question this step really asks is whether the till SAYS so.',
+        callout: 'Watch what the till tells you about that line. If it says nothing at all, mark this ISSUE and write down what you saw — '
+               + 'a paper sitting silently outside a deal it looks like it belongs to is exactly how "why is this one different" starts.' },
+      { id: 'D2',
+        do: 'Add <b>Gizeh King Size Slim mit Filter 420 Limited Edition</b> × <b>2</b> (CHF 2.40).',
+        codes: ['2000000212395'],
+        expect: 'Line reads <b>CHF 4.80</b>, no deal, and the papers deal above is <b>unchanged</b>',
+        why: 'A different price is a different product. It must not be dragged into a 2.00 deal, and it must not disturb one.' },
+      { id: 'D3',
+        do: 'Type <b>10</b> into <b>Discount %</b>.',
+        expect: 'The deal-priced lines do <b>not</b> discount. Only the non-deal lines move, and the till says so out loud',
+        why: 'A quantity break is already the deal — a second discount on top is the shop paying twice. '
+           + 'A manager needs to see WHY the number did not move as much as expected.' },
+      { id: 'D4',
+        do: 'Set Discount back to <b>0</b> and 🗑️ <b>Clear</b>.',
+        expect: 'Empty cart, discount 0' },
+    ]},
+
+    { id: 'E', title: 'The receipt — the layer no fix reaches afterwards', time: '4 min', steps: [
+      { id: 'E1',
+        do: 'Rebuild the B3 basket: <b>Gizeh King Size Slim × 4</b>, <b>OCB King Size slim black × 3</b>, '
+          + '<b>Greengo King Size × 1</b>. Press <b>💵 Checkout</b>.',
+        codes: ['42425700', '30058569', '85951815'],
+        expect: 'Checkout screen: lines <b>8.00 · 6.00 · 2.00</b> · Subtotal <b>CHF 16.00</b> · a <b>Deals −CHF 2.00</b> row · TOTAL <b>CHF 14.00</b>',
+        why: 'The last screen before the drawer opens. If a line is priced by a deal, this is the final chance to notice.' },
+      { id: 'E2',
+        do: 'Ring it as <b>Cash</b>, tender <b>CHF 20.00</b>. This is the one real sale on this sheet.',
+        expect: 'Change <b>CHF 6.00</b>, and the receipt opens',
+        callout: 'Ring this ONCE. It is a rehearsal line in the pre-prod ledger and cannot be taken back out.' },
+      { id: 'E3',
+        do: 'On the receipt, take each row and multiply it yourself: quantity × price.',
+        expect: 'Every row multiplies out — <b>4 × 2.00 = 8.00</b>, <b>3 × 2.00 = 6.00</b>, <b>1 × 2.00 = 2.00</b>',
+        why: 'Until this build the receipt printed the discounted figure with no discount column, so a pack deal printed as '
+           + '<b>"3 × CHF 2.00 = CHF 5.14"</b> on a sheet of paper the customer takes home. Seven such receipts have already been printed.',
+        callout: 'This is the only check a customer can actually perform. If a row does not multiply out, it is a FAIL, however right the total is.' },
+      { id: 'E4',
+        do: 'Read the bottom of the receipt.',
+        expect: 'Subtotal <b>CHF 16.00</b> · Discount <b>−CHF 2.00</b> · TOTAL <b>CHF 14.00</b>',
+        why: 'The rows above must add up to the subtotal printed under them, and the one Discount line carries the deal.' },
+      { id: 'E5',
+        do: 'Press <b>🖨️ Print</b> and look at the print preview (do not send it to a printer unless you want the paper).',
+        expect: 'The same three numbers on the sheet: <b>16.00</b>, <b>−2.00</b>, <b>14.00</b>, and every row still multiplying out',
+        why: 'Screen and paper are two different documents. The print stylesheet has hidden a fault before — on 7 September every '
+           + 'text-xs line printed LARGER than the line above it, invisible in a browser for as long as the receipt had existed.' },
+    ]},
+
+    { id: 'F', title: 'Put the shop back', time: '1 min', steps: [
+      { id: 'F1',
+        do: '🗑️ <b>Clear</b> the cart. Leave no basket behind.',
+        expect: 'Empty cart',
+        why: 'A cart left sitting is a cart the next person rings.' },
+    ]},
+  ],
+  closing: [
+    'Only <b>section E</b> rings a sale. Everything else ends in 🗑️ Clear.',
+    'The <b>totals should not have changed at all</b> by this work. If any TOTAL on this sheet differs from what the till charged yesterday, that is a FAIL and it is the serious kind — say so immediately.',
+    'If a step is <b>ISSUE</b> rather than FAIL, it worked but something was off — wording, layout, speed, or it simply confused you. Those are worth as much as the failures, and D1 is the one most likely to earn one.',
+  ],
+};</script>
+
+<style>
+  :root{
+    --paper:#f1f4f2; --card:#fff; --ink:#141d1b; --ink-2:#41514e; --ink-3:#71847f;
+    --rule:#dfe6e2; --rule-2:#eef2f0;
+    --accent:#136259; --accent-soft:#e2efec; --accent-ink:#0d4841;
+    --bad:#a51b1b; --bad-soft:#fbe9e9; --warn:#8a4b06; --warn-soft:#fcf0dd;
+    --good:#1c6b3a; --good-soft:#e4f2e8;
+    --shadow:0 1px 2px rgba(20,29,27,.05), 0 8px 24px -16px rgba(20,29,27,.28);
+  }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+    --paper:#0e1413; --card:#161e1c; --ink:#e8efec; --ink-2:#a3b3ae; --ink-3:#7b8c87;
+    --rule:#27332f; --rule-2:#1d2725;
+    --accent:#5cc4b4; --accent-soft:#12312d; --accent-ink:#8fdcd0;
+    --bad:#f08b8b; --bad-soft:#3a1a1a; --warn:#e5aa5c; --warn-soft:#382512;
+    --good:#7bce9c; --good-soft:#14301f;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  }}
+  :root[data-theme="dark"]{
+    --paper:#0e1413; --card:#161e1c; --ink:#e8efec; --ink-2:#a3b3ae; --ink-3:#7b8c87;
+    --rule:#27332f; --rule-2:#1d2725;
+    --accent:#5cc4b4; --accent-soft:#12312d; --accent-ink:#8fdcd0;
+    --bad:#f08b8b; --bad-soft:#3a1a1a; --warn:#e5aa5c; --warn-soft:#382512;
+    --good:#7bce9c; --good-soft:#14301f;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  }
+  *{box-sizing:border-box}
+  body{background:var(--paper); color:var(--ink); margin:0;
+       font-family:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif; font-size:16px; line-height:1.55}
+  .wrap{max-width:960px; margin:0 auto; padding:0 20px 100px}
+  h1,h2{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",sans-serif; text-wrap:balance; margin:0}
+  .mono{font-family:"IBM Plex Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums}
+
+  header{padding:40px 0 22px; border-bottom:2px solid var(--ink)}
+  .eyebrow{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.14em;
+           text-transform:uppercase; color:var(--accent); font-weight:600}
+  h1{font-size:clamp(32px,5.5vw,50px); font-weight:700; line-height:1.03; letter-spacing:-.015em; margin:10px 0 12px}
+  .standfirst{color:var(--ink-2); max-width:64ch; margin:0}
+  .meta{display:flex; flex-wrap:wrap; gap:8px 22px; margin-top:18px;
+        font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--ink-3)}
+  .meta b{color:var(--ink-2); font-weight:600}
+  .meta a{color:var(--accent)}
+
+  /* who ran it */
+  .who{display:flex; flex-wrap:wrap; gap:10px; margin-top:16px; align-items:center}
+  .who input, .who select{font:inherit; font-size:14px; padding:7px 11px; border-radius:5px;
+             border:1px solid var(--rule); background:var(--card); color:var(--ink)}
+  .who input{min-width:150px}
+  .who select{min-width:0; cursor:pointer}
+  .who select:invalid, .who select[data-empty="1"]{color:var(--ink-3)}
+  .who input:focus-visible, .who select:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
+  .toggle{display:inline-flex; align-items:center; gap:7px; font-size:13px; color:var(--ink-2);
+          cursor:pointer; user-select:none; margin-left:auto}
+
+  /* scoreboard */
+  .board{position:sticky; top:0; z-index:20; background:var(--paper);
+         border-bottom:1px solid var(--rule); padding:10px 0; margin-bottom:6px}
+  .board-in{display:flex; align-items:center; gap:12px; flex-wrap:wrap}
+  .bar{flex:1 1 160px; min-width:120px; height:8px; border-radius:99px; background:var(--rule);
+       overflow:hidden; display:flex}
+  .bar i{display:block; height:100%; width:0; transition:width .25s ease}
+  .bar .p{background:var(--good)} .bar .i{background:var(--warn)} .bar .f{background:var(--bad)}
+  .tally{font-family:"IBM Plex Mono",monospace; font-size:13px; color:var(--ink-2); white-space:nowrap}
+  .tally b{color:var(--ink)}
+  .clock{font-family:"IBM Plex Mono",monospace; font-size:13px; color:var(--ink-3); white-space:nowrap}
+  .verdict{font-family:"IBM Plex Sans Condensed",sans-serif; font-weight:700; font-size:13px;
+           letter-spacing:.06em; text-transform:uppercase; padding:5px 12px; border-radius:4px;
+           background:var(--rule-2); color:var(--ink-3); white-space:nowrap}
+  .verdict.go{background:var(--good-soft); color:var(--good)}
+  .verdict.issues{background:var(--warn-soft); color:var(--warn)}
+  .verdict.nogo{background:var(--bad-soft); color:var(--bad)}
+  .btn{background:none; border:1px solid var(--rule); color:var(--ink-2); font:inherit;
+       font-size:12px; padding:5px 11px; border-radius:4px; cursor:pointer; white-space:nowrap}
+  .btn:hover{border-color:var(--ink-3); color:var(--ink)}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600}
+
+  .stop{display:flex; gap:14px; align-items:flex-start; margin:20px 0 30px; padding:16px 18px;
+        background:var(--bad-soft); border-left:4px solid var(--bad); border-radius:0 6px 6px 0}
+  .stop .sym{font-size:22px} .stop p{margin:0}
+  .stop strong{font-family:"IBM Plex Sans Condensed",sans-serif; font-size:17px; display:block; margin-bottom:2px}
+  .stop small{color:var(--ink-2); font-size:13.5px}
+
+  section{margin:0 0 32px}
+  .sec-head{display:flex; align-items:center; gap:12px; padding-bottom:9px;
+            border-bottom:1px solid var(--ink)}
+  .sec-letter{font-family:"IBM Plex Mono",monospace; font-weight:600; font-size:13px;
+              color:var(--card); background:var(--ink); width:24px; height:24px; border-radius:3px;
+              display:grid; place-items:center; flex:none}
+  .sec-head h2{font-size:21px; font-weight:700; letter-spacing:-.01em; flex:1}
+  .sec-time{font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--ink-3)}
+
+  .step{border-bottom:1px solid var(--rule-2); padding:16px 0}
+  .step:last-child{border-bottom:0}
+  .step-top{display:grid; grid-template-columns:42px 1fr auto; gap:0 14px; align-items:start}
+  .sid{font-family:"IBM Plex Mono",monospace; font-size:12px; font-weight:600; color:var(--ink-3); padding-top:3px}
+  .do{margin:0 0 7px}
+  .expect{color:var(--ink-2); font-size:15px; padding-left:16px; border-left:2px solid var(--accent-soft); margin:0 0 6px}
+  .expect b{color:var(--ink)}
+  .why{color:var(--ink-3); font-size:13.5px; font-style:italic; margin:0}
+  .callout{margin:12px 0 0; padding:12px 15px; background:var(--warn-soft);
+           border-left:3px solid var(--warn); border-radius:0 5px 5px 0; font-size:14.5px}
+  .hidden-expect{padding-left:16px; border-left:2px dashed var(--rule); margin:0 0 6px}
+  .hidden-expect button{background:none; border:0; color:var(--accent); font:inherit; font-size:14px;
+                        cursor:pointer; text-decoration:underline; padding:0}
+
+  .marks{display:flex; gap:5px; flex-wrap:wrap; justify-content:flex-end}
+  .mark{font-family:"IBM Plex Sans Condensed",sans-serif; font-weight:700; font-size:12px;
+        letter-spacing:.04em; padding:7px 11px; border-radius:4px; cursor:pointer;
+        border:1px solid var(--rule); background:var(--card); color:var(--ink-3)}
+  .mark:hover{border-color:var(--ink-3)}
+  .mark:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+  .step[data-v="pass"]  .mark[data-m="pass"] {background:var(--good); border-color:var(--good); color:#fff}
+  .step[data-v="issue"] .mark[data-m="issue"]{background:var(--warn); border-color:var(--warn); color:#fff}
+  .step[data-v="fail"]  .mark[data-m="fail"] {background:var(--bad);  border-color:var(--bad);  color:#fff}
+  .step[data-v="pass"] {background:linear-gradient(90deg,var(--good-soft),transparent 38%)}
+  .step[data-v="issue"]{background:linear-gradient(90deg,var(--warn-soft),transparent 38%)}
+  .step[data-v="fail"] {background:linear-gradient(90deg,var(--bad-soft), transparent 38%)}
+  .stamp{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--ink-3); text-align:right; margin-top:4px}
+
+  .say{margin:10px 0 0 56px}
+  .say textarea{width:100%; min-height:40px; resize:vertical; padding:8px 11px; border-radius:5px;
+                border:1px solid var(--rule); background:var(--card); color:var(--ink);
+                font:inherit; font-size:14px}
+  .say textarea:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
+  .step[data-v="fail"] .say textarea, .step[data-v="issue"] .say textarea{border-color:var(--warn)}
+  .say label{display:block; font-size:11.5px; color:var(--ink-3); margin-bottom:4px;
+             font-family:"IBM Plex Mono",monospace; letter-spacing:.04em; text-transform:uppercase}
+
+  .codes{display:flex; flex-wrap:wrap; gap:6px; margin:8px 0}
+  /* THE LINK IS THE ACTION. `link {href,text}` was documented as a step field from
+     the day this template was written and the renderer never emitted it — so every
+     sheet that set one silently had none, and Angel hit exactly that on 2026-09-06:
+     "we need a link for each page IMHO". It is now the biggest thing in the step
+     after the instruction, because on a walk it is what the hand goes to. */
+  .golink{display:inline-block; margin:9px 0 2px; padding:9px 14px; border-radius:9px;
+          background:var(--ink); color:var(--paper); text-decoration:none;
+          font:600 14px/1.2 "IBM Plex Sans",system-ui,sans-serif; letter-spacing:.01em}
+  .golink:hover{filter:brightness(1.15)}
+  .golink:active{transform:translateY(1px)}
+  .ean{font-family:"IBM Plex Mono",monospace; font-size:13.5px; font-weight:600;
+       background:var(--accent-soft); color:var(--accent-ink); padding:3px 9px; border-radius:4px;
+       cursor:pointer; border:1px solid transparent}
+  .ean:hover{border-color:var(--accent)}
+  .ean.copied{background:var(--good-soft); color:var(--good)}
+  /* PASTE, DO NOT COMPOSE. A controlled run needs every ticket worded identically —
+     the moment the tester writes their own body, the only variable stops being the
+     screen. Both strings are tap-to-copy (.ean carries the copy handler). */
+  .ticket{margin:10px 0 2px; border:1px solid var(--rule); border-left:3px solid var(--accent);
+          border-radius:8px; padding:9px 11px; background:var(--paper-2,transparent)}
+  .ticket .tk-h{font:700 10px/1 "IBM Plex Mono",monospace; letter-spacing:.1em;
+                text-transform:uppercase; color:var(--ink-3); margin-bottom:7px}
+  .ticket .tk-r{display:flex; gap:9px; align-items:flex-start; margin:5px 0}
+  .ticket .tk-l{font:600 10.5px/1.7 "IBM Plex Mono",monospace; color:var(--ink-3);
+                text-transform:uppercase; min-width:38px; flex:none}
+  .ticket .ean{font-family:inherit; font-size:13px; font-weight:500; line-height:1.45;
+               text-align:left; white-space:normal}
+
+  .close{margin-top:40px; padding-top:26px; border-top:2px solid var(--ink)}
+  .close h2{font-size:23px; margin-bottom:8px}
+  .close li{color:var(--ink-2); font-size:14.5px; margin-bottom:7px}
+  .summary{margin-top:16px; padding:16px 18px; background:var(--card); border:1px solid var(--rule);
+           border-radius:8px; box-shadow:var(--shadow)}
+  .summary pre{margin:0; font-family:"IBM Plex Mono",monospace; font-size:12.5px; line-height:1.65;
+               white-space:pre-wrap; color:var(--ink-2); max-height:340px; overflow:auto}
+  .sumbar{display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; align-items:center}
+  .said{color:var(--good); font-size:12px; font-family:"IBM Plex Mono",monospace}
+
+  @media (max-width:680px){
+    .step-top{grid-template-columns:34px 1fr; gap:0 10px}
+    .marks{grid-column:2; padding-top:10px; justify-content:flex-start}
+    .say{margin-left:44px}
+  }
+  @media (prefers-reduced-motion:reduce){ *{transition:none!important} }
+  @media print{ .board,.btn,.marks,.who,.toggle{display:none!important} body{background:#fff} }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow" id="eyebrow"></div>
+    <h1 id="title"></h1>
+    <p class="standfirst" id="standfirst"></p>
+    <div class="meta" id="meta"></div>
+    <div class="who">
+      <input id="who-name" placeholder="Tested by…" autocomplete="off">
+      <input id="who-where" placeholder="Till / device…" autocomplete="off">
+      <!-- The three that have actually invalidated a run. They ride in the copied report, so
+           a result can never again be read back without knowing how it was produced. -->
+      <select id="who-folio" title="Folio keyboard">
+        <option value="">folio…?</option>
+        <option value="folio OFF">folio OFF</option>
+        <option value="folio ON">folio ON</option>
+      </select>
+      <select id="who-gun" title="Scanner gun">
+        <option value="">gun…?</option>
+        <option value="gun in hand">gun in hand</option>
+        <option value="no gun">no gun</option>
+      </select>
+      <select id="who-orient" title="Orientation">
+        <option value="">orientation…?</option>
+        <option value="landscape">landscape</option>
+        <option value="portrait">portrait</option>
+      </select>
+      <label class="toggle"><input type="checkbox" id="training"> Training mode — hide the expected result</label>
+    </div>
+  </header>
+
+  <div class="board">
+    <div class="board-in">
+      <div class="bar"><i class="p" id="bp"></i><i class="i" id="bi"></i><i class="f" id="bf"></i></div>
+      <div class="tally"><b id="done">0</b>/<span id="total">0</span> · <span id="np">0</span>✓ <span id="ni">0</span>! <span id="nf">0</span>✕</div>
+      <div class="clock" id="clock">—</div>
+      <div class="verdict" id="verdict">Not started</div>
+      <button class="btn" id="reset" type="button">Clear</button>
+    </div>
+  </div>
+
+  <div class="stop"><div class="sym">⛔</div><p><strong id="safety-t"></strong><small id="safety-b"></small></p></div>
+
+  <div id="sheet"></div>
+
+  <div class="close">
+    <h2>Results</h2>
+    <ul id="closing"></ul>
+    <div class="summary">
+      <div class="sumbar">
+        <button class="btn primary" id="copy" type="button">Copy results</button>
+        <button class="btn" id="print" type="button">Print / PDF</button>
+        <span class="said" id="said"></span>
+      </div>
+      <pre id="sum">Nothing marked yet.</pre>
+    </div>
+  </div>
+</div>
+
+<noscript><p style="padding:20px;color:#a51b1b">This sheet needs JavaScript — it records your marks as you go.</p></noscript>
+
+<script>
+(function () {
+  var S = SHEET, state = {}, started = null, tick = null;
+
+  /* ── SECTION 0, PREPENDED BY THE SHELL SO NO SHEET CAN FORGET IT ────────────────────
+     2026-09-04: two runs were invalidated after the fact because the tester had the folio
+     keyboard attached, so Banco's own on-screen pad never appeared — and the pad was the
+     subject of the test. One PASS had to be thrown out; the date fields had passed for a
+     whole day while being unusable on the tablet alone.
+     The conditions are now a STEP, marked like any other and carried in the report, so a
+     result can never again be read back without knowing how it was produced. */
+  var buildMeta = (S.meta || []).find(function (m) { return m[0] === 'Build'; });
+  var setupSteps = [{
+    id: '0.1',
+    do: 'Pull down to reload <b>twice</b>, then read the build stamp on the login screen.',
+    expect: buildMeta ? ('It reads <b>' + buildMeta[1] + '</b>')
+                      : 'It matches the build this sheet was written for',
+    why: 'The tablet caches the app in a service worker: the first reload fetches the new build, ' +
+         'the second runs it. Any other stamp and every mark below is about a different build.',
+  }];
+  if (S.setup && S.setup.needs && S.setup.needs.length) {
+    setupSteps.push({
+      id: '0.2',
+      do: 'Confirm the tablet is set up the way this sheet needs: <b>'
+          + S.setup.needs.join('</b>, <b>') + '</b>. Set the three boxes above to match.',
+      expect: 'All three set, and the tablet actually in that state',
+      callout: 'Not paperwork. A sheet run in the wrong configuration produces marks that look '
+             + 'like evidence and are not — and nobody can tell afterwards.',
+    });
+  }
+  S = Object.assign({}, S, {
+    sections: [{ id: '0', title: 'Before you start', time: '1 min', steps: setupSteps }]
+              .concat(S.sections)
+  });
+
+  var steps = [];
+  S.sections.forEach(function (sec) { sec.steps.forEach(function (st) { steps.push(st); }); });
+
+  function load() { try { var v = JSON.parse(localStorage.getItem(S.key) || '{}'); state = v.marks || {}; started = v.started || null;
+                          if (v.who) { $('who-name').value = v.who.name || ''; $('who-where').value = v.who.where || '';
+                                       $('who-folio').value = v.who.folio || ''; $('who-gun').value = v.who.gun || '';
+                                       $('who-orient').value = v.who.orient || ''; } } catch (e) {} }
+  function save() { try { localStorage.setItem(S.key, JSON.stringify({
+                          marks: state, started: started,
+                          who: { name: $('who-name').value, where: $('who-where').value,
+                                 folio: $('who-folio').value, gun: $('who-gun').value,
+                                 orient: $('who-orient').value } })); } catch (e) {} }
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { return String(s == null ? '' : s); }
+  function hhmmss(ms) { var t = Math.max(0, Math.round(ms / 1000));
+    return (t / 3600 | 0 ? (t / 3600 | 0) + 'h ' : '') + ((t % 3600) / 60 | 0) + 'm ' + (t % 60) + 's'; }
+
+  // ── render the sheet from SHEET ────────────────────────────────────────────────────────
+  $('eyebrow').textContent = S.eyebrow;
+  $('title').textContent = S.title;             // the <h1> — id="title", not the <title> TAG
+  // …and the tab. `$` is getElementById, so the line above has always set the heading and
+  // never the browser tab, which meant EVERY sheet ever cut from this shell said "Banco UAT
+  // Sheet Template" up there. Angel runs three or four of these in three or four tabs.
+  document.title = S.title;
+  $('standfirst').innerHTML = S.standfirst;
+  $('total').textContent = steps.length;
+  $('meta').innerHTML = S.meta.map(function (m) {
+    return '<span><b>' + esc(m[0]) + '</b> ' + (m[2] ? '<a href="' + m[2] + '">' + esc(m[1]) + '</a>' : esc(m[1])) + '</span>';
+  }).join('');
+  $('safety-t').textContent = S.safety.title;
+  $('safety-b').innerHTML = S.safety.body;
+  $('closing').innerHTML = (S.closing || []).map(function (c) { return '<li>' + c + '</li>'; }).join('');
+
+  $('sheet').innerHTML = S.sections.map(function (sec) {
+    return '<section><div class="sec-head"><div class="sec-letter">' + esc(sec.id) + '</div>' +
+      '<h2>' + esc(sec.title) + '</h2><div class="sec-time">' + esc(sec.time || '') + '</div></div>' +
+      sec.steps.map(function (st) {
+        var codes = (st.codes || []).map(function (c) {
+          return '<span class="ean" role="button" tabindex="0">' + esc(c) + '</span>'; }).join('');
+        return '<div class="step" data-id="' + esc(st.id) + '">' +
+          '<div class="step-top">' +
+            '<div class="sid">' + esc(st.id) + '</div>' +
+            '<div>' +
+              '<p class="do">' + st.do + '</p>' +
+              (codes ? '<div class="codes">' + codes + '</div>' : '') +
+              (st.ticket ? '<div class="ticket"><div class="tk-h">📋 File this ticket — tap to copy</div>' +
+                           '<div class="tk-r"><span class="tk-l">Title</span>' +
+                           '<span class="ean" role="button" tabindex="0">' + esc(st.ticket.title) + '</span></div>' +
+                           '<div class="tk-r"><span class="tk-l">Body</span>' +
+                           '<span class="ean" role="button" tabindex="0">' + esc(st.ticket.body) + '</span></div>' +
+                           '</div>' : '') +
+              (st.link ? '<p><a class="golink" href="' + esc(st.link.href) + '" target="_blank" ' +
+                         'rel="noopener">' + esc(st.link.text || 'Open this screen') + '</a></p>' : '') +
+              (st.expect ? '<p class="expect js-expect">' + st.expect + '</p>' +
+                           '<p class="hidden-expect js-hidden" style="display:none">' +
+                           '<button type="button" class="js-reveal">Show what should happen ›</button></p>' : '') +
+              (st.why ? '<p class="why">' + st.why + '</p>' : '') +
+              (st.callout ? '<div class="callout">' + st.callout + '</div>' : '') +
+            '</div>' +
+            '<div><div class="marks">' +
+              '<button class="mark" data-m="pass">PASS</button>' +
+              '<button class="mark" data-m="issue">ISSUE</button>' +
+              '<button class="mark" data-m="fail">FAIL</button>' +
+            '</div><div class="stamp js-stamp"></div></div>' +
+          '</div>' +
+          '<div class="say"><label>Notes — what you saw, what confused you</label>' +
+          '<textarea rows="1" placeholder="optional on a pass, please fill in on an issue or a fail"></textarea></div>' +
+        '</div>';
+      }).join('') + '</section>';
+  }).join('');
+
+  // ── behaviour ──────────────────────────────────────────────────────────────────────────
+  function startClock() {
+    if (!started) { started = Date.now(); save(); }
+    if (!tick) tick = setInterval(paintClock, 1000);
+    paintClock();
+  }
+  function paintClock() {
+    if (!started) { $('clock').textContent = '—'; return; }
+    var doneAll = steps.every(function (s) { return (state[s.id] || {}).v; });
+    var end = doneAll ? lastStamp() : Date.now();
+    $('clock').textContent = '⏱ ' + hhmmss(end - started) + (doneAll ? '' : '…');
+    if (doneAll && tick) { clearInterval(tick); tick = null; }
+  }
+  function lastStamp() {
+    return steps.reduce(function (m, s) { return Math.max(m, (state[s.id] || {}).at || 0); }, started || 0);
+  }
+
+  function paint() {
+    var np = 0, ni = 0, nf = 0;
+    document.querySelectorAll('.step').forEach(function (el) {
+      var st = state[el.dataset.id] || {};
+      if (st.v) el.dataset.v = st.v; else el.removeAttribute('data-v');
+      if (st.v === 'pass') np++; if (st.v === 'issue') ni++; if (st.v === 'fail') nf++;
+      var ta = el.querySelector('textarea');
+      if (ta && ta.value !== (st.note || '')) ta.value = st.note || '';
+      var stamp = el.querySelector('.js-stamp');
+      // SECONDS, not just minutes. A screenshot lands as "Screenshot from
+      // 2026-09-06 11-31-49.png", so a stamp to the second lets a run of 30 shots
+      // be matched back to the steps that produced them without renaming anything.
+      // Angel, 2026-09-06: "i take screenshot save them and finish and press stop".
+      stamp.textContent = st.at ? new Date(st.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '';
+    });
+    var n = steps.length, done = np + ni + nf;
+    $('done').textContent = done; $('np').textContent = np; $('ni').textContent = ni; $('nf').textContent = nf;
+    $('bp').style.width = (np / n * 100) + '%';
+    $('bi').style.width = (ni / n * 100) + '%';
+    $('bf').style.width = (nf / n * 100) + '%';
+    var v = $('verdict'); v.className = 'verdict';
+    if (nf) { v.classList.add('nogo'); v.textContent = 'No go'; }
+    else if (done === n && ni) { v.classList.add('issues'); v.textContent = 'Go with issues'; }
+    else if (done === n) { v.classList.add('go'); v.textContent = 'Go'; }
+    else if (!done) { v.textContent = 'Not started'; }
+    else { v.textContent = (n - done) + ' left'; }
+    paintClock();
+    $('sum').textContent = report();
+  }
+
+  function report() {
+    var np = 0, ni = 0, nf = 0, rows = [];
+    steps.forEach(function (s) {
+      var st = state[s.id] || {};
+      if (!st.v && !st.note) return;
+      if (st.v === 'pass') np++; if (st.v === 'issue') ni++; if (st.v === 'fail') nf++;
+      rows.push('  ' + (s.id + '    ').slice(0, 5) + (st.v ? st.v.toUpperCase() : '—').padEnd(6) +
+                (st.note ? '· ' + st.note.replace(/\s+/g, ' ') : ''));
+    });
+    if (!rows.length) return 'Nothing marked yet.';
+    var who = $('who-name').value.trim(), where = $('who-where').value.trim();
+    // The device state rides in the header of every report. On 2026-09-04 a PASS had to be
+    // thrown out because nobody could tell, afterwards, that the folio had been attached.
+    var rig = ['who-folio', 'who-gun', 'who-orient']
+                .map(function (id) { return $(id).value; }).filter(Boolean).join(' · ');
+    var done = np + ni + nf;
+    var head = [
+      S.title,
+      'build ' + (S.meta.find(function (m) { return m[0] === 'Build'; }) || [])[1],
+      who ? 'tested by ' + who : null,
+      where ? 'on ' + where : null,
+      rig || 'DEVICE STATE NOT RECORDED',
+      started ? new Date(started).toLocaleString() : null,
+      // Elapsed, not first-mark-to-last-mark: a half-finished run was reporting "took 0m 0s"
+      // because only one step had a timestamp. A finished run freezes at the last mark.
+      started ? (done === steps.length ? 'took ' : 'running ') + hhmmss((done === steps.length ? lastStamp() : Date.now()) - started) : null,
+    ].filter(Boolean).join(' · ');
+    var verdict = nf ? 'NO GO' : (done === steps.length ? (ni ? 'GO WITH ISSUES' : 'GO') : 'INCOMPLETE');
+    return head + '\n' + '-'.repeat(Math.min(head.length, 72)) + '\n' + rows.join('\n') +
+      '\n\n' + np + ' pass · ' + ni + ' issue · ' + nf + ' fail · ' +
+      (steps.length - done) + ' not run\nVERDICT: ' + verdict;
+  }
+
+  document.querySelectorAll('.step').forEach(function (el) {
+    var id = el.dataset.id;
+    el.querySelectorAll('.mark').forEach(function (b) {
+      b.addEventListener('click', function () {
+        startClock();
+        state[id] = state[id] || {};
+        if (state[id].v === b.dataset.m) { state[id].v = null; state[id].at = null; }
+        else { state[id].v = b.dataset.m; state[id].at = Date.now(); }
+        save(); paint();
+      });
+    });
+    var ta = el.querySelector('textarea');
+    ta.addEventListener('input', function () {
+      state[id] = state[id] || {}; state[id].note = ta.value;
+      ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 220) + 'px';
+      save(); $('sum').textContent = report();
+    });
+    var rev = el.querySelector('.js-reveal');
+    if (rev) rev.addEventListener('click', function () {
+      el.querySelector('.js-expect').style.display = '';
+      el.querySelector('.js-hidden').style.display = 'none';
+    });
+  });
+
+  // Training mode: the tester says what they saw BEFORE reading what they were told to see.
+  // A sheet that shows the answer first is a checklist; one that does not is a lesson.
+  $('training').addEventListener('change', function () {
+    var on = $('training').checked;
+    document.querySelectorAll('.step').forEach(function (el) {
+      var e = el.querySelector('.js-expect'), h = el.querySelector('.js-hidden');
+      if (!e || !h) return;
+      e.style.display = on ? 'none' : '';
+      h.style.display = on ? '' : 'none';
+    });
+  });
+
+  ['who-name', 'who-where', 'who-folio', 'who-gun', 'who-orient'].forEach(function (id) {
+    $(id).addEventListener('input', function () { save(); $('sum').textContent = report(); });
+    $(id).addEventListener('change', function () { save(); $('sum').textContent = report(); });
+  });
+
+  $('reset').addEventListener('click', function () {
+    state = {}; started = null; if (tick) { clearInterval(tick); tick = null; }
+    save(); paint();
+  });
+
+  $('copy').addEventListener('click', function () {
+    var txt = report(), done = function () {
+      $('said').textContent = 'copied'; setTimeout(function () { $('said').textContent = ''; }, 1400); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(done, fallback);
+    else fallback();
+    function fallback() {
+      var t = document.createElement('textarea'); t.value = txt; document.body.appendChild(t); t.select();
+      try { document.execCommand('copy'); done(); } catch (e) { $('said').textContent = 'select the text below and copy'; }
+      document.body.removeChild(t);
+    }
+  });
+  $('print').addEventListener('click', function () { window.print(); });
+
+  document.querySelectorAll('.ean').forEach(function (el) {
+    function copy() {
+      var txt = el.textContent.trim(), ok = function () {
+        el.classList.add('copied'); setTimeout(function () { el.classList.remove('copied'); }, 900); };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(ok, function () {});
+      else { var t = document.createElement('textarea'); t.value = txt; document.body.appendChild(t); t.select();
+             try { document.execCommand('copy'); ok(); } catch (e) {} document.body.removeChild(t); }
+    }
+    el.addEventListener('click', copy);
+    el.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); copy(); } });
+  });
+
+  load(); paint();
+  if (started) { tick = setInterval(paintClock, 1000); paintClock(); }
+})();
+</script>
