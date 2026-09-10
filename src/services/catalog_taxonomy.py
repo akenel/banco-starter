@@ -173,7 +173,31 @@ _CIGAR = re.compile(r"\bswisher\b|backwoods|cigarillo|zigarillo|\bcigars?\b|\bzi
 # Nothing else. The veto is deliberately about the OBJECT (glass, tin, tray, grinder), never
 # about a flavour or a brand, because a flavour word is exactly what an over-broad veto would
 # use to let a real blunt through. LESSON #2.
-_BLUNT = re.compile(r"\bblunts?\b|hemp\s*wraps?|super\s*wraps?", re.I)
+# FIELD FINDING 2026-09-10 (Angel, at the counter). The Cyclones shelf is 19 products; **16 gate
+# and 3 do not**, and the split is again a WORD rather than a thing:
+#
+#     Cyclones Blunt Hemp Blue - Blueberry 2 Stk.   gated   (says "Blunt")
+#     Cyclones Cone Blunts Original 2 Stück         gated   (says "Blunts")
+#     Cyclones SUPREME NOS+ Cigar Cones Mango       gated   (says "Cigar")
+#     Cyclones Hemp - Original 2Stk.                OPEN    <- same shelf, same cone
+#     Blue Cyclone Hemp Cones                       OPEN
+#     Cycle Cones Mean Green                        OPEN    <- brand spelled "Cycle"
+#
+# So whether a customer is asked for ID depended on whether the FLAVOUR name happened to
+# contain "Blunt". The brand IS the product here — Cyclones make one thing, pre-rolled
+# blunt cones — so the brand is the honest signal. Measured over the live shop before
+# adding it: `cyclone` matches 17 already-gated rows and exactly 2 open ones, both real
+# cones. Zero accessories, zero merch. (Contrast `weed` and `kush`, both measured the same
+# day and both REJECTED: 17 and 9 open matches, every one an ashtray, tray, grinder, tin,
+# retro sign or board game. A word that rides on artwork is not a signal. LESSON #2.)
+# `\bcycle\s+cones?\b` is deliberately narrow so "Recycler" bongs never match.
+_BLUNT = re.compile(r"\bblunts?\b|hemp\s*wraps?|super\s*wraps?"
+                    r"|\bcyclones?\b|\bcycle\s+cones?\b", re.I)
+# NOT a generic `hemp\s*cones?`: the first cut of this fix used one and immediately gated
+# "RAW Organic Hemp Cones - leere Cones mit Filter KS" — **empty rolling-paper cones**, the exact
+# thing the G-Rollz note three paragraphs down says must never be gated. Cyclones cones carry a
+# cigarette-style tobacco health warning on the packet (Angel checked); a RAW paper cone does not.
+# The BRAND is the signal; the shape is not. Caught by the whole-catalogue A/B, not by reading.
 _BLUNT_HARDWARE = re.compile(r"gla[sß]\s*blunt|glass\s*blunt|tin\s*box|blech-?dose|rolling\s*tray|\btray\b|grinder", re.I)
 # 2026-08-21: the Swiss/German words were missing, so a bottle in FourTwenty's "Spirituosen"
 # bucket classified `standard` — 17 of 44 spirits and ALL 5 of "Bier, Wein & Champagner"
@@ -266,6 +290,52 @@ _CBD_TOKEN = re.compile(
 # where it must be followed by "joint".
 
 _CBD_OPEN = re.compile(r"\böl\b|\boil\b|\boel\b|tinktur|tincture|\bdrops?\b|tropfen|\bseed\b|\bseeds\b|\bsamen\b|kosmetik|cosmetic|creme|cream|salbe|\bbalm\b|lotion|serum", re.I)
+
+# THE SUBSTANCE ITSELF — and it must BEAT _CBD_OPEN above. FIELD FINDING 2026-09-10, counted from
+# the live shop: five hashish products were sellable with NO ID CHECK, and three of them were filed
+# under **"Creams & Topicals"** — Black Afghan hashish in the moisturiser aisle:
+#
+#     Tamar "Haschnamal" Black Afghan CREAM Haschisch 5g
+#     Hash Gang Manali CREAM 4.20gr.
+#     Greenfire Black CREAM Haschisch 9g
+#     SWEED Hashtronaut, Bubble CREAM Hashish 4g
+#     Cannabees CBD Hash CREAMy 5g
+#
+# `_CBD_OPEN` carries `creme|cream` for the CBD COSMETIC. **"Cream" is also a hashish grade** —
+# Black Afghan Cream, Manali Cream, Bubble Cream. A cosmetics keyword was un-gating hash, at layer
+# 2 (`... and not _CBD_OPEN.search(t)`) and at layer 3 alike. Exactly the shape of the tomato
+# variety "Brandywine" that once classified as alcohol, running the other way: LESSON #2.
+#
+# Word boundaries are doing real work here and were checked against the live titles one by one:
+# `\bhash\b` does NOT match "Paperhash" (three sizes of PAPER BAG) and `\bhasch\b` does NOT match
+# "Haschreibe" (a grater tin) — both are preceded/followed by word characters.
+_CBD_SUBSTANCE = re.compile(
+    r"\bhaschisch\b|\bhaschich\b|\bhasch\b|\bhashish\b|\bhash\b"
+    r"|\bbl(?:ü|ue)ten\b|\bbl(?:ü|ue)te\b", re.I)
+# The OBJECT vetoes for the line above. A tin that says "Haschisch" on the lid is a tin; a needle
+# for a hash pipe is a needle. Measured: without these, `hasch|hash` would newly gate a Click-Clack
+# tin, a pipe needle, a grater tin and a board game. All object words, never flavours or brands —
+# an over-broad veto built out of flavour words is exactly how a real blunt walks through.
+_SUBSTANCE_OBJECT = re.compile(
+    r"blech-?dose|\bdose\b|d(?:ö|oe)schen|\bpfeife\b|\bnadel\b|reibe|schild|brett-?spiel"
+    r"|\bspiel\b|rolling\s*tray|\btray\b|grinder|\betui\b|\bbeutel\b|papierhash|paperhash", re.I)
+
+
+# A BYLINE, not a product. "Hausgemachtes Haschisch von Andi Haller" is a BOOK — CHF 14.90, and
+# its own description says "the author ... has already published books". Nothing else in that title
+# distinguishes it from a bar of hash, because nothing else CAN: "Homemade Hashish" is a perfectly
+# good name for hash. A headshop stocks German-language books, and "<title> von <Author Name>" at
+# the very end of a title is what a byline looks like. Deliberately case-SENSITIVE (no re.I) and
+# anchored to the end, so a lowercase "von" mid-title never vetoes a real product.
+_BYLINE = re.compile(r"\bvon\s+[A-ZÄÖÜ][\wäöüß]+(?:\s+[A-ZÄÖÜ][\wäöüß]+)+\s*$")
+
+
+def _is_open_form(t: str) -> bool:
+    """True iff the title names an OPEN CBD form (oil, seeds, cosmetics) and is not the substance.
+
+    The one rule both the tag path and the title path consult, so "Cream" can never again mean
+    cosmetic on a bar of hashish. A title that says both ("CBD Hash Creamy") is the substance."""
+    return bool(_CBD_OPEN.search(t)) and not _CBD_SUBSTANCE.search(t)
 
 # Ordered keyword -> category; first match wins. CBD checked before creams so "CBD oil" lands in CBD.
 _CATEGORY_RULES = [
@@ -361,7 +431,7 @@ def classify(title: str | None, ref_category: str | None = None, raw=None,
     #     machine/filter/paper (_TOBACCO_ACCESSORY) stays open even under "Tabak…Zigaretten".
     elif tags:
         tobacco_ok = not neg and not _SUBSTANCE_ACCESSORY.search(t) and not _TOBACCO_ACCESSORY.search(t)
-        if ("cbd blüten" in tags or "cbd pollen" in tags or "blüten" in tags) and not _CBD_OPEN.search(t):
+        if ("cbd blüten" in tags or "cbd pollen" in tags or "blüten" in tags) and not _is_open_form(t):
             cls = "cbd_hemp"                       # flower / trim / pollen (hash) = 18+
         elif "cbd samen" in tags:
             cls = "cbd_open"                       # seeds = open (no ID)
@@ -379,13 +449,13 @@ def classify(title: str | None, ref_category: str | None = None, raw=None,
             # outright. Same guards as the title path — a rum-flavoured paper is still a paper.
             cls = "alcohol"
         elif ref_category == "CBD" or _CBD_TOKEN.search(t):
-            cls = "cbd_open" if _CBD_OPEN.search(t) else "cbd_hemp"
+            cls = "cbd_open" if _is_open_form(t) else "cbd_hemp"
     # (3) TITLE-CBD fallback (no supplier tags) — the path EVERY hand-captured product takes,
     #     and therefore the one that has to be widest. A cashier standing at the shelf has no
     #     supplier tags to lean on; the title is all there is. This is exactly where the BLOW
     #     pre-rolls leaked (2026-07-29): created by hand, no tags, title never said "CBD".
     elif _CBD_TOKEN.search(t):
-        cls = "cbd_open" if _CBD_OPEN.search(t) else "cbd_hemp"
+        cls = "cbd_open" if _is_open_form(t) else "cbd_hemp"
     #     …and when the TITLE is a meaningless strain/brand name, fall through to what the
     #     product says about ITSELF. Only a strong signal counts (see _CBD_STRONG) — an
     #     incidental "great with CBD flower" in a papers blurb must never gate papers.
@@ -393,8 +463,23 @@ def classify(title: str | None, ref_category: str | None = None, raw=None,
     #     is for ("holds 4 pre-rolled joints", "for your CBD flower"), so without this veto the
     #     description path gates filters, cones and storage tubes. Caught by the UAT dry run
     #     before it touched a row — 12 of its 16 proposed changes were accessories.
-    elif (description and _CBD_STRONG.search(description) and not _CBD_OPEN.search(t)
+    elif (description and _CBD_STRONG.search(description) and not _is_open_form(t)
           and not _TOBACCO_ACCESSORY.search(t) and not _SUBSTANCE_ACCESSORY.search(t)):
+        cls = "cbd_hemp"
+
+    # (4) LAST RESORT — the TITLE names the substance outright and no layer above claimed it.
+    #     This is the path Angel's hand-captured stock takes: no supplier tags, and a title that
+    #     never prints the letters "CBD". Counted live 2026-09-10, all of these were sellable
+    #     with no ID check: "Cannabees - Blueberry Muffin Blüten", "Cannabees - Orangeice Blüten
+    #     4gr", "BudBouncy Indoor Blüten - Northern Light 3g", "BudBouncy Indoor Blüten - V1 3g",
+    #     "Kleine Blüten 5g CHEESE Rot", "Kleine Blüten 5g HARLEQUIN Grün". `Blüten` is German for
+    #     flower and it was measured before it was used: SIX open matches in the whole shop, and
+    #     all six are real flower. Zero false positives — unlike `weed` and `kush`, which were
+    #     measured the same afternoon and thrown away.
+    #     Every accessory guard still vetoes, plus the OBJECT guard, plus 0mg/herbal.
+    if cls == DEFAULT_CLASS and _CBD_SUBSTANCE.search(t) and not neg \
+            and not _SUBSTANCE_OBJECT.search(t) and not _SUBSTANCE_ACCESSORY.search(t) \
+            and not _TOBACCO_ACCESSORY.search(t) and not _BYLINE.search(t):
         cls = "cbd_hemp"
 
     # CATEGORY: honour FourTwenty's clean buckets, else keyword-classify the dump.
