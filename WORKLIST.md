@@ -64,6 +64,18 @@ Two sheets run: **9 pass · 0 fail**, then **25 pass · 2 issue · 0 fail**.
    tiers at all.
 8. 📦 **NEW IDEA — the box code.** A filter packet has no code; the code on the shelf is the outer box.
    Bind the box, record how many singles are in it, let the till break it down. Angel's, not designed.
+9. 🎤 **NEW IDEA — dictate the description instead of typing it.** Felix asked for a microphone in the
+   keyboard and called it phase 3. **Angel wants it sooner, and for a better reason than Felix's:** he
+   spent 2026-09-10 typing product names on the soft keyboard himself. *"Even though it works great,
+   it's just not that practical… typing long names on the tablet, forget it. It's just a pain."* It is
+   probably slower than a good typist on a real keyboard — and on the glass that comparison does not
+   apply. A delight item with a use case its own author has now lived.
+10. 💻 **ROLLOUT DECISION — do NOT hand them the tablet in week one.** Angel, after two hours behind
+   the counter: *"really, it's not the best idea to give them the tablet to start… they should use a
+   desktop, like a laptop. Or at least the unit with the keyboard intact for the first week or the
+   first month, because it's just cumbersome."* **Note this cuts against the UAT guidance**, which is
+   folio OFF — that is right for TESTING the on-screen pad and wrong for a cashier's first week. Two
+   different questions: *does the pad work* vs *what does Layla learn on*. Decide before go-live.
 
 *Older deck notes below. The 2026-09-04 method note and that night's work are in
 [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md).*
@@ -381,6 +393,13 @@ logout is *desirable*; a quiet Tuesday afternoon one is not.
 
 
 ## 📌 Standing facts worth not re-learning
+
+- **🔫 USE THE WIRED GUN. The Bluetooth one is not a second option.** Angel, 2026-09-10, after a full
+  shift on the counter: *"I highly recommend that's the only gun to use, as I found out. The other
+  one — you can get it going, but it doesn't just work on its own for some reason. I think it's
+  because it's Bluetooth connected. That actually becomes cumbersome."* Scanning was **good all
+  morning** with the wired one. Any scanning fault reported on the Bluetooth gun is a fault in the
+  gun until proven otherwise — check which gun before debugging the till.
 
 - **THE THREE NAMES ARE ROLES, AND THE ROLE IS THE POINT.** Angel runs every sheet signed in as whichever role it is about:
 
