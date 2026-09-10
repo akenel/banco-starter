@@ -807,9 +807,21 @@
 
                         <!-- Totals -->
                         <div class="bg-indigo-50 rounded-lg p-4 space-y-2">
+                            <!-- THE SAME SUBTOTAL AS THE PINNED BLOCK ABOVE, which means the GROSS.
+                                 Found by Angel, 2026-09-10 16:07, in the first basket he built off
+                                 the new build: the pinned block read "Subtotal: CHF 26.00" and this
+                                 one read "Subtotal: CHF 23.00" — two rows with the same label and
+                                 different numbers, on one screen. I changed the top and left this.
+                                 LESSON #13: one truth rendered in two places, and the two stopped
+                                 agreeing the moment one of them moved. -->
                             <div class="flex justify-between text-sm">
                                 <span data-i18n="scan.subtotal">Subtotal:</span>
-                                <span class="font-semibold" x-text="formatPrice(totals.subtotal)"></span>
+                                <span class="font-semibold" x-text="formatPrice(cartGrossSubtotal(cart))"></span>
+                            </div>
+                            <div x-show="cartSavedTotal(cart) > 0" x-cloak style="display:none"
+                                 class="flex justify-between text-sm text-green-600">
+                                <span data-i18n="scan.deals_row">Deals</span>
+                                <span class="font-semibold" x-text="'-' + formatPrice(cartSavedTotal(cart))"></span>
                             </div>
                             <div x-show="discount > 0" class="flex justify-between text-sm text-green-600">
                                 <span><span data-i18n="common.discount_pre">Discount (</span><span x-text="discount"></span>%):</span>

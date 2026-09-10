@@ -878,8 +878,72 @@ print(json.dumps(out))
                   + ` ${cli.grossSub} − ${cli.saved} ≠ ${srvNet}`);
       }
     });
+
+    // ── ONE LABEL, ONE NUMBER — ON THE ACTUAL SCREEN ──────────────────────────────────
+    // Everything above this runs against the page's FUNCTIONS. Angel found what functions
+    // cannot see, in his first basket on the new build: the pinned block at the top of the
+    // cart said "Subtotal: CHF 26.00" and the breakdown block at the bottom of the same
+    // card said "Subtotal: CHF 23.00". I had moved one and left the other. Both numbers
+    // were individually defensible and the screen was still lying, because a word means
+    // one thing (LESSON #13 — one truth rendered twice, and the two drift the moment one
+    // moves).
+    //
+    // So: build a real deal basket, load the real till, and read EVERY row that calls
+    // itself Subtotal. There must be exactly one number among them.
+    await p.evaluate(() => {
+      const paper = (n, q) => ({ id: 'zz' + n, product_id: 'zz' + n, name: 'ZZ paper ' + n,
+        quantity: q, price: 2.00, tier_mode: 'bundle', product_class: 'standard',
+        price_tiers: [{ min_qty: 3, unit_price: '5.00' }] });
+      sessionStorage.setItem('pos_cart', JSON.stringify(
+        { cart: [paper('a', 4), paper('b', 3), paper('c', 1)], discount: 0, totals: {} }));
+    });
+    await p.goto('http://localhost:3000/pos/scan', { waitUntil: 'domcontentloaded' });
+    await p.waitForTimeout(2500);
+    const screen = await p.evaluate(() => {
+      const num = (el) => {
+        const m = (el.innerText || '').match(/(\d+(?:[.,]\d{2}))/);
+        return m ? parseFloat(m[1].replace(',', '.')) : null;
+      };
+      // THE VALUE IS THE LABEL'S NEXT SIBLING — not "the last child of the enclosing div",
+      // which is what the first cut of this said and which read the "saved CHF 2.00" chip
+      // sitting at the far end of the pinned row. Same layout-walking mistake as the two
+      // locators fixed higher up this file, made twice in one afternoon: ask for the thing,
+      // never for its position.
+      const subs = [...document.querySelectorAll('[data-i18n="scan.subtotal"]')]
+        .map(l => l.nextElementSibling && num(l.nextElementSibling))
+        .filter(v => v !== null && v !== undefined && v !== false);
+      const totalEl = document.querySelector('[data-i18n="scan.total"]');
+      const total = totalEl ? num(totalEl.parentElement.nextElementSibling) : null;
+      return { subs, total };
+    });
+    // 8 papers on 3-for-5: gross 16.00, two packs + two singles = 14.00.
+    const distinct = [...new Set(screen.subs.map(v => v.toFixed(2)))];
+    if (screen.subs.length === 0) {
+      // NOT a pricing result. The cart panel only exists when a signed-in till renders it, so
+      // zero rows means the page never came up — say that, instead of counting it as a fault in
+      // the thing under test. Reading a harness that did not run is LESSON #5.
+      gbad++; gn++;
+      console.log('  ❌ the till never rendered a cart — not signed in, or the basket did not restore.'
+                + ' This says NOTHING about pack pricing. Run it again.');
+    } else {
+      gn++;
+      if (screen.subs.length < 2 || distinct.length !== 1) {
+        gbad++;
+        console.log(`  ❌ the word "Subtotal" appears ${screen.subs.length} times on the till and shows`
+                  + ` ${distinct.length} different numbers: ${distinct.join(' · ')}`);
+      }
+      gn++;
+      if (distinct[0] !== '16.00' || screen.total === null || screen.total.toFixed(2) !== '14.00') {
+        gbad++;
+        console.log(`  ❌ the till's own screen: Subtotal ${distinct.join('/')} and TOTAL ${screen.total}`
+                  + ' — expected 16.00 and 14.00 for eight papers on a 3-for-5');
+      }
+    }
+
     if (!gbad) console.log(`  ✅ every deal line reads at its shelf price, multiplies out, and the`
-                         + ` column closes — ${gn} checks over ${gCases.length} baskets`);
+                         + ` column closes — ${gn} checks over ${gCases.length} baskets,`
+                         + ` incl. ${screen.subs.length} "Subtotal" rows on the real till all reading`
+                         + ` ${distinct[0]} against a TOTAL of ${(screen.total || 0).toFixed(2)}`);
   } catch (e) {
     gbad++; gn++;
     console.log('  ❌ deal-readability check threw — a FAILURE, not a warning: ' + e.message);
