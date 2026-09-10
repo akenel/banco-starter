@@ -73,13 +73,13 @@ Two sheets run: **9 pass · 0 fail**, then **25 pass · 2 issue · 0 fail**.
    tiers at all.
 8. 📦 **NEW IDEA — the box code.** A filter packet has no code; the code on the shelf is the outer box.
    Bind the box, record how many singles are in it, let the till break it down. Angel's, not designed.
-9. 🎤 **NEW IDEA — dictate instead of typing** (Felix said phase 3; Angel wants it sooner, having
-   spent 2026-09-10 typing long names on the glass). **Answered:** the code already exists here —
-   `compute/concierge.html` carries a working `webkitSpeechRecognition`. The hard part is that
-   Chrome's speech API **ships the audio to Google**. A **paste button goes first** — Banco's own
-   clipboard with the last few entries, no permission prompt, works offline.
-   ⚠️ The photo-fill alternative I proposed is **dead on the tablet** (item 10), which moves this UP.
-10. 📷 **THE TABLET CAMERA — diagnosed 2026-09-10, and it is NOT broken hardware.** `ov2740` sensor
+9. 🎤 **Dictation.** ~~Paste button first~~ **SHIPPED `944b979`** — 📋 on the letter pad, 15 opt-in
+   fields, nothing on customer/checkout/kiosk (asserted in the DOM). **NEXT: Angel presses
+   `/pos/hardware` → "3 · Test dictation" ON THE TABLET.** Mic is a plain HDA `ALC298` and works
+   (unlike the camera). If it answers `service-not-allowed`/`network`, free Google is closed →
+   `whisper.cpp base` (~300MB, fits banco's 1.6GB free, **add swap first**) or CX32 +CHF 5–6/mo.
+   Dictate into SEARCH, never the name field — engines mangle brands, the catalogue spells them.
+9b. 📐 `.status-section` (`pos/base.html:2613`) overflows 23px at phone portrait on `/pos/selftest`.10. 📷 **THE TABLET CAMERA — diagnosed 2026-09-10, and it is NOT broken hardware.** `ov2740` sensor
    bound · `ipu3` loaded · libcamera 0.4.0 · pipewire up — and **`cam --list` returns zero cameras.**
    Every `/dev/video*` belongs to `ipu3-imgu` (processing, not capture). An Intel **IPU3 MIPI** sensor
    never presents a plain V4L2 node; libcamera must build the pipeline, and that is the failing step.

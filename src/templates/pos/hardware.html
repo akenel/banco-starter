@@ -131,6 +131,9 @@
         <tr><td class="text-gray-500 py-1">Camera (photo capture &amp; snap-to-fill)</td>
             <td class="text-right" :class="cameraOk ? 'text-emerald-700' : 'text-gray-500'"
                 x-text="camera"></td></tr>
+        <tr><td class="text-gray-500 py-1">Microphone (dictation)</td>
+            <td class="text-right" :class="micOk ? 'text-emerald-700' : 'text-gray-500'"
+                x-text="mic"></td></tr>
         <tr><td class="text-gray-500 py-1">Saved logins / offline work</td>
             <td class="text-right" :class="storeOk ? 'text-emerald-700' : 'text-rose-700'"
                 x-text="storeOk ? 'working' : 'BLOCKED — sessions will be lost'"></td></tr>
@@ -149,6 +152,50 @@
         Full report — every capability, copyable for support:
         <a class="underline" href="/static/tablet-check.html" target="_blank" rel="noopener">/static/tablet-check.html</a>
       </p>
+    </div>
+
+    <!-- ── 3 · dictation ──────────────────────────────────────────────────── -->
+    <!-- WHY THIS PAGE AND NOT A NEW ONE. The question "can this machine take dictation?"
+         is a HARDWARE question and this is the hardware page. It sits beside the camera
+         row on purpose: on the shop tablet the camera is dead (Intel IPU3 — the sensor
+         binds, libcamera builds no pipeline, `cam --list` returns nothing) while the
+         microphone is an ordinary HDA codec that works. Two capabilities, opposite
+         answers, same machine — which is exactly why neither may be assumed. -->
+    <div class="bg-white rounded-2xl shadow p-6 mb-4">
+      <h2 class="font-bold text-gray-900 mb-1">3 · Can this machine take dictation?</h2>
+      <p class="text-sm text-gray-600 mb-3">
+        Speaking a product name instead of typing it on the glass. <b>Press, say something,
+        wait.</b> The answer is the same on every device of this model, so this only has to be
+        done once — but it has to be done <i>on the machine</i>, because nothing else can answer it.
+      </p>
+
+      <p class="text-sm bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3">
+        ⚠️ <b>This sends the audio to Google.</b> The browser's built-in speech recognition is not
+        offline — it uploads what you say. Fine for reading a product name off a packet; not a
+        thing to use near a customer conversation. If this test works, that is the trade to
+        decide: free and instant, versus a small model on our own server.
+      </p>
+
+      <button @click="listen()" :disabled="listening"
+              class="w-full py-4 rounded-xl font-bold text-white text-lg"
+              :class="listening ? 'bg-gray-400' : 'bg-indigo-600'"
+              x-text="listening ? '🎤 listening… say a product name' : '🎤 Test dictation'"></button>
+
+      <div x-show="heard" style="display:none" class="mt-3 bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+        <div class="text-xs text-emerald-800 font-semibold">IT WORKS. It heard:</div>
+        <div class="text-lg font-bold text-emerald-900" x-text="heard"></div>
+        <div class="text-xs text-emerald-800 mt-2">
+          Say it again with a real brand name — <i>Cyclones Blunt Hemp Blue</i> — before deciding.
+          Speech engines are good at sentences and poor at brands, which is why dictation should
+          feed the <b>search box</b> (where the catalogue does the spelling) and not the name field.
+        </div>
+      </div>
+
+      <div x-show="speechErr" style="display:none" class="mt-3 bg-rose-50 border border-rose-200 rounded-lg p-3">
+        <div class="text-xs text-rose-800 font-semibold">NOT AVAILABLE HERE</div>
+        <div class="font-mono text-sm text-rose-900" x-text="speechErr"></div>
+        <div class="text-sm text-rose-800 mt-2" x-text="speechWhy"></div>
+      </div>
     </div>
 
     <!-- ── more ───────────────────────────────────────────────────────────── -->
@@ -177,6 +224,8 @@ function hardwareCheck() {
     typed: '', lastRaw: '', verdict: '', suspect: [], digitsOnly: false,
     browser: '', browserOk: true, screen: '', touch: '', storeOk: true,
     camera: '', cameraOk: false,
+    mic: '', micOk: false,
+    listening: false, heard: '', speechErr: '', speechWhy: '',
 
     // Characters a mis-set gun produces where a hyphen was printed. Same table as the server-side
     // fallback in _find_product_by_any_barcode — a US gun's "-" key reads as "'" on Swiss German,
@@ -213,25 +262,122 @@ function hardwareCheck() {
       // for permission, so nothing pops up — we only learn a camera EXISTS, not that it is any
       // good. Worth knowing anyway: it decides whether this machine is a "photograph the packet"
       // device or a "point the gun at it" device, which is the whole hardware-role question.
-      this.camera = 'checking…';
-      if (!window.isSecureContext) {
-        this.camera = 'blocked (needs https)'; this.cameraOk = false; return;
-      }
-      if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
-        this.camera = 'not supported by this browser'; this.cameraOk = false; return;
-      }
-      navigator.mediaDevices.enumerateDevices().then(function (list) {
-        var cams = list.filter(function (d) { return d.kind === 'videoinput'; });
-        this.cameraOk = cams.length > 0;
-        this.camera = cams.length ? cams.length + ' found' : 'none — use the gun on this device';
-      }.bind(this)).catch(function () {
-        this.camera = 'could not tell'; this.cameraOk = false;
-      }.bind(this));
+      // THE STORAGE TEST RUNS FIRST NOW, and that is a fix, not a tidy-up. It used to sit
+      // BELOW the camera probe, which returns early on http or on a browser without
+      // enumerateDevices — so on any non-https device the "Saved logins / offline work"
+      // row kept its default `true` and reported WORKING having tested nothing. A
+      // diagnostic page whose whole job is to tell the truth must not have a row that
+      // lies when a row above it takes a shortcut.
       try {
         localStorage.setItem('__hw__', '1');
         this.storeOk = localStorage.getItem('__hw__') === '1';
         localStorage.removeItem('__hw__');
       } catch (e) { this.storeOk = false; }
+
+      this.camera = 'checking…';
+      this.mic = 'checking…';
+      if (!window.isSecureContext) {
+        this.camera = 'blocked (needs https)'; this.cameraOk = false;
+        this.mic = 'blocked (needs https)'; this.micOk = false; return;
+      }
+      if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+        this.camera = 'not supported by this browser'; this.cameraOk = false;
+        this.mic = 'not supported by this browser'; this.micOk = false; return;
+      }
+      // ONE enumerateDevices() answers both. It lists inputs WITHOUT a permission prompt,
+      // so nothing pops up — and it tells you a device EXISTS, never that it works. On the
+      // shop tablet those two are not the same answer: the camera is an Intel IPU3 sensor
+      // that binds and still presents no capture node, while the microphone is a plain HDA
+      // codec. Assume neither from the other.
+      navigator.mediaDevices.enumerateDevices().then(function (list) {
+        var cams = list.filter(function (d) { return d.kind === 'videoinput'; });
+        var mics = list.filter(function (d) { return d.kind === 'audioinput'; });
+        this.cameraOk = cams.length > 0;
+        this.camera = cams.length ? cams.length + ' found' : 'none — use the gun on this device';
+        this.micOk = mics.length > 0;
+        this.mic = mics.length ? mics.length + ' found' : 'none — dictation impossible here';
+      }.bind(this)).catch(function () {
+        this.camera = 'could not tell'; this.cameraOk = false;
+        this.mic = 'could not tell'; this.micOk = false;
+      }.bind(this));
+    },
+
+    /* ── the dictation probe ──────────────────────────────────────────────────
+       Angel, 2026-09-10: "what about the free google — would that work as a
+       work-around and we test that too."
+
+       IT MIGHT, AND IT MIGHT NOT, AND ONLY THIS MACHINE KNOWS. webkitSpeechRecognition
+       is Chrome's built-in speech API: free, no key, no server of ours. But it is not
+       part of the browser — it uploads audio to Google and needs an API key with the
+       Speech service enabled. The shop tablet runs DEBIAN's chromium, whose
+       /etc/chromium.d/apikeys says in its own first line that the keys are "assigned
+       to Debian by Google for access to their services like sync and gmail". Whether
+       Speech is on them is not something any amount of reading settles.
+
+       So: press the button and find out. The error CODE is the whole answer, which is
+       why it is shown verbatim and then translated into what to do about it. */
+    listen() {
+      var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      this.heard = ''; this.speechErr = ''; this.speechWhy = '';
+      if (!SR) {
+        this.speechErr = 'no SpeechRecognition in this browser';
+        this.speechWhy = 'Firefox has never shipped it. On the till this means the free route '
+                       + 'is closed and dictation needs a small model on our own server.';
+        return;
+      }
+      var r = new SR();
+      // The browser's own UI language, not the till's — a de-CH speaker dictating into
+      // an English-chrome till is still speaking German.
+      r.lang = navigator.language || 'de-CH';
+      r.interimResults = false;
+      r.maxAlternatives = 1;
+      this.listening = true;
+      var self = this;
+      r.onresult = function (e) {
+        self.heard = (e.results && e.results[0] && e.results[0][0])
+          ? e.results[0][0].transcript : '(nothing)';
+      };
+      r.onerror = function (e) {
+        var code = (e && e.error) || 'unknown';
+        self.speechErr = code;
+        self.speechWhy = ({
+          'not-allowed':        'The microphone was refused. Allow it for this site and try again — '
+                              + 'in kiosk mode there is no prompt, so it must be pre-granted by policy.',
+          'service-not-allowed':'Chromium is here and the microphone is here, but Google will not serve '
+                              + 'this build. This is the Debian-API-key answer: the free route is CLOSED '
+                              + 'on this machine and dictation needs our own model.',
+          'network':            'Could not reach Google. Either the shop is offline right now, or the '
+                              + 'build has no Speech API access. Re-test with the wifi definitely up — '
+                              + 'if it says this again, the free route is closed.',
+          'audio-capture':      'No microphone could be opened, even though one is listed. Check it is '
+                              + 'not muted in the system sound settings.',
+          'no-speech':          'The microphone opened and heard nothing. That is a PASS for the plumbing — '
+                              + 'speak sooner and closer, and press it again.',
+          'aborted':            'Stopped before it finished. Press it again and speak straight away.'
+        })[code] || 'Unrecognised error. Note the code above and the exact wifi state.';
+      };
+      // A WATCHDOG, BECAUSE THE FAILURE MODE IS SILENCE. Driven in a browser before
+      // shipping: start() succeeded, no result arrived, no error arrived, and the button
+      // sat reading "listening…" indefinitely. On the tablet that is the worst possible
+      // outcome — it looks like the feature works and is merely slow, so nobody ever
+      // learns the answer this card exists to give. Eight seconds is long enough to say
+      // a product name twice and short enough that a person is still holding the tablet.
+      var timer = setTimeout(function () { try { r.stop(); } catch (e) {} }, 8000);
+      r.onend = function () {
+        clearTimeout(timer);
+        self.listening = false;
+        if (!self.heard && !self.speechErr) {
+          self.speechErr = 'no answer';
+          self.speechWhy = 'It started listening and then nothing came back — no words, no error. '
+                         + 'That usually means the microphone is muted, or Google was never reached '
+                         + 'and the browser gave up quietly. Check the wifi and the system volume, '
+                         + 'then press it once more and speak straight away.';
+        }
+      };
+      try { r.start(); }
+      catch (e) { clearTimeout(timer); this.listening = false;
+                  this.speechErr = 'start() threw: ' + e.message;
+                  this.speechWhy = 'Usually a second press while the first is still running.'; }
     },
   };
 }
