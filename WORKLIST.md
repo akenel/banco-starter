@@ -25,7 +25,7 @@ tablet, zero fails. Live on the shop: `b629 · 6cc1bb5`.*
 
 ## ▶️ THE DECK — READ THIS FIRST · last touched 2026-09-10
 
-**Live on the shop: `b744 · b64b8b0`.** Reload the tablet TWICE after any deploy — the first load
+**Live on the shop: `b754 · 4e3cb17`.** Reload the tablet TWICE after any deploy — the first load
 activates the new service worker, the second serves from it.
 
 ### 🔴 2026-09-10 — ANGEL WORKED THE COUNTER, 11:33–13:04. START HERE.
@@ -40,9 +40,10 @@ Two sheets run: **9 pass · 0 fail**, then **25 pass · 2 issue · 0 fail**.
 
 **What is still open, in the order it matters** (detail in that file, do not re-derive it here):
 
-1. ~~🔞 **The age gate misses siblings.**~~ **FIXED `9c292b8`** — 29 products, 5 hashish sold with no
-   ID. Ratchet proof, 5,436 swept, 0 un-gated. **14 live rows await Angel**; `ELFBAR 4in1 Pod Cherry
-   ICE` needs the packet. Full record → the archive page below.
+1. ~~🔞 **The age gate misses siblings.**~~ **CLOSED `9c292b8` · 14 live rows applied, gated 1157→1171.**
+   5 hashish were sellable with no ID. Ratchet proof, 5,436 swept, 0 un-gated. Split clusters 15→2.
+   ⚠️ **3 rows need Angel's EYE, not a regex** — titles carrying only a brand: `Cannabees Purple Fuel
+   4g`, `Qualicann Habanero Kush`, and `ELFBAR 4in1 Pod Cherry ICE` (no strength on the label).
 1b. 🔓 **NEW — the gate fires on ~50 ACCESSORIES** (`Zigaretten-Filter`/`-Hülsen`/`-Stopfmaschine`).
    `_TOBACCO_ACCESSORY` runs only on the supplier-tag path. Naive fix un-gates real blunts (`filter`
    is in *Holzfilter*). Treuhänder call. LESSON #12 — over-gating teaches staff to wave it away.
