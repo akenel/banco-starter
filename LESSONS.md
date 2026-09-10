@@ -1368,3 +1368,143 @@ templating layer can see the other's comments, and a harness has to be told abou
 
 **Owed:** human-green. Thirteen checks pass and a screenshot looks right, and **nothing has come
 off a printer.** That is item 8 on the counter visit.
+
+---
+
+## 2026-09-10 — the money was right, and nobody could read it
+
+Angel worked the shop's till from 11:33 to 13:04, took 21 screenshots, and came home with one
+sentence: *"we have some issues."* The one he wanted first was the pack pricing — *"that was a
+complete mess. Seemed to work on some, didn't work on others."*
+
+Seven King Size papers on "3 for CHF 5.00" had rung up as **5.14 + 5.14 + 1.72**.
+
+I ran the real pricing code against five of his baskets and it matched every figure to the rappen.
+The catalogue was clean too — 43 rolls at 3-for-10 and 43 papers at 3-for-5, one category, uniform
+base prices. **Nothing was broken.** The 2026-08-21 work — Ralph's rule, mix-and-match — was intact
+and doing exactly what it was written to do.
+
+And it was unusable.
+
+### 1. THE THING THAT IS ACTUALLY NEW: correct is not the same as checkable
+
+CHF 1.72 is on no shelf label. No customer can hand it over in coins. It changes again the moment
+the next packet is scanned. It "worked on some and not others" for a reason that is invisible from
+inside the code: **a line only goes odd once a SECOND product joins its pool.** One product on a deal
+looks perfect. Two products on the same deal look like a random number generator.
+
+Every test in the tree was green all morning, and every one of them checked **totals**. The total was
+never wrong. There was no assertion anywhere in the repo for *"can a person verify this line?"*, so
+there was nothing to go red.
+
+The same shape turned up twice more the same day, in the same feature:
+
+- The cart showed **`Subtotal 38.00 · TOTAL 38.00 · saved CHF 4.00`** — with nothing anywhere on the
+  screen showing 42.00. A saving with nothing to have saved it *from* reads as a mistake.
+- The receipt printed **`3 × CHF 2.00 = CHF 5.14`**, because the deal had been divided back into a
+  per-unit rate and a receipt has no discount column. And `unit_price` is `Numeric(10,2)`, so the
+  full-precision rate was truncated on save: **seven already-printed receipts do not multiply out.**
+
+*A number can be correct and impossible to check. If a person cannot verify it with what is in front
+of them, they will read it as a mistake — and every test that checks totals will side with the code.
+Write at least one assertion per money feature that a customer could perform: does the row multiply
+out, does the column close, does one word mean one number.*
+
+### 2. A FIXTURE THAT CANNOT FAIL THE WAY PRODUCTION FAILS (Pattern 5, ×10 — and the worst instance yet)
+
+The checkout screen said **`Total Due 27.96 · Change 2.04`**. The receipt said 27.95 / 2.05, and so
+did the drawer. The cashier was being told to count out a coin that has not existed since 2007.
+
+    server:   resolve_regime() returns cash_rounding_step '0.05', inside the regime object
+    base:     the loader lifted TWO fields out of that object and dropped the rest,
+              leaving POSConfig.regime as the STRING 'CH'
+    checkout: cashRoundStep() read POSConfig.regime.cash_rounding_step
+              → 'CH'.cash_rounding_step → undefined → step 0 → never rounded
+
+**The five-rappen rounding had never run in a browser. On any machine. Since the day it was written.**
+The comment directly above `payableTotal()` describes this exact failure and states that the function
+exists to prevent it.
+
+It had **2,009 passing cases**. They injected `POSConfig = { regime: { cash_rounding_step: '0.05' } }`
+— an **object the application has never once produced**. The test and the app disagreed about the
+shape of the config, and the test won for months. Point the fixture at the real shape and the old
+reader fails on the first case: *"till shows 0.01, server charges 0.00."*
+
+It only surfaces on a total that is not a multiple of five rappen. Every shelf price already is, so
+only a percentage discount can make one. Four months of testing never produced one; a UAT sheet built
+**on purpose** to land on 27.96 caught it on the first run.
+
+*The fix that mattered was the fixture, not the two lines of code.*
+
+**And I did it to myself twice more in the same afternoon.** I "found" a bug where a free treat joined
+a deal and got charged CHF 1.66 — using a cart line with `price: 2.00` and bundle tiers, when a real
+treat is pushed as `price: 0` with no tier data at all and therefore cannot pool. Then I probed the
+new discount-reason logic with `product_class: 'tobacco'` and got `null`, when the real class is
+`tobacco_nicotine`. Both times the fixture lied and the code was fine. **Three in one day. Check the
+shape against what the app actually writes, every time.**
+
+### 3. ONE TRUTH, TWO RENDERINGS (Pattern 13, ×4)
+
+I moved the pinned Subtotal at the top of the cart to the gross figure and left the breakdown block
+at the bottom of the same card on the net. Angel found it in his **first basket**: `Subtotal: CHF
+26.00` above, `Subtotal: CHF 23.00` below. Both numbers individually defensible; the screen still
+lying, because a word means one thing.
+
+Nine green proof sections missed it, because all nine compare **functions** and no function was
+wrong. The check that now exists loads the real till and reads *every* element that calls itself
+Subtotal: there must be exactly one number among them.
+
+### 4. A WRONG REASON IS WORSE THAN NO REASON (Pattern 12, ×5)
+
+On a basket of five rolling papers the checkout said **"No discount — tobacco/alcohol only"**. There
+was no tobacco in it. The refusal was right — every line was deal-priced and a quantity break is
+final — and the explanation was simply the only cause anyone had thought of when the string was
+written. It sends a manager hunting for a product that is not in the basket.
+
+Angel's instruction was the rule: ***"no text if not applicable, or the right text."*** The reason is
+now worked out from the same two tests the eligibility calculation uses, and the row does not render
+at all when nothing is blocking.
+
+### 5. A LOCATOR THAT WALKS A LAYOUT BREAKS WHEN THE LAYOUT MOVES — three times in one afternoon
+
+- `[data-i18n="scan.total"] → following-sibling::span[1]` read **"· 2 items"**, because an item count
+  was later added to that line.
+- `[data-i18n="scan.total"] → ../following-sibling::div[1]/span[2]` read nothing, because the total
+  was later **pinned to the top of the cart** while the VAT breakdown stayed at the bottom.
+- My own first scraper took *"the last child of the enclosing div"* and picked up the **"saved CHF
+  2.00"** chip — the same mistake, an hour after fixing the other two.
+
+Both existing ones had been reporting FAILURE for reasons unrelated to pricing. So had a flat
+`waitForTimeout(3500)` after clicking Login, which on a cold Keycloak meant no token and **five**
+sections blaming the pricing code. *A harness that goes red for reasons that have nothing to do with
+its subject teaches you to ignore it.*
+
+*Ask for the thing by its label, never for its position.*
+
+### 6. A REFUNDED SALE IS NOT A SALE
+
+After reversing every rehearsal sale, Transaction History reported **`Total Sales CHF 116.95`** and
+**`Cash 3× CHF 75.95`** across five rows that all read REFUNDED, over an empty till.
+`calculateSummary()` summed every row in view with no status test. The Sales Report screen had the
+same day right. *Two screens, two answers, and the wrong one is the one that looks like a ledger.*
+
+### 7. THE DESIGN THAT LIVES AT THE COUNTER IS IN NO COMMENT
+
+Four active products priced 0.00 looked like the placeholder-price problem, so I moved them to the
+guarded value along with six genuine ones. They are `SEPARATOR-001…004`, Angel's shelf-space markers
+— an intake aid he built at the till *"for testing, like, and not actually selling anything"*, and
+*"a little bit tricky to get them in."* I put them straight back.
+
+LESSON #10 says to grep for the field's name in the comments before filling it. I did, and found
+nothing, because **the reason was in his hands and not in the repo.** *When data looks wrong and the
+code says nothing about it, the missing explanation may not be missing — it may be at the counter.
+Ask before you normalise it.*
+
+### What the day is really worth
+
+Four defects, and **Angel found every one of them.** Two were money a cashier could see, one was
+money on a screen that was not in the drawer, one was an explanation pointing at the wrong product.
+The pack pricing that started it had never been wrong at all.
+
+Ninety minutes at a counter beat a week of a green test suite — not because the suite is bad, but
+because it was asking the only question it knew how to ask.

@@ -259,7 +259,7 @@ pattern below, bump the count here. A pattern at ×7 is telling you something a 
    guard, and it is the more confident half.* A test that counted occurrences
    matched its own `def` line. Reverting each guard one at a time has caught something every time it
    has been done. *If you did not watch it go red, you do not know it works.*
-5. **×9 · A measurement harness will accuse working code as confidently as it reports the truth —
+5. **×10 · A measurement harness will accuse working code as confidently as it reports the truth —
    and will PASS on the very bug it was written to catch.**
    The rounding proof; the partial prod copy that manufactured a 24-product compliance scare; and on
    2026-08-28 a timer that started when a card **scrolled into view** rather than when a decision was
@@ -305,6 +305,16 @@ pattern below, bump the count here. A pattern at ×7 is telling you something a 
    box — reading one field while asserting about another's model. *A pass that survives the bug it
    guards is worse than no check. Count the subjects before anything below them is allowed to mean
    anything.*
+   The tenth, 2026-09-10, and it is the clearest statement of this pattern yet: the five-rappen
+   cash rounding had **never run in a browser, on any machine, since the day it was written** —
+   the checkout told the cashier to give CHF 2.04 change while the receipt and the drawer said
+   2.05. `POSConfig.regime` is the STRING `'CH'`, so `regime.cash_rounding_step` read `undefined`
+   and the step fell to 0. It had **2,009 passing cases**, every one of them fed
+   `{regime: {cash_rounding_step: '0.05'}}` — *an object the application has never once
+   produced.* The fix that mattered was the fixture. I then made the same mistake TWICE more
+   that afternoon: a "treat joins a deal" bug built on a cart line the app never writes, and a
+   probe using `product_class: 'tobacco'` when the real value is `tobacco_nicotine`. *Check the
+   fixture's shape against what the app actually WRITES, every single time.*
 6. **×4 · A test that finishes inside five minutes cannot see a five-minute timeout.** Silent
    token refresh had NEVER worked in the sandbox — issuer mismatch, `localhost:8090` vs
    `keycloak:8080` — so every session hard-logged-out the moment the access token expired. Every
@@ -338,7 +348,7 @@ pattern below, bump the count here. A pattern at ×7 is telling you something a 
     and a step whose question his flow never reached. He said: *"I don't know what you're looking
     for anymore."* Fair. Standing rule 5 cuts both ways: a human confirming it is DONE. Report
     what genuinely blocks a promote; log the rest and move on.
-12. **×4 · A truth test has to answer the question a PERSON is asking.** A validation nobody can
+12. **×5 · A truth test has to answer the question a PERSON is asking.** A validation nobody can
     see is a silent failure, and a green summary over an unchecked box is a lie. 2026-08-27 added
     two: a correct, well-worded refusal rendered as an 8-second toast at the top of the viewport
     while the operator's eyes were on a modal — *"i could not actually read the error"*, and he
@@ -354,13 +364,23 @@ pattern below, bump the count here. A pattern at ×7 is telling you something a 
     it rendered at **y=1372 in a 1050px viewport**, 322px below the fold. `isVisible()` returned
     **true** throughout, because it means *in the DOM and not display:none*. Only a screenshot
     showed it.
-13. **×3 · The server is right, the tests are green, and the STORED COPY the screen renders from is
+    A fifth on 2026-09-10, and it is the inverse: on a basket of five rolling papers the checkout
+    said **"No discount — tobacco/alcohol only"**. There was no tobacco in it. The refusal was
+    RIGHT (every line was deal-priced, and a quantity break is final) and the reason was simply
+    the only cause anyone had thought of when the string was written — so it sends a manager
+    hunting for a product that is not in the basket. Angel's rule, and it is the whole lesson:
+    ***"no text if not applicable, or the right text."*** *A wrong reason is worse than none.*
+13. **×4 · The server is right, the tests are green, and the STORED COPY the screen renders from is
     wrong.** On 2026-08-24 in one afternoon: the kiosk refused a blank username the server accepts;
     `/customers/new-today` kept deactivated members because it filtered `created_at` and not
     `is_active`; and Clear cart emptied `this.cart` while leaving `pos_cart` in sessionStorage,
     which the page restores from on every load — so the cart came back and clearing twice could not
     help. Not logic errors; *synchronisation* errors between a truth and its cached shadow, and the
-    shadow always wins because the shadow is what renders. *State written in one place and read in
+    shadow always wins because the shadow is what renders. On 2026-09-10 the same shape in ONE
+    card: I moved the pinned `Subtotal` at the top of the cart to the gross and left the breakdown
+    block at the bottom on the net, so the till showed **26.00 above and 23.00 below, both called
+    Subtotal**. Angel found it in his first basket. Nine green proof sections missed it because
+    all nine compare FUNCTIONS, and no function was wrong — only the screen was. *State written in one place and read in
     another needs an owner: ask of every reset/clear/cancel — what did this write, and does this
     delete ALL of it?* A clear that clears one key of three is not a clear.
 14. **A mechanical failure in an easy case gets read as proof the hard case is impossible.**
@@ -372,8 +392,25 @@ pattern below, bump the count here. A pattern at ×7 is telling you something a 
     none of that was in play. *Before improving the fuzzy layer, prove the EXACT layer works end to
     end on the machine the person is standing at. The quiet failure of the easy path is what sends
     people reaching for cleverness, or for bulk, exactly where neither was needed.*
+15. **×3 in one day · CORRECT IS NOT THE SAME AS CHECKABLE — and every test that checks totals will
+    side with the code.** 2026-09-10, Angel at the counter: seven papers on "3 for CHF 5.00" rang up
+    as **5.14 + 5.14 + 1.72**. Twelve francs, which was right. His words: *"a complete mess... seemed
+    to work on some, didn't work on others"* — and it "worked on some" for a reason invisible from
+    inside the code, because **a line only goes odd once a SECOND product joins its pool.** CHF 1.72
+    is on no shelf label, no customer can hand it over in coins, and it changes again on the next
+    scan. Two more faces of it the same day, in the same feature: the cart showed
+    **`Subtotal 38.00 · TOTAL 38.00 · saved CHF 4.00`** with nothing anywhere showing 42.00 — a
+    saving with nothing to have saved it FROM reads as a mistake; and the receipt printed
+    **`3 × CHF 2.00 = CHF 5.14`**, since a receipt has no discount column and `unit_price` is
+    `Numeric(10,2)`, so **seven already-printed receipts do not multiply out.** Every test in the
+    tree was green all morning and every one of them checked TOTALS. The total was never wrong; there
+    was no assertion anywhere for *"can a person verify this line?"*, so nothing could go red.
+    *Write at least one assertion per money feature that a CUSTOMER could perform: does the row
+    multiply out, does the column close, does one word mean one number. Ninety minutes at a counter
+    beat a week of a green suite — not because the suite is bad, but because it was asking the only
+    question it knew how to ask.*
 
 ---
 
-*Last updated: 2026-09-07*
+*Last updated: 2026-09-10*
 *"You can't clone SAP. You can clone this."*
