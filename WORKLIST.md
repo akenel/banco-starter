@@ -291,19 +291,13 @@ paper till records nothing at all.
 ---
 
 - **ⓝ Close of 2026-09-04 (daytime)** — superseded by tonight’s close. → [`worklist-archive/2026-09-04-archive-pass.md`](worklist-archive/2026-09-04-archive-pass.md)
-## ~~ⓞ THE COUNTER VISIT~~ — **DONE 2026-09-10** · 21 screenshots · four defects · see the deck
+## ~~ⓞ THE COUNTER VISIT~~ · ~~ⓒ5 PAM'S RUN~~ — **BOTH CLOSED**
 
-*The prep prose (stand, anti-glare film, LANDSCAPE-LOCKED, the two sheets that were never run as
-sheets) moved out verbatim on 2026-09-10:*
-[`2026-09-10-archive-pass.md`](worklist-archive/2026-09-10-archive-pass.md). **The one code-touching
-decision still stands: landscape, locked** — every geometry proof runs at 1440 × 895.
-
-
-## ~~ⓒ5 PAM'S RUN~~ — **CLOSED** · 14 pass · 3 issue · 0 fail · 2026-09-04
-
-*18 minutes on the tablet, folio OFF, landscape, `b629 · 6cc1bb5`. A1 **"buttery — IMHO well done"**.
-Moved out verbatim 2026-09-10, with the older pointer list it carried:*
-[`2026-09-10-archive-pass.md`](worklist-archive/2026-09-10-archive-pass.md)
+*ⓞ done 2026-09-10 (21 screenshots, four defects — see the deck). ⓒ5 was 14 pass · 3 issue · 0 fail
+on 2026-09-04. Both moved out verbatim:*
+[`2026-09-10-archive-pass.md`](worklist-archive/2026-09-10-archive-pass.md).
+**The one code-touching decision from ⓞ still stands: LANDSCAPE, LOCKED** — every geometry proof
+runs at 1440 × 895.
 
 ## 💡 FIRST-USE AGE CHECK + THE T&C PAGE — waiting on Angel, not on code
 
