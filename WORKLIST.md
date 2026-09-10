@@ -23,10 +23,50 @@ tablet, zero fails. Live on the shop: `b629 · 6cc1bb5`.*
 
 ---
 
-## ▶️ THE DECK — READ THIS FIRST · last touched 2026-09-07
+## ▶️ THE DECK — READ THIS FIRST · last touched 2026-09-10
 
-**Live on the shop: `b732 · f22afb2`.** Reload the tablet TWICE after any deploy — the first load
+**Live on the shop: `b744 · b64b8b0`.** Reload the tablet TWICE after any deploy — the first load
 activates the new service worker, the second serves from it.
+
+### 🔴 2026-09-10 — ANGEL WORKED THE COUNTER, 11:33–13:04. START HERE.
+
+**Four defects closed, and he found every one of them.** Pack pricing read as 5.14 + 5.14 + 1.72
+(right money, unreadable); two rows both called Subtotal showed different numbers; **the five-rappen
+cash rounding had never run on any machine** (checkout said change 2.04, the drawer said 2.05); and a
+discount refusal blamed tobacco on a basket of rolling papers. Shipped `6513fb3` `d2c49a9` `b64b8b0`.
+Two sheets run: **9 pass · 0 fail**, then **25 pass · 2 issue · 0 fail**.
+→ **the full record, and everything still open:**
+[`2026-09-10-the-counter-and-the-afternoon.html`](worklist-archive/2026-09-10-the-counter-and-the-afternoon.html)
+
+**What is still open, in the order it matters** (detail in that file, do not re-derive it here):
+
+1. 🔞 **The age gate misses siblings.** *Cyclones Hemp Original* and *Cycle Cones Mean Green* carry no
+   18+ beside three Cyclones blunt cones that do; **two nicotine pod flavours carry none** beside an
+   Elfbar that does. LESSON #2 again — decide the gate by CLASS, not by matching the title, and prove
+   it by counting the flag per category.
+2. ⚠️ **The placeholder guard is still two values wide.** `UNVERIFIED_PRICES = (99.00, 999.99)`. The
+   six live rows at 999.00 were moved to 999.99 on 2026-09-10 (Angel likes the guard: *"it basically
+   forced the user to put the right price in"*), **but type 999.00 tomorrow and it walks through.**
+   The four rows at 0.00 are his `SEPARATOR-001…004` shelf markers — an intake aid for testing without
+   selling. **Deliberate. Leave them.**
+3. 🔗 **A URL is bound as a product barcode.** `AlpenBreeze` carries `https://vqr.vc/BiWfnR9bv`. Clear
+   it, and refuse to bind `http(s)://` as a code at all.
+4. 🗣️ **English on the selling path**, and Shelf Intake is now ON it — Angel used it at the counter at
+   12:36, so *"nobody sells with any of it"* is retired. Plus `Invalid price tiers: … min_qty 1` in the
+   manager panel (English, and it quotes a DB column at a shop owner) and a `Price updated` toast.
+5. 🖥️ **The till fell out of fullscreen** at 11:48 and stayed out until 13:04, Chromium's own Esc bar
+   over the total. Angel's read is kiosk mode. **Kiosk does not cost the screenshots** —
+   `tablet-lockdown.sh` binds `Print` at the GNOME level, not in the browser.
+6. 🧾 **The cart says `incl. VAT 1.05`, the receipt says `1.04`** on the same sale. The books are right
+   (`tax_amount` == sum of line VAT); the cart's estimate is the odd one out. Predates 5 August.
+7. 💤 **A paper outside a deal says nothing.** *Rips Extra Dünn*, CHF 2.00, same shelf as six papers on
+   3-for-5 — correct price, no explanation, because `dealInfo()` returns null when a product has no
+   tiers at all.
+8. 📦 **NEW IDEA — the box code.** A filter packet has no code; the code on the shelf is the outer box.
+   Bind the box, record how many singles are in it, let the till break it down. Angel's, not designed.
+
+*Older deck notes below. The 2026-09-04 method note and that night's work are in
+[`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md).*
 *The 2026-09-04 method note, and what went in that night (four fixes, five suites, three sheets,
 54 pass · 5 issue · 0 fail), are in [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md).*
 
@@ -233,84 +273,20 @@ paper till records nothing at all.
 ---
 
 - **ⓝ Close of 2026-09-04 (daytime)** — superseded by tonight’s close. → [`worklist-archive/2026-09-04-archive-pass.md`](worklist-archive/2026-09-04-archive-pass.md)
-## ⓞ THE COUNTER VISIT — GO BEFORE THE SHIFT, NOT ON IT
+## ~~ⓞ THE COUNTER VISIT~~ — **DONE 2026-09-10** · 21 screenshots · four defects · see the deck
 
-*Found on a kitchen table: Angel stood the tablet up in landscape, looked down at it the way a
-cashier would, and it was unreadable — and **there is no chair behind that counter**. The cheapest
-instance of LESSON #1 yet: a CHF 25 stand, caught three weeks early instead of on Layla's shift.*
+*The prep prose (stand, anti-glare film, LANDSCAPE-LOCKED, the two sheets that were never run as
+sheets) moved out verbatim on 2026-09-10:*
+[`2026-09-10-archive-pass.md`](worklist-archive/2026-09-10-archive-pass.md). **The one code-touching
+decision still stands: landscape, locked** — every geometry proof runs at 1440 × 895.
 
-**The checklist is now two sheets, not prose here** — steps a person can mark PASS/ISSUE/FAIL:
-[`2026-09-05-standing-where-layla-stands.html`](onboarding/testsheets/2026-09-05-standing-where-layla-stands.html)
-(21 steps, no sale) then
-[`2026-09-05-four-real-sales.html`](onboarding/testsheets/2026-09-05-four-real-sales.html)
-(18 steps, **the one sheet where the payment button is pressed** — nothing has completed a sale on
-this build; the last transaction on the box was 2026-08-21).
 
-**Take with you:** a cheap adjustable stand (~CHF 25, *not* the real one yet), a matte anti-glare
-film (~CHF 20), the gun, the folio **to leave off**, and Layla. Photograph the geometry at the
-counter, then buy the weighted one (~CHF 80–300) — a light stand slides on every tap.
+## ~~ⓒ5 PAM'S RUN~~ — **CLOSED** · 14 pass · 3 issue · 0 fail · 2026-09-04
 
-**The one decision that touches the code: LANDSCAPE, LOCKED.** Every geometry proof runs at
-1440 × 895. Portrait moves the fold, the cart total and the keypad. Lock rotation in the OS so a
-bump mid-sale cannot reflow the till in front of a customer.
+*18 minutes on the tablet, folio OFF, landscape, `b629 · 6cc1bb5`. A1 **"buttery — IMHO well done"**.
+Moved out verbatim 2026-09-10, with the older pointer list it carried:*
+[`2026-09-10-archive-pass.md`](worklist-archive/2026-09-10-archive-pass.md)
 
-→ the original prose, with the full reasoning:
-[`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
-
-## ⓒ5 PAM'S RUN — 14 pass · 3 issue · 0 fail — 2026-09-04 23:02–23:20 · **THE DECK IS CLEAR**
-
-*18 minutes on the tablet, folio OFF, landscape, `b629 · 6cc1bb5`. Her words: A1 **"buttery — IMHO
-well done"**, B1 **"imho the search works way better this way — i love it"**, B4 **"yes, top bar is
-not sticky — works fine"**.*
-
-**All five blocking items are done.** Zero fails across three sheets tonight (19+1, 21+1, 14+3 —
-every issue a request or a missing test fixture, none a defect).
-
-### The three issues, and what they actually are
-
-**A6 · "can you find me a test item name for this"** and **A7 · "maybe you can give me some real
-tests samples"** — the same ask twice, and a fair one: I wrote steps that needed a long product
-name and a big result set and left her to find them. **Fixed here, from the shop's own catalogue
-(5,427 active), so the next sheet can name them instead of asking:**
-
-| type this | matches | categories it touches |
-|---|---:|---:|
-| `elfbar` | 244 | 6 |
-| `raw` | 230 | 26 |
-| `king` | 147 | 21 |
-| `cbd` | 123 | 11 |
-| `papers` | 24 | 6 |
-| `elements` | 20 | 5 |
-
-**For the wrapping-row step, search `elements`** — it returns *"Elements Papers - Ultra Thin
-Papers - King Size Slim - Blättchen - 32 Blättchen - Sugar Gum"*, **91 characters**, the longest
-active name in the shop. Runners-up if that one is ever retired: the RAW Connoisseur (90) and
-*CHOC OVO Crunchy (Nouveau) 20g — Le plaisir du chocolat croustillant avec Ovomaltine* (84).
-
-*The lesson is small and repeats: a step that says "find a product with a long name" hands the
-tester my homework. **Name the sample.** Both testers hit it in the same session.*
-
-### B2 · ~~narrow the category dropdown~~ — **DONE 2026-09-05**, `c42a207` + `234a601`
-
-Pam, on the pinned panel: *"this is exactly why you need it — look for a term and easy search with
-categories — would be good to narrow the cats where only search term is applicable so cat list is
-shortened."*
-
-Live: **`papers` → 6 shelves, `elements` → 5, `lighter` → 2**, each with the count you get when you
-pick it, full 52 underneath, capped at 8.
-
-⚠️ **The numbers that used to be in this entry were measured with `name ILIKE`, and the first
-implementation was built on them.** The search's own recall reaches into `description`,
-`supplier_name` and fuzzy similarity, so by that predicate `papers` touches **39** shelves and
-`king` **50 of 52**. Shelves are chosen by relevance and counted by recall — see the header comment
-on `/search` in `pos_router.py`.
-
----
-
-- **🔎 Found while fixing something else — 2026-09-02** — non-blocking, 3 days old. → [`worklist-archive/2026-09-04-archive-pass.md`](worklist-archive/2026-09-04-archive-pass.md)
-- **🌙 Where we stopped — 2026-09-03** — superseded. → [`worklist-archive/2026-09-04-archive-pass.md`](worklist-archive/2026-09-04-archive-pass.md)
-- **🌅 This week — from 2026-09-02** — superseded. → [`worklist-archive/2026-09-04-archive-pass.md`](worklist-archive/2026-09-04-archive-pass.md)
-- **▶️ Start here — the state at the end of Fri 2026-08-28** — superseded. → [`worklist-archive/2026-09-04-archive-pass.md`](worklist-archive/2026-09-04-archive-pass.md)
 ## 💡 FIRST-USE AGE CHECK + THE T&C PAGE — waiting on Angel, not on code
 
 Angel's idea (2026-08-22): the first time a member buys, the cashier verifies their age once —

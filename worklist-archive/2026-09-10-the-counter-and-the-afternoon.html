@@ -1,0 +1,248 @@
+<!-- The long-form record of 2026-09-10. WORKLIST.md keeps only pointers to this. -->
+<title>10 September 2026 — the counter and the afternoon</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+  :root{
+    --paper:#f1f4f2; --card:#fff; --ink:#141d1b; --ink-2:#41514e; --ink-3:#71847f;
+    --rule:#dfe6e2; --accent:#136259; --accent-soft:#e2efec;
+    --bad:#a51b1b; --bad-soft:#fbe9e9; --warn:#8a4b06; --warn-soft:#fcf0dd;
+    --good:#1c6b3a; --good-soft:#e4f2e8;
+    --shadow:0 1px 2px rgba(20,29,27,.05), 0 8px 24px -16px rgba(20,29,27,.28);
+  }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+    --paper:#0e1413; --card:#161e1c; --ink:#e8efec; --ink-2:#a3b3ae; --ink-3:#7b8c87;
+    --rule:#27332f; --accent:#5cc4b4; --accent-soft:#12312d;
+    --bad:#f08b8b; --bad-soft:#3a1a1a; --warn:#e5aa5c; --warn-soft:#382512;
+    --good:#7bce9c; --good-soft:#14301f;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  }}
+  :root[data-theme="dark"]{
+    --paper:#0e1413; --card:#161e1c; --ink:#e8efec; --ink-2:#a3b3ae; --ink-3:#7b8c87;
+    --rule:#27332f; --accent:#5cc4b4; --accent-soft:#12312d;
+    --bad:#f08b8b; --bad-soft:#3a1a1a; --warn:#e5aa5c; --warn-soft:#382512;
+    --good:#7bce9c; --good-soft:#14301f;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--paper); color:var(--ink); margin:0;
+       font:16px/1.6 "IBM Plex Sans",system-ui,sans-serif; padding-block:40px; padding-inline:16px}
+  .wrap{max-width:820px; margin:0 auto}
+  .eyebrow{font-family:"IBM Plex Mono",monospace; font-size:12px; letter-spacing:.14em;
+           text-transform:uppercase; color:var(--accent); margin:0 0 8px}
+  h1{font-family:"IBM Plex Sans Condensed",sans-serif; font-size:38px; line-height:1.1; margin:0 0 14px}
+  h2{font-family:"IBM Plex Sans Condensed",sans-serif; font-size:23px; margin:38px 0 4px;
+     padding-top:18px; border-top:1px solid var(--rule)}
+  h3{font-size:17px; margin:22px 0 4px}
+  .stand{font-size:18px; color:var(--ink-2); margin:0 0 22px}
+  .card{background:var(--card); border:1px solid var(--rule); border-radius:12px;
+        padding:18px 20px; margin:16px 0; box-shadow:var(--shadow)}
+  .bad{border-left:4px solid var(--bad); background:var(--bad-soft)}
+  .warn{border-left:4px solid var(--warn); background:var(--warn-soft)}
+  .good{border-left:4px solid var(--good); background:var(--good-soft)}
+  code,.mono{font-family:"IBM Plex Mono",monospace; font-size:.9em}
+  table{width:100%; border-collapse:collapse; margin:14px 0; font-size:15px}
+  th,td{text-align:left; padding:7px 10px; border-bottom:1px solid var(--rule); vertical-align:top}
+  th{font-family:"IBM Plex Sans Condensed",sans-serif; color:var(--ink-3);
+     text-transform:uppercase; font-size:12px; letter-spacing:.06em}
+  .tw{overflow-x:auto}
+  blockquote{margin:12px 0; padding-left:14px; border-left:3px solid var(--accent-soft);
+             color:var(--ink-2); font-style:italic}
+  .meta{font-family:"IBM Plex Mono",monospace; font-size:13px; color:var(--ink-3)}
+  ul{padding-left:22px} li{margin:6px 0}
+  .tag{display:inline-block; font-family:"IBM Plex Mono",monospace; font-size:11px;
+       padding:2px 7px; border-radius:99px; background:var(--accent-soft); color:var(--accent)}
+</style>
+
+<div class="wrap">
+<p class="eyebrow">Banco POS · worklist archive</p>
+<h1>10 September 2026 — the counter, and the afternoon that followed</h1>
+<p class="stand">Angel opened the shop's till at <b>11:33</b> and worked it until <b>13:04</b>, taking
+21 screenshots. He came home at 14:15 with one sentence: <i>"we have some issues."</i> By 19:45 five
+commits had shipped and <b>four real defects were closed — every one of them found by him, none of
+them by a test.</b> This is the record; <code>WORKLIST.md</code> keeps only pointers to it.</p>
+
+<p class="meta">Builds: b736 at the counter → b744 live · shop <code>banco.wolfhold.app</code> ·
+tested as felix on desktop, tablet still to come.</p>
+
+<h2>What shipped</h2>
+<div class="tw"><table>
+<tr><th>commit</th><th>what it was</th></tr>
+<tr><td class="mono">6513fb3</td><td><b>A bundle is a discount, not a funny unit price.</b> Seven papers on
+  "3 for 5.00" rang up as 5.14 + 5.14 + 1.72 — twelve francs, correctly, shown as three prices on no
+  shelf label. The line now keeps the shelf price and the deal is a named saving. No money moved.</td></tr>
+<tr><td class="mono">f5c3ecd</td><td>First sheet — 9 pass, 0 fail. Its ISSUEs were the <i>sheet</i>, not the code.</td></tr>
+<tr><td class="mono">d2c49a9</td><td><b>Two rows called Subtotal, two different numbers</b> (26.00 top, 23.00
+  bottom). Mine, from that same afternoon. Angel found it in his first basket.</td></tr>
+<tr><td class="mono">c872b98</td><td>Hard-combinations sheet — built by barcode, running total after every add.</td></tr>
+<tr><td class="mono">b64b8b0</td><td><b>Three at once:</b> the cash rounding had never run · refunded sales
+  counted as sales · the discount refusal named a reason that wasn't true.</td></tr>
+</table></div>
+
+<div class="card good"><b>The pack pricing was never wrong.</b> Every figure Angel photographed at the
+counter was arithmetically correct and reproducible — I ran the real code against five of his baskets
+and matched them to the rappen. What was wrong was that <b>nobody could read it</b>. A cashier cannot
+check a price that is on no shelf label, a customer cannot pay 1.72 in coins, and every figure moved
+again on the next scan. That is why every test was green all morning: they all checked totals.</div>
+
+<h2>The one that should change how we test</h2>
+<div class="card bad">
+<p><b>The five-rappen cash rounding had never run. On any machine. Since the day it was written.</b></p>
+<p>Checkout said <code>Total Due 27.96 · Change 2.04</code>. The receipt said 27.95 / 2.05, and so did the
+drawer. The cashier was being told to count out a coin that has not existed since 2007.</p>
+<ul>
+<li>The server sends <code>cash_rounding_step: '0.05'</code> inside the regime object.</li>
+<li><code>base.html</code> lifted two fields out of that object and dropped the rest, leaving
+    <code>POSConfig.regime</code> as the <b>string</b> <code>'CH'</code>.</li>
+<li><code>checkout.cashRoundStep()</code> read <code>POSConfig.regime.cash_rounding_step</code> →
+    <code>'CH'.cash_rounding_step</code> → <code>undefined</code> → step 0 → never rounded.</li>
+</ul>
+<p>It has <b>2,009 passing test cases</b>. They inject
+<code>{regime: {cash_rounding_step: '0.05'}}</code> — an <b>object production has never produced</b>.
+The fixture could not fail the way production fails, so it never did. Point it at the real shape and the
+old code fails on the first case: <i>"till shows 0.01, server charges 0.00."</i></p>
+<p>Only a percentage discount can make a total that isn't a multiple of five rappen — every shelf price
+already is. Four months of testing never produced one. A sheet built <b>on purpose</b> to land on 27.96
+caught it on the first run.</p>
+</div>
+
+<h2>Still open — money or compliance</h2>
+
+<h3>1. 🔞 The age gate is missing on products that plainly need it</h3>
+<p>From the counter screenshots, in one cart, on the same shelf:</p>
+<div class="tw"><table>
+<tr><th>product</th><th>18+</th></tr>
+<tr><td>Cyclones XTRA Urban Assault Blunt Cone</td><td>✅ 18+ · Tabak</td></tr>
+<tr><td>Cyclones White Blunt Cone 2 Stück</td><td>✅ 18+ · Tabak</td></tr>
+<tr><td>Cyclones Cone Blunts Original 2 Stück</td><td>✅ 18+ · Tabak</td></tr>
+<tr><td><b>Cyclones Hemp — Original 2Stk.</b></td><td class="mono">— nothing —</td></tr>
+<tr><td><b>Cycle Cones Mean Green</b></td><td class="mono">— nothing —</td></tr>
+</table></div>
+<p>And worse, on nicotine:</p>
+<div class="tw"><table>
+<tr><th>product</th><th>18+</th></tr>
+<tr><td>Elfbar 4in1 Pod — Strawberry Ice 20mg</td><td>✅ 18+ · Tabak</td></tr>
+<tr><td><b>Cartouches 4 IN 1 — Strawberry Kiwi</b></td><td class="mono">— nothing —</td></tr>
+<tr><td><b>4 IN 1 Kartuschen — Banana Milk</b></td><td class="mono">— nothing —</td></tr>
+</table></div>
+<p>This is <b>LESSON #2's ninth instance repeating on a new family</b> — the blunt-wrap regex that needed
+two words touching. A rule that matches on the title will always miss the sibling nobody thought of.
+The fix is probably not a better pattern; it is deciding the gate by <b>category or class</b>, and then
+proving it by counting how many rows in each category carry the flag.</p>
+
+<h3>2. The cart says <span class="mono">1.05</span>, the receipt says <span class="mono">1.04</span></h3>
+<p>Same sale. The receipt sums each line's stored VAT; the cart takes 8.1% of the total in one go. One
+rappen apart. <b>The books are right</b> — <code>tax_amount</code> equals the sum of the line VAT on every
+sale, and the receipt is the legal document. It is the cart's on-screen estimate that is the odd one out.
+Present on sales going back to at least <b>5 August</b>, so it long predates today.</p>
+
+<h3>3. The placeholder guard list is still two values wide</h3>
+<p><code>UNVERIFIED_PRICES = (99.00, 999.99)</code>. Six live products sat at <b>999.00</b> and would have
+asked a customer for 999 francs; four sat at 0.00. <b>The data is fixed</b> (all six moved to 999.99 on
+2026-09-10 at Angel's instruction — he likes the guard: <i>"it automatically said, hey, this is a wrong
+price, and it basically forced the user to put the right price in"</i>). <b>The guard is not.</b> Type
+999.00 tomorrow and it walks straight through again. The four rows at 0.00 are Angel's
+<code>SEPARATOR-001…004</code> shelf markers and are <b>deliberate</b> — an intake aid for testing without
+selling. Leave them.</p>
+
+<h3>4. A paper standing outside a deal says nothing at all</h3>
+<p><b>Rips Extra Dünn King Size schwarz</b> — CHF 2.00, same shelf, same King Size paper as six others in
+the basket that are on "3 for 5.00", and it carries no deal. Ringing it at full price is <b>correct</b>.
+The till says nothing, because <code>dealInfo()</code> returns null for a product with no
+<code>price_tiers</code> at all — so the "not in the deal" warning can only ever fire for a
+<code>per_unit</code> row. Predicted before the sheet ran, confirmed twice by it.</p>
+
+<h2>Still open — the selling path</h2>
+<ul>
+<li><b>Shelf Intake is entirely English</b>, and Angel was using it <b>at the counter at 12:36</b>. The
+  worklist's framing — "275 strings, and nobody sells with any of it" — stopped being true today.</li>
+<li><b>English in the manager's price panel:</b> <code>Invalid price tiers: the first tier must start at
+  min_qty 1 (the base price)</code> — English, and it quotes a <b>database column</b> at a shop owner.</li>
+<li><b>English toast mid-sale:</b> <code>Price updated — carry on with the sale</code>.</li>
+<li><b>The till fell out of fullscreen</b> at 11:48 and stayed out until 13:04, with Chromium's own
+  <i>"To exit full screen, press Esc"</i> bar parked over the header and the total. Angel: <i>"it just
+  pops out, goes into the middle, like the shrunken down screen."</i> His read is kiosk mode. Worth
+  knowing before that decision: <b>kiosk mode does not cost the screenshots</b> —
+  <code>tablet-lockdown.sh</code> binds <code>Print</code> at the GNOME level, not in the browser.</li>
+<li><b>Checkout badge:</b> a qty-1 line inside a pool shows no <code>pack ✓</code> while its 3× and 4×
+  neighbours do — the badge asks each line about itself instead of about its pool.</li>
+<li><b>The discount field accepts a leading zero</b> and the label prints <code>Discount (010%)</code>.
+  The money was right; the label was not.</li>
+</ul>
+
+<h2>Catalogue quality</h2>
+<ul>
+<li><b>A wholesaler's SEO page title is a product name:</b> <i>"Elf Bar 4in1 Pod kaufen - Kings Castle
+  Tabakgrosshandel"</i>, with a scraped scrap of text where the photo should be.</li>
+<li><b>The same product twice in two languages:</b> <i>Cartouches 4 IN 1</i> and <i>4 IN 1 Kartuschen</i>.</li>
+<li><b>Duplicate rows:</b> <i>Smoking Brown Rolls</i> ×2 and <i>Smoking Blue Rolls 1pcs</i> ×2, both pairs
+  inside the 3-for-10 deal group.</li>
+<li><b>A QR marketing code offered as a barcode:</b> the gun read
+  <code>https://vqr.vc/BiWfnR9bv</code> off a packet and the till offered to save that URL as the
+  product's code. LESSON #9 territory — a URL is not an identity.</li>
+<li><b>26 King Size papers carry no deal at all</b>, including <i>Purize King Size Slim "420"</i> and
+  <i>Rips Extra Dünn</i> at exactly CHF 2.00, sitting beside papers that are 3-for-5.
+  <b>Felix's call, not ours</b> — it may be exactly what the shop intends.</li>
+</ul>
+
+<h2>The on-the-fly rows — asked and answered</h2>
+<p>Angel: <i>"how many on the fly ones do we have in the system? I have a funny feeling that was when
+the system wasn't working well... tell me if we can just keep them the way they are because it's
+realistic on the slides."</i> Answer: <b>19 rows, 12 active</b>, and yes — keep them. They are a true
+record of a shop being stood up, and every deliberate test row from 3 August
+(<code>special2</code>, <code>test-ten</code>, <code>forty-test</code>…) is <b>already deactivated</b>
+and invisible at the till. Three things are worth doing:</p>
+<ul>
+<li>⚠️ <b><code>AlpenBreeze</code> has a URL as its barcode</b> —
+  <code>https://vqr.vc/BiWfnR9bv</code>, the QR marketing code scanned off the packet on 10 September,
+  is now bound as that product's identity. That packet will never scan by its real EAN, and the next
+  AlpenBreeze with a different QR will not match it. <b>Clear it</b> and let the next real scan bind.
+  The till should also refuse to bind a <code>http(s)://</code> string as a barcode in the first
+  place — LESSON #9: never let something that is not an identity become one.</li>
+<li><b>Seven of the twelve are category <code>Unsorted</code></b>. They sell, but they fall out of every
+  category filter, every category report and the shelf picker. <i>GuanoKalong Florizon</i> → Grow
+  Supplies; <i>JUICY SUPER Wrap GOLD</i> → Blunts &amp; Wraps (its two siblings already are); the two
+  energy strips and AlpenBreeze need a home.</li>
+<li><b>None of the 19 carries a cost</b>, so none carries a margin — and 17 have no photo. Expected for
+  a counter quick-add; worth a cleanup pass, not a fix.</li>
+</ul>
+<p class="meta">Barcode shapes are healthy: <code>2…</code> on the rows that had no printed code (the
+in-store range, correct), real GS1 codes — <code>871…</code>, <code>016…</code>, <code>716…</code>,
+<code>764…</code> — on the ones bound from an actual scan.</p>
+
+<h2>New idea — the box code</h2>
+<div class="card warn">
+<p>Angel, 2026-09-10, on filters: <i>"they have a lot of filters there, different types, Bob Marley
+filters and stuff, and there's a scan code on the back of it, and it picked that up, but that was for
+the box of them."</i></p>
+<p>The packet a customer buys has no code of its own; the code on the shelf is the <b>outer box</b>. So a
+scan resolves to a box of N and the shop sells singles. The shape of a fix: bind the box code, record how
+many singles are in it, and let the till <b>break the box down</b> — scan the box, sell one. His own
+caveat: <i>"maybe there's a box, and it's also a single or something, but that's a problem... it's very
+rare, I guess. It's more of filters. He sells a lot of filters."</i></p>
+<p>Not built, not designed. Written down so it survives the night.</p>
+</div>
+
+<h2>What today should teach us</h2>
+<ul>
+<li><b>A test that checks totals cannot see an unreadable total.</b> Nine green proof sections, 2,378
+  passing tests, and the thing a person could not read was invisible to all of them. The new checks ask
+  what a <i>person</i> can verify: does the row multiply out, does the column close, does one word mean
+  one number.</li>
+<li><b>A fixture that cannot fail the way production fails is not a fixture.</b> The rounding had 2,009
+  cases and a shape production never produces. Twice more the same day: I "found" a treat/deal bug with a
+  cart line the app never builds, and got <code>product_class: 'tobacco'</code> wrong when the real value
+  is <code>tobacco_nicotine</code>. Both times the fixture lied, not the code.</li>
+<li><b>A locator that walks a layout breaks when the layout moves.</b> Three in one afternoon — "the span
+  after the TOTAL", "the div after the TOTAL", "the last child of the enclosing div". Ask for the thing by
+  its label.</li>
+<li><b>A harness that goes red for reasons unrelated to its subject teaches you to ignore it.</b> A flat
+  3.5-second sleep after Login meant a cold Keycloak reported five pricing failures.</li>
+<li><b>The design that lives at the counter is in no comment.</b> I priced four shelf separators as broken
+  data. They are a deliberate intake aid. Grepping the code found nothing because the reason was in
+  Angel's hands, not in the repo.</li>
+</ul>
+
+<p class="meta" style="margin-top:34px">Written 2026-09-10 evening. Four defects, four found by the
+person standing at the counter. <span class="tag">the tablet run is still to come</span></p>
+</div>
