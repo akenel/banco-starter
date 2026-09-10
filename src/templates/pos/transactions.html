@@ -186,6 +186,14 @@
             <div class="card">
                 <p class="text-sm text-gray-600" data-i18n="transactions.total_sales">Total Sales</p>
                 <p class="text-3xl font-bold text-green-600" x-text="formatPrice(summary.total)"></p>
+                <!-- What came back out, named, directly under what stayed in. Only when there
+                     is one — on almost every day this row does not render at all. -->
+                <p x-show="summary.refundedCount > 0" x-cloak style="display:none"
+                   class="text-sm font-semibold text-red-600 mt-1">
+                    <span x-text="summary.refundedCount"></span>
+                    <span data-i18n="transactions.refunded_suffix">refunded</span>
+                    · <span x-text="'-' + formatPrice(summary.refundedTotal)"></span>
+                </p>
             </div>
             <!-- BL-84: full payment breakdown (cash / debit / TWINT / visa / bank transfer / ...) -->
             <div class="card md:col-span-2">
@@ -342,7 +350,9 @@
             transactions: [],
             summary: {
                 count: 0,
-                total: 0,
+                total: 0,          // takings — refunded sales excluded (see calculateSummary)
+                refundedCount: 0,  // how many of the rows below came back out
+                refundedTotal: 0,
                 byMethod: {}   // BL-84: { cash: {total, count}, debit: {...}, ... }
             },
             // BL-84: the real PaymentMethod enum, in display order, with label + pill colour.
@@ -444,10 +454,31 @@
                 // Summary reflects the facet-filtered view (so "Larry" or "Pam" totals are real).
                 const list = this.filteredList();
                 this.summary.count = list.length;
-                this.summary.total = list.reduce((sum, t) => sum + parseFloat(t.total || 0), 0);
+
+                // A REFUNDED SALE IS NOT A SALE, AND IT IS NOT IN THE DRAWER.
+                //
+                // 2026-09-10, Angel, after reversing every rehearsal sale on the shop: this page
+                // reported "Total Sales CHF 116.95" and "Cash 3× CHF 75.95" over five rows that
+                // all read REFUNDED, with an empty till. The Sales Report screen had the same day
+                // right (CHF 84.95, refunds excluded) — two screens, two answers, and the wrong
+                // one is the one that looks like a ledger.
+                //
+                // The rows still ALL show: a refund is a thing that happened and hiding it would
+                // be its own lie. What changes is what gets ADDED UP. Takings and the payment
+                // breakdown count money that stayed; the refunds get their own figure underneath,
+                // named, so the difference between the two is on the screen instead of in
+                // somebody's head.
+                const isRefund = (t) => String(t.status || '').toLowerCase() === 'refunded';
+                const kept = list.filter(t => !isRefund(t));
+                const back = list.filter(isRefund);
+
+                this.summary.total = kept.reduce((sum, t) => sum + parseFloat(t.total || 0), 0);
+                this.summary.refundedCount = back.length;
+                this.summary.refundedTotal = back.reduce((sum, t) => sum + parseFloat(t.total || 0), 0);
+
                 // BL-84: bucket every sale by its real payment method (don't lump as "cash").
                 const by = {};
-                for (const t of list) {
+                for (const t of kept) {
                     const m = t.payment_method || 'other';
                     if (!by[m]) by[m] = { total: 0, count: 0 };
                     by[m].total += parseFloat(t.total || 0);

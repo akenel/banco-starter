@@ -207,7 +207,7 @@ def test_the_till_screen_agrees_with_the_server_cent_for_cent():
         "62.99", "8.91", "42.66", "16.92", "6.21", "70.40", "2.99", "2.91", "1234.56"]
     script = """
     const M = { cartData: { totals: {} }, paymentMethod: 'cash', %s };
-    global.POSConfig = { regime: { cash_rounding_step: '0.05' } };
+    global.POSConfig = { regime: 'CH', cash_rounding_step: '0.05' };  // the SHAPE the browser actually has
     const out = {};
     for (const t of %s) { M.cartData.totals.total = parseFloat(t); out[t] = M.payableTotal(); }
     console.log(JSON.stringify(out));
@@ -230,7 +230,7 @@ def test_the_till_screen_does_not_round_a_card_sale_either():
     rounded TO PAY and the card would then be charged the exact cent."""
     script = """
     const M = { cartData: { totals: { total: 62.99 } }, paymentMethod: 'visa', %s };
-    global.POSConfig = { regime: { cash_rounding_step: '0.05' } };
+    global.POSConfig = { regime: 'CH', cash_rounding_step: '0.05' };  // the SHAPE the browser actually has
     console.log(JSON.stringify(M.payableTotal()));
     """ % _extract_mirror().rstrip().rstrip(",")
     script = script.replace("(POSConfig || {})", "(global.POSConfig || {})")

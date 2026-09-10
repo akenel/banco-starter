@@ -240,9 +240,17 @@
                     <span>🎁 <span data-i18n="checkout.welcome_discount">First-order discount</span> (<span x-text="member ? member.welcome_discount_pct : 0"></span>%):</span>
                     <span x-text="'-' + formatPrice(welcomeDiscountAmount)"></span>
                 </div>
-                <div x-show="(discount > 0 || (member && member.tier_discount_percent > 0)) && discountAmount === 0 && memberDiscountAmount === 0"
+                <!-- The reason is WORKED OUT, not assumed — discountBlockedReason() in base.html.
+                     When it returns null the row does not render at all: silence beats a made-up
+                     explanation, and a wrong one sends a manager hunting for tobacco that is not
+                     in the basket. -->
+                <div x-show="(discount > 0 || (member && member.tier_discount_percent > 0))
+                             && discountAmount === 0 && memberDiscountAmount === 0
+                             && discountBlockedReason(cartData.cart)"
+                     x-cloak style="display:none"
                      class="flex justify-between text-amber-600 text-sm">
-                    <span data-i18n="checkout.no_discount_promo">No discount — tobacco/alcohol only</span>
+                    <span x-text="t('checkout.no_discount_' + (discountBlockedReason(cartData.cart) || 'promo'))"
+                          data-i18n-exempt="the key is chosen at runtime by discountBlockedReason(); all three live in pos-i18n.js"></span>
                     <span>−0.00</span>
                 </div>
                 <div class="border-t pt-3 flex justify-between text-xl font-bold">
@@ -806,7 +814,10 @@
             // in the first place. Totals are always whole cents, so a half-step tie (x.x25) can
             // never arise and Math.round matches the server's ROUND_HALF_UP exactly.
             cashRoundStep() {
-                const s = parseFloat(((POSConfig || {}).regime || {}).cash_rounding_step || 0);
+                // POSConfig.regime is a STRING ('CH'), so the old `POSConfig.regime.cash_rounding_step`
+                // read undefined and this returned 0 — meaning nothing below ever rounded, on any
+                // machine, since the day it was written. Read the field that actually exists.
+                const s = parseFloat((POSConfig || {}).cash_rounding_step || 0);
                 return (isFinite(s) && s > 0) ? s : 0;   // 0 = no coin constraint here, exact totals
             },
             // What the customer actually pays. CASH ONLY — TWINT/debit/card settle the exact cent,
