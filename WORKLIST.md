@@ -17,9 +17,10 @@
 > [`worklist-archive/done.md`](worklist-archive/done.md) with its commit hashes; when a thread grows
 > a long write-up, the write-up goes to the archive and a one-line pointer stays here.
 
-*Last updated: 2026-09-05 morning — the worklist alarm is in and runs at SESSION START.
-Before that: **the blocking deck is clear** — five items in, three UAT sheets run on the real
-tablet, zero fails. Live on the shop: `b629 · 6cc1bb5`.*
+*Last updated: 2026-09-15 — **fifth archive pass, 507 → 409**, the alarm's first catch on a file
+that had merely drifted rather than exploded: nine closed or parked threads, 129 lines out, 0 lost.
+Before that: 2026-09-10, Angel worked the counter and found four defects himself.
+Live on the shop: `b754 · 4e3cb17`.*
 
 ---
 
@@ -135,35 +136,18 @@ slog nobody sells with · ⑥ My Day's red `failed to fetch`.
    "missing its decimal separator") came from a capture at **Pixel ratio 0.667** — the model read
    compression, not the screen. Triage now distrusts fine detail below ratio 1; the cheap fix is
    not to zoom out.
-0️⃣a **FR/IT — three passes done, call it 90%.** Written here, read by a vision model on ~25 real
-   screens, walked by Angel in Italian — he caught `Samstag` before any check did. **The "nobody
-   has read a word" framing was overstated and is retired (2026-09-06).** What is left is
-   REGISTER: `Titolare` or `Proprietario`, is `Giornata` right for a nav slot. Perhaps 20–30
-   judgement calls out of ~1,100, a minute each for Angel or Felix. A footnote, not a blocker.
+0️⃣a ~~**FR/IT**~~ — **RETIRED as a blocker 2026-09-06.** ~20–30 REGISTER calls out of ~1,100 (`Titolare`
+   or `Proprietario`?), a minute each for Angel or Felix. A footnote. → [`09-15`](worklist-archive/2026-09-15-archive-pass.md)
 
-0 · 1–3 · 4 · 6. ~~**Startup · keyboard · Pam's picker · kiosk leftovers · the tablet ·
-   Worldline**~~ — **ALL CLOSED.** The till did not come up at all on a cold boot (five faults,
-   now ~58s unattended, invisible for four months because every proof was `reboot` over SSH
-   **with nobody watching the screen**); eleven tablet faults, none of them Banco's code; and
-   Worldline is **answered — Phase 1 integrates NOTHING, Banco replaces the CALCULATOR.**
-   → [`09-05`](worklist-archive/2026-09-05-archive-pass.md)
+0 · 1–3 · 4 · 6. ~~**Startup · keyboard · Pam's picker · kiosk leftovers · the tablet · Worldline**~~
+   — **ALL CLOSED.** Worldline: **Phase 1 integrates NOTHING, Banco replaces the CALCULATOR.**
+   → [`09-05`](worklist-archive/2026-09-05-archive-pass.md) · [`09-15`](worklist-archive/2026-09-15-archive-pass.md)
 
 0c. **Do they log out at night?** Raised, not decided. · 0f. **My Day: red `failed to fetch`
    offline**, under a banner that said so. LESSON #12. · 0g. ✅ **Three clean cold boots** —
    57.8/58.3/58.2s. **The cashier does nothing at all in the morning.**
-5. 🔴 **THE COUNTER VISIT — THE BIGGEST OPEN RISK IN THIS FILE, and it is not code.**
-   **Nothing has completed a sale on this build. The last one was 2026-08-21 — sixteen days.**
-   Two sheets, prepped since 2026-09-05, needing only the drive.
-   [`2026-09-05-standing-where-layla-stands.html`](onboarding/testsheets/2026-09-05-standing-where-layla-stands.html)
-   — 21 steps: light, reach, their wifi at the counter, the gun on their surface, noise. No sale.
-   [`2026-09-05-four-real-sales.html`](onboarding/testsheets/2026-09-05-four-real-sales.html)
-   — 18 steps, and **the one sheet where the payment button IS pressed.** Same trip, second.
-   Everything settleable from here was settled — barcodes, VAT **inclusive**, pack deals run
-   through the real pricing function. **Print a receipt while you are there** (item 8).
-   → [`09-05`](worklist-archive/2026-09-05-archive-pass.md)
-   ~~**The window-drag bug**~~ — **CLOSED, a compromise Angel accepted:** the title bar is both
-   the cause AND the escape hatch, so it is now a DRILL (steps B4a–c).
-   → [`09-05`](worklist-archive/2026-09-05-archive-pass.md)
+5. ~~🔴 **THE COUNTER VISIT**~~ — **CLOSED 2026-09-10**, the day Angel worked the till. Both sheets run.
+   → [`2026-09-10-the-counter-and-the-afternoon.html`](worklist-archive/2026-09-10-the-counter-and-the-afternoon.html)
 
 7. **The Felix conversation — four decisions that are HIS, written up, none agreed yet.**
    [`the-felix-conversation.html`](onboarding/the-felix-conversation.html): the payment buttons,
@@ -202,46 +186,22 @@ slog nobody sells with · ⑥ My Day's red `failed to fetch`.
 patches itself at 03:15. Two ssh doors: **`tablet` → art** (gsettings are per-SESSION),
 **`tablet-admin` → admin** for `--push`. → [`09-05`](worklist-archive/2026-09-05-archive-pass.md)*
 
-### ~~⚠️ PORTRAIT~~ — **DONE 2026-09-05, PASSED.** At 1440 × 2160 the whole denomination table
-fits with no scrolling; landscape cannot. **Do not lock rotation.**
-→ [`09-05`](worklist-archive/2026-09-05-archive-pass.md)
-
-⓪h–k. ~~**The four portrait findings**~~ — **ALL DONE, b690–b693.** The note strip and the 💬
-   anchor both passed on the glass 2026-09-06; `Samstag` proven in three languages; (j) withdrawn.
-   → [`2026-09-05-archive-pass.md`](worklist-archive/2026-09-05-archive-pass.md)
+### ~~⚠️ PORTRAIT~~ · ~~⓪h–k the four portrait findings~~ — **ALL DONE**, b690–b693, proven on the glass.
+**Do not lock rotation.** → [`09-05`](worklist-archive/2026-09-05-archive-pass.md) · [`09-15`](worklist-archive/2026-09-15-archive-pass.md)
 
 ### Still open on the tablet
 
-- ~~**The title bar's close button**~~ — **NOT A BUG, A PRICED TRADE. Do not reopen.** Angel,
-  2026-09-05: *"I think it's fine the way it is ... or else in full screen mode all the time they
-  don't see the battery level or the wifi."* He is right and it is written in
-  `banco-till.service`: *"Dropping --kiosk left a title bar with a close button on it. A cashier
-  who taps that has no way back. **Now it comes back in three seconds.**"* (`Restart=always`,
-  `RestartSec=3`.) The trade bought a permanently visible GNOME bar — battery, wifi, bluetooth —
-  plus Banco's own one-tap fullscreen toggle in the top bar, and a route to the OS for things like
-  a screenshot with the folio detached. **I put this on the list without reading the comment**, the
-  same shape as the kiosk loop. LESSON #3: a remembered decision is a hypothesis with a timestamp.
-- ~~**Chromium security update + no patching policy**~~ — **DONE 2026-09-05.** Chromium
-  151 → **152.0.7977.75** and firefox-esr applied; till restarted and verified running the new
-  binary (0 deleted inodes mapped). **And it now patches itself:** security origin ONLY, 03:15
-  nightly, reboot 03:30 *only when one is owed*. Measured frequency on this machine: batches on
-  08-22, 09-01, 09-05 — **one every ten days**, and it will not slow down.
-  Three things that would each have silently defeated it: `Automatic-Reboot-WithUsers` (autologin
-  means a user is ALWAYS logged in, so the default `false` would collect kernel updates forever
-  and never reboot); Debian's default timer at **06:58** for a shop that opens at 08:00; and
-  APT's `::` **appending** to Debian's existing origin list rather than replacing it, so
-  "security only" quietly meant *all stable updates* until `#clear` was added.
-  Also `banco-stale-browser-check`: a Chromium upgrade leaves the till running the **deleted**
-  binary — patched on disk, unpatched on the glass, indefinitely, because the service only
-  restarts when the browser exits. It measures `/proc/PID/exe`, marks a reboot owed, and lets the
-  standard machinery handle it. **`tablet-postboot-check.sh` is now 46 checks.**
+- ~~**The title bar's close button**~~ — **NOT A BUG, A PRICED TRADE. Do not reopen.** It buys a
+  permanently visible GNOME bar (battery, wifi) and `Restart=always`/`RestartSec=3` brings the till
+  back in three seconds. → [`09-15`](worklist-archive/2026-09-15-archive-pass.md)
+- ~~**Chromium security update + no patching policy**~~ — **DONE 2026-09-05.** 152.0.7977.75, and it
+  now patches itself: security origin only, 03:15, reboot only when owed. `tablet-postboot-check.sh`
+  is 46 checks. Three things nearly defeated it silently — read before touching the timer.
+  → [`09-15`](worklist-archive/2026-09-15-archive-pass.md)
 - **Wifi powersave is `default`** (likely on) — worth disabling for a till.
-- ~~**The power profile had DRIFTED to `power-saver`**~~ — on mains, at 100% battery, throttling
-  the till. Found only because Angel asked whether the idle test should be repeated on battery.
-  `banco-lockdown.service` now sets `balanced` at every boot — it is not a setting anyone chose,
-  it is one that drifted, and nothing was watching. Also confirmed and left alone: UPower does
-  **HybridSleep at 2%**, which is right — a Kassenbuch write interrupted by a flat battery is
-  worse than a controlled shutdown.
+- ~~**The power profile had DRIFTED to `power-saver`**~~ — **FIXED**, `banco-lockdown.service` sets
+  `balanced` at every boot. Nothing was watching a setting nobody chose.
+  → [`09-15`](worklist-archive/2026-09-15-archive-pass.md)
 - **`shop-lte` is ACTIVE alongside wifi** — the failover exists and is live. Decide whether it is
   meant to be always-on, and test it at the shop, not in a flat.
 - **[`the-till-morning-to-night.html`](onboarding/the-till-morning-to-night.html)** — the card to
@@ -252,52 +212,13 @@ fits with no scrolling; landscape cannot. **Do not lock rotation.**
 
 ---
 
-## ⓜ BIRTH YEAR INSTEAD OF A FULL BIRTHDATE — OPEN, DO NOT BUILD — 2026-09-04
+## ⓜ BIRTH YEAR INSTEAD OF A FULL BIRTHDATE — **PARKED, DO NOT BUILD** — 2026-09-04
 
-*Angel's idea, analysed and parked by his own call: **"i will ask felix tomorrow if he brings the
-issue up … if somebody complains about it, fine, then we'll fix it. Other than that let's just
-leave it. We've done a lot of work there, so it's better that we don't break anything and make our
-life more complicated for nothing."** That is the right call and this entry exists so the thinking
-is not lost, not so someone picks it up.*
-
-**The idea.** Members give a birth YEAR, not a full date. Faster to type (4 digits, not 8), more
-anonymous, and — Felix's own point — *"the members don't wanna be known at all, they just want
-their codes."*
-
-**The shop already works this way.** Of 22 active members: **4 have a birthdate · 3 have a cashier
-attestation and no birthdate · 15 have neither.** The till is already running on "the cashier
-looked at the ID", not on stored dates.
-
-**The one hard edge, and it decides the whole design.** On 2026-09-04, someone born in 2008 is 18
-if born in January and 17 if born in December. A year cannot decide age for exactly the cohort the
-gate exists to catch. Two ways to resolve it in code, both bad: assume January → sell to
-17-year-olds; assume December → refuse genuine adults, which is a lost sale and an argument at the
-counter.
-
-**The design that would work**, using machinery that already exists (`member_of_age()` reads DOB
-when present, else `age_confirmed`):
-
-| birth year | outcome |
-|---|---|
-| ≤ current − 19 | unambiguously of age → instant pass |
-| **= current − 18** | ambiguous → falls through to "check the ID and confirm" |
-| ≥ current − 17 | refuse |
-
-Faster, more private, and no less correct: the one ambiguous year lands on the human holding the ID.
-
-**What must NOT be done:** store the year as `YYYY-01-01` in `birthdate`. That writes a false
-precise date into a compliance record. It needs its own nullable `birth_year` column, with
-`birthdate` kept for anyone who volunteers one.
-
-**Scope if it is ever built:** ~half a day with proofs. Column + migration (4 rows today), the age
-logic, the API schemas, the age report, three member-facing boxes. **Staff cards do not change** —
-a full DOB there serves AHV and employment, a different purpose entirely.
-
-**The question for Felix, if he raises it:** *what is the record FOR?* If it is proof of diligence
-in a test purchase, year + attestation is still proof of diligence. If it only ever feeds the gate,
-year-only is strictly better. Not a legal opinion — that is his call, possibly his Treuhänder's.
-The obligation is not to SELL to a minor; it is not an obligation to record birthdates, and the
-paper till records nothing at all.
+Angel's call: *"if somebody complains about it, fine, then we'll fix it."* The analysis is whole in
+the archive — the design that works (≤ −19 pass · **= −18 ambiguous, falls through to the human**
+· ≥ −17 refuse), what must NOT be done (never store `YYYY-01-01` in `birthdate`), and the question
+for Felix: *what is the record FOR?* ~half a day if it is ever built.
+→ [`09-15`](worklist-archive/2026-09-15-archive-pass.md)
 
 ---
 
@@ -439,29 +360,11 @@ logout is *desirable*; a quiet Tuesday afternoon one is not.
   `min_stock` / `max_stock` / reorder points — `/reorder/suggestions` ranks by what the till sold.
 - **`age_check_event` is append-only** (a PL/pgSQL trigger, not `REVOKE` — which is a no-op against
   a table owner). Nothing can tidy a row away, including a mis-tap.
-- **Hardware gets a label when it earns one. There is nothing to build, and no binder.** Settled
-  2026-08-28. Of 1,062 bongs / grinders / trays / shishas / accessories, **20 carry a real EAN** —
-  they are house-brand goods that exist in no other catalogue, so image-matching finds nothing
-  (12 tested, 0 matched) and their minted `200…` code is the *correct* answer, not a failure.
-  **The rule is: something sells twice, it gets a label.** Nobody plans it, nobody maintains a
-  binder, and the work is done by the person who noticed the demand.
-  **The shelf is the signal.** Four jars of ~20 Crank pipes behind the counter → obviously needs a
-  scan method, and *Layla asked for exactly that unprompted* ("give me a label per type, I'll stick
-  it on the jar lid"). One hookah on the top shelf for two years → obviously does not. Staff read
-  their own selling patterns better than any rule we could write, and MISC is self-correcting:
-  Felix asks why everything is MISC, they notice they sold the same thing four times this week, and
-  they print a label. **That is ownership of their own catalogue, and it is worth more than
-  completeness.** Felix: *"I don't want to put a barcode on every grinder"* — and he is right; it
-  is their call, not ours.
-  ⚠️ **Nothing needs writing.** The label button is already one tap for any staff on any item
-  (`catalog.html:414`, "Pam's one-tap"), and a scanned label with no manufacturer EAN already
-  resolves by SKU (`pos_router.py:2197`, proven on three Crank pipes 2026-08-27). A printed paper
-  binder was considered and rejected: it does not scale past a few hundred rows, a printed price is
-  wrong the day after it prints (**LESSON #13** — the stored copy always wins), and it adds a second
-  checkout procedure for a minority of goods, which is the opposite of idiot-proof. **Build it only
-  if Ralph or Felix asks for it.**
-  *Keep the department-code escape hatch exactly as it is.* "Accessories, 39 francs, move on" is
-  correct behaviour at a busy till.
+- **Hardware gets a label when it earns one. Nothing to build, no binder.** Settled 2026-08-28:
+  of 1,062 accessories only 20 carry a real EAN, and their minted `200…` code is the CORRECT answer.
+  **The rule: something sells twice, it gets a label.** The shelf is the signal; MISC is
+  self-correcting. Build a binder only if Ralph or Felix asks. Keep the department-code escape
+  hatch. → [`09-15`](worklist-archive/2026-09-15-archive-pass.md)
 
 
 ---
@@ -495,6 +398,7 @@ Playwright is **borrowed via `NODE_PATH`, not vendored** — this repo has no no
 
 | file | what's in it |
 |---|---|
+| [`worklist-archive/2026-09-15-archive-pass.md`](worklist-archive/2026-09-15-archive-pass.md) | **the fifth cut** — 2026-09-15, 129 lines out, 0 lost, triggered by the alarm at 507. Nine blocks, all closed, settled or parked: **ⓜ the birth-year analysis** (parked whole — the 2008 January/December edge is the whole design), **item 5 the counter visit** (*stale* — it still said no sale had been rung on this build, four days after Angel rang them), the tablet's **portrait findings · title bar · Chromium self-patching · the drifted power profile**, **FR/IT retired as a blocker**, and the **hardware-label** standing fact |
 | [`worklist-archive/2026-09-10-archive-pass.md`](worklist-archive/2026-09-10-archive-pass.md) | **the fourth cut** — 2026-09-10, verified line-for-line: **ⓞ THE COUNTER VISIT** (closed the day Angel worked the till — the prep prose; *the one code-touching decision it carried still stands: **LANDSCAPE, LOCKED**, every geometry proof runs at 1440 × 895*) and **ⓒ5 PAM'S RUN** (14 pass · 3 issue · 0 fail, 2026-09-04). The day itself is the HTML beside it |
 | [`worklist-archive/2026-09-04-archive-pass.md`](worklist-archive/2026-09-04-archive-pass.md) | **the third cut** — 1,730 lines moved out verbatim on the night of 2026-09-04, 0 lost: the 11-shot contact sheet, the 131 no-op classes (ⓔ + ⓙ), the masked-box pad bug (ⓕ), the invisible refusal (ⓖ), the dead effect (ⓗ), the ungreyed save (ⓘ), the category picker (ⓚ), the gun that pressed the button (ⓛ), the daytime close (ⓝ), the date-filter thread (ⓒ2–ⓒ4), and everything written before 2026-09-03 |
 | [`worklist-archive/2026-08-27-archive-pass.md`](worklist-archive/2026-08-27-archive-pass.md) | **the second cut** — 889 lines moved out verbatim 2026-08-27: the member card, ART-AB12, the join offer, the counter card, bundle pricing, the price warning, the whole FourTwenty thread, the six till reports, adopt-images, both prod-live days |
