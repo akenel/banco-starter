@@ -362,6 +362,13 @@ FR/IT need a speaker, not a guess.
 - **A feature is not done until you can name the screen it is reachable from.** `/pos/kb-approvals`
   was the fifth or sixth instance of a working page with no door. At that count the fix is a rule in
   the definition of done, not another instance.
+- **Banco's front door is another product's landing page.** `src/main.py:400` serves `home.html`
+  unconditionally, so `GET /` on any Banco returns **La Piazza** — *"Got a skill the world stopped
+  hiring?"*, a CV service. Proven by curl against the running app, not read off the template.
+  **Angel's call 2026-09-14: not a showstopper** — he reaches the till at `/pos` and that route
+  works. It matters for the *starter*: a shop that clones this gets a stranger's pitch at its root,
+  which is the one URL a customer would type. Cheapest fix is a redirect `/` → `/pos` behind an env
+  flag, so La Piazza keeps its own front door and a self-hosted Banco lands on the POS.
 
 
 ---
