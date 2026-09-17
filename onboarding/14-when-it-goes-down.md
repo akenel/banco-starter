@@ -218,12 +218,13 @@ spreadsheet is a shop owner who chose to stay.
 | # | What broke | Can the shop sell? | Do this |
 |---|---|---|---|
 | **0** | nothing | ✅ | — |
+| **0.5** | **the till is ON but the screen is blank/white** | ✅ *once it comes up* | Give it **60 seconds**, then power-cycle **once**, watching the screen. If it happens again on the next cold boot it is the keyring fault (2026-09-05, fixed via `--password-store=basic` in `banco-till.service`) — **check the till unit before blaming the network**. `systemctl` will say `active (running)` and `curl` will answer 200 the whole time. Sell from the spare while you look. |
 | **1** | a tablet or a gun dies | ✅ | **Take the spare.** Two of each is why they exist. ⚠️ The cart does **not** transfer — re-scan the basket. |
 | **2** | labeller's network path | ✅ | Switch to the **Bluetooth** queue. Or the USB cable. |
 | **3** | labeller dead entirely | ✅ | **Keep selling.** Labels are *shelf prep*, not part of a sale. Catch up later. |
 | **4** | shop Wi-Fi | ✅ | **One tap** — *Switch to Hotspot* or *Switch to Mobile*. It will **not** switch itself, in either direction. |
 | **5** | all internet | ⚠️ **cash only** | Cards are gone — Worldline needs the network. Put up a **cash-only** sign. **Scan into a text file**, don't write EANs by hand. |
-| **6** | Banco itself (bad deploy, Hetzner) | ⚠️ cash only | Same as 5. Network is fine, so **the phone camera still works** — photograph anything unclear. |
+| **6** | Banco itself (bad deploy, Hetzner) | ⚠️ **cash AND cards** — see below | The card terminal is **not** part of Banco. Take payment on it as normal; nothing is recorded, so **write the sale down**. Network is fine, so the phone camera still works — photograph anything unclear. |
 | **7** | power | ⚠️ cash only, briefly | Tablets and the laptop run on battery; the printer and card terminal do not. **The offline spreadsheet** on the back-office laptop is the lookup. Then paper. |
 | **8** | everything | ⚠️ cash only | **Paper and cash.** Nothing else to do, and it is enough. |
 
@@ -234,6 +235,14 @@ sale depends on printing a label. Say that to staff in advance or someone will c
 
 **Rungs 5 and up are all the same shop:** cash, a list of scanned barcodes, and a customer who does
 not care. The only real loss is **card payments**, and no amount of engineering fixes that.
+
+> ⚠️ **Rung 6 is the exception, and it was written the wrong way round until 2026-09-17.** It used to
+> say "cash only". That is true once Worldline is *integrated* — Phase 2 — but it is **not** true
+> today. The terminal at this counter is Felix's own, standing on its own network connection, and
+> Banco does not touch it ([`16-bom-artemis-luzern.md`](16-bom-artemis-luzern.md)). So if Banco is
+> down and the internet is up, **cards still work**. What is lost is the *record*, not the payment —
+> which is a completely different instruction to give a cashier, and a much less frightening one.
+> Re-read this rung on the day Worldline goes in.
 
 **Every rung ends the same way — coming back.** The sale is not the problem; the *re-entry* is. See
 the backlog item on offline sales, and the note above about scoping it cheap.
