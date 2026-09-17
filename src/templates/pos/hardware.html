@@ -169,6 +169,16 @@
         done once — but it has to be done <i>on the machine</i>, because nothing else can answer it.
       </p>
 
+      <p class="text-sm bg-rose-50 border-2 border-rose-300 rounded-lg p-3 mb-3">
+        🔴 <b>ANSWERED 2026-09-17 — and the answer is no.</b> <code>network</code> on the shop
+        tablet (Debian Chromium 152) <i>and</i> on the desktop (Google Chrome 152), with both
+        machines verified online at the time — the tablet reached <code>google.com</code> and the
+        shop, 200 each, minutes before. Two different builds, two different key sets, same refusal.
+        <b>Free browser dictation is not available to us.</b> Dictation, if we ever want it, is a
+        small model on our own server. The button still works: press it on a NEW device before
+        assuming the same, because that is the one thing this card was ever for.
+      </p>
+
       <p class="text-sm bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3">
         ⚠️ <b>This sends the audio to Google.</b> The browser's built-in speech recognition is not
         offline — it uploads what you say. Fine for reading a product name off a packet; not a
@@ -183,6 +193,7 @@
 
       <div x-show="heard" style="display:none" class="mt-3 bg-emerald-50 border border-emerald-200 rounded-lg p-3">
         <div class="text-xs text-emerald-800 font-semibold">IT WORKS. It heard:</div>
+        <div class="font-mono text-xs text-emerald-700 mb-1" x-text="speechWhere"></div>
         <div class="text-lg font-bold text-emerald-900" x-text="heard"></div>
         <div class="text-xs text-emerald-800 mt-2">
           Say it again with a real brand name — <i>Cyclones Blunt Hemp Blue</i> — before deciding.
@@ -194,6 +205,7 @@
       <div x-show="speechErr" style="display:none" class="mt-3 bg-rose-50 border border-rose-200 rounded-lg p-3">
         <div class="text-xs text-rose-800 font-semibold">NOT AVAILABLE HERE</div>
         <div class="font-mono text-sm text-rose-900" x-text="speechErr"></div>
+        <div class="font-mono text-xs text-rose-700 mt-1" x-text="speechWhere"></div>
         <div class="text-sm text-rose-800 mt-2" x-text="speechWhy"></div>
       </div>
     </div>
@@ -225,7 +237,8 @@ function hardwareCheck() {
     browser: '', browserOk: true, screen: '', touch: '', storeOk: true,
     camera: '', cameraOk: false,
     mic: '', micOk: false,
-    listening: false, heard: '', speechErr: '', speechWhy: '',
+    listening: false, heard: '', speechErr: '', speechWhy: '', speechWhere: '',
+    isChrome: false,
 
     // Characters a mis-set gun produces where a hyphen was printed. Same table as the server-side
     // fallback in _find_product_by_any_barcode — a US gun's "-" key reads as "'" on Swiss German,
@@ -316,9 +329,32 @@ function hardwareCheck() {
 
        So: press the button and find out. The error CODE is the whole answer, which is
        why it is shown verbatim and then translated into what to do about it. */
+    /* WHICH MACHINE ANSWERED. 2026-09-17: the card returned `network`, and the
+       run had happened on the DESKTOP, in Google Chrome, not on the tablet in
+       Debian Chromium — two builds whose answers cannot stand in for each other,
+       because the whole question is which API keys the build was compiled with.
+       A result you cannot attribute to a machine is not a measurement, so the
+       card now prints the build, the host and the context beside the verdict.
+       userAgentData.brands is what separates them: an official Google build
+       lists "Google Chrome", a distro build lists only "Chromium". */
+    speechBuild() {
+      var b = (navigator.userAgentData && navigator.userAgentData.brands) || [];
+      var names = b.map(function (x) { return x.brand; });
+      var ver = '';
+      for (var i = 0; i < b.length; i++) if (!/Not/i.test(b[i].brand)) ver = b[i].version;
+      this.isChrome = names.some(function (n) { return /google chrome/i.test(n); });
+      var name = this.isChrome ? 'Google Chrome'
+               : names.some(function (n) { return /chromium/i.test(n); }) ? 'Chromium'
+               : (navigator.userAgent.match(/(Firefox|Safari|Edg)\/[\d.]+/) || ['this browser'])[0];
+      return name + (ver ? ' ' + ver : '') + ' · ' + location.hostname
+           + (window.isSecureContext ? ' · secure' : ' · NOT a secure context')
+           + (navigator.onLine ? ' · online' : ' · OFFLINE right now');
+    },
+
     listen() {
       var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
       this.heard = ''; this.speechErr = ''; this.speechWhy = '';
+      this.speechWhere = this.speechBuild();
       if (!SR) {
         this.speechErr = 'no SpeechRecognition in this browser';
         this.speechWhy = 'Firefox has never shipped it. On the till this means the free route '
@@ -346,9 +382,17 @@ function hardwareCheck() {
           'service-not-allowed':'Chromium is here and the microphone is here, but Google will not serve '
                               + 'this build. This is the Debian-API-key answer: the free route is CLOSED '
                               + 'on this machine and dictation needs our own model.',
-          'network':            'Could not reach Google. Either the shop is offline right now, or the '
-                              + 'build has no Speech API access. Re-test with the wifi definitely up — '
-                              + 'if it says this again, the free route is closed.',
+          'network':            self.isChrome
+                              ? 'This IS the official Google build, so the API keys are not the '
+                              + 'problem — Speech is included in it. Something in the path blocked '
+                              + 'the call: a DNS filter, a VPN or exit node, an extension, or a '
+                              + 'captive portal. It says NOTHING about the tablet, which runs a '
+                              + 'distro build with different keys. Run it there.'
+                              : 'Could not reach Google. Either this machine is offline right now, '
+                              + 'or the build has no Speech API access — Debian ships keys its own '
+                              + 'file describes as being for "sync and gmail". Re-test with the wifi '
+                              + 'definitely up; if it says this again on the TABLET, the free route '
+                              + 'is closed.',
           'audio-capture':      'No microphone could be opened, even though one is listed. Check it is '
                               + 'not muted in the system sound settings.',
           'no-speech':          'The microphone opened and heard nothing. That is a PASS for the plumbing — '

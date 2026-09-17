@@ -85,12 +85,17 @@ Two sheets run: **9 pass · 0 fail**, then **25 pass · 2 issue · 0 fail**.
    20 green checks never saw it: they fired `dispatchEvent(new PointerEvent(...))` at the button,
    and a synthetic event cannot MISS. `prove-keypad.js` §N is now that regression, aimed at the
    two keys that still redraw (`shift`, `123`), driven by `page.tap()`. LESSON #5 → ×11.
-   **NEXT: Angel presses `/pos/hardware` → "3 · Test dictation" ON THE TABLET.** There is no mic
-   key on the keypad and there is not meant to be one yet — the probe is a card on that page. Mic
-   is a plain HDA `ALC298` and works (unlike the camera). If it answers `service-not-allowed`/
-   `network`, free Google is closed → `whisper.cpp base` (~300MB, fits banco's 1.6GB free, **add
-   swap first**) or CX32 +CHF 5–6/mo.
-   Dictate into SEARCH, never the name field — engines mangle brands, the catalogue spells them.
+   🔴 **ANSWERED 2026-09-17 — free browser dictation is CLOSED.** `network` on the tablet
+   (Debian Chromium 152, `b761`, 16:09) **and** on the desktop (Google Chrome 152), both verified
+   online — the tablet reached `google.com` and the shop, 200 each, minutes before. Two builds,
+   two key sets, one refusal. The card now carries that verdict and prints the build/host/context
+   beside any future answer, because the first run happened on the desktop and a result you cannot
+   attribute to a machine is not a measurement.
+   **If we ever want dictation it is our own model, and I would NOT build it now:** banco has
+   **2 vCPU · 1.66 GB available · NO SWAP · 19 GB free**, `whisper.cpp base` is ~142 MB on disk and
+   ~0.5 GB live, ~3–5 s for a 3-second phrase, and it mangles brand names anyway — so it could only
+   ever feed SEARCH, which the gun and the catalogue already serve. Item 11 also says Layla starts
+   on a keyboard. **The one thing worth doing regardless: the box has no swap.**
 9b. 📐 `.status-section` (`pos/base.html:2613`) overflows 23px at phone portrait on `/pos/selftest`.10. 📷 **THE TABLET CAMERA — diagnosed 2026-09-10, and it is NOT broken hardware.** `ov2740` sensor
    bound · `ipu3` loaded · libcamera 0.4.0 · pipewire up — and **`cam --list` returns zero cameras.**
    Every `/dev/video*` belongs to `ipu3-imgu` (processing, not capture). An Intel **IPU3 MIPI** sensor
