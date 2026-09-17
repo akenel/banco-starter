@@ -53,8 +53,14 @@ Two sheets run: **9 pass · 0 fail**, then **25 pass · 2 issue · 0 fail**.
    (`price IN (99.00, 999.99)`) and was returning `gap_counts["price"]` on every page load, with
    **no chip on the screen** — LESSON #1 again, the same shape as `allow_nonstandard`. **84 live
    products** on the shop: 34 at 99.00 (ALL created 07.07.26, all big-ticket — 12 bongs at exactly
-   99.00 is not a coincidence) and 50 at 999.99. ⏳ **Waiting on Angel's eye**, shelf by shelf:
-   is 99.00 a dummy or a price he charges? A DynaVap M7 at CHF 99 is believable.
+   99.00 is not a coincidence) and 50 at 999.99.
+   ✅ **Angel judged that batch: all 34 were placeholders.** *"i was wrong to do 99 and should of
+   made the place holder 999.99 which is an obvious place holder."* `UPDATE 34` on the shop;
+   **zero rows at 99.00 anywhere**, 84 at 999.99, all still refused at the till. None had ever
+   sold — the guard held, so no receipt carries that number.
+   ⏳ **THE FOLLOW-UP THAT IS THE ACTUAL PRIZE, and it needs Angel's word:** with nothing left on
+   99.00, take it OUT of `UNVERIFIED_PRICES`. Today a bong that genuinely costs **CHF 99.00 cannot
+   be sold** — the till refuses a real price. One obvious placeholder (999.99), one honest guard.
    🔎 **Also unreachable and worth a second chip:** `till_priced` — a price a cashier guessed
    mid-sale, on something that has actually sold. Counted, returned, no button. Felix's margin list.
     `UNVERIFIED_PRICES = (99.00, 999.99)`. The
