@@ -47,6 +47,10 @@ you're not live yet. The order matters — safety net first.
 
 ## 🖥️ Hardware & money handling (if you use them)
 - [ ] **Receipt printer** prints a clean receipt.
+- [ ] **Label printer** — print ONE label and hold it. *"The queue drained" is not "a label came
+      out"* ([guide 8](08-label-printer.md)). Check `lpstat -d` names a default queue, and that you
+      do not have three queues for one printer — on the Artemis tablet there were three, no default,
+      and nothing had printed since 2026-08-04.
 - [ ] **Barcode scanner** reads into the search box.
 - [ ] **Card / TWINT terminal** is set up and a test payment went through.
 - [ ] **Cash drawer / float** — the opening cash amount is entered.

@@ -38,6 +38,36 @@ Written against the **QL-820NWBc** on Debian 12, wired up 2026-07-28.
 Written down deliberately, because most of it cost hours to learn and none of it is guessable. If you're the
 next person — or Angel in six months — this is the part that saves you the day we spent.
 
+> ### 🔎 Measured on the real tablet, 2026-09-17 — read this before following the names below
+> This guide talks about a queue called **`BancoLabel`**. **There is no such queue on the shop
+> tablet.** `lpstat -p` reports three, for one printer:
+>
+> ```
+> Bro-QL820USB   idle, "enabled since Thu 01 Jan 1970"   ← never really used
+> QL820BT        idle, enabled 2026-08-04 20:07          ← the one that has printed
+> QL820USB       idle, enabled 2026-08-04 13:39
+> ```
+>
+> And `lpstat -d` says **`no system default destination`**, so `lp` with no `-d` goes nowhere at all.
+>
+> **Two things follow, and both are worth doing before go-live:**
+>
+> 1. **Pick one and make it the default**, so nobody has to know which of three to name:
+>    ```bash
+>    lpoptions -d QL820BT        # the Bluetooth queue — the only one with completed jobs
+>    lpstat -d                   # prove it
+>    ```
+> 2. **Delete the ones you are not using.** Three queues for one device is the same hazard as the
+>    phantom queue below: a job goes somewhere plausible and no label appears.
+>    ```bash
+>    lpadmin -x Bro-QL820USB     # only after you are sure which one prints
+>    ```
+>
+> ⚠️ **And the last completed job on that tablet was 2026-08-04** — six weeks before this was
+> written. The label path has not been exercised since. That is not a fault; it is a reason to
+> print one before trusting it on a shop day (it is now a box on the
+> [go-live checklist](GO-LIVE-CHECKLIST.md)).
+
 **Five faults, and what each one looked like.** Every single one *looked like* a broken printer. None was.
 
 | Symptom | Actual cause |
