@@ -114,6 +114,15 @@ Nothing here is a reason not to change. It is the price list.
 | kiosk lockdown | ✅ possible, and **deliberately not used** — see below | ~ | ~ Guided Access |
 | you own it outright | ✅ | ~ | ❌ |
 
+> **"I'll just use a Bluetooth gun then."** It is the first workaround everyone reaches for, and it
+> is worth hearing the answer from someone who owns one. Angel, 2026-09-17: *"I've got one of those
+> Bluetooth guns. It's pretty good, but it's not reliable."* It is the **Inateck BCST-35**, and it
+> has a real job here — it is the single-shot gun for a phone or tablet ([`09-shelf-intake.md`](09-shelf-intake.md)).
+> What it is not is the gun that stands at a counter all day. Pairing is a state that can be lost,
+> and it gets lost with a customer waiting. **The USB dongle has no state to lose** — that is the
+> whole reason the counter device needs a USB port, and it is why "no USB port" is not a small
+> inconvenience on an iPad. It is the thing.
+
 **A newer tablet does not remove the problems — it swaps them.** The keyboard hole closes and the
 printing hole opens, and printing is the harder one: neither Android nor iPadOS has CUPS, so the
 label path would have to be rebuilt, possibly around a different printer.

@@ -19,6 +19,13 @@ you're not live yet. The order matters — safety net first.
 - [ ] **VAT rates** are right for your country — ring one item and check the tax line on the receipt.
 - [ ] If you sell **food/coffee**: dine-in vs takeaway VAT behaves correctly.
 - [ ] **Receipt footer** (thank-you line, legal text) reads the way you want.
+- [ ] **Pay one sale in CASH and check the change**, on the screen, on the receipt and in the
+      drawer — all three, same number. *Added 2026-09-10: the five-rappen rounding had never once
+      run in a browser, and the checkout offered CHF 2.04 while the drawer and the receipt said
+      2.05. Two thousand passing tests never saw it; one basket did.*
+- [ ] **Print a receipt with the wifi OFF.** *Added 2026-09-07: the receipt fetched its QR image and
+      its typeface from the internet AT PRINT TIME, so the one document a customer takes home broke
+      exactly when the network did. Fixed — and this is how you know it stayed fixed.*
 
 ## 👥 People
 - [ ] Every real staff member has their **own login** with the **right role** ([guide 3](03-users-and-roles.md)).
@@ -32,12 +39,30 @@ you're not live yet. The order matters — safety net first.
 - [ ] **Age-restricted items** (tobacco / alcohol / 18+) are flagged.
 - [ ] A **barcode scan** of a real product finds the right item (if you use a scanner).
 - [ ] The **demo/sample products** are cleared out (no leftover "Artemis" demo catalog).
+- [ ] **Nothing is stuck on the placeholder price.** `/pos/cleanup` → **The Bench** → 🚫 **Can't be
+      sold**. Every row in that list is a product on your shelf that the till will **refuse in front
+      of a customer**. Either price them now, or make sure every cashier knows the move
+      ([guide 11](11-cashier-shift.md) C3b — she can set it once). *A count of zero is not required.
+      Knowing the number is.*
 
 ## 🖥️ Hardware & money handling (if you use them)
 - [ ] **Receipt printer** prints a clean receipt.
 - [ ] **Barcode scanner** reads into the search box.
 - [ ] **Card / TWINT terminal** is set up and a test payment went through.
 - [ ] **Cash drawer / float** — the opening cash amount is entered.
+
+### 🔴 The one that is not on any vendor's checklist — **cold-boot the till and WATCH IT**
+
+- [ ] **Power the till right off, turn it on, and stand in front of the screen with a watch.**
+      Not a reboot over SSH — *the screen*. Time how long until a cashier could ring a sale.
+      *Added 2026-09-05, and it is the most expensive thing on this page: on a cold boot the till
+      came up to a **white window with no page for thirteen minutes**, while `systemctl` said
+      `active (running)` and the machine's own `curl` answered **200 in 86 ms**. Autologin left the
+      login keyring locked, Chromium blocked on it and never navigated. Four months of boot proofs
+      missed it because every one was a reboot over SSH with nobody looking.* Fixed
+      (`--password-store=basic` in `banco-till.service`) — this box is how you know it is still fixed
+      on YOUR machine.
+- [ ] **Do it a second time with the wifi router off**, and know what the cashier sees.
 
 ## ✅ Final proof
 - [ ] **`python3 scripts/banco-doctor.py` shows 0 blockers** (❌) — the automated version of this whole list.
@@ -49,7 +74,12 @@ you're not live yet. The order matters — safety net first.
 
 ### The three that actually matter
 If you only verify three things before opening: **(1)** a backup ran and you restored it, **(2)** a real sale
-rings up with the correct price and VAT, **(3)** your staff can log in and sell. Everything else you can fix
-while open. Those three you cannot.
+rings up with the correct price and VAT — **paid in cash, with the change checked against the drawer** —
+and **(3)** your staff can log in and sell **on a machine you have watched boot from cold**. Everything
+else you can fix while open. Those three you cannot.
+
+> **Why the additions on this page all look oddly specific:** every one of them was found by a person
+> standing at a counter, and *none* of them could be found by a test. They are here in the shape they
+> bit in. Add yours the same way.
 
 **Signed off by:** ______________________  **Date:** __________  **Shop:** ______________________
