@@ -35,12 +35,43 @@ fi
 MARK="# banco-nightly-backup (managed by install-backup-cron.sh)"
 LINE="0 ${HOUR} * * * cd ${REPO} && ./scripts/backup-to-b2.sh >> ${REPO}/backup.log 2>&1"
 
-# Idempotent: drop any previous banco backup lines (the marker + the command), then re-add.
-current="$(crontab -l 2>/dev/null || true)"
-cleaned="$(printf '%s\n' "$current" | grep -vF "$MARK" | grep -vF "scripts/backup-to-b2.sh" || true)"
-{ printf '%s\n' "$cleaned" | sed '/^$/d'; printf '%s\n%s\n' "$MARK" "$LINE"; } | crontab -
+# ── THE OTHER TWO SCHEDULES (added 2026-09-17) ───────────────────────────────
+# This installer used to manage ONE line, so the media and archive jobs were
+# whatever somebody had typed by hand — which is how a schedule drifts. All three
+# live here now, and a shop that clones this gets the whole policy, not a third
+# of it.
+#
+# MEDIA IS WEEKLY, NOT NIGHTLY, and that is the single biggest saving. Measured on
+# the live shop: 105 MB EVERY NIGHT for a photo volume that barely changes — 2.80 GB
+# of a 4.23 GB bucket. Weekly cuts the growth about sevenfold and loses nothing that
+# matters: photos that appear on Tuesday are in Sunday's archive, and MinIO still
+# holds the originals.
+MEDIA_LINE="15 ${HOUR} * * 0 cd ${REPO} && ./scripts/backup-media-to-b2.sh >> ${REPO}/backup.log 2>&1"
+# MONTHLY keeps one night for ever, outside the lifecycle rule. The rule answers
+# "the disk died last night"; this answers "something was quietly wrong in March".
+ARCH_LINE="0 $(( (HOUR + 1) % 24 )) 1 * * cd ${REPO} && ./scripts/archive-monthly-to-b2.sh >> ${REPO}/backup.log 2>&1"
 
-printf "\n✅ Nightly backup scheduled: %02d:00 every day → backup-to-b2.sh\n" "$HOUR"
+# Idempotent: drop any previous banco backup lines (the marker + the commands), then re-add.
+current="$(crontab -l 2>/dev/null || true)"
+cleaned="$(printf '%s\n' "$current" | grep -vF "$MARK" \
+           | grep -vF "scripts/backup-to-b2.sh" \
+           | grep -vF "scripts/backup-media-to-b2.sh" \
+           | grep -vF "scripts/archive-monthly-to-b2.sh" || true)"
+{ printf '%s\n' "$cleaned" | sed '/^$/d'
+  printf '%s\n%s\n' "$MARK" "$LINE"
+  [ -x "$REPO/scripts/backup-media-to-b2.sh" ]    && printf '%s\n' "$MEDIA_LINE"
+  [ -x "$REPO/scripts/archive-monthly-to-b2.sh" ] && printf '%s\n' "$ARCH_LINE"
+  true
+} | crontab -
+
+printf "\n✅ Backup schedule installed:\n"
+printf "   %02d:00 daily      → backup-to-b2.sh         (database + logins)\n" "$HOUR"
+[ -x "$REPO/scripts/backup-media-to-b2.sh" ]    && printf "   %02d:15 SUNDAYS    → backup-media-to-b2.sh   (photos — weekly on purpose)\n" "$HOUR"
+[ -x "$REPO/scripts/archive-monthly-to-b2.sh" ] && printf "   %02d:00 on the 1st → archive-monthly-to-b2.sh (kept for ever)\n" "$(( (HOUR + 1) % 24 ))"
 echo "   see it:   crontab -l"
 echo "   its log:  ${REPO}/backup.log"
+echo
+echo "💡 Dailies expire on the bucket's LIFECYCLE RULE (90 days is sensible); the monthly"
+echo "   archive sits under archive/ where no rule matches it. See onboarding/06."
+
 echo "   test now: ./scripts/backup-to-b2.sh   (should upload one + green your healthcheck)"
