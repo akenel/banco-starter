@@ -104,15 +104,36 @@ So the cap lands somewhere around **early November**. And this is not a predicti
 happened once**: `ERROR: Cannot upload or copy files, storage cap exceeded`, eight times, on
 **2026-08-10**. Every run since has succeeded, so it was dealt with; nothing stops it recurring.
 
-**Three ways out, cheapest first:**
+### ✅ Decided and applied, 2026-09-17 — the policy in three lines
 
-1. **A B2 lifecycle rule on the bucket** — "keep the last N days". Free, set once in the Backblaze
-   UI, and it is the only one of the three that cannot be forgotten.
-2. **Back the media up weekly, not nightly.** The photo volume barely changes — a nightly 105 MB
-   archive of a near-static folder is most of this bill. Change the `backup-media-to-b2.sh` cron
-   line to `0 3 * * 0`. Cuts the growth by about seven.
-3. **Pay.** B2 is ~$6/TB/month; this shop would cost cents. Perfectly reasonable — but decide it,
-   rather than discovering it on the morning the upload stops.
+Angel: *"let's not just back up to eternity and then we have something blow up… let's stick to
+industry best practices, for example, and something that's practical."* So:
+
+| | |
+|---|---|
+| **Dailies** — database + logins, 03:00 | kept **90 days**, then deleted by a **B2 lifecycle rule** on the `banco/` prefix |
+| **Media** — the photo volume | **weekly, Sundays 03:15** (was nightly). ~7× less growth, and nothing real is lost: photos added on Tuesday are in Sunday's archive and MinIO still holds the originals |
+| **Monthly** — one night, on the 1st at 04:00 | copied to `archive/monthly/`, where **no lifecycle rule matches it**. Kept for ever. ~9 MB a month |
+
+That last row is the one nobody asks for and everybody eventually needs. A 90-day rule answers
+*"the disk died last night."* It does not answer *"something was quietly wrong in March."* The
+monthly archive is an ordinary **grandfather-father-son** rotation and costs about 100 MB a year.
+
+```bash
+./scripts/install-backup-cron.sh      # installs ALL THREE, idempotently
+crontab -l                            # and shows you what it did
+```
+
+The monthly copy is **server-side** — B2 duplicates the object itself, so nothing is downloaded,
+nothing is re-encrypted, and the archived file is byte-identical to the backup that verified itself
+that night.
+
+> **Setting the rule deleted nothing on the day.** The oldest file in the bucket was 59 days old, so
+> a 90-day rule had nothing to act on — the first expiry is a month away. If you want a different
+> window, change it before then and no history is lost.
+
+**If you would rather just pay:** B2 is ~$6/TB/month, so this shop is cents either way. Both are
+fine. What is not fine is finding out on the morning an upload stops.
 
 > ⚠️ **The dead-man's switch is what makes this survivable.** `backup-to-b2.sh` pings healthchecks.io
 > **only on success**, so a cap-exceeded night sends no ping and you get an email. If you have not
