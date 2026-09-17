@@ -63,6 +63,39 @@ POS_VAT_RATE_REDUCED=7  # reduced: food, books, etc.
 POS_VAT_YEAR=2025
 ```
 
+## Changing a rate later — what happens to sales already rung
+
+**Nothing. And that is measured, not assumed.**
+
+Every sale line stores **its own rate and its own VAT amount** at the moment it is sold, the
+transaction stores its own `tax_amount`, and the reports **sum those stored figures** — they never
+recompute tax from today's settings. Checked on the live Artemis shop 2026-09-17: **159 of 159 sale
+lines carry a frozen rate**, so not one old receipt would reprint at a new percentage.
+
+So a rate change is forward-only: **old sales keep their rate, new sales get the new one.**
+
+> ### Where to change it — and the warning you will get
+> The rate list lives on the **Settings → Tax** page (per shop, in the database). `.env` only supplies
+> the *fallback* for a shop that has never opened that editor.
+>
+> **Since 2026-09-17, moving a rate asks first**, and shows you exactly what is moving:
+>
+> ```
+> ⚠️ YOU ARE CHANGING A TAX RATE
+>
+>    A:  8.1%  →  8.5%
+>
+> Every sale already rung keeps the rate it was sold at — receipts and reports
+> do not move. From the moment you save, NEW sales use the new rate.
+>
+> Do this at a clean boundary: close off the day, ideally the tax period, first.
+> Not mid-afternoon with customers in the shop.
+> ```
+>
+> Renaming a rate or reordering the list says nothing — that is not a tax event. Only a **number**
+> moving asks. Angel's rule, and the reason the warning exists: *"don't do this in the middle of the
+> day or willy-nilly changing VAT rates."*
+
 ## Standard vs reduced — which rate does a product get?
 
 Each **product** carries a VAT category. Most goods use the **standard** rate. A few use the **reduced** rate

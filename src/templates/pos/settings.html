@@ -828,6 +828,11 @@
                             { code: 'B', label: 'reduced',  rate: '2.6', default: false },
                         ];
                     }
+                    // A TAX RATE IS NOT AN ORDINARY SETTING. Snapshot what the rates were when this
+                    // screen opened, so save() can tell whether a human actually changed one and warn
+                    // about it. See _vatChangeWarning().
+                    this._ratesAtLoad = (this.form.vat_rates || [])
+                        .map(r => `${(r.code||'').trim()}=${parseFloat(r.rate)}`).sort().join(',');
                     // Multi-currency tender: build editable FX rows from the fx_rates dict the API returns.
                     const _fxr = (this.form.fx_rates && this.form.fx_rates.rates) || {};
                     this.fxRows = Object.keys(_fxr).map(k => ({ ccy: k, rate: _fxr[k] }));
@@ -868,12 +873,40 @@
                 return '';
             },
 
+            /** True to proceed. Silent unless a RATE actually moved — adding a label or
+             *  reordering rows is not a tax event and must not nag. */
+            _confirmVatChange() {
+                const now = (this.form.vat_rates || [])
+                    .map(r => `${(r.code||'').trim()}=${parseFloat(r.rate)}`).sort().join(',');
+                if (!this._ratesAtLoad || now === this._ratesAtLoad) return true;
+                const was = {}, is = {};
+                (this._ratesAtLoad || '').split(',').filter(Boolean).forEach(p => { const [c, v] = p.split('='); was[c] = v; });
+                (this.form.vat_rates || []).forEach(r => { is[(r.code||'').trim()] = parseFloat(r.rate); });
+                const lines = [];
+                Object.keys({ ...was, ...is }).sort().forEach(c => {
+                    if (String(was[c]) !== String(is[c])) {
+                        lines.push(`   ${c}:  ${was[c] === undefined ? '—' : was[c] + '%'}  →  ${is[c] === undefined ? '(removed)' : is[c] + '%'}`);
+                    }
+                });
+                return window.confirm(t('settings.vat_change_warn', { changes: lines.join('\n') }));
+            },
+
             async save() {
                 if (!this.isAdmin) { showToast(t('settings.admins_only'), 'warning'); return; }
                 // Piece C: validate the VAT rate menu before saving (≥1 row, exactly 1 default,
                 // unique codes, rates 0–100). Block the save + surface the error on the Tax tab.
                 this.vatError = this.validateVatRates();
                 if (this.vatError) { this.tab = 'tax'; showToast(this.vatError, 'error'); return; }
+                // 🧾 CHANGING A VAT RATE IS A DATED EVENT, NOT A PREFERENCE.
+                // Angel, 2026-09-17: "if they change it, we should get a big warning ... don't do
+                // this in the middle of the day or willy-nilly." Until now this screen let a manager
+                // take 8.1 to 8.5 and press Save with nothing said at all.
+                // WHAT THE WARNING PROMISES IS TRUE, and it was measured before it was written:
+                // line_items carries its own vat_rate AND vat_amount per line, transactions carry
+                // tax_amount, and the reports SUM those stored figures rather than recomputing from
+                // config — so history genuinely does not move. On the live shop 159 of 159 sale
+                // lines carry a frozen rate; none would re-render at a new one.
+                if (!this._confirmVatChange()) { this.tab = 'tax'; return; }
                 this.saving = true;
                 const F = this.form;
                 // Normalised rate rows (rate as a plain string) + mirror the default into the scalar.
