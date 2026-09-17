@@ -1,5 +1,22 @@
 # Secrets — NEVER commit a real .env
+#
+# ALL FOUR SHAPES, and the reason is that `.env` alone is not a rule, it is a
+# single filename. Proven with `git check-ignore` on 2026-09-17, on this repo,
+# which is PUBLIC: `.env` was covered and `.env.bak`, `prod.env`, `staging.env`,
+# `.env.production`, `backup.env.old` and `secrets.env` were all WAVED THROUGH.
+# Nothing had actually leaked — `.env.example` is the only tracked env file — but
+# the next person to type `cp .env .env.bak` before an edit would have committed
+# the shop's database password, its Keycloak admin password and its B2 keys.
+#
+# Re-prove it after any change, never assume:
+#   for f in .env .env.bak prod.env staging.env .env.production backup.env.old #            secrets.env .env.example; do
+#     printf '%-20s ' "$f"; git check-ignore -q "$f" && echo IGNORED || echo NOT; done
+#   → every one IGNORED except .env.example, which must stay committed.
 .env
+*.env
+.env.*
+*.env.*
+!.env.example
 *.env.local
 
 # Personalized onboarding copies that may hold real passwords/keys — keep out of git

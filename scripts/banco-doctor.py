@@ -146,6 +146,34 @@ def build_findings(env):
             "BACKUP_GPG_PASSPHRASE is empty — backups can't be encrypted/restored.",
             "Set a strong BACKUP_GPG_PASSPHRASE in .env and store it in two safe places.")
 
+    # ---- 🙈 Is a real .env even ignorable? --------------------------------
+    # ADDED 2026-09-17, after `git check-ignore` found SIX shapes waved through on
+    # this repo, which is public: .env.bak, prod.env, staging.env, .env.production,
+    # backup.env.old, secrets.env. Nothing had leaked — but `cp .env .env.bak`
+    # before an edit is a thing everybody does, and it would have committed the
+    # database password, the Keycloak admin password and the B2 keys.
+    # `.env` alone is not a rule, it is one filename.
+    try:
+        if os.path.isdir(".git"):
+            shapes = [".env", ".env.bak", "prod.env", "staging.env",
+                      ".env.production", "backup.env.old", "secrets.env"]
+            leaky = [f for f in shapes if subprocess.run(
+                ["git", "check-ignore", "-q", f]).returncode != 0]
+            tracked = subprocess.run(["git", "ls-files", "--error-unmatch", ".env"],
+                                     capture_output=True).returncode == 0
+            if tracked:
+                add("fail", "Safety net", "A REAL .env IS COMMITTED TO GIT",
+                    "Every secret in it must be treated as public and rotated.",
+                    "git rm --cached .env  — then rotate everything in it")
+            elif leaky:
+                add("fail", "Safety net", f"{len(leaky)} .env shapes are NOT git-ignored",
+                    "Not ignored: " + ", ".join(leaky) + ". One `cp .env .env.bak` commits the lot.",
+                    "Add .env, *.env, .env.* and *.env.* to .gitignore, plus !.env.example")
+            else:
+                add("ok", "Safety net", "No shape of .env can be committed by accident")
+    except (OSError, subprocess.SubprocessError):
+        pass
+
     # ---- 🔐 Passwords / secrets ------------------------------------------
     for key, sev, label in (
         ("SECRET_KEY", "fail", "app signing key"),

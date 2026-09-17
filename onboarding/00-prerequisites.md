@@ -4,19 +4,43 @@
 the app itself), so the machine needs a bit of muscle and a few tools installed. Five minutes here saves you a
 wasted afternoon.
 
-## Minimum machine
+## Minimum machine — and there are TWO of them
+
+*Corrected 2026-09-17. This page said 8 GB while [guide 7](07-going-to-production.md) tells you to
+rent a **4 GB** Hetzner CX22, and both are right — they are describing different machines. Nothing
+said so, which is how somebody buys the wrong box.*
+
+### A · The SERVER that runs the shop (headless, no desktop)
+
+| | Minimum | Note |
+|---|---|---|
+| CPU | **2 cores** | |
+| RAM | **4 GB** | + **swap, which you must create** — a cloud VM ships with none |
+| Disk free | 20 GB | the database is small; backups and images are not |
+| OS | Debian / Ubuntu | |
+
+**Measured, not estimated:** the live Artemis shop runs on a Hetzner CX22 — **2 vCPU · 3.8 GB RAM**,
+with Postgres, Keycloak, MinIO and the app — at a load average around 0.15, with ~1.7 GB available.
+It is genuinely enough. **It had no swap for 58 days, which was the real risk**, not the RAM: without
+swap, a machine that runs short kills the biggest process, and here that is the till.
+[Guide 7](07-going-to-production.md) has the three commands.
+
+### B · A LAPTOP you are trying it on, or developing against
 
 | | Minimum | Comfortable |
 |---|---|---|
 | CPU | 2 cores | 4 cores |
-| RAM | 8 GB total / ~4 GB free | 16 GB |
+| RAM | **8 GB** total / ~4 GB free | 16 GB |
 | Disk free | 10 GB | 20 GB+ |
 | OS | Linux (Debian/Ubuntu), macOS, or Windows 10/11 with WSL2 | — |
-| Internet | yes (to download the images) | — |
 
-> 8 GB is the **floor**, not comfort. Keycloak (the login system) is a memory-hog. On 8 GB, close other apps and
-> make sure you have swap. It works — it just won't be snappy. A real field test on a fresh 8 GB Debian 13 laptop
-> ran fine (4.9 GB free + 7.9 GB swap).
+8 GB is the **floor here** because the same four containers are now sharing the machine with a
+desktop, a browser and everything else you have open. Keycloak is a memory-hog. On 8 GB, close other
+apps and make sure you have swap — it works, it just won't be snappy. A real field test on a fresh
+8 GB Debian 13 laptop ran fine (4.9 GB free + 7.9 GB swap).
+
+> **The short version: 4 GB is enough for a server and not enough for a workstation.** The difference
+> is not Banco — it is everything else a person has running.
 
 ## Minimum browser — for every till, tablet and phone that touches the POS
 

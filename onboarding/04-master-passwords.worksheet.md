@@ -1,5 +1,28 @@
 # 4 · Master passwords & keys — SECURE worksheet
 
+> ### 🙈 First, prove your `.env` cannot be committed by accident
+> `.env` in a `.gitignore` is **not a rule — it is one filename.** Checked on this repo on
+> 2026-09-17: `.env` was covered and **`.env.bak`, `prod.env`, `staging.env`, `.env.production`,
+> `backup.env.old` and `secrets.env` were all waved through.** Nothing had leaked, but
+> `cp .env .env.bak` before an edit is a thing everybody does, and it would have committed the
+> database password, the Keycloak admin password and the B2 keys — into a **public** repo.
+>
+> Four patterns, plus one exception so the template survives:
+> ```gitignore
+> .env
+> *.env
+> .env.*
+> *.env.*
+> !.env.example
+> ```
+> **Then prove it, rather than believing it:**
+> ```bash
+> for f in .env .env.bak prod.env staging.env .env.production backup.env.old secrets.env .env.example; do
+>   printf '%-20s ' "$f"; git check-ignore -q "$f" && echo IGNORED || echo "NOT IGNORED"; done
+> ```
+> Every line must say IGNORED except `.env.example`, which has to stay committed.
+> `python3 scripts/banco-doctor.py` now checks this for you on every run.
+
 > ⛔ **DO NOT type your real passwords into this file and commit it.** This repo may be public. Real secrets in
 > git = a breach. This is a *checklist of what to record* — put the actual values in a **password manager**
 > (KeePass, Bitwarden, 1Password) or a sealed offline note. If you must keep a filled copy on disk, save it
