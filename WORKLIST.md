@@ -95,7 +95,10 @@ Two sheets run: **9 pass · 0 fail**, then **25 pass · 2 issue · 0 fail**.
    **2 vCPU · 1.66 GB available · NO SWAP · 19 GB free**, `whisper.cpp base` is ~142 MB on disk and
    ~0.5 GB live, ~3–5 s for a 3-second phrase, and it mangles brand names anyway — so it could only
    ever feed SEARCH, which the gun and the catalogue already serve. Item 11 also says Layla starts
-   on a keyboard. **The one thing worth doing regardless: the box has no swap.**
+   on a keyboard. ~~**The one thing worth doing regardless: the box has no swap.**~~ **DONE** —
+   2 GB swapfile on banco, `vm.swappiness=10`, fstab line proved by `swapoff && swapon -a`, and
+   `banco-doctor.py` now WARNS when a box has none. It had run a real shop's till for 58 days
+   with no spare tyre and nothing in this repo said so.
 9b. 📐 `.status-section` (`pos/base.html:2613`) overflows 23px at phone portrait on `/pos/selftest`.10. 📷 **THE TABLET CAMERA — diagnosed 2026-09-10, and it is NOT broken hardware.** `ov2740` sensor
    bound · `ipu3` loaded · libcamera 0.4.0 · pipewire up — and **`cam --list` returns zero cameras.**
    Every `/dev/video*` belongs to `ipu3-imgu` (processing, not capture). An Intel **IPU3 MIPI** sensor

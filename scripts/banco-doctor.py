@@ -17,6 +17,8 @@
 import argparse
 import json
 import os
+import shutil
+import socket
 import subprocess
 import sys
 
@@ -85,6 +87,49 @@ def build_findings(env):
         F.append({"sev": sev, "section": section, "title": title, "detail": detail, "fix": fix})
 
     db_reachable = psql(env, "SELECT 1") == "1"
+
+    # ---- 🔧 The machine itself -------------------------------------------
+    # ADDED 2026-09-17, because banco ran a real shop's till for 58 days with NO
+    # SWAP and nothing in this repo said so. Swap is the spare tyre: with it, a
+    # machine that runs out of memory gets slow; without it, the kernel kills
+    # whatever is biggest, which on this box is the till. Nobody would have seen
+    # it coming — it does not show up until the day it happens.
+    # Reported with the hostname, because a doctor run on a laptop describing the
+    # laptop while you are asking about the server is a measurement of nothing.
+    try:
+        host = socket.gethostname()
+        mem = {}
+        with open("/proc/meminfo") as fh:
+            for line in fh:
+                k, _, v = line.partition(":")
+                mem[k] = int(v.split()[0])          # kB
+        swap_mb = mem.get("SwapTotal", 0) // 1024
+        avail_mb = mem.get("MemAvailable", 0) // 1024
+        total_mb = mem.get("MemTotal", 0) // 1024
+        if swap_mb == 0:
+            add("warn", "Machine", f"No swap on {host} — no spare tyre",
+                f"{total_mb} MB RAM, {avail_mb} MB free, and nothing to fall back on. "
+                "When memory runs out the kernel kills the biggest process, which here is the till.",
+                "dd (not fallocate — it can leave holes swapon refuses): sudo dd if=/dev/zero "
+                "of=/swapfile bs=1M count=2048 && sudo chmod 600 /swapfile && sudo mkswap /swapfile "
+                "&& sudo swapon /swapfile. Then add '/swapfile none swap sw 0 0' to /etc/fstab, set "
+                "vm.swappiness=10, and prove the fstab line with: swapoff /swapfile && swapon -a")
+        else:
+            add("ok", "Machine", f"Swap is on ({swap_mb} MB) on {host}",
+                f"{total_mb} MB RAM, {avail_mb} MB available")
+
+        du = shutil.disk_usage("/")
+        free_gb, pct_free = du.free / 1e9, 100 * du.free / du.total
+        if pct_free < 12:
+            add("warn", "Machine", f"Disk is nearly full on {host}",
+                f"{free_gb:.1f} GB free ({pct_free:.0f}%). Backups and Postgres both need room.",
+                "Clear old docker images: docker system prune -a")
+        else:
+            add("ok", "Machine", f"Disk has room on {host}",
+                f"{free_gb:.1f} GB free ({pct_free:.0f}%)")
+    except (OSError, ValueError, KeyError):
+        add("info", "Machine", "Could not read memory or disk",
+            "Not a Linux box, or /proc is not mounted — the rest of the report still stands.")
 
     # ---- 🛟 Safety net: backups ------------------------------------------
     b2_set = all(env.get(k) for k in ("B2_KEY_ID", "B2_APP_KEY", "B2_BUCKET"))
