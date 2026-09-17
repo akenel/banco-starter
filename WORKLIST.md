@@ -132,9 +132,13 @@ Two sheets run: **9 pass · 0 fail**, then **25 pass · 2 issue · 0 fail**.
 9b. 📐 `.status-section` (`pos/base.html:2613`) overflows 23px at phone portrait on `/pos/selftest`.10. 📷 **THE TABLET CAMERA — diagnosed 2026-09-10, and it is NOT broken hardware.** `ov2740` sensor
    bound · `ipu3` loaded · libcamera 0.4.0 · pipewire up — and **`cam --list` returns zero cameras.**
    Every `/dev/video*` belongs to `ipu3-imgu` (processing, not capture). An Intel **IPU3 MIPI** sensor
-   never presents a plain V4L2 node; libcamera must build the pipeline, and that is the failing step.
-   **Banco's side is correct — do not touch `posShowWebcam()`.** Pull the libcamera IPU3 pipeline
-   handler, not the kernel driver. **Untried cheap unblock: a powered USB hub (~CHF 20)** — the tablet
+   never presents a plain V4L2 node. **Banco's side is correct — do not touch `posShowWebcam()`.**
+   ❌ **CORRECTION 2026-09-17 — I had the failing step wrong.** This said the sensor was *bound* and
+   that libcamera's IPU3 pipeline handler was the gap, i.e. a userspace fix. Re-measured on kernel
+   `6.12.107`: `/sys/bus/i2c/drivers/ov2740/` has **no bound device** at all — only bind/unbind/
+   module/uevent. libcamera has nothing to build a pipeline *from*. `13-tablet-x1-debian.md` had it
+   right all along: the TPS68470 PMIC has no board data, and it is a kernel patch. **Do not debug
+   it.** An afternoon on the pipeline handler would have found nothing. **Untried cheap unblock: a powered USB hub (~CHF 20)** — the tablet
    has one port and the gun owns it. (LESSON #3: the 2026-08-05 "nothing attached" verdict was wrong
    too — ACPI declares two fitted sensors. Angel's instinct has now been right twice.)
 

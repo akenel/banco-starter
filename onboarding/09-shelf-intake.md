@@ -23,8 +23,14 @@ front of you instead of a customer.
 | what you are doing | hunting the internet mid-sale | matching against a catalogue you already own |
 | what defines the catalogue | a wholesaler's 5,000-row list | **the shelf** — what the shop actually stocks |
 
-**Why it is fast:** 5,105 of this shop's 5,180 products are *already in the catalogue*, with price,
-picture and description. Only the barcode is a fiction. So the job is not identifying products —
+**Why it is fast:** measured at Artemis Lucerne on **2026-07-31**, 5,105 of that shop's 5,180
+products were *already in the catalogue*, with price, picture and description. Only the barcode was
+a fiction.
+
+> 📈 **Where that shop has got to, measured 2026-09-17.** 5,435 active products: **477 now carry a
+> real code somebody scanned off a packet**, 4,945 still carry a minted `20…` code, and 13 have
+> none at all. So the harvest is real and the job is far from over — every one of those 477 is a
+> product that can be found by pointing a gun at it. So the job is not identifying products —
 it is **binding** a real EAN onto a row that already exists. Two or three typed words, a glance at
 a picture, one tap.
 
@@ -156,6 +162,42 @@ retailer's page, paste the URL, click **Read**. Banco pulls the name, descriptio
 and GTIN off that page's own structured data and suggests a category. Then **create it new**.
 
 **(c) You can't resolve it right now.** Skip it. It stays in the list and you can undo later.
+
+### You don't know the price? Say so — **type `999.99`** and keep moving
+
+This is the most common stall in the whole job, and it is not a catalogue problem. The price is
+not on the packet, the shelf label is missing or unreadable, the one person who knows is serving
+a customer, and you are standing there with eleven more facings to do.
+
+**Do not guess. Do not stop. Do not leave it blank** — the screen requires a price, correctly, and
+an item that rings up at nothing is worse than an item that is missing.
+
+> ## Type `999.99`.
+> It means **"I do not know this price, and I am saying so."**
+
+**Why five nines and not something sensible.** A sentinel has to be a number nobody types by
+accident and nobody could ever charge. `999.99` is both: you have to *mean* it, and it stands out
+on any screen it appears on. It used to be that `99.00` also counted — that was a mistake, because
+CHF 99.00 is an ordinary price for a bong or a vaporizer, so it hid among real prices **and blocked
+a real one**. Removed 2026-09-17. Measured before removing it: of 5,347 live prices in this shop,
+**not one ends in `.99`** — the house style is `.90`, `.00` and `.50`. That is what makes the
+sentinel safe, not its size (the shop stocks a rosin press at CHF 1'199.00, well above it).
+
+**⚠️ Never use `0.00` to mean "I don't know".** Zero is not a placeholder — it is a price, and the
+till will sell the item for nothing, happily and silently. `0.00` is for a deliberate giveaway.
+
+**What the sentinel actually does, and this is the point:**
+
+| | |
+|---|---|
+| At the till | The sale **stops**, naming the product. A placeholder can never reach a customer. |
+| On the bench | `/pos/cleanup` → **The Bench** → 🚫 **Can't be sold** — the whole list, one tap, with a live count. |
+| At the counter, if one gets there | The cashier can set the price **once** — see [`11-cashier-shift.md`](11-cashier-shift.md). It is flagged for the owner, not silent. |
+
+So the honest workflow is: **scan it, name it, price it 999.99, move on.** Somebody who knows the
+price fixes the list later, in one sitting, from one screen — instead of you standing at a shelf
+guessing, or worse, abandoning a good scan because of a number you could not find.
+
 
 ### When a code returns nothing at all
 

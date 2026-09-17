@@ -84,6 +84,36 @@ blocked outright and no attestation overrides it.
 
 ## C · When it goes wrong — the exceptions
 
+### C3b in full · the `999.99` price, and why it is not a problem
+
+**What she is looking at.** Somebody stocking the shelf did not know what this costs and said so
+honestly, by typing `999.99` — the one number in this system that means *"I don't know."* It is
+not a mistake and it is not a broken product; it is a question that has finally reached the one
+person who can answer it, because a customer is standing there holding the thing.
+
+**What Banco does.** The sale stops, with the product's name in the message. It does not warn and
+let her press on, and it does not quietly zero the price — a free item walks out of the door just
+as surely as an overpriced one drives a customer away.
+
+**What she may do — and this is a deliberate exception to "a cashier never changes a price".**
+She can set the price **once**, in the panel that comes up, and finish the sale. Angel's rule:
+
+> *"It's a special exception that the cashier can set the price once when it's not set. After
+> that, it doesn't make sense — once the price has been set, she has to work with it."*
+
+The server enforces exactly that: if the price is anything other than the placeholder, the attempt
+is refused. **It can fill a blank; it can never change a figure.** So it cannot be used to discount,
+to mark up, or to "correct" a price the owner set.
+
+**It is not silent.** The row is flagged, carries a note saying who typed what and when, and lands
+on the owner's review list — `/pos/cleanup` → **The Bench** → these are the rows that matter most
+for margin, because something actually *sold* at a price a cashier judged, with no cost behind it.
+
+**⚠️ This is NOT G2.** G2 is a real price that disagrees with the shelf label — two authorities,
+no rule. This is *no price at all*, which has a rule and a working button. Keep them apart in
+training: one is answered, one is still open.
+
+
 **This is where the training earns its money.** The happy path teaches itself; these do not. Each
 one is a stopwatch item in the role-play.
 
@@ -92,6 +122,7 @@ one is a stopwatch item in the role-play.
 | C1 | **Barcode not found** | Banco says *"Product with barcode 'x' not found"* and stops | ⚠ **G1 — no defined move** |
 | C2 | **Product found but inactive** | Banco says *"Product is inactive"* and stops | ⚠ **G1** |
 | C3 | **Screen price ≠ shelf price** | Sell at… which? Who is allowed to decide? | ⚠ **G2 — undecided** |
+| C3b | **The price is `999.99`** — the shelf-intake placeholder, meaning *nobody knew it yet* | The sale **stops** and names the product. She sets the price **once**, right there, and sells it. See below. | ✅ works — and it is flagged |
 | C4 | **Wrong item scanned into the basket** | Remove the line before checkout — no manager needed | ✅ works |
 | C5 | **Customer changes mind after payment** | **Refund = manager only** | ⚠ **G6** |
 | C6 | **Card declines** | Ask for another method — the basket is still open | ✅ works |
@@ -173,7 +204,7 @@ role-play, and each has to have an answer before a cashier meets a customer.
 | | Gap | Why it matters |
 |---|---|---|
 | **G1** | ~~No defined move for an unknown barcode.~~ **ANSWERED 2026-08-03 — build it on the fly.** Angel created the product *with* category and description and sold it in **~10 seconds** (`OTF-1785752266675-826`, TXN-20260803-0005). | The move exists and is fast. What is left: put it on the till card, and confirm a **cashier** is allowed to do it — the catalog screen currently says creating and editing need a manager role. |
-| **G2** | **No rule for shelf price ≠ screen price.** | A wrong bind shows up *here*, in front of a customer — Cannazym at CHF 12 instead of 35. Needs a stated rule. |
+| **G2** | **No rule for shelf price ≠ screen price.** *(Not to be confused with C3b, the `999.99` placeholder — that one is answered.)* | A wrong bind shows up *here*, in front of a customer — Cannazym at CHF 12 instead of 35. Needs a stated rule. |
 | ~~**G3**~~ | ~~Checkout does not require an open cash drawer.~~ **NOT A GAP — tested 2026-08-03.** A cash sale with a closed drawer *stops and warns*; checkout already enforces it. | Struck. This document asserted it from reading the code and was wrong. Ten seconds of role-play settled what a careful read got backwards. |
 | **G4** | **Banana `Account` / `VatCode` are blank.** | Felix re-maps by hand daily until he hands over his codes. Get the chart of accounts. |
 | **G5** | **No park-the-sale.** `/pos/held-orders` is the kiosk pre-order board, not a parked basket. | "I'll be back in ten minutes" has no home. |

@@ -96,6 +96,7 @@ The counter is a **charging station that happens to sell things.** See
 | Customer wants a deal | **Felix does not discount.** Hold the price, give a **free treat** — ring it at 0.00 |
 | **It does not scan** | try the packet's other barcode, or the singles inside a multipack. Still nothing → sell it by name and **tell a manager** |
 | Price is wrong | finish honestly, **note it**, tell a manager. Do not invent a product |
+| Price rings up as **999.99** | that is the *"nobody knew yet"* placeholder, not a fault. Banco stops the sale and lets her **set the price once** — it is flagged for Felix. See `11-cashier-shift.md` C3b |
 | Customer returns something | refund against the original sale |
 
 ### 🔄 Shift change

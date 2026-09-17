@@ -83,7 +83,7 @@ need 5,389 rows to be right. **You need about thirty names.***
 ### ⓷ⓐ The ~30 names that actually make up a day
 
 From [`19-what-actually-sells.md`](19-what-actually-sells.md), read off a month of real pages.
-Every one of these must **scan** and carry a **real price** — not `999.99`, not `99.00`:
+Every one of these must **scan** and carry a **real price** — not `999.99`, the "nobody knew yet" placeholder (`09-shelf-intake.md`). *(`99.00` counted too until 2026-09-17; it was dropped because it is an ordinary price for a bong and so blocked real sales.)*
 
 | Tier | Lines | Status |
 |---|---|---|

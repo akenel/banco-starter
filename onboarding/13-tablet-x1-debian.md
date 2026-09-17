@@ -1029,10 +1029,26 @@ found*.
 > fell through to a file picker — on the one machine in the shop that had just grown a camera.
 > Fixed in `4206246`: the axis is the OS, not the glass. `scripts/prove-webcam-button-shows.js`.
 >
-> 🛑 **The internal cameras: settled on kernel `6.12.101` — do not debug them.** Two real
-> sensors (OV2740 + OV5670) are fitted and enabled; the TPS68470 camera PMIC that powers **both**
-> has no board data for this model, so Linux cannot switch them on. Fixing it is a kernel patch.
-> The one-line re-check after a kernel jump is at the end of *RE-MEASURED 2026-08-22*.
+> 🛑 **The internal cameras: settled — do not debug them.** Two real sensors (OV2740 + OV5670)
+> are fitted and enabled; the TPS68470 camera PMIC that powers **both** has no board data for this
+> model, so Linux cannot switch them on. Fixing it is a kernel patch.
+>
+> ✅ **RE-CHECKED 2026-09-17 on kernel `6.12.107+deb13-amd64`** — the kernel jump this note asked
+> the next person to watch for has happened, and **the answer has not changed.** The `ov2740`
+> module loads and `intel_skl_int3472_tps68470` is present, but `/sys/bus/i2c/drivers/ov2740/`
+> holds **no bound device** — only `bind`, `unbind`, `module`, `uevent`. `cam --list` (libcamera
+> 0.4.0) prints *Available cameras:* and nothing under it. Every `/dev/video*` belongs to
+> `ipu3-imgu`, which is the processing block, not a capture device.
+>
+> ⚠️ **And this kills a wrong lead that was briefly in `WORKLIST.md`.** A note on 2026-09-10 said
+> the sensor was *bound* and that the failing step was libcamera's IPU3 pipeline handler — so the
+> fix was a userspace package, not a kernel patch. **That was wrong**, and chasing it would have
+> cost an afternoon: with nothing bound to the sensor driver, libcamera has nothing to build a
+> pipeline *from*. This paragraph is here so the next person re-measures the binding **first**.
+> (LESSON #3 — a remembered verdict is a hypothesis with a timestamp, and so is a remembered fix.)
+>
+> **The unblock remains a USB camera**, as the BOM says — see `16-bom-artemis-luzern.md`. The one
+> untried cheap step is a powered USB hub (~CHF 20): the tablet has one port and the gun owns it.
 
 ### ✅ Ruled out first — BIOS. Everything is ON.
 
