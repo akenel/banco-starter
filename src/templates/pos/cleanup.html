@@ -131,6 +131,22 @@
                                 class="px-3 py-1.5 rounded-full text-sm font-semibold border">
                             💰 <span data-i18n="cleanup.gap_cost">Cost</span> <span class="opacity-70" x-text="'(' + (gapCounts.cost||0).toLocaleString() + ')'"></span>
                         </button>
+                        <!-- 🚫 THE PLACEHOLDER PRICES — and the server has been counting them all along.
+                             `_bench_gap_expr("price")` is `price IN (99.00, 999.99)`, "price" is in
+                             _BENCH_GAP_KINDS, and gap_counts["price"] has been arriving with every
+                             page load. There was simply no chip, so the one list that says which
+                             products CANNOT BE SOLD was reachable only by typing a query parameter.
+                             Same shape as `allow_nonstandard=true`, which sat on the server from
+                             day one, appeared in zero templates, and cost Angel an hour at the
+                             counter (LESSON #1). These rows are not a tidiness gap: the till
+                             REFUSES them, so every one is a product on the shelf that will not
+                             sell. Rose, not indigo — it is a stop, not a chore. -->
+                        <button @click="setGap('price')"
+                                :class="gapFilter==='price' ? 'bg-rose-600 text-white border-rose-600' : 'bg-white text-rose-700 border-rose-300'"
+                                class="px-3 py-1.5 rounded-full text-sm font-semibold border"
+                                :title="t('cleanup.gap_price_title')">
+                            🚫 <span data-i18n="cleanup.gap_price">Can't be sold</span> <span class="opacity-70" x-text="'(' + (gapCounts.price||0).toLocaleString() + ')'"></span>
+                        </button>
                     </div>
 
                     <!-- Rookie workbench: a BOUNDED batch by when items were added — finish yesterday's

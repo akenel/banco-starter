@@ -48,7 +48,16 @@ Two sheets run: **9 pass · 0 fail**, then **25 pass · 2 issue · 0 fail**.
 1b. 🔓 **NEW — the gate fires on ~50 ACCESSORIES** (`Zigaretten-Filter`/`-Hülsen`/`-Stopfmaschine`).
    `_TOBACCO_ACCESSORY` runs only on the supplier-tag path. Naive fix un-gates real blunts (`filter`
    is in *Holzfilter*). Treuhänder call. LESSON #12 — over-gating teaches staff to wave it away.
-2. ⚠️ **The placeholder guard is still two values wide.** `UNVERIFIED_PRICES = (99.00, 999.99)`. The
+2. ⚠️ **The placeholder guard is still two values wide.** ▶️ **2026-09-17 — the list is now REACHABLE:**
+   `/pos/cleanup` → The Bench → **🚫 Can't be sold**. The server had `_bench_gap_expr("price")`
+   (`price IN (99.00, 999.99)`) and was returning `gap_counts["price"]` on every page load, with
+   **no chip on the screen** — LESSON #1 again, the same shape as `allow_nonstandard`. **84 live
+   products** on the shop: 34 at 99.00 (ALL created 07.07.26, all big-ticket — 12 bongs at exactly
+   99.00 is not a coincidence) and 50 at 999.99. ⏳ **Waiting on Angel's eye**, shelf by shelf:
+   is 99.00 a dummy or a price he charges? A DynaVap M7 at CHF 99 is believable.
+   🔎 **Also unreachable and worth a second chip:** `till_priced` — a price a cashier guessed
+   mid-sale, on something that has actually sold. Counted, returned, no button. Felix's margin list.
+    `UNVERIFIED_PRICES = (99.00, 999.99)`. The
    six live rows at 999.00 were moved to 999.99 on 2026-09-10 (Angel likes the guard: *"it basically
    forced the user to put the right price in"*), **but type 999.00 tomorrow and it walks through.**
    The four rows at 0.00 are his `SEPARATOR-001…004` shelf markers — an intake aid for testing without
