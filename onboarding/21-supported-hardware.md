@@ -29,6 +29,23 @@ none of them says *"any tablet"*. Neither do we. **"Runs on this documented kit"
 Everything else is unqualified. That is not a judgement about the hardware; it means nobody has
 run the sheets on it.
 
+> ### ⚠️ ONE tablet is approved, and "it's also x86" is not approval
+> Angel, 2026-09-17, after the year this took: *"we don't approve the Apple iPad or some other
+> tablet that they just pick up. I mean, they can go ahead and try it, but it's just going to be
+> clunky as hell… if they buy the latest and greatest x86 tablet they can find as a replacement,
+> we might have to retest it and approve it."*
+>
+> That is the right rule and it is stricter than it sounds. **Same architecture is not the same
+> machine.** Every workaround in [`13-tablet-x1-debian.md`](13-tablet-x1-debian.md) is specific to
+> *this* one: which keyboard it raises (none), how its folio seats, which camera silicon it has,
+> how many USB ports, how it behaves on a cold boot. A different x86 tablet keeps the good news —
+> CUPS, the USB dongle, the local stack — and brings its own list of surprises, which nobody has
+> written down yet because nobody has hit them yet.
+>
+> **So: a new device is a day of work, not a purchase.** Run the keypad sheet, the shelf-intake
+> sheet and the label sheet on the actual machine, and add what you find to the tablet guide.
+> Agreeing to that day BEFORE the box is bought is the whole trick.
+
 ---
 
 ## 🔴 THE TILL RUNS MAXIMISED, NOT IN KIOSK MODE — AND THAT IS A DECISION

@@ -1045,7 +1045,13 @@ window that is genuinely stuck.
 ### The folio: it looks attached when it is not
 
 **Press Print Screen.** A screenshot means the connector is properly home and the rest of the
-keyboard is fine. Nothing means reseat it.
+keyboard is fine. Nothing means reseat it — unclip, press it back down firmly, wiggle it.
+
+> ⚠️ **TYPING IS NOT PROOF, and this is the part worth remembering.** Angel, 2026-09-17: *"I was
+> typing on the keypad, I was getting inputs, and that was looking okay… but then when I pressed
+> the print screen button, that didn't work."* So the folio can be seated well enough to send
+> letters and not well enough to send everything. A letter test passes on a connection that is
+> still half-made. **Print Screen is the test because it is the one that fails first.**
 
 This is worth a habit because of what a half-seated folio looks like from the other side of the
 counter: *broken software*. Angel, 2026-09-17: *"people are going to say, oh, that's your computer
@@ -1055,6 +1061,30 @@ goes wrong with a customer waiting.
 
 **If in doubt, take it off.** The on-screen keypad is what the till was built around, and a keyboard
 that is half-on is worse than no keyboard at all.
+
+### 🔋 Power — two to three hours, and the failure is usually the wall
+
+**This tablet is not industrial equipment and should not be treated as one.** Angel: *"you'll get
+two or three hours out of it and then it'll be dead."* For a shop day that means **it lives on the
+cable**, and the thing that goes wrong is almost never the tablet:
+
+> the cable is plugged into the tablet, and **the power bar at the wall was never switched on** —
+> so it looks charged, it reads as plugged in, and it has been draining since opening.
+
+That is why the till runs **maximised and not full screen**: GNOME's top bar carries the battery
+indicator, and a cashier who cannot see it finds out at 0%.
+
+**Since 2026-09-17 Banco says it too**, so full screen no longer hides the one warning that matters:
+
+| state | what the till shows |
+|---|---|
+| charging, any level | nothing at all |
+| above 25% on battery | nothing at all |
+| **25% or below**, not charging | amber pill in Banco's own bar — *🔋 22% · not charging — plug the till in* |
+| **10% or below**, not charging | red pill — *🔋 7% · PLUG THE TILL IN NOW* |
+
+It is in **Banco's** status bar, not GNOME's, so it survives full screen. Touch devices only — a
+laptop has its own indicator and hours of runway. Static, never flashing.
 
 ### And the honest part — why this is finicky, and why Debian anyway
 

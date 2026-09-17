@@ -449,6 +449,14 @@
            it IS the remedy — tapping the sentence does the same thing as tapping the
            icon, because a cashier reading "tap ⛶" while holding a customer's change
            should not have to find a second target. */
+        .batt-warn {
+            display: inline-flex; align-items: center; gap: .35rem;
+            font-weight: 800; font-size: .8rem; letter-spacing: .01em;
+            padding: .15rem .6rem; border-radius: 999px;
+            background: #f59e0b; color: #1f2937; border: 1px solid #b45309;
+        }
+        .batt-warn.crit { background: #dc2626; color: #fff; border-color: #991b1b; }
+        .batt-warn[hidden] { display: none; }
         .fs-nudge {
             background: #78350f; color: #fde68a; border: 1px solid #b45309;
             border-radius: 5px; font-size: 12px; line-height: 1;
@@ -975,6 +983,51 @@
           }
           console.log('[fs] toggle ready');
         });
+      })();
+    </script>
+
+    <!-- 🔋 battery watch — see the pill in the status bar for why this exists at all -->
+    <script>
+      (function () {
+        var WARN = 0.25, CRIT = 0.10;
+        function start() {
+          var el = document.getElementById('batt-warn');
+          if (!el || typeof navigator.getBattery !== 'function') return;
+          var touch = (typeof window.posIsTouchDevice === 'function')
+                    ? window.posIsTouchDevice() : (navigator.maxTouchPoints || 0) > 0;
+          if (!touch) return;                    // a laptop says this itself, and better
+          function tr(key, fb) {
+            try {
+              var lang = (window._posLang || 'en').slice(0, 2);
+              var tbl = window.POS_STRINGS && (window.POS_STRINGS[lang] || window.POS_STRINGS.en);
+              var v = tbl && tbl.common && tbl.common[key];
+              return (typeof v === 'string' && v) ? v : fb;
+            } catch (e) { return fb; }
+          }
+          navigator.getBattery().then(function (b) {
+            function paint() {
+              var pct = Math.round((b.level || 0) * 100);
+              // CHARGING IS THE ANSWER, NOT THE LEVEL. A till at 8% with the cable in is
+              // fine; a till at 30% and falling, an hour from closing, is not.
+              if (b.charging || b.level > WARN) { el.hidden = true; return; }
+              var crit = b.level <= CRIT;
+              el.className = 'batt-warn' + (crit ? ' crit' : '');
+              el.textContent = '🔋 ' + pct + '% · '
+                + (crit ? tr('batt_crit', 'PLUG THE TILL IN NOW')
+                        : tr('batt_low',  'not charging — plug the till in'));
+              el.hidden = false;
+              el.title = tr('batt_title', 'The tablet runs about 2-3 hours off the battery. '
+                          + 'Check the cable AND the power bar at the wall.');
+            }
+            b.addEventListener('levelchange', paint);
+            b.addEventListener('chargingchange', paint);
+            setInterval(paint, 60000);           // a belt: some builds are quiet on events
+            paint();
+            console.log('[batt] watching — ' + Math.round(b.level * 100) + '%, charging=' + b.charging);
+          }).catch(function (e) { console.log('[batt] unavailable: ' + e); });
+        }
+        if (document.readyState !== 'loading') start();
+        else document.addEventListener('DOMContentLoaded', start);
       })();
     </script>
 
@@ -2621,6 +2674,20 @@
             {% elif 'local' in _e or 'dev' in _e %}{% set _ec = 'LCL' %}{% set _ecc = 'env-lcl' %}
             {% else %}{% set _ec = '' %}{% set _ecc = '' %}{% endif %}
             {% if _ec %}<span class="env-pill {{ _ecc }}" title="environment: {{ app_env }}">{{ _ec }}</span>{% endif %}
+            <!-- 🔋 THE TILL WATCHES ITS OWN BATTERY. Added 2026-09-17.
+                 Until now Banco knew nothing about power — every mention of the battery in
+                 this file was a COMMENT explaining that we rely on GNOME's top bar, which
+                 is exactly the bar that full screen hides. So the one warning that matters
+                 most disappears in the one mode a cashier is most likely to be in.
+                 Angel, on this tablet: "you'll get two or three hours out of it and then
+                 it'll be dead ... they could be in the full screen mode and all of a sudden
+                 the whole thing dies on them because they weren't watching the battery."
+                 And the failure is rarely the tablet — it is a power bar nobody switched on
+                 in the morning, with the cable plugged in and charging nothing.
+                 SILENT until it matters: nothing at all while charging or above 25%. Touch
+                 devices only — a laptop has its own indicator and hours of runway. Static,
+                 never flashing, for the same reason the tax warning is static. -->
+            <span id="batt-warn" class="batt-warn" hidden></span>
             <button type="button" id="fs-nudge" class="fs-nudge" hidden
                     data-i18n="common.fill_screen">⛶ Tap to fill the screen</button>
             <button type="button" id="fs-toggle" class="fs-toggle" hidden
