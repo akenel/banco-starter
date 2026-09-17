@@ -1175,52 +1175,26 @@ async function main() {
        while N2 is a claim about the SCREEN: it walks the live DOM of the three
        screens where a person is typed in and demands zero. If someone ever adds
        data-recall to a name box, this is what goes red. LESSON #7. */
-    head('N · the paste button — and the fields it must never remember');
+    head('N · a key that REDRAWS the pad must not move it under a finger');
     {
-      const RECALL_SCREENS = ['/pos/scan', '/pos/catalog', '/pos/shelf-intake'];
-      for (const s of RECALL_SCREENS) {
-        await p.goto(`${ROOT}${s}`, { waitUntil: 'domcontentloaded' });
-        await waitAlpine(p);
-        const r = await p.evaluate(() => {
-          const all = Array.from(document.querySelectorAll('[data-recall]'));
-          return {
-            n: all.length,
-            orphans: all.filter(e => e.getAttribute('data-keypad') !== 'text')
-                        .map(e => e.getAttribute('data-recall') + ':' + (e.name || e.id || e.placeholder || '?')),
-            buckets: Array.from(new Set(all.map(e => e.getAttribute('data-recall')))).sort()
-          };
-        });
-        // COUNT THE SUBJECTS FIRST. The first run of this reported PASS on
-        // /pos/shelf-intake having seen ZERO fields — its boxes live inside
-        // `x-for row in batch()` and the batch is empty until something is
-        // scanned. A check with no subjects passes vacuously and tells you
-        // nothing, which is this repo's most expensive harness shape (LESSON #5).
-        // Seeding a fake batch row would be worse still: a fixture in a shape the
-        // app never writes. So it says GAP and says why.
-        if (r.n === 0) {
-          gap(`${s} — no data-recall field RENDERED`,
-              'its boxes are inside x-for and need a scan first — not proof of anything either way');
-        } else {
-          // A data-recall on a field with no pad is dead markup: nothing ever
-          // presses OK on it, so nothing is ever remembered and no key is drawn.
-          check(r.orphans.length === 0, `${s} — every data-recall field also has the pad`,
-                r.orphans.length ? r.orphans.join(', ') : `${r.n} fields · buckets: ${r.buckets.join(', ')}`);
-        }
-      }
+      /* WHAT THIS IS THE GHOST OF. A paste key shipped on 2026-09-10 and was
+         withdrawn on 2026-09-17, one week later, because the OS already pastes
+         on long-press and a list of your own past entries helps only on the
+         second identical entry — on a screen called New item. It is gone. THE
+         BUG IT CAUSED IS NOT A GHOST, and it can come back with any key that
+         redraws the pad:
 
-      const PEOPLE = ['/pos/customer-lookup', '/pos/checkout', '/pos/kiosk'];
-      for (const s of PEOPLE) {
-        const resp = await p.goto(`${ROOT}${s}`, { waitUntil: 'domcontentloaded' }).catch(() => null);
-        if (!resp || resp.status() >= 400) { gap(`${s} — did not load (${resp ? resp.status() : 'no response'})`); continue; }
-        await waitAlpine(p);
-        const found = await p.evaluate(() => Array.from(document.querySelectorAll('[data-recall]'))
-          .map(e => (e.getAttribute('x-model') || e.name || e.id || e.placeholder || '?')));
-        check(found.length === 0, `${s} — NOTHING here is remembered`,
-              found.length ? '⚠️ a person would be stored: ' + found.join(', ')
-                           : 'no data-recall on any field where a person is typed in');
-      }
+           press() runs on POINTERDOWN. The panel replaced the pad's innerHTML
+           there, so the pad collapsed while the finger was still down, and the
+           RELEASE was hit-tested against the page underneath — on New Item,
+           the 18+ checkbox. The paste key toggled the age gate.
 
-      // And the pad itself, on the screen this all started on.
+         Twenty green checks never saw it, because they drove the pad with
+         dispatchEvent(new PointerEvent(...)) aimed straight at the button: a
+         synthetic event needs no hit-testing and cannot MISS, and missing was
+         the whole bug. So this section taps `123` and `shift` — the two keys
+         that still redraw the pad — with page.tap(), at coordinates, and asks
+         the three questions nobody asked in September. */
       await p.goto(`${ROOT}/pos/scan`, { waitUntil: 'domcontentloaded' });
       await waitAlpine(p);
       await p.evaluate(() => {
@@ -1228,118 +1202,57 @@ async function main() {
         d.searchMode = 'catalog'; d.deptOpen = false;
       });
       await p.waitForTimeout(300);
-      await p.evaluate(() => { try { localStorage.removeItem('banco.recall.product'); } catch (e) {} });
 
-      // Dispatching pointerdown directly is how the pad is driven (its handler is
-      // pointerdown, not click). Returning false rather than throwing keeps one
-      // missing key from taking the whole run down with an anonymous stack trace.
-      // BOTH halves of the tap, and the second one is not cosmetic: shutSafely()
-      // swallows document clicks after OK and releases on POINTERUP + 120ms. A
-      // pointerdown on its own leaves the swallow armed until the 1.5s safety net,
-      // so the very next p.click() is eaten and the pad "fails to reopen" — which
-      // is what the first run of this reported, blaming the pad for the harness.
-      // A REAL TAP, THROUGH HIT-TESTING. The first version of this dispatched
-      // PointerEvents straight at the button and passed every check while the
-      // feature was broken on the tablet: a synthetic event cannot MISS, and
-      // missing was the whole bug. press() runs on pointerdown, the panel used
-      // to replace the pad's innerHTML there, the pad collapsed while the finger
-      // was still down — and the release landed on the page underneath, which on
-      // New Item is the 18+ checkbox. Angel found it in one tap. page.tap() hit-
-      // tests the release the way a finger does, so it can find that again.
-      const tapPad = async (k) => {
-        const sel = '.pk.on [data-k="' + k + '"]';
-        if (!await p.$(sel)) return false;
-        try { await p.tap(sel); return true; } catch (e) { return false; }
-      };
+      const nameSel = 'input[data-keypad="text"][x-model="otfName"]';
       const padBox = () => p.evaluate(() => {
         const a = document.querySelector('.pk.on');
         return a ? { on: true, h: a.offsetHeight } : { on: false, h: 0 };
       });
+      const age = () => p.evaluate(() =>
+        Alpine.$data(document.querySelector('[x-data]')).otfAgeRestricted);
 
-      const nameSel = 'input[data-keypad="text"][x-model="otfName"]';
       if (await p.$(nameSel)) {
         await p.click(nameSel);
-        await p.waitForTimeout(250);
-        check(await p.$('.pk.on [data-k="recall"]') !== null,
-              'Item name shows the Recent key', 'the box a cashier types a long product name into');
-
-        // The pad's height is measured once in open() and used to lift a fixed
-        // overlay off it. A list taller than the letters leaves that stale and
-        // puts the pad back over the box it just moved out of.
-        const hLetters = (await padBox()).h;
-        const ageBefore = await p.evaluate(() =>
-          Alpine.$data(document.querySelector('[x-data]')).otfAgeRestricted);
-        check(await tapPad('recall'), 'the Recent key answers a tap');
-        await p.waitForTimeout(250);
-        const after = await padBox();
-        // THE THREE THINGS THAT WENT WRONG ON THE TABLET, each asserted on its own.
-        check(after.on, 'the pad is STILL OPEN after the panel goes up',
-              'it used to vanish: the letters were gone and nothing had pasted');
-        // NOT one-directional any more. Shorter is not harmless — it is what let
-        // the release fall through to the page. The panel is an overlay now, so
-        // the only honest assertion is that the height did not move AT ALL.
-        check(Math.abs(after.h - hLetters) <= 1, 'and it has not changed height by a pixel',
-              `letters ${hLetters}px · panel ${after.h}px — a finger is still down on it`);
-        const ageAfter = await p.evaluate(() =>
-          Alpine.$data(document.querySelector('[x-data]')).otfAgeRestricted);
-        check(ageBefore === ageAfter, 'and the 18+ checkbox underneath was NOT toggled',
-              `otfAgeRestricted ${ageBefore} -> ${ageAfter} — the release used to land on it`);
-        check(await p.$eval('.pk.on', el => /Nothing yet|Noch nichts|Rien pour|Ancora niente/.test(el.textContent)),
-              'an empty list SAYS it is empty', 'never a blank rectangle with no explanation');
-
-        // Type a name, press OK, come back: it is offered.
-        await tapPad('letters');
-        await p.waitForTimeout(150);
-        await p.$eval(nameSel, el => { el.value = 'Cyclones Blunt Hemp Blue'; el.dispatchEvent(new Event('input', { bubbles: true })); });
-        await tapPad('done');
-        await p.waitForTimeout(600);   // shutSafely swallows taps for a beat after OK
-        const stored = await p.evaluate(() => { try { return localStorage.getItem('banco.recall.product'); } catch (e) { return null; } });
-        check(/Cyclones Blunt Hemp Blue/.test(stored || ''), 'pressing OK remembers what was typed',
-              `banco.recall.product = ${stored}`);
-
-        await p.$eval(nameSel, el => { el.value = ''; el.dispatchEvent(new Event('input', { bubbles: true })); });
-        await p.click(nameSel);
-        await p.waitForTimeout(350);
-        check(await p.$('.pk.on') !== null, 'the pad reopens after OK',
-              'shutSafely swallows taps for ~120ms; a tap inside that window is eaten');
-        await tapPad('recall');
-        await p.waitForTimeout(200);
-        const item = await p.$('.pk.on [data-k="recall:0"]');
-        check(item !== null, 'and it is offered back on the next product');
-        if (item) {
-          await tapPad('recall:0');
-          await p.waitForTimeout(250);
-          const box   = await p.$eval(nameSel, el => el.value);
-          const model = await p.evaluate(() => String(Alpine.$data(document.querySelector('[x-data]')).otfName));
-          check(box === 'Cyclones Blunt Hemp Blue', 'tapping it fills the box', `box reads "${box}"`);
-          // The whole point of the pad existing: the SCREEN and the MODEL agree.
-          check(model === 'Cyclones Blunt Hemp Blue', 'and Alpine RECEIVED it', `otfName = "${model}"`);
-            // NOT `[data-k="q"]`: the letters are never removed now, they are covered.
-          // Asserting on q would pass with the panel still sitting on top of them.
-          check(await p.$('.pk.on .pk-over') === null, 'and the panel is gone, letters back',
-                'so the next thing typed is a correction, not another hunt for the abc key');
-        }
-      }
-
-      // A field that did NOT opt in gets no key at all — there is nothing to show.
-      // Deliberately checked on CUSTOMER LOOKUP rather than on a spare box here:
-      // that is the screen where a person is typed in, so it is the screen where
-      // the absence of the key actually matters. (The first cut used otfDescription
-      // and timed out — it is inside a collapsed optional section and never visible.)
-      await p.goto(`${ROOT}/pos/customer-lookup`, { waitUntil: 'domcontentloaded' });
-      await waitAlpine(p);
-      const custSel = 'input[data-keypad="text"][x-model="searchQuery"]';
-      if (await p.$(custSel)) {
-        await p.click(custSel);
         await p.waitForTimeout(300);
-        check(await p.$('.pk.on') !== null, 'the customer search box still opens the pad',
-              'the pad is not what is being taken away here — only the memory');
-        check(await p.$('.pk.on [data-k="recall"]') === null,
-              'and it shows NO 📋 — a customer is never remembered',
-              'the negative assertion this whole section exists for');
+        const before = await padBox();
+        const ageBefore = await age();
+        if (!check(before.on, 'the pad is open on Item name')) {
+          gap('could not open the pad', nameSel);
+        } else {
+          // shift BEFORE mode: tapping 123 swaps the letters for symbols, and the
+          // symbol pad has no shift key. The other order reported a GAP that was
+          // my own sequencing, not a missing key.
+          for (const k of ['shift', 'mode']) {
+            const sel = `.pk.on [data-k="${k}"]`;
+            if (!await p.$(sel)) { gap(`no ${k} key on the pad`); continue; }
+            await p.tap(sel);                 // A REAL TAP: the release is hit-tested
+            await p.waitForTimeout(250);
+            const after = await padBox();
+            check(after.on, `tapping ${k} leaves the pad OPEN`,
+                  'a redraw that collapses the pad hands the release to the page');
+            check(Math.abs(after.h - before.h) <= 1,
+                  `and does not change its height by a pixel`,
+                  `${before.h}px -> ${after.h}px — a finger is still down on it`);
+          }
+          check(await age() === ageBefore,
+                'and the 18+ checkbox underneath was never touched',
+                `otfAgeRestricted ${ageBefore} -> ${await age()} — where the release used to land`);
+        }
       } else {
-        gap('customer search box not found', custSel);
+        gap('Item name not on the page', nameSel);
       }
+
+      // THE FEATURE IS GONE. Not "unused" — gone, including from devices that
+      // already stored names. If data-recall reappears, so does the question of
+      // what a shared list on a shop tablet is allowed to hold.
+      let left = 0;
+      for (const s of ['/pos/scan', '/pos/catalog', '/pos/checkout', '/pos/customer-lookup']) {
+        await p.goto(`${ROOT}${s}`, { waitUntil: 'domcontentloaded' });
+        await waitAlpine(p);
+        left += await p.evaluate(() => document.querySelectorAll('[data-recall]').length);
+      }
+      check(left === 0, 'the withdrawn paste key left nothing behind',
+            'no data-recall on any screen, and the pad clears banco.recall.* on load');
     }
 
   } catch (e) {

@@ -1580,3 +1580,18 @@ hover, so it is never once read.
 *The lesson, and it is LESSON #5 again at ×11: ask what your instrument physically cannot do. This
 one could not miss a button. If the thing you are testing is where a finger LANDS, an event
 dispatched at a node is not a test of it — it is a test of your own selector.*
+
+**Postscript, the same afternoon — and it is the bigger lesson.** The fix worked. Angel's own
+tablet screenshots on `vb760` show the panel opening, the pad staying up, the 18+ box still
+unchecked. He looked at it and said: *"maybe we should undo and paste key changes… maybe its
+overkill becasue there is a long-press menu and that already works."*
+
+He is right, and it was true before the bug. Chromium already pastes on long-press; the key showed
+a list of **his own past entries**, which on a fresh device is empty and on a screen called *New
+item* is nearly always empty, because the thing being named is new. I built a second clipboard next
+to a working one, and then spent an evening making the second one safe.
+
+*The bug was worth fixing for ninety minutes. The FEATURE was never worth shipping, and no amount of
+proving it can make it worth having. Ask what already does this job on the machine the person is
+holding — the OS is part of the stack — before writing the thing that duplicates it.* The withdrawal
+took twenty minutes and left the pad exactly as it was, plus one regression test that outlives it.

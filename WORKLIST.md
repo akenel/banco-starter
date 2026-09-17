@@ -74,18 +74,19 @@ Two sheets run: **9 pass · 0 fail**, then **25 pass · 2 issue · 0 fail**.
    tiers at all.
 8. 📦 **NEW IDEA — the box code.** A filter packet has no code; the code on the shelf is the outer box.
    Bind the box, record how many singles are in it, let the till break it down. Angel's, not designed.
-9. 🎤 **Dictation.** Paste key SHIPPED `944b979`, **broken on the tablet the same week, fixed**
-   — Angel, 2026-09-17: *"nothing got pasted and it kinda messed up the keypad and went stupid."*
-   press() runs on POINTERDOWN and the panel replaced the pad's innerHTML there, so the pad
-   collapsed 244→~60px while the finger was still down and the release landed on the page
-   underneath — **on New Item that is the 18+ checkbox.** The paste key silently toggled the age
-   gate. 20 checks in `prove-keypad.js` passed throughout: it dispatched PointerEvents straight at
-   the button, and a synthetic event cannot MISS. Now an overlay (height cannot change), driven by
-   `page.tap()`, with the 18+ flag asserted unchanged. Also: 📋 → **🕘 Recent** — the icon promised
-   the SYSTEM clipboard, which the OS already does on long-press; and the till's *Search by name*
-   box was never marked, which is why he saw no key there.
-   **NEXT: Angel presses `/pos/hardware` → "3 · Test dictation" ON THE TABLET** — there is no mic
-   key on the keypad and there is not meant to be one yet; the probe is a card on that page. Mic
+9. 🎤 **Dictation.** ~~Paste key~~ **WITHDRAWN 2026-09-17 — Angel's call, and it is right.**
+   Chromium's own long-press → Paste already works on the tablet; a list of *your own past
+   entries* helps only on the second identical entry, on a screen called **New item**. A second
+   clipboard beside a working one. Gone: 16 `data-recall` attributes, the store, the panel, the
+   strings — and the pad now clears `banco.recall.*` off devices that already used it.
+   ⚠️ **What it cost is the part worth keeping.** The key ran `press()` on POINTERDOWN and redrew
+   the pad there, so the pad collapsed while the finger was down and the RELEASE landed on the
+   page underneath — **on New Item that is the 18+ checkbox.** The paste key toggled the age gate.
+   20 green checks never saw it: they fired `dispatchEvent(new PointerEvent(...))` at the button,
+   and a synthetic event cannot MISS. `prove-keypad.js` §N is now that regression, aimed at the
+   two keys that still redraw (`shift`, `123`), driven by `page.tap()`. LESSON #5 → ×11.
+   **NEXT: Angel presses `/pos/hardware` → "3 · Test dictation" ON THE TABLET.** There is no mic
+   key on the keypad and there is not meant to be one yet — the probe is a card on that page. Mic
    is a plain HDA `ALC298` and works (unlike the camera). If it answers `service-not-allowed`/
    `network`, free Google is closed → `whisper.cpp base` (~300MB, fits banco's 1.6GB free, **add
    swap first**) or CX32 +CHF 5–6/mo.
