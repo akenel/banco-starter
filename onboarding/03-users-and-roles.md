@@ -49,5 +49,41 @@ The starter ships with simple default passwords so it runs out of the box. Befor
 Record every new value in your [password worksheet](04-master-passwords.worksheet.md). Then restart:
 `docker compose up -d`.
 
-> Rule of thumb: one person = one login. Never share a single account between cashiers — the audit log is only
-> useful if it can tell you *who* did something.
+---
+
+## ❗ "Why can't we just have one login for everybody?"
+
+**Because it is the one decision you cannot undo later, and it quietly cancels most of what a
+till is for.** This question comes up in every shop, it is a completely reasonable thing to
+ask, and it deserves a real answer rather than "security says no".
+
+**First, the objection is about the wrong thing.** One login per person is not more complicated to
+*use* — it is the same screen and the same two boxes. The only extra work is creating the account,
+which is about five minutes in Keycloak, once, per person. That is the whole cost.
+
+Here is what it buys, in the order it will actually matter to you:
+
+| # | With one shared login | With a login each |
+|---|---|---|
+| 1 | The drawer is CHF 40 short and **nobody is short** — "the shop" is. | The shift belongs to a person, who usually remembers what happened. |
+| 2 | A cashier set a price at the till (see [`11-cashier-shift.md`](11-cashier-shift.md) C3b) and you cannot ask her what she was looking at. | The row carries **who typed it**, so you ask one person one question. |
+| 3 | **The 18+ record names the shop, not a person.** | It names the person who looked at the ID. |
+| 4 | "Refunds are manager-only" means nothing — everyone holds the manager login. | The control is real. |
+| 5 | You can never dial permissions **down** later. | Start everyone as manager, narrow it when the catalogue settles. |
+| 6 | Someone leaves and the password must change **for everybody** — so in practice it never changes. | Disable one account. Thirty seconds. |
+| 7 | The audit log still records every action, and every row says the same name. | It answers *who*, which is the only question you ask it. |
+| 8 | Any dispute ends in "wasn't me", and everyone is telling the truth. | The question is settled without anyone being accused. |
+| 9 | You cannot see who is struggling and needs ten minutes of training. | You can, and quietly. |
+| 10 | Two people on one account can overwrite each other's shift mid-close. | One shift, one owner. |
+
+**Number 3 is the one that is not about convenience.** In a shop that sells age-restricted stock,
+the record of who checked an ID is a compliance record, and Banco keeps it append-only on purpose.
+"Someone signed in on the shop account" is not an answer to give a Treuhänder or an inspector.
+
+**Where the objection is RIGHT.** Sharing is genuinely faster when two people swap mid-sale. The
+answer to that is the shift handover, not a shared password — and if logging in is slow enough to
+be annoying, say so, because that is a fixable problem and a shared account is not a fix for it.
+
+> **The rule: one person = one login, and nobody lends theirs.** If you lend your login, every sale,
+> every refund and every ID check made on it is *yours* — that is not a threat, it is simply how
+> the record reads afterwards.

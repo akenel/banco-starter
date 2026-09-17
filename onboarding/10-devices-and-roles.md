@@ -24,6 +24,49 @@ This is the distinction everything else falls out of.
 A cashier must never be asked "is it one of these?" mid-sale. If the till asks that, the catalogue
 work was not finished — the answer is to do more setup, not to make the cashier faster.
 
+### And therefore: **do not do shelf intake on the tablet.** Use a desktop or a laptop.
+
+*Settled 2026-09-17. Angel has done it both ways — this is not theory, and it is written down here
+because it WILL be argued about, always with the same sentence: "but the tablet has a keyboard."*
+
+**The tablet is the till.** Quick checkout, one hand, standing up, gun in the other. It is very good
+at that and it is the reason it is on the counter.
+
+**Intake is a different job wearing the same app.** Five hundred rows, long German product names,
+a picture to judge, a category to choose, a price to decide. Angel: *"I can do it. I've done it. But
+I wouldn't recommend it. It's just not the tool for the job."*
+
+**The "but it has a keyboard" answer, in facts rather than opinion:**
+
+| | |
+|---|---|
+| **One USB port, and the gun owns it.** | Intake wants the gun *and* a camera. The tablet cannot have both without a hub. A laptop has ports. |
+| **Attaching the folio changes the app.** | With the keyboard on, the on-screen pad correctly stops appearing — so the thing you are testing is no longer the thing the cashier uses. That has already invalidated two test runs (2026-09-04). |
+| **No working camera.** | And intake is exactly where photographing the packet pays. See below. |
+| **Screen real estate.** | The intake screen is a list, a search, a picture and a form. On the tablet you scroll; on a laptop you see them together, which is the whole point of judging ten at a time. |
+
+**⚠️ What this does NOT mean.** It does not mean "do intake in the back office." Part 1 — walking
+the shelf with the gun — needs **no screen at all**, and Part 2 needs the packets **in your hands**
+(see [`09-shelf-intake.md`](09-shelf-intake.md), the 2026-07-31 correction). So the answer is a
+laptop *near the shelf*, not a desktop in another room. The rule is about the keyboard and the
+screen, not about the distance from the stock.
+
+**One sentence for the argument:** *the tablet is for selling what is already set up; setting it up
+is a typing job, and typing jobs want a real keyboard and a big screen.*
+
+### The camera, answered — webcam, and the port problem
+
+**Decided 2026-09-17, after the internal cameras were re-measured and confirmed dead** (see
+[`13-tablet-x1-debian.md`](13-tablet-x1-debian.md) — the sensor driver has no bound device, it is a
+kernel matter, do not debug it).
+
+| | Status |
+|---|---|
+| **USB webcam (any UVC)** | ✅ **TESTED and works.** This is the answer. |
+| **Powered USB hub** — so the gun dongle *and* the webcam can both be plugged in | ⚠️ **NOT YET TESTED.** Angel has one to try. ~CHF 20. Expected to work; say so only when it has. |
+| **Docking station** | ❌ **Tried twice, both useless** — Felix's own and Angel's Lenovo one. Do not spend another evening on this. |
+
+
 ---
 
 ## The devices

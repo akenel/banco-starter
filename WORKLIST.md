@@ -85,7 +85,10 @@ Two sheets run: **9 pass · 0 fail**, then **25 pass · 2 issue · 0 fail**.
    QR **no longer stops the sale**: the item goes in the cart, the code is not saved, and the toast
    says which. `UPDATE 1` on the shop, 0 URLs left. `prove-a-qr-is-not-a-barcode.js` 10/0, 12 unit
    tests.
-4. 🗣️ **English on the selling path**, and Shelf Intake is now ON it — Angel used it at the counter at
+4. 🗣️ **English on the selling path** — ➕ **named instance 2026-09-17:** the confirmation a cashier
+   reads after setting a placeholder price is a hardcoded template literal in `scan.html`
+   (`${p.name} set to CHF ${updated.price} — flagged for review`), not a `t()` key. It is the
+   right sentence and the wrong language, on the one screen Layla uses all day., and Shelf Intake is now ON it — Angel used it at the counter at
    12:36, so *"nobody sells with any of it"* is retired. Plus `Invalid price tiers: … min_qty 1` in the
    manager panel (English, and it quotes a DB column at a shop owner) and a `Price updated` toast.
 5. 🖥️ **The till fell out of fullscreen** at 11:48 and stayed out until 13:04, Chromium's own Esc bar
