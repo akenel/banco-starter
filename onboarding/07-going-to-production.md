@@ -32,6 +32,33 @@ a tool for people who ship code, and it lives on the developer's side, not in yo
 
 1. **A server** — make a Hetzner Cloud account, create a **CX22** (2 vCPU / 4 GB, ~€5/mo), Ubuntu or Debian.
    Install Docker (see [guide 0](00-prerequisites.md)). Note its **public IP**.
+
+   > ### 🛞 Then give it swap. It ships with none.
+   > **Added 2026-09-17, after finding our own box had run a real shop's till for 58 days with
+   > 4 GB of RAM and nothing to fall back on.** A cloud VM has no swap file unless you make one.
+   > With swap, a machine that runs out of memory gets *slow*. Without it, the kernel kills the
+   > biggest process — which on this box is Postgres or the app, i.e. **the till, mid-sale**. It
+   > does not show up until the day it happens, and then it looks like a crash with no cause.
+   >
+   > ```bash
+   > sudo dd if=/dev/zero of=/swapfile bs=1M count=2048   # 2 GB. NOT fallocate — it can leave
+   > sudo chmod 600 /swapfile                             # holes that swapon refuses on some kernels
+   > sudo mkswap /swapfile && sudo swapon /swapfile
+   > echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+   > printf 'vm.swappiness=10\n' | sudo tee /etc/sysctl.d/99-banco-swap.conf
+   > sudo sysctl -p /etc/sysctl.d/99-banco-swap.conf
+   > ```
+   >
+   > **Then prove the part that fails silently**, because a wrong `fstab` line does nothing wrong
+   > today and nothing at all at the next reboot, months later:
+   >
+   > ```bash
+   > sudo swapoff /swapfile && sudo swapon -a && swapon --show   # it must come back BY ITSELF
+   > systemctl list-units --type=swap                            # swapfile.swap → loaded active
+   > ```
+   >
+   > `swappiness=10` keeps Postgres and the app in RAM and reaches the tyre only under real
+   > pressure. `python3 scripts/banco-doctor.py` warns if a machine has no swap.
 2. **A domain** — register one at **Porkbun** (~€10/yr). You don't need to touch DNS yet — the wizard tells you
    exactly which record to make.
 
