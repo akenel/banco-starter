@@ -84,6 +84,41 @@ per shop/box), put its **ping URL** in `.env` as `HEALTHCHECK_PING_URL=https://h
 and set the check's schedule to daily. `backup-to-b2.sh` pings it on every success — miss a night
 and healthchecks emails you. Make sure the check has a notification set, or it's watching in silence.
 
+## Step 4b · Retention — because nothing here ever deletes anything
+
+**Neither script prunes.** Every nightly backup is kept for ever, and that is a deliberate default
+(deleting backups automatically is how people lose the one they needed) — but it means the bucket
+grows in a straight line and the free tier has an end.
+
+**Measured on the live Artemis shop, 2026-09-17:**
+
+| | |
+|---|---|
+| in the bucket | **613 files · 4.23 GB**, oldest 2026-07-20, nothing ever removed |
+| of which media | 51 archives · **2.80 GB** — the photo volume, ~105 MB *every night* |
+| of which database | 562 dumps · 1.43 GB — ~9 MB a night, cheap |
+| growth | **~114 MB/night ≈ 3.4 GB/month** |
+| free tier | 10 GB |
+
+So the cap lands somewhere around **early November**. And this is not a prediction — **it has already
+happened once**: `ERROR: Cannot upload or copy files, storage cap exceeded`, eight times, on
+**2026-08-10**. Every run since has succeeded, so it was dealt with; nothing stops it recurring.
+
+**Three ways out, cheapest first:**
+
+1. **A B2 lifecycle rule on the bucket** — "keep the last N days". Free, set once in the Backblaze
+   UI, and it is the only one of the three that cannot be forgotten.
+2. **Back the media up weekly, not nightly.** The photo volume barely changes — a nightly 105 MB
+   archive of a near-static folder is most of this bill. Change the `backup-media-to-b2.sh` cron
+   line to `0 3 * * 0`. Cuts the growth by about seven.
+3. **Pay.** B2 is ~$6/TB/month; this shop would cost cents. Perfectly reasonable — but decide it,
+   rather than discovering it on the morning the upload stops.
+
+> ⚠️ **The dead-man's switch is what makes this survivable.** `backup-to-b2.sh` pings healthchecks.io
+> **only on success**, so a cap-exceeded night sends no ping and you get an email. If you have not
+> set `HEALTHCHECK_PING_URL`, a full bucket is completely silent — you find out when you need a
+> backup that was never made. Step 4 covers it; do not skip it.
+
 ## Step 5 · PRACTICE a restore — the part everyone skips
 
 **A backup you've never restored is not a backup — it's a hope.** Prove it works:

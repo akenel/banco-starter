@@ -48,6 +48,15 @@ Two sheets run: **9 pass · 0 fail**, then **25 pass · 2 issue · 0 fail**.
 1b. 🔓 **NEW — the gate fires on ~50 ACCESSORIES** (`Zigaretten-Filter`/`-Hülsen`/`-Stopfmaschine`).
    `_TOBACCO_ACCESSORY` runs only on the supplier-tag path. Naive fix un-gates real blunts (`filter`
    is in *Holzfilter*). Treuhänder call. LESSON #12 — over-gating teaches staff to wave it away.
+2b. 💾 **NEW 2026-09-17 — the backup bucket fills around early November.** 613 files · **4.23 GB**
+   of a 10 GB free tier, nothing ever pruned, growing **~114 MB/night** — of which **105 MB is the
+   MEDIA archive**, taken nightly off a photo volume that barely changes. `storage cap exceeded`
+   already happened once, 8× on **2026-08-10**. Backups are otherwise healthy: nightly and unbroken
+   10–17 Sept, DB + Keycloak + media, encrypted, and the media archive *verifies* itself
+   (`16495 entries recover`). Cheapest fix is a **B2 lifecycle rule**; second is media weekly
+   (`0 3 * * 0`), which cuts growth ~7×. **Felix's data, Felix's call.** Retention is now documented
+   in `06-own-your-data-backups.md` with the numbers.
+
 2. ⚠️ **The placeholder guard is still two values wide.** ▶️ **2026-09-17 — the list is now REACHABLE:**
    `/pos/cleanup` → The Bench → **🚫 Can't be sold**. The server had `_bench_gap_expr("price")`
    (`price IN (99.00, 999.99)`) and was returning `gap_counts["price"]` on every page load, with
