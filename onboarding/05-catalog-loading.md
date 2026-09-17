@@ -36,7 +36,12 @@ This is the "advanced" path — line up your columns (name, price, barcode, VAT,
 Ask for the import guide when you're ready, or start with Ways 1–3 and grow.
 
 ## Whichever way — get these right per product
-- **Price** (obviously).
+- **Price** (obviously). **And when you genuinely do not know it, type `999.99`** — the one number in
+  Banco that means *"I don't know this price and I am saying so"*. The till refuses to sell it, so a
+  placeholder can never reach a customer, and the whole list is one tap away at `/pos/cleanup` →
+  **The Bench** → 🚫 **Can't be sold**. Full reasoning in [guide 9](09-shelf-intake.md).
+  ⚠️ **Never use `0.00` for this** — zero is not a placeholder, it is a price, and the till will
+  hand the item over for nothing.
 - **VAT category** — standard vs reduced. Wrong VAT = wrong tax collected.
 - **Age flag** — tobacco / alcohol / 18+ must be flagged so the till can prompt.
 - **Barcode** — so scanning works at the till.

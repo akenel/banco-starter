@@ -15,6 +15,16 @@ POS_VAT_RATE_REDUCED=2.6  # your REDUCED rate (food/takeaway/essentials) — if 
 POS_VAT_YEAR=2025         # the tax year these rates belong to
 ```
 
+> ### ⏳ `POS_VAT_YEAR` is a date stamp on your own homework, and it goes stale on purpose
+> It changes no maths — it is displayed, so a person can see **when these rates were last checked**
+> (`VAT 8.1% (2025)`). Set it to the year you confirmed the rates with your tax authority, and
+> re-check it every January. **If it reads a year that is not this one, that is the field doing its
+> job**: nobody has verified the rates since then.
+>
+> *Noted 2026-09-17: the starter and the live Artemis shop both still read `2025`. The Swiss rates
+> below are unchanged and correct — the shop bills and prints 8.1% today — so this is a stale
+> stamp, not a wrong rate. Confirm and bump it.*
+
 After changing `.env`, restart so it takes effect:
 
 ```bash
