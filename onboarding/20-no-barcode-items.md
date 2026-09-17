@@ -173,6 +173,21 @@ e.g. `Grinder · Black Leaf · Alu · 4-teilig · 50mm`
 The four things a customer actually asks for are **size, parts, material, brand**. Whatever shape is
 chosen, **every grinder gets the same shape.**
 
+> ### 💡 You may not need to mint anything — measured 2026-09-17
+> **A product with NO barcode already prints a scannable label.** `product_label.html` falls back to
+> the product's **SKU**, and the till resolves a scanned SKU: `_find_product_by_any_barcode` checks
+> the primary barcode, then the alias table, then GTIN padding variants, and finally `products.sku`.
+> The code's own note says why it exists — *"until this fallback existed the label was a trap: the
+> gun read it perfectly and the till said 'not found'."*
+>
+> Angel proved it on the counter gun the same day, on a packet with no stripe at all: printed the
+> label, scanned it, found the product. **So the cheapest path for an unbranded item is: leave the
+> barcode blank, print the label, stick it on.** That is one step, not two, and it keeps the barcode
+> field honest and empty for the day a real EAN turns up.
+>
+> Mint when you want a *short* code on a small sticker — an EAN-13 is denser than a 20-character
+> SKU in CODE128, which matters on a 38 mm label. That is a printing decision, not a data one.
+
 ### 4 · Mint a code and print a label
 `barcode_is_internal = true`, then a label from the QL-820NWB (Bluetooth, working since
 2026-08-04). **Without a label it still cannot be scanned**, and the cashier is back to typing a

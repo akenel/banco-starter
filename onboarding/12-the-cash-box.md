@@ -479,11 +479,22 @@ achievable.** Set a tight tolerance before that and the drawer will drift a few 
 nobody will know why. Card and TWINT are unaffected — they take the exact cent, which is why this
 only ever shows up in the box.
 
-> **✅ BUILT 2026-08-03 — and not yet on prod.** `_apply_cash_rounding()` now runs on both sale
-> paths for cash only; `transactions.rounding_adjustment` records the move so the receipt prints
+> **✅ BUILT 2026-08-03 · LIVE ON THE SHOP since 2026-09-10.** `_apply_cash_rounding()` runs on both
+> sale paths for cash only; `transactions.rounding_adjustment` records the move so the receipt prints
 > `Rounding (5 Rp.)` and Banana gets a `Rundungsdifferenz` rather than an unexplained rappen.
-> Proven end to end on dev by `scripts/prove-cash-rounding.py`. **The ±0.05 tolerance still waits
-> on the prod deploy**, not on the code — and on somebody watching a real receipt come out.
+>
+> ⚠️ **And there is a lesson in the gap between those two dates, which is why this paragraph now
+> says both.** "Built and proven on dev" was true in August and it was not the same thing as
+> working. On **2026-09-10 Angel stood at the counter** and the checkout offered **CHF 2.04** change
+> while the receipt and the drawer both said **2.05** — because `POSConfig.regime` is the *string*
+> `'CH'`, so `regime.cash_rounding_step` read `undefined` and the step silently fell to zero. There
+> were **2,009 passing cases**, and every single one of them was fed
+> `{regime: {cash_rounding_step: '0.05'}}` — an object the application has never once produced.
+> The fix that mattered was the fixture, not the code.
+>
+> **So the ±0.05 tolerance is now honest to set** — and the way you confirm it on YOUR shop is the
+> box on the go-live checklist: pay one sale in cash and check the change on the screen, on the
+> receipt and in the drawer. All three, same number.
 
 ---
 

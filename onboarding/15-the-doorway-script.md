@@ -15,7 +15,9 @@ you will ever demo to is standing up, holding something, and half-listening.***
 calibration. Fumbling with a dead printer while he stands there burns a fifth of the meeting.
 
 - Printer on, lit, green
-- Tablet awake, Banco open in kiosk
+- Tablet awake, Banco open and **maximised** — *not* kiosk and *not* full screen, so the clock,
+  the battery and the wifi stay visible ([`21-supported-hardware.md`](21-supported-hardware.md)).
+  If the window has drifted out of shape, **double-tap the title bar**
 - Gun paired and tested on one scan
 
 You want to be scanning within ten seconds of saying hello.

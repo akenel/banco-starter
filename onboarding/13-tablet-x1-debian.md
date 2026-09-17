@@ -518,7 +518,7 @@ runs GNOME comfortably.
 
 The tablet is a **client**, not a host. It does not run the stack. It needs:
 
-1. **Chromium**, pointed at the Banco address — kiosk mode once it settles.
+1. **Chromium**, pointed at the Banco address — **maximised**, and *not* kiosk. ⚠️ This line said *"kiosk mode once it settles"* until 2026-09-17; that was the plan in August and it was **reversed** — kiosk hides GNOME's top bar, which takes the battery, the wifi and the screenshot button with it. See the window section above and [`21-supported-hardware.md`](21-supported-hardware.md).
 2. **CUPS**, printing to the QL-820NWB **over Wi-Fi. Not Bluetooth, and not USB.** Doc 10's last
    open item is *"Networking the QL-820NWB over Wi-Fi would let any till print — it is a `NWB`, the
    hardware is already there."* This tablet is the reason to finally do it.

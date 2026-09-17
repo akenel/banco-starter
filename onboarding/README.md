@@ -7,7 +7,11 @@ and your backups — ready to sell.
 Work through it in order. Each guide is short, plain, and tells you exactly what to fill in. Print them, tick
 them off, or just keep them open while you set up.
 
-## The path (7 steps, 2 optional extras, and a plan)
+## The path — 0-7 get you open, 8-21 are the shop's real life
+
+*Guides 0-7 are the setup, in order. Everything from 8 on is written from a real
+counter and can be read when you need it — but **11, 14 and 21 are not optional if
+somebody other than you is going to stand at the till.***
 
 | # | File | What you do |
 |---|------|-------------|
@@ -23,6 +27,17 @@ them off, or just keep them open while you set up.
 | 8 | [08-label-printer.md](08-label-printer.md) | *Optional.* A label printer on the counter: shelf labels, QR + barcode, and the five faults that all look like broken hardware. |
 | 9 | [09-shelf-intake.md](09-shelf-intake.md) | *Optional, and the fast way.* Walk the shop with a scanner gun, then build the catalogue at a desk in batches — with the barcode that is really on the packet. |
 | 10 | [10-devices-and-roles.md](10-devices-and-roles.md) | *Optional.* Which device does what — till vs back office vs phone — and why **setup is not selling**. Written from a real kit test. |
+| 11 | [11-cashier-shift.md](11-cashier-shift.md) | **The cashier's day** — open, sell, the exceptions that actually happen, close. Read this before training anybody. |
+| 12 | [12-the-cash-box.md](12-the-cash-box.md) | The drawer: float, pay-in, pay-out, counting down, and what to do when it does not balance. |
+| 13 | [13-tablet-x1-debian.md](13-tablet-x1-debian.md) | The counter tablet, end to end: build sheet, the on-screen keypad, the window, the folio, power, the camera. |
+| 14 | [14-when-it-goes-down.md](14-when-it-goes-down.md) | **Pin this by the till.** The degradation ladder — what still works at each rung and the one action. |
+| 15 | [15-the-doorway-script.md](15-the-doorway-script.md) | Fifteen minutes with a busy owner who is holding stock. |
+| 16 | [16-bom-artemis-luzern.md](16-bom-artemis-luzern.md) | The bill of materials for one real shop — what was bought and what it cost. |
+| 17 | [17-what-changed-since-july-30.md](17-what-changed-since-july-30.md) | A dated changelog for the owner, in plain words. |
+| 18 | [18-training-manual.md](18-training-manual.md) | Training a cashier: roles, the day, what to do when. |
+| 19 | [19-what-actually-sells.md](19-what-actually-sells.md) | What a real headshop actually moves — read before deciding what to stock in the catalogue first. |
+| 20 | [20-no-barcode-items.md](20-no-barcode-items.md) | Unbranded and handmade stock: when to mint a code, and when never to. |
+| 21 | [21-supported-hardware.md](21-supported-hardware.md) | **What Banco runs on, and what it does not.** The reference kit, and what qualifying a new device costs. |
 | 🩺 | **`python3 scripts/banco-doctor.py`** | Reads your live setup and tells you what's still unset (✅/⚠️/❌ + a readiness %). Run it often. |
 | 🧠 | [ai-coach/](ai-coach/) | Let the AI you already have (Claude/ChatGPT/Ollama) coach you through what the doctor found — free help for rookies. |
 | ✔ | [GO-LIVE-CHECKLIST.md](GO-LIVE-CHECKLIST.md) | The cutover tick-list — don't open the doors until every box is green. |
