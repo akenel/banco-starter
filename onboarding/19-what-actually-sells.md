@@ -1,8 +1,13 @@
 # 19 · What actually sells at Artemis — read off the paper book
 
 *Compiled 2026-08-05 from photographs of the shop's handwritten day book, **4 July – 5 August 2026**.
-This is the only record of real demand that exists: Banco has 8 transactions of history, the paper
-book has a month of them.*
+This is the only record of real demand that exists: Banco had 8 transactions of history at the time,
+the paper book had a month of them.*
+
+> 📈 **Where Banco's own history stands, 2026-09-17:** **60 transactions · 159 sale lines**, first
+> 2026-07-25, latest 2026-09-10. Still a rehearsal rather than a record — the paper book remains the
+> only honest picture of demand — but the gap is closing, and the day it overtakes the book is the
+> day this guide can be rewritten from the till instead of from photographs.*
 
 > ### ⚠️ Read this before you trust a number
 >

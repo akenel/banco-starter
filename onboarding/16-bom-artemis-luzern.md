@@ -19,6 +19,7 @@ stand up the same thing.*
 | 7 | **Gun stand**, screwed to the counter | 1 | ~20.– | **20.–** | ⛔ to buy |
 | 8 | **Power bar, 5+ sockets** | 1 | ~25.– | **25.–** | ⛔ to buy |
 | 8b | **USB webcam** (any UVC) — the X1's built-in camera is IPU3 and **does not work on Linux** | 1–2 | ~20.– | **20–40.–** | ⛔ to buy |
+| 8c | **Powered USB hub** — ⚠️ **UNTESTED.** The tablet has **one** USB port and the gun's dongle owns it, so a webcam on the tablet needs a hub. Angel has one to try (2026-09-17). ❌ **Docking stations do not work** — two were tried, Felix's own and a Lenovo one. | 1 | ~20.– |
 | 9 | **Data-only SIM** (Yallo / Salt — *different networks*) | 2 | ~10.–/mo | **20.–/mo** | ⛔ optional |
 | 10 | **Hetzner VPS** + `wolfhold.app` | 1 | ~10.–/mo | **10.–/mo** | ✅ running |
 | 11 | **Backblaze B2** off-site backup | 1 | ~2.–/mo | **2.–/mo** | ✅ running |
