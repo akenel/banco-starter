@@ -17,10 +17,18 @@
 > [`worklist-archive/done.md`](worklist-archive/done.md) with its commit hashes; when a thread grows
 > a long write-up, the write-up goes to the archive and a one-line pointer stays here.
 
-*Last updated: 2026-09-15 — **fifth archive pass, 507 → 409**, the alarm's first catch on a file
-that had merely drifted rather than exploded: nine closed or parked threads, 129 lines out, 0 lost.
-Before that: 2026-09-10, Angel worked the counter and found four defects himself.
-Live on the shop: `b754 · 4e3cb17`.*
+*Last updated: 2026-09-17 — **the long night.** Ten threads closed, seventeen onboarding guides
+walked, two of my own notes found wrong by the machine. Live on the shop: `b789 · 11da57b`.
+Detail: [`2026-09-17-the-long-night.html`](worklist-archive/2026-09-17-the-long-night.html).*
+
+> ### ▶️ NEXT SESSION, in order
+> 1. **`6x`** — a discounted sale does not reconcile: line VAT is pre-discount, the header is
+>    post-discount. 6 of 60 sales, worst 0.80. Declared VAT is CORRECT; the detail is not.
+>    Fix the write path, then re-run the reconciliation to zero. **Half an hour, clear head.**
+> 2. **84 products on 999.99** — price them, or brief Layla on C3b before she meets one.
+> 3. **`4`** — English on the selling path, starting with the sentence a cashier reads every
+>    time she prices something at the till.
+> 4. **`1b` + the VAT rounding direction** — both are Treuhänder questions, ask them together.
 
 ---
 
@@ -48,15 +56,8 @@ Two sheets run: **9 pass · 0 fail**, then **25 pass · 2 issue · 0 fail**.
 1b. 🔓 **NEW — the gate fires on ~50 ACCESSORIES** (`Zigaretten-Filter`/`-Hülsen`/`-Stopfmaschine`).
    `_TOBACCO_ACCESSORY` runs only on the supplier-tag path. Naive fix un-gates real blunts (`filter`
    is in *Holzfilter*). Treuhänder call. LESSON #12 — over-gating teaches staff to wave it away.
-2b. ~~💾 **The backup bucket fills around early November.**~~ **CLOSED 2026-09-17.** Nothing pruned:
-   613 files · 4.23 GB, growing ~114 MB/night, and `storage cap exceeded` had already hit once on
-   10 Aug (Angel: a runaway backup during testing; he has since gone paid). Now: **B2 lifecycle
-   rule, 90 days, on `banco/`** · **media weekly** not nightly (105 MB/night for a near-static
-   photo volume was 2.80 GB of the 4.23) · **monthly archive to `archive/monthly/`, kept for ever**,
-   server-side copy, outside every rule. `install-backup-cron.sh` manages all three and is still
-   idempotent. Ran the monthly once by hand to prove it before the 1st. Deleted nothing on the day —
-   oldest file was 59 days old.
-
+2b. ~~💾 **Backup bucket had no retention.**~~ **CLOSED 2026-09-17** — 90-day B2 lifecycle rule ·
+    media weekly · monthly archive kept for ever. → [`the long night`](worklist-archive/2026-09-17-the-long-night.html)
 2. ⚠️ **The placeholder guard is still two values wide.** ▶️ **2026-09-17 — the list is now REACHABLE:**
    `/pos/cleanup` → The Bench → **🚫 Can't be sold**. The server had `_bench_gap_expr("price")`
    (`price IN (99.00, 999.99)`) and was returning `gap_counts["price"]` on every page load, with
@@ -84,16 +85,8 @@ Two sheets run: **9 pass · 0 fail**, then **25 pass · 2 issue · 0 fail**.
    forced the user to put the right price in"*), **but type 999.00 tomorrow and it walks through.**
    The four rows at 0.00 are his `SEPARATOR-001…004` shelf markers — an intake aid for testing without
    selling. **Deliberate. Leave them.**
-3. ~~🔗 **A URL is bound as a product barcode.**~~ **CLOSED 2026-09-17.** `AlpenBreeze` carried
-   `https://vqr.vc/BiWfnR9bv` — Angel scanned the QR on a packet with no stripe, deliberately,
-   *"like a silly cashier might do"*. It got in because the format guard gave the WRONG REASON
-   (letters → "probably a LOT number") and offered the override, which a cashier staring at a
-   packet with no other code will press. Now a hard refusal with **no way past it**, at all three
-   screens plus the unattended reference-adoption path — while `2024VL099B` on the JaJa Noir packet
-   still saves with its override, asserted by a rectangle, not by `page.$`. At the till a scanned
-   QR **no longer stops the sale**: the item goes in the cart, the code is not saved, and the toast
-   says which. `UPDATE 1` on the shop, 0 URLs left. `prove-a-qr-is-not-a-barcode.js` 10/0, 12 unit
-   tests.
+3. ~~🔗 **A URL bound as a product barcode.**~~ **CLOSED 2026-09-17** — hard refusal, no override,
+   and the till no longer stops the sale. `prove-a-qr-is-not-a-barcode.js` 10/0. → [`the long night`](worklist-archive/2026-09-17-the-long-night.html)
 4. 🗣️ **English on the selling path** — ➕ **named instance 2026-09-17:** the confirmation a cashier
    reads after setting a placeholder price is a hardcoded template literal in `scan.html`
    (`${p.name} set to CHF ${updated.price} — flagged for review`), not a `t()` key. It is the
@@ -109,18 +102,9 @@ Two sheets run: **9 pass · 0 fail**, then **25 pass · 2 issue · 0 fail**.
    work."* So the kiosk decision costs the evidence trail on the ONE device that keeps producing
    findings — unless something else takes the picture (a gesture binding, a corner tap, a
    Banco-side capture button, or simply leaving the folio on, which item 10 now argues for anyway).
-6. ~~🧾 **The cart says `incl. VAT 1.05`, the receipt says `1.04`**~~ **CLOSED 2026-09-17.** Not a rate
-   fault and not bad arithmetic — **where the rounding happened.** The sale rolls up through
-   `split_vat()`: each line's contained VAT rounded to the rappen, then summed. The cart rounded
-   ONCE over the whole basket. A CHF 13.95 basket contains `1.045282`, which is exactly the pair
-   Angel saw. `cartVAT()` in base.html now mirrors `split_vat` — per line, prorated by
-   `total/subtotal`, each line's own rate — proved by running the SHIPPED browser function against
-   the SERVER's own `split_vat` over **3,000 baskets: 0 disagreements.**
-   ⚖️ **For the Treuhänder, with 1b:** the DIRECTION of VAT rounding cannot cost a customer a
-   rappen — the shelf price is fixed, so rounding up just means Felix declares more VAT and books
-   less net. The rounding that DOES reach a customer is the 5-rappen CASH rounding, and ours goes
-   to the NEAREST (±2 rappen). If Felix wants always-down as a goodwill policy that is a one-line
-   change — but ask first whether it is allowed to differ from commercial rounding.
+6. ~~🧾 **Cart said `incl. VAT 1.05`, receipt `1.04`.**~~ **CLOSED 2026-09-17** — the cart rounded once
+   over the basket; the sale rounds per line. `cartVAT()` mirrors `split_vat`, 3,000 baskets 0 diffs.
+   → [`the long night`](worklist-archive/2026-09-17-the-long-night.html)
 6x. 🔴 **NEW 2026-09-17 — A DISCOUNTED SALE DOES NOT RECONCILE, and this is the tax-man one.**
    `transactions.tax_amount` is the VAT on what was actually charged (**correct**).
    `line_items.vat_amount` is the **pre-discount** per-line figure (**stale**). So on the live shop
@@ -139,31 +123,9 @@ Two sheets run: **9 pass · 0 fail**, then **25 pass · 2 issue · 0 fail**.
    tiers at all.
 8. 📦 **NEW IDEA — the box code.** A filter packet has no code; the code on the shelf is the outer box.
    Bind the box, record how many singles are in it, let the till break it down. Angel's, not designed.
-9. 🎤 **Dictation.** ~~Paste key~~ **WITHDRAWN 2026-09-17 — Angel's call, and it is right.**
-   Chromium's own long-press → Paste already works on the tablet; a list of *your own past
-   entries* helps only on the second identical entry, on a screen called **New item**. A second
-   clipboard beside a working one. Gone: 16 `data-recall` attributes, the store, the panel, the
-   strings — and the pad now clears `banco.recall.*` off devices that already used it.
-   ⚠️ **What it cost is the part worth keeping.** The key ran `press()` on POINTERDOWN and redrew
-   the pad there, so the pad collapsed while the finger was down and the RELEASE landed on the
-   page underneath — **on New Item that is the 18+ checkbox.** The paste key toggled the age gate.
-   20 green checks never saw it: they fired `dispatchEvent(new PointerEvent(...))` at the button,
-   and a synthetic event cannot MISS. `prove-keypad.js` §N is now that regression, aimed at the
-   two keys that still redraw (`shift`, `123`), driven by `page.tap()`. LESSON #5 → ×11.
-   🔴 **ANSWERED 2026-09-17 — free browser dictation is CLOSED.** `network` on the tablet
-   (Debian Chromium 152, `b761`, 16:09) **and** on the desktop (Google Chrome 152), both verified
-   online — the tablet reached `google.com` and the shop, 200 each, minutes before. Two builds,
-   two key sets, one refusal. The card now carries that verdict and prints the build/host/context
-   beside any future answer, because the first run happened on the desktop and a result you cannot
-   attribute to a machine is not a measurement.
-   **If we ever want dictation it is our own model, and I would NOT build it now:** banco has
-   **2 vCPU · 1.66 GB available · NO SWAP · 19 GB free**, `whisper.cpp base` is ~142 MB on disk and
-   ~0.5 GB live, ~3–5 s for a 3-second phrase, and it mangles brand names anyway — so it could only
-   ever feed SEARCH, which the gun and the catalogue already serve. Item 11 also says Layla starts
-   on a keyboard. ~~**The one thing worth doing regardless: the box has no swap.**~~ **DONE** —
-   2 GB swapfile on banco, `vm.swappiness=10`, fstab line proved by `swapoff && swapon -a`, and
-   `banco-doctor.py` now WARNS when a box has none. It had run a real shop's till for 58 days
-   with no spare tyre and nothing in this repo said so.
+9. 🎤 **Dictation — ANSWERED 2026-09-17: free browser speech is CLOSED to us.** `network` on the
+   tablet AND the desktop, both verified online. Paste key withdrawn (the OS already pastes). If we
+   ever want it: our own model, and I would not build it. → [`the long night`](worklist-archive/2026-09-17-the-long-night.html)
 9b. 📐 `.status-section` (`pos/base.html:2613`) overflows 23px at phone portrait on `/pos/selftest`.10. 📷 **THE TABLET CAMERA — diagnosed 2026-09-10, and it is NOT broken hardware.** `ov2740` sensor
    bound · `ipu3` loaded · libcamera 0.4.0 · pipewire up — and **`cam --list` returns zero cameras.**
    Every `/dev/video*` belongs to `ipu3-imgu` (processing, not capture). An Intel **IPU3 MIPI** sensor
