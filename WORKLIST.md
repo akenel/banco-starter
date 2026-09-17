@@ -58,9 +58,16 @@ Two sheets run: **9 pass · 0 fail**, then **25 pass · 2 issue · 0 fail**.
    made the place holder 999.99 which is an obvious place holder."* `UPDATE 34` on the shop;
    **zero rows at 99.00 anywhere**, 84 at 999.99, all still refused at the till. None had ever
    sold — the guard held, so no receipt carries that number.
-   ⏳ **THE FOLLOW-UP THAT IS THE ACTUAL PRIZE, and it needs Angel's word:** with nothing left on
-   99.00, take it OUT of `UNVERIFIED_PRICES`. Today a bong that genuinely costs **CHF 99.00 cannot
-   be sold** — the till refuses a real price. One obvious placeholder (999.99), one honest guard.
+   ✅ **CLOSED 2026-09-17 — `UNVERIFIED_PRICES = (Decimal("999.99"),)`.** One sentinel. A bong at
+   **CHF 99.00 now sells**; before tonight the till refused a real price, which is a worse fault
+   than the one the sentinel caught. Safe because it was MEASURED, not assumed: of 5,347 live
+   prices **not one ends in .99** (.90 × 2,818 · .00 × 1,846 · .50 × 561 · then round tens). Not
+   safe for being large — the shop holds a rosin press at CHF 1'199.00. Angel had the principle
+   right and the number slightly off: the house style is .90, not .95.
+   Both screens that paint a row red (`cleanup`, `shelf_intake`) were changed in the same commit,
+   or the bench would list rows the till would happily sell (LESSON #13). `scan.html` needed
+   nothing — its JS reads the list from the server. 37 tests, and the till asked with its own
+   predicate: `[999.99]` · refuses 999.99 · sells 99.00, 99.90, 1199.00.
    🔎 **Also unreachable and worth a second chip:** `till_priced` — a price a cashier guessed
    mid-sale, on something that has actually sold. Counted, returned, no button. Felix's margin list.
     `UNVERIFIED_PRICES = (99.00, 999.99)`. The

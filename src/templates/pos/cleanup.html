@@ -132,7 +132,7 @@
                             💰 <span data-i18n="cleanup.gap_cost">Cost</span> <span class="opacity-70" x-text="'(' + (gapCounts.cost||0).toLocaleString() + ')'"></span>
                         </button>
                         <!-- 🚫 THE PLACEHOLDER PRICES — and the server has been counting them all along.
-                             `_bench_gap_expr("price")` is `price IN (99.00, 999.99)`, "price" is in
+                             `_bench_gap_expr("price")` is `price IN (999.99)`, "price" is in
                              _BENCH_GAP_KINDS, and gap_counts["price"] has been arriving with every
                              page load. There was simply no chip, so the one list that says which
                              products CANNOT BE SOLD was reachable only by typing a query parameter.
@@ -1313,10 +1313,12 @@
             formatPrice(v) { return window.formatPrice(Number(v) || 0); },
 
             // The sentinels a human types when the price is not known yet. Same pair the server
-            // enforces in UNVERIFIED_PRICES — 999.99 is the one to type, 99.00 is the legacy one
+            // enforces in UNVERIFIED_PRICES — 999.99, and since 2026-09-17 it is the ONLY one.
+            // 99.00 was dropped: it is a plausible price for a bong, so as a sentinel it BLOCKED
+            // one. This must match the server exactly or the screen calls a sellable row red.
             // still sitting in rows. On a card that lists what is MISSING, a placeholder is the
             // one gap that renders as if it were filled.
-            isPlaceholderPrice(v) { return v !== null && (Number(v) === 99 || Number(v) === 999.99); },
+            isPlaceholderPrice(v) { return v !== null && Number(v) === 999.99; },
 
             // "3 for 5" in words. Reads whatever shape price_tiers is stored in rather than
             // assuming one: a wrong summary here would be worse than no summary, because the

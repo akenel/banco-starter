@@ -24,9 +24,20 @@ from src.routes.pos_router import (
 )
 
 
-def test_sentinels_are_exactly_the_two_documented_values():
-    """99.00 because the shop already has 74 of them; 999.99 because it is the better flag."""
-    assert set(UNVERIFIED_PRICES) == {Decimal("99.00"), Decimal("999.99")}
+def test_the_sentinel_is_exactly_one_value():
+    """2026-09-17: 99.00 was dropped. A sentinel that is also a plausible price does not merely
+    hide among real prices — it BLOCKS one, and every bong or vaporizer at CHF 99.00 was
+    un-sellable. Measured before removing it: of 5,347 live prices in this shop, NOT ONE ends
+    in .99 (the endings are .90, .00, .50 and round tens). That is what makes 999.99 safe —
+    not its size; the catalogue holds a rosin press at CHF 1'199.00."""
+    assert set(UNVERIFIED_PRICES) == {Decimal("999.99")}
+
+
+def test_a_plausible_price_is_no_longer_refused():
+    """The whole point of the change. 99.00 is an ordinary price on this shop's shelves."""
+    assert Decimal("99.00") not in UNVERIFIED_PRICES
+    for real in ("99.00", "99.90", "120.00", "1199.00"):
+        assert Decimal(real) not in UNVERIFIED_PRICES, real
 
 
 def test_sentinels_are_decimal_not_float():
@@ -48,10 +59,13 @@ def test_price_expr_is_not_the_fallback():
     assert str(_bench_gap_expr("price")) != str(_bench_gap_clause())
 
 
-def test_price_expr_mentions_both_sentinels():
+def test_price_expr_mentions_the_sentinel_and_only_it():
     compiled = str(_bench_gap_expr("price").compile(compile_kwargs={"literal_binds": True}))
-    assert "99.00" in compiled
     assert "999.99" in compiled
+    # THE SCREEN AND THE TILL HAVE TO AGREE. cleanup.html and shelf_intake.html each carry their
+    # own isPlaceholder() and paint the row red from it; if this expression still matched 99.00
+    # the bench would list a product the till would happily sell (LESSON #13).
+    assert "99.00" not in compiled.replace("999.99", "")
 
 
 def test_price_is_NOT_part_of_the_completeness_bench():
@@ -60,7 +74,6 @@ def test_price_is_NOT_part_of_the_completeness_bench():
     master-data completeness gap — adding it here would move counters the shop is mid-way through
     working against, and would relabel a priced-but-unverified row as "incomplete"."""
     clause = str(_bench_gap_clause().compile(compile_kwargs={"literal_binds": True}))
-    assert "99.00" not in clause
     assert "999.99" not in clause
 
 

@@ -972,8 +972,9 @@ function shelfIntake() {
     // ── price, on the row ─────────────────────────────────────────────────────────────
     fmt(n) { return (n === null || n === undefined) ? '' : Number(n).toFixed(2); },
     // The sentinels a human types when the price is not known yet. See the PLACEHOLDER PRICES
-    // block in pos_router.py — 999.99 is the one to type; 99.00 is the legacy one still in rows.
-    isPlaceholder(n) { return n !== null && (Number(n) === 99 || Number(n) === 999.99); },
+    // block in pos_router.py — 999.99 is the one to type, and since 2026-09-17 the only one
+    // recognised: 99.00 was a plausible price for a bong, so as a sentinel it blocked a real sale.
+    isPlaceholder(n) { return n !== null && Number(n) === 999.99; },
 
     startPrice(k) {
       k.priceError = ''; k.priceSaved = false;

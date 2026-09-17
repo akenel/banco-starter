@@ -7885,8 +7885,25 @@ def _bench_gap_clause():
 #
 # 999.99 is the BETTER sentinel and the one to type from now on: 99.00 is a plausible price for a
 # bong or a vaporizer, so it can hide among real ones. 999.99 cannot be anything but a flag.
-# Both are recognised — 99.00 because the shop already has 74 of them on the shelf today.
-UNVERIFIED_PRICES = (Decimal("99.00"), Decimal("999.99"))
+#
+# 2026-09-17 — 99.00 IS NO LONGER A SENTINEL, and the reason is that it was never a safe one.
+# A sentinel that is also a plausible price does not just hide among real prices; it BLOCKS one.
+# Every bong, vaporizer and shisha this shop sells at CHF 99.00 was un-sellable: the till refused
+# a real price, which is a worse fault than the one the sentinel was catching.
+#
+# The last 34 rows wearing it were the 07.07.26 intake batch. Angel looked at the list and judged
+# them: *"i was wrong to do 99 and should of made the place holder 999.99 which is an obvious
+# place holder."* They were moved, none of them had ever sold, and nothing sits at 99.00 now.
+#
+# MEASURED BEFORE REMOVING IT, because a sentinel has to be a number this shop never types:
+# of 5,347 live prices, the rappen endings are .90 (2,818), .00 (1,846), .50 (561), then round
+# tens — and **not one price in the catalogue ends in .99**. Zero. (Angel: *"felix hates pennies
+# ... never 999.99"* — he had the principle right and the number slightly off; the house style
+# is .90, not .95.) The catalogue does go above the sentinel — a rosin press at CHF 1'199.00 —
+# so 999.99 is not safe for being large. It is safe for ending in .99.
+#
+# ONE sentinel, and it cannot be anything but a flag.
+UNVERIFIED_PRICES = (Decimal("999.99"),)
 
 
 def _guard_unverified_price(product, is_giveaway: bool = False) -> None:

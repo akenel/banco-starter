@@ -44,7 +44,7 @@ class _P:
         self.name = name
 
 
-@pytest.mark.parametrize("sentinel", [Decimal("99.00"), Decimal("999.99")])
+@pytest.mark.parametrize("sentinel", [Decimal("999.99")])
 def test_a_placeholder_price_is_refused(sentinel):
     with pytest.raises(HTTPException) as e:
         _guard_unverified_price(_P(sentinel))
@@ -54,7 +54,12 @@ def test_a_placeholder_price_is_refused(sentinel):
     assert str(sentinel) in e.value.detail
 
 
-@pytest.mark.parametrize("real", ["2.50", "0.05", "69.00", "120.00", "999.98", "99.01"])
+# 99.00 JOINED THIS LIST ON 2026-09-17, and that is the change. It was a sentinel, which
+# meant every bong and vaporizer this shop prices at CHF 99.00 was un-sellable — the till
+# refusing a real price is a worse fault than the one the sentinel caught. Nothing sits at
+# 99.00 now (34 rows moved), and no price in the catalogue ends in .99 at all.
+@pytest.mark.parametrize("real", ["2.50", "0.05", "69.00", "99.00", "99.90", "120.00",
+                                  "999.98", "99.01", "1199.00"])
 def test_a_real_price_passes(real):
     _guard_unverified_price(_P(Decimal(real)))       # must not raise
 
@@ -126,7 +131,7 @@ def test_the_js_guard_actually_blocks_a_sentinel():
     assert m, "needsPrice not found in scan.html"
     js = (f"const UNVERIFIED_PRICES = {json.dumps([float(p) for p in UNVERIFIED_PRICES])};\n"
           f"function needsPrice(product) {{{m.group(1)}}}\n"
-          "const cases = [[999.99,true],[99.00,true],[2.50,false],[69.00,false],"
+          "const cases = [[999.99,true],[99.00,false],[2.50,false],[69.00,false],"
           "[null,false],[0.05,false]];\n"
           "for (const [p, want] of cases) {\n"
           "  const got = needsPrice({price: p});\n"
