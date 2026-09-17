@@ -22,8 +22,13 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 [ -f .env ] || { echo "❌ no .env beside the repo root"; exit 1; }
-set -a; . ./.env; set +a
-: "${B2_BUCKET:?B2_BUCKET not set in .env}"
+export PATH="$HOME/.local/bin:$PATH"
+# NEVER `source` .env — the same note backup-to-b2.sh carries, and it is right: a value
+# with a space in it (PROJECT_NAME) makes the shell try to RUN it. Learned the hard way
+# here on 2026-09-17, one line after copying the rest of that script's shape.
+_env() { [ -f .env ] && grep -E "^$1=" .env | tail -1 | cut -d= -f2- || true; }
+B2_KEY_ID="$(_env B2_KEY_ID)"; B2_APP_KEY="$(_env B2_APP_KEY)"; B2_BUCKET="$(_env B2_BUCKET)"
+[ -n "$B2_BUCKET" ] || { echo "❌ B2_BUCKET not set in .env"; exit 1; }
 B2="${B2_BIN:-$HOME/.local/bin/b2}"
 [ -x "$B2" ] || B2="$(command -v b2 || true)"
 [ -n "$B2" ] || { echo "❌ b2 CLI not found — see onboarding/06-own-your-data-backups.md"; exit 1; }
