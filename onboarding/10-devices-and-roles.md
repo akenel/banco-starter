@@ -24,7 +24,7 @@ This is the distinction everything else falls out of.
 A cashier must never be asked "is it one of these?" mid-sale. If the till asks that, the catalogue
 work was not finished — the answer is to do more setup, not to make the cashier faster.
 
-### And therefore: **do not do shelf intake on the tablet.** Use a desktop or a laptop.
+### And therefore: **shelf intake belongs on a LAPTOP, not the tablet.**
 
 *Settled 2026-09-17. Angel has done it both ways — this is not theory, and it is written down here
 because it WILL be argued about, always with the same sentence: "but the tablet has a keyboard."*
@@ -41,7 +41,7 @@ I wouldn't recommend it. It's just not the tool for the job."*
 | | |
 |---|---|
 | **One USB port, and the gun owns it.** | Intake wants the gun *and* a camera. The tablet cannot have both without a hub. A laptop has ports. |
-| **Attaching the folio changes the app.** | With the keyboard on, the on-screen pad correctly stops appearing — so the thing you are testing is no longer the thing the cashier uses. That has already invalidated two test runs (2026-09-04). |
+| **Copying a URL is the slow part.** | Intake's "it's genuinely new" path means finding the maker's page and pasting the URL. Angel: *"it works but way faster and more precise via a proper laptop."* That one step is most of the difference. |
 | **No working camera.** | And intake is exactly where photographing the packet pays. See below. |
 | **Screen real estate.** | The intake screen is a list, a search, a picture and a form. On the tablet you scroll; on a laptop you see them together, which is the whole point of judging ten at a time. |
 
@@ -51,8 +51,25 @@ the shelf with the gun — needs **no screen at all**, and Part 2 needs the pack
 laptop *near the shelf*, not a desktop in another room. The rule is about the keyboard and the
 screen, not about the distance from the stock.
 
-**One sentence for the argument:** *the tablet is for selling what is already set up; setting it up
-is a typing job, and typing jobs want a real keyboard and a big screen.*
+**One sentence for the argument:** *the tablet is a till, not a workhorse. It sells what is already
+set up; setting it up is a typing-and-pasting job, and that wants a laptop.*
+
+**Say "laptop", never "desktop".** Angel, 2026-09-17: *"desktop is a bad word."* It makes people
+picture a machine bolted to a back room, which is the opposite of the method — you want a laptop you
+can carry to the shelf. And **checking things on the tablet is completely fine**; it is only the
+bulk setup work that wants the bigger machine.
+
+> ### ❌ A correction, 2026-09-17 — and it was in this file for about an hour
+> An earlier version of this section claimed that *"with the folio attached, the on-screen pad
+> correctly stops appearing."* **That is false.** Angel checked it on the tablet the same evening:
+> the soft keypads are there with the keyboard attached and both work fine. The code agrees — the
+> pad's only gate is `isTouch && !isPhone` (`pos-keypad.js`), and there is **no hardware-keyboard
+> detection anywhere in it**. One grep would have settled it before it was written.
+>
+> What the 2026-09-04 note actually meant: two test runs were invalidated because the testers
+> *used the folio keyboard instead of the pad*, and the pad was the subject of the test. That is a
+> real trap and the rig selectors exist for it — but it is a trap about what a person reaches for,
+> **not** about the app switching anything off.
 
 ### The camera, answered — webcam, and the port problem
 
