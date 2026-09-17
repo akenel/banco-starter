@@ -109,7 +109,19 @@ Two sheets run: **9 pass · 0 fail**, then **25 pass · 2 issue · 0 fail**.
    work."* So the kiosk decision costs the evidence trail on the ONE device that keeps producing
    findings — unless something else takes the picture (a gesture binding, a corner tap, a
    Banco-side capture button, or simply leaving the folio on, which item 10 now argues for anyway).
-6. 🧾 **The cart says `incl. VAT 1.05`, the receipt says `1.04`** on the same sale. The books are right
+6. ~~🧾 **The cart says `incl. VAT 1.05`, the receipt says `1.04`**~~ **CLOSED 2026-09-17.** Not a rate
+   fault and not bad arithmetic — **where the rounding happened.** The sale rolls up through
+   `split_vat()`: each line's contained VAT rounded to the rappen, then summed. The cart rounded
+   ONCE over the whole basket. A CHF 13.95 basket contains `1.045282`, which is exactly the pair
+   Angel saw. `cartVAT()` in base.html now mirrors `split_vat` — per line, prorated by
+   `total/subtotal`, each line's own rate — proved by running the SHIPPED browser function against
+   the SERVER's own `split_vat` over **3,000 baskets: 0 disagreements.**
+   ⚖️ **For the Treuhänder, with 1b:** the DIRECTION of VAT rounding cannot cost a customer a
+   rappen — the shelf price is fixed, so rounding up just means Felix declares more VAT and books
+   less net. The rounding that DOES reach a customer is the 5-rappen CASH rounding, and ours goes
+   to the NEAREST (±2 rappen). If Felix wants always-down as a goodwill policy that is a one-line
+   change — but ask first whether it is allowed to differ from commercial rounding.
+6x.  The books are right
    (`tax_amount` == sum of line VAT); the cart's estimate is the odd one out. Predates 5 August.
 7. 💤 **A paper outside a deal says nothing.** *Rips Extra Dünn*, CHF 2.00, same shelf as six papers on
    3-for-5 — correct price, no explanation, because `dealInfo()` returns null when a product has no

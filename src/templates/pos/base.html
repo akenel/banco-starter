@@ -2290,6 +2290,49 @@
             return gross * POSConfig.vat_rate / (100 + POSConfig.vat_rate);
         }
 
+        /* ── THE CART'S VAT HAS TO BE COMPUTED THE WAY THE SALE IS ──────────────────────
+           2026-09-10, Angel at the counter: the cart said `incl. VAT 1.05` and the receipt
+           for the same sale said `1.04`. The books were right; the cart was the odd one out,
+           and it had been since before 5 August.
+
+           It is not a rate problem and it is not a bug in the arithmetic. It is WHERE the
+           rounding happens. The sale rolls up through `split_vat()` in vat_resolver.py:
+
+               factor = total / subtotal          # prorates a cart-wide discount
+               per line:  vat += round2(line_gross * factor * r / (100 + r))
+               then:      vat  = round2(vat)
+
+           …so every line is rounded to the rappen and the rappen are added up. The cart
+           rounded ONCE, over the whole basket. Both are defensible; only one of them is
+           what the customer's receipt will say, and that is the one the screen must show.
+           Measured first: over 4,000 baskets the whole-basket figure matches the server's
+           OTHER path (`_inclusive_vat`) exactly — which is why this went unnoticed for months
+           and why the difference only appears on a real sale with lines.
+
+           Single rate is not assumed: each line carries its own, defaulting to the shop's
+           standard, so a mixed cafe basket rolls up the same way the server will roll it up.
+           (Today every active product at Artemis is standard-rated — measured 2026-09-17 —
+           so this changes nothing about the rate and everything about the rounding.) */
+        function round2(n) {
+            // ROUND_HALF_UP on the DECIMAL value, not on the float: (n*100) can land at
+            // 104.49999999999999 where the decimal is exactly 104.5, and Math.round would
+            // take it down while Python's quantize takes it up. The epsilon is smaller than
+            // any real money difference and larger than binary drift at these magnitudes.
+            return Math.round((n * 100) + (n >= 0 ? 1e-9 : -1e-9)) / 100;
+        }
+
+        function cartVAT(lineGrosses, total, subtotal) {
+            var rate = POSConfig.vat_rate;
+            var factor = (subtotal > 0) ? (total / subtotal) : 1;
+            var sum = 0;
+            for (var i = 0; i < lineGrosses.length; i++) {
+                var g = lineGrosses[i], r = rate;
+                if (g && typeof g === 'object') { r = (g.rate != null ? g.rate : rate); g = g.gross; }
+                sum += round2((g || 0) * factor * r / (100 + r));
+            }
+            return round2(sum);
+        }
+
         // Get current VAT rate for display
         function getVATRate() {
             return POSConfig.vat_rate;
@@ -2342,12 +2385,16 @@
             return (promo && deal) ? 'both' : (promo ? 'promo' : 'deal');
         }
 
-        function calculateTotal(subtotal, discountPercent = 0, eligibleSubtotal = null) {
+        function calculateTotal(subtotal, discountPercent = 0, eligibleSubtotal = null, lines = null) {
             const base = (eligibleSubtotal === null || eligibleSubtotal === undefined)
                 ? subtotal : eligibleSubtotal;
             const discountAmount = base * (discountPercent / 100);
             const afterDiscount = subtotal - discountAmount;  // gross the customer pays
-            const vat = calculateVAT(afterDiscount);          // VAT contained within
+            // Per-line when the caller hands us the lines (see cartVAT); the old whole-basket
+            // figure only when it cannot — a screen with no lines has nothing to sum.
+            const vat = (lines && lines.length)
+                      ? cartVAT(lines, afterDiscount, subtotal)
+                      : calculateVAT(afterDiscount);          // VAT contained within
             return {
                 subtotal,
                 discountPercent,

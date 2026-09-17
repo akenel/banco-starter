@@ -3179,7 +3179,14 @@
                 // Eligible portion only — the same rule the server and the checkout screen use.
                 // Without it the cart quoted a discount on tobacco and on deal-priced lines that
                 // the drawer was never going to give.
-                return calculateTotal(subtotal, this.discount, cartEligibleSubtotal(this.cart, _pools));
+                // The LINE GROSSES, so the VAT is summed per line exactly as the sale will be
+                // (see cartVAT in base.html). Each line carries its own rate where it has one.
+                const _lines = this.cart.map((item, i) => ({
+                    gross: (i in _pools ? _pools[i] : tierLineTotal(item)),
+                    rate: (item && item.vat_rate != null) ? item.vat_rate : undefined,
+                }));
+                return calculateTotal(subtotal, this.discount,
+                                      cartEligibleSubtotal(this.cart, _pools), _lines);
             },
 
             clearCart() {
