@@ -121,7 +121,18 @@ Two sheets run: **9 pass · 0 fail**, then **25 pass · 2 issue · 0 fail**.
    less net. The rounding that DOES reach a customer is the 5-rappen CASH rounding, and ours goes
    to the NEAREST (±2 rappen). If Felix wants always-down as a goodwill policy that is a one-line
    change — but ask first whether it is allowed to differ from commercial rounding.
-6x.  The books are right
+6x. 🔴 **NEW 2026-09-17 — A DISCOUNTED SALE DOES NOT RECONCILE, and this is the tax-man one.**
+   `transactions.tax_amount` is the VAT on what was actually charged (**correct**).
+   `line_items.vat_amount` is the **pre-discount** per-line figure (**stale**). So on the live shop
+   **6 of 60 sales do not tie out** — gaps of 0.01, 0.02, 0.06, 0.39, 0.56 and **0.80** — and every
+   one of the six carries a discount, in exact proportion to it. Undiscounted sales tie out exactly.
+   ⚠️ **`pos_router.py:7587` sums `LineItemModel.vat_amount` for a report**, so a report can state
+   MORE VAT than the books declare. Two numbers in one system that disagree on a discounted sale is
+   precisely what makes an inspector open every transaction. Fix is the write path: store the
+   prorated VAT on the line (the same `factor = total/subtotal` `split_vat` already uses) — or
+   prorate at every read. **Not started; not a midnight job.**
+
+ The books are right
    (`tax_amount` == sum of line VAT); the cart's estimate is the odd one out. Predates 5 August.
 7. 💤 **A paper outside a deal says nothing.** *Rips Extra Dünn*, CHF 2.00, same shelf as six papers on
    3-for-5 — correct price, no explanation, because `dealInfo()` returns null when a product has no
