@@ -2433,8 +2433,27 @@
                     showToast(t('scan.toast_linked', {n: product.name}), 'success');
                     this.readyForNextScan();
                 } catch (err) {
-                    console.warn('Bind to owned product failed:', err);
-                    showToast(t('scan.toast_link_failed'), 'warning');
+                    // A QR CODE IS NOT A BARCODE, AND THE SALE MUST NOT STOP FOR IT.
+                    // 2026-09-17: a packet on the counter with no stripe anywhere, only a QR.
+                    // Angel scanned it deliberately, "like a silly cashier might do", and the
+                    // link went into the barcode field. The server refuses that now — but a
+                    // refusal here used to read "link failed" and, because addToCart sat AFTER
+                    // the bind inside the try, the item never reached the cart either. Customer
+                    // waiting, nothing sold, no reason given. So: sell it, say what happened,
+                    // and do not save the link. (LESSON #12 — the right text, or none.)
+                    if (err && err.detail && err.detail.conflict === 'barcode_is_a_url') {
+                        this.addToCart(product, 1);
+                        this.otfName = ''; this.otfPrice = ''; this.otfDescription = ''; this.otfCategory = '';
+                        this.otfAgeRestricted = false;
+                        this.otfPhotoFile = null; this.otfPhotoData = '';
+                        this.otfOwned = [];
+                        this.pendingBarcode = '';
+                        showToast(t('scan.toast_qr_not_a_barcode'), 'warning');
+                        this.readyForNextScan();
+                    } else {
+                        console.warn('Bind to owned product failed:', err);
+                        showToast(t('scan.toast_link_failed'), 'warning');
+                    }
                 } finally {
                     this.lazySaving = false;
                 }
@@ -2530,8 +2549,23 @@
                     showToast(t('scan.toast_linked', {n: product.name}), 'success');
                     this.readyForNextScan();
                 } catch (err) {
-                    console.warn('Link to existing failed:', err);
-                    showToast(t('scan.toast_link_failed'), 'warning');
+                    // A QR CODE IS NOT A BARCODE, AND THE SALE MUST NOT STOP FOR IT.
+                    // 2026-09-17: a packet on the counter with no stripe anywhere, only a QR.
+                    // Angel scanned it deliberately, "like a silly cashier might do", and the
+                    // link went into the barcode field. The server refuses that now — but a
+                    // refusal here used to read "link failed" and, because addToCart sat AFTER
+                    // the bind inside the try, the item never reached the cart either. Customer
+                    // waiting, nothing sold, no reason given. So: sell it, say what happened,
+                    // and do not save the link. (LESSON #12 — the right text, or none.)
+                    if (err && err.detail && err.detail.conflict === 'barcode_is_a_url') {
+                        this.addToCart(product, qty);
+                        this.lazyOpen = false;
+                        showToast(t('scan.toast_qr_not_a_barcode'), 'warning');
+                        this.readyForNextScan();
+                    } else {
+                        console.warn('Link to existing failed:', err);
+                        showToast(t('scan.toast_link_failed'), 'warning');
+                    }
                 } finally {
                     this.lazySaving = false;
                 }

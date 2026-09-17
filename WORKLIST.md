@@ -53,8 +53,16 @@ Two sheets run: **9 pass · 0 fail**, then **25 pass · 2 issue · 0 fail**.
    forced the user to put the right price in"*), **but type 999.00 tomorrow and it walks through.**
    The four rows at 0.00 are his `SEPARATOR-001…004` shelf markers — an intake aid for testing without
    selling. **Deliberate. Leave them.**
-3. 🔗 **A URL is bound as a product barcode.** `AlpenBreeze` carries `https://vqr.vc/BiWfnR9bv`. Clear
-   it, and refuse to bind `http(s)://` as a code at all.
+3. ~~🔗 **A URL is bound as a product barcode.**~~ **CLOSED 2026-09-17.** `AlpenBreeze` carried
+   `https://vqr.vc/BiWfnR9bv` — Angel scanned the QR on a packet with no stripe, deliberately,
+   *"like a silly cashier might do"*. It got in because the format guard gave the WRONG REASON
+   (letters → "probably a LOT number") and offered the override, which a cashier staring at a
+   packet with no other code will press. Now a hard refusal with **no way past it**, at all three
+   screens plus the unattended reference-adoption path — while `2024VL099B` on the JaJa Noir packet
+   still saves with its override, asserted by a rectangle, not by `page.$`. At the till a scanned
+   QR **no longer stops the sale**: the item goes in the cart, the code is not saved, and the toast
+   says which. `UPDATE 1` on the shop, 0 URLs left. `prove-a-qr-is-not-a-barcode.js` 10/0, 12 unit
+   tests.
 4. 🗣️ **English on the selling path**, and Shelf Intake is now ON it — Angel used it at the counter at
    12:36, so *"nobody sells with any of it"* is retired. Plus `Invalid price tiers: … min_qty 1` in the
    manager panel (English, and it quotes a DB column at a shop owner) and a `Price updated` toast.

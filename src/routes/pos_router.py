@@ -586,6 +586,9 @@ async def create_product(
 
     # Before the name check, because a bad barcode is the more expensive mistake: a duplicate
     # name is untidy, a lot number bound as an EAN is a product that can never be scanned again.
+    _url_reason = _barcode_is_a_url(str(data.get("barcode") or ""))
+    if _url_reason:                      # not overridable — see _barcode_is_a_url
+        raise HTTPException(status_code=422, detail=_barcode_url_refusal_detail(_url_reason))
     if not allow_nonstandard and (data.get("barcode") or "").strip():
         objection = _barcode_objection(str(data["barcode"]).strip())
         if objection:
@@ -2360,6 +2363,48 @@ def _barcode_objection_detail(objection: str) -> dict:
             "override": "allow_nonstandard"}
 
 
+# ── A QR CODE IS NOT A BARCODE, AND THIS ONE HAS NO WAY PAST IT ──────────────
+# 2026-09-17. Angel, at the counter, deliberately playing a cashier in a hurry:
+# a packet on the counter had no stripe anywhere on it, only a QR, so he scanned
+# the QR — and Banco bound `https://vqr.vc/BiWfnR9bv` to AlpenBreeze as its
+# barcode. His words: "i played stupid and scanned the qr code like a silly
+# cashier might do and sure enough we found a minor bug."
+#
+# It got in because the guard below SAW it and gave the wrong reason: a URL has
+# letters, so it read as a LOT NUMBER and offered "use it anyway" — and a cashier
+# told the code is probably a batch number, looking at a packet with no other
+# code on it, will quite reasonably press the button. A wrong reason is worse
+# than none (LESSON #12).
+#
+# So this one is separate and it is a REFUSAL, not an objection. `allow_nonstandard`
+# does not reach it, and that is the whole point: a shop may legitimately need an
+# odd code (the JaJa Noir packet prints `2024VL099B` and that must keep working),
+# but no shop has ever needed `https://` as a product code. The row can never
+# scan again — the next packet's QR points somewhere else, or nowhere.
+_URL_BARCODE = re.compile(
+    r"^\s*www\.|//|^\s*[a-z][a-z0-9+.\-]{1,19}:",   # www. · any // · any URI scheme
+    re.I,
+)
+
+
+def _barcode_is_a_url(code: str) -> Optional[str]:
+    """A plain-words reason this scan is a web address and not a product code, or None."""
+    code = (code or "").strip()
+    if not code or not _URL_BARCODE.search(code):
+        return None
+    shown = code if len(code) <= 40 else code[:37] + "…"
+    return (f"“{shown}” is a WEB LINK, not a barcode. That is a QR code — they usually hold a "
+            f"website address, and the gun reads them just as happily as a real barcode. "
+            f"If this packet has no barcode stripe on it, leave the barcode BLANK: the product "
+            f"still sells, and the first real scan can bind it later.")
+
+
+def _barcode_url_refusal_detail(reason: str) -> dict:
+    # NO `override` KEY. The screen attaches "use it anyway" to a refusal that names its own way
+    # out; this one deliberately has none, so no button appears and none should.
+    return {"conflict": "barcode_is_a_url", "message": reason}
+
+
 def _barcode_objection(code: str) -> Optional[str]:
     """A plain-words reason this string is probably not a product barcode, or None."""
     code = (code or "").strip()
@@ -2399,6 +2444,9 @@ async def add_product_barcode(
     barcode = _clean_barcode(body.barcode)   # BL-129: never store a gun-polluted code as an alias
     if not barcode:
         raise HTTPException(status_code=400, detail="Barcode is required")
+    _url_reason = _barcode_is_a_url(barcode)
+    if _url_reason:                      # not overridable — see _barcode_is_a_url
+        raise HTTPException(status_code=422, detail=_barcode_url_refusal_detail(_url_reason))
     if not allow_nonstandard:
         objection = _barcode_objection(barcode)
         if objection:
@@ -2827,6 +2875,9 @@ async def update_product(
 
     # A wrong barcode on an EXISTING row is worse than on a new one: the row already works, and
     # rebinding it to a lot number silently breaks a product that scanned fine yesterday.
+    _url_reason = _barcode_is_a_url(str(update_data.get("barcode") or ""))
+    if _url_reason:                      # not overridable — see _barcode_is_a_url
+        raise HTTPException(status_code=422, detail=_barcode_url_refusal_detail(_url_reason))
     if not allow_nonstandard and (update_data.get("barcode") or "").strip():
         objection = _barcode_objection(str(update_data["barcode"]).strip())
         if objection:
@@ -8688,7 +8739,11 @@ async def import_catalog_worklist(
             if ref.get("price") and (product.price or 0) == 0:
                 product.price = Decimal(str(ref["price"])).quantize(Decimal("0.01"))   # supplier CHF
                 took.append("price")
-            if not (product.barcode or "").strip() and ref.get("barcode"):
+            # …and never a web address, even from the reference feed. This path runs
+            # UNATTENDED — there is no cashier to read a refusal — so it simply
+            # declines rather than objecting. Same rule as the three screens.
+            if (not (product.barcode or "").strip() and ref.get("barcode")
+                    and not _barcode_is_a_url(str(ref["barcode"]))):
                 if await _find_product_by_any_barcode(db, ref["barcode"]) is None:
                     product.barcode = _clean_barcode(ref["barcode"])
                     took.append("barcode")
