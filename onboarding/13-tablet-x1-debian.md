@@ -1010,6 +1010,74 @@ gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type 'no
 
 ---
 
+## 🪟 Living with it as a till — the two moves, and the honest part
+
+*Added 2026-09-17, after Angel spent an afternoon working in a shrunken window rather than lose the
+system bar. Both of these are the tablet being a tablet. Neither is Banco.*
+
+### The window: double-tap the title bar
+
+`action-double-click-titlebar` is `toggle-maximize`, so **a double-tap on the title bar snaps the
+till back to filling the screen** — full width and height, with GNOME's top bar still there.
+
+That last part is the whole point. **Maximised is what people mean when they say "full screen" on
+this machine**, and it is NOT what the Fullscreen API does. Banco's ⛶ button calls
+`requestFullscreen()`, which by definition covers *everything*, including the bar carrying the
+clock, the battery, the wifi — and the quick-settings panel with the soft **Screenshot** button,
+which is the only way to take a screenshot with no keyboard attached.
+
+So on this device:
+
+| you want | do this | not this |
+|---|---|---|
+| the window back to full size | **double-tap the title bar** | ⛶ |
+| a screenshot, no keyboard | top bar → quick settings → Screenshot | — |
+| a screenshot, keyboard on | **Print Screen** | — |
+
+**A web page cannot maximise its own window**, which is why Banco cannot offer this as a button —
+only the window manager can, and only the person can ask it. ⛶ stays as the escape hatch for a
+window that is genuinely stuck.
+
+> **Already tried and deliberately removed:** a GNOME Shell extension that snapped the window back.
+> It was custom code inside the compositor on a machine that takes money, it silently undid anything
+> deliberate, and it fixed the symptom while teaching nobody anything. Do not rebuild it.
+
+### The folio: it looks attached when it is not
+
+**Press Print Screen.** A screenshot means the connector is properly home and the rest of the
+keyboard is fine. Nothing means reseat it.
+
+This is worth a habit because of what a half-seated folio looks like from the other side of the
+counter: *broken software*. Angel, 2026-09-17: *"people are going to say, oh, that's your computer
+program not working properly. It's no, you didn't attach the keyboard properly."* It is the same
+shape as swapping to the Bluetooth gun mid-shift — technically supported, quietly stateful, and it
+goes wrong with a customer waiting.
+
+**If in doubt, take it off.** The on-screen keypad is what the till was built around, and a keyboard
+that is half-on is worse than no keyboard at all.
+
+### And the honest part — why this is finicky, and why Debian anyway
+
+It IS finicky. There have been a lot of workarounds for this one machine: the keyboard that no
+browser raises, the window that drags out of shape, the camera that cannot be powered, the cold boot
+that showed a white screen for thirteen minutes, one USB port that the gun already owns. **None of
+these exist on a laptop running the same web app in the same browser.** That is not a complaint
+about the tablet; it is the price of the form factor, and it is worth stating plainly so nobody
+thinks the software is the problem.
+
+**So why Debian on it, rather than something friendlier?** Because the alternatives cost more than
+they save, and the reasons are in [`21-supported-hardware.md`](21-supported-hardware.md): this is a
+full x86 computer, so it **prints via CUPS**, it **takes the gun's USB dongle with no pairing**, and
+it can **run the whole stack locally if the network dies**. An Android tablet or an iPad closes the
+keyboard hole and opens the printing hole, and printing is the harder one — neither has CUPS, so the
+label path would have to be rebuilt around a different printer. The keyboard problem has a fix we
+already shipped. The printing problem does not.
+
+**The rule that falls out:** the tablet is the **till** — selling what is already set up. Setting it
+up is a typing-and-pasting job and belongs on a laptop ([`10-devices-and-roles.md`](10-devices-and-roles.md)).
+
+---
+
 ## 📷 The camera — read this before debugging it
 
 *Opened 2026-08-05. Angel wants snap-and-fill and EAN capture on the tablet, not the phone: Felix

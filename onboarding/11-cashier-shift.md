@@ -84,6 +84,37 @@ blocked outright and no attestation overrides it.
 
 ## C · When it goes wrong — the exceptions
 
+### Two tablet things that look like faults and are not
+
+*Both are the tablet being a tablet. Neither is Banco, and neither needs a manager. Learn them in
+thirty seconds and they stop being anything at all.*
+
+**1 · The till window has gone small, or sits off to one side.**
+**Double-tap the title bar** — the strip at the very top of the window with the shop name in it.
+That snaps it back to filling the screen. It is a standard GNOME gesture (`toggle-maximize`), it
+works with no keyboard attached, and it is the *right* way back.
+
+> ⚠️ **Do not use ⛶ "Tap to fill the screen" for this.** That button goes to TRUE full screen, which
+> also hides the system bar at the very top — the clock, the battery, the wifi — and that bar is how
+> you reach the screenshot button. Angel lost an afternoon to exactly this on 2026-09-17 and worked
+> in a shrunken window all day rather than lose the bar. ⛶ is the escape hatch for a window that is
+> genuinely stuck; **double-tap is the everyday move.**
+
+**2 · The folio keyboard is attached and some keys do nothing.**
+It is almost certainly **not seated properly**. It looks attached. It feels attached. It is not.
+
+> **The ten-second check, and it is Angel's:** press **Print Screen**. If you get a screenshot, the
+> connector is properly home and the rest of the keyboard is fine. If nothing happens, unclip it,
+> reseat it firmly, and try again.
+
+This matters because of what happens next: a half-seated keyboard looks exactly like broken
+software. Angel, 2026-09-17: *"people are going to say, oh, that's your computer program not working
+properly. It's no, you didn't attach the keyboard properly."*
+
+**If in doubt, take the keyboard off entirely.** The on-screen keypad works, and it is what the till
+was built around. A keyboard that is half-on is worse than no keyboard.
+
+
 ### C3b in full · the `999.99` price, and why it is not a problem
 
 **What she is looking at.** Somebody stocking the shelf did not know what this costs and said so
