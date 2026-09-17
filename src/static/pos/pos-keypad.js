@@ -293,13 +293,18 @@
 
   var CSS = ''
     + '.pk{position:fixed;left:0;right:0;bottom:0;display:none;background:#e5e7eb;'
+    + 'box-sizing:border-box;'
     + 'border-top:1px solid #cbd5e1;padding:.5rem;'
     + 'padding-bottom:calc(.5rem + env(safe-area-inset-bottom));'
     + 'box-shadow:0 -4px 16px rgba(0,0,0,.12);z-index:60;'
     + '-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}'
     + '.pk.on{display:block}'
     + '.pk-row{display:flex;gap:.4rem;margin-bottom:.4rem}'
-    + '.pk-row:last-child{margin-bottom:0}'
+    // NOT :last-child alone. The recall overlay is appended to the pad, so it
+    // becomes the last child and the bottom letter row silently gets its
+    // .4rem margin back — the pad grew 244 -> 250px the moment the panel
+    // opened, which is the very thing the overlay exists to prevent.
+    + '.pk-row:last-child,.pk-row.pk-last{margin-bottom:0}'
     + '.pk-k{flex:1 1 0;min-width:0;height:54px;font:600 1.25rem/1 inherit;'
     + 'border:1px solid #9ca3af;background:#fff;border-radius:.5rem;color:#111827;'
     + '-webkit-tap-highlight-color:transparent;touch-action:manipulation;cursor:pointer;'
@@ -316,20 +321,34 @@
     + '.pk-top .pk-k{height:44px}'
     + '.pk-gap{flex:1 1 0}'
     + '.pk-util{background:#d1d5db;font-size:1rem}'
+    + '.pk-recall{flex:2 1 0;font-size:.9rem;white-space:nowrap;overflow:hidden}'
     + '.pk-del{background:#fee2e2;color:#b91c1c}'
     + '.pk-done{background:#4f46e5;color:#fff;border-color:#4f46e5;font-size:1rem}'
     + '.pk-lock{background:#4f46e5;color:#fff;border-color:#4f46e5}'
-    // THE RECALL LIST IS CAPPED TO THE HEIGHT OF THE LETTERS ON PURPOSE. open() measures
-    // pad.offsetHeight once and uses it to lift a fixed overlay off the pad (see
-    // liftFixedOverlay). A list that grew taller than the letters would leave that
-    // measurement stale and put the pad back over the box it just moved out of. Three
-    // letter rows are 54px + .4rem gaps; 172px of scrollable list matches it.
-    + '.pk-list{max-height:172px;overflow-y:auto;-webkit-overflow-scrolling:touch}'
+    /* ── THE RECALL PANEL IS AN OVERLAY, AND THE REASON IS A FINGER ──────────
+       First cut replaced the pad's innerHTML with the list. On a tablet that
+       is a trap, because press() runs on POINTERDOWN: the letters vanished
+       while the finger was still down, the pad collapsed from 244px to the
+       height of one sentence, and the release therefore hit whatever the page
+       had underneath. On New Item that is the 18+ checkbox. So the paste key
+       silently TOGGLED THE AGE GATE on the product being created, and the pad
+       shut itself because focus had moved to the checkbox.
+       Nothing in prove-keypad.js could see it: it dispatched PointerEvents
+       straight at the button, which needs no hit-testing and cannot miss.
+       Angel found it in one tap (2026-09-17).
+       An overlay pinned to the pad's own box cannot change its height, cannot
+       move out from under a finger, and keeps the release inside `.pk` where
+       the outside-tap guard ignores it. It also leaves open()'s ONE height
+       measurement (liftFixedOverlay) true for the pad's whole lifetime. */
+    + '.pk-over{position:absolute;inset:0;padding:.5rem;'
+    + 'padding-bottom:calc(.5rem + env(safe-area-inset-bottom));background:#e5e7eb;'
+    + 'display:flex;flex-direction:column}'
+    + '.pk-list{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch}'
     + '.pk-item{display:block;width:100%;text-align:left;height:auto;min-height:46px;'
     + 'padding:.55rem .75rem;font-size:1rem;font-weight:500;margin-bottom:.4rem;'
     + 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
-    + '.pk-empty{padding:1.1rem .5rem;text-align:center;color:#4b5563;font-size:.95rem;'
-    + 'line-height:1.35}'
+    + '.pk-empty{flex:1 1 auto;display:flex;align-items:center;justify-content:center;'
+    + 'padding:.5rem;text-align:center;color:#4b5563;font-size:.95rem;line-height:1.35}'
     + '#pk-num .pk-k{height:62px;font-size:1.5rem;font-weight:700}'
     + '#pk-num .pk-done,#pk-num .pk-util{font-size:1.05rem}';
 
@@ -453,7 +472,7 @@
   function drawLetters() {
     var rows = symbols ? SYMBOLS : LETTERS, html = '';
     rows.forEach(function (r, i) {
-      html += '<div class="pk-row">';
+      html += '<div class="pk-row' + (i === rows.length - 1 ? ' pk-last' : '') + '">';
       if (i === 2 && !symbols) {
         html += '<button class="pk-k pk-util' + (caps ? ' pk-lock' : '') + '" data-k="shift">'
               + (caps ? '⇪' : '⇧') + '</button>';
@@ -467,18 +486,28 @@
       + '<button class="pk-k pk-util" data-k="mode">' + (symbols ? 'abc' : '123') + '</button>'
       // The key only exists on a field that opted in, so it never appears over a
       // customer's name or the age-gate handle -- there is nothing there to show.
-      + (canRecall() ? '<button class="pk-k pk-util" data-k="recall" '
-                     + 'title="' + esc(tr('keypad.recall', 'Recent entries')) + '">📋</button>' : '')
+      //
+      // IT SAYS THE WORD, and 📋 alone was wrong. Angel pressed it on the tablet
+      // expecting the SYSTEM clipboard -- he had just copied something with
+      // Chromium's own long-press menu -- and got a list of his own past entries,
+      // which on a fresh device was empty. "Nothing got pasted." The icon made a
+      // promise the feature does not keep, and the OS already keeps that promise
+      // perfectly well (long-press the box -> Paste). A tooltip cannot correct it:
+      // there is no hover on a touchscreen, so `title` is never once read.
+      + (canRecall() ? '<button class="pk-k pk-util pk-recall" data-k="recall" '
+                     + 'title="' + esc(tr('keypad.recall', 'Recent entries')) + '">'
+                     + '🕘 ' + esc(tr('keypad.recall_key', 'Recent')) + '</button>' : '')
       + '<button class="pk-k pk-space" data-k=" ">space</button>'
       + '<button class="pk-k pk-done pk-wide" data-k="done">OK</button></div>'
       + html;
   }
 
-  /* ── the recall list, drawn in place of the letters ────────────────────────
-     In place, not above: the pad's height is measured ONCE in open() and used to
-     lift whatever fixed overlay the field sits inside. A panel on top of the
-     letters would change that height and un-do the lift. */
+  /* ── the recall list, laid OVER the letters ────────────────────────────────
+     Over, never in place of. The letters stay in the DOM behind it, so the pad
+     keeps the exact height open() measured — see the .pk-over note in the CSS
+     for what the in-place version did to a finger, and to the 18+ checkbox. */
   function drawRecall() {
+    if (!abc || abc.querySelector('.pk-over')) return;   // already up
     var list = recallRead(recallBucket(active)), body;
     if (!list.length) {
       body = '<div class="pk-empty">'
@@ -490,12 +519,26 @@
         return '<button class="pk-k pk-item" data-k="recall:' + i + '">' + esc(v) + '</button>';
       }).join('') + '</div>';
     }
-    abc.innerHTML =
+    var over = document.createElement('div');
+    over.className = 'pk-over';
+    over.innerHTML =
         '<div class="pk-top">'
       + '<button class="pk-k pk-util pk-wide" data-k="letters">abc</button>'
       + '<span class="pk-gap"></span>'
       + '<button class="pk-k pk-done pk-wide" data-k="done">OK</button></div>'
       + body;
+    abc.appendChild(over);
+  }
+  function hideRecall() {
+    var over = abc && abc.querySelector('.pk-over');
+    if (over && over.parentNode) over.parentNode.removeChild(over);
+  }
+  // Taking the panel away is enough — the letters were never removed. Only a pad
+  // that was showing SYMBOLS when the panel went up has to be redrawn, and that
+  // redraw is height-for-height, which is the whole rule here.
+  function backToLetters() {
+    hideRecall();
+    if (symbols) { symbols = false; drawLetters(); }
   }
 
   /* ── open / close ─────────────────────────────────────────────────────── */
@@ -944,14 +987,14 @@
     if (!active) return;
     if (k === 'done') { remember(active); shutSafely(); return; }
     if (k === 'recall')  { drawRecall(); return; }
-    if (k === 'letters') { symbols = false; drawLetters(); return; }
+    if (k === 'letters') { backToLetters(); return; }
     if (k.indexOf('recall:') === 0) {
       var picked = recallRead(recallBucket(active))[parseInt(k.slice(7), 10)];
       // Inserted at the caret like every other key, never as a silent overwrite:
       // on an empty box -- the ordinary case -- that IS a replace, and on a
       // half-typed one the cashier keeps what they had.
       if (picked) insert(active, picked);
-      drawLetters();
+      backToLetters();
       return;
     }
     if (k === 'clr')  { active.value = ''; place(active, 0); commit(active); return; }

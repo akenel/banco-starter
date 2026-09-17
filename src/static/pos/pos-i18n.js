@@ -23,6 +23,7 @@ window.POS_STRINGS = {
   "en": {
     "keypad": {
       "recall": "Recent entries",
+      "recall_key": "Recent",
       "recall_empty": "Nothing yet. What you type here is remembered when you press OK."
     },
     "dept": {
@@ -2447,6 +2448,7 @@ window.POS_STRINGS = {
   "fr": {
     "keypad": {
       "recall": "Saisies récentes",
+      "recall_key": "Récents",
       "recall_empty": "Rien pour l'instant. Ce que vous tapez ici est mémorisé quand vous appuyez sur OK."
     },
     "dept": {
@@ -4881,6 +4883,7 @@ window.POS_STRINGS = {
   "it": {
     "keypad": {
       "recall": "Voci recenti",
+      "recall_key": "Recenti",
       "recall_empty": "Ancora niente. Quello che scrivi qui viene memorizzato quando premi OK."
     },
     "dept": {
@@ -7305,6 +7308,7 @@ window.POS_STRINGS = {
   "de": {
     "keypad": {
       "recall": "Zuletzt eingegeben",
+      "recall_key": "Zuletzt",
       "recall_empty": "Noch nichts. Was du hier eintippst, wird beim Drücken von OK gemerkt."
     },
     "dept": {

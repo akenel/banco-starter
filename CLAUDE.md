@@ -259,7 +259,7 @@ pattern below, bump the count here. A pattern at ×7 is telling you something a 
    guard, and it is the more confident half.* A test that counted occurrences
    matched its own `def` line. Reverting each guard one at a time has caught something every time it
    has been done. *If you did not watch it go red, you do not know it works.*
-5. **×10 · A measurement harness will accuse working code as confidently as it reports the truth —
+5. **×11 · A measurement harness will accuse working code as confidently as it reports the truth —
    and will PASS on the very bug it was written to catch.**
    The rounding proof; the partial prod copy that manufactured a 24-product compliance scare; and on
    2026-08-28 a timer that started when a card **scrolled into view** rather than when a decision was
@@ -315,6 +315,15 @@ pattern below, bump the count here. A pattern at ×7 is telling you something a 
    that afternoon: a "treat joins a deal" bug built on a cart line the app never writes, and a
    probe using `product_class: 'tobacco'` when the real value is `tobacco_nicotine`. *Check the
    fixture's shape against what the app actually WRITES, every single time.*
+   The eleventh, 2026-09-17: the keypad's new paste key **toggled the 18+ checkbox** on New Item
+   and shut the keyboard, and twenty green checks never saw it — because the harness drove the pad
+   with `dispatchEvent(new PointerEvent(...))` aimed at the button. `press()` runs on pointerdown,
+   the panel replaced the pad's innerHTML there, the pad collapsed while the finger was still down,
+   and the RELEASE was hit-tested against the page underneath. **A synthetic event cannot miss, and
+   missing was the whole bug.** The one height check I had written was pointed the wrong way, with a
+   comment explaining that a shorter pad "is harmless" — the failure, licensed in advance.
+   *If what you are testing is where a finger LANDS, dispatching at a node tests your selector, not
+   the screen. Use `page.tap()`, which dispatches at coordinates.*
 6. **×4 · A test that finishes inside five minutes cannot see a five-minute timeout.** Silent
    token refresh had NEVER worked in the sandbox — issuer mismatch, `localhost:8090` vs
    `keycloak:8080` — so every session hard-logged-out the moment the access token expired. Every

@@ -1508,3 +1508,75 @@ The pack pricing that started it had never been wrong at all.
 
 Ninety minutes at a counter beat a week of a green test suite — not because the suite is bad, but
 because it was asking the only question it knew how to ask.
+
+---
+
+## 2026-09-17 — the paste key toggled the age gate, and twenty green checks never saw it
+
+Angel, on the tablet, one week after it shipped:
+
+> *"i see the paste button but nothing got pasted and when i pressed it it kinda of messed up
+> the keypad and went stupid."*
+
+**What actually happened, traced in a real browser with a real touch:**
+
+```
+pointerdown -> <button data-k="recall">              the finger lands on 📋
+                                                      press() redraws the pad HERE
+pointerup   -> <label class="flex items-center…">    the finger LIFTS somewhere else
+click       -> <label>                                …and clicks it
+focusin     -> <input class="w-6 h-6 accent-red-600"> which is otfAgeRestricted
+[keypad] focusin … not mine  ->  shut()               so the keyboard closes
+```
+
+`press()` runs on **pointerdown** — deliberately, because that is what keeps the caret in the box.
+`drawRecall()` replaced the pad's `innerHTML` at that moment, so the letters vanished and the pad
+collapsed from 244px to the height of one sentence **while the finger was still down**. The
+release was then hit-tested against whatever the page had underneath. On New Item that is
+**the 18+ checkbox**. The paste key silently flipped the age flag on the product being created —
+the exact field five hashish products had just been fixed for, a week earlier, in this repo.
+
+Nothing on the screen said so. The keyboard shutting looked like the whole bug.
+
+**Why the harness passed.** `prove-keypad.js` had twenty checks on this feature and all twenty were
+green, including one written specifically about the pad's height. It drove the pad like this:
+
+```js
+b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+b.dispatchEvent(new PointerEvent('pointerup',   { bubbles: true }));
+```
+
+A synthetic event is aimed at a node. **It needs no hit-testing and it therefore cannot miss** —
+and missing was the entire bug. `page.tap()` dispatches at *coordinates*, so the release is
+hit-tested against whatever is there by then, the way a finger is. Same feature, same assertions,
+one line different, and the bug is unmissable.
+
+Worse, the one height check I did write was **pointed the wrong way**:
+
+```js
+check(hList <= hLetters + 8, 'the list never makes the pad taller than the letters');
+```
+
+I had reasoned that a taller pad breaks the overlay lift and a shorter one "just leaves a little
+air, which is harmless". Shorter is what let the release fall through to the page. The assertion
+was not merely weak — it *licensed* the failure, in a comment, confidently.
+
+**The fix is structural, not a patch.** The recall panel is now an overlay (`position:absolute;
+inset:0`) inside the pad. The letters are never removed, so the pad's height cannot change, the
+release always lands inside `.pk`, and the outside-tap guard ignores it. One sting in the tail:
+appending the overlay made it the pad's `:last-child`, which handed the bottom letter row its
+`.4rem` margin back and grew the pad by 6px — the very thing the overlay exists to prevent. The
+last row is marked with a class now instead of inferred from its position.
+
+Three assertions replaced the one that lied: the pad is still open, its height has not moved by a
+pixel, and `otfAgeRestricted` is unchanged.
+
+**And half of "it doesn't work" was never a bug at all.** Angel had copied text with Chromium's own
+long-press menu and expected 📋 to paste it. The key shows *his own recent entries*, which on a
+fresh device is an empty list. The icon promised something the OS already does perfectly well. It
+says **🕘 Recent** now. A `title=` tooltip cannot correct an icon on a touchscreen — there is no
+hover, so it is never once read.
+
+*The lesson, and it is LESSON #5 again at ×11: ask what your instrument physically cannot do. This
+one could not miss a button. If the thing you are testing is where a finger LANDS, an event
+dispatched at a node is not a test of it — it is a test of your own selector.*

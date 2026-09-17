@@ -74,11 +74,21 @@ Two sheets run: **9 pass · 0 fail**, then **25 pass · 2 issue · 0 fail**.
    tiers at all.
 8. 📦 **NEW IDEA — the box code.** A filter packet has no code; the code on the shelf is the outer box.
    Bind the box, record how many singles are in it, let the till break it down. Angel's, not designed.
-9. 🎤 **Dictation.** ~~Paste button first~~ **SHIPPED `944b979`** — 📋 on the letter pad, 15 opt-in
-   fields, nothing on customer/checkout/kiosk (asserted in the DOM). **NEXT: Angel presses
-   `/pos/hardware` → "3 · Test dictation" ON THE TABLET.** Mic is a plain HDA `ALC298` and works
-   (unlike the camera). If it answers `service-not-allowed`/`network`, free Google is closed →
-   `whisper.cpp base` (~300MB, fits banco's 1.6GB free, **add swap first**) or CX32 +CHF 5–6/mo.
+9. 🎤 **Dictation.** Paste key SHIPPED `944b979`, **broken on the tablet the same week, fixed**
+   — Angel, 2026-09-17: *"nothing got pasted and it kinda messed up the keypad and went stupid."*
+   press() runs on POINTERDOWN and the panel replaced the pad's innerHTML there, so the pad
+   collapsed 244→~60px while the finger was still down and the release landed on the page
+   underneath — **on New Item that is the 18+ checkbox.** The paste key silently toggled the age
+   gate. 20 checks in `prove-keypad.js` passed throughout: it dispatched PointerEvents straight at
+   the button, and a synthetic event cannot MISS. Now an overlay (height cannot change), driven by
+   `page.tap()`, with the 18+ flag asserted unchanged. Also: 📋 → **🕘 Recent** — the icon promised
+   the SYSTEM clipboard, which the OS already does on long-press; and the till's *Search by name*
+   box was never marked, which is why he saw no key there.
+   **NEXT: Angel presses `/pos/hardware` → "3 · Test dictation" ON THE TABLET** — there is no mic
+   key on the keypad and there is not meant to be one yet; the probe is a card on that page. Mic
+   is a plain HDA `ALC298` and works (unlike the camera). If it answers `service-not-allowed`/
+   `network`, free Google is closed → `whisper.cpp base` (~300MB, fits banco's 1.6GB free, **add
+   swap first**) or CX32 +CHF 5–6/mo.
    Dictate into SEARCH, never the name field — engines mangle brands, the catalogue spells them.
 9b. 📐 `.status-section` (`pos/base.html:2613`) overflows 23px at phone portrait on `/pos/selftest`.10. 📷 **THE TABLET CAMERA — diagnosed 2026-09-10, and it is NOT broken hardware.** `ov2740` sensor
    bound · `ipu3` loaded · libcamera 0.4.0 · pipewire up — and **`cam --list` returns zero cameras.**

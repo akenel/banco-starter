@@ -1238,33 +1238,52 @@ async function main() {
       // pointerdown on its own leaves the swallow armed until the 1.5s safety net,
       // so the very next p.click() is eaten and the pad "fails to reopen" — which
       // is what the first run of this reported, blaming the pad for the harness.
-      const tapPad = async (k) => p.evaluate((sel) => {
-        const b = document.querySelector('.pk.on [data-k="' + sel + '"]');
-        if (!b) return false;
-        b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
-        b.dispatchEvent(new PointerEvent('pointerup',   { bubbles: true }));
-        return true;
-      }, k);
+      // A REAL TAP, THROUGH HIT-TESTING. The first version of this dispatched
+      // PointerEvents straight at the button and passed every check while the
+      // feature was broken on the tablet: a synthetic event cannot MISS, and
+      // missing was the whole bug. press() runs on pointerdown, the panel used
+      // to replace the pad's innerHTML there, the pad collapsed while the finger
+      // was still down — and the release landed on the page underneath, which on
+      // New Item is the 18+ checkbox. Angel found it in one tap. page.tap() hit-
+      // tests the release the way a finger does, so it can find that again.
+      const tapPad = async (k) => {
+        const sel = '.pk.on [data-k="' + k + '"]';
+        if (!await p.$(sel)) return false;
+        try { await p.tap(sel); return true; } catch (e) { return false; }
+      };
+      const padBox = () => p.evaluate(() => {
+        const a = document.querySelector('.pk.on');
+        return a ? { on: true, h: a.offsetHeight } : { on: false, h: 0 };
+      });
 
       const nameSel = 'input[data-keypad="text"][x-model="otfName"]';
       if (await p.$(nameSel)) {
         await p.click(nameSel);
         await p.waitForTimeout(250);
         check(await p.$('.pk.on [data-k="recall"]') !== null,
-              'Item name shows the 📋 key', 'the box a cashier types a long product name into');
+              'Item name shows the Recent key', 'the box a cashier types a long product name into');
 
         // The pad's height is measured once in open() and used to lift a fixed
         // overlay off it. A list taller than the letters leaves that stale and
         // puts the pad back over the box it just moved out of.
-        const hLetters = await p.evaluate(() => document.querySelector('.pk.on').offsetHeight);
-        check(await tapPad('recall'), 'the 📋 key answers a tap');
-        await p.waitForTimeout(200);
-        const hList = await p.evaluate(() => document.querySelector('.pk.on').offsetHeight);
-        // ONE-DIRECTIONAL ON PURPOSE. open() measured the LETTERS and lifted the
-        // overlay by that much; a SHORTER list just leaves a little air, which is
-        // harmless. A taller one puts the pad back over the box it moved out of.
-        check(hList <= hLetters + 8, 'the list never makes the pad taller than the letters',
-              `letters ${hLetters}px · list ${hList}px — open() measured the first one`);
+        const hLetters = (await padBox()).h;
+        const ageBefore = await p.evaluate(() =>
+          Alpine.$data(document.querySelector('[x-data]')).otfAgeRestricted);
+        check(await tapPad('recall'), 'the Recent key answers a tap');
+        await p.waitForTimeout(250);
+        const after = await padBox();
+        // THE THREE THINGS THAT WENT WRONG ON THE TABLET, each asserted on its own.
+        check(after.on, 'the pad is STILL OPEN after the panel goes up',
+              'it used to vanish: the letters were gone and nothing had pasted');
+        // NOT one-directional any more. Shorter is not harmless — it is what let
+        // the release fall through to the page. The panel is an overlay now, so
+        // the only honest assertion is that the height did not move AT ALL.
+        check(Math.abs(after.h - hLetters) <= 1, 'and it has not changed height by a pixel',
+              `letters ${hLetters}px · panel ${after.h}px — a finger is still down on it`);
+        const ageAfter = await p.evaluate(() =>
+          Alpine.$data(document.querySelector('[x-data]')).otfAgeRestricted);
+        check(ageBefore === ageAfter, 'and the 18+ checkbox underneath was NOT toggled',
+              `otfAgeRestricted ${ageBefore} -> ${ageAfter} — the release used to land on it`);
         check(await p.$eval('.pk.on', el => /Nothing yet|Noch nichts|Rien pour|Ancora niente/.test(el.textContent)),
               'an empty list SAYS it is empty', 'never a blank rectangle with no explanation');
 
@@ -1295,7 +1314,9 @@ async function main() {
           check(box === 'Cyclones Blunt Hemp Blue', 'tapping it fills the box', `box reads "${box}"`);
           // The whole point of the pad existing: the SCREEN and the MODEL agree.
           check(model === 'Cyclones Blunt Hemp Blue', 'and Alpine RECEIVED it', `otfName = "${model}"`);
-          check(await p.$('.pk.on [data-k="q"]') !== null, 'and the pad returns to the letters',
+            // NOT `[data-k="q"]`: the letters are never removed now, they are covered.
+          // Asserting on q would pass with the panel still sitting on top of them.
+          check(await p.$('.pk.on .pk-over') === null, 'and the panel is gone, letters back',
                 'so the next thing typed is a correction, not another hunt for the abc key');
         }
       }

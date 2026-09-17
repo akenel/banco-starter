@@ -115,7 +115,7 @@
                         <input
                             type="text" data-keypad="text"
                             data-reveals="#search-results"
-                            x-model="searchInput"
+                            x-model="searchInput" data-recall="search"
                             x-ref="searchInputBox"
                             @keyup.enter="scanIntoSearch()"
                             @input.debounce.300ms="searchProducts()"
