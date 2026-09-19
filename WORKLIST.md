@@ -72,9 +72,8 @@ lower down, an **anti-counterfeit sticker** — QR + Code-128 `43348871105523348
 *"that looks like a security sticker, not the product barcode."*
 
 ### `L5` · Label price cut off — ticket 47. **Needs the paper.**
-The screenshot is of `/pos/catalog`; the fault is on the printed label. LESSON #1, the sixteenth —
-the layer below the glass. Ask her for the label, or print one for `7630433107392` (Faro 3-Jet
-Torch, CHF 35.00) and hold it.
+Her screenshot is `/pos/catalog`; the fault is on the printed label — LESSON #1, the layer below
+the glass. Print one for `7630433107392` (Faro 3-Jet Torch, CHF 35.00) and hold it.
 
 ### ~~`L6` · The shift never closes~~ — **FIXED 2026-09-19** `2c735a4` `bae9a0b` `72a86c3`
 ⚠️ **"Shift" means ATTENDANCE, not the cash box** — two tables, and the drawer (`cash_shifts`)
@@ -89,9 +88,8 @@ called so `last_activity` is frozen at login · `shift_sessions.transaction_coun
 increments (read in 3 places, written in 0). → [`the full record`](worklist-archive/2026-09-19-archive-pass.md)
 
 ### `L7` · Route-table walk returns 500 — noise, but a 500 is a 500.
-`GET /pos/products/%7Bproduct_id%7D/label` (and `/page`, `/postcard`, `/postcard-sheet`) → 500;
-`/pos/receipt/%7Btransaction_id%7D` → 422. Literal placeholders, ~20 hits from one client in one
-burst. Looks like a scanner, not Layla. Low.
+`/pos/products/%7Bproduct_id%7D/{label,page,postcard,postcard-sheet}` → 500 and
+`/pos/receipt/%7Btransaction_id%7D` → 422. ~20 hits, one client, one burst. A scanner. Low.
 
 ## ▶️ THE DECK — READ THIS FIRST · last touched 2026-09-10
 
