@@ -155,3 +155,64 @@ def test_the_adjustment_is_never_half_a_coin_or_more():
     """Moving a total by 3 rappen or more would mean the rounding is wrong, not generous."""
     for t in ("62.99", "9.83", "0.04", "1000.01", "2.99", "2.91"):
         assert abs(_r(t)["adjustment"]) <= STEP / 2
+
+
+# ── the DIRECTION setting, added 2026-09-19 ──────────────────────────────────────────────
+#
+# Felix asked for up, Layla asked for down, so round_total grew a `mode`. These exist because
+# the default did NOT move: every test above still passes untouched, which is the proof that
+# no existing shop's takings changed when the parameter appeared. A setting tested in one
+# state is a setting that works in one state.
+import pytest
+from decimal import Decimal
+from src.services.total_rounding import round_total
+
+STEP = Decimal("0.05")
+
+
+def _m(total, mode):
+    return round_total(Decimal(total), STEP, mode)["rounded"]
+
+
+@pytest.mark.parametrize("total,nearest,down", [
+    ("5.10", "5.10", "5.10"),   # already payable — neither mode touches it
+    ("5.11", "5.10", "5.10"),   # both go down
+    ("5.12", "5.10", "5.10"),
+    ("5.13", "5.15", "5.10"),   # THE case Angel photographed: nearest asks for MORE
+    ("5.14", "5.15", "5.10"),
+    ("5.15", "5.15", "5.15"),
+    ("5.16", "5.15", "5.15"),
+    ("5.18", "5.20", "5.15"),
+    ("5.19", "5.20", "5.15"),
+])
+def test_the_two_modes_differ_only_where_they_should(total, nearest, down):
+    assert _m(total, "nearest") == Decimal(nearest)
+    assert _m(total, "down") == Decimal(down)
+
+
+def test_down_never_asks_the_customer_for_more():
+    """The whole point of 'down'. Under 'nearest' a cash customer sometimes pays MORE than a
+    card customer for the same basket; under 'down' that can never happen."""
+    for c in range(100):
+        t = Decimal("20.00") + Decimal(c) / 100
+        out = round_total(t, STEP, "down")
+        assert out["adjustment"] <= 0, f"{t} moved UP under 'down'"
+        assert out["rounded"] <= t
+
+
+def test_an_unreadable_mode_falls_back_to_the_shipped_behaviour():
+    """A setting that cannot be read must not change what a customer pays. It falls to
+    'nearest' — the behaviour every shop already had — not to the newer option."""
+    for junk in ("", None, "sideways", "UP", "  DOWN  "):
+        out = round_total(Decimal("5.13"), STEP, junk)
+        if junk == "  DOWN  ":
+            assert out["mode"] == "down"          # whitespace/case are forgiven
+            assert out["rounded"] == Decimal("5.10")
+        else:
+            assert out["mode"] == "nearest"
+            assert out["rounded"] == Decimal("5.15")
+
+
+def test_mode_is_reported_back_so_a_caller_can_log_what_it_used():
+    assert round_total(Decimal("5.13"), STEP, "down")["mode"] == "down"
+    assert round_total(Decimal("5.13"), STEP)["mode"] == "nearest"

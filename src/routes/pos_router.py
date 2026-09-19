@@ -3641,7 +3641,12 @@ async def _apply_cash_rounding(db: AsyncSession, txn, payment_method) -> Decimal
         logger.warning("cash rounding: store read failed; no rounding applied", exc_info=True)
         return Decimal("0.00")
     step = rounding_step(resolve_regime(store))
-    out = round_total(txn.total, step)
+    # The STEP is a jurisdiction fact (which coins exist); the DIRECTION is shop policy. Two
+    # different questions, deliberately two different homes — see total_rounding.py. A store row
+    # that predates the column reads None and falls through to 'nearest', which is the behaviour
+    # every existing shop already had.
+    mode = getattr(store, "cash_rounding_mode", None) or "nearest"
+    out = round_total(txn.total, step, mode)
     txn.total = out["rounded"]
     txn.rounding_adjustment = out["adjustment"]
     if out["adjustment"]:
@@ -9463,7 +9468,11 @@ async def update_store_settings(
                        # The join offer is a discount that costs the shop money and is claimable
                        # by anyone off the street — signup is anonymous and unlimited. It belongs
                        # with the other discount numbers: admin-only, sealed on the SERVER.
-                       "welcome_discount_kiosk_pct", "welcome_discount_phone_pct")
+                       "welcome_discount_kiosk_pct", "welcome_discount_phone_pct",
+                       # Which way a cash total moves when the coins cannot pay it. It changes
+                       # what every cash customer hands over, so it sits with the discount
+                       # numbers: admin-only, sealed on the SERVER, not merely hidden in the UI.
+                       "cash_rounding_mode")
         _dropped = [f for f in _admin_only if f in update_data]
         for f in _dropped:
             update_data.pop(f, None)

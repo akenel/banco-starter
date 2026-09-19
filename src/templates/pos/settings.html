@@ -165,6 +165,41 @@
                         <p x-show="vatError" class="text-sm text-red-600 mt-2" x-text="vatError"></p>
                     </div>
 
+                    <!-- 💵 CASH ROUNDING DIRECTION — admin only, and behind the same confirmation
+                         as a VAT rate change, because it is the same class of change: it moves
+                         what a customer hands over.
+
+                         The STEP (5 rappen) is not here and must not be — that is a fact about
+                         Swiss coins and lives in the fiscal regime. This is the DIRECTION, which
+                         is a shop policy. Felix asked for up, Layla asked for down; the default
+                         is the neutral one Angel settled on 2026-08-03. -->
+                    <div class="border-t pt-4">
+                        <h3 class="text-base font-bold text-gray-900 mb-1">
+                            💵 <span data-i18n="settings.cash_rounding_label">Cash rounding</span> 🔒</h3>
+                        <p class="text-xs text-gray-500 mb-3" data-i18n="settings.cash_rounding_help">
+                            Cash only. Card and TWINT always settle the exact cent.</p>
+                        <div class="space-y-2">
+                            <label class="flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer"
+                                   :class="(form.cash_rounding_mode||'nearest') === 'nearest' ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200'">
+                                <input type="radio" value="nearest" x-model="form.cash_rounding_mode"
+                                       :disabled="!isAdmin" class="mt-1">
+                                <span>
+                                    <span class="font-semibold text-gray-900" data-i18n="settings.cash_rounding_nearest">Nearest 5 rappen — Swiss convention</span>
+                                    <span class="block text-xs text-gray-500 font-mono">5.13 → 5.15 · 5.11 → 5.10</span>
+                                </span>
+                            </label>
+                            <label class="flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer"
+                                   :class="(form.cash_rounding_mode||'nearest') === 'down' ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200'">
+                                <input type="radio" value="down" x-model="form.cash_rounding_mode"
+                                       :disabled="!isAdmin" class="mt-1">
+                                <span>
+                                    <span class="font-semibold text-gray-900" data-i18n="settings.cash_rounding_down">Always down — in the customer's favour</span>
+                                    <span class="block text-xs text-gray-500 font-mono">5.13 → 5.10 · 5.11 → 5.10</span>
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+
                     <!-- ACCEPTED CURRENCIES & RATES (multi-currency TENDER) — admin only -->
                     <div class="border-t pt-4">
                         <div class="flex items-center justify-between flex-wrap gap-2 mb-1">
@@ -538,7 +573,7 @@
                             <template x-if="bkCheck && bkCheck.freshness==='stale'"><span>🔴 <span data-i18n="settings.backup_stale">Backups are STALE — check the nightly job</span></span></template>
                             <template x-if="bkCheck && bkCheck.freshness==='none'"><span>🔴 <span data-i18n="settings.backup_none">No backups found yet — make your first one</span></span></template>
                             <span class="text-gray-500 font-normal" x-show="bkCheck && bkCheck.newest_age_hours!==null"
-                                  x-text="'· ' + fmtAge(bkCheck.newest_age_hours)"></span>
+                                  x-text="bkCheck ? '· ' + fmtAge(bkCheck.newest_age_hours) : ''"></span>
                         </div>
                         <div class="text-xs text-gray-500">
                             <span x-text="bkCheck ? bkCheck.count : 0"></span>
@@ -624,7 +659,10 @@
             <div class="bg-red-600 text-white px-6 py-4">
                 <h2 id="vat-warn-title" class="text-2xl font-extrabold tracking-wide flex items-center gap-3">
                     <span class="text-3xl">⚠️</span>
-                    <span data-i18n="settings.vat_warn_title">TAX RATE CHANGE</span>
+                    <span x-show="!vatConfirm || vatConfirm.kind !== 'rounding'"
+                          data-i18n="settings.vat_warn_title">TAX RATE CHANGE</span>
+                    <span x-show="vatConfirm && vatConfirm.kind === 'rounding'"
+                          data-i18n="settings.round_warn_title">CASH ROUNDING CHANGE</span>
                 </h2>
             </div>
             <div class="px-6 py-5 space-y-4">
@@ -639,9 +677,14 @@
                         </div>
                     </template>
                 </div>
-                <p class="text-base text-gray-800 leading-snug" data-i18n="settings.vat_warn_keeps">
+                <p x-show="!vatConfirm || vatConfirm.kind !== 'rounding'"
+                   class="text-base text-gray-800 leading-snug" data-i18n="settings.vat_warn_keeps">
                     Sales already rung keep their old rate. Receipts and reports do not move.
                     New sales use the new rate from the moment you save.</p>
+                <p x-show="vatConfirm && vatConfirm.kind === 'rounding'"
+                   class="text-base text-gray-800 leading-snug" data-i18n="settings.round_warn_body">
+                    This changes what every CASH customer hands over. Card and TWINT are not
+                    affected. Sales already rung keep what they charged.</p>
                 <p class="text-base font-semibold text-gray-900 leading-snug" data-i18n="settings.vat_warn_boundary">
                     Do this at a clean boundary — close off the day, ideally the tax period.
                     Not mid-afternoon with customers in the shop.</p>
@@ -652,7 +695,8 @@
             <div class="px-6 py-4 bg-gray-50 border-t flex flex-col-reverse sm:flex-row-reverse gap-3">
                 <button @click="vatConfirmAnswer(true)"
                         class="bg-red-600 hover:bg-red-700 text-white font-bold px-6 py-4 rounded-xl text-lg flex-1"
-                        data-i18n="settings.vat_warn_go">Yes — change the rate</button>
+                        x-text="(vatConfirm && vatConfirm.kind === 'rounding') ? t('settings.round_warn_go') : t('settings.vat_warn_go')"
+                        data-i18n-exempt>Yes — change the rate</button>
                 <button @click="vatConfirmAnswer(false)"
                         class="bg-white border-2 border-gray-300 hover:bg-gray-100 text-gray-800 font-semibold px-6 py-4 rounded-xl text-lg flex-1"
                         data-i18n="settings.vat_warn_cancel">Cancel — leave it as it is</button>
@@ -884,6 +928,7 @@
                     // A TAX RATE IS NOT AN ORDINARY SETTING. Snapshot what the rates were when this
                     // screen opened, so save() can tell whether a human actually changed one and warn
                     // about it. See _vatChangeWarning().
+                    this._roundAtLoad = this.form.cash_rounding_mode || 'nearest';
                     this._ratesAtLoad = (this.form.vat_rates || [])
                         .map(r => `${(r.code||'').trim()}=${parseFloat(r.rate)}`).sort().join(',');
                     // Multi-currency tender: build editable FX rows from the fx_rates dict the API returns.
@@ -936,6 +981,23 @@
                 if (c && c.resolve) c.resolve(!!ok);
             },
 
+            /** Cash rounding DIRECTION — same guard, same modal, because it is the same class of
+             *  change: it moves what a customer hands over. Silent unless it actually moved.
+             *  Angel, 2026-09-19: "can we make sure the rounding change is not done willy nilly".
+             *  Note what is NOT guarded here and probably should be one day: currency, both
+             *  discount caps, the two welcome discounts, cash_tolerance and default_markup_pct
+             *  all still save in silence. VAT was the only guarded setting before this one. */
+            _confirmRoundingChange() {
+                const now = this.form.cash_rounding_mode || 'nearest';
+                if (!this._roundAtLoad || now === this._roundAtLoad) return Promise.resolve(true);
+                const label = m => m === 'down' ? t('settings.cash_rounding_down')
+                                                : t('settings.cash_rounding_nearest');
+                return new Promise(resolve => {
+                    this.vatConfirm = { kind: 'rounding', resolve,
+                        rows: [{ code: '💵', was: label(this._roundAtLoad), now: label(now) }] };
+                });
+            },
+
             /** Resolves true to proceed. Silent unless a RATE actually moved — adding a label or
              *  reordering rows is not a tax event and must not nag. */
             _confirmVatChange() {
@@ -954,7 +1016,7 @@
                     }
                 });
                 if (!rows.length) return Promise.resolve(true);
-                return new Promise(resolve => { this.vatConfirm = { rows, resolve }; });
+                return new Promise(resolve => { this.vatConfirm = { kind: 'vat', rows, resolve }; });
             },
 
             async save() {
@@ -973,6 +1035,7 @@
                 // config — so history genuinely does not move. On the live shop 159 of 159 sale
                 // lines carry a frozen rate; none would re-render at a new one.
                 if (!await this._confirmVatChange()) { this.tab = 'tax'; return; }
+                if (!await this._confirmRoundingChange()) { this.tab = 'tax'; return; }
                 this.saving = true;
                 const F = this.form;
                 // Normalised rate rows (rate as a plain string) + mirror the default into the scalar.

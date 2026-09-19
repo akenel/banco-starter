@@ -313,6 +313,23 @@ class StoreSettingsModel(Base):
         comment="First-order % for a member who signed up on their own phone. 0 = no offer.",
     )
 
+    # Which way a CASH total moves when the coins cannot pay it: 'down' | 'nearest'.
+    #
+    # NOT in the fiscal regime, and the line matters. The regime holds `cash_rounding_step` —
+    # WHICH COINS EXIST, a fact about Switzerland that no shop may override. This is the
+    # DIRECTION, which is a commercial policy: Felix wanted up, Layla wanted down, and both are
+    # legitimate. Jurisdiction facts live in the regime; shop policy lives here.
+    #
+    # Default 'nearest', and that is the OLD decision preserved, not a new one. Angel settled
+    # this on 2026-08-03 after going round it twice, and the reasoning is in total_rounding.py:
+    # Felix does not discount, he gives a treat instead, so rounding down would be a silent
+    # unrequested discount implementing the policy he rejected. The setting exists because
+    # Felix and Layla now disagree out loud — not because the default was wrong.
+    cash_rounding_mode: Mapped[str] = mapped_column(
+        String(16), nullable=False, server_default="nearest",
+        comment="Cash rounding direction: down (customer's favour) | nearest (Swiss convention)",
+    )
+
     # Customer Loyalty Settings
     loyalty_tier1_threshold: Mapped[Decimal] = mapped_column(
         Numeric(10, 2),

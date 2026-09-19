@@ -13,9 +13,27 @@ discounted totals are unpayable:
 Left alone, the cashier takes 63.00, Banco expects 62.99, and the cash box is a rappen over on
 every such sale, for ever.
 
-THE RULE: round to the NEAREST step. 2.99 -> 3.00, 2.91 -> 2.90. No modes, no setting —
-Angel turned the setting down twice: *"you could have this option in the settings, but that's,
-again, not simple."*
+THE RULE: round to the NEAREST step. 2.99 -> 3.00, 2.91 -> 2.90.
+
+⚠️ AMENDED 2026-09-19 — there IS a setting now, and the default did not move. The sentence
+that stood here said "no modes, no setting", quoting Angel turning it down twice: *"you could
+have this option in the settings, but that's, again, not simple."* That judgement was sound and
+everything below it still holds. What changed is not the arithmetic, it is the shop: **Felix
+asked for up and Layla asked for down, out loud, to Angel, on consecutive days.** A setting is
+the honest answer to a disagreement between the man who owns the money and the woman who has
+to explain the number across a counter — it turns an argument into a decision with a name on
+it, recorded in `audit_log` by the trigger that already watches `store_settings`.
+
+`store_settings.cash_rounding_mode` = 'nearest' (default, unchanged) | 'down'. Admin-only and
+behind the same confirmation modal as a VAT rate change, because it moves what customers pay.
+**Nothing about any existing shop changes when this column appears.** Read the reasoning below
+before switching a live shop to 'down' — it is the argument Angel himself beat once already,
+and the person flipping the switch deserves to meet it.
+
+One thing the 2026-08-03 note did not have, and it is the fair counter-argument: under
+'nearest' a CASH customer sometimes pays MORE than a card customer for the same basket
+(5.13 -> 5.15 on cash, 5.13 exactly on card). Angel saw that on a real checkout and disliked
+it. It is a genuine cost of neutrality, and it is the reason the switch exists at all.
 
 WHY NEAREST AND NOT DOWN — this went round twice and the second answer is the right one.
 
@@ -87,7 +105,7 @@ day. Explainable beats invisible.
 """
 from __future__ import annotations
 
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal, ROUND_HALF_UP, ROUND_FLOOR
 
 CENTS = Decimal("0.01")
 
@@ -116,21 +134,39 @@ def rounding_step(regime: dict | None) -> Decimal:
     return _d(regime.get("cash_rounding_step") or "0")
 
 
-def round_total(total, step) -> dict:
-    """Round a total to the NEAREST payable amount.
+def round_total(total, step, mode: str = "nearest") -> dict:
+    """Round a total to a payable amount — `mode` decides which way.
 
-    Returns ``{original, rounded, adjustment}`` — Decimals quantized to cents, where
-    ``adjustment = rounded - original``. It may be negative or positive, and is always
-    smaller than one step.
+        'down'     always toward the customer. 5.13 -> 5.10, 5.18 -> 5.15. TO PAY is never
+                   more than the TOTAL already on the screen, so nobody has to explain it.
+        'nearest'  the Swiss convention. .01/.02 down, .03/.04 UP. Nets to zero over time.
+
+    Returns ``{original, rounded, adjustment, mode}`` — Decimals quantized to cents, where
+    ``adjustment = rounded - original``. Under 'nearest' it may be either sign; under 'down'
+    it is never positive. Always smaller than one step.
+
+    THE DEFAULT IS STILL 'nearest', AND THAT IS THE POINT. Read the module docstring above
+    before changing it: that conclusion was reached twice and the second answer is the right
+    one. No existing shop's takings change because this parameter appeared.
+
+    Cost, measured 2026-09-19: 'down' gives away ~2 rappen per cash sale that needs rounding;
+    'nearest' nets to zero. On this shop that is CHF 0.00 either way so far — 0 of 18 cash
+    sales have ever needed rounding, because the price endings (.90/.00/.50) always land
+    payable. So this argument is about principle, not money, and will stay that way until
+    percentage discounts become routine.
 
     NEVER RAISES. A rounding helper that throws would block a checkout over a rappen, so an
-    unusable step falls through to "no rounding" and the exact total stands.
+    unusable step — or an unknown mode — falls through to something sane rather than failing.
     """
     original = _d(total).quantize(CENTS, rounding=ROUND_HALF_UP)
     step = _d(step)
+    mode = (mode or "nearest").strip().lower()
+    if mode not in ("down", "nearest"):
+        mode = "nearest"       # an unreadable setting must not change what a customer pays
 
     if step <= 0:
-        return {"original": original, "rounded": original, "adjustment": Decimal("0.00")}
+        return {"original": original, "rounded": original,
+                "adjustment": Decimal("0.00"), "mode": mode}
 
     # Whole steps, Decimal throughout — a float here would reintroduce the very sub-rappen dust
     # this function exists to remove.
@@ -139,10 +175,21 @@ def round_total(total, step) -> dict:
     # anyone quotes. It becomes 70.40, which is already payable and must be left alone. Rounding
     # the raw value straight to a step would take 4.5 rappen off a total that was already fine —
     # a mistake I actually made here first; the tests caught it.
-    units = (original / step).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+    # 'down' floors toward zero; a total is never negative here, so ROUND_FLOOR is the
+    # customer's favour. A total already ON a step is untouched by either mode — 5.10 stays
+    # 5.10 and does NOT drop to 5.05, because the quantize above made it exact first.
+    _rule = ROUND_FLOOR if mode == "down" else ROUND_HALF_UP
+    units = (original / step).quantize(Decimal("1"), rounding=_rule)
     rounded = (units * step).quantize(CENTS, rounding=ROUND_HALF_UP)
 
-    return {"original": original, "rounded": rounded,
+    # NO SUB-STEP GUARD, and that is deliberate — I wrote one and it was wrong. It read
+    # "a total under one step would go free, and free is not a price", and it reverted such a
+    # total to its exact value. It also fired under 'nearest', where 0.01 -> 0.00 is the
+    # behaviour this file has always had and a test asserts it. A special case for a total
+    # below 5 rappen — impossible in a shop whose cheapest item is CHF 2.00 — regressed the
+    # ordinary path. The floor is left pure.
+
+    return {"original": original, "rounded": rounded, "mode": mode,
             "adjustment": (rounded - original).quantize(CENTS, rounding=ROUND_HALF_UP)}
 
 

@@ -635,6 +635,12 @@ class StoreSettingsBase(BaseModel):
     # Defaults mirror the DB migration (10 kiosk / 15 phone).
     welcome_discount_kiosk_pct: int = Field(default=10, ge=0, le=100)
     welcome_discount_phone_pct: int = Field(default=15, ge=0, le=100)
+    # Cash rounding DIRECTION — shop policy, not a jurisdiction fact (the 5-rappen step is the
+    # fact, and it lives in the fiscal regime). 'nearest' is the shipped behaviour since
+    # 2026-08-03 and stays the default; 'down' always favours the customer. On the READ schema
+    # for the same reason as the two above: a field the form cannot load is a field the next
+    # save silently blanks.
+    cash_rounding_mode: str = Field(default="nearest", pattern="^(nearest|down)$")
 
 
 class StoreSettingsCreate(StoreSettingsBase):
@@ -692,6 +698,10 @@ class StoreSettingsUpdate(BaseModel):
     # the offer off and the kiosk swaps to its points copy on its own.
     welcome_discount_kiosk_pct: Optional[int] = Field(None, ge=0, le=100)
     welcome_discount_phone_pct: Optional[int] = Field(None, ge=0, le=100)
+    # The pattern is the guard. An unknown value here would reach round_total(), which falls back
+    # to 'nearest' rather than to something a customer pays — but a setting that silently ignores
+    # what you typed is worse than one that refuses it.
+    cash_rounding_mode: Optional[str] = Field(None, pattern="^(nearest|down)$")
     # 🌍-1 payments seam: which terminal the till drives. 'manual' = cashier confirms by hand
     # (default, no regression); 'worldline_sim' = the in-checkout simulated Worldline/TWINT terminal
     # (sandbox demo). Real 'worldline'/'sumup' adapters land with M2. Admin-only in the endpoint.

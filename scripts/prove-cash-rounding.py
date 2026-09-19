@@ -181,9 +181,69 @@ def main():
     check("the export lines still sum to the money in the drawer",
           booked, D(s["cash_total"]))
 
+    # --- 6 · THE DIRECTION IS A SETTING, AND BOTH VALUES MUST WORK -------------------------
+    #
+    # Added 2026-09-19. Felix asked for up, Layla asked for down, so `cash_rounding_mode` now
+    # exists ('nearest' default | 'down'). A setting proven in ONE state is a setting that works
+    # in one state — so this rings the SAME basket under BOTH and asserts the totals differ.
+    #
+    # THE BASKET HAS TO DISCRIMINATE. The first version reused the earlier one, whose total
+    # ended in .06 — which rounds DOWN under both modes, so it passed while proving nothing
+    # (LESSON #5, again). Only .03/.04/.08/.09 tell the two apart, so the probe hunts for one,
+    # on TWINT, which never rounds and therefore shows the true cent.
+    #
+    # The mode is restored in a finally whatever happens: leaving a live shop on a rounding rule
+    # nobody chose would be worse than any bug this script can catch.
+    print("\n6 · the direction is a setting — prove BOTH values")
+    SET = f"{BASE}/settings/1"
+    mode_before = (c.get(SET).json() or {}).get("cash_rounding_mode", "nearest")
+    made6 = []
+    try:
+        d_combo = None
+        for q in (1, 2, 3, 7):
+            for p2 in (5, 7, 10, 13, 15):
+                probe = ring(q, p2, "twint", 0)
+                made6.append(probe["id"])
+                cents = int((D(probe["total"]) * 100) % 5)
+                if cents in (3, 4):          # nearest rounds UP, down rounds DOWN
+                    d_combo = (q, p2)
+                    break
+            if d_combo:
+                break
+        if not d_combo:
+            print("     (no discriminating total on this price — section skipped, not failed)")
+        else:
+            q6, p6 = d_combo
+            r = c.put(SET, json={"cash_rounding_mode": "nearest"})
+            check("the setting accepts 'nearest'", r.status_code in (200, 201), True)
+            t_near = ring(q6, p6, "cash", 100); made6.append(t_near["id"])
+
+            r = c.put(SET, json={"cash_rounding_mode": "down"})
+            check("the setting accepts 'down'", r.status_code in (200, 201), True)
+            check("and it stuck", (c.get(SET).json() or {}).get("cash_rounding_mode"), "down")
+            t_down = ring(q6, p6, "cash", 100); made6.append(t_down["id"])
+
+            print(f"     same basket: nearest -> {t_near['total']} ({D(t_near['rounding_adjustment']):+}) "
+                  f"· down -> {t_down['total']} ({D(t_down['rounding_adjustment']):+})")
+            check("'nearest' rounded this basket UP", D(t_near["rounding_adjustment"]) > 0, True)
+            check("'down' rounded the SAME basket down", D(t_down["rounding_adjustment"]) < 0, True)
+            check("so the customer pays less under 'down'", D(t_down["total"]) < D(t_near["total"]), True)
+            for lbl, tt in (("nearest", t_near), ("down", t_down)):
+                check(f"...and the {lbl} total is payable in coins",
+                      D(tt["total"]) % D("0.05") == 0, True)
+
+        bad = c.put(SET, json={"cash_rounding_mode": "sideways"})
+        check("a nonsense mode is refused, not silently ignored", bad.status_code, 422)
+    finally:
+        rr = c.put(SET, json={"cash_rounding_mode": mode_before})
+        back = (c.get(SET).json() or {}).get("cash_rounding_mode")
+        print(f"  restored cash_rounding_mode -> {back} ({rr.status_code})")
+        if back != mode_before:
+            FAILURES.append(f"LEFT THE SHOP ON THE WRONG ROUNDING MODE: {back}, was {mode_before}")
+
     # --- put the day back the way we found it ----------------------------------------------
     print("\ncleaning up (refunding this script's own sales)")
-    for tid in (cash_txn, card["id"], txn3["id"]):
+    for tid in [t for t in (cash_txn, card["id"], txn3["id"], *made6) if t]:
         r = c.post(f"{BASE}/transactions/{tid}/refund",
                    json={"reason": "prove-cash-rounding.py self-cleanup"})
         print(f"  refund {tid[:8]} -> {r.status_code}")

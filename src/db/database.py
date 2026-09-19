@@ -150,6 +150,11 @@ _ADDITIVE_COLUMNS: list[str] = [
     # until Felix changes it. 0 turns the offer off and the kiosk copy follows.
     "ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS welcome_discount_kiosk_pct INTEGER NOT NULL DEFAULT 10",
     "ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS welcome_discount_phone_pct INTEGER NOT NULL DEFAULT 15",
+    # Cash rounding DIRECTION — a shop policy, unlike the 5-rappen step, which is a jurisdiction
+    # fact and lives in the fiscal regime. Default 'nearest' is deliberate and is NOT a new
+    # decision: it is the behaviour Angel reached on 2026-08-03 and confirmed twice. Existing
+    # shops must not have their takings changed by an upgrade. See total_rounding.py.
+    "ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS cash_rounding_mode VARCHAR(16) NOT NULL DEFAULT 'nearest'",
     # Today "breakdowns" block (2026-06-12): sub-tasks, time, assignee, edit history.
     "ALTER TABLE bottega_tasks ADD COLUMN IF NOT EXISTS parent_id UUID",
     "ALTER TABLE bottega_tasks ADD COLUMN IF NOT EXISTS estimate_min INTEGER",
