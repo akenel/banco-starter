@@ -159,9 +159,13 @@ Angel, on the live shop, 2026-09-19 11:13, build `3cebdee`, 3m55s:
 that had been deleted. That is the path that 404'd 32 times in one day's log, and the only step
 on the sheet that a broken build could not have passed.
 
-⚠️ `DEVICE STATE NOT RECORDED` — the three rig selectors were left unset. It does not invalidate
-this run, because this sheet's `needs` deliberately said *"a tablet OR an Android phone — either
-is fine"* and the cart line was measured at both 390×844 and 1280×800 before the sheet was
+⚠️ `DEVICE STATE NOT RECORDED` — the three rig selectors were left unset. **Angel confirmed
+afterwards: the run was on his Android phone.** So the T1 tablet, which is the actual till, has
+machine-green only (the cart line was driven at 1280×800) and no human on it for this fix. That
+is acceptable here — the change is a server field plus a shared template, and the phone exercises
+the same code — but it is the honest shape of the evidence and not the same as a till PASS.
+It does not invalidate this run, because this sheet's `needs` deliberately said *"a tablet OR an
+Android phone — either is fine"* and the cart line was measured at both 390×844 and 1280×800 before the sheet was
 written. On a sheet where the device IS the subject, it would invalidate it. See the 2026-09-04
 runs that had to be thrown out.
 
