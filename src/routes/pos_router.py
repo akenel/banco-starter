@@ -3485,9 +3485,24 @@ async def _product_display_image(db: AsyncSession, product) -> Optional[str]:
     photo. BL-043 — a cashier-added gallery photo only promotes to cover when none exists yet, so a
     product can carry a real picture with a NULL cover (the Muffin: 1 gallery image, cover NULL) and
     then render the 📦 placeholder on the postcard/catalog. If it has ANY image, show it."""
-    if (product.image_url or "").strip():
-        return product.image_url
     from sqlalchemy import text          # module-level import is select/func only
+    cover = (product.image_url or "").strip()
+
+    # A COVER THAT POINTS NOWHERE IS NOT A COVER. This used to return the cover unchecked,
+    # which is right for the NULL case the docstring describes and wrong for the other one:
+    # replacing a photo can leave image_url aimed at a deleted image id, and then the postcard
+    # and the label print a broken box. Seven live products were in exactly that state on
+    # 2026-09-19 (32 × "404 /images/…" in one day's prod log). Only OUR serve URLs can be
+    # checked — a supplier's CDN link is none of our business, so it passes through.
+    if cover:
+        m = re.search(r"/api/v1/pos/products/[0-9a-f-]{36}/images/([0-9a-f-]{36})", cover)
+        if not m:
+            return cover                 # external URL — not ours to second-guess
+        alive = (await db.execute(text("SELECT 1 FROM product_images WHERE id = :iid"),
+                                  {"iid": m.group(1)})).fetchone()
+        if alive:
+            return cover
+
     row = (await db.execute(text(
         "SELECT id FROM product_images WHERE product_id = :pid "
         "ORDER BY sort_order ASC NULLS LAST, created_at ASC LIMIT 1"), {"pid": str(product.id)})).fetchone()

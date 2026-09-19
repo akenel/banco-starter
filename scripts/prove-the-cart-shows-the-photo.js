@@ -139,6 +139,21 @@ function gtin(seed) {                       // a valid EAN-13 so no guard object
       ok(`${label}: the cart line shows a PHOTO, not 📦`, !!(v && v.hasImg && !v.imgerr),
          v ? `hasImg=${v.hasImg} imgerr=${v.imgerr} fallback=${JSON.stringify(v.fb)}` : 'no item');
     }
+    // ---- 3 · the OTHER path: the postcard/label helper had the same blind spot ----
+    // _product_display_image() handled cover-NULL (BL-043, "the Muffin") and returned a
+    // DANGLING cover unchecked, so the one screen that prints would print a broken box.
+    // Standing rule 9 — the sibling of the sibling.
+    console.log('\n3 · the postcard — it must not print the dead cover');
+    const card = await p.goto(`${ROOT}/pos/products/${idB}/postcard`, { waitUntil: 'domcontentloaded' });
+    ok('the postcard renders at all', card && card.status() === 200,
+       'status ' + (card ? card.status() : 'none'));
+    const html = await p.content();
+    ok('postcard does NOT reference the dead cover', !html.includes('0000deadbeef'),
+       'the dangling image id is still on the page');
+    ok('postcard DOES reference a real gallery photo',
+       /\/api\/v1\/pos\/products\/[0-9a-f-]{36}\/images\/[0-9a-f-]{36}/.test(html) &&
+       !html.includes('0000deadbeef'));
+
     ok('the page did not throw', errs.length === 0, errs.join(' | '));
   } finally {
     // TIDY IN A FINALLY — a prover that only cleans up on the happy path poisons its next run.
