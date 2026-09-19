@@ -86,3 +86,34 @@ bong could not be sold.
 
 *Lesson: a splice that cuts a paragraph in half leaves the other half somewhere. After an archive
 pass, read the seams.*
+
+---
+
+## `L6` — the shift never closes · CLOSED 2026-09-19
+
+### ~~`L6` · The shift never closes~~ — **FIXED 2026-09-19** `2c735a4` `bae9a0b` `72a86c3`
+⚠️ **AND I HAD THE WORD WRONG.** "Shift" here is **attendance**, not the cash box. Two tables:
+`cash_shifts` is the **drawer** (float · count · variance) and is closed **by a person, with a
+count**; `shift_sessions` is **who logged in**, and `shift/end` is documented *"normal logout"*.
+Angel: *"a logout does not mean close the shift … Layla leaves it open and does not do a count
+before she leaves and felix ends the day and he is the person counting."* **The drawer already
+works that way** — his own data: `pam` opened 2 Sep, **`layla` reconciled** it on the 5th.
+📌 Felix's drawer has been **open since 2026-09-10 16:11, float CHF 1'216.00**. Not a bug.
+**What was actually broken:** there is no End Shift button — `shift/end` fires *inside*
+`logout()`, fire-and-forget, `.catch(()=>{})`, with whatever token is in hand. The access token
+lives **5 minutes**, so the one logout that matters — the one caused *by* the session dying —
+posted a dead token and swallowed the 401. Now: renew, then close, then clear (1.5s bounds).
+Plus **My Day's before-midnight fallback had no date bound**, so it prefilled a start time from
+a row days old. Bounded at 16h; 15h still works, 17h excluded.
+Plus **prod had no application log at all** — a level set with no handler, so everything under
+WARNING was binned. 90 lines on prod now where there were 0. Keycloak idle 60→600 min, max
+600→840 min (Angel's call, trade-off recorded in `kc-set-session-timeouts.py`).
+**Proof:** `prove-the-shift-row-closes.js` 11/0, red verified by reverting — and it took **four
+harness faults**, every one a false PASS on the bug it exists to catch. Read its header.
+**STILL OPEN, and they are small:**
+- ⚠️ **The four stale rows are untouched** — Angel's call, he or Felix set them by hand.
+- 🔓 `update_activity()` exists in the model and **nothing calls it**, so `last_activity` is
+  frozen at login. That is why no honest end time could be recovered for the four.
+- 🔓 `shift_sessions.transaction_count` is **never incremented** — read in 3 places, written in 0.
+  (`cash_shifts.transaction_count` is computed properly; only the attendance one is dead.)
+

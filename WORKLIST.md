@@ -22,13 +22,14 @@ walked, two of my own notes found wrong by the machine. Live on the shop: `b789 
 Detail: [`2026-09-17-the-long-night.html`](worklist-archive/2026-09-17-the-long-night.html).*
 
 > ### ▶️ NEXT SESSION, in order
-> 1. **`L6`** — the shift never closes. Nobody reported it; the log did.
-> 2. **`L1`** — the cover image. Four of Layla's eight tickets, and the fallback already exists.
-> 3. **`6x`** — a discounted sale does not reconcile: line VAT is pre-discount, the header is
+> 1. **`L1`** — the cover image. Four of Layla's eight tickets, and the fallback already exists
+>    in two places; three bindings in `scan.html` ignore it. Cheapest win on the list.
+> 2. **`6x`** — a discounted sale does not reconcile: line VAT is pre-discount, the header is
 >    post-discount. 6 of 60 sales, worst 0.80. Declared VAT is CORRECT; the detail is not.
-> 4. **`L2`** — shelf-intake shows no CBD / 18+ chip, and speaks developer (`L3`).
-> 5. **84 products on 999.99** — price them, or brief Layla on C3b before she meets one.
-> 6. **`1b` + the VAT rounding direction** — both are Treuhänder questions, ask them together.
+> 3. **`L2`/`L3`** — shelf-intake shows no CBD / 18+ chip, and speaks developer.
+> 4. **84 products on 999.99** — price them, or brief Layla on C3b before she meets one.
+> 5. **`1b` + the VAT rounding direction** — both are Treuhänder questions, ask them together.
+> *Done 2026-09-19: `L6` (+ the missing prod log) · `L4` answered · Keycloak 600/840.*
 
 ---
 
@@ -75,12 +76,17 @@ The screenshot is of `/pos/catalog`; the fault is on the printed label. LESSON #
 the layer below the glass. Ask her for the label, or print one for `7630433107392` (Faro 3-Jet
 Torch, CHF 35.00) and hold it.
 
-### `L6` · 🔴 The shift never closes — **nobody reported this. The log did.**
-`POST /pos/refresh` → 401, then `POST /api/v1/pos/shift/end` → 401. Four times yesterday.
-**Layla's shift, opened 2026-09-18 11:28, is still `ACTIVE`** — and so are ralph's, pam's and
-felix's from the 17th. All four read `transaction_count = 0` while three sales completed.
-LESSON #6 — the timeout no 90-second probe can see — landing on the one action that happens at
-the *end* of the day, when the drawer is counted.
+### ~~`L6` · The shift never closes~~ — **FIXED 2026-09-19** `2c735a4` `bae9a0b` `72a86c3`
+⚠️ **"Shift" means ATTENDANCE, not the cash box** — two tables, and the drawer (`cash_shifts`)
+already hands over between people and is closed by whoever counts it, exactly as Angel
+described. What broke: `shift/end` fires inside `logout()` with a 5-minute-old token, so the
+one logout caused *by* the session dying posted a dead token and swallowed the 401. Fixed, plus
+My Day's unbounded fallback, plus **prod had no application log at all** (90 lines now, was 0),
+plus Keycloak idle 60→600 / max 600→840. `prove-the-shift-row-closes.js` **11/0, red verified**.
+📌 Felix's drawer has been **open since 2026-09-10, float CHF 1'216.00**. Not a bug — practice.
+**Still open, small:** the 4 stale rows are Angel's to set by hand · `update_activity()` is never
+called so `last_activity` is frozen at login · `shift_sessions.transaction_count` never
+increments (read in 3 places, written in 0). → [`the full record`](worklist-archive/2026-09-19-archive-pass.md)
 
 ### `L7` · Route-table walk returns 500 — noise, but a 500 is a 500.
 `GET /pos/products/%7Bproduct_id%7D/label` (and `/page`, `/postcard`, `/postcard-sheet`) → 500;
