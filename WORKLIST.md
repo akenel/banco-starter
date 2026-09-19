@@ -50,7 +50,7 @@ detail are the two that fill the cart. Fixed there and in `_product_display_imag
 🔎 The **drift itself is not fixed** — new ones appear, now harmless. Unproven: the catalog edit
 form carries `form.image_url` and the PUT applies it `exclude_unset=True`, so a stale value in a
 reopened form could overwrite a corrected cover.
-⚠️ **Human-green owed: Layla scans one of her three and sees the picture.**
+⚠️ **Human-green owed** → [`2026-09-19-the-picture-in-the-cart.html`](onboarding/testsheets/2026-09-19-the-picture-in-the-cart.html) · 6 steps, ~8 min, tablet **or** Android phone.
 → [`the full record`](worklist-archive/2026-09-19-archive-pass.md)
 
 ### `L2` · Shelf-intake shows no CBD / 18+ chip — ticket 53.
