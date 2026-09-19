@@ -178,6 +178,28 @@ class ProductRead(ProductBase):
     created_at: datetime
     updated_at: datetime
 
+    # The SPARE photo, and the till already knows what to do with it.
+    #
+    # `products.image_url` is the COVER and it drifts away from the gallery in two directions:
+    # a gallery photo only promotes to cover when none is set (so a product can carry a real
+    # picture with a NULL cover), and deleting/replacing a photo can leave the cover pointing
+    # at an image id that no longer exists. Measured on the live shop 2026-09-19: of 5,479
+    # active products, 3 have a picture and no cover and 7 have a cover pointing nowhere —
+    # and ALL THREE Layla touched on the 18th came out broken, because it bites on fresh
+    # intake, which is the whole job right now.
+    #
+    # scan.html has carried the cure since BL-043 — hasImg() / thumbSrc() / onImgError() read
+    # exactly this field and swap to it when the cover fails — but only the SEARCH endpoint
+    # ever sent it. The scan and detail endpoints, which are what actually fill the cart,
+    # returned the bare row. Standing rule 9: one bad endpoint, check its siblings.
+    #
+    # It covers both shapes. Cover NULL: hasImg() sees the spare and renders it. Cover
+    # dangling: the <img> 404s, onImgError() swaps once to the spare. When the cover IS the
+    # first gallery photo the two are equal, and onImgError deliberately does not swap.
+    fallback_image_url: Optional[str] = Field(
+        None, max_length=2048,
+        description="First gallery photo — what to show if the cover is missing or broken")
+
     model_config = ConfigDict(from_attributes=True)
 
 

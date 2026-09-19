@@ -2084,7 +2084,7 @@ async def get_product(
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
 
-    return product
+    return await _attach_fallback_image(db, product)   # BL-043: a spare if the cover is broken
 
 
 @router.post("/products/{product_id}/publish-to-lapiazza", status_code=status.HTTP_201_CREATED)
@@ -2323,7 +2323,8 @@ async def get_product_by_barcode(
     if not product.is_active:
         raise HTTPException(status_code=400, detail="Product is inactive")
 
-    return product
+    # THE SCAN PATH — this is the one that put 📦 in Layla's cart on 2026-09-18.
+    return await _attach_fallback_image(db, product)
 
 
 class AddBarcodeRequest(BaseModel):
@@ -3495,6 +3496,28 @@ async def _product_display_image(db: AsyncSession, product) -> Optional[str]:
 
 def _image_serve_url(product_id, image_id) -> str:
     return f"/api/v1/pos/products/{product_id}/images/{image_id}"
+
+
+async def _attach_fallback_image(db: AsyncSession, product):
+    """Hang the first gallery photo on the row as `fallback_image_url` so the till has a spare
+    when the cover is missing or broken. See ProductRead.fallback_image_url for the why.
+
+    Sets a NON-MAPPED attribute: SQLAlchemy ignores it, so nothing is ever written back — which
+    matters, because the alternative (repointing products.image_url on read) would quietly
+    rewrite the catalogue from a GET.
+
+    Cheap on purpose: one indexed lookup on product_images, and only when the caller is about
+    to serialise a single product. Never call it in a list loop — the LIST path already solves
+    this in SQL with a correlated subquery (see the search query's first_image_id)."""
+    if product is None:
+        return product
+    from sqlalchemy import text          # module-level import is select/func only
+    row = (await db.execute(text(
+        "SELECT id FROM product_images WHERE product_id = :pid "
+        "ORDER BY sort_order ASC NULLS LAST, created_at ASC LIMIT 1"),
+        {"pid": str(product.id)})).fetchone()
+    product.fallback_image_url = _image_serve_url(product.id, row.id) if row else None
+    return product
 
 
 def _process_image_upload(raw: bytes, content_type: str) -> bytes:
