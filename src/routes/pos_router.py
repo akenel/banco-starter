@@ -6673,16 +6673,22 @@ async def checkout_transaction(
     # mixed cafe cart (8.1% dine-in lines + 2.6% takeaway lines) gets the legally-correct total,
     # not a single blanket rate. The cart-wide discount is prorated across lines. Falls back to
     # the single-rate inclusive VAT if the sale has no priced lines (defensive).
-    _lines = (await db.execute(
-        select(LineItemModel.vat_rate, LineItemModel.line_total)
-        .where(LineItemModel.transaction_id == transaction.id)
-    )).all()
-    if _lines:
+    # The LINE OBJECTS, not (rate, total) tuples — because the discounted VAT now gets written
+    # back onto them. See the `per_line` note in vat_resolver.split_vat: the header was always
+    # prorated and the lines never were, so four sales on the live shop have a header and a set
+    # of lines that disagree by up to 80 rappen. Same pass, same numbers, no second opinion.
+    _line_objs = (await db.execute(
+        select(LineItemModel).where(LineItemModel.transaction_id == transaction.id)
+        .order_by(LineItemModel.created_at)
+    )).scalars().all()
+    if _line_objs:
         # Piece C: feed the tenant's rate table (CH shop w/ NULL vat_rates → CH config → byte-identical).
         _rate_table = await _tenant_rate_table(db)
-        _split = split_vat([(r, lt) for r, lt in _lines], transaction.total, transaction.subtotal,
-                           rate_table=_rate_table)
+        _split = split_vat([(l.vat_rate, l.line_total) for l in _line_objs],
+                           transaction.total, transaction.subtotal, rate_table=_rate_table)
         transaction.tax_amount = _split["vat_total"]
+        for _l, _v in zip(_line_objs, _split["per_line"]):
+            _l.vat_amount = _v
     else:
         transaction.tax_amount = _inclusive_vat(transaction.total)
 
@@ -7012,8 +7018,15 @@ async def create_sale(
     _lines = [(l.vat_rate, l.line_total) for l in built_lines]
     # Piece C: tenant rate table (CH shop w/ NULL vat_rates → CH config → byte-identical).
     _rate_table = await _tenant_rate_table(db) if _lines else None
-    txn.tax_amount = (split_vat(_lines, txn.total, txn.subtotal, rate_table=_rate_table)["vat_total"]
-                      if _lines else _inclusive_vat(txn.total))
+    if _lines:
+        # Same settlement as the checkout path: the discounted per-line VAT is written back, so
+        # the lines add up to the header instead of standing at their pre-discount values.
+        _split = split_vat(_lines, txn.total, txn.subtotal, rate_table=_rate_table)
+        txn.tax_amount = _split["vat_total"]
+        for _l, _v in zip(built_lines, _split["per_line"]):
+            _l.vat_amount = _v
+    else:
+        txn.tax_amount = _inclusive_vat(txn.total)
 
     txn.receipt_number = f"REC-{transaction_number}"
 

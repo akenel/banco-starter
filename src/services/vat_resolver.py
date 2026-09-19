@@ -182,10 +182,28 @@ def split_vat(lines, total, subtotal, *, standard_rate=None, reduced_rate=None,
     factor = (Decimal(str(total)) / sub) if sub > 0 else Decimal("1")
     streams = {e["code"]: {"code": e["code"], "label": e["label"], "rate": e["rate"],
                            "turnover": Decimal("0"), "vat": Decimal("0")} for e in table}
+    # `per_line` is the DISCOUNTED VAT for each line, in the order they came in — the number
+    # that should have been on the line all along.
+    #
+    # 2026-09-19. It is returned because the caller had no way to get it, and that gap put four
+    # sales on the live shop where `transactions.tax_amount` and the sum of `line_items.vat_amount`
+    # disagree by up to 80 rappen. The header was always right: it comes from here, prorated. The
+    # LINES were written when the item was scanned, before any cart-wide discount existed, and
+    # nothing ever went back to tell them. So a report that sums the lines (pos_router.py:7654)
+    # can state MORE VAT than the books declare, which is the kind of thing that makes an
+    # inspector open every transaction.
+    #
+    # It is returned from HERE rather than recomputed by the caller on purpose: two places
+    # computing the same proration is exactly how the two numbers drifted apart in the first
+    # place. One pass, one answer, and `sum(per_line) == vat_total` by construction — every
+    # value below is already rounded to cents by contained_vat(), and the stream-level cents()
+    # is therefore a no-op that cannot introduce a residue.
+    per_line: list = []
     for rate, line_total in lines:
         r = Decimal(str(rate)) if rate is not None else default_rate
         gross = Decimal(str(line_total or 0)) * factor
         vat = contained_vat(gross, r)
+        per_line.append(vat)
         code = rate_to_code.get(r, default_code)  # unmatched rate → default (TOTAL COVERAGE)
         streams[code]["turnover"] += gross
         streams[code]["vat"] += vat
@@ -199,6 +217,7 @@ def split_vat(lines, total, subtotal, *, standard_rate=None, reduced_rate=None,
     non_default = [s for c, s in streams.items() if c != default_code]
     o = {
         "vat_streams": streams,
+        "per_line": per_line,          # discounted VAT per input line, in order
         "turnover_standard": dflt["turnover"],
         "vat_standard": dflt["vat"],
         "turnover_reduced": cents(sum((s["turnover"] for s in non_default), Decimal("0"))),
