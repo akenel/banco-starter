@@ -65,6 +65,38 @@ API_V1_STR = settings.API_V1_STR
 # ================================================================
 # 🪵 Logger Setup
 # ================================================================
+# ⚠️ THIS BLOCK USED TO BE THE TWO LINES BELOW, AND THEY DO NOTHING IN PRODUCTION.
+# Setting a LEVEL on a logger that has no HANDLER, under a root that has no handler
+# either, means every record falls through to `logging.lastResort` — which is a bare
+# stderr handler fixed at WARNING. So every logger.info() in this application was
+# discarded, on the live shop, for as long as the code has existed.
+#
+# The proof, and mind HOW it is taken — `docker exec banco-app python -c "…"` is NOT a
+# measurement of this. It spawns a FRESH interpreter that never imports src.main, so it
+# reports a default interpreter's logging, not the app's. It said WARNING/[] on a container
+# where the fix was already live, which is how I caught myself (LESSON #5, a harness
+# accusing working code). Measure the RUNNING process, through its output:
+#   before — prod, 2026-09-18: `docker logs banco-app | grep -c "Gallery photo added"` → 0,
+#            on a day three photos were uploaded and three image rows were written.
+#   after  — dev, first boot after this change: 89 application lines, none before.
+#
+# It cost us a diagnosis. `POST /pos/refresh` answered 401 eight times on 2026-09-18 and
+# the line that says WHY — logger.info("Token refresh rejected: %s") — was thrown away,
+# so the log could prove the shift never closed but not what Keycloak objected to.
+#
+# uvicorn configures its own `uvicorn.*` loggers with propagate=False, so attaching a
+# root handler here does NOT duplicate the access lines.
+_LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+if not logging.getLogger().handlers:          # idempotent: never stack handlers on reload
+    logging.basicConfig(
+        level=getattr(logging, _LOG_LEVEL, logging.INFO),
+        format="%(levelname)s:    %(asctime)s %(name)s — %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+# These three are chatty at INFO and drown the lines a person is actually reading.
+for _noisy in ("httpx", "httpcore", "python_multipart", "watchfiles"):
+    logging.getLogger(_noisy).setLevel(logging.WARNING)
+
 logger = logging.getLogger("helix.main")
 logger.setLevel(logging.INFO)
 
