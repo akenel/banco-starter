@@ -43,19 +43,12 @@ bug it existed to catch. Detail: [`2026-09-19`](worklist-archive/2026-09-19-arch
 [guide 10](onboarding/10-devices-and-roles.md) says to do. Tickets 47–54, all `pending`.
 Three sales completed, CHF 50.00. Evidence: `/pos/hypercare`, screenshots attached to every one.*
 
-### ~~`L1` · The cover image~~ — **FIXED 2026-09-19** `e9543c1` + the postcard sibling
-Tickets 48–51, and Layla named it: *"no cover miamges but they have pictures."* The cart read
-`products.image_url` (the **cover**), the catalogue read the gallery — so one product, two
-screens, two answers. **The cure was already written** (`hasImg`/`thumbSrc`/`onImgError` have
-read `fallback_image_url` since BL-043); only the SEARCH endpoint ever sent it, and scan +
-detail are the two that fill the cart. Fixed there and in `_product_display_image()`
-(postcard · label batch), which returned a dangling cover blindly. Standing rule 9, twice.
-**`prove-the-cart-shows-the-photo.js` 14/0, red verified.** ✅ **No prod data change needed.**
-🔎 The **drift itself is not fixed** — new ones appear, now harmless. Unproven: the catalog edit
-form carries `form.image_url` and the PUT applies it `exclude_unset=True`, so a stale value in a
-reopened form could overwrite a corrected cover.
-✅ **HUMAN-GREEN 2026-09-19 11:13 · 8 pass · 0 fail · GO**, 3m55s, live shop, **on Angel's Android phone** — incl. B1, the Jetflame with the dead cover. Tablet viewport machine-checked only. → [`sheet`](onboarding/testsheets/2026-09-19-the-picture-in-the-cart.html)
-→ [`the full record`](worklist-archive/2026-09-19-archive-pass.md)
+### ~~`L1` · The cover image~~ — **FIXED + HUMAN-GREEN 2026-09-19** `e9543c1`
+Tickets 48–51. Layla named it: *"no cover miamges but they have pictures."* Cart read the
+**cover**, catalogue read the gallery. The cure existed since BL-043 and only SEARCH sent it.
+**8 pass · 0 fail on Angel's Android phone**, incl. the Jetflame with the dead cover.
+🔎 The **drift is not fixed** — new broken covers still appear, now harmless.
+→ [`record`](worklist-archive/2026-09-19-archive-pass.md)
 
 ### `L2` · Shelf-intake shows no CBD / 18+ chip — ticket 53.
 *"THESE ITEMS DO NOT SHOW CBD."* She is right. All six King Kush / Kush pens are `cbd_hemp` **and**
@@ -79,16 +72,13 @@ Her screenshot is `/pos/catalog`; the fault is on the printed label — LESSON #
 the glass. Print one for `7630433107392` (Faro 3-Jet Torch, CHF 35.00) and hold it.
 
 ### ~~`L6` · The shift never closes~~ — **FIXED 2026-09-19** `2c735a4` `bae9a0b` `72a86c3`
-⚠️ **"Shift" means ATTENDANCE, not the cash box** — two tables, and the drawer (`cash_shifts`)
-already hands over between people and is closed by whoever counts it, exactly as Angel
-described. What broke: `shift/end` fires inside `logout()` with a 5-minute-old token, so the
-one logout caused *by* the session dying posted a dead token and swallowed the 401. Fixed, plus
-My Day's unbounded fallback, plus **prod had no application log at all** (90 lines now, was 0),
-plus Keycloak idle 60→600 / max 600→840. `prove-the-shift-row-closes.js` **11/0, red verified**.
-📌 Felix's drawer has been **open since 2026-09-10, float CHF 1'216.00**. Not a bug — practice.
-**Still open, small:** the 4 stale rows are Angel's to set by hand · `update_activity()` is never
-called so `last_activity` is frozen at login · `shift_sessions.transaction_count` never
-increments (read in 3 places, written in 0). → [`the full record`](worklist-archive/2026-09-19-archive-pass.md)
+⚠️ **"Shift" = ATTENDANCE, not the cash box** — two tables; the drawer already hands over and is
+closed by whoever counts, exactly as Angel described. `shift/end` fires inside `logout()` with a
+5-minute-old token, so the logout caused *by* a dead session swallowed its own 401. **11/0, red
+verified.** Plus My Day's unbounded fallback, **prod had no application log at all**, Keycloak
+60→600 / 600→840. 📌 Felix's drawer open since 2026-09-10, CHF 1'216.00 — practice, not a bug.
+**Still open, small:** 4 stale rows are Angel's by hand · `update_activity()` never called ·
+`shift_sessions.transaction_count` never increments. → [`record`](worklist-archive/2026-09-19-archive-pass.md)
 
 ### `L7` · Route-table walk returns 500 — noise, but a 500 is a 500.
 `/pos/products/%7Bproduct_id%7D/{label,page,postcard,postcard-sheet}` → 500 and

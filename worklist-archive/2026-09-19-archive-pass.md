@@ -208,3 +208,65 @@ would have been a green summary over an unchecked box (LESSON #12).
    too — ACPI declares two fitted sensors. Angel's instinct has now been right twice.)
 
 
+
+---
+
+## ~~`L1` · The cover image~~ · full text moved out 2026-09-19
+
+### ~~`L1` · The cover image~~ — **FIXED 2026-09-19** `e9543c1` + the postcard sibling
+Tickets 48–51, and Layla named it: *"no cover miamges but they have pictures."* The cart read
+`products.image_url` (the **cover**), the catalogue read the gallery — so one product, two
+screens, two answers. **The cure was already written** (`hasImg`/`thumbSrc`/`onImgError` have
+read `fallback_image_url` since BL-043); only the SEARCH endpoint ever sent it, and scan +
+detail are the two that fill the cart. Fixed there and in `_product_display_image()`
+(postcard · label batch), which returned a dangling cover blindly. Standing rule 9, twice.
+**`prove-the-cart-shows-the-photo.js` 14/0, red verified.** ✅ **No prod data change needed.**
+🔎 The **drift itself is not fixed** — new ones appear, now harmless. Unproven: the catalog edit
+form carries `form.image_url` and the PUT applies it `exclude_unset=True`, so a stale value in a
+reopened form could overwrite a corrected cover.
+✅ **HUMAN-GREEN 2026-09-19 11:13 · 8 pass · 0 fail · GO**, 3m55s, live shop, **on Angel's Android phone** — incl. B1, the Jetflame with the dead cover. Tablet viewport machine-checked only. → [`sheet`](onboarding/testsheets/2026-09-19-the-picture-in-the-cart.html)
+→ [`the full record`](worklist-archive/2026-09-19-archive-pass.md)
+
+
+---
+
+## ~~`L6` · The shift never closes~~ · full text moved out 2026-09-19
+
+### ~~`L6` · The shift never closes~~ — **FIXED 2026-09-19** `2c735a4` `bae9a0b` `72a86c3`
+⚠️ **"Shift" means ATTENDANCE, not the cash box** — two tables, and the drawer (`cash_shifts`)
+already hands over between people and is closed by whoever counts it, exactly as Angel
+described. What broke: `shift/end` fires inside `logout()` with a 5-minute-old token, so the
+one logout caused *by* the session dying posted a dead token and swallowed the 401. Fixed, plus
+My Day's unbounded fallback, plus **prod had no application log at all** (90 lines now, was 0),
+plus Keycloak idle 60→600 / max 600→840. `prove-the-shift-row-closes.js` **11/0, red verified**.
+📌 Felix's drawer has been **open since 2026-09-10, float CHF 1'216.00**. Not a bug — practice.
+**Still open, small:** the 4 stale rows are Angel's to set by hand · `update_activity()` is never
+called so `last_activity` is frozen at login · `shift_sessions.transaction_count` never
+increments (read in 3 places, written in 0). → [`the full record`](worklist-archive/2026-09-19-archive-pass.md)
+
+### 💵 `R1` · Cash rounding direction is now a SETTING — **SHIPPED 2026-09-19 `34b1f31`**
+Felix wants up, Layla wants down, Angel agreed with Layla. `store_settings.cash_rounding_mode`
+= **`nearest` (default, UNCHANGED)** | `down`. Admin-only, sealed server-side, behind the VAT
+modal. 58 tests pass with **every existing one untouched** — the proof no takings moved.
+⚠️ **I nearly overwrote Angel's own 2026-08-03 decision** because I advised before reading
+`total_rounding.py`, which already held it: *Felix does not discount, he gives a treat — so
+rounding down silently implements the policy he rejected. "Rounding is physics. Treats are
+pricing."* Docstring **amended, not rewritten**; the old argument stands above it.
+❓ **Ask Felix what "round up" means** — *nearest* (what he has always had, and what he saw at
+5.13→5.15) or *always up*? Only the latter is a third mode, and the only one a customer could
+object to.
+
+### 🔓 `R2` · **VAT was the ONLY guarded setting.** Found while doing `R1`.
+Everything else on `/pos/settings` saves in silence, including: **`currency`** (every price in
+the shop) · `cashier_max_discount` · `manager_max_discount` · both **welcome discounts** (money
+given away automatically) · `cash_tolerance` (whether a drawer counts as balanced) ·
+`default_markup_pct`. Rounding now has a guard; these seven do not.
+▶️ **The fix is to generalise, not to add an eighth bespoke modal** — `_confirmVatChange` →
+`_confirmMoneyChange(rows)`, one snapshot on load, one diff on save, money fields ONLY. If it
+fires on a phone number it becomes wallpaper and protects nothing on the day it matters.
+📌 Good news: `store_settings` changes are **already audit-logged by a DB trigger** (17 rows on
+prod), so *who and when* is answered at a layer nobody can bypass.
+❓ **Small, pre-existing, Angel's call:** in that modal the buttons stack **Cancel on top, "Yes"
+at the bottom** — and the bottom is what a thumb reaches. The code comment says the intent was
+the opposite. Angel human-greened this modal on 2026-09-17, so it is a question, not a bug.
+
