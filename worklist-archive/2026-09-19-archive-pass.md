@@ -117,3 +117,28 @@ harness faults**, every one a false PASS on the bug it exists to catch. Read its
 - 🔓 `shift_sessions.transaction_count` is **never incremented** — read in 3 places, written in 0.
   (`cash_shifts.transaction_count` is computed properly; only the attendance one is dead.)
 
+
+---
+
+## `L1` — the cover image · CLOSED 2026-09-19
+
+### ~~`L1` · The cover image~~ — **FIXED 2026-09-19** `e9543c1` + the postcard sibling
+Tickets 48, 49, 50, 51 — and Layla's own words were the diagnosis: *"no cover miamges but they
+have pictures."* `products.image_url` is the **cover** and drifts from the gallery two ways:
+**cover NULL** (a gallery photo only promotes when none is set) and **cover DANGLES** (replacing
+a photo leaves it aimed at a deleted id — the 32 × `404 /images/…` in one day's log). The
+catalogue reads the gallery, the cart read the cover: same product, two screens, two answers.
+**The cure was already written** — `hasImg()`/`thumbSrc()`/`onImgError()` in `scan.html` have read
+`fallback_image_url` since BL-043, and the cart line already calls them. **Only the SEARCH
+endpoint ever sent it**; scan and detail — the two that fill the cart — returned the bare row.
+Fixed on both, plus `_product_display_image()` (postcard · postcard sheet · label batch) which
+handled NULL and returned a dangling cover blindly. Standing rule 9, twice.
+**`prove-the-cart-shows-the-photo.js` 14/0, red verified** — the fixture uploads a REAL jpeg,
+because with no bytes the `<img>` 404s anyway and a byte-less fixture would report the bug as
+never fixed. Regression `prove-bad-price-is-visible.js` 34/0.
+✅ **No prod data change needed** — the code now copes with all 10 broken rows as they stand.
+🔎 **The drift itself is NOT fixed** (new ones will still appear, now harmless). Unproven
+hypothesis: the catalog edit form carries `form.image_url` and the PUT applies it with
+`exclude_unset=True`, so a stale value in a reopened form can overwrite a corrected cover.
+⚠️ **Human-green owed: Layla scans one of her three and sees the picture.**
+

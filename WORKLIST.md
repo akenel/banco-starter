@@ -17,19 +17,19 @@
 > [`worklist-archive/done.md`](worklist-archive/done.md) with its commit hashes; when a thread grows
 > a long write-up, the write-up goes to the archive and a one-line pointer stays here.
 
-*Last updated: 2026-09-17 — **the long night.** Ten threads closed, seventeen onboarding guides
-walked, two of my own notes found wrong by the machine. Live on the shop: `b789 · 11da57b`.
-Detail: [`2026-09-17-the-long-night.html`](worklist-archive/2026-09-17-the-long-night.html).*
+*Last updated: **2026-09-19** — Layla's eight tickets read, `L6` and `L1` closed, and Banco was
+found to have **no application log in production at all**. Two corrections of mine in the record:
+"shift" means attendance, not the cash box; and five harness faults, every one a false PASS on the
+bug it existed to catch. Detail: [`2026-09-19`](worklist-archive/2026-09-19-archive-pass.md) ·
+[`the long night`](worklist-archive/2026-09-17-the-long-night.html).*
 
 > ### ▶️ NEXT SESSION, in order
-> 1. **`L1`** — the cover image. Four of Layla's eight tickets, and the fallback already exists
->    in two places; three bindings in `scan.html` ignore it. Cheapest win on the list.
-> 2. **`6x`** — a discounted sale does not reconcile: line VAT is pre-discount, the header is
+> 1. **`6x`** — a discounted sale does not reconcile: line VAT is pre-discount, the header is
 >    post-discount. 6 of 60 sales, worst 0.80. Declared VAT is CORRECT; the detail is not.
-> 3. **`L2`/`L3`** — shelf-intake shows no CBD / 18+ chip, and speaks developer.
-> 4. **84 products on 999.99** — price them, or brief Layla on C3b before she meets one.
-> 5. **`1b` + the VAT rounding direction** — both are Treuhänder questions, ask them together.
-> *Done 2026-09-19: `L6` (+ the missing prod log) · `L4` answered · Keycloak 600/840.*
+> 2. **`L2`/`L3`** — shelf-intake shows no CBD / 18+ chip, and speaks developer.
+> 3. **84 products on 999.99** — price them, or brief Layla on C3b before she meets one.
+> 4. **`1b` + the VAT rounding direction** — both are Treuhänder questions, ask them together.
+> *Done 2026-09-19: `L6` · `L1` · the missing prod log · `L4` answered · Keycloak 600/840.*
 
 ---
 
@@ -39,20 +39,19 @@ Detail: [`2026-09-17-the-long-night.html`](worklist-archive/2026-09-17-the-long-
 [guide 10](onboarding/10-devices-and-roles.md) says to do. Tickets 47–54, all `pending`.
 Three sales completed, CHF 50.00. Evidence: `/pos/hypercare`, screenshots attached to every one.*
 
-### `L1` · The cover image — tickets 48, 49, 50, 51. ONE bug, two faces.
-`products.image_url` (the cover) and the `product_images` gallery drift apart, and **the cart
-renders from the cover while the catalogue renders from the gallery** — so the same product has a
-photo on one screen and 📦 on the next. Two ways in: the cover is NULL though a photo exists, or
-the cover points at an image that was replaced and no longer exists (32 × `404 /images/…` yesterday).
-**Measured on prod: 5,479 active products, 10 broken** — 3 with a picture and no cover, 7 whose
-cover points nowhere. Dates: 17 Jul · 2 Aug · 3 Aug ×2 · 6 Aug · 27 Aug · **18 Sep ×3**.
-**All three she touched yesterday came out broken. Three for three** — it is not a 0.2% problem,
-it is an *intake* problem, and intake is the whole job right now.
-Her own words are the diagnosis: *"no cover miamges but they have pictures."*
-**The fix already exists and was not carried across** — `_display_image_url()`
-(`pos_router.py:3483`) and `fallback_image_url` (`:4787`, with a comment describing this exact
-fault) both handle it; `scan.html` has `hasImg()`/`imgSrc()` at `:3262` and **three raw
-`p.image_url` bindings at `:387`, `:1166`, `:1202` that ignore them.** Standing rule 9.
+### ~~`L1` · The cover image~~ — **FIXED 2026-09-19** `e9543c1` + the postcard sibling
+Tickets 48–51, and Layla named it: *"no cover miamges but they have pictures."* The cart read
+`products.image_url` (the **cover**), the catalogue read the gallery — so one product, two
+screens, two answers. **The cure was already written** (`hasImg`/`thumbSrc`/`onImgError` have
+read `fallback_image_url` since BL-043); only the SEARCH endpoint ever sent it, and scan +
+detail are the two that fill the cart. Fixed there and in `_product_display_image()`
+(postcard · label batch), which returned a dangling cover blindly. Standing rule 9, twice.
+**`prove-the-cart-shows-the-photo.js` 14/0, red verified.** ✅ **No prod data change needed.**
+🔎 The **drift itself is not fixed** — new ones appear, now harmless. Unproven: the catalog edit
+form carries `form.image_url` and the PUT applies it `exclude_unset=True`, so a stale value in a
+reopened form could overwrite a corrected cover.
+⚠️ **Human-green owed: Layla scans one of her three and sees the picture.**
+→ [`the full record`](worklist-archive/2026-09-19-archive-pass.md)
 
 ### `L2` · Shelf-intake shows no CBD / 18+ chip — ticket 53.
 *"THESE ITEMS DO NOT SHOW CBD."* She is right. All six King Kush / Kush pens are `cbd_hemp` **and**
