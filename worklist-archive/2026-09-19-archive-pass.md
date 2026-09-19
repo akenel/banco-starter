@@ -174,3 +174,37 @@ VERDICT: INCOMPLETE`, with only C1 and D1 marked — and those two are precisely
 cannot discriminate: C1 (a product with genuinely no photo shows 📦) passes on the BROKEN build
 too, because the bug was photos not showing, never boxes appearing. Banking that as evidence
 would have been a green summary over an unchecked box (LESSON #12).
+
+---
+
+## `6x` — the discounted sale that did not reconcile · CLOSED 2026-09-19
+
+6x. 🔴 **NEW 2026-09-17 — A DISCOUNTED SALE DOES NOT RECONCILE, and this is the tax-man one.**
+   `transactions.tax_amount` is the VAT on what was actually charged (**correct**).
+   `line_items.vat_amount` is the **pre-discount** per-line figure (**stale**). So on the live shop
+   **6 of 60 sales do not tie out** — gaps of 0.01, 0.02, 0.06, 0.39, 0.56 and **0.80** — and every
+   one of the six carries a discount, in exact proportion to it. Undiscounted sales tie out exactly.
+   ⚠️ **`pos_router.py:7587` sums `LineItemModel.vat_amount` for a report**, so a report can state
+   MORE VAT than the books declare. Two numbers in one system that disagree on a discounted sale is
+   precisely what makes an inspector open every transaction. Fix is the write path: store the
+   prorated VAT on the line (the same `factor = total/subtotal` `split_vat` already uses) — or
+   prorate at every read. **Not started; not a midnight job.**
+
+---
+
+## Item 10 — the tablet camera · settled, moved out 2026-09-19
+
+10. 📷 **THE TABLET CAMERA — diagnosed 2026-09-10, and it is NOT broken hardware.** `ov2740` sensor
+   bound · `ipu3` loaded · libcamera 0.4.0 · pipewire up — and **`cam --list` returns zero cameras.**
+   Every `/dev/video*` belongs to `ipu3-imgu` (processing, not capture). An Intel **IPU3 MIPI** sensor
+   never presents a plain V4L2 node. **Banco's side is correct — do not touch `posShowWebcam()`.**
+   ❌ **CORRECTION 2026-09-17 — I had the failing step wrong.** This said the sensor was *bound* and
+   that libcamera's IPU3 pipeline handler was the gap, i.e. a userspace fix. Re-measured on kernel
+   `6.12.107`: `/sys/bus/i2c/drivers/ov2740/` has **no bound device** at all — only bind/unbind/
+   module/uevent. libcamera has nothing to build a pipeline *from*. `13-tablet-x1-debian.md` had it
+   right all along: the TPS68470 PMIC has no board data, and it is a kernel patch. **Do not debug
+   it.** An afternoon on the pipeline handler would have found nothing. **Untried cheap unblock: a powered USB hub (~CHF 20)** — the tablet
+   has one port and the gun owns it. (LESSON #3: the 2026-08-05 "nothing attached" verdict was wrong
+   too — ACPI declares two fitted sensors. Angel's instinct has now been right twice.)
+
+

@@ -17,106 +17,203 @@
                  that way we can have a super controlled set of tickets".
    ═══════════════════════════════════════════════════════════════════════════════════════ */
 const SHEET = {
-  key:      'banco-uat-two-screens-one-number-v1',
-  eyebrow:  'Banco POS · UAT',
-  title:    'Two screens, one number',
-  standfirst: 'Two fixes went live on 19 September and both were proven by machine. This is the '
-            + 'part a machine cannot do. <b>The VAT one matters most:</b> on a discounted sale the '
-            + 'money charged was always right, but the paperwork under it was not — and Banco has '
-            + 'two reports that work out the day&rsquo;s VAT from two completely different places. '
-            + 'Before the fix they disagreed. A GO here means they agree on a sale you rang yourself.',
+  key:      'banco-uat-everything-we-say-is-fixed-v1',
+  eyebrow:  'Banco POS · UAT · regression sweep',
+  title:    'Everything we say is fixed',
+  standfirst: 'Nine things have been called fixed since 10 September. Most were proven by machine, '
+            + 'and a machine cannot tell you whether a number on a receipt matches the one on a '
+            + 'screen, whether coins can pay a total, or whether a product on your own shelf ought '
+            + 'to need an ID. <b>This sheet is only the parts a machine cannot reach.</b> Two of the '
+            + 'steps are not tests at all — they are decisions only you can make about real stock. '
+            + 'The cover-image fix is not here: you already passed it at 11:13 today, 8 of 8.',
   meta: [['Shop','banco.wolfhold.app','https://banco.wolfhold.app/pos'],
-         ['Log in as','Felix (you need the reports)'],
-         ['Build','162f03c'], ['Deployed','19 Sep 2026'], ['Budget','~10 min']],
-  safety: { title: 'This one DOES ring a real sale — on purpose.',
-            body: 'Section A completes a genuine discounted sale, because a discount is the only '
-                + 'thing that triggers the bug. It becomes a permanent line in the Kassenbuch. That '
-                + 'is fine here — the ledger is rehearsal data and can be cleared whenever you want '
-                + '(scripts/reset-the-ledger.py, which exports before it deletes). Ring ONE sale, '
-                + 'not five.' },
+         ['Log in as','Felix — you need the reports and the bench'],
+         ['Build','162f03c'], ['Deployed','19 Sep 2026'], ['Budget','~40 min']],
+  safety: { title: 'This sheet rings real sales — two of them, on purpose.',
+            body: 'Sections A and C each complete one genuine sale, because a discount and an '
+                + 'unpayable total are the only things that trigger what they test. Each becomes a '
+                + 'permanent line in the Kassenbuch. That is acceptable here — the ledger is '
+                + 'rehearsal data and scripts/reset-the-ledger.py clears it whenever you want, '
+                + 'exporting first. Everywhere else: 🗑️ Clear, never Checkout.' },
 
-  setup: { needs: ['tablet OR laptop — either is fine',
-                   'signed in as Felix, because the reports are manager-only',
-                   'you are willing to complete ONE real discounted sale'] },
+  setup: { needs: ['tablet OR laptop — both work for everything here',
+                   'signed in as Felix (reports and the bench are manager-only)',
+                   'the WIRED scanner gun if you have it, for section D',
+                   'you are willing to complete TWO real sales'] },
 
   sections: [
-    { id: 'A', title: 'The discounted sale — and the two reports', time: '6 min', steps: [
+    { id: 'A', title: 'The money — two screens, one number', time: '7 min', steps: [
       { id: 'A1',
-        do: 'On <b>Scan</b>, add <b>two different products</b> to the cart. Any two, as long as '
-          + 'they are <b>different prices</b> — pick something around CHF 15 and something around '
-          + 'CHF 5.',
-        expect: 'Two lines in the cart, each with its own price',
-        why: 'Two different prices on purpose. When the lines are the same size, a wrong answer '
-           + 'and a right one can round to the same rappen and the test proves nothing.' },
+        do: 'On <b>Scan</b>, put <b>two different products at different prices</b> in the cart — '
+          + 'say one around CHF 15 and one around CHF 5.',
+        expect: 'Two lines, two different prices',
+        why: 'Different prices on purpose: when the lines are the same size a wrong answer and a '
+           + 'right one can round to the same rappen, and the test proves nothing.' },
       { id: 'A2',
-        do: 'In the cart, tap <b>% Discount</b> and type <b>10</b>. Then <b>Checkout</b> and '
-          + 'complete the sale (TWINT is fine — no cash needed).',
-        expect: 'The sale completes and the total has dropped by about a tenth',
-        why: 'The discount is the whole point. An undiscounted sale has never been wrong — 49 of '
-           + '49 on this shop tie out exactly. It is only when a cart-wide discount is applied '
-           + 'that the lines underneath used to keep their old, bigger numbers.',
-        callout: 'This completes a REAL sale. One is enough.' },
+        do: 'Tap <b>% Discount</b>, type <b>10</b>, then <b>Checkout</b> and complete it. TWINT is '
+          + 'fine — no cash needed for this one.',
+        expect: 'The sale completes, total down about a tenth',
+        why: 'A discount is the only thing that triggered this. Undiscounted sales were never '
+           + 'wrong — 49 of 49 on this shop tie out exactly.',
+        callout: 'Real sale. One is enough.' },
       { id: 'A3',
-        do: 'Go to <b>Reports</b> (the daily one). Look at <b>incl. VAT (total)</b> for today. '
-          + '<b>Write the number down.</b>',
-        expect: 'A VAT figure for today, in francs',
-        why: 'This screen adds up the figure stored on each SALE — the one the books declare.' },
+        do: 'Open <b>Reports</b> (the daily one). Find <b>incl. VAT (total)</b> for today and '
+          + '<b>write the number down</b>.',
+        expect: 'A VAT figure in francs',
+        why: 'This screen adds up the figure stored on each SALE — what the books declare.' },
       { id: 'A4',
-        do: 'Now go to <b>Reports → Product Sales</b>, set the range to <b>today</b>, and look at '
-          + 'its <b>incl. VAT</b> figure.',
-        expect: '<b>Exactly the same number you wrote down.</b> To the rappen',
-        why: 'And this screen adds up the figure stored on each LINE — a completely different '
-           + 'column, worked out at a different moment. Two roads, one number. Before the fix a '
-           + 'discounted sale sent them apart by up to 80 rappen, and the line-based one was '
-           + 'HIGHER — a report claiming more VAT than the shop actually declared.',
-        callout: 'If these two numbers differ by even one rappen, mark this FAIL and stop. That is '
-               + 'the whole test and it is the one an inspector would run.' },
+        do: 'Now <b>Reports → Product Sales</b>, range = <b>today</b>. Read its <b>incl. VAT</b>.',
+        expect: '<b>Exactly the same number.</b> To the rappen',
+        why: 'This screen adds up the figure stored on each LINE — a different column, worked out '
+           + 'at a different moment. Before the fix a discounted sale sent them apart by up to 80 '
+           + 'rappen, with the line figure HIGHER: a report claiming more VAT than the shop '
+           + 'declared. That is what makes an inspector open every transaction.',
+        callout: 'Differ by one rappen? FAIL, and stop. This is the step that matters most on the sheet.' },
       { id: 'A5',
-        do: 'Open the <b>receipt</b> for the sale you just rang and find its VAT line.',
-        expect: 'It agrees with the other two',
-        why: 'The customer&rsquo;s copy is the third road to the same number. If the reports agree '
-           + 'with each other but not with the paper, the paper is the one that matters.' },
+        do: 'Open the <b>receipt</b> for that sale and find its VAT line.',
+        expect: 'It agrees with both reports',
+        why: 'The customer&rsquo;s copy is the third road to the same number.' },
     ]},
 
-    { id: 'B', title: 'The shift that would not close', time: '3 min', steps: [
+    { id: 'B', title: 'The shift that would not close', time: '4 min', steps: [
       { id: 'B1',
-        do: '<b>Log out</b> of Banco — properly, the 🔓 Logout button, not just closing the tab.',
-        expect: 'You land back on the login screen',
-        why: 'There is no "End Shift" button in Banco; your attendance row is closed as part of '
-           + 'logging out. That call used to go out with a token that had already expired, get '
-           + 'refused, and say nothing — so four attendance rows on this shop have been sitting '
-           + 'open for days, one since 17 September.',
-        callout: 'This step also cleans up. The old stuck row for whoever you are signed in as '
-               + 'gets closed by this logout — the fix reaches backwards that far by itself.' },
+        do: '<b>Log out</b> properly — the 🔓 Logout button, not just closing the tab.',
+        expect: 'You land on the login screen',
+        why: 'There is no End Shift button; your attendance row closes as part of logging out. '
+           + 'That call used to go out with an already-expired token, be refused, and say nothing '
+           + '— so four rows on this shop sat open for days, one since 17 September.',
+        callout: 'This also repairs. Your own stuck row gets closed by this logout.' },
       { id: 'B2',
-        do: '<b>Log back in</b>, then open <b>My Day</b>.',
-        expect: '&ldquo;We tracked you in at&rdquo; shows <b>the time you just logged in</b> — today',
-        why: 'That line pre-fills your start time on the timesheet. It used to read from any open '
-           + 'row it could find with no date limit at all, so today it would have offered a start '
-           + 'time from last Thursday and written it in for you to confirm.' },
+        do: '<b>Log back in</b> and open <b>My Day</b>.',
+        expect: '&ldquo;We tracked you in at&rdquo; shows <b>the time you just logged in</b>',
+        why: 'That line pre-fills your start time on the timesheet.' },
       { id: 'B3',
-        do: 'Look at the date on that line. Is it <b>today</b>?',
-        expect: '<b>Today.</b> Not a date from last week',
-        why: 'A wrong start time that arrives already filled in and ticked is worse than an empty '
-           + 'box, because nobody checks a box that looks answered.' },
+        do: 'Check the <b>date</b> on that line.',
+        expect: '<b>Today</b> — not last week',
+        why: 'It used to read any open row it could find with no date limit, so it would have '
+           + 'offered a start time from days ago and written it in for you to confirm. A wrong '
+           + 'value that arrives pre-ticked is worse than an empty box.' },
     ]},
 
-    { id: 'C', title: 'The one that is still owed — the receipt on paper', time: '1 min', steps: [
+    { id: 'C', title: 'Five rappen — the rounding nobody has ever seen fire', time: '7 min', steps: [
       { id: 'C1',
-        do: 'Nothing to do here. Just decide whether you are doing it today.',
-        expect: 'You know whether the printer day is next',
-        why: 'The receipt was rebuilt on 7 September — its QR is drawn by Banco instead of fetched '
-           + 'from the internet, and the print type sizes were wrong on every receipt ever printed. '
-           + 'Thirteen machine checks pass. <b>It has never come off a printer.</b> That sheet is '
-           + 'cut and waiting: 2026-09-07-the-receipt-is-the-shops-own.html, 19 steps — and one of '
-           + 'them is to print it with the wifi OFF.' },
+        do: 'New cart. Add <b>one item around CHF 15</b>, then apply a <b>% discount</b> and watch '
+          + 'the total. Nudge the percentage by 1 at a time until the total <b>does NOT end in 0 '
+          + 'or 5</b> — e.g. CHF 13.72.',
+        expect: 'A total the coins cannot pay',
+        why: 'Swiss prices are all 5-rappen multiples, which is exactly why this stayed invisible '
+           + 'so long. Only a discount makes an unpayable total.' },
+      { id: 'C2',
+        do: 'Pay it in <b>CASH</b>. Hand over a round note. Read the <b>change</b> the screen '
+          + 'tells you to give.',
+        expect: 'Change worked out against a total rounded to the nearest <b>5 rappen</b>',
+        why: 'On 10 September the checkout said give CHF 2.04 while the drawer and the receipt '
+           + 'said 2.05. Two thousand passing tests never saw it; one basket did.',
+        callout: 'MEASURED TODAY: in 18 cash sales on this shop, rounding has fired ZERO times. '
+               + 'This has never once happened for real. That is why it is on this sheet.' },
+      { id: 'C3',
+        do: 'Compare three things: the <b>change on screen</b>, the <b>receipt</b>, and what you '
+          + 'would actually take out of the <b>drawer</b>.',
+        expect: '<b>All three the same number</b>',
+        why: 'Banco rounds to the NEAREST 5 rappen — so .01 and .02 go down, and <b>.03 and .04 go '
+           + 'UP</b>. Worth knowing that is the rule, because some shops always round down in the '
+           + 'customer&rsquo;s favour. Which way we do it is a Treuhänder question, not a bug.' },
+    ]},
+
+    { id: 'D', title: 'A QR code is not a barcode', time: '4 min', steps: [
+      { id: 'D1',
+        do: 'Find a packet with a <b>QR code</b> on it. On <b>Scan</b>, scan the QR instead of the '
+          + 'barcode — the silly-cashier move.',
+        expect: 'Banco <b>refuses to bind it</b> and says so in plain words',
+        why: 'You did this yourself on 17 September and Banco happily saved a web address as a '
+           + 'product barcode. It would never have scanned again.' },
+      { id: 'D2',
+        do: 'Look at the <b>cart</b>.',
+        expect: 'The item is <b>in the cart anyway</b> and can be sold',
+        why: 'The important half. A refusal that also stops the sale punishes the customer for the '
+           + 'cashier&rsquo;s mis-scan. It should say no to the barcode and yes to the sale.',
+        callout: 'If the refusal offers you a &ldquo;use it anyway&rdquo; button, mark FAIL — this '
+               + 'one is deliberately not overridable.' },
+    ]},
+
+    { id: 'E', title: 'The placeholder price', time: '5 min', steps: [
+      { id: 'E1',
+        do: 'Scan or type <b>2000000231631</b> (Aktivkohlefilter Kailar) and try to sell it.',
+        codes: ['2000000231631'],
+        expect: 'The till <b>refuses</b> — it is priced 999.99, which means nobody has said what it costs',
+        why: '999.99 is a deliberate sentinel, not a price. Refusing is correct.' },
+      { id: 'E2',
+        do: 'Now go to <b>/pos/cleanup</b> → <b>The Bench</b> → 🚫 <b>Can&rsquo;t be sold</b>.',
+        expect: 'A list of every product in that state, and a count',
+        why: 'The list existed on the server for weeks with no button on any screen — the count was '
+           + 'being calculated and thrown away on every page load.' },
+      { id: 'E3',
+        do: 'Read the count.',
+        expect: '<b>85</b> products (measured on the live shop this morning)',
+        why: 'Every one is something on your shelf the till will refuse in front of a customer. '
+           + 'Either price them, or make sure Layla knows she can set the price once at the till.',
+        callout: 'A count of zero is not required. KNOWING the number is.' },
+    ]},
+
+    { id: 'F', title: 'Two rows need your eye, not a rule', time: '6 min', steps: [
+      { id: 'F1',
+        do: 'Look up <b>7649997648098</b> — &ldquo;Cannabees Purple Fuel 4g&rdquo;. It is '
+          + '<b>not</b> flagged 18+. <b>Should it be?</b>',
+        codes: ['7649997648098'],
+        expect: 'Your decision, written in the notes',
+        why: 'The regex gated 1,180 products correctly and cannot judge this one: the title carries '
+           + 'a brand and a weight and no strength. A machine guessing at an ID requirement is '
+           + 'exactly what you do not want.' },
+      { id: 'F2',
+        do: 'Same question for <b>096772953552</b> — &ldquo;5g flowers CUT BLACK - single&rdquo;, '
+          + 'CHF 14.90, also <b>not</b> flagged.',
+        codes: ['096772953552'],
+        expect: 'Your decision, written in the notes',
+        why: 'Found this morning while checking the gate. It reads like flower to me, but I sell '
+           + 'nothing and you know the shelf.',
+        callout: 'Not a test. A decision about real stock — and the one thing on this sheet a '
+               + 'copilot must never make for you.' },
+    ]},
+
+    { id: 'G', title: 'The long quiet afternoon — start it, finish it later', time: '2 min', steps: [
+      { id: 'G1',
+        do: 'Note the time. Leave Banco <b>signed in</b> and go and do something else for '
+          + '<b>two hours or more</b>.',
+        expect: 'Nothing to see yet',
+        why: 'Layla went 122, 79, 118 and 70 minutes between actions on 18 September — doing intake, '
+           + 'which touches nothing on the server. The session died every time. The limit was one '
+           + 'hour and was raised today to ten.' },
+      { id: 'G2',
+        do: 'Come back and tap something — any screen.',
+        expect: '<b>Still signed in.</b> No login screen',
+        why: 'This is the only test on the sheet that needs real time to pass, and no probe of mine '
+           + 'can ever run long enough to see it.',
+        callout: 'Finish this one whenever you get back to it. It does not have to be today.' },
+    ]},
+
+    { id: 'H', title: 'Still owed, and not on this sheet', time: '1 min', steps: [
+      { id: 'H1',
+        do: 'Nothing. Just decide when the printer day is.',
+        expect: 'You know what is still unproven',
+        why: 'Two things here cannot be done from a screen. <b>The receipt has never come off a '
+           + 'printer</b> since it was rebuilt on 7 September — its own 19-step sheet is waiting, '
+           + 'and one step is to print with the wifi OFF. And Layla&rsquo;s ticket 47, the label '
+           + 'with the price cut off, cannot be diagnosed until somebody holds the paper.' },
+    ]},
+
+    { id: 'I', title: 'Put the shop back', time: '1 min', steps: [
+      { id: 'I1',
+        do: '🗑️ <b>Clear</b> any cart still open. Count the sales you completed.',
+        expect: 'Empty cart. Two completed sales — A2 and C2 — and no others',
+        why: 'Everything else on this sheet was a look, a scan that got refused, or a decision.' },
     ]},
   ],
 
   closing: [
-    'Section A rang a real sale. It stays in the books unless the ledger is cleared, which is a one-command job whenever you want it.',
+    'Two real sales were rung (A2, C2). They stay in the books unless the ledger is cleared, which is one command and exports first.',
     'If a step is <b>ISSUE</b> rather than FAIL, it worked but something was off — wording, layout, speed, or it simply confused you. Those are worth as much as the failures.',
-    'The VAT check in A3/A4 is worth keeping as a habit. Two screens that work the same number out from different columns is the cheapest audit you will ever run, and it takes thirty seconds.',
+    'The two rows in section F are <b>decisions</b>, not results. Write what you decided in the notes and they become the record.',
+    '<b>A3/A4 is worth keeping as a habit</b> long after this sheet is forgotten. Two screens working the same number out from different columns is the cheapest audit you will ever run, and it takes thirty seconds.',
   ],
 };</script>
 

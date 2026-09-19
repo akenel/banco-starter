@@ -29,7 +29,11 @@ bug it existed to catch. Detail: [`2026-09-19`](worklist-archive/2026-09-19-arch
 > 2. **`L2`/`L3`** — shelf-intake shows no CBD / 18+ chip, and speaks developer.
 > 3. **84 products on 999.99** — price them, or brief Layla on C3b before she meets one.
 > 4. **`1b` + the VAT rounding direction** — both are Treuhänder questions, ask them together.
-> *Done 2026-09-19: `L6` · `L1` · the missing prod log · `L4` answered · Keycloak 600/840.*
+> 🧪 **Sweep sheet ready — everything we say is fixed and only a human can confirm:**
+>    [`2026-09-19-everything-we-say-is-fixed.html`](onboarding/testsheets/2026-09-19-everything-we-say-is-fixed.html)
+>    22 steps, ~40 min. Incl. **two rows needing Angel's EYE** and the 5-rappen rounding, which
+>    has fired **0 times in 18 real cash sales** — proven by machine, never once seen in a shop.
+> *Done 2026-09-19: `6x` · `L6` · `L1` · the missing prod log · `L4` answered · Keycloak 600/840.*
 
 ---
 
@@ -145,16 +149,16 @@ Two sheets run: **9 pass · 0 fail**, then **25 pass · 2 issue · 0 fail**.
 6. ~~🧾 **Cart said `incl. VAT 1.05`, receipt `1.04`.**~~ **CLOSED 2026-09-17** — the cart rounded once
    over the basket; the sale rounds per line. `cartVAT()` mirrors `split_vat`, 3,000 baskets 0 diffs.
    → [`the long night`](worklist-archive/2026-09-17-the-long-night.html)
-6x. 🔴 **NEW 2026-09-17 — A DISCOUNTED SALE DOES NOT RECONCILE, and this is the tax-man one.**
-   `transactions.tax_amount` is the VAT on what was actually charged (**correct**).
-   `line_items.vat_amount` is the **pre-discount** per-line figure (**stale**). So on the live shop
-   **6 of 60 sales do not tie out** — gaps of 0.01, 0.02, 0.06, 0.39, 0.56 and **0.80** — and every
-   one of the six carries a discount, in exact proportion to it. Undiscounted sales tie out exactly.
-   ⚠️ **`pos_router.py:7587` sums `LineItemModel.vat_amount` for a report**, so a report can state
-   MORE VAT than the books declare. Two numbers in one system that disagree on a discounted sale is
-   precisely what makes an inspector open every transaction. Fix is the write path: store the
-   prorated VAT on the line (the same `factor = total/subtotal` `split_vat` already uses) — or
-   prorate at every read. **Not started; not a midnight job.**
+6x. ~~🔴 **A discounted sale does not reconcile.**~~ **FIXED 2026-09-19 `162f03c`.** The header
+   was always right (prorated by `split_vat`); the LINES kept their pre-discount value, and
+   `/pos/reports/products` sums the lines — so a report could state MORE VAT than the books.
+   Re-measured: **4 of 53 completed, every one discounted; 49 of 49 plain tie exactly.**
+   `split_vat()` now returns `per_line` and both write paths assign it back — one pass, one
+   answer, `sum(per_line) == vat_total` by construction. `prove-the-lines-add-up.py`, red
+   verified. ⚠️ **The 6 historic rows still mismatch** — a fix cannot reach back; clear or
+   leave. 🔎 **NEW, same family:** the **partial-refund** path (`pos_router.py:7126`) recomputes
+   the header at the single blanket rate and never touches the lines at all.
+   → [`archive`](worklist-archive/2026-09-19-archive-pass.md)
 7. 💤 **A paper outside a deal says nothing.** *Rips Extra Dünn*, CHF 2.00, same shelf as six papers on
    3-for-5 — correct price, no explanation, because `dealInfo()` returns null when a product has no
    tiers at all.
@@ -164,19 +168,12 @@ Two sheets run: **9 pass · 0 fail**, then **25 pass · 2 issue · 0 fail**.
    tablet AND the desktop, both verified online. Paste key withdrawn (the OS already pastes). If we
    ever want it: our own model, and I would not build it. → [`the long night`](worklist-archive/2026-09-17-the-long-night.html)
 9b. 📐 `.status-section` (`pos/base.html:2613`) overflows 23px at phone portrait on `/pos/selftest`.
-10. 📷 **THE TABLET CAMERA — diagnosed 2026-09-10, and it is NOT broken hardware.** `ov2740` sensor
-   bound · `ipu3` loaded · libcamera 0.4.0 · pipewire up — and **`cam --list` returns zero cameras.**
-   Every `/dev/video*` belongs to `ipu3-imgu` (processing, not capture). An Intel **IPU3 MIPI** sensor
-   never presents a plain V4L2 node. **Banco's side is correct — do not touch `posShowWebcam()`.**
-   ❌ **CORRECTION 2026-09-17 — I had the failing step wrong.** This said the sensor was *bound* and
-   that libcamera's IPU3 pipeline handler was the gap, i.e. a userspace fix. Re-measured on kernel
-   `6.12.107`: `/sys/bus/i2c/drivers/ov2740/` has **no bound device** at all — only bind/unbind/
-   module/uevent. libcamera has nothing to build a pipeline *from*. `13-tablet-x1-debian.md` had it
-   right all along: the TPS68470 PMIC has no board data, and it is a kernel patch. **Do not debug
-   it.** An afternoon on the pipeline handler would have found nothing. **Untried cheap unblock: a powered USB hub (~CHF 20)** — the tablet
-   has one port and the gun owns it. (LESSON #3: the 2026-08-05 "nothing attached" verdict was wrong
-   too — ACPI declares two fitted sensors. Angel's instinct has now been right twice.)
-
+10. 📷 **THE TABLET CAMERA — settled, DO NOT DEBUG.** Not broken hardware and not Banco's code:
+   the `ov2740` has **no bound device** on kernel `6.12.107`, so libcamera has nothing to build a
+   pipeline from. It is a kernel patch (TPS68470 PMIC, no board data) — `13-tablet-x1-debian.md`
+   had it right all along, and an afternoon on the pipeline handler would have found nothing.
+   **Untried cheap unblock: a powered USB hub (~CHF 20)** — the tablet has one port and the gun
+   owns it. → [`archive`](worklist-archive/2026-09-19-archive-pass.md)
 
 11. 💻 **ROLLOUT DECISION — do NOT hand them the tablet in week one.** Angel, after two hours behind
    the counter: *"really, it's not the best idea to give them the tablet to start… they should use a
