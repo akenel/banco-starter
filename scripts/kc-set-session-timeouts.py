@@ -29,9 +29,37 @@
 # That is a shop-calibrated number rather than a copied default: 30 minutes of quiet is an
 # ordinary afternoon, a full hour of nothing is somebody having gone home.
 #
-# What this deliberately does NOT touch: `ssoSessionMaxLifespan` (10h). The idle timer says
-# "nobody is here"; the max lifespan still forces a fresh login every day, so a tablet left
-# on the counter overnight is signed out by morning regardless.
+# ---------------------------------------------------------------------------
+# REVISED 2026-09-19 — 1h → 10h idle, and the max lifespan 10h → 14h.
+#
+# The paragraph above USED TO END "what this deliberately does NOT touch:
+# ssoSessionMaxLifespan (10h)". It does now, and Angel called it with the trade-off in
+# front of him. Both halves of the old reasoning are kept above on purpose: the rule was
+# right for the day it was written against, and here is the day that broke it.
+#
+# WHAT BROKE IT. Layla worked the shop on 2026-09-18 doing INTAKE, not selling — walking
+# the shelves with the gun and photographing packets, which touches no authenticated
+# endpoint. Gaps between her feedback tickets: 122, 79, 118 and 70 minutes. Four times past
+# the one-hour idle clock. Angel's premise ("i have never seen a day at the shop where
+# nothing happens for an hour") holds for TRADING and does not hold for intake — and intake
+# is most of what onboarding a shop actually is.
+#
+# The cost, in the log: `POST /pos/refresh 401` then `POST /api/v1/pos/shift/end 401`, four
+# times. The presence row is closed as a side effect of logout, so a dead session means the
+# row never closes. Four rows on the live shop were still ACTIVE days later.
+#
+# WHY THE MAX MOVED TOO, and this is the part to be deliberate about. Idle 10h against a
+# max of 10h means the idle timer CAN NEVER FIRE — max always wins — so setting idle alone
+# would have removed the "nobody is here" protection while pretending to lengthen it. At
+# 10h idle / 14h max the idle timer is real again and still covers a full day plus closing
+# up. The overnight re-login the original note protected survives: 14h from a morning login
+# is the same evening, not the next morning.
+#
+# ⚠️ ACCEPTED, EYES OPEN: a till abandoned mid-morning now stays signed in until the
+# afternoon. That is the trade Angel made for a shop that does not sign itself out during
+# an intake session. If the shop ever leaves the tablet unattended in reach of the public,
+# this number is the first thing to revisit — and the tablet's own screen lock, not this,
+# is the right tool for that job.
 #
 # Idempotent. Safe to re-run. Zero dependencies — Python 3 stdlib.
 # ============================================================================
@@ -54,8 +82,8 @@ ENV = os.path.join(ROOT, ".env")
 # accessTokenLifespan — how often the silent refresh runs. 5 minutes is fine and normal; a
 #   short access token is the thing that makes a stolen one useless quickly.
 TARGET = {
-    "ssoSessionIdleTimeout": 3600,      # 1 hour  (was 1800 — 30 min)
-    "ssoSessionMaxLifespan": 36000,     # 10 hours — unchanged, the daily re-login
+    "ssoSessionIdleTimeout": 36000,     # 10 hours (was 3600 — 1 hour; 2026-09-19, see below)
+    "ssoSessionMaxLifespan": 50400,     # 14 hours (was 36000 — 10 hours; a day PLUS closing up)
     "accessTokenLifespan": 300,         # 5 min   — unchanged
 }
 

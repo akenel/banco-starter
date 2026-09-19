@@ -5520,33 +5520,62 @@ async def shift_today_presence(
     sessions = list(result.scalars().all())
 
     # Fallback: still on a shift that began before midnight.
+    #
+    # ⚠️ THIS FALLBACK HAD NO DATE BOUND AT ALL, and an ACTIVE row can be days old: the row
+    # is only ever closed as a side effect of logout, and that close posts with a
+    # possibly-dead token (see base.html logout()). Four live rows on the shop, 2026-09-19:
+    # ralph ACTIVE since 17 Sep, pam and felix likewise, layla since the 18th.
+    #
+    # What a PERSON sees when that happens — and it is not the tally, which is returned and
+    # never rendered. My Day shows "✓ We tracked you in at HH:MM" and PREFILLS the start time
+    # from first_login. So on 19 September it would have told ralph his day began at 16:49 on
+    # the 17th, and written that into his timesheet for him to confirm. A wrong start time
+    # that arrives pre-filled and ticked is worse than an empty box (LESSON #12).
+    #
+    # total_minutes/suggested_hours are fixed here too — they are correct-by-luck today only
+    # because nothing renders them, and that is not a thing to rely on.
+    #
+    # A night shift crossing midnight is real and must still work, so the bound is a shop
+    # day, not "today". Anything older than that is not a long shift — it is a row nobody
+    # closed, and we must not put a number on it.
+    STALE_AFTER_H = 16      # longer than any real shift, shorter than an abandoned row
     if not sessions:
+        cutoff = now - timedelta(hours=STALE_AFTER_H)
         result = await db.execute(
             select(ShiftSessionModel)
             .where(ShiftSessionModel.user_id == user_id)
             .where(ShiftSessionModel.status == SessionStatus.ACTIVE)
+            .where(ShiftSessionModel.started_at >= cutoff)
             .order_by(ShiftSessionModel.started_at.asc())
         )
         sessions = list(result.scalars().all())
 
     if not sessions:
         return {"present": False, "first_login": None, "total_minutes": 0,
-                "suggested_hours": 0.0, "active": False}
+                "suggested_hours": 0.0, "active": False, "stale": False}
 
     total = 0.0
     active = False
+    stale = False
     for s in sessions:
         end = s.ended_at or now
         if s.ended_at is None and s.status == SessionStatus.ACTIVE:
             active = True
+            # An open row from today can still outrun a plausible shift — the shop opens at
+            # some point and nobody works 16 hours. Do not guess past that; say so instead.
+            if (now - s.started_at).total_seconds() / 3600.0 > STALE_AFTER_H:
+                stale = True
+                continue                     # contributes NO minutes
         total += max(0.0, (end - s.started_at).total_seconds() / 60.0)
 
     return {
         "present": True,
         "first_login": sessions[0].started_at.isoformat(),
         "total_minutes": int(round(total)),
-        "suggested_hours": round((total / 60.0) * 4) / 4,  # nearest 0.25h
+        # A number we cannot stand behind is worse than no number — it gets confirmed.
+        "suggested_hours": 0.0 if stale else round((total / 60.0) * 4) / 4,  # nearest 0.25h
         "active": active,
+        "stale": stale,
     }
 
 

@@ -1266,17 +1266,51 @@
                 return this.hasRole('pos-cashier') || this.isManager();
             },
 
-            logout() {
+            async logout() {
                 // Close the presence session first (auto-tally end), best-effort —
                 // don't let it hold up logout. Uses the token before we clear it.
+                //
+                // ⚠️ 2026-09-19 — THIS IS WHY FOUR ATTENDANCE ROWS ON THE LIVE SHOP ARE STILL
+                // ACTIVE, ONE OF THEM SINCE 17 SEPTEMBER. The access token lives 5 minutes.
+                // This call used to go out with whatever token was in hand and swallow the
+                // result — so on the one logout that matters, the one that happens BECAUSE the
+                // session timed out, it posted a dead token, took a 401, and said nothing.
+                // Prod log, 2026-09-18: `POST /pos/refresh 401` immediately followed by
+                // `POST /api/v1/pos/shift/end 401`, four times. The row never closed, and My Day
+                // then offers the cashier hours counted from login to NOW — 41.4 for one of them.
+                //
+                // LESSON #1: it worked on every layer I could reach. A logout with a fresh token
+                // closes the row perfectly, and that is the only logout a 90-second probe performs.
+                //
+                // So: renew FIRST, then close, then clear. Bounded — logout must never hang on
+                // this, so a slow or dead network gives up and carries on. `keepalive` stays: it
+                // lets the request outlive the page if the redirect wins the race anyway.
                 try {
+                    // A dead SSO session cannot be renewed and refresh() will fail; that is fine,
+                    // we simply try the close with what we have. What this fixes is the far more
+                    // common case: a perfectly good session whose 5-minute access token went stale
+                    // while the cashier was not clicking anything.
+                    try { await Promise.race([
+                        AuthHelper.refresh(),
+                        new Promise(r => setTimeout(r, 1500)),   // never hold logout > 1.5s
+                    ]); } catch (e) {}
+
                     const t = this.getToken();
                     if (t) {
-                        fetch('/api/v1/pos/shift/end', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + t },
-                            keepalive: true,
-                        }).catch(() => {});
+                        const r = await Promise.race([
+                            fetch('/api/v1/pos/shift/end', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + t },
+                                keepalive: true,
+                            }).catch(() => null),
+                            new Promise(r => setTimeout(() => r(null), 1500)),
+                        ]);
+                        // Not silent any more. If the row did not close we want to SEE it — the
+                        // server log was blind to this until 2c735a4 and so were we.
+                        if (!r || !r.ok) {
+                            console.warn('[shift] presence row did NOT close on logout:',
+                                         r ? r.status : 'no response');
+                        }
                     }
                 } catch (e) {}
 
