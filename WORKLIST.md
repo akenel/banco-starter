@@ -22,15 +22,70 @@ walked, two of my own notes found wrong by the machine. Live on the shop: `b789 
 Detail: [`2026-09-17-the-long-night.html`](worklist-archive/2026-09-17-the-long-night.html).*
 
 > ### ▶️ NEXT SESSION, in order
-> 1. **`6x`** — a discounted sale does not reconcile: line VAT is pre-discount, the header is
+> 1. **`L6`** — the shift never closes. Nobody reported it; the log did.
+> 2. **`L1`** — the cover image. Four of Layla's eight tickets, and the fallback already exists.
+> 3. **`6x`** — a discounted sale does not reconcile: line VAT is pre-discount, the header is
 >    post-discount. 6 of 60 sales, worst 0.80. Declared VAT is CORRECT; the detail is not.
->    Fix the write path, then re-run the reconciliation to zero. **Half an hour, clear head.**
-> 2. **84 products on 999.99** — price them, or brief Layla on C3b before she meets one.
-> 3. **`4`** — English on the selling path, starting with the sentence a cashier reads every
->    time she prices something at the till.
-> 4. **`1b` + the VAT rounding direction** — both are Treuhänder questions, ask them together.
+> 4. **`L2`** — shelf-intake shows no CBD / 18+ chip, and speaks developer (`L3`).
+> 5. **84 products on 999.99** — price them, or brief Layla on C3b before she meets one.
+> 6. **`1b` + the VAT rounding direction** — both are Treuhänder questions, ask them together.
 
 ---
+
+## 🔴 2026-09-18 — LAYLA WORKED THE SHOP WITH ANGEL. Eight tickets, 13:30–19:51.
+
+*She was on the **laptop**, Firefox 155→156, 1920×1080 — intake, not the till. Exactly what
+[guide 10](onboarding/10-devices-and-roles.md) says to do. Tickets 47–54, all `pending`.
+Three sales completed, CHF 50.00. Evidence: `/pos/hypercare`, screenshots attached to every one.*
+
+### `L1` · The cover image — tickets 48, 49, 50, 51. ONE bug, two faces.
+`products.image_url` (the cover) and the `product_images` gallery drift apart, and **the cart
+renders from the cover while the catalogue renders from the gallery** — so the same product has a
+photo on one screen and 📦 on the next. Two ways in: the cover is NULL though a photo exists, or
+the cover points at an image that was replaced and no longer exists (32 × `404 /images/…` yesterday).
+**Measured on prod: 5,479 active products, 10 broken** — 3 with a picture and no cover, 7 whose
+cover points nowhere. Dates: 17 Jul · 2 Aug · 3 Aug ×2 · 6 Aug · 27 Aug · **18 Sep ×3**.
+**All three she touched yesterday came out broken. Three for three** — it is not a 0.2% problem,
+it is an *intake* problem, and intake is the whole job right now.
+Her own words are the diagnosis: *"no cover miamges but they have pictures."*
+**The fix already exists and was not carried across** — `_display_image_url()`
+(`pos_router.py:3483`) and `fallback_image_url` (`:4787`, with a comment describing this exact
+fault) both handle it; `scan.html` has `hasImg()`/`imgSrc()` at `:3262` and **three raw
+`p.image_url` bindings at `:387`, `:1166`, `:1202` that ignore them.** Standing rule 9.
+
+### `L2` · Shelf-intake shows no CBD / 18+ chip — ticket 53.
+*"THESE ITEMS DO NOT SHOW CBD."* She is right. All six King Kush / Kush pens are `cbd_hemp` **and**
+`is_age_restricted` in the database — the cart draws a 🌿 CBD chip, shelf-intake draws nothing.
+That is the screen where you would go to *check* the flag is set.
+
+### `L3` · Shelf-intake speaks developer — ticket 52, "DO NOT UNDERSTAND".
+On one screen: *"the row is still a stub"*, *"⚠75% ready"*, *"no cost"*, *"no deal"*, *"Finish it"*,
+and a rule panel labelled *"Every one of these costs / Buy / for a total of"*. LESSON #12 — no test
+can find this one, and it is the most valuable ticket of the eight.
+
+### `L4` · Two barcodes on one packet — ticket 54. **Answered by her own photo.**
+Not two EANs. The ElfBar box carries the manufacturer's **EAN-13 `6 932570 173843`** at the top and,
+lower down, an **anti-counterfeit sticker** — QR + Code-128 `43348871105523348` + *"scratch to reveal"*.
+17 digits is not a valid GTIN (8/12/13/14). Scanning the sticker 404s and drops her into New Item.
+**Tell Layla: scan the top one.** Guard worth having: refuse a numeric code of non-GTIN length with
+*"that looks like a security sticker, not the product barcode."*
+
+### `L5` · Label price cut off — ticket 47. **Needs the paper.**
+The screenshot is of `/pos/catalog`; the fault is on the printed label. LESSON #1, the sixteenth —
+the layer below the glass. Ask her for the label, or print one for `7630433107392` (Faro 3-Jet
+Torch, CHF 35.00) and hold it.
+
+### `L6` · 🔴 The shift never closes — **nobody reported this. The log did.**
+`POST /pos/refresh` → 401, then `POST /api/v1/pos/shift/end` → 401. Four times yesterday.
+**Layla's shift, opened 2026-09-18 11:28, is still `ACTIVE`** — and so are ralph's, pam's and
+felix's from the 17th. All four read `transaction_count = 0` while three sales completed.
+LESSON #6 — the timeout no 90-second probe can see — landing on the one action that happens at
+the *end* of the day, when the drawer is counted.
+
+### `L7` · Route-table walk returns 500 — noise, but a 500 is a 500.
+`GET /pos/products/%7Bproduct_id%7D/label` (and `/page`, `/postcard`, `/postcard-sheet`) → 500;
+`/pos/receipt/%7Btransaction_id%7D` → 422. Literal placeholders, ~20 hits from one client in one
+burst. Looks like a scanner, not Layla. Low.
 
 ## ▶️ THE DECK — READ THIS FIRST · last touched 2026-09-10
 
@@ -49,49 +104,31 @@ Two sheets run: **9 pass · 0 fail**, then **25 pass · 2 issue · 0 fail**.
 
 **What is still open, in the order it matters** (detail in that file, do not re-derive it here):
 
-1. ~~🔞 **The age gate misses siblings.**~~ **CLOSED `9c292b8` · 14 live rows applied, gated 1157→1171.**
-   5 hashish were sellable with no ID. Ratchet proof, 5,436 swept, 0 un-gated. Split clusters 15→2.
+1. ~~🔞 **The age gate misses siblings.**~~ **CLOSED `9c292b8`** — 14 rows, gated 1157→1171, 0 un-gated.
    ⚠️ **3 rows need Angel's EYE, not a regex** — titles carrying only a brand: `Cannabees Purple Fuel
    4g`, `Qualicann Habanero Kush`, and `ELFBAR 4in1 Pod Cherry ICE` (no strength on the label).
+   → [`2026-09-19-archive-pass.md`](worklist-archive/2026-09-19-archive-pass.md)
 1b. 🔓 **NEW — the gate fires on ~50 ACCESSORIES** (`Zigaretten-Filter`/`-Hülsen`/`-Stopfmaschine`).
    `_TOBACCO_ACCESSORY` runs only on the supplier-tag path. Naive fix un-gates real blunts (`filter`
    is in *Holzfilter*). Treuhänder call. LESSON #12 — over-gating teaches staff to wave it away.
 2b. ~~💾 **Backup bucket had no retention.**~~ **CLOSED 2026-09-17** — 90-day B2 lifecycle rule ·
     media weekly · monthly archive kept for ever. → [`the long night`](worklist-archive/2026-09-17-the-long-night.html)
-2. ⚠️ **The placeholder guard is still two values wide.** ▶️ **2026-09-17 — the list is now REACHABLE:**
-   `/pos/cleanup` → The Bench → **🚫 Can't be sold**. The server had `_bench_gap_expr("price")`
-   (`price IN (99.00, 999.99)`) and was returning `gap_counts["price"]` on every page load, with
-   **no chip on the screen** — LESSON #1 again, the same shape as `allow_nonstandard`. **84 live
-   products** on the shop: 34 at 99.00 (ALL created 07.07.26, all big-ticket — 12 bongs at exactly
-   99.00 is not a coincidence) and 50 at 999.99.
-   ✅ **Angel judged that batch: all 34 were placeholders.** *"i was wrong to do 99 and should of
-   made the place holder 999.99 which is an obvious place holder."* `UPDATE 34` on the shop;
-   **zero rows at 99.00 anywhere**, 84 at 999.99, all still refused at the till. None had ever
-   sold — the guard held, so no receipt carries that number.
-   ✅ **CLOSED 2026-09-17 — `UNVERIFIED_PRICES = (Decimal("999.99"),)`.** One sentinel. A bong at
-   **CHF 99.00 now sells**; before tonight the till refused a real price, which is a worse fault
-   than the one the sentinel caught. Safe because it was MEASURED, not assumed: of 5,347 live
-   prices **not one ends in .99** (.90 × 2,818 · .00 × 1,846 · .50 × 561 · then round tens). Not
-   safe for being large — the shop holds a rosin press at CHF 1'199.00. Angel had the principle
-   right and the number slightly off: the house style is .90, not .95.
-   Both screens that paint a row red (`cleanup`, `shelf_intake`) were changed in the same commit,
-   or the bench would list rows the till would happily sell (LESSON #13). `scan.html` needed
-   nothing — its JS reads the list from the server. 37 tests, and the till asked with its own
-   predicate: `[999.99]` · refuses 999.99 · sells 99.00, 99.90, 1199.00.
-   🔎 **Also unreachable and worth a second chip:** `till_priced` — a price a cashier guessed
-   mid-sale, on something that has actually sold. Counted, returned, no button. Felix's margin list.
-    `UNVERIFIED_PRICES = (99.00, 999.99)`. The
-   six live rows at 999.00 were moved to 999.99 on 2026-09-10 (Angel likes the guard: *"it basically
-   forced the user to put the right price in"*), **but type 999.00 tomorrow and it walks through.**
-   The four rows at 0.00 are his `SEPARATOR-001…004` shelf markers — an intake aid for testing without
-   selling. **Deliberate. Leave them.**
+2. ~~💰 **The placeholder guard was two values wide.**~~ **CLOSED 2026-09-17 —
+   `UNVERIFIED_PRICES = (Decimal("999.99"),)`.** One sentinel; a CHF 99.00 bong sells again, and the
+   bench is reachable at `/pos/cleanup` → 🚫 **Can't be sold**.
+   ⚠️ **Still live: 84 products sit on 999.99** — price them, or brief Layla on C3b.
+   ⚠️ **The guard has a hole: type 999.00 tomorrow and it walks through.** The four rows at 0.00 are
+   Felix's `SEPARATOR-001…004` shelf markers — deliberate, leave them.
+   🔎 **`till_priced` is counted, returned, and has no chip** — a price a cashier guessed mid-sale,
+   on something that has actually sold. Felix's margin list. → [`archive`](worklist-archive/2026-09-19-archive-pass.md)
 3. ~~🔗 **A URL bound as a product barcode.**~~ **CLOSED 2026-09-17** — hard refusal, no override,
    and the till no longer stops the sale. `prove-a-qr-is-not-a-barcode.js` 10/0. → [`the long night`](worklist-archive/2026-09-17-the-long-night.html)
 4. 🗣️ **English on the selling path** — ➕ **named instance 2026-09-17:** the confirmation a cashier
    reads after setting a placeholder price is a hardcoded template literal in `scan.html`
    (`${p.name} set to CHF ${updated.price} — flagged for review`), not a `t()` key. It is the
-   right sentence and the wrong language, on the one screen Layla uses all day., and Shelf Intake is now ON it — Angel used it at the counter at
-   12:36, so *"nobody sells with any of it"* is retired. Plus `Invalid price tiers: … min_qty 1` in the
+   right sentence and the wrong language, on the one screen Layla uses all day — and Shelf Intake
+   is now on that path too: Angel used it at the counter at 12:36, so *"nobody sells with any of
+   it"* is retired. Plus `Invalid price tiers: … min_qty 1` in the
    manager panel (English, and it quotes a DB column at a shop owner) and a `Price updated` toast.
 5. 🖥️ **The till fell out of fullscreen** at 11:48 and stayed out until 13:04, Chromium's own Esc bar
    over the total. Angel's read is kiosk mode. ⚠️ **KIOSK DOES COST THE SCREENSHOTS, and I said
@@ -115,9 +152,6 @@ Two sheets run: **9 pass · 0 fail**, then **25 pass · 2 issue · 0 fail**.
    precisely what makes an inspector open every transaction. Fix is the write path: store the
    prorated VAT on the line (the same `factor = total/subtotal` `split_vat` already uses) — or
    prorate at every read. **Not started; not a midnight job.**
-
- The books are right
-   (`tax_amount` == sum of line VAT); the cart's estimate is the odd one out. Predates 5 August.
 7. 💤 **A paper outside a deal says nothing.** *Rips Extra Dünn*, CHF 2.00, same shelf as six papers on
    3-for-5 — correct price, no explanation, because `dealInfo()` returns null when a product has no
    tiers at all.
@@ -126,7 +160,8 @@ Two sheets run: **9 pass · 0 fail**, then **25 pass · 2 issue · 0 fail**.
 9. 🎤 **Dictation — ANSWERED 2026-09-17: free browser speech is CLOSED to us.** `network` on the
    tablet AND the desktop, both verified online. Paste key withdrawn (the OS already pastes). If we
    ever want it: our own model, and I would not build it. → [`the long night`](worklist-archive/2026-09-17-the-long-night.html)
-9b. 📐 `.status-section` (`pos/base.html:2613`) overflows 23px at phone portrait on `/pos/selftest`.10. 📷 **THE TABLET CAMERA — diagnosed 2026-09-10, and it is NOT broken hardware.** `ov2740` sensor
+9b. 📐 `.status-section` (`pos/base.html:2613`) overflows 23px at phone portrait on `/pos/selftest`.
+10. 📷 **THE TABLET CAMERA — diagnosed 2026-09-10, and it is NOT broken hardware.** `ov2740` sensor
    bound · `ipu3` loaded · libcamera 0.4.0 · pipewire up — and **`cam --list` returns zero cameras.**
    Every `/dev/video*` belongs to `ipu3-imgu` (processing, not capture). An Intel **IPU3 MIPI** sensor
    never presents a plain V4L2 node. **Banco's side is correct — do not touch `posShowWebcam()`.**
