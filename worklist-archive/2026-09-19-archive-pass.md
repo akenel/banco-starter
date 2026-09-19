@@ -142,3 +142,31 @@ hypothesis: the catalog edit form carries `form.image_url` and the PUT applies i
 `exclude_unset=True`, so a stale value in a reopened form can overwrite a corrected cover.
 ⚠️ **Human-green owed: Layla scans one of her three and sees the picture.**
 
+
+
+### `L1` human-green — the run that closed it
+
+Angel, on the live shop, 2026-09-19 11:13, build `3cebdee`, 3m55s:
+
+```
+  0.1  PASS      A1   PASS      B1   PASS      C1   PASS
+  0.2  PASS      A2   PASS      B2   PASS      D1   PASS
+
+8 pass · 0 issue · 0 fail · 0 not run          VERDICT: GO
+```
+
+**B1 is the one that counts** — `3661075228804`, the Jetflame, whose cover pointed at a photo
+that had been deleted. That is the path that 404'd 32 times in one day's log, and the only step
+on the sheet that a broken build could not have passed.
+
+⚠️ `DEVICE STATE NOT RECORDED` — the three rig selectors were left unset. It does not invalidate
+this run, because this sheet's `needs` deliberately said *"a tablet OR an Android phone — either
+is fine"* and the cart line was measured at both 390×844 and 1280×800 before the sheet was
+written. On a sheet where the device IS the subject, it would invalidate it. See the 2026-09-04
+runs that had to be thrown out.
+
+**A first partial run was correctly refused.** The first paste came back `2 pass · 6 not run ·
+VERDICT: INCOMPLETE`, with only C1 and D1 marked — and those two are precisely the steps that
+cannot discriminate: C1 (a product with genuinely no photo shows 📦) passes on the BROKEN build
+too, because the bug was photos not showing, never boxes appearing. Banking that as evidence
+would have been a green summary over an unchecked box (LESSON #12).
